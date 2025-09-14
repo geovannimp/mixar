@@ -1,0 +1,42 @@
+[workspace]
+members = [
+    "audio-core",
+    "backend-null",
+    "backend-miniaudio",
+    "backend-pipewire",
+    "engine-core",
+    "engine-dsp",
+    "codec",
+    "resampler",
+    "library",
+    "app-example",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+license = "GPL-3.0"
+repository = "https://github.com/yourusername/rust-dj-engine"
+description = "Modular Rust Audio Engine for DJ applications"
+
+[workspace.dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+tokio = { version = "1.0", features = ["rt", "rt-multi-thread", "sync"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+log = "0.4"
+env_logger = "0.10"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true

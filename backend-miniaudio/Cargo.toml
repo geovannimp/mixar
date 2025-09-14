@@ -1,0 +1,14 @@
+[package]
+name = "backend-miniaudio"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Miniaudio backend for rust-dj-engine"
+
+[dependencies]
+audio-core = { path = "../audio-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+log.workspace = true

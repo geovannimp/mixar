@@ -1,0 +1,275 @@
+//! Audio deck implementation for DJ-style playback
+//!
+//! A deck represents a single audio playback unit with controls for
+//! play/pause, volume, pitch, and other DJ-style features.
+
+use audio_core::Sample;
+use anyhow::Result;
+
+/// Audio deck state
+#[derive(Debug, Clone, PartialEq)]
+pub enum DeckState {
+    /// Deck is stopped
+    Stopped,
+    /// Deck is playing
+    Playing,
+    /// Deck is paused
+    Paused,
+}
+
+/// Audio deck for DJ-style playback
+#[derive(Debug)]
+pub struct Deck {
+    /// Deck identifier
+    id: usize,
+    /// Current state
+    state: DeckState,
+    /// Current position in samples
+    position: u64,
+    /// Playback speed (1.0 = normal speed)
+    speed: f32,
+    /// Volume level (0.0 to 1.0)
+    volume: f32,
+    /// Sample rate
+    sample_rate: u32,
+    /// Internal buffer for audio processing
+    buffer: Vec<Sample>,
+    /// Whether the deck is currently processing audio
+    processing: bool,
+}
+
+impl Deck {
+    /// Create a new deck
+    pub fn new(id: usize, sample_rate: u32) -> Self {
+        Self {
+            id,
+            state: DeckState::Stopped,
+            position: 0,
+            speed: 1.0,
+            volume: 1.0,
+            sample_rate,
+            buffer: Vec::new(),
+            processing: false,
+        }
+    }
+
+    /// Get the deck ID
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    /// Get the current state
+    pub fn state(&self) -> &DeckState {
+        &self.state
+    }
+
+    /// Get the current position in samples
+    pub fn position(&self) -> u64 {
+        self.position
+    }
+
+    /// Get the current playback speed
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
+
+    /// Get the current volume
+    pub fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    /// Start playback
+    pub fn play(&mut self) -> Result<()> {
+        self.state = DeckState::Playing;
+        Ok(())
+    }
+
+    /// Pause playback
+    pub fn pause(&mut self) -> Result<()> {
+        self.state = DeckState::Paused;
+        Ok(())
+    }
+
+    /// Stop playback and reset position
+    pub fn stop(&mut self) -> Result<()> {
+        self.state = DeckState::Stopped;
+        self.position = 0;
+        Ok(())
+    }
+
+    /// Set playback speed
+    pub fn set_speed(&mut self, speed: f32) -> Result<()> {
+        if speed < 0.0 {
+            return Err(anyhow::anyhow!("Speed cannot be negative"));
+        }
+        self.speed = speed;
+        Ok(())
+    }
+
+    /// Set volume level
+    pub fn set_volume(&mut self, volume: f32) -> Result<()> {
+        if volume < 0.0 || volume > 1.0 {
+            return Err(anyhow::anyhow!("Volume must be between 0.0 and 1.0"));
+        }
+        self.volume = volume;
+        Ok(())
+    }
+
+    /// Seek to a specific position
+    pub fn seek(&mut self, position: u64) -> Result<()> {
+        self.position = position;
+        Ok(())
+    }
+
+    /// Set the sample rate
+    pub fn set_sample_rate(&mut self, sample_rate: u32) {
+        self.sample_rate = sample_rate;
+    }
+
+    /// Process audio for this deck
+    ///
+    /// # Arguments
+    /// * `frames` - Number of frames to process
+    ///
+    /// # Returns
+    /// The processed audio buffer
+    pub fn process(&mut self, frames: u32) -> Result<&[Sample]> {
+        if self.state != DeckState::Playing {
+            // Return silence if not playing
+            self.buffer.resize(frames as usize * 2, 0.0); // Stereo
+            return Ok(&self.buffer);
+        }
+
+        // Ensure buffer is large enough for stereo output
+        let buffer_size = frames as usize * 2;
+        self.buffer.resize(buffer_size, 0.0);
+
+        // Generate test audio (sine wave for now)
+        // In a real implementation, this would read from audio files
+        self.generate_test_audio(frames);
+
+        // Apply volume
+        for sample in &mut self.buffer {
+            *sample *= self.volume;
+        }
+
+        // Update position
+        self.position += frames as u64;
+
+        Ok(&self.buffer)
+    }
+
+    /// Generate test audio (placeholder implementation)
+    fn generate_test_audio(&mut self, frames: u32) {
+        let frequency = 440.0 * self.speed; // A4 note adjusted for speed
+        let amplitude = 0.1;
+
+        for frame in 0..frames {
+            let phase = (self.position + frame as u64) as f32 / self.sample_rate as f32;
+            let sample = amplitude * (2.0 * std::f32::consts::PI * frequency * phase).sin();
+            
+            // Write to both channels (interleaved)
+            let left_idx = (frame * 2) as usize;
+            let right_idx = (frame * 2 + 1) as usize;
+            
+            if left_idx < self.buffer.len() {
+                self.buffer[left_idx] = sample;
+            }
+            if right_idx < self.buffer.len() {
+                self.buffer[right_idx] = sample;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deck_creation() {
+        let deck = Deck::new(0, 48000);
+        assert_eq!(deck.id(), 0);
+        assert_eq!(deck.state(), &DeckState::Stopped);
+        assert_eq!(deck.position(), 0);
+        assert_eq!(deck.speed(), 1.0);
+        assert_eq!(deck.volume(), 1.0);
+    }
+
+    #[test]
+    fn test_deck_playback_controls() {
+        let mut deck = Deck::new(0, 48000);
+        
+        // Test play
+        deck.play().unwrap();
+        assert_eq!(deck.state(), &DeckState::Playing);
+        
+        // Test pause
+        deck.pause().unwrap();
+        assert_eq!(deck.state(), &DeckState::Paused);
+        
+        // Test stop
+        deck.stop().unwrap();
+        assert_eq!(deck.state(), &DeckState::Stopped);
+        assert_eq!(deck.position(), 0);
+    }
+
+    #[test]
+    fn test_deck_speed_control() {
+        let mut deck = Deck::new(0, 48000);
+        
+        // Test valid speed
+        deck.set_speed(1.5).unwrap();
+        assert_eq!(deck.speed(), 1.5);
+        
+        // Test invalid speed
+        assert!(deck.set_speed(-1.0).is_err());
+    }
+
+    #[test]
+    fn test_deck_volume_control() {
+        let mut deck = Deck::new(0, 48000);
+        
+        // Test valid volume
+        deck.set_volume(0.5).unwrap();
+        assert_eq!(deck.volume(), 0.5);
+        
+        // Test invalid volume
+        assert!(deck.set_volume(-0.1).is_err());
+        assert!(deck.set_volume(1.1).is_err());
+    }
+
+    #[test]
+    fn test_deck_seek() {
+        let mut deck = Deck::new(0, 48000);
+        
+        deck.seek(1000).unwrap();
+        assert_eq!(deck.position(), 1000);
+    }
+
+    #[test]
+    fn test_deck_audio_processing() {
+        let mut deck = Deck::new(0, 48000);
+        
+        // Test processing when stopped (should return silence)
+        let audio = deck.process(512).unwrap();
+        assert_eq!(audio.len(), 1024); // Stereo
+        assert!(audio.iter().all(|&s| s == 0.0));
+        
+        // Test processing when playing
+        deck.play().unwrap();
+        let audio = deck.process(512).unwrap();
+        assert_eq!(audio.len(), 1024); // Stereo
+        assert!(audio.iter().any(|&s| s != 0.0)); // Should have some audio
+    }
+
+    #[test]
+    fn test_deck_volume_application() {
+        let mut deck = Deck::new(0, 48000);
+        deck.set_volume(0.5).unwrap();
+        deck.play().unwrap();
+        
+        let audio = deck.process(512).unwrap();
+        assert!(audio.iter().all(|&s| s.abs() <= 0.05)); // Max amplitude should be 0.1 * 0.5
+    }
+}

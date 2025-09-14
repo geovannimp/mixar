@@ -1,0 +1,111 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo lock file (uncomment if this is a library crate)
+# Cargo.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary folders
+tmp/
+temp/
+
+# Audio files (for testing)
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.m4a
+
+# Configuration files (user-specific)
+config.toml
+*.config.toml
+
+# Documentation build output
+/book/
+
+# Benchmark results
+criterion/
+
+# Profiling data
+*.prof
+
+# Flamegraph output
+flamegraph.svg
+perf.data*
+
+# Rust analyzer cache
+.rust-analyzer/
+
+# Clippy cache
+.clippy.toml
+
+# Miri cache
+.miri/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test artifacts
+test_output/
+test_data/
+
+# Local development files
+local/
+dev/

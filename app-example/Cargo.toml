@@ -1,0 +1,18 @@
+[package]
+name = "app-example"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Example application for rust-dj-engine"
+
+[[bin]]
+name = "rust-dj-engine-example"
+path = "src/main.rs"
+
+[dependencies]
+engine-core = { path = "../engine-core" }
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true

@@ -1,0 +1,14 @@
+[package]
+name = "backend-null"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Null audio backend for testing and CI"
+
+[dependencies]
+audio-core = { path = "../audio-core" }
+anyhow.workspace = true
+thiserror.workspace = true
+log.workspace = true
