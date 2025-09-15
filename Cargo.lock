@@ -334,6 +334,7 @@ dependencies = [
  "backend-miniaudio",
  "backend-null",
  "backend-pipewire",
+ "codec",
  "engine-dsp",
  "log",
  "rtrb",
@@ -349,6 +350,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core",
+ "log",
  "thiserror",
 ]
 

@@ -3,8 +3,8 @@
 //! A deck represents a single audio playback unit with controls for
 //! play/pause, volume, pitch, and other DJ-style features.
 
-use audio_core::Sample;
 use anyhow::Result;
+use audio_core::Sample;
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -36,6 +36,12 @@ pub struct Deck {
     buffer: Vec<Sample>,
     /// Whether the deck is currently processing audio
     processing: bool,
+    /// Loaded audio samples (interleaved stereo)
+    audio_samples: Option<Vec<Sample>>,
+    /// Original sample rate of loaded audio
+    original_sample_rate: Option<u32>,
+    /// File path of loaded track
+    file_path: Option<String>,
 }
 
 impl Deck {
@@ -50,6 +56,9 @@ impl Deck {
             sample_rate,
             buffer: Vec::new(),
             processing: false,
+            audio_samples: None,
+            original_sample_rate: None,
+            file_path: None,
         }
     }
 
@@ -126,6 +135,47 @@ impl Deck {
         self.sample_rate = sample_rate;
     }
 
+    /// Load audio samples into the deck
+    pub fn load_audio_samples(
+        &mut self,
+        samples: Vec<Sample>,
+        original_sample_rate: u32,
+        file_path: String,
+    ) -> Result<()> {
+        self.audio_samples = Some(samples);
+        self.original_sample_rate = Some(original_sample_rate);
+        self.file_path = Some(file_path);
+        self.position = 0; // Reset position when loading new audio
+        log::info!(
+            "Loaded audio samples: {} samples at {} Hz",
+            self.audio_samples.as_ref().unwrap().len() / 2, // Divide by 2 for stereo
+            original_sample_rate
+        );
+        Ok(())
+    }
+
+    /// Check if audio is loaded
+    pub fn has_audio_loaded(&self) -> bool {
+        self.audio_samples.is_some()
+    }
+
+    /// Get the loaded file path
+    pub fn file_path(&self) -> Option<&String> {
+        self.file_path.as_ref()
+    }
+
+    /// Get the duration of loaded audio in seconds
+    pub fn duration_seconds(&self) -> Option<f64> {
+        if let (Some(samples), Some(original_rate)) =
+            (&self.audio_samples, &self.original_sample_rate)
+        {
+            let frame_count = samples.len() / 2; // Stereo samples
+            Some(frame_count as f64 / *original_rate as f64)
+        } else {
+            None
+        }
+    }
+
     /// Process audio for this deck
     ///
     /// # Arguments
@@ -144,9 +194,14 @@ impl Deck {
         let buffer_size = frames as usize * 2;
         self.buffer.resize(buffer_size, 0.0);
 
-        // Generate test audio (sine wave for now)
-        // In a real implementation, this would read from audio files
-        self.generate_test_audio(frames);
+        // Play loaded audio samples if available, otherwise generate test audio
+        if let Some(audio_samples) = self.audio_samples.take() {
+            self.play_loaded_audio(frames, &audio_samples);
+            self.audio_samples = Some(audio_samples); // Put it back
+        } else {
+            // Fallback to test audio if no samples loaded
+            self.generate_test_audio(frames);
+        }
 
         // Apply volume
         for sample in &mut self.buffer {
@@ -159,6 +214,36 @@ impl Deck {
         Ok(&self.buffer)
     }
 
+    /// Play loaded audio samples
+    fn play_loaded_audio(&mut self, frames: u32, audio_samples: &[Sample]) {
+        let start_pos = self.position as usize * 2; // Convert to sample index (stereo)
+
+        // Check if we've reached the end of the audio
+        if start_pos >= audio_samples.len() {
+            // Audio finished, fill with silence
+            self.buffer.fill(0.0);
+            return;
+        }
+
+        // Copy samples from loaded audio
+        let available_samples = audio_samples.len() - start_pos;
+        let samples_to_copy = std::cmp::min(frames as usize * 2, available_samples);
+
+        // Copy the samples
+        for i in 0..samples_to_copy {
+            if start_pos + i < audio_samples.len() {
+                self.buffer[i] = audio_samples[start_pos + i];
+            } else {
+                self.buffer[i] = 0.0;
+            }
+        }
+
+        // Fill remaining buffer with silence if needed
+        for i in samples_to_copy..self.buffer.len() {
+            self.buffer[i] = 0.0;
+        }
+    }
+
     /// Generate test audio (placeholder implementation)
     fn generate_test_audio(&mut self, frames: u32) {
         let frequency = 440.0 * self.speed; // A4 note adjusted for speed
@@ -167,11 +252,11 @@ impl Deck {
         for frame in 0..frames {
             let phase = (self.position + frame as u64) as f32 / self.sample_rate as f32;
             let sample = amplitude * (2.0 * std::f32::consts::PI * frequency * phase).sin();
-            
+
             // Write to both channels (interleaved)
             let left_idx = (frame * 2) as usize;
             let right_idx = (frame * 2 + 1) as usize;
-            
+
             if left_idx < self.buffer.len() {
                 self.buffer[left_idx] = sample;
             }
@@ -199,15 +284,15 @@ mod tests {
     #[test]
     fn test_deck_playback_controls() {
         let mut deck = Deck::new(0, 48000);
-        
+
         // Test play
         deck.play().unwrap();
         assert_eq!(deck.state(), &DeckState::Playing);
-        
+
         // Test pause
         deck.pause().unwrap();
         assert_eq!(deck.state(), &DeckState::Paused);
-        
+
         // Test stop
         deck.stop().unwrap();
         assert_eq!(deck.state(), &DeckState::Stopped);
@@ -217,11 +302,11 @@ mod tests {
     #[test]
     fn test_deck_speed_control() {
         let mut deck = Deck::new(0, 48000);
-        
+
         // Test valid speed
         deck.set_speed(1.5).unwrap();
         assert_eq!(deck.speed(), 1.5);
-        
+
         // Test invalid speed
         assert!(deck.set_speed(-1.0).is_err());
     }
@@ -229,11 +314,11 @@ mod tests {
     #[test]
     fn test_deck_volume_control() {
         let mut deck = Deck::new(0, 48000);
-        
+
         // Test valid volume
         deck.set_volume(0.5).unwrap();
         assert_eq!(deck.volume(), 0.5);
-        
+
         // Test invalid volume
         assert!(deck.set_volume(-0.1).is_err());
         assert!(deck.set_volume(1.1).is_err());
@@ -242,7 +327,7 @@ mod tests {
     #[test]
     fn test_deck_seek() {
         let mut deck = Deck::new(0, 48000);
-        
+
         deck.seek(1000).unwrap();
         assert_eq!(deck.position(), 1000);
     }
@@ -250,12 +335,12 @@ mod tests {
     #[test]
     fn test_deck_audio_processing() {
         let mut deck = Deck::new(0, 48000);
-        
+
         // Test processing when stopped (should return silence)
         let audio = deck.process(512).unwrap();
         assert_eq!(audio.len(), 1024); // Stereo
         assert!(audio.iter().all(|&s| s == 0.0));
-        
+
         // Test processing when playing
         deck.play().unwrap();
         let audio = deck.process(512).unwrap();
@@ -268,7 +353,7 @@ mod tests {
         let mut deck = Deck::new(0, 48000);
         deck.set_volume(0.5).unwrap();
         deck.play().unwrap();
-        
+
         let audio = deck.process(512).unwrap();
         assert!(audio.iter().all(|&s| s.abs() <= 0.05)); // Max amplitude should be 0.1 * 0.5
     }

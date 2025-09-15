@@ -14,8 +14,8 @@ fn main() -> Result<()> {
 
     info!("Starting rust-dj-engine example");
 
-    // Try to load configuration from file, fallback to default
-    let config = if Path::new("config.toml").exists() {
+    // Force CPAL backend for audio output
+    let mut config = if Path::new("config.toml").exists() {
         info!("Loading configuration from config.toml");
         EngineConfig::from_toml_file("config.toml")?
     } else {
@@ -23,6 +23,9 @@ fn main() -> Result<()> {
         EngineConfig::default()
     };
 
+    // Override backend to use CPAL for actual audio output
+    config.backend = "cpal".to_string();
+    info!("Forcing CPAL backend for audio output");
     info!("Engine config: {:?}", config);
 
     // Create engine
@@ -34,18 +37,21 @@ fn main() -> Result<()> {
     info!("Engine started");
 
     // Demonstrate different backends
-    demonstrate_backends()?;
+    // demonstrate_backends()?;
 
-    // Load a track (placeholder)
-    engine.load_track(0, "example.mp3")?;
-    info!("Track loaded");
+    // Load the sample track
+    let sample_path =
+        "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
+    engine.load_track(0, sample_path)?;
+    info!("Sample track loaded: {}", sample_path);
 
     // Play the track
     engine.play(0)?;
     info!("Track playing");
 
     // Let it play for a bit (in a real app, this would be event-driven)
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    info!("Playing sample for 5 seconds...");
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
     // Pause the track
     engine.pause(0)?;

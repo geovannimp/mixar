@@ -254,12 +254,29 @@ impl Engine {
     }
 
     /// Load a track into a deck
-    pub fn load_track(&mut self, deck_id: usize, _path: &str) -> Result<()> {
-        log::info!("Loading track into deck {}", deck_id);
+    pub fn load_track(&mut self, deck_id: usize, path: &str) -> Result<()> {
+        log::info!("Loading track into deck {} from: {}", deck_id, path);
 
+        // Check if file exists
+        if !std::path::Path::new(path).exists() {
+            return Err(anyhow::anyhow!("Audio file not found: {}", path));
+        }
+
+        // Create decoder and load audio
+        let mut decoder = codec::AudioDecoder::from_file(path)?;
+        let sample_rate = decoder.sample_rate();
+        let channels = decoder.channels();
+
+        log::info!("Audio file info: {} Hz, {} channels", sample_rate, channels);
+
+        // Load entire audio file into memory
+        let audio_samples = decoder.load_entire_file()?;
+        log::info!("Loaded {} samples from audio file", audio_samples.len());
+
+        // Load samples into the deck
         let mut dsp = self.dsp_engine.lock().unwrap();
-        if let Some(_deck) = dsp.deck_mut(deck_id) {
-            // TODO: Implement actual track loading in Sprint 1
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.load_audio_samples(audio_samples, sample_rate, path.to_string())?;
             log::info!("Track loaded into deck {}", deck_id);
             Ok(())
         } else {

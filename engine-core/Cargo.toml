@@ -10,6 +10,7 @@ description = "Core engine orchestration for rust-dj-engine"
 [dependencies]
 audio-core = { path = "../audio-core" }
 engine-dsp = { path = "../engine-dsp" }
+codec = { path = "../codec" }
 backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }
 backend-cpal = { path = "../backend-cpal" }

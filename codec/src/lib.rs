@@ -172,52 +172,129 @@ impl AudioDecoder {
         self.channels
     }
 
-    /// Convert symphonia audio buffer to f32 samples
-    fn audio_buffer_to_samples(audio_buf: &AudioBufferRef) -> Vec<Sample> {
-        match audio_buf {
-            AudioBufferRef::F32(buf) => buf.chan(0).to_vec(),
-            AudioBufferRef::U8(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| (sample as f32 - 128.0) / 128.0)
-                .collect(),
-            AudioBufferRef::U16(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample as f32 / 32768.0)
-                .collect(),
-            AudioBufferRef::U24(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample.inner() as f32 / 8388608.0)
-                .collect(),
-            AudioBufferRef::U32(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample as f32 / 2147483648.0)
-                .collect(),
-            AudioBufferRef::S8(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample as f32 / 128.0)
-                .collect(),
-            AudioBufferRef::S16(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample as f32 / 32768.0)
-                .collect(),
-            AudioBufferRef::S24(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample.inner() as f32 / 8388608.0)
-                .collect(),
-            AudioBufferRef::S32(buf) => buf
-                .chan(0)
-                .iter()
-                .map(|&sample| sample as f32 / 2147483648.0)
-                .collect(),
-            AudioBufferRef::F64(buf) => buf.chan(0).iter().map(|&sample| sample as f32).collect(),
+    /// Load entire audio file into memory
+    pub fn load_entire_file(&mut self) -> Result<Vec<Sample>> {
+        let mut all_samples = Vec::new();
+        let mut buffer = vec![0.0; 4096]; // Read in chunks
+
+        loop {
+            let samples_read = self.read_frames(&mut buffer)?;
+            if samples_read == 0 {
+                break; // End of file
+            }
+            all_samples.extend_from_slice(&buffer[..samples_read]);
         }
+
+        Ok(all_samples)
+    }
+
+    /// Convert symphonia audio buffer to f32 samples (interleaved stereo)
+    fn audio_buffer_to_samples(audio_buf: &AudioBufferRef) -> Vec<Sample> {
+        let mut samples = Vec::new();
+
+        match audio_buf {
+            AudioBufferRef::F32(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        samples.push(buf.chan(ch as usize)[frame]);
+                    }
+                }
+            }
+            AudioBufferRef::U8(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = (buf.chan(ch as usize)[frame] as f32 - 128.0) / 128.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::U16(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32 / 32768.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::U24(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame].inner() as f32 / 8388608.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::U32(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32 / 2147483648.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::S8(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32 / 128.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::S16(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32 / 32768.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::S24(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame].inner() as f32 / 8388608.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::S32(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32 / 2147483648.0;
+                        samples.push(sample);
+                    }
+                }
+            }
+            AudioBufferRef::F64(buf) => {
+                let channels = buf.spec().channels.count();
+                let frames = buf.frames();
+                for frame in 0..frames {
+                    for ch in 0..channels {
+                        let sample = buf.chan(ch as usize)[frame] as f32;
+                        samples.push(sample);
+                    }
+                }
+            }
+        }
+
+        samples
     }
 }
 

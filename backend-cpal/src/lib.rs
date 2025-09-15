@@ -23,6 +23,34 @@ impl CpalBackend {
         let host = cpal::default_host();
         Ok(Self { host })
     }
+
+    /// Get device ID from device name
+    fn get_device_id_from_name(&self, device_name: &str) -> DeviceId {
+        DeviceId::new(format!("cpal:{}", device_name))
+    }
+
+    /// Get device name from device ID
+    fn get_device_name_from_id(&self, device_id: &DeviceId) -> Result<String> {
+        let id_str = device_id.as_str();
+        if let Some(name) = id_str.strip_prefix("cpal:") {
+            Ok(name.to_string())
+        } else {
+            Err(anyhow::anyhow!("Invalid CPAL device ID format: {}", id_str))
+        }
+    }
+
+    /// Find device by name
+    fn find_device_by_name(&self, target_name: &str) -> Result<cpal::Device> {
+        let output_devices = self.host.output_devices()?;
+        for device in output_devices {
+            if let Ok(name) = device.name() {
+                if name == target_name {
+                    return Ok(device);
+                }
+            }
+        }
+        Err(anyhow::anyhow!("Device not found: {}", target_name))
+    }
 }
 
 impl AudioBackend for CpalBackend {
@@ -34,10 +62,10 @@ impl AudioBackend for CpalBackend {
         let mut devices = Vec::new();
 
         let output_devices = self.host.output_devices()?;
-        for (index, device) in output_devices.enumerate() {
+        for device in output_devices {
             let device_name = device
                 .name()
-                .unwrap_or_else(|_| format!("Device {}", index));
+                .unwrap_or_else(|_| "Unknown Device".to_string());
 
             // Get supported sample rates
             let mut sample_rates = vec![44100, 48000];
@@ -51,7 +79,7 @@ impl AudioBackend for CpalBackend {
             sample_rates.dedup();
 
             let device_info = DeviceInfo::new(
-                DeviceId::new(format!("cpal-{}", index)),
+                self.get_device_id_from_name(&device_name),
                 device_name,
                 2, // Default to stereo
                 sample_rates,
@@ -73,7 +101,7 @@ impl AudioBackend for CpalBackend {
             .unwrap_or_else(|_| "Default Device".to_string());
 
         let device_info = DeviceInfo::new(
-            DeviceId::new("cpal-0".to_string()),
+            self.get_device_id_from_name(&device_name),
             device_name,
             2, // Default to stereo
             vec![44100, 48000, 88200, 96000],
@@ -88,16 +116,8 @@ impl AudioBackend for CpalBackend {
         params: &StreamParams,
         callback: Box<dyn AudioCallback>,
     ) -> Result<Box<dyn AudioStream>> {
-        let device_index = device
-            .as_str()
-            .strip_prefix("cpal-")
-            .and_then(|s| s.parse::<usize>().ok())
-            .ok_or_else(|| anyhow::anyhow!("Invalid device ID: {}", device.as_str()))?;
-
-        let output_devices: Vec<_> = self.host.output_devices()?.collect();
-        let cpal_device = output_devices
-            .get(device_index)
-            .ok_or_else(|| anyhow::anyhow!("Device not found: {}", device_index))?;
+        let device_name = self.get_device_name_from_id(device)?;
+        let cpal_device = self.find_device_by_name(&device_name)?;
 
         let config = StreamConfig {
             channels: params.channels as u16,
@@ -187,7 +207,19 @@ mod tests {
         let backend = CpalBackend::new().unwrap();
         let devices = backend.list_output_devices();
         assert!(devices.is_ok());
-        // Note: The actual number of devices depends on the system
+
+        let devices = devices.unwrap();
+        if !devices.is_empty() {
+            // Test that device IDs use the new format
+            for device in &devices {
+                assert!(
+                    device.id.as_str().starts_with("cpal:"),
+                    "Device ID should start with 'cpal:': {}",
+                    device.id.as_str()
+                );
+                println!("Device: {} -> ID: {}", device.name, device.id.as_str());
+            }
+        }
     }
 
     #[test]
