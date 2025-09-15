@@ -14,6 +14,7 @@ backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }
 backend-cpal = { path = "../backend-cpal" }
 backend-pipewire = { path = "../backend-pipewire" }
+rtrb = "0.3"
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
