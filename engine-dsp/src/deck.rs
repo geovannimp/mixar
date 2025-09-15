@@ -229,19 +229,20 @@ impl Deck {
         let available_samples = audio_samples.len() - start_pos;
         let samples_to_copy = std::cmp::min(frames as usize * 2, available_samples);
 
-        // Copy the samples
-        for i in 0..samples_to_copy {
-            if start_pos + i < audio_samples.len() {
-                self.buffer[i] = audio_samples[start_pos + i];
-            } else {
-                self.buffer[i] = 0.0;
-            }
+        // Copy the samples efficiently
+        if start_pos + samples_to_copy <= audio_samples.len() {
+            // Safe to copy all samples at once
+            self.buffer[..samples_to_copy]
+                .copy_from_slice(&audio_samples[start_pos..start_pos + samples_to_copy]);
+        } else {
+            // Copy what we can, fill the rest with silence
+            let safe_copy = audio_samples.len() - start_pos;
+            self.buffer[..safe_copy].copy_from_slice(&audio_samples[start_pos..]);
+            self.buffer[safe_copy..samples_to_copy].fill(0.0);
         }
 
         // Fill remaining buffer with silence if needed
-        for i in samples_to_copy..self.buffer.len() {
-            self.buffer[i] = 0.0;
-        }
+        self.buffer[samples_to_copy..].fill(0.0);
     }
 
     /// Generate test audio (placeholder implementation)

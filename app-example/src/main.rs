@@ -50,8 +50,8 @@ fn main() -> Result<()> {
     info!("Track playing");
 
     // Let it play for a bit (in a real app, this would be event-driven)
-    info!("Playing sample for 5 seconds...");
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    info!("Playing sample for 10 seconds...");
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
     // Pause the track
     engine.pause(0)?;

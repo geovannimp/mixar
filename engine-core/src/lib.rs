@@ -146,7 +146,8 @@ impl Engine {
         log::info!("Starting engine with backend: {}", self.backend.name());
 
         // Create producer/consumer pair for ring buffer
-        let ring_buffer_capacity = self.config.buffer_size as usize * 4; // 4x buffer size for safety
+        // Use larger buffer to prevent underruns (8x buffer size for safety)
+        let ring_buffer_capacity = self.config.buffer_size as usize * 8;
         let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
         // Set running state
@@ -225,6 +226,10 @@ impl Engine {
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master".to_string()), vec![0.0; buffer_size * 2]);
 
+        // Calculate timing for rate limiting
+        let buffer_duration_ms = (buffer_size as f64 * 1000.0) / sample_rate as f64;
+        let sleep_duration = Duration::from_micros((buffer_duration_ms * 1000.0) as u64);
+
         while *running.lock().unwrap() {
             // Process DSP engine
             {
@@ -240,11 +245,19 @@ impl Engine {
                 for &sample in master_bus {
                     match producer.push(sample) {
                         Ok(()) => written += 1,
-                        Err(_) => break, // Buffer is full
+                        Err(_) => {
+                            // Buffer is full, wait a bit longer
+                            thread::sleep(Duration::from_millis(2));
+                            break;
+                        }
                     }
                 }
-                if written == 0 {
-                    // Buffer is full, wait a bit
+
+                // Rate limit the producer to match audio callback timing
+                if written > 0 {
+                    thread::sleep(sleep_duration);
+                } else {
+                    // No samples written, wait a bit
                     thread::sleep(Duration::from_millis(1));
                 }
             }
@@ -452,11 +465,16 @@ impl AudioCallback for ConsumerCallback {
                     *sample = value;
                     read += 1;
                 }
-                Err(_) => break, // Buffer is empty
+                Err(_) => {
+                    // Buffer is empty - this can cause audio glitches
+                    // Fill remaining samples with silence to prevent clicks/pops
+                    break;
+                }
             }
         }
 
         // If we didn't get enough samples, fill the rest with silence
+        // This prevents audio glitches when the producer can't keep up
         if read < out.len() {
             out[read..].fill(0.0);
         }
