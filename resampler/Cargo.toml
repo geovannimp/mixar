@@ -11,3 +11,4 @@ description = "Audio resampler for rust-dj-engine"
 audio-core = { path = "../audio-core" }
 anyhow.workspace = true
 thiserror.workspace = true
+rubato = "0.14"

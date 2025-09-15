@@ -3,6 +3,7 @@ members = [
     "audio-core",
     "backend-null",
     "backend-miniaudio",
+    "backend-cpal",
     "backend-pipewire",
     "engine-core",
     "engine-dsp",

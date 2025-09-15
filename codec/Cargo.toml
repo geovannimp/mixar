@@ -11,3 +11,7 @@ description = "Audio codec wrapper for rust-dj-engine"
 audio-core = { path = "../audio-core" }
 anyhow.workspace = true
 thiserror.workspace = true
+symphonia = { version = "0.5", features = ["all"] }
+
+[dev-dependencies]
+tempfile = "3.0"
