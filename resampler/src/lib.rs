@@ -58,12 +58,12 @@ impl RubatoResampler {
         let max_input_frames = 1024;
         let max_output_frames = ((max_input_frames as f64) * ratio).ceil() as usize;
 
-        // Create interpolation parameters
+        // Create interpolation parameters - FAST settings for testing
         let params = SincInterpolationParameters {
-            sinc_len: 256,
+            sinc_len: 32, // Much smaller for speed (was 256)
             f_cutoff: 0.95,
             interpolation: SincInterpolationType::Linear,
-            oversampling_factor: 256,
+            oversampling_factor: 16, // Much smaller for speed (was 256)
             window: WindowFunction::BlackmanHarris2,
         };
 
@@ -141,12 +141,9 @@ impl Resampler for RubatoResampler {
             input_data.push(input_channels[channel].as_slice());
         }
 
-        // Resample
-        let output_frames = resampler.output_frames_next();
-        let mut output_data = vec![vec![0.0; output_frames]; channels];
-
+        // Resample using the process method (allocates output buffer internally)
         match resampler.process(&input_data, None) {
-            Ok(_) => {
+            Ok(output_data) => {
                 // Interleave output
                 let interleaved = Self::interleave(&output_data, channels);
                 let copy_len = interleaved.len().min(out_buf.len());

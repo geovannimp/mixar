@@ -181,6 +181,14 @@ impl AudioStream for NullStream {
         }
     }
 
+    fn actual_sample_rate(&self) -> Option<u32> {
+        if self.running.load(Ordering::Relaxed) {
+            Some(self.params.sample_rate)
+        } else {
+            None
+        }
+    }
+
     fn actual_latency(&self) -> Option<Duration> {
         if let Some(_start_time) = self.start_time {
             // Simulate latency as buffer duration

@@ -351,6 +351,7 @@ dependencies = [
  "anyhow",
  "audio-core",
  "log",
+ "resampler",
  "thiserror",
 ]
 

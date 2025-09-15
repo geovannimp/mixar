@@ -9,6 +9,7 @@ description = "Pure DSP components for rust-dj-engine"
 
 [dependencies]
 audio-core = { path = "../audio-core" }
+resampler = { path = "../resampler" }
 anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true

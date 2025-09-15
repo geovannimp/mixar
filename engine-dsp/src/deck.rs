@@ -5,6 +5,8 @@
 
 use anyhow::Result;
 use audio_core::Sample;
+use resampler::{create_resampler, Resampler};
+use std::fmt;
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -18,7 +20,6 @@ pub enum DeckState {
 }
 
 /// Audio deck for DJ-style playback
-#[derive(Debug)]
 pub struct Deck {
     /// Deck identifier
     id: usize,
@@ -42,6 +43,29 @@ pub struct Deck {
     original_sample_rate: Option<u32>,
     /// File path of loaded track
     file_path: Option<String>,
+    /// Resampler for converting between sample rates
+    resampler: Option<Box<dyn Resampler>>,
+}
+
+impl fmt::Debug for Deck {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Deck")
+            .field("id", &self.id)
+            .field("state", &self.state)
+            .field("position", &self.position)
+            .field("speed", &self.speed)
+            .field("volume", &self.volume)
+            .field("sample_rate", &self.sample_rate)
+            .field("processing", &self.processing)
+            .field(
+                "audio_samples",
+                &self.audio_samples.as_ref().map(|s| s.len()),
+            )
+            .field("original_sample_rate", &self.original_sample_rate)
+            .field("file_path", &self.file_path)
+            .field("resampler", &"<resampler>")
+            .finish()
+    }
 }
 
 impl Deck {
@@ -59,6 +83,7 @@ impl Deck {
             audio_samples: None,
             original_sample_rate: None,
             file_path: None,
+            resampler: None,
         }
     }
 
@@ -142,15 +167,60 @@ impl Deck {
         original_sample_rate: u32,
         file_path: String,
     ) -> Result<()> {
-        self.audio_samples = Some(samples);
         self.original_sample_rate = Some(original_sample_rate);
         self.file_path = Some(file_path);
         self.position = 0; // Reset position when loading new audio
-        log::info!(
-            "Loaded audio samples: {} samples at {} Hz",
-            self.audio_samples.as_ref().unwrap().len() / 2, // Divide by 2 for stereo
-            original_sample_rate
-        );
+
+        // Check if resampling is needed
+        if original_sample_rate != self.sample_rate {
+            log::info!(
+                "Resampling audio from {} Hz to {} Hz",
+                original_sample_rate,
+                self.sample_rate
+            );
+
+            // Debug: Check original samples before resampling
+            let first_10_original: Vec<f32> = samples.iter().take(10).cloned().collect();
+            log::info!("Original audio samples (first 10): {:?}", first_10_original);
+
+            // Create resampler
+            let mut resampler = create_resampler(original_sample_rate, self.sample_rate, 2)?;
+
+            // Resample the entire audio file - FAST processing for testing
+            let mut resampled_samples = Vec::new();
+            let chunk_size = 4096 * 2; // Larger chunks for faster processing (was 1024 * 2)
+
+            for chunk in samples.chunks(chunk_size) {
+                let mut output_chunk = vec![0.0; chunk_size * 2]; // Oversize output buffer
+                let processed = resampler.process(chunk, &mut output_chunk, 2);
+                resampled_samples.extend_from_slice(&output_chunk[..processed]);
+            }
+
+            // Debug: Check resampled samples
+            let first_10_resampled: Vec<f32> = resampled_samples.iter().take(10).cloned().collect();
+            log::info!(
+                "Resampled audio samples (first 10): {:?}",
+                first_10_resampled
+            );
+
+            self.audio_samples = Some(resampled_samples);
+            log::info!(
+                "Resampled audio: {} samples at {} Hz -> {} samples at {} Hz",
+                samples.len() / 2,
+                original_sample_rate,
+                self.audio_samples.as_ref().unwrap().len() / 2,
+                self.sample_rate
+            );
+        } else {
+            // No resampling needed
+            self.audio_samples = Some(samples);
+            log::info!(
+                "Loaded audio samples: {} samples at {} Hz (no resampling needed)",
+                self.audio_samples.as_ref().unwrap().len() / 2,
+                original_sample_rate
+            );
+        }
+
         Ok(())
     }
 
@@ -187,6 +257,14 @@ impl Deck {
         if self.state != DeckState::Playing {
             // Return silence if not playing
             self.buffer.resize(frames as usize * 2, 0.0); // Stereo
+                                                          // Debug: Log deck state
+            static mut STATE_LOG_COUNT: u32 = 0;
+            unsafe {
+                STATE_LOG_COUNT += 1;
+                if STATE_LOG_COUNT % 100 == 0 {
+                    log::debug!("Deck {} not playing, state: {:?}", self.id, self.state);
+                }
+            }
             return Ok(&self.buffer);
         }
 
@@ -198,6 +276,21 @@ impl Deck {
         if let Some(audio_samples) = self.audio_samples.take() {
             self.play_loaded_audio(frames, &audio_samples);
             self.audio_samples = Some(audio_samples); // Put it back
+
+            // Debug: Check if we're producing non-zero samples
+            let non_zero_count = self.buffer.iter().filter(|&&s| s.abs() > 0.001).count();
+            static mut PLAY_LOG_COUNT: u32 = 0;
+            unsafe {
+                PLAY_LOG_COUNT += 1;
+                if PLAY_LOG_COUNT % 100 == 0 {
+                    log::debug!(
+                        "Deck {} playing: {} non-zero samples out of {}",
+                        self.id,
+                        non_zero_count,
+                        self.buffer.len()
+                    );
+                }
+            }
         } else {
             // Fallback to test audio if no samples loaded
             self.generate_test_audio(frames);
@@ -208,8 +301,18 @@ impl Deck {
             *sample *= self.volume;
         }
 
-        // Update position
-        self.position += frames as u64;
+        // Update position based on the deck's sample rate
+        // The position should advance by the number of frames processed
+        // adjusted for any sample rate differences
+        if let Some(original_rate) = self.original_sample_rate {
+            // If we have the original sample rate, we need to account for any difference
+            // For now, we'll assume the deck sample rate matches the engine rate
+            // and the position represents frames at the deck's sample rate
+            self.position += frames as u64;
+        } else {
+            // No original sample rate info, just advance by frames
+            self.position += frames as u64;
+        }
 
         Ok(&self.buffer)
     }
@@ -217,6 +320,31 @@ impl Deck {
     /// Play loaded audio samples
     fn play_loaded_audio(&mut self, frames: u32, audio_samples: &[Sample]) {
         let start_pos = self.position as usize * 2; // Convert to sample index (stereo)
+
+        // Debug logging (only log occasionally to avoid spam)
+        if self.position % 1000 == 0 {
+            log::debug!(
+                "Deck {}: position={}, start_pos={}, audio_len={}, frames={}",
+                self.id,
+                self.position,
+                start_pos,
+                audio_samples.len(),
+                frames
+            );
+
+            // Check if the audio samples actually contain data
+            if start_pos < audio_samples.len() {
+                let sample_count = std::cmp::min(10, audio_samples.len() - start_pos);
+                let sample_values: Vec<f32> =
+                    audio_samples[start_pos..start_pos + sample_count].to_vec();
+                log::debug!(
+                    "Deck {}: first {} samples: {:?}",
+                    self.id,
+                    sample_count,
+                    sample_values
+                );
+            }
+        }
 
         // Check if we've reached the end of the audio
         if start_pos >= audio_samples.len() {

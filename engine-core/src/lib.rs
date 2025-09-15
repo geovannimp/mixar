@@ -146,8 +146,8 @@ impl Engine {
         log::info!("Starting engine with backend: {}", self.backend.name());
 
         // Create producer/consumer pair for ring buffer
-        // Use larger buffer to prevent underruns (8x buffer size for safety)
-        let ring_buffer_capacity = self.config.buffer_size as usize * 8;
+        // Use much larger buffer to prevent underruns (16x buffer size for safety)
+        let ring_buffer_capacity = self.config.buffer_size as usize * 16;
         let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
         // Set running state
@@ -182,6 +182,34 @@ impl Engine {
             .backend
             .open_output_stream(&device.id, &params, callback)?;
         stream.start()?;
+
+        // Get the actual sample rate from the stream and update the engine
+        if let Some(actual_sample_rate) = stream.actual_sample_rate() {
+            log::info!(
+                "Stream actual sample rate: {} Hz, engine config: {} Hz",
+                actual_sample_rate,
+                self.config.sample_rate
+            );
+            if actual_sample_rate != self.config.sample_rate {
+                log::info!(
+                    "Sample rate mismatch detected: requested {} Hz, actual {} Hz",
+                    self.config.sample_rate,
+                    actual_sample_rate
+                );
+                // Update the engine's sample rate to match the actual rate
+                self.config.sample_rate = actual_sample_rate;
+                // Update the DSP engine sample rate
+                {
+                    let mut dsp = self.dsp_engine.lock().unwrap();
+                    dsp.set_sample_rate(actual_sample_rate);
+                }
+                log::info!("Engine sample rate updated to {} Hz", actual_sample_rate);
+            } else {
+                log::info!("Sample rates match: {} Hz", actual_sample_rate);
+            }
+        } else {
+            log::warn!("Could not get actual sample rate from stream");
+        }
 
         self.stream = Some(stream);
         self.producer_thread = Some(producer_thread);
@@ -226,9 +254,16 @@ impl Engine {
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master".to_string()), vec![0.0; buffer_size * 2]);
 
-        // Calculate timing for rate limiting
+        // Use fixed timing to prevent speed issues
+        // The producer should run at the same rate as the audio callback
         let buffer_duration_ms = (buffer_size as f64 * 1000.0) / sample_rate as f64;
         let sleep_duration = Duration::from_micros((buffer_duration_ms * 1000.0) as u64);
+
+        log::info!(
+            "Producer timing: buffer_duration={:.3}ms, sleep_duration={:?}",
+            buffer_duration_ms,
+            sleep_duration
+        );
 
         while *running.lock().unwrap() {
             // Process DSP engine
@@ -242,24 +277,37 @@ impl Engine {
             // Get master bus output and write to ring buffer
             if let Some(master_bus) = output_buses.get(&BusId::new("master".to_string())) {
                 let mut written = 0;
+                let mut non_zero_samples = 0;
                 for &sample in master_bus {
+                    if sample.abs() > 0.001 {
+                        non_zero_samples += 1;
+                    }
                     match producer.push(sample) {
                         Ok(()) => written += 1,
                         Err(_) => {
-                            // Buffer is full, wait a bit longer
-                            thread::sleep(Duration::from_millis(2));
+                            // Buffer is full, wait longer
+                            thread::sleep(Duration::from_millis(10));
                             break;
                         }
                     }
                 }
 
-                // Rate limit the producer to match audio callback timing
-                if written > 0 {
-                    thread::sleep(sleep_duration);
-                } else {
-                    // No samples written, wait a bit
-                    thread::sleep(Duration::from_millis(1));
+                // Debug: Log producer activity (only occasionally)
+                static mut PRODUCER_COUNT: u32 = 0;
+                unsafe {
+                    PRODUCER_COUNT += 1;
+                    if PRODUCER_COUNT % 100 == 0 {
+                        log::debug!(
+                            "Producer: wrote {} samples, {} non-zero, buffer size: {}",
+                            written,
+                            non_zero_samples,
+                            master_bus.len()
+                        );
+                    }
                 }
+
+                // Always sleep for the exact buffer duration to maintain proper timing
+                thread::sleep(sleep_duration);
             }
         }
 
@@ -289,8 +337,21 @@ impl Engine {
         // Load samples into the deck
         let mut dsp = self.dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
+            // Ensure deck sample rate matches engine sample rate
+            deck.set_sample_rate(self.config.sample_rate);
+            log::info!(
+                "Deck {} configured for {} Hz (engine rate)",
+                deck_id,
+                self.config.sample_rate
+            );
+
             deck.load_audio_samples(audio_samples, sample_rate, path.to_string())?;
-            log::info!("Track loaded into deck {}", deck_id);
+            log::info!(
+                "Track loaded into deck {} (file: {} Hz, engine: {} Hz)",
+                deck_id,
+                sample_rate,
+                self.config.sample_rate
+            );
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -457,6 +518,19 @@ impl ConsumerCallback {
 
 impl AudioCallback for ConsumerCallback {
     fn render(&mut self, out: &mut [Sample], _frames: u32, _sample_rate: u32) {
+        // Debug: Log callback calls (only occasionally to avoid spam)
+        static mut CALL_COUNT: u32 = 0;
+        unsafe {
+            CALL_COUNT += 1;
+            if CALL_COUNT % 100 == 0 {
+                log::debug!(
+                    "Audio callback called {} times, buffer size: {}",
+                    CALL_COUNT,
+                    out.len()
+                );
+            }
+        }
+
         // Read samples from ring buffer
         let mut read = 0;
         for sample in out.iter_mut() {
@@ -469,6 +543,15 @@ impl AudioCallback for ConsumerCallback {
                     // Buffer is empty - this can cause audio glitches
                     // Fill remaining samples with silence to prevent clicks/pops
                     break;
+                }
+            }
+        }
+
+        // Debug: Log if we're getting samples
+        if read > 0 {
+            unsafe {
+                if CALL_COUNT % 100 == 0 {
+                    log::debug!("Read {} samples from ring buffer", read);
                 }
             }
         }

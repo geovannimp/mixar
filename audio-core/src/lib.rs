@@ -123,6 +123,10 @@ pub trait AudioStream: Send {
     /// Returns None if not available or not started
     fn actual_buffer_size(&self) -> Option<u32>;
 
+    /// Get the actual sample rate granted by the backend
+    /// Returns None if not available or not started
+    fn actual_sample_rate(&self) -> Option<u32>;
+
     /// Get the actual latency of the stream
     /// Returns None if not available or not started
     fn actual_latency(&self) -> Option<Duration>;

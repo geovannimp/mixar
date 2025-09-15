@@ -81,6 +81,11 @@ impl AudioStream for MiniaudioStream {
         Some(512)
     }
 
+    fn actual_sample_rate(&self) -> Option<u32> {
+        // TODO: Return actual sample rate from miniaudio
+        Some(48000)
+    }
+
     fn actual_latency(&self) -> Option<Duration> {
         // TODO: Return actual latency from miniaudio
         Some(Duration::from_millis(10))
