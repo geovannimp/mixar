@@ -3,6 +3,8 @@
 //! This crate defines the fundamental abstractions for audio backends,
 //! streams, and callbacks that all audio backends must implement.
 
+use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Internal sample format - always 32-bit float
@@ -122,6 +124,12 @@ pub trait AudioStream: Send {
     /// Get the actual buffer size granted by the backend
     /// Returns None if not available or not started
     fn actual_buffer_size(&self) -> Option<u32>;
+
+    /// Optional: atomic updated by the callback with frames per call.
+    /// Lets the producer match the real callback size before the first callback runs (0 = use fallback).
+    fn callback_frames_atomic(&self) -> Option<Arc<AtomicU32>> {
+        None
+    }
 
     /// Get the actual sample rate granted by the backend
     /// Returns None if not available or not started

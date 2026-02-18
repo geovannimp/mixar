@@ -9,6 +9,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Host, SampleRate, Stream, StreamConfig,
 };
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -176,12 +177,16 @@ impl AudioBackend for CpalBackend {
         let frames_per_buffer = params.frames_per_buffer;
 
         let callback_arc = Arc::new(Mutex::new(callback));
+        // Record actual frames per callback (driver may use different size than requested)
+        let last_callback_frames = Arc::new(AtomicU32::new(0));
 
+        let last_callback_frames_clone = last_callback_frames.clone();
         let stream = cpal_device.build_output_stream(
             &config,
             move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                let frames = data.len() / channels as usize;
+                last_callback_frames_clone.store(frames as u32, Ordering::Relaxed);
                 if let Ok(mut callback) = callback_arc.lock() {
-                    let frames = data.len() / channels as usize;
                     callback.render(data, frames as u32, actual_sample_rate);
                 }
             },
@@ -195,6 +200,7 @@ impl AudioBackend for CpalBackend {
             stream,
             frames_per_buffer,
             sample_rate: actual_sample_rate,
+            last_callback_frames,
         }))
     }
 }
@@ -204,6 +210,8 @@ struct CpalStream {
     stream: Stream,
     frames_per_buffer: u32,
     sample_rate: u32,
+    /// Actual frames per callback (driver may differ from requested)
+    last_callback_frames: Arc<AtomicU32>,
 }
 
 // Implement Send manually to work around CPAL's Send issues
@@ -221,7 +229,16 @@ impl AudioStream for CpalStream {
     }
 
     fn actual_buffer_size(&self) -> Option<u32> {
-        Some(self.frames_per_buffer)
+        let from_callback = self.last_callback_frames.load(Ordering::Relaxed);
+        Some(if from_callback > 0 {
+            from_callback
+        } else {
+            self.frames_per_buffer
+        })
+    }
+
+    fn callback_frames_atomic(&self) -> Option<Arc<AtomicU32>> {
+        Some(Arc::clone(&self.last_callback_frames))
     }
 
     fn actual_sample_rate(&self) -> Option<u32> {

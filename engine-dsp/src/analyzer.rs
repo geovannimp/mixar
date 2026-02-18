@@ -16,7 +16,7 @@ pub struct BpmAnalyzer {
     /// Current BPM estimate
     current_bpm: f32,
     /// Confidence in the current BPM estimate
-    confidence: f32,
+    confidence: f32
 }
 
 impl BpmAnalyzer {

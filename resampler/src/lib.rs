@@ -133,25 +133,88 @@ impl Resampler for RubatoResampler {
 
         // Deinterleave input
         let input_channels = Self::deinterleave(in_buf, channels);
-
-        // Prepare input for rubato
         let input_frames = input_channels[0].len();
-        let mut input_data = Vec::new();
-        for channel in 0..channels {
-            input_data.push(input_channels[channel].as_slice());
+
+        // Rubato SincFixedIn consumes exactly input_frames_next() frames per call.
+        // Process in chunks so we don't drop 3/4 of the audio.
+        let chunk_in = resampler.input_frames_next();
+        let max_out_per_chunk = resampler.output_frames_max() * channels;
+
+        // Ensure per-channel output buffers for rubato
+        let out_frames_cap = resampler.output_frames_max();
+        for buf in self.output_buffer.iter_mut() {
+            if buf.len() < out_frames_cap {
+                buf.resize(out_frames_cap, 0.0);
+            }
         }
 
-        // Resample using the process method (allocates output buffer internally)
-        match resampler.process(&input_data, None) {
-            Ok(output_data) => {
-                // Interleave output
-                let interleaved = Self::interleave(&output_data, channels);
-                let copy_len = interleaved.len().min(out_buf.len());
-                out_buf[..copy_len].copy_from_slice(&interleaved[..copy_len]);
-                copy_len
+        let mut input_offset = 0_usize;
+        let mut output_offset = 0_usize;
+
+        while input_offset + chunk_in <= input_frames {
+            let space_left = out_buf.len().saturating_sub(output_offset);
+            if space_left < max_out_per_chunk {
+                break;
             }
-            Err(_) => 0,
+
+            // Slices for this chunk: one per channel
+            let in_slices: Vec<&[f32]> = (0..channels)
+                .map(|c| &input_channels[c][input_offset..input_offset + chunk_in])
+                .collect();
+
+            let mut out_buffers: Vec<&mut [f32]> = self
+                .output_buffer
+                .iter_mut()
+                .map(|b| &mut b[..out_frames_cap])
+                .collect();
+
+            let (n_in, n_out) = match resampler.process_into_buffer(&in_slices, &mut out_buffers, None) {
+                Ok(t) => t,
+                Err(_) => break,
+            };
+
+            // Interleave this chunk into out_buf
+            for f in 0..n_out {
+                for c in 0..channels {
+                    if output_offset < out_buf.len() {
+                        out_buf[output_offset] = self.output_buffer[c][f];
+                        output_offset += 1;
+                    }
+                }
+            }
+            input_offset += n_in;
         }
+
+        // Process remaining input (partial chunk) so we don't drop tail samples
+        if input_offset < input_frames {
+            let in_slices: Vec<&[f32]> = (0..channels)
+                .map(|c| &input_channels[c][input_offset..])
+                .collect();
+            let mut out_buffers: Vec<&mut [f32]> = self
+                .output_buffer
+                .iter_mut()
+                .map(|b| &mut b[..out_frames_cap])
+                .collect();
+            let space_left = out_buf.len().saturating_sub(output_offset);
+            if space_left >= max_out_per_chunk {
+                if let Ok((_n_in, n_out)) = resampler.process_partial_into_buffer(
+                    Some(&in_slices),
+                    &mut out_buffers,
+                    None,
+                ) {
+                    for f in 0..n_out {
+                        for c in 0..channels {
+                            if output_offset < out_buf.len() {
+                                out_buf[output_offset] = self.output_buffer[c][f];
+                                output_offset += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        output_offset
     }
 
     fn set_rate(&mut self, input_sr: u32, output_sr: u32) {

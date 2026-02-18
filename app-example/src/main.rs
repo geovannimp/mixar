@@ -14,7 +14,6 @@ fn main() -> Result<()> {
 
     info!("Starting rust-dj-engine example");
 
-    // Force CPAL backend for audio output
     let mut config = if Path::new("config.toml").exists() {
         info!("Loading configuration from config.toml");
         EngineConfig::from_toml_file("config.toml")?
@@ -23,17 +22,22 @@ fn main() -> Result<()> {
         EngineConfig::default()
     };
 
-    // Override backend to use CPAL for actual audio output
-    config.backend = "cpal".to_string();
-    info!("Forcing CPAL backend for audio output");
+    // Use "auto" to pick the best available backend; fall back to "null" if start fails (e.g. when
+    // miniaudio is selected but not implemented, or no audio devices).
+    config.backend = "auto".to_string();
+    info!("Using auto backend selection for audio output");
     info!("Engine config: {:?}", config);
 
-    // Create engine
-    let mut engine = Engine::new(config)?;
+    // Create engine and start; fall back to null backend if auto fails to start
+    let mut engine = Engine::new(config.clone())?;
     info!("Engine created successfully");
 
-    // Start engine
-    engine.start()?;
+    if let Err(e) = engine.start() {
+        info!("Auto backend failed to start ({}), falling back to null backend", e);
+        config.backend = "null".to_string();
+        engine = Engine::new(config)?;
+        engine.start()?;
+    }
     info!("Engine started");
 
     // Demonstrate different backends

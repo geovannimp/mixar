@@ -7,13 +7,17 @@ license.workspace = true
 repository.workspace = true
 description = "Core engine orchestration for rust-dj-engine"
 
+[features]
+default = ["backend-cpal"]
+backend-cpal = ["dep:backend-cpal"]
+
 [dependencies]
 audio-core = { path = "../audio-core" }
 engine-dsp = { path = "../engine-dsp" }
 codec = { path = "../codec" }
 backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }
-backend-cpal = { path = "../backend-cpal" }
+backend-cpal = { path = "../backend-cpal", optional = true }
 backend-pipewire = { path = "../backend-pipewire" }
 rtrb = "0.3"
 anyhow.workspace = true

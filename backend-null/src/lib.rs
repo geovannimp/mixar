@@ -174,19 +174,12 @@ impl AudioStream for NullStream {
     }
 
     fn actual_buffer_size(&self) -> Option<u32> {
-        if self.running.load(Ordering::Relaxed) {
-            Some(self.negotiated_buffer_size)
-        } else {
-            None
-        }
+        // Report negotiated size even before start so engine can sync producer to it
+        Some(self.negotiated_buffer_size)
     }
 
     fn actual_sample_rate(&self) -> Option<u32> {
-        if self.running.load(Ordering::Relaxed) {
-            Some(self.params.sample_rate)
-        } else {
-            None
-        }
+        Some(self.params.sample_rate)
     }
 
     fn actual_latency(&self) -> Option<Duration> {

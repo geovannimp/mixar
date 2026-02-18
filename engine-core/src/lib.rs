@@ -11,9 +11,10 @@ use engine_dsp::DspEngine;
 use rtrb::{Consumer, Producer, RingBuffer};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Engine configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -106,7 +107,7 @@ pub struct Engine {
     backend: Box<dyn AudioBackend>,
     /// Audio stream
     stream: Option<Box<dyn AudioStream>>,
-    /// Output buses
+    /// Output buses (for bus config API)
     output_buses: HashMap<BusId, Vec<Sample>>,
     /// Producer thread handle
     producer_thread: Option<JoinHandle<()>>,
@@ -145,28 +146,30 @@ impl Engine {
     pub fn start(&mut self) -> Result<()> {
         log::info!("Starting engine with backend: {}", self.backend.name());
 
-        // Create producer/consumer pair for ring buffer
-        // Use much larger buffer to prevent underruns (16x buffer size for safety)
-        let ring_buffer_capacity = self.config.buffer_size as usize * 16;
-        let (producer, consumer) = RingBuffer::new(ring_buffer_capacity);
+        // Ring buffer: spec §5.2 — preallocate N * frames_per_buffer (N ≥ 8) to tolerate producer jitter.
+        const RING_BUFFER_MULTIPLIER: usize = 24;
+        let ring_buffer_capacity = self.config.buffer_size as usize * RING_BUFFER_MULTIPLIER;
+        let (mut producer, consumer) = RingBuffer::new(ring_buffer_capacity);
+
+        // Pre-fill with silence so callbacks have data before the producer thread starts (no allocations in callback).
+        // Leave 2 buffers free for producer to fill immediately.
+        let prefill = ring_buffer_capacity.saturating_sub(2 * self.config.buffer_size as usize * 2);
+        for _ in 0..prefill {
+            let _ = producer.push(0.0);
+        }
+        log::info!(
+            "Ring buffer: capacity={}, pre-filled={} samples (spec: N×frames_per_buffer, zero alloc in callback)",
+            ring_buffer_capacity,
+            prefill
+        );
 
         // Set running state
         *self.running.lock().unwrap() = true;
 
-        // Start producer thread
-        let dsp_engine = self.dsp_engine.clone();
-        let running = self.running.clone();
-        let sample_rate = self.config.sample_rate;
-        let buffer_size = self.config.buffer_size as usize;
-
-        let producer_thread = thread::spawn(move || {
-            Self::producer_thread_loop(dsp_engine, producer, running, sample_rate, buffer_size);
-        });
-
-        // Get default device
+        // Get default device and open stream first so we can read actual buffer size and sample rate.
+        // The device may use different values (e.g. 235 frames @ 48 kHz) causing underruns and wrong speed.
         let device = self.backend.default_output_device()?;
 
-        // Create stream parameters
         let params = StreamParams::new(
             self.config.sample_rate,
             2, // Stereo
@@ -174,42 +177,61 @@ impl Engine {
             self.config.low_latency,
         );
 
-        // Create audio callback with consumer
         let callback = Box::new(ConsumerCallback::new(consumer));
 
-        // Open audio stream
         let mut stream = self
             .backend
             .open_output_stream(&device.id, &params, callback)?;
-        stream.start()?;
 
-        // Get the actual sample rate from the stream and update the engine
-        if let Some(actual_sample_rate) = stream.actual_sample_rate() {
+        // Get buffer size and sample rate from stream (backend may report requested or actual).
+        let actual_buffer_size = stream
+            .actual_buffer_size()
+            .unwrap_or(self.config.buffer_size) as usize;
+        let stream_sample_rate = stream
+            .actual_sample_rate()
+            .unwrap_or(self.config.sample_rate);
+
+        if actual_buffer_size != self.config.buffer_size as usize
+            || stream_sample_rate != self.config.sample_rate
+        {
             log::info!(
-                "Stream actual sample rate: {} Hz, engine config: {} Hz",
-                actual_sample_rate,
+                "Stream: buffer_size={}, sample_rate={} Hz (config: {}, {} Hz)",
+                actual_buffer_size,
+                stream_sample_rate,
+                self.config.buffer_size,
                 self.config.sample_rate
             );
-            if actual_sample_rate != self.config.sample_rate {
-                log::info!(
-                    "Sample rate mismatch detected: requested {} Hz, actual {} Hz",
-                    self.config.sample_rate,
-                    actual_sample_rate
-                );
-                // Update the engine's sample rate to match the actual rate
-                self.config.sample_rate = actual_sample_rate;
-                // Update the DSP engine sample rate
-                {
-                    let mut dsp = self.dsp_engine.lock().unwrap();
-                    dsp.set_sample_rate(actual_sample_rate);
-                }
-                log::info!("Engine sample rate updated to {} Hz", actual_sample_rate);
-            } else {
-                log::info!("Sample rates match: {} Hz", actual_sample_rate);
-            }
-        } else {
-            log::warn!("Could not get actual sample rate from stream");
         }
+
+        let sample_rate = stream_sample_rate;
+        {
+            let mut dsp = self.dsp_engine.lock().unwrap();
+            dsp.set_sample_rate(sample_rate);
+        }
+
+        // Start producer before the stream so the ring buffer is full when the first callback runs (spec §5.2: tolerate jitter).
+        // Pass callback-frames atomic so producer can match real device callback size (avoids severe underrun when device uses smaller chunks).
+        let callback_frames_atomic = stream.callback_frames_atomic();
+        let dsp_engine = self.dsp_engine.clone();
+        let running = self.running.clone();
+        let fallback_buffer_size = actual_buffer_size;
+        let producer_thread = thread::spawn(move || {
+            Self::producer_thread_loop(
+                dsp_engine,
+                producer,
+                running,
+                sample_rate,
+                fallback_buffer_size,
+                callback_frames_atomic,
+            );
+        });
+
+        // Let the producer fill the buffer before we start the stream (avoids startup underruns).
+        const PRODUCER_WARMUP_MS: u64 = 200;
+        std::thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
+        log::info!("Producer warmup done ({} ms), starting stream", PRODUCER_WARMUP_MS);
+
+        stream.start()?;
 
         self.stream = Some(stream);
         self.producer_thread = Some(producer_thread);
@@ -241,73 +263,69 @@ impl Engine {
         Ok(())
     }
 
-    /// Producer thread loop
+    /// Producer thread loop (spec §5.1: writes decoded/resampled audio into ring buffer).
+    /// Uses schedule-based timing and actual callback size (when available) to avoid underruns.
     fn producer_thread_loop(
         dsp_engine: Arc<Mutex<DspEngine>>,
         mut producer: Producer<Sample>,
         running: Arc<Mutex<bool>>,
         sample_rate: u32,
-        buffer_size: usize,
+        fallback_buffer_size: usize,
+        callback_frames_atomic: Option<Arc<std::sync::atomic::AtomicU32>>,
     ) {
-        log::info!("Producer thread started");
-
-        let mut output_buses = HashMap::new();
-        output_buses.insert(BusId::new("master".to_string()), vec![0.0; buffer_size * 2]);
-
-        // Use fixed timing to prevent speed issues
-        // The producer should run at the same rate as the audio callback
-        let buffer_duration_ms = (buffer_size as f64 * 1000.0) / sample_rate as f64;
-        let sleep_duration = Duration::from_micros((buffer_duration_ms * 1000.0) as u64);
-
         log::info!(
-            "Producer timing: buffer_duration={:.3}ms, sleep_duration={:?}",
-            buffer_duration_ms,
-            sleep_duration
+            "Producer thread started (fallback_buffer_size={}, sample_rate={})",
+            fallback_buffer_size,
+            sample_rate
         );
 
+        // Allocate bus large enough for max chunk (fallback size)
+        let mut output_buses = HashMap::new();
+        output_buses.insert(
+            BusId::new("master".to_string()),
+            vec![0.0; fallback_buffer_size * 2],
+        );
+
+        const SCHEDULE_HEADROOM: Duration = Duration::from_millis(2); // wake 2ms early to finish process before period
+        let schedule_start = Instant::now();
+        let mut iteration: u64 = 0;
+
         while *running.lock().unwrap() {
-            // Process DSP engine
+            // Use actual callback size when available (device may use 128/256 frames), else fallback
+            let chunk_frames = callback_frames_atomic
+                .as_ref()
+                .and_then(|a| {
+                    let v = a.load(Ordering::Relaxed);
+                    if v > 0 { Some(v as usize) } else { None }
+                })
+                .unwrap_or(fallback_buffer_size);
+
+            let buffer_duration =
+                Duration::from_secs_f64((chunk_frames as f64) / (sample_rate as f64));
+
+            // Process DSP and write to ring buffer
             {
                 let mut dsp = dsp_engine.lock().unwrap();
-                if let Err(e) = dsp.process(buffer_size as u32, &mut output_buses) {
+                if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
                     log::error!("DSP processing error: {}", e);
                 }
             }
 
-            // Get master bus output and write to ring buffer
             if let Some(master_bus) = output_buses.get(&BusId::new("master".to_string())) {
-                let mut written = 0;
-                let mut non_zero_samples = 0;
                 for &sample in master_bus {
-                    if sample.abs() > 0.001 {
-                        non_zero_samples += 1;
-                    }
-                    match producer.push(sample) {
-                        Ok(()) => written += 1,
-                        Err(_) => {
-                            // Buffer is full, wait longer
-                            thread::sleep(Duration::from_millis(10));
-                            break;
-                        }
+                    if producer.push(sample).is_err() {
+                        break;
                     }
                 }
+            }
 
-                // Debug: Log producer activity (only occasionally)
-                static mut PRODUCER_COUNT: u32 = 0;
-                unsafe {
-                    PRODUCER_COUNT += 1;
-                    if PRODUCER_COUNT % 100 == 0 {
-                        log::debug!(
-                            "Producer: wrote {} samples, {} non-zero, buffer size: {}",
-                            written,
-                            non_zero_samples,
-                            master_bus.len()
-                        );
-                    }
-                }
-
-                // Always sleep for the exact buffer duration to maintain proper timing
-                thread::sleep(sleep_duration);
+            iteration += 1;
+            let target =
+                schedule_start + Duration::from_secs_f64(buffer_duration.as_secs_f64() * iteration as f64);
+            let wake_at = target.checked_sub(SCHEDULE_HEADROOM).unwrap_or(schedule_start);
+            let now = Instant::now();
+            if now < wake_at {
+                thread::sleep(wake_at.duration_since(now));
             }
         }
 
@@ -336,13 +354,13 @@ impl Engine {
 
         // Load samples into the deck
         let mut dsp = self.dsp_engine.lock().unwrap();
+        let engine_rate = dsp.sample_rate();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            // Ensure deck sample rate matches engine sample rate
-            deck.set_sample_rate(self.config.sample_rate);
+            deck.set_sample_rate(engine_rate);
             log::info!(
-                "Deck {} configured for {} Hz (engine rate)",
+                "Deck {} configured for {} Hz (engine/stream rate)",
                 deck_id,
-                self.config.sample_rate
+                engine_rate
             );
 
             deck.load_audio_samples(audio_samples, sample_rate, path.to_string())?;
@@ -350,7 +368,7 @@ impl Engine {
                 "Track loaded into deck {} (file: {} Hz, engine: {} Hz)",
                 deck_id,
                 sample_rate,
-                self.config.sample_rate
+                engine_rate
             );
             Ok(())
         } else {
@@ -469,8 +487,15 @@ impl Engine {
                 Ok(Box::new(backend))
             }
             "cpal" => {
-                let backend = backend_cpal::CpalBackend::new()?;
-                Ok(Box::new(backend))
+                #[cfg(feature = "backend-cpal")]
+                {
+                    let backend = backend_cpal::CpalBackend::new()?;
+                    Ok(Box::new(backend))
+                }
+                #[cfg(not(feature = "backend-cpal"))]
+                Err(anyhow::anyhow!(
+                    "CPAL backend not compiled in. Build with default features or enable 'backend-cpal'."
+                ))
             }
             "pipewire" => {
                 // TODO: Implement in Sprint 4
@@ -478,25 +503,27 @@ impl Engine {
             }
             "auto" => {
                 // Try to detect the best available backend
-                // First try CPAL (more reliable), then miniaudio, then null
+                // First try CPAL (if compiled in), then miniaudio, then null
+                #[cfg(feature = "backend-cpal")]
                 match backend_cpal::CpalBackend::new() {
                     Ok(backend) => {
                         log::info!("Using CPAL backend");
+                        return Ok(Box::new(backend));
+                    }
+                    Err(e) => log::warn!("Failed to initialize CPAL backend: {}, trying miniaudio", e),
+                }
+                match backend_miniaudio::MiniaudioBackend::new() {
+                    Ok(backend) => {
+                        log::info!("Using miniaudio backend");
                         Ok(Box::new(backend))
                     }
                     Err(e) => {
-                        log::warn!("Failed to initialize CPAL backend: {}, trying miniaudio", e);
-                        match backend_miniaudio::MiniaudioBackend::new() {
-                            Ok(backend) => {
-                                log::info!("Using miniaudio backend");
-                                Ok(Box::new(backend))
-                            }
-                            Err(e) => {
-                                log::warn!("Failed to initialize miniaudio backend: {}, falling back to null backend", e);
-                                let backend = backend_null::NullBackend::new();
-                                Ok(Box::new(backend))
-                            }
-                        }
+                        log::warn!(
+                            "Failed to initialize miniaudio backend: {}, falling back to null backend",
+                            e
+                        );
+                        let backend = backend_null::NullBackend::new();
+                        Ok(Box::new(backend))
                     }
                 }
             }
@@ -518,21 +545,19 @@ impl ConsumerCallback {
 
 impl AudioCallback for ConsumerCallback {
     fn render(&mut self, out: &mut [Sample], _frames: u32, _sample_rate: u32) {
-        // Debug: Log callback calls (only occasionally to avoid spam)
+        // Debug: Log callback calls and buffer status
         static mut CALL_COUNT: u32 = 0;
+        static mut UNDERRUN_COUNT: u32 = 0;
+        static mut TOTAL_UNDERRUN_SAMPLES: u32 = 0;
+
         unsafe {
             CALL_COUNT += 1;
-            if CALL_COUNT % 100 == 0 {
-                log::debug!(
-                    "Audio callback called {} times, buffer size: {}",
-                    CALL_COUNT,
-                    out.len()
-                );
-            }
         }
 
         // Read samples from ring buffer
         let mut read = 0;
+        let mut underrun_samples = 0;
+
         for sample in out.iter_mut() {
             match self.consumer.pop() {
                 Ok(value) => {
@@ -540,26 +565,32 @@ impl AudioCallback for ConsumerCallback {
                     read += 1;
                 }
                 Err(_) => {
-                    // Buffer is empty - this can cause audio glitches
-                    // Fill remaining samples with silence to prevent clicks/pops
-                    break;
+                    // Buffer is empty - this is an underrun!
+                    underrun_samples += 1;
+                    *sample = 0.0; // Fill with silence
                 }
             }
         }
 
-        // Debug: Log if we're getting samples
-        if read > 0 {
+        // Track underruns (spec: no allocations in callback — only update counters)
+        if underrun_samples > 0 {
             unsafe {
-                if CALL_COUNT % 100 == 0 {
-                    log::debug!("Read {} samples from ring buffer", read);
+                UNDERRUN_COUNT += 1;
+                TOTAL_UNDERRUN_SAMPLES += underrun_samples;
+            }
+            // Log severe underruns only occasionally to avoid jitter in the real-time callback
+            if underrun_samples > (out.len() / 4) as u32 {
+                unsafe {
+                    if UNDERRUN_COUNT % 100 == 1 || UNDERRUN_COUNT <= 3 {
+                        log::error!(
+                            "SEVERE UNDERRUN! Only got {}/{} samples ({}% underrun)",
+                            read,
+                            out.len(),
+                            (underrun_samples as f32 / out.len() as f32) * 100.0
+                        );
+                    }
                 }
             }
-        }
-
-        // If we didn't get enough samples, fill the rest with silence
-        // This prevents audio glitches when the producer can't keep up
-        if read < out.len() {
-            out[read..].fill(0.0);
         }
     }
 }

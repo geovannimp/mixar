@@ -99,12 +99,7 @@ impl Mixer {
             }
         }
 
-        // Apply master volume to mix
-        for sample in &mut self.mix_buffer {
-            *sample *= self.master_volume;
-        }
-
-        // Route to output buses
+        // Route to output buses (per-bus volume applied there; no master scale here to avoid double application)
         self.route_to_buses(frames, output_buses)?;
 
         Ok(())
@@ -132,7 +127,7 @@ impl Mixer {
                 }
             }
 
-            // Apply bus-specific volume
+            // Apply bus-specific volume and clamp to [-1, 1] to prevent DAC clipping
             let volume = match bus_name {
                 "cue" => self.cue_volume,
                 "master" => self.master_volume,
@@ -140,7 +135,7 @@ impl Mixer {
             };
 
             for sample in output_buffer.iter_mut() {
-                *sample *= volume;
+                *sample = (*sample * volume).clamp(-1.0, 1.0);
             }
         }
 

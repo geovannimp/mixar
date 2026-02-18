@@ -114,6 +114,11 @@ impl Deck {
 
     /// Start playback
     pub fn play(&mut self) -> Result<()> {
+        log::info!(
+            "Deck {} changing state to Playing (was: {:?})",
+            self.id,
+            self.state
+        );
         self.state = DeckState::Playing;
         Ok(())
     }
@@ -262,7 +267,7 @@ impl Deck {
             unsafe {
                 STATE_LOG_COUNT += 1;
                 if STATE_LOG_COUNT % 100 == 0 {
-                    log::debug!("Deck {} not playing, state: {:?}", self.id, self.state);
+                    log::warn!("Deck {} not playing, state: {:?}", self.id, self.state);
                 }
             }
             return Ok(&self.buffer);
@@ -274,6 +279,11 @@ impl Deck {
 
         // Play loaded audio samples if available, otherwise generate test audio
         if let Some(audio_samples) = self.audio_samples.take() {
+            log::info!(
+                "Deck {} playing loaded audio: {} samples available",
+                self.id,
+                audio_samples.len()
+            );
             self.play_loaded_audio(frames, &audio_samples);
             self.audio_samples = Some(audio_samples); // Put it back
 
@@ -283,7 +293,7 @@ impl Deck {
             unsafe {
                 PLAY_LOG_COUNT += 1;
                 if PLAY_LOG_COUNT % 100 == 0 {
-                    log::debug!(
+                    log::info!(
                         "Deck {} playing: {} non-zero samples out of {}",
                         self.id,
                         non_zero_count,
@@ -293,6 +303,10 @@ impl Deck {
             }
         } else {
             // Fallback to test audio if no samples loaded
+            log::warn!(
+                "Deck {} has no audio samples loaded, generating test audio",
+                self.id
+            );
             self.generate_test_audio(frames);
         }
 
