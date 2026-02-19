@@ -2,13 +2,25 @@
 //!
 //! This crate defines the fundamental abstractions for audio backends,
 //! streams, and callbacks that all audio backends must implement.
+//!
+//! Sample and frame types align with [dasp](https://github.com/RustAudio/dasp) (Digital Audio
+//! Signal Processing): we use `f32` as the internal sample type (dasp `Sample` trait) and
+//! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Internal sample format - always 32-bit float
+// Re-export dasp fundamentals for samples, frames, and slice conversions
+pub use dasp::frame::Frame;
+pub use dasp::sample::{Sample as SampleTrait, ToSample};
+pub use dasp::slice;
+
+/// Internal sample format - always 32-bit float (compatible with [dasp] Sample trait)
 pub type Sample = f32;
+
+/// Stereo frame: one sample per channel at a single time (L, R)
+pub type StereoFrame = [Sample; 2];
 
 /// Unique identifier for an audio device
 #[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]

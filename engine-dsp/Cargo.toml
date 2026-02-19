@@ -13,3 +13,5 @@ resampler = { path = "../resampler" }
 anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true
+dasp_graph.workspace = true
+petgraph.workspace = true

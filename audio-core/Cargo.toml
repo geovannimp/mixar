@@ -11,3 +11,4 @@ description = "Core audio traits and types for rust-dj-engine"
 anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
+dasp.workspace = true

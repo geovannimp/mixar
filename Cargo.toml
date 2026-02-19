@@ -31,6 +31,9 @@ toml = "0.8"
 log = "0.4"
 env_logger = "0.10"
 criterion = { version = "0.5", features = ["html_reports"] }
+dasp = { version = "0.11", features = ["slice"] }
+dasp_graph = { version = "0.11", default-features = false, features = ["node-sum"] }
+petgraph = "0.5"
 
 [profile.release]
 opt-level = "z"

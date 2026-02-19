@@ -1,9 +1,10 @@
 //! Audio resampler for rust-dj-engine
 //!
 //! This crate provides audio resampling capabilities using rubato.
+//! Uses [dasp](https://github.com/RustAudio/dasp) slice conversions for interleaved samples and frames.
 
 use anyhow::Result;
-use audio_core::Sample;
+use audio_core::{slice as audio_slice, Sample, StereoFrame};
 use rubato::{
     Resampler as RubatoResamplerTrait, SincFixedIn, SincInterpolationParameters,
     SincInterpolationType, WindowFunction,
@@ -80,41 +81,64 @@ impl RubatoResampler {
         Ok(())
     }
 
-    /// Deinterleave audio samples into separate channel buffers
+    /// Deinterleave interleaved samples into per-channel buffers using dasp frame view.
     fn deinterleave(interleaved: &[Sample], channels: usize) -> Vec<Vec<f32>> {
-        let mut channel_buffers = vec![Vec::new(); channels];
-        let samples_per_channel = interleaved.len() / channels;
-
-        for (i, &sample) in interleaved.iter().enumerate() {
-            let channel = i % channels;
-            if channel_buffers[channel].len() < samples_per_channel {
-                channel_buffers[channel].push(sample);
+        if channels == 2 {
+            // Use dasp slice: interpret interleaved as stereo frames
+            let frames = match audio_slice::to_frame_slice::<&[Sample], StereoFrame>(interleaved) {
+                Some(f) => f,
+                None => {
+                    // Odd sample count; fall back to manual deinterleave
+                    let mut channel_buffers = vec![Vec::new(); channels];
+                    let samples_per_channel = interleaved.len() / channels;
+                    for (i, &sample) in interleaved.iter().enumerate() {
+                        let channel = i % channels;
+                        if channel_buffers[channel].len() < samples_per_channel {
+                            channel_buffers[channel].push(sample);
+                        }
+                    }
+                    return channel_buffers;
+                }
+            };
+            let mut ch0 = Vec::with_capacity(frames.len());
+            let mut ch1 = Vec::with_capacity(frames.len());
+            for frame in frames {
+                ch0.push(frame[0]);
+                ch1.push(frame[1]);
             }
-        }
-
-        channel_buffers
-    }
-
-    /// Interleave separate channel buffers into a single buffer
-    fn interleave(channel_buffers: &[Vec<f32>], channels: usize) -> Vec<Sample> {
-        let max_samples = channel_buffers
-            .iter()
-            .map(|buf| buf.len())
-            .max()
-            .unwrap_or(0);
-        let mut interleaved = Vec::with_capacity(max_samples * channels);
-
-        for i in 0..max_samples {
-            for channel in 0..channels {
-                if let Some(&sample) = channel_buffers[channel].get(i) {
-                    interleaved.push(sample);
-                } else {
-                    interleaved.push(0.0);
+            vec![ch0, ch1]
+        } else {
+            // Generic path for other channel counts
+            let mut channel_buffers = vec![Vec::new(); channels];
+            let samples_per_channel = interleaved.len() / channels;
+            for (i, &sample) in interleaved.iter().enumerate() {
+                let channel = i % channels;
+                if channel_buffers[channel].len() < samples_per_channel {
+                    channel_buffers[channel].push(sample);
                 }
             }
+            channel_buffers
         }
+    }
 
-        interleaved
+    /// Interleave per-channel buffers into a single sample slice using dasp (stereo).
+    fn interleave(channel_buffers: &[Vec<f32>], channels: usize) -> Vec<Sample> {
+        if channels == 2 {
+            let n_frames = channel_buffers[0].len().min(channel_buffers[1].len());
+            let frames: Vec<StereoFrame> = (0..n_frames)
+                .map(|i| [channel_buffers[0][i], channel_buffers[1][i]])
+                .collect();
+            audio_slice::to_sample_slice(frames.as_slice()).to_vec()
+        } else {
+            let max_samples = channel_buffers.iter().map(|b| b.len()).max().unwrap_or(0);
+            let mut interleaved = Vec::with_capacity(max_samples * channels);
+            for i in 0..max_samples {
+                for ch in 0..channels {
+                    interleaved.push(channel_buffers[ch].get(i).copied().unwrap_or(0.0));
+                }
+            }
+            interleaved
+        }
     }
 }
 

@@ -1,35 +1,106 @@
 //! Audio mixer for routing and mixing multiple decks
 //!
-//! The mixer handles routing audio from decks to different output buses
-//! and applies mixing, EQ, and other effects.
+//! Implemented with [dasp_graph](https://docs.rs/dasp_graph/latest/dasp_graph/): deck sources
+//! feed into a Sum node; output is read from the sum and routed to buses with volume and clamp.
 
 use anyhow::Result;
-use audio_core::{BusId, Sample};
+use audio_core::{slice as audio_slice, BusId, Frame, Sample, StereoFrame};
+use dasp_graph::node::Sum;
+use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
+use petgraph::graph::DiGraph;
 use std::collections::HashMap;
 
 use crate::deck::Deck;
 
-/// Audio mixer for routing and mixing
-#[derive(Debug)]
+/// Fixed buffer length used by dasp_graph (samples per channel per process call).
+const CHUNK_SAMPLES: usize = Buffer::LEN;
+
+/// Source node that outputs pre-filled buffers (filled by the mixer before each process).
+#[derive(Clone, Debug, Default)]
+pub struct DeckSourceNode;
+
+impl Node for DeckSourceNode {
+    fn process(&mut self, _inputs: &[Input], _output: &mut [Buffer]) {
+        // Buffers are filled by the mixer from deck output before process() is called.
+    }
+}
+
+/// Node type in the mixer graph: either a deck source or the sum.
+#[derive(Clone, Debug)]
+pub enum MixerNode {
+    DeckSource(DeckSourceNode),
+    Sum(Sum),
+}
+
+impl Node for MixerNode {
+    fn process(&mut self, inputs: &[Input], output: &mut [Buffer]) {
+        match self {
+            MixerNode::DeckSource(n) => n.process(inputs, output),
+            MixerNode::Sum(n) => n.process(inputs, output),
+        }
+    }
+}
+
+/// Graph type: directed graph with NodeData<MixerNode>, no edge weight.
+type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
+
+/// Audio mixer implemented as a dasp_graph (deck sources -> Sum -> buses).
 pub struct Mixer {
-    /// Sample rate
     sample_rate: u32,
-    /// Master volume
     master_volume: f32,
-    /// Cue volume
     cue_volume: f32,
-    /// Internal mixing buffer
+    /// Internal mix buffer (interleaved stereo) filled from the graph output.
     mix_buffer: Vec<Sample>,
+    /// Graph: deck source nodes + sum node.
+    graph: MixerGraph,
+    /// Processor for running the graph (reused to avoid allocs).
+    processor: Processor<MixerGraph>,
+    /// Node index for each deck source (graph node id).
+    deck_node_ids: Vec<petgraph::graph::NodeIndex>,
+    /// Node index for the sum (sink we process to).
+    sum_node_id: petgraph::graph::NodeIndex,
+}
+
+impl std::fmt::Debug for Mixer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Mixer")
+            .field("sample_rate", &self.sample_rate)
+            .field("master_volume", &self.master_volume)
+            .field("cue_volume", &self.cue_volume)
+            .field("mix_buffer_len", &self.mix_buffer.len())
+            .field("deck_node_count", &self.deck_node_ids.len())
+            .finish()
+    }
 }
 
 impl Mixer {
-    /// Create a new mixer
+    /// Create a new mixer with a fixed number of deck slots (sources in the graph).
     pub fn new(sample_rate: u32) -> Self {
+        let max_decks = 2;
+        let mut graph = MixerGraph::with_capacity(max_decks + 1, max_decks + 1);
+        let mut deck_node_ids = Vec::with_capacity(max_decks);
+
+        for _ in 0..max_decks {
+            let id = graph.add_node(NodeData::new2(MixerNode::DeckSource(DeckSourceNode)));
+            deck_node_ids.push(id);
+        }
+        let sum_node_id = graph.add_node(NodeData::new2(MixerNode::Sum(Sum)));
+
+        for &deck_id in &deck_node_ids {
+            graph.add_edge(deck_id, sum_node_id, ());
+        }
+
+        let processor = Processor::with_capacity(max_decks + 1);
+
         Self {
             sample_rate,
             master_volume: 1.0,
             cue_volume: 1.0,
             mix_buffer: Vec::new(),
+            graph,
+            processor,
+            deck_node_ids,
+            sum_node_id,
         }
     }
 
@@ -66,46 +137,75 @@ impl Mixer {
         self.sample_rate = sample_rate;
     }
 
-    /// Process audio from all decks and mix to output buses
-    ///
-    /// # Arguments
-    /// * `decks` - Vector of decks to mix from
-    /// * `frames` - Number of frames to process
-    /// * `output_buses` - Map of bus ID to output buffer
+    /// Process audio from all decks through the graph and route to output buses.
     pub fn process(
         &mut self,
         decks: &mut [Deck],
         frames: u32,
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
-        // Ensure mix buffer is large enough
-        let buffer_size = frames as usize * 2; // Stereo
+        let buffer_size = frames as usize * 2;
         self.mix_buffer.resize(buffer_size, 0.0);
-
-        // Clear the mix buffer
         self.mix_buffer.fill(0.0);
 
-        // Mix all playing decks
-        for deck in decks {
-            if deck.state() == &crate::deck::DeckState::Playing {
-                let deck_audio = deck.process(frames)?;
+        // Collect deck outputs (interleaved stereo) so we can chunk without re-calling process.
+        let mut deck_buffers: Vec<Vec<Sample>> = Vec::with_capacity(decks.len());
+        for deck in decks.iter_mut() {
+            let out = deck.process(frames)?;
+            deck_buffers.push(out.to_vec());
+        }
 
-                // Add deck audio to mix buffer
-                for (i, &sample) in deck_audio.iter().enumerate() {
-                    if i < self.mix_buffer.len() {
-                        self.mix_buffer[i] += sample;
+        let n_samples_per_channel = frames as usize;
+        let n_chunks = (n_samples_per_channel + CHUNK_SAMPLES - 1) / CHUNK_SAMPLES;
+
+        for chunk in 0..n_chunks {
+            let start = chunk * CHUNK_SAMPLES;
+            let len = (n_samples_per_channel - start).min(CHUNK_SAMPLES);
+
+            // Fill each deck source node's buffers from deck output for this chunk.
+            for (i, deck_buf) in deck_buffers.iter().enumerate() {
+                if i >= self.deck_node_ids.len() {
+                    break;
+                }
+                let node_id = self.deck_node_ids[i];
+                let node_data = self.graph.node_weight_mut(node_id).unwrap();
+                let buffers = &mut node_data.buffers;
+                if buffers.len() >= 2 {
+                    for s in 0..len {
+                        let interleaved_idx = (start + s) * 2;
+                        if interleaved_idx + 1 < deck_buf.len() {
+                            buffers[0][s] = deck_buf[interleaved_idx];
+                            buffers[1][s] = deck_buf[interleaved_idx + 1];
+                        }
                     }
+                    if len < CHUNK_SAMPLES {
+                        for s in len..CHUNK_SAMPLES {
+                            buffers[0][s] = 0.0;
+                            buffers[1][s] = 0.0;
+                        }
+                    }
+                }
+            }
+
+            // Run the graph: sources -> Sum.
+            process(&mut self.processor, &mut self.graph, self.sum_node_id);
+
+            // Copy sum output into mix_buffer for this chunk.
+            let sum_data = self.graph.node_weight(self.sum_node_id).unwrap();
+            let out_start = chunk * CHUNK_SAMPLES * 2;
+            for s in 0..len {
+                if sum_data.buffers.len() >= 2 && out_start + s * 2 + 1 < self.mix_buffer.len() {
+                    self.mix_buffer[out_start + s * 2] = sum_data.buffers[0][s];
+                    self.mix_buffer[out_start + s * 2 + 1] = sum_data.buffers[1][s];
                 }
             }
         }
 
-        // Route to output buses (per-bus volume applied there; no master scale here to avoid double application)
         self.route_to_buses(frames, output_buses)?;
-
         Ok(())
     }
 
-    /// Route mixed audio to output buses
+    /// Route mixed audio to output buses and apply volume + clamp.
     fn route_to_buses(
         &self,
         frames: u32,
@@ -113,32 +213,36 @@ impl Mixer {
     ) -> Result<()> {
         for (bus_id, output_buffer) in output_buses.iter_mut() {
             let bus_name = bus_id.as_str();
-
-            // Ensure output buffer is large enough
-            let required_size = frames as usize * 2; // Stereo
+            let required_size = frames as usize * 2;
             if output_buffer.len() < required_size {
                 output_buffer.resize(required_size, 0.0);
             }
 
-            // Copy mixed audio to output buffer
             for (i, &sample) in self.mix_buffer.iter().enumerate() {
                 if i < output_buffer.len() {
                     output_buffer[i] = sample;
                 }
             }
 
-            // Apply bus-specific volume and clamp to [-1, 1] to prevent DAC clipping
             let volume = match bus_name {
                 "cue" => self.cue_volume,
                 "master" => self.master_volume,
                 _ => 1.0,
             };
 
-            for sample in output_buffer.iter_mut() {
-                *sample = (*sample * volume).clamp(-1.0, 1.0);
+            if let Some(frames_slice) =
+                audio_slice::to_frame_slice_mut::<&mut [Sample], StereoFrame>(output_buffer)
+            {
+                for frame in frames_slice.iter_mut() {
+                    let scaled = frame.scale_amp(volume);
+                    *frame = [scaled[0].clamp(-1.0, 1.0), scaled[1].clamp(-1.0, 1.0)];
+                }
+            } else {
+                for sample in output_buffer.iter_mut() {
+                    *sample = (*sample * volume).clamp(-1.0, 1.0);
+                }
             }
         }
-
         Ok(())
     }
 }
@@ -157,16 +261,10 @@ mod tests {
     #[test]
     fn test_mixer_volume_controls() {
         let mut mixer = Mixer::new(48000);
-
-        // Test master volume
         mixer.set_master_volume(0.5).unwrap();
         assert_eq!(mixer.master_volume(), 0.5);
-
-        // Test cue volume
         mixer.set_cue_volume(0.7).unwrap();
         assert_eq!(mixer.cue_volume(), 0.7);
-
-        // Test invalid volumes
         assert!(mixer.set_master_volume(-0.1).is_err());
         assert!(mixer.set_master_volume(1.1).is_err());
     }
@@ -175,22 +273,17 @@ mod tests {
     fn test_mixer_processing() {
         let mut mixer = Mixer::new(48000);
         let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
-
-        // Start one deck
         decks[0].play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
 
-        // Process audio
         let result = mixer.process(&mut decks, 512, &mut output_buses);
         assert!(result.is_ok());
 
-        // Check that output buffers have audio
         let master_audio = &output_buses[&BusId::new("master")];
         let cue_audio = &output_buses[&BusId::new("cue")];
-
         assert!(master_audio.iter().any(|&s| s != 0.0));
         assert!(cue_audio.iter().any(|&s| s != 0.0));
     }
@@ -210,14 +303,10 @@ mod tests {
 
         mixer.process(&mut decks, 512, &mut output_buses).unwrap();
 
-        // Check that volumes are applied correctly
         let master_audio = &output_buses[&BusId::new("master")];
         let cue_audio = &output_buses[&BusId::new("cue")];
-
-        // Master should have higher volume than cue
         let master_max = master_audio.iter().map(|&s| s.abs()).fold(0.0, f32::max);
         let cue_max = cue_audio.iter().map(|&s| s.abs()).fold(0.0, f32::max);
-
         assert!(master_max > cue_max);
     }
 
@@ -225,8 +314,6 @@ mod tests {
     fn test_mixer_multiple_decks() {
         let mut mixer = Mixer::new(48000);
         let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
-
-        // Start both decks
         decks[0].play().unwrap();
         decks[1].play().unwrap();
 
@@ -235,7 +322,6 @@ mod tests {
 
         mixer.process(&mut decks, 512, &mut output_buses).unwrap();
 
-        // Should have mixed audio from both decks
         let master_audio = &output_buses[&BusId::new("master")];
         assert!(master_audio.iter().any(|&s| s != 0.0));
     }
