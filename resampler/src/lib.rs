@@ -1,13 +1,15 @@
 //! Audio resampler for rust-dj-engine
 //!
-//! This crate provides audio resampling capabilities using rubato.
-//! Uses [dasp](https://github.com/RustAudio/dasp) slice conversions for interleaved samples and frames.
+//! This crate provides audio resampling capabilities using rubato 1.0.
+//! Uses `InterleavedSlice` from `audioadapter-buffers` for zero-copy
+//! adapter-based I/O — no manual deinterleave/interleave needed.
 
 use anyhow::Result;
-use audio_core::{slice as audio_slice, Sample, StereoFrame};
+use audio_core::Sample;
+use audioadapter_buffers::direct::InterleavedSlice;
 use rubato::{
-    Resampler as RubatoResamplerTrait, SincFixedIn, SincInterpolationParameters,
-    SincInterpolationType, WindowFunction,
+    Async, FixedAsync, Indexing, Resampler as RubatoResamplerTrait,
+    SincInterpolationParameters, SincInterpolationType, WindowFunction,
 };
 
 /// Resampler trait
@@ -19,14 +21,12 @@ pub trait Resampler: Send {
     fn set_rate(&mut self, input_sr: u32, output_sr: u32);
 }
 
-/// Rubato resampler implementation
+/// Rubato resampler implementation using `rubato::Async` (sinc, fixed-input).
 pub struct RubatoResampler {
-    resampler: Option<SincFixedIn<f32>>,
+    resampler: Option<Async<f32>>,
     input_sample_rate: u32,
     output_sample_rate: u32,
     channels: usize,
-    input_buffer: Vec<Vec<f32>>,
-    output_buffer: Vec<Vec<f32>>,
 }
 
 impl RubatoResampler {
@@ -37,8 +37,6 @@ impl RubatoResampler {
             input_sample_rate: input_sr,
             output_sample_rate: output_sr,
             channels,
-            input_buffer: vec![Vec::new(); channels],
-            output_buffer: vec![Vec::new(); channels],
         };
 
         resampler.update_resampler()?;
@@ -48,104 +46,37 @@ impl RubatoResampler {
     /// Update the internal resampler when sample rates change
     fn update_resampler(&mut self) -> Result<()> {
         if self.input_sample_rate == self.output_sample_rate {
-            // No resampling needed
             self.resampler = None;
             return Ok(());
         }
 
         let ratio = self.output_sample_rate as f64 / self.input_sample_rate as f64;
 
-        // Calculate buffer sizes
-        let max_input_frames = 1024;
-        let max_output_frames = ((max_input_frames as f64) * ratio).ceil() as usize;
-
-        // Create interpolation parameters - FAST settings for testing
         let params = SincInterpolationParameters {
-            sinc_len: 32, // Much smaller for speed (was 256)
+            sinc_len: 32,
             f_cutoff: 0.95,
             interpolation: SincInterpolationType::Linear,
-            oversampling_factor: 16, // Much smaller for speed (was 256)
+            oversampling_factor: 16,
             window: WindowFunction::BlackmanHarris2,
         };
 
-        // Create the resampler
-        let resampler = SincFixedIn::<f32>::new(
+        let resampler = Async::<f32>::new_sinc(
             ratio,
-            2.0, // Max ratio change
-            params,
-            max_input_frames,
+            2.0,
+            &params,
+            1024,
             self.channels,
+            FixedAsync::Input,
         )?;
 
         self.resampler = Some(resampler);
         Ok(())
-    }
-
-    /// Deinterleave interleaved samples into per-channel buffers using dasp frame view.
-    fn deinterleave(interleaved: &[Sample], channels: usize) -> Vec<Vec<f32>> {
-        if channels == 2 {
-            // Use dasp slice: interpret interleaved as stereo frames
-            let frames = match audio_slice::to_frame_slice::<&[Sample], StereoFrame>(interleaved) {
-                Some(f) => f,
-                None => {
-                    // Odd sample count; fall back to manual deinterleave
-                    let mut channel_buffers = vec![Vec::new(); channels];
-                    let samples_per_channel = interleaved.len() / channels;
-                    for (i, &sample) in interleaved.iter().enumerate() {
-                        let channel = i % channels;
-                        if channel_buffers[channel].len() < samples_per_channel {
-                            channel_buffers[channel].push(sample);
-                        }
-                    }
-                    return channel_buffers;
-                }
-            };
-            let mut ch0 = Vec::with_capacity(frames.len());
-            let mut ch1 = Vec::with_capacity(frames.len());
-            for frame in frames {
-                ch0.push(frame[0]);
-                ch1.push(frame[1]);
-            }
-            vec![ch0, ch1]
-        } else {
-            // Generic path for other channel counts
-            let mut channel_buffers = vec![Vec::new(); channels];
-            let samples_per_channel = interleaved.len() / channels;
-            for (i, &sample) in interleaved.iter().enumerate() {
-                let channel = i % channels;
-                if channel_buffers[channel].len() < samples_per_channel {
-                    channel_buffers[channel].push(sample);
-                }
-            }
-            channel_buffers
-        }
-    }
-
-    /// Interleave per-channel buffers into a single sample slice using dasp (stereo).
-    fn interleave(channel_buffers: &[Vec<f32>], channels: usize) -> Vec<Sample> {
-        if channels == 2 {
-            let n_frames = channel_buffers[0].len().min(channel_buffers[1].len());
-            let frames: Vec<StereoFrame> = (0..n_frames)
-                .map(|i| [channel_buffers[0][i], channel_buffers[1][i]])
-                .collect();
-            audio_slice::to_sample_slice(frames.as_slice()).to_vec()
-        } else {
-            let max_samples = channel_buffers.iter().map(|b| b.len()).max().unwrap_or(0);
-            let mut interleaved = Vec::with_capacity(max_samples * channels);
-            for i in 0..max_samples {
-                for ch in 0..channels {
-                    interleaved.push(channel_buffers[ch].get(i).copied().unwrap_or(0.0));
-                }
-            }
-            interleaved
-        }
     }
 }
 
 impl Resampler for RubatoResampler {
     fn process(&mut self, in_buf: &[Sample], out_buf: &mut [Sample], channels: usize) -> usize {
         if self.input_sample_rate == self.output_sample_rate {
-            // No resampling needed, just copy
             let copy_len = in_buf.len().min(out_buf.len());
             out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
             return copy_len;
@@ -155,97 +86,68 @@ impl Resampler for RubatoResampler {
             return 0;
         };
 
-        // Deinterleave input
-        let input_channels = Self::deinterleave(in_buf, channels);
-        let input_frames = input_channels[0].len();
+        let input_frames = in_buf.len() / channels;
+        let output_frames_cap = out_buf.len() / channels;
 
-        // Rubato SincFixedIn consumes exactly input_frames_next() frames per call.
-        // Process in chunks so we don't drop 3/4 of the audio.
-        let chunk_in = resampler.input_frames_next();
-        let max_out_per_chunk = resampler.output_frames_max() * channels;
-
-        // Ensure per-channel output buffers for rubato
-        let out_frames_cap = resampler.output_frames_max();
-        for buf in self.output_buffer.iter_mut() {
-            if buf.len() < out_frames_cap {
-                buf.resize(out_frames_cap, 0.0);
-            }
-        }
-
-        let mut input_offset = 0_usize;
-        let mut output_offset = 0_usize;
-
-        while input_offset + chunk_in <= input_frames {
-            let space_left = out_buf.len().saturating_sub(output_offset);
-            if space_left < max_out_per_chunk {
-                break;
-            }
-
-            // Slices for this chunk: one per channel
-            let in_slices: Vec<&[f32]> = (0..channels)
-                .map(|c| &input_channels[c][input_offset..input_offset + chunk_in])
-                .collect();
-
-            let mut out_buffers: Vec<&mut [f32]> = self
-                .output_buffer
-                .iter_mut()
-                .map(|b| &mut b[..out_frames_cap])
-                .collect();
-
-            let (n_in, n_out) = match resampler.process_into_buffer(&in_slices, &mut out_buffers, None) {
-                Ok(t) => t,
-                Err(_) => break,
+        let input_adapter = match InterleavedSlice::new(in_buf, channels, input_frames) {
+            Ok(a) => a,
+            Err(_) => return 0,
+        };
+        let mut output_adapter =
+            match InterleavedSlice::new_mut(out_buf, channels, output_frames_cap) {
+                Ok(a) => a,
+                Err(_) => return 0,
             };
 
-            // Interleave this chunk into out_buf
-            for f in 0..n_out {
-                for c in 0..channels {
-                    if output_offset < out_buf.len() {
-                        out_buf[output_offset] = self.output_buffer[c][f];
-                        output_offset += 1;
-                    }
-                }
-            }
-            input_offset += n_in;
-        }
+        let chunk_in = resampler.input_frames_next();
+        let mut input_offset = 0usize;
+        let mut output_offset = 0usize;
 
-        // Process remaining input (partial chunk) so we don't drop tail samples
-        if input_offset < input_frames {
-            let in_slices: Vec<&[f32]> = (0..channels)
-                .map(|c| &input_channels[c][input_offset..])
-                .collect();
-            let mut out_buffers: Vec<&mut [f32]> = self
-                .output_buffer
-                .iter_mut()
-                .map(|b| &mut b[..out_frames_cap])
-                .collect();
-            let space_left = out_buf.len().saturating_sub(output_offset);
-            if space_left >= max_out_per_chunk {
-                if let Ok((_n_in, n_out)) = resampler.process_partial_into_buffer(
-                    Some(&in_slices),
-                    &mut out_buffers,
-                    None,
-                ) {
-                    for f in 0..n_out {
-                        for c in 0..channels {
-                            if output_offset < out_buf.len() {
-                                out_buf[output_offset] = self.output_buffer[c][f];
-                                output_offset += 1;
-                            }
-                        }
-                    }
+        while input_offset + chunk_in <= input_frames && output_offset < output_frames_cap {
+            let indexing = Indexing {
+                input_offset,
+                output_offset,
+                active_channels_mask: None,
+                partial_len: None,
+            };
+            match resampler.process_into_buffer(
+                &input_adapter,
+                &mut output_adapter,
+                Some(&indexing),
+            ) {
+                Ok((n_in, n_out)) => {
+                    input_offset += n_in;
+                    output_offset += n_out;
                 }
+                Err(_) => break,
             }
         }
 
-        output_offset
+        // Handle remaining input (partial chunk)
+        if input_offset < input_frames && output_offset < output_frames_cap {
+            let remaining = input_frames - input_offset;
+            let indexing = Indexing {
+                input_offset,
+                output_offset,
+                active_channels_mask: None,
+                partial_len: Some(remaining),
+            };
+            if let Ok((_, n_out)) = resampler.process_into_buffer(
+                &input_adapter,
+                &mut output_adapter,
+                Some(&indexing),
+            ) {
+                output_offset += n_out;
+            }
+        }
+
+        output_offset * channels
     }
 
     fn set_rate(&mut self, input_sr: u32, output_sr: u32) {
         self.input_sample_rate = input_sr;
         self.output_sample_rate = output_sr;
 
-        // Update the resampler with new rates
         if let Err(e) = self.update_resampler() {
             eprintln!("Failed to update resampler: {}", e);
         }
@@ -289,29 +191,21 @@ mod tests {
     fn test_resampler_rate_change() {
         let mut resampler = RubatoResampler::new(44100, 48000, 2).unwrap();
 
-        // Change sample rate
         resampler.set_rate(48000, 44100);
         assert_eq!(resampler.input_sample_rate, 48000);
         assert_eq!(resampler.output_sample_rate, 44100);
     }
 
     #[test]
-    fn test_deinterleave() {
-        let resampler = RubatoResampler::new(44100, 48000, 2).unwrap();
-        let input = vec![0.1, 0.2, 0.3, 0.4]; // L, R, L, R
-        let channels = RubatoResampler::deinterleave(&input, 2);
+    fn test_resampler_44100_to_48000() {
+        let mut resampler = RubatoResampler::new(44100, 48000, 2).unwrap();
 
-        assert_eq!(channels[0], vec![0.1, 0.3]); // Left channel
-        assert_eq!(channels[1], vec![0.2, 0.4]); // Right channel
-    }
+        // Generate a reasonable chunk of silence (1024 frames, stereo interleaved)
+        let input = vec![0.0f32; 1024 * 2];
+        let mut output = vec![0.0f32; 2048 * 2];
 
-    #[test]
-    fn test_interleave() {
-        let resampler = RubatoResampler::new(44100, 48000, 2).unwrap();
-        let channels = vec![vec![0.1, 0.3], vec![0.2, 0.4]];
-        let interleaved = RubatoResampler::interleave(&channels, 2);
-
-        assert_eq!(interleaved, vec![0.1, 0.2, 0.3, 0.4]);
+        let processed = resampler.process(&input, &mut output, 2);
+        assert!(processed > 0, "Resampler should produce output samples");
     }
 
     #[test]

@@ -81,6 +81,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "audio-core"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f93ebbf82d06013f4c41fe71303feb980cddd78496d904d06be627972de51a24"
+
+[[package]]
+name = "audioadapter"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e25c5bb54993ad4693d8b68b6f29f872c5fd9f92a6469d0acb0cbaf80a13d0f9"
+dependencies = [
+ "audio-core 0.2.1",
+ "num-traits",
+]
+
+[[package]]
+name = "audioadapter-buffers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6af89882334c4e501faa08992888593ada468f9e1ab211635c32f9ada7786e0"
+dependencies = [
+ "audioadapter",
+ "audioadapter-sample",
+ "num-traits",
+]
+
+[[package]]
+name = "audioadapter-sample"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e9a3d502fec0b21aa420febe0b110875cf8a7057c49e83a0cace1df6a73e03e"
+dependencies = [
+ "audio-core 0.2.1",
+ "num-traits",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,7 +128,7 @@ name = "backend-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "cpal",
  "log",
  "thiserror",
@@ -102,7 +139,7 @@ name = "backend-miniaudio"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "log",
  "thiserror",
 ]
@@ -112,7 +149,7 @@ name = "backend-null"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "log",
  "thiserror",
 ]
@@ -122,7 +159,7 @@ name = "backend-pipewire"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "log",
  "thiserror",
 ]
@@ -239,7 +276,7 @@ name = "codec"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "symphonia",
  "tempfile",
  "thiserror",
@@ -453,7 +490,7 @@ name = "engine-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "backend-cpal",
  "backend-miniaudio",
  "backend-null",
@@ -473,7 +510,7 @@ name = "engine-dsp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "dasp_graph",
  "log",
  "petgraph",
@@ -702,7 +739,7 @@ name = "library"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
  "serde",
  "thiserror",
 ]
@@ -1004,7 +1041,8 @@ name = "resampler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "audio-core",
+ "audio-core 0.1.0",
+ "audioadapter-buffers",
  "rubato",
  "thiserror",
 ]
@@ -1017,14 +1055,18 @@ checksum = "ad8388ea1a9e0ea807e442e8263a699e7edcb320ecbcd21b4fa8ff859acce3ba"
 
 [[package]]
 name = "rubato"
-version = "0.14.1"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6dd52e80cfc21894deadf554a5673002938ae4625f7a283e536f9cf7c17b0d5"
+checksum = "90173154a8a14e6adb109ea641743bc95ec81c093d94e70c6763565f7108ebeb"
 dependencies = [
+ "audioadapter",
+ "audioadapter-buffers",
  "num-complex",
  "num-integer",
  "num-traits",
  "realfft",
+ "visibility",
+ "windowfunctions",
 ]
 
 [[package]]
@@ -1458,6 +1500,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
 
 [[package]]
+name = "visibility"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d674d135b4a8c1d7e813e2f8d1c9a58308aee4a680323066025e53132218bd91"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "walkdir"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1580,6 +1633,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
  "windows-sys 0.61.0",
+]
+
+[[package]]
+name = "windowfunctions"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90628d739333b7c5d2ee0b70210b97b8cddc38440c682c96fd9e2c24c2db5f3a"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
