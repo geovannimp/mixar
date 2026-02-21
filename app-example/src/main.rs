@@ -4,7 +4,7 @@
 //! different backends, configuration, and audio processing features.
 
 use anyhow::Result;
-use engine_core::{Engine, EngineConfig};
+use engine_core::{AudioBackend, Engine, EngineConfig};
 use log::info;
 use std::path::Path;
 
@@ -14,6 +14,21 @@ fn main() -> Result<()> {
 
     info!("Starting rust-dj-engine example");
 
+    // Discover backends and devices without creating an engine (for building config)
+    let backend_names = AudioBackend::list_names();
+    info!("Available backends: {:?}", backend_names);
+
+    let backend_name = "cpal";
+    if let Ok(backend) = AudioBackend::new(backend_name) {
+        if let Ok(devices) = backend.list_output_devices() {
+            info!("{} output devices:", backend_name);
+            for d in &devices {
+                let default_tag = if d.is_default { " [default]" } else { "" };
+                info!("  - {} (id: {}){}", d.name, d.id.as_str(), default_tag);
+            }
+        }
+    }
+
     let mut config = if Path::new("config.toml").exists() {
         info!("Loading configuration from config.toml");
         EngineConfig::from_toml_file("config.toml")?
@@ -22,22 +37,15 @@ fn main() -> Result<()> {
         EngineConfig::default()
     };
 
-    // Use "auto" to pick the best available backend; fall back to "null" if start fails (e.g. when
-    // miniaudio is selected but not implemented, or no audio devices).
-    config.backend = "auto".to_string();
-    info!("Using auto backend selection for audio output");
+    config.backend = backend_name.to_string();
+    info!("Using {} backend for audio output", backend_name);
     info!("Engine config: {:?}", config);
 
-    // Create engine and start; fall back to null backend if auto fails to start
+    // Create engine and start; exit with error if engine fails to load or start
     let mut engine = Engine::new(config.clone())?;
     info!("Engine created successfully");
 
-    if let Err(e) = engine.start() {
-        info!("Auto backend failed to start ({}), falling back to null backend", e);
-        config.backend = "null".to_string();
-        engine = Engine::new(config)?;
-        engine.start()?;
-    }
+    engine.start()?;
     info!("Engine started");
 
     // Demonstrate different backends

@@ -7,7 +7,7 @@ use anyhow::Result;
 use audio_core::{AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, StreamParams};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    Host, SampleRate, Stream, StreamConfig,
+    BuildStreamError, Host, Stream, StreamConfig,
 };
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -25,32 +25,36 @@ impl CpalBackend {
         Ok(Self { host })
     }
 
-    /// Get device ID from device name
-    fn get_device_id_from_name(&self, device_name: &str) -> DeviceId {
-        DeviceId::new(format!("cpal:{}", device_name))
+    /// Build our DeviceId from CPAL device (uses stable id()).
+    fn device_id(device: &cpal::Device) -> Result<DeviceId> {
+        let id = device.id().map_err(anyhow::Error::msg)?;
+        Ok(DeviceId::new(format!("cpal:{}", id)))
     }
 
-    /// Get device name from device ID
-    fn get_device_name_from_id(&self, device_id: &DeviceId) -> Result<String> {
+    /// Resolve device display name using description() (comprehensive device info).
+    fn device_name(device: &cpal::Device) -> String {
+        device
+            .description()
+            .ok()
+            .map(|d| d.name().to_string())
+            .unwrap_or_else(|| "Unknown Device".to_string())
+    }
+
+    /// Find device by stable id (from DeviceId).
+    fn find_device_by_id(&self, device_id: &DeviceId) -> Result<cpal::Device> {
         let id_str = device_id.as_str();
-        if let Some(name) = id_str.strip_prefix("cpal:") {
-            Ok(name.to_string())
-        } else {
-            Err(anyhow::anyhow!("Invalid CPAL device ID format: {}", id_str))
-        }
-    }
-
-    /// Find device by name
-    fn find_device_by_name(&self, target_name: &str) -> Result<cpal::Device> {
+        let suffix = id_str
+            .strip_prefix("cpal:")
+            .ok_or_else(|| anyhow::anyhow!("Invalid CPAL device ID format: {}", id_str))?;
         let output_devices = self.host.output_devices()?;
         for device in output_devices {
-            if let Ok(name) = device.name() {
-                if name == target_name {
+            if let Ok(id) = device.id() {
+                if id.to_string() == suffix {
                     return Ok(device);
                 }
             }
         }
-        Err(anyhow::anyhow!("Device not found: {}", target_name))
+        Err(anyhow::anyhow!("Device not found: {}", id_str))
     }
 }
 
@@ -62,53 +66,36 @@ impl AudioBackend for CpalBackend {
     fn list_output_devices(&self) -> Result<Vec<DeviceInfo>> {
         let mut devices = Vec::new();
 
+        let default_id = self
+            .host
+            .default_output_device()
+            .and_then(|d| Self::device_id(&d).ok());
+
         let output_devices = self.host.output_devices()?;
         for device in output_devices {
-            let device_name = device
-                .name()
-                .unwrap_or_else(|_| "Unknown Device".to_string());
+            let id = match Self::device_id(&device) {
+                Ok(i) => i,
+                Err(_) => continue,
+            };
+            let device_name = Self::device_name(&device);
+            let is_default = default_id.as_ref().map_or(false, |d| d.as_str() == id.as_str());
 
-            // Get supported sample rates
+            // Get supported sample rates (cpal 0.17: SampleRate is u32)
             let mut sample_rates = vec![44100, 48000];
             if let Ok(configs) = device.supported_output_configs() {
                 for config in configs {
-                    sample_rates.push(config.min_sample_rate().0);
-                    sample_rates.push(config.max_sample_rate().0);
+                    sample_rates.push(config.min_sample_rate());
+                    sample_rates.push(config.max_sample_rate());
                 }
             }
             sample_rates.sort();
             sample_rates.dedup();
 
-            let device_info = DeviceInfo::new(
-                self.get_device_id_from_name(&device_name),
-                device_name,
-                2, // Default to stereo
-                sample_rates,
-            );
+            let device_info = DeviceInfo::new(id, device_name, 2, sample_rates, is_default);
             devices.push(device_info);
         }
 
         Ok(devices)
-    }
-
-    fn default_output_device(&self) -> Result<DeviceInfo> {
-        let default_device = self
-            .host
-            .default_output_device()
-            .ok_or_else(|| anyhow::anyhow!("No default output device available"))?;
-
-        let device_name = default_device
-            .name()
-            .unwrap_or_else(|_| "Default Device".to_string());
-
-        let device_info = DeviceInfo::new(
-            self.get_device_id_from_name(&device_name),
-            device_name,
-            2, // Default to stereo
-            vec![44100, 48000, 88200, 96000],
-        );
-
-        Ok(device_info)
     }
 
     fn open_output_stream(
@@ -117,29 +104,28 @@ impl AudioBackend for CpalBackend {
         params: &StreamParams,
         callback: Box<dyn AudioCallback>,
     ) -> Result<Box<dyn AudioStream>> {
-        let device_name = self.get_device_name_from_id(device)?;
-        let cpal_device = self.find_device_by_name(&device_name)?;
+        let cpal_device = self.find_device_by_id(device)?;
 
-        // Query supported configurations and find the best match
-        let supported_configs = cpal_device.supported_output_configs()?;
-        let desired_sample_rate = SampleRate(params.sample_rate);
+        // Query supported configurations and find the best match (cpal 0.17: sample rates are u32)
+        let desired_sample_rate = params.sample_rate;
+        let supported_configs: Vec<_> = cpal_device.supported_output_configs()?.collect();
 
         // Log all supported configurations for debugging
         log::info!("Available device configurations:");
-        for (i, config) in supported_configs.enumerate() {
+        for (i, config) in supported_configs.iter().enumerate() {
             log::info!(
                 "  {}: {} channels, {} Hz - {} Hz",
                 i,
                 config.channels(),
-                config.min_sample_rate().0,
-                config.max_sample_rate().0
+                config.min_sample_rate(),
+                config.max_sample_rate()
             );
         }
 
         // Find a supported configuration that matches our desired sample rate
         // Prefer stereo (2 channels) if available, otherwise use the first available
-        let supported_configs = cpal_device.supported_output_configs()?;
         let matching_configs: Vec<_> = supported_configs
+            .iter()
             .filter(|config| {
                 config.min_sample_rate() <= desired_sample_rate
                     && config.max_sample_rate() >= desired_sample_rate
@@ -158,43 +144,56 @@ impl AudioBackend for CpalBackend {
             })?
             .with_sample_rate(desired_sample_rate);
 
+        let actual_sample_rate = supported_config.sample_rate();
         log::info!(
             "Using CPAL config: {} Hz, {} channels, buffer size: {}",
-            supported_config.sample_rate().0,
+            actual_sample_rate,
             supported_config.channels(),
             params.frames_per_buffer
         );
 
-        let config = StreamConfig {
-            channels: supported_config.channels(),
-            sample_rate: supported_config.sample_rate(),
-            buffer_size: cpal::BufferSize::Fixed(params.frames_per_buffer),
-        };
-
-        // Clone the parameters to move into the closure
         let channels = supported_config.channels();
-        let actual_sample_rate = supported_config.sample_rate().0;
         let frames_per_buffer = params.frames_per_buffer;
 
         let callback_arc = Arc::new(Mutex::new(callback));
-        // Record actual frames per callback (driver may use different size than requested)
         let last_callback_frames = Arc::new(AtomicU32::new(0));
 
-        let last_callback_frames_clone = last_callback_frames.clone();
-        let stream = cpal_device.build_output_stream(
-            &config,
-            move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                let frames = data.len() / channels as usize;
-                last_callback_frames_clone.store(frames as u32, Ordering::Relaxed);
-                if let Ok(mut callback) = callback_arc.lock() {
-                    callback.render(data, frames as u32, actual_sample_rate);
-                }
-            },
-            |err| {
-                eprintln!("Audio stream error: {}", err);
-            },
-            None,
-        )?;
+        // Prefer fixed buffer size for low latency; fall back to Default if not supported (e.g. JACK).
+        let build_stream = |buffer_size: cpal::BufferSize| {
+            let config = StreamConfig {
+                channels: supported_config.channels(),
+                sample_rate: actual_sample_rate,
+                buffer_size,
+            };
+            let arc = Arc::clone(&callback_arc);
+            let frames = Arc::clone(&last_callback_frames);
+            cpal_device.build_output_stream(
+                &config,
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    let n = data.len() / channels as usize;
+                    frames.store(n as u32, Ordering::Relaxed);
+                    if let Ok(mut cb) = arc.lock() {
+                        cb.render(data, n as u32, actual_sample_rate);
+                    }
+                },
+                |err| {
+                    eprintln!("Audio stream error: {}", err);
+                },
+                None,
+            )
+        };
+
+        let stream = match build_stream(cpal::BufferSize::Fixed(params.frames_per_buffer)) {
+            Ok(s) => s,
+            Err(BuildStreamError::StreamConfigNotSupported) => {
+                log::info!(
+                    "Fixed buffer size {} not supported, using host default for low latency",
+                    params.frames_per_buffer
+                );
+                build_stream(cpal::BufferSize::Default)?
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         Ok(Box::new(CpalStream {
             stream,
@@ -291,10 +290,10 @@ mod tests {
     #[test]
     fn test_cpal_default_device() {
         let backend = CpalBackend::new().unwrap();
-        let device = backend.default_output_device();
-        // This might fail if no devices are available, which is ok for testing
-        if device.is_ok() {
-            assert!(!device.unwrap().name.is_empty());
+        let devices = backend.list_output_devices().unwrap();
+        let default = devices.iter().find(|d| d.is_default).or(devices.first());
+        if let Some(d) = default {
+            assert!(!d.name.is_empty());
         }
     }
 }

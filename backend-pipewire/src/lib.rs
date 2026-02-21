@@ -30,11 +30,6 @@ impl AudioBackend for PipewireBackend {
         Err(anyhow::anyhow!("PipeWire backend not yet implemented"))
     }
 
-    fn default_output_device(&self) -> Result<DeviceInfo> {
-        // TODO: Implement in Sprint 4
-        Err(anyhow::anyhow!("PipeWire backend not yet implemented"))
-    }
-
     fn open_output_stream(
         &mut self,
         _device: &DeviceId,

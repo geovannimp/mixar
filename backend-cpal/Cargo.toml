@@ -12,4 +12,4 @@ audio-core = { path = "../audio-core" }
 anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true
-cpal = "0.15"
+cpal = { version = "0.17", features = ["audio_thread_priority"] }

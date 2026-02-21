@@ -168,8 +168,7 @@ pub trait AudioStream: Send {
 
 pub trait AudioBackend: Send + Sync {
     fn name(&self) -> &'static str;
-    fn list_output_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>;
-    fn default_output_device(&self) -> anyhow::Result<DeviceInfo>;
+    fn list_output_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>; // each DeviceInfo has is_default
     fn open_output_stream(
         &mut self,
         device: &DeviceId,

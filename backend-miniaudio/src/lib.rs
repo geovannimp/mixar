@@ -28,25 +28,15 @@ impl AudioBackend for MiniaudioBackend {
 
     fn list_output_devices(&self) -> Result<Vec<DeviceInfo>> {
         // TODO: Implement device enumeration using miniaudio
-        // For now, return a placeholder device
+        // For now, return a placeholder device (default)
         let device_info = DeviceInfo::new(
             DeviceId::new("miniaudio-0".to_string()),
             "Miniaudio Device".to_string(),
             2, // Stereo
             vec![44100, 48000, 88200, 96000],
+            true, // only device, so default
         );
         Ok(vec![device_info])
-    }
-
-    fn default_output_device(&self) -> Result<DeviceInfo> {
-        // TODO: Implement default device selection using miniaudio
-        let device_info = DeviceInfo::new(
-            DeviceId::new("miniaudio-0".to_string()),
-            "Default Miniaudio Device".to_string(),
-            2, // Stereo
-            vec![44100, 48000, 88200, 96000],
-        );
-        Ok(device_info)
     }
 
     fn open_output_stream(
@@ -121,11 +111,11 @@ mod tests {
     #[test]
     fn test_miniaudio_default_device() {
         let backend = MiniaudioBackend::new().unwrap();
-        let device = backend.default_output_device();
-        assert!(device.is_ok());
-        let device = device.unwrap();
+        let devices = backend.list_output_devices().unwrap();
+        let device = devices.iter().find(|d| d.is_default).or(devices.first()).unwrap();
         assert!(!device.name.is_empty());
         assert_eq!(device.id.as_str(), "miniaudio-0");
+        assert!(device.is_default);
     }
 
     #[test]

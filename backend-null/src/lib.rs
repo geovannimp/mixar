@@ -54,22 +54,14 @@ impl AudioBackend for NullBackend {
     }
 
     fn list_output_devices(&self) -> Result<Vec<DeviceInfo>> {
-        // Return a single virtual device
+        // Return a single virtual device (default)
         Ok(vec![DeviceInfo::new(
             DeviceId::new("null-device"),
             "Null Audio Device".to_string(),
             8, // Support up to 8 channels
             vec![44100, 48000, 88200, 96000], // Common sample rates
+            true, // only device, so default
         )])
-    }
-
-    fn default_output_device(&self) -> Result<DeviceInfo> {
-        // Return the same device as the only available device
-        let devices = self.list_output_devices()?;
-        devices
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No devices available"))
     }
 
     fn open_output_stream(
@@ -271,14 +263,16 @@ mod tests {
     #[test]
     fn test_null_backend_default_device() {
         let backend = NullBackend::new();
-        let device = backend.default_output_device().unwrap();
+        let devices = backend.list_output_devices().unwrap();
+        let device = devices.iter().find(|d| d.is_default).or(devices.first()).unwrap();
         assert_eq!(device.name, "Null Audio Device");
+        assert!(device.is_default);
     }
 
     #[test]
     fn test_null_stream_lifecycle() {
         let mut backend = NullBackend::new();
-        let device = backend.default_output_device().unwrap();
+        let device = backend.list_output_devices().unwrap().into_iter().next().unwrap();
         let params = StreamParams::new(48000, 2, 512, false);
         let callback = Box::new(TestCallback::new(48000));
         
@@ -302,7 +296,7 @@ mod tests {
     #[test]
     fn test_null_stream_audio_processing() {
         let mut backend = NullBackend::new();
-        let device = backend.default_output_device().unwrap();
+        let device = backend.list_output_devices().unwrap().into_iter().next().unwrap();
         let params = StreamParams::new(48000, 2, 256, false);
         let callback = Box::new(TestCallback::new(48000));
         
@@ -321,7 +315,7 @@ mod tests {
         let mut backend = NullBackend::new();
         backend.set_buffer_size(1024);
         
-        let device = backend.default_output_device().unwrap();
+        let device = backend.list_output_devices().unwrap().into_iter().next().unwrap();
         let params = StreamParams::new(48000, 2, 0, false); // Request 0 to use backend default
         let callback = Box::new(TestCallback::new(48000));
         

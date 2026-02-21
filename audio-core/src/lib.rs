@@ -61,16 +61,25 @@ pub struct DeviceInfo {
     pub max_channels: u16,
     /// Default sample rates supported by this device
     pub default_sample_rates: Vec<u32>,
+    /// Whether this device is the system default output device
+    pub is_default: bool,
 }
 
 impl DeviceInfo {
     /// Create a new device info
-    pub fn new(id: DeviceId, name: String, max_channels: u16, sample_rates: Vec<u32>) -> Self {
+    pub fn new(
+        id: DeviceId,
+        name: String,
+        max_channels: u16,
+        sample_rates: Vec<u32>,
+        is_default: bool,
+    ) -> Self {
         Self {
             id,
             name,
             max_channels,
             default_sample_rates: sample_rates,
+            is_default,
         }
     }
 }
@@ -160,11 +169,8 @@ pub trait AudioBackend: Send + Sync {
     /// Get the name of this backend
     fn name(&self) -> &'static str;
 
-    /// List all available output devices
+    /// List all available output devices. Each device has `is_default` set if it is the system default.
     fn list_output_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>;
-
-    /// Get the default output device
-    fn default_output_device(&self) -> anyhow::Result<DeviceInfo>;
 
     /// Open an output stream with the given parameters
     ///
