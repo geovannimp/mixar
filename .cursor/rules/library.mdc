@@ -1,0 +1,15 @@
+---
+description: Rules for library — tag reader and metadata manager
+globs: library/**/*.rs
+alwaysApply: false
+---
+
+# library Module Rules
+
+Reference: `docs/tech-spec.md` §10.
+
+- **Role:** Tag reading from files and persistent storage for app-managed metadata (hotcues, beatgrid, BPM). Headless; no UI.
+- **Tag reading:** Read ID3, Vorbis comments, FLAC metadata using symphonia and/or a dedicated tag crate (e.g. lofty). Primary read from file tags for initial metadata when present.
+- **Storage:** Internal SQLite DB (in this crate) as the canonical store for library entries and custom fields (hotcues, beatgrid corrections, user BPM). Optional write-back to file tags for portability (format-dependent); runtime data is authoritative in the DB.
+- **API:** Provide APIs for import (scan/add tracks), read/write metadata, and expose hotcue/beatgrid storage. Document which fields are file-tag vs DB-only.
+- **Testing:** Fuzz tests for tag/parser code; unit tests for DB schema and metadata round-trips. No telemetry or opt-in data collection.

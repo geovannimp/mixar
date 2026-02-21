@@ -1,0 +1,16 @@
+---
+description: Rules for engine-core — lifecycle, config, producer thread, Engine API
+globs: engine-core/**/*.rs
+alwaysApply: false
+---
+
+# engine-core Module Rules
+
+Reference: `docs/tech-spec.md` §4.2, §5, §6.
+
+- **Role:** Orchestrates engine lifecycle, clock, scheduler, and config. Owns the producer thread and implements ring-buffer writing plus decode/resample pipeline.
+- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, path)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Support control API for sample rate, buffer size.
+- **Config:** TOML from `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` (fallback `~/.config/...`). Parse `[engine]` (sample_rate, buffer_size, low_latency, backend), `[[device]]`, `[[bus]]` with 1-based channel indexes.
+- **Threading:** Producer thread (engine-controlled) decodes/resamples and writes interleaved stereo to per-bus lock-free ring buffers; wakes on commands (play/stop/seek/hotcue) via lock-free mailbox. Consumer is the backend’s audio callback (see audio-core).
+- **Ring buffer:** Preallocate; no allocations in the audio callback. Buffer at least N × frames_per_buffer (e.g. N = 8) to tolerate producer jitter.
+- **Backend selection:** Runtime choice via config (`auto` / `miniaudio` / `pipewire` / `null`). All backends compiled in; no dynamic loading.

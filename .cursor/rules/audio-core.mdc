@@ -1,0 +1,16 @@
+---
+description: Rules for audio-core — shared types and backend trait boundary
+globs: audio-core/**/*.rs
+alwaysApply: false
+---
+
+# audio-core Module Rules
+
+Reference: `docs/tech-spec.md` §4.1, §12 (Maintainability).
+
+- **Role:** Defines the runtime trait boundary all backends implement. Shared types and traits only; no I/O or backend logic.
+- **Key types:** `Sample` (f32), `DeviceId`, `DeviceInfo`, `StreamParams`, `BusId`, `BusConfig`, `ChannelMapping`.
+- **Key traits:** `AudioCallback`, `AudioStream`, `AudioBackend`. Backends are compiled in and chosen at runtime; no dynamic loading.
+- **Stability:** Keep the `audio-core` trait surface stable; minimize breaking changes. Use capability discovery for optional features.
+- **AudioCallback::render:** Document that it runs on the audio thread: no heap allocations, no mutexes, no blocking. `out.len() == frames * channels` (interleaved).
+- **Conventions:** Use semantic versioning; document any per-backend caveats in types that backends interpret (e.g. `DeviceId` mapping).

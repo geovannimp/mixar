@@ -1,0 +1,15 @@
+---
+description: Rules for backend-pipewire — Linux native PipeWire backend
+globs: backend-pipewire/**/*.rs
+alwaysApply: false
+---
+
+# backend-pipewire Module Rules
+
+Reference: `docs/tech-spec.md` §8.2.
+
+- **Role:** Linux-only backend for low-latency native PipeWire streams with precise buffer/latency control.
+- **Implementation:** Use pipewire-rs (or equivalent) bindings. Implement `AudioBackend`; support channel mapping and device selection. Map `DeviceId` and `StreamParams` to PipeWire concepts.
+- **Fallback:** If PipeWire is not present, `open_output_stream` (or backend construction) should return an informative error so the app can fall back to miniaudio when `backend = "auto"`.
+- **Callback:** Call `AudioCallback::render` from the real-time path; no allocations or blocking. Report `actual_buffer_size` and `actual_latency` when available.
+- **Platform:** Gate compilation or runtime on Linux; document that this backend is Linux-only.

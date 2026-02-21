@@ -1,0 +1,15 @@
+---
+description: Rules for engine-dsp — pure DSP (deck, mixer, analyzers)
+globs: engine-dsp/**/*.rs
+alwaysApply: false
+---
+
+# engine-dsp Module Rules
+
+Reference: `docs/tech-spec.md` §3, §12.
+
+- **Role:** Pure DSP only: deck, mixer graph (minimal), and analyzers. No I/O or system calls.
+- **Constraint:** This crate must remain **pure Rust with zero I/O dependencies**. No `std::fs`, no network, no backend or codec imports that pull in I/O. Suitable for future WASM compilation.
+- **Components:** Decks (playback state, gain, per-deck/cue/master routing), mixer (bus mixing, channel mapping), analyzers (e.g. BPM). Use types from `audio-core` (e.g. `Sample`, `BusId`) as needed.
+- **Design:** Keep each crate small with a single responsibility. Unit tests for DSP with golden data where appropriate; benchmarks (criterion) for mixer and critical paths.
+- **WASM:** Design so engine-dsp can be compiled to WASM (e.g. with wasm-pack/wasm-bindgen) for WebAudio integration; avoid dependencies that block WASM.

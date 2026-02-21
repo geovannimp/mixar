@@ -1,0 +1,15 @@
+---
+description: Rules for resampler — resampler trait and rubato impl
+globs: resampler/**/*.rs
+alwaysApply: false
+---
+
+# resampler Module Rules
+
+Reference: `docs/tech-spec.md` §7 (Resampler).
+
+- **Role:** Resample audio between sample rates. Expose a trait (e.g. `Resampler`) and a default implementation (rubato); keep implementation pluggable for A/B or future alternatives (e.g. speedxdsp).
+- **Trait (conceptually):** `process(&mut self, in_buf: &[f32], out_buf: &mut [f32], channels: usize) -> usize`, `set_rate(input_sr, output_sr)`. Use `audio_core::Sample` (f32) for consistency.
+- **Default impl:** Use rubato (high-quality, FFT-based). Handle passthrough when input_sr == output_sr without extra copies or state where possible.
+- **Performance:** No allocations in the hot path; preallocate internal buffers when rate is set. Benchmarks (criterion) for resampler throughput.
+- **Engine use:** Engine producer thread uses this to resample decoded audio to the engine internal sample rate before writing to ring buffers.
