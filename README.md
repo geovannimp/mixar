@@ -13,7 +13,7 @@ The project is organized as a Cargo workspace with the following crates:
 - **audio-core**: Core audio traits and types
 - **backend-null**: Null backend for testing and CI
 - **backend-miniaudio**: Miniaudio backend (Sprint 1)
-- **backend-pipewire**: PipeWire backend (Sprint 4)
+- **backend-cpal**: Cross-platform audio via CPAL (native PipeWire on Linux)
 - **engine-core**: Main engine orchestration
 - **engine-dsp**: Pure DSP components (decks, mixer, analyzers)
 - **codec**: Audio decoding wrapper (Sprint 1)
@@ -120,7 +120,6 @@ GitHub Actions workflow includes:
 
 ### Sprint 4 - PipeWire & WASM Prototyping
 
-- [ ] Implement backend-pipewire
 - [ ] Prototype WASM build for engine-dsp
 
 ## License

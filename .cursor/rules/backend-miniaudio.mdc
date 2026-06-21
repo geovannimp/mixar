@@ -11,5 +11,5 @@ Reference: `docs/tech-spec.md` §8.1.
 - **Role:** Primary cross-platform audio backend. Implements `AudioBackend` from `audio-core`.
 - **Implementation:** Use miniaudio via Rust bindings or FFI. Implement `name`, `list_output_devices` (each `DeviceInfo` has `is_default`), `open_output_stream(device, params, callback)`.
 - **Callback contract:** The real-time callback must call `AudioCallback::render(out, frames, sample_rate)`; no heap allocations or blocking in the callback path.
-- **Platform behavior:** On Linux, miniaudio may enumerate ALSA/PulseAudio/Jack/PipeWire where available; for native PipeWire use `backend-pipewire` instead.
+- **Platform behavior:** On Linux, miniaudio may enumerate ALSA/PulseAudio/Jack/PipeWire where available; for native PipeWire prefer the `cpal` backend.
 - **Documentation:** Document per-backend caveats and supported devices. Return informative errors when device open fails (e.g. device in use).

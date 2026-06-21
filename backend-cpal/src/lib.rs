@@ -1,17 +1,39 @@
 //! CPAL backend implementation
 //!
 //! This backend uses the CPAL library for cross-platform audio I/O.
-//! CPAL is a mature and actively maintained audio library for Rust.
+//! On Linux and BSD, the native PipeWire host is preferred when available.
 
 use anyhow::Result;
 use audio_core::{AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, StreamParams};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    BuildStreamError, Host, Stream, StreamConfig,
+    BufferSize, Host, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfigRange,
 };
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+fn create_host() -> Result<Host> {
+    #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd"
+    ))]
+    {
+        match cpal::host_from_id(cpal::HostId::PipeWire) {
+            Ok(host) => {
+                log::info!("Using CPAL PipeWire host");
+                return Ok(host);
+            }
+            Err(e) => {
+                log::warn!("PipeWire host unavailable ({e}), falling back to default CPAL host");
+            }
+        }
+    }
+
+    Ok(cpal::default_host())
+}
 
 /// CPAL backend implementation
 pub struct CpalBackend {
@@ -21,7 +43,7 @@ pub struct CpalBackend {
 impl CpalBackend {
     /// Create a new CPAL backend
     pub fn new() -> Result<Self> {
-        let host = cpal::default_host();
+        let host = create_host()?;
         Ok(Self { host })
     }
 
@@ -46,15 +68,52 @@ impl CpalBackend {
         let suffix = id_str
             .strip_prefix("cpal:")
             .ok_or_else(|| anyhow::anyhow!("Invalid CPAL device ID format: {}", id_str))?;
-        let output_devices = self.host.output_devices()?;
-        for device in output_devices {
-            if let Ok(id) = device.id() {
-                if id.to_string() == suffix {
-                    return Ok(device);
+        let cpal_id: cpal::DeviceId = suffix
+            .parse()
+            .map_err(|e| anyhow::anyhow!("Invalid CPAL device ID: {} ({e})", suffix))?;
+        self.host
+            .device_by_id(&cpal_id)
+            .ok_or_else(|| anyhow::anyhow!("Device not found: {}", id_str))
+    }
+
+    /// Validate requested buffer size against CPAL-reported device limits.
+    fn validate_buffer_size(
+        device: &cpal::Device,
+        config_range: &SupportedStreamConfigRange,
+        requested: u32,
+    ) -> Result<()> {
+        if let Ok(default) = device.default_output_config() {
+            log::info!(
+                "Device default output buffer size: {:?}",
+                default.config().buffer_size
+            );
+        }
+
+        match config_range.buffer_size() {
+            SupportedBufferSize::Range { min, max } => {
+                log::info!(
+                    "Device supported buffer size range: {}..={} frames",
+                    min,
+                    max
+                );
+                if requested < *min || requested > *max {
+                    return Err(anyhow::anyhow!(
+                        "Requested buffer size {} frames is outside device range {}..={} frames",
+                        requested,
+                        min,
+                        max
+                    ));
                 }
             }
+            SupportedBufferSize::Unknown => {
+                log::info!(
+                    "Device buffer size range unknown; requesting Fixed({}) (never use BufferSize::Default — see CPAL buffer size docs)",
+                    requested
+                );
+            }
         }
-        Err(anyhow::anyhow!("Device not found: {}", id_str))
+
+        Ok(())
     }
 }
 
@@ -80,7 +139,7 @@ impl AudioBackend for CpalBackend {
             let device_name = Self::device_name(&device);
             let is_default = default_id.as_ref().map_or(false, |d| d.as_str() == id.as_str());
 
-            // Get supported sample rates (cpal 0.17: SampleRate is u32)
+            // Get supported sample rates (cpal 0.18: SampleRate is u32)
             let mut sample_rates = vec![44100, 48000];
             if let Ok(configs) = device.supported_output_configs() {
                 for config in configs {
@@ -106,7 +165,7 @@ impl AudioBackend for CpalBackend {
     ) -> Result<Box<dyn AudioStream>> {
         let cpal_device = self.find_device_by_id(device)?;
 
-        // Query supported configurations and find the best match (cpal 0.17: sample rates are u32)
+        // Query supported configurations and find the best match (cpal 0.18: sample rates are u32)
         let desired_sample_rate = params.sample_rate;
         let supported_configs: Vec<_> = cpal_device.supported_output_configs()?.collect();
 
@@ -132,19 +191,30 @@ impl AudioBackend for CpalBackend {
             })
             .collect();
 
-        let supported_config = matching_configs
+        let config_range = matching_configs
             .iter()
-            .find(|config| config.channels() == 2) // Prefer stereo
-            .or_else(|| matching_configs.first()) // Fallback to first available
+            .find(|config| config.channels() == 2)
+            .or_else(|| matching_configs.first())
             .ok_or_else(|| {
                 anyhow::anyhow!(
                     "No supported config found for sample rate {}",
                     params.sample_rate
                 )
-            })?
-            .with_sample_rate(desired_sample_rate);
+            })?;
+
+        Self::validate_buffer_size(&cpal_device, config_range, params.frames_per_buffer)?;
+
+        let supported_config = config_range.with_sample_rate(desired_sample_rate);
 
         let actual_sample_rate = supported_config.sample_rate();
+        if actual_sample_rate != desired_sample_rate {
+            return Err(anyhow::anyhow!(
+                "Device opened at {} Hz but {} Hz was requested",
+                actual_sample_rate,
+                desired_sample_rate
+            ));
+        }
+
         log::info!(
             "Using CPAL config: {} Hz, {} channels, buffer size: {}",
             actual_sample_rate,
@@ -158,8 +228,8 @@ impl AudioBackend for CpalBackend {
         let callback_arc = Arc::new(Mutex::new(callback));
         let last_callback_frames = Arc::new(AtomicU32::new(0));
 
-        // Prefer fixed buffer size for low latency; fall back to Default if not supported (e.g. JACK).
-        let build_stream = |buffer_size: cpal::BufferSize| {
+        // Require the configured fixed buffer size; do not silently fall back to host default.
+        let build_stream = |buffer_size: BufferSize| {
             let config = StreamConfig {
                 channels: supported_config.channels(),
                 sample_rate: actual_sample_rate,
@@ -168,7 +238,7 @@ impl AudioBackend for CpalBackend {
             let arc = Arc::clone(&callback_arc);
             let frames = Arc::clone(&last_callback_frames);
             cpal_device.build_output_stream(
-                &config,
+                config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     let n = data.len() / channels as usize;
                     frames.store(n as u32, Ordering::Relaxed);
@@ -183,21 +253,27 @@ impl AudioBackend for CpalBackend {
             )
         };
 
-        let stream = match build_stream(cpal::BufferSize::Fixed(params.frames_per_buffer)) {
-            Ok(s) => s,
-            Err(BuildStreamError::StreamConfigNotSupported) => {
-                log::info!(
-                    "Fixed buffer size {} not supported, using host default for low latency",
-                    params.frames_per_buffer
-                );
-                build_stream(cpal::BufferSize::Default)?
-            }
-            Err(e) => return Err(e.into()),
-        };
+        let stream = build_stream(BufferSize::Fixed(params.frames_per_buffer)).map_err(|e| {
+            anyhow::anyhow!(
+                "Device does not support fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
+                params.frames_per_buffer,
+                e
+            )
+        })?;
+
+        let granted_buffer = stream.buffer_size().unwrap_or(frames_per_buffer);
+        if granted_buffer != frames_per_buffer {
+            return Err(anyhow::anyhow!(
+                "CPAL granted stream buffer size {} frames but {} frames were requested (BufferSize::Default causes fast-forward playback — use Fixed)",
+                granted_buffer,
+                frames_per_buffer
+            ));
+        }
+        log::info!("CPAL stream buffer size confirmed: {} frames", granted_buffer);
 
         Ok(Box::new(CpalStream {
             stream,
-            frames_per_buffer,
+            frames_per_buffer: granted_buffer,
             sample_rate: actual_sample_rate,
             last_callback_frames,
         }))
@@ -228,12 +304,10 @@ impl AudioStream for CpalStream {
     }
 
     fn actual_buffer_size(&self) -> Option<u32> {
-        let from_callback = self.last_callback_frames.load(Ordering::Relaxed);
-        Some(if from_callback > 0 {
-            from_callback
-        } else {
-            self.frames_per_buffer
-        })
+        if let Ok(size) = self.stream.buffer_size() {
+            return Some(size);
+        }
+        Some(self.frames_per_buffer)
     }
 
     fn callback_frames_atomic(&self) -> Option<Arc<AtomicU32>> {

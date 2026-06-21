@@ -11,5 +11,5 @@ description = "Audio resampler for rust-dj-engine"
 audio-core = { path = "../audio-core" }
 anyhow.workspace = true
 thiserror.workspace = true
-rubato = "1.0"
-audioadapter-buffers = "2.0"
+rubato = "3.0"
+audioadapter-buffers = "3.0"

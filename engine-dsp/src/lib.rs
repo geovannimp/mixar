@@ -100,13 +100,20 @@ impl DspEngine {
     /// Set the sample rate (requires reinitializing components)
     pub fn set_sample_rate(&mut self, sample_rate: u32) {
         self.sample_rate = sample_rate;
-        
+
         // Reinitialize all components with new sample rate
         for deck in &mut self.decks {
             deck.set_sample_rate(sample_rate);
         }
         self.mixer.set_sample_rate(sample_rate);
         self.bpm_analyzer.set_sample_rate(sample_rate);
+    }
+
+    /// Set callback buffer size on all decks (must match the audio backend).
+    pub fn set_output_chunk_frames(&mut self, frames: u32) {
+        for deck in &mut self.decks {
+            deck.set_output_chunk_frames(frames);
+        }
     }
 }
 

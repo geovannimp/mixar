@@ -18,7 +18,6 @@ codec = { path = "../codec" }
 backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }
 backend-cpal = { path = "../backend-cpal", optional = true }
-backend-pipewire = { path = "../backend-pipewire" }
 rtrb = "0.3"
 anyhow.workspace = true
 thiserror.workspace = true

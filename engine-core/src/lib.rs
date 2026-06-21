@@ -11,7 +11,7 @@ use engine_dsp::DspEngine;
 use rtrb::{Consumer, Producer, RingBuffer};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -25,7 +25,7 @@ pub struct EngineConfig {
     pub buffer_size: u32,
     /// Low latency hint
     pub low_latency: bool,
-    /// Backend to use ("auto", "cpal", "miniaudio", "pipewire", "null")
+    /// Backend to use ("auto", "cpal", "miniaudio", "null")
     pub backend: String,
     /// Bus configurations
     pub buses: Vec<BusConfig>,
@@ -148,12 +148,13 @@ impl Engine {
 
         // Ring buffer: spec §5.2 — preallocate N * frames_per_buffer (N ≥ 8) to tolerate producer jitter.
         const RING_BUFFER_MULTIPLIER: usize = 24;
-        let ring_buffer_capacity = self.config.buffer_size as usize * RING_BUFFER_MULTIPLIER;
+        let stereo_samples_per_buffer = self.config.buffer_size as usize * 2;
+        let ring_buffer_capacity = stereo_samples_per_buffer * RING_BUFFER_MULTIPLIER;
         let (mut producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
         // Pre-fill with silence so callbacks have data before the producer thread starts (no allocations in callback).
         // Leave 2 buffers free for producer to fill immediately.
-        let prefill = ring_buffer_capacity.saturating_sub(2 * self.config.buffer_size as usize * 2);
+        let prefill = ring_buffer_capacity.saturating_sub(2 * stereo_samples_per_buffer);
         for _ in 0..prefill {
             let _ = producer.push(0.0);
         }
@@ -182,7 +183,11 @@ impl Engine {
             self.config.low_latency,
         );
 
-        let callback = Box::new(ConsumerCallback::new(consumer));
+        let callback_count = Arc::new(AtomicU64::new(0));
+        let callback = Box::new(ConsumerCallback::new(
+            consumer,
+            Arc::clone(&callback_count),
+        ));
 
         let mut stream = self
             .backend
@@ -196,27 +201,37 @@ impl Engine {
             .actual_sample_rate()
             .unwrap_or(self.config.sample_rate);
 
-        if actual_buffer_size != self.config.buffer_size as usize
-            || stream_sample_rate != self.config.sample_rate
-        {
-            log::info!(
-                "Stream: buffer_size={}, sample_rate={} Hz (config: {}, {} Hz)",
-                actual_buffer_size,
-                stream_sample_rate,
-                self.config.buffer_size,
-                self.config.sample_rate
-            );
-        }
-
         let sample_rate = stream_sample_rate;
+        log::info!(
+            "Audio stream opened: {} Hz, {} frames/buffer (config: {} Hz, {} frames)",
+            stream_sample_rate,
+            actual_buffer_size,
+            self.config.sample_rate,
+            self.config.buffer_size
+        );
+        if actual_buffer_size != self.config.buffer_size as usize {
+            return Err(anyhow::anyhow!(
+                "Device buffer size {} frames does not match configured {} frames",
+                actual_buffer_size,
+                self.config.buffer_size
+            ));
+        }
+        if stream_sample_rate != self.config.sample_rate {
+            return Err(anyhow::anyhow!(
+                "Device sample rate {} Hz does not match configured {} Hz",
+                stream_sample_rate,
+                self.config.sample_rate
+            ));
+        }
         {
             let mut dsp = self.dsp_engine.lock().unwrap();
             dsp.set_sample_rate(sample_rate);
+            dsp.set_output_chunk_frames(actual_buffer_size as u32);
         }
 
         // Start producer before the stream so the ring buffer is full when the first callback runs (spec §5.2: tolerate jitter).
-        // Pass callback-frames atomic so producer can match real device callback size (avoids severe underrun when device uses smaller chunks).
         let callback_frames_atomic = stream.callback_frames_atomic();
+        let callback_frames_for_producer = callback_frames_atomic.clone();
         let dsp_engine = self.dsp_engine.clone();
         let running = self.running.clone();
         let fallback_buffer_size = actual_buffer_size;
@@ -227,7 +242,9 @@ impl Engine {
                 running,
                 sample_rate,
                 fallback_buffer_size,
-                callback_frames_atomic,
+                ring_buffer_capacity,
+                callback_frames_for_producer,
+                callback_count,
             );
         });
 
@@ -237,6 +254,16 @@ impl Engine {
         log::info!("Producer warmup done ({} ms), starting stream", PRODUCER_WARMUP_MS);
 
         stream.start()?;
+
+        if let Some(frames_atomic) = callback_frames_atomic {
+            if let Err(e) = Self::wait_for_callback_frames(frames_atomic, self.config.buffer_size) {
+                *self.running.lock().unwrap() = false;
+                producer_thread
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("Failed to join producer thread"))?;
+                return Err(e);
+            }
+        }
 
         self.stream = Some(stream);
         self.producer_thread = Some(producer_thread);
@@ -268,35 +295,66 @@ impl Engine {
         Ok(())
     }
 
+    /// Wait for the audio device to report its callback frame count, then verify it matches config.
+    fn wait_for_callback_frames(
+        frames_atomic: Arc<std::sync::atomic::AtomicU32>,
+        expected_frames: u32,
+    ) -> Result<()> {
+        const TIMEOUT: Duration = Duration::from_secs(2);
+        let deadline = Instant::now() + TIMEOUT;
+
+        while Instant::now() < deadline {
+            let frames = frames_atomic.load(Ordering::Relaxed);
+            if frames > 0 {
+                if frames != expected_frames {
+                    return Err(anyhow::anyhow!(
+                        "Device callback size is {} frames but {} frames were configured",
+                        frames,
+                        expected_frames
+                    ));
+                }
+                log::info!("Device callback size verified: {} frames", frames);
+                return Ok(());
+            }
+            thread::sleep(Duration::from_millis(1));
+        }
+
+        Err(anyhow::anyhow!(
+            "Timed out waiting for audio device callback (expected {} frames)",
+            expected_frames
+        ))
+    }
+
     /// Producer thread loop (spec §5.1: writes decoded/resampled audio into ring buffer).
-    /// Uses schedule-based timing and actual callback size (when available) to avoid underruns.
+    /// Production is paced by the audio device callback count, not wall clock.
     fn producer_thread_loop(
         dsp_engine: Arc<Mutex<DspEngine>>,
         mut producer: Producer<Sample>,
         running: Arc<Mutex<bool>>,
         sample_rate: u32,
         fallback_buffer_size: usize,
+        ring_buffer_capacity: usize,
         callback_frames_atomic: Option<Arc<std::sync::atomic::AtomicU32>>,
+        callback_count: Arc<AtomicU64>,
     ) {
         log::info!(
-            "Producer thread started (fallback_buffer_size={}, sample_rate={})",
+            "Producer thread started (fallback_buffer_size={}, ring_capacity={}, sample_rate={})",
             fallback_buffer_size,
+            ring_buffer_capacity,
             sample_rate
         );
 
-        // Allocate bus large enough for max chunk (fallback size)
+        let master_bus_id = BusId::new("master");
         let mut output_buses = HashMap::new();
         output_buses.insert(
-            BusId::new("master".to_string()),
+            master_bus_id.clone(),
             vec![0.0; fallback_buffer_size * 2],
         );
 
-        const SCHEDULE_HEADROOM: Duration = Duration::from_millis(2); // wake 2ms early to finish process before period
-        let schedule_start = Instant::now();
-        let mut iteration: u64 = 0;
+        const MAX_AHEAD_CHUNKS: u64 = 2;
+        let mut produced_chunks: u64 = 0;
 
         while *running.lock().unwrap() {
-            // Use actual callback size when available (device may use 128/256 frames), else fallback
             let chunk_frames = callback_frames_atomic
                 .as_ref()
                 .and_then(|a| {
@@ -304,11 +362,26 @@ impl Engine {
                     if v > 0 { Some(v as usize) } else { None }
                 })
                 .unwrap_or(fallback_buffer_size);
+            let samples_per_chunk = chunk_frames * 2;
 
             let buffer_duration =
-                Duration::from_secs_f64((chunk_frames as f64) / (sample_rate as f64));
+                Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
-            // Process DSP and write to ring buffer
+            let device_callbacks = callback_count.load(Ordering::Relaxed);
+
+            // Never run more than MAX_AHEAD_CHUNKS ahead of the device callback clock.
+            if produced_chunks > device_callbacks.saturating_add(MAX_AHEAD_CHUNKS) {
+                thread::sleep(buffer_duration / 4);
+                continue;
+            }
+
+            let filled = ring_buffer_capacity.saturating_sub(producer.slots());
+            let target_fill = samples_per_chunk * 2;
+            if filled >= target_fill || producer.slots() < samples_per_chunk {
+                thread::sleep(buffer_duration / 8);
+                continue;
+            }
+
             {
                 let mut dsp = dsp_engine.lock().unwrap();
                 if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
@@ -316,21 +389,19 @@ impl Engine {
                 }
             }
 
-            if let Some(master_bus) = output_buses.get(&BusId::new("master".to_string())) {
-                for &sample in master_bus {
+            let mut pushed_chunk = false;
+            if let Some(master_bus) = output_buses.get(&master_bus_id) {
+                pushed_chunk = true;
+                for &sample in master_bus.iter().take(samples_per_chunk) {
                     if producer.push(sample).is_err() {
+                        pushed_chunk = false;
                         break;
                     }
                 }
             }
 
-            iteration += 1;
-            let target =
-                schedule_start + Duration::from_secs_f64(buffer_duration.as_secs_f64() * iteration as f64);
-            let wake_at = target.checked_sub(SCHEDULE_HEADROOM).unwrap_or(schedule_start);
-            let now = Instant::now();
-            if now < wake_at {
-                thread::sleep(wake_at.duration_since(now));
+            if pushed_chunk {
+                produced_chunks += 1;
             }
         }
 
@@ -353,15 +424,15 @@ impl Engine {
 
         log::info!("Audio file info: {} Hz, {} channels", sample_rate, channels);
 
-        // Load entire audio file into memory
+        // Load entire audio file into memory (native sample rate; deck resamples at playback).
         let audio_samples = decoder.load_entire_file()?;
         log::info!("Loaded {} samples from audio file", audio_samples.len());
 
-        // Load samples into the deck
         let mut dsp = self.dsp_engine.lock().unwrap();
         let engine_rate = dsp.sample_rate();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.set_sample_rate(engine_rate);
+            deck.set_output_chunk_frames(self.config.buffer_size);
             log::info!(
                 "Deck {} configured for {} Hz (engine/stream rate)",
                 deck_id,
@@ -369,12 +440,12 @@ impl Engine {
             );
 
             deck.load_audio_samples(audio_samples, sample_rate, path.to_string())?;
-            log::info!(
-                "Track loaded into deck {} (file: {} Hz, engine: {} Hz)",
-                deck_id,
-                sample_rate,
-                engine_rate
-            );
+        log::info!(
+            "Track loaded into deck {} (file: {} Hz, engine/stream: {} Hz)",
+            deck_id,
+            sample_rate,
+            engine_rate
+        );
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -509,10 +580,9 @@ fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBackend
                 "CPAL backend not compiled in. Build with default features or enable 'backend-cpal'."
             ))
         }
-        "pipewire" => {
-            // TODO: Implement in Sprint 4
-            Err(anyhow::anyhow!("PipeWire backend not yet implemented"))
-        }
+        "pipewire" => Err(anyhow::anyhow!(
+            "The standalone pipewire backend was removed; use \"cpal\" (CPAL uses the native PipeWire host on Linux) or \"auto\""
+        )),
         "auto" => {
             // Try to detect the best available backend
             #[cfg(feature = "backend-cpal")]
@@ -574,60 +644,29 @@ pub use audio_core::AudioBackend as AudioBackendTrait;
 /// Consumer audio callback implementation for the engine
 struct ConsumerCallback {
     consumer: Consumer<Sample>,
+    callback_count: Arc<AtomicU64>,
 }
 
 impl ConsumerCallback {
-    fn new(consumer: Consumer<Sample>) -> Self {
-        Self { consumer }
+    fn new(consumer: Consumer<Sample>, callback_count: Arc<AtomicU64>) -> Self {
+        Self {
+            consumer,
+            callback_count,
+        }
     }
 }
 
 impl AudioCallback for ConsumerCallback {
     fn render(&mut self, out: &mut [Sample], _frames: u32, _sample_rate: u32) {
-        // Debug: Log callback calls and buffer status
-        static mut CALL_COUNT: u32 = 0;
-        static mut UNDERRUN_COUNT: u32 = 0;
-        static mut TOTAL_UNDERRUN_SAMPLES: u32 = 0;
-
-        unsafe {
-            CALL_COUNT += 1;
-        }
-
-        // Read samples from ring buffer
-        let mut read = 0;
-        let mut underrun_samples = 0;
+        self.callback_count.fetch_add(1, Ordering::Relaxed);
 
         for sample in out.iter_mut() {
             match self.consumer.pop() {
                 Ok(value) => {
                     *sample = value;
-                    read += 1;
                 }
                 Err(_) => {
-                    // Buffer is empty - this is an underrun!
-                    underrun_samples += 1;
-                    *sample = 0.0; // Fill with silence
-                }
-            }
-        }
-
-        // Track underruns (spec: no allocations in callback — only update counters)
-        if underrun_samples > 0 {
-            unsafe {
-                UNDERRUN_COUNT += 1;
-                TOTAL_UNDERRUN_SAMPLES += underrun_samples;
-            }
-            // Log severe underruns only occasionally to avoid jitter in the real-time callback
-            if underrun_samples > (out.len() / 4) as u32 {
-                unsafe {
-                    if UNDERRUN_COUNT % 100 == 1 || UNDERRUN_COUNT <= 3 {
-                        log::error!(
-                            "SEVERE UNDERRUN! Only got {}/{} samples ({}% underrun)",
-                            read,
-                            out.len(),
-                            (underrun_samples as f32 / out.len() as f32) * 100.0
-                        );
-                    }
+                    *sample = 0.0;
                 }
             }
         }

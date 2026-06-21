@@ -9,8 +9,8 @@ use log::info;
 use std::path::Path;
 
 fn main() -> Result<()> {
-    // Initialize logging
-    env_logger::init();
+    // Default to info-level logs when RUST_LOG is not set.
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     info!("Starting rust-dj-engine example");
 
@@ -41,17 +41,13 @@ fn main() -> Result<()> {
     info!("Using {} backend for audio output", backend_name);
     info!("Engine config: {:?}", config);
 
-    // Create engine and start; exit with error if engine fails to load or start
+    // Start audio first so the deck targets the actual stream sample rate, then load and play.
     let mut engine = Engine::new(config.clone())?;
     info!("Engine created successfully");
 
     engine.start()?;
     info!("Engine started");
 
-    // Demonstrate different backends
-    // demonstrate_backends()?;
-
-    // Load the sample track
     let sample_path =
         "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
     engine.load_track(0, sample_path)?;
