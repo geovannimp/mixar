@@ -1,6 +1,6 @@
 //! Audio resampler for rust-dj-engine
 //!
-//! This crate provides audio resampling capabilities using rubato 3.
+//! This crate provides audio resampling capabilities using rubato 3 (FFT synchronous resampler).
 //! Uses `InterleavedSlice` from `audioadapter-buffers` for zero-copy
 //! adapter-based I/O — no manual deinterleave/interleave needed.
 
@@ -8,19 +8,20 @@ use anyhow::Result;
 use audio_core::Sample;
 use audioadapter_buffers::direct::InterleavedSlice;
 use rubato::{
-    Async, FixedAsync, Indexing, Resampler as RubatoResamplerTrait,
-    SincInterpolationParameters, SincInterpolationType, WindowFunction,
+    Fft, FixedSync, Indexing, Resampler as RubatoResamplerTrait,
 };
-
-/// Fallback rubato chunk size until the engine passes the device buffer size.
-const DEFAULT_OUTPUT_CHUNK_FRAMES: usize = 512;
 
 /// Resampler trait
 pub trait Resampler: Send {
     /// Process interleaved samples.
     ///
     /// Returns `(output_samples_written, input_frames_consumed)`.
-    fn process(&mut self, in_buf: &[Sample], out_buf: &mut [Sample], channels: usize) -> (usize, usize);
+    fn process(
+        &mut self,
+        in_buf: &[Sample],
+        out_buf: &mut [Sample],
+        channels: usize,
+    ) -> (usize, usize);
 
     /// Set the sample rate
     fn set_rate(&mut self, input_sr: u32, output_sr: u32);
@@ -35,9 +36,9 @@ pub trait Resampler: Send {
     fn set_output_chunk_frames(&mut self, frames: usize);
 }
 
-/// Rubato resampler using fixed **output** chunks so input consumption tracks playback.
+/// Rubato FFT resampler using fixed **output** chunks so input consumption tracks playback.
 pub struct RubatoResampler {
-    resampler: Option<Async<f32>>,
+    resampler: Option<Fft<f32>>,
     input_sample_rate: u32,
     output_sample_rate: u32,
     channels: usize,
@@ -73,23 +74,14 @@ impl RubatoResampler {
             return Ok(());
         }
 
-        let ratio = self.output_sample_rate as f64 / self.input_sample_rate as f64;
-
-        let params = SincInterpolationParameters {
-            sinc_len: 32,
-            f_cutoff: 0.95,
-            interpolation: SincInterpolationType::Linear,
-            oversampling_factor: 16,
-            window: WindowFunction::BlackmanHarris2,
-        };
-
-        let resampler = Async::<f32>::new_sinc(
-            ratio,
-            2.0,
-            &params,
+        // sub_chunks=2 → ~256-frame FFT blocks at 512-frame output chunks (rubato docs recommend ~100–1000).
+        let resampler = Fft::<f32>::new(
+            self.input_sample_rate as usize,
+            self.output_sample_rate as usize,
             self.output_chunk_frames,
+            2,
             self.channels,
-            FixedAsync::Output,
+            FixedSync::Output,
         )?;
 
         self.resampler = Some(resampler);
@@ -98,7 +90,12 @@ impl RubatoResampler {
 }
 
 impl Resampler for RubatoResampler {
-    fn process(&mut self, in_buf: &[Sample], out_buf: &mut [Sample], channels: usize) -> (usize, usize) {
+    fn process(
+        &mut self,
+        in_buf: &[Sample],
+        out_buf: &mut [Sample],
+        channels: usize,
+    ) -> (usize, usize) {
         if self.input_sample_rate == self.output_sample_rate {
             let copy_len = in_buf.len().min(out_buf.len());
             out_buf[..copy_len].copy_from_slice(&in_buf[..copy_len]);
@@ -127,7 +124,9 @@ impl Resampler for RubatoResampler {
 
         while output_offset < output_frames_cap {
             let need_in = resampler.input_frames_next();
-            let need_out = resampler.output_frames_next().min(output_frames_cap - output_offset);
+            let need_out = resampler
+                .output_frames_next()
+                .min(output_frames_cap - output_offset);
 
             if input_offset + need_in > input_frames {
                 let remaining = input_frames - input_offset;
@@ -236,6 +235,8 @@ pub fn create_resampler(
 mod tests {
     use super::*;
 
+    const DEFAULT_OUTPUT_CHUNK_FRAMES: usize = 512;
+
     #[test]
     fn test_resampler_creation() {
         let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES);
@@ -257,30 +258,68 @@ mod tests {
     }
 
     #[test]
+    fn test_fft_stream_consumption_over_many_callbacks() {
+        let mut resampler = RubatoResampler::new(44100, 48000, 2, 512).unwrap();
+        let mut total_in = 0usize;
+        let mut total_out = 0usize;
+        let callbacks = 480000 / 512;
+        let source = vec![0.5f32; 600_000 * 2];
+        let mut src_pos = 0usize;
+
+        for _ in 0..callbacks {
+            let need_in = resampler.input_frames_next();
+            let step_out = resampler.output_frames_next();
+            let chunk = &source[src_pos..src_pos + need_in * 2];
+            let mut out = vec![0.0f32; step_out * 2];
+            let (out_samples, in_frames) = resampler.process(chunk, &mut out, 2);
+            total_in += in_frames;
+            total_out += out_samples / 2;
+            src_pos += in_frames * 2;
+        }
+
+        let expected_in = (total_out as f64 * 44100.0 / 48000.0) as usize;
+        let ratio = total_in as f64 / expected_in as f64;
+        assert!(
+            (ratio - 1.0).abs() < 0.02,
+            "total_in={total_in}, expected~{expected_in}, ratio={ratio:.4}"
+        );
+    }
+
+    #[test]
     fn test_output_mode_512_frames() {
-        let resampler =
-            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
         assert_eq!(resampler.output_frames_next(), 512);
         let need_in = resampler.input_frames_next();
         assert!(need_in > 0);
-        assert!(need_in < 512, "44100->48000 should need <512 input for 512 output");
+        // FFT blocks align to rate-ratio multiples (147 in / 160 out for 44100→48000).
+        assert_eq!(need_in % 147, 0, "input chunk should align to FFT block size");
     }
 
     #[test]
     fn test_512_output_consumes_proportional_input() {
-        let mut resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
-        let need_in = resampler.input_frames_next();
-        let input = vec![0.5f32; need_in * 2];
-        let mut output = vec![0.0f32; 512 * 2];
+        let mut resampler =
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+        let mut total_in = 0usize;
+        let mut total_out = 0usize;
+        let source = vec![0.5f32; 600_000 * 2];
+        let mut src_pos = 0usize;
 
-        let (out_samples, in_frames) = resampler.process(&input, &mut output, 2);
-        assert_eq!(out_samples, 512 * 2);
-        assert_eq!(in_frames, need_in);
+        for _ in 0..100 {
+            let need_in = resampler.input_frames_next();
+            let step_out = resampler.output_frames_next();
+            let chunk = &source[src_pos..src_pos + need_in * 2];
+            let mut out = vec![0.0f32; step_out * 2];
+            let (out_samples, in_frames) = resampler.process(chunk, &mut out, 2);
+            total_in += in_frames;
+            total_out += out_samples / 2;
+            src_pos += in_frames * 2;
+        }
 
-        let expected_in = (512.0_f64 * 44100.0 / 48000.0).ceil() as usize;
+        let expected_in = (total_out as f64 * 44100.0 / 48000.0) as usize;
+        let ratio = total_in as f64 / expected_in as f64;
         assert!(
-            (in_frames as i64 - expected_in as i64).abs() <= 2,
-            "in_frames={in_frames}, expected~{expected_in}"
+            (ratio - 1.0).abs() < 0.02,
+            "total_in={total_in}, expected~{expected_in}, ratio={ratio:.4}"
         );
     }
 
@@ -292,22 +331,32 @@ mod tests {
 
     #[test]
     fn test_480_output_consumes_proportional_input() {
-        let mut resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+        let mut resampler =
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
         resampler.set_output_chunk_frames(480);
         assert_eq!(resampler.output_frames_next(), 480);
 
-        let need_in = resampler.input_frames_next();
-        let input = vec![0.5f32; need_in * 2];
-        let mut output = vec![0.0f32; 480 * 2];
+        let mut total_in = 0usize;
+        let mut total_out = 0usize;
+        let source = vec![0.5f32; 600_000 * 2];
+        let mut src_pos = 0usize;
 
-        let (out_samples, in_frames) = resampler.process(&input, &mut output, 2);
-        assert_eq!(out_samples, 480 * 2);
-        assert_eq!(in_frames, need_in);
+        for _ in 0..100 {
+            let need_in = resampler.input_frames_next();
+            let step_out = resampler.output_frames_next();
+            let chunk = &source[src_pos..src_pos + need_in * 2];
+            let mut out = vec![0.0f32; step_out * 2];
+            let (out_samples, in_frames) = resampler.process(chunk, &mut out, 2);
+            total_in += in_frames;
+            total_out += out_samples / 2;
+            src_pos += in_frames * 2;
+        }
 
-        let expected_in = (480.0_f64 * 44100.0 / 48000.0).ceil() as usize;
+        let expected_in = (total_out as f64 * 44100.0 / 48000.0) as usize;
+        let ratio = total_in as f64 / expected_in as f64;
         assert!(
-            (in_frames as i64 - expected_in as i64).abs() <= 2,
-            "in_frames={in_frames}, expected~{expected_in}"
+            (ratio - 1.0).abs() < 0.02,
+            "total_in={total_in}, expected~{expected_in}, ratio={ratio:.4}"
         );
     }
 }
