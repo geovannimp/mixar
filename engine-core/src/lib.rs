@@ -107,8 +107,6 @@ pub struct Engine {
     backend: Box<dyn audio_core::AudioBackend>,
     /// Audio stream
     stream: Option<Box<dyn AudioStream>>,
-    /// Output buses (for bus config API)
-    output_buses: HashMap<BusId, Vec<Sample>>,
     /// Producer thread handle
     producer_thread: Option<JoinHandle<()>>,
     /// Engine running state
@@ -124,19 +122,11 @@ impl Engine {
         // Create backend based on configuration
         let backend = create_backend(&config.backend)?;
 
-        // Initialize output buses
-        let mut output_buses = HashMap::new();
-        for bus_config in &config.buses {
-            let buffer_size = config.buffer_size as usize * 2; // Stereo
-            output_buses.insert(bus_config.id.clone(), vec![0.0; buffer_size]);
-        }
-
         Ok(Self {
             config,
             dsp_engine: Arc::new(Mutex::new(dsp_engine)),
             backend,
             stream: None,
-            output_buses,
             producer_thread: None,
             running: Arc::new(Mutex::new(false)),
         })
@@ -327,6 +317,7 @@ impl Engine {
 
     /// Producer thread loop (spec §5.1: writes decoded/resampled audio into ring buffer).
     /// Production is paced by the audio device callback count, not wall clock.
+    #[allow(clippy::too_many_arguments)]
     fn producer_thread_loop(
         dsp_engine: Arc<Mutex<DspEngine>>,
         mut producer: Producer<Sample>,
@@ -633,6 +624,7 @@ impl AudioBackend {
     /// Creates a backend instance by name. Use `list_names()` for valid names.
     /// Returns a boxed backend on which you can call `list_output_devices()` (devices include `is_default`).
     /// Bring the `AudioBackendTrait` trait into scope to call those methods.
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(name: &str) -> Result<Box<dyn audio_core::AudioBackend>> {
         create_backend(name)
     }
@@ -687,7 +679,7 @@ mod tests {
 
     #[test]
     fn test_backend_new_and_list_devices() {
-        let backend = Backend::new("null").unwrap();
+        let backend = AudioBackend::new("null").unwrap();
         let devices = backend.list_output_devices();
         assert!(devices.is_ok());
         assert!(!devices.unwrap().is_empty());

@@ -5,8 +5,6 @@
 
 use anyhow::Result;
 use audio_core::{AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo, StreamParams};
-// use std::sync::{Arc, Mutex}; // Will be needed when implementing actual miniaudio
-use std::time::Duration;
 
 /// Miniaudio backend implementation
 pub struct MiniaudioBackend {
@@ -47,38 +45,6 @@ impl AudioBackend for MiniaudioBackend {
     ) -> Result<Box<dyn AudioStream>> {
         // TODO: Implement stream creation using miniaudio
         Err(anyhow::anyhow!("Miniaudio backend not yet implemented"))
-    }
-}
-
-/// Miniaudio stream implementation (placeholder)
-struct MiniaudioStream {
-    // Implementation will be added when miniaudio bindings are properly set up
-}
-
-impl AudioStream for MiniaudioStream {
-    fn start(&mut self) -> Result<()> {
-        // TODO: Implement stream start using miniaudio
-        Ok(())
-    }
-
-    fn stop(&mut self) -> Result<()> {
-        // TODO: Implement stream stop using miniaudio
-        Ok(())
-    }
-
-    fn actual_buffer_size(&self) -> Option<u32> {
-        // TODO: Return actual buffer size from miniaudio
-        Some(512)
-    }
-
-    fn actual_sample_rate(&self) -> Option<u32> {
-        // TODO: Return actual sample rate from miniaudio
-        Some(48000)
-    }
-
-    fn actual_latency(&self) -> Option<Duration> {
-        // TODO: Return actual latency from miniaudio
-        Some(Duration::from_millis(10))
     }
 }
 

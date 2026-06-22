@@ -144,10 +144,10 @@ impl AudioDecoder {
         // Get duration from the first track
         let mut duration = None;
         if let Some(track) = self.format.tracks().first() {
-            if let Some(time_base) = track.codec_params.time_base {
-                if let Some(n_frames) = track.codec_params.n_frames {
-                    duration = Some(n_frames);
-                }
+            if let (Some(_time_base), Some(n_frames)) =
+                (track.codec_params.time_base, track.codec_params.n_frames)
+            {
+                duration = Some(n_frames);
             }
         }
 
@@ -198,7 +198,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        samples.push(buf.chan(ch as usize)[frame]);
+                        samples.push(buf.chan(ch)[frame]);
                     }
                 }
             }
@@ -207,7 +207,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = (buf.chan(ch as usize)[frame] as f32 - 128.0) / 128.0;
+                        let sample = (buf.chan(ch)[frame] as f32 - 128.0) / 128.0;
                         samples.push(sample);
                     }
                 }
@@ -217,7 +217,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32 / 32768.0;
+                        let sample = buf.chan(ch)[frame] as f32 / 32768.0;
                         samples.push(sample);
                     }
                 }
@@ -227,7 +227,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame].inner() as f32 / 8388608.0;
+                        let sample = buf.chan(ch)[frame].inner() as f32 / 8388608.0;
                         samples.push(sample);
                     }
                 }
@@ -237,7 +237,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32 / 2147483648.0;
+                        let sample = buf.chan(ch)[frame] as f32 / 2147483648.0;
                         samples.push(sample);
                     }
                 }
@@ -247,7 +247,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32 / 128.0;
+                        let sample = buf.chan(ch)[frame] as f32 / 128.0;
                         samples.push(sample);
                     }
                 }
@@ -257,7 +257,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32 / 32768.0;
+                        let sample = buf.chan(ch)[frame] as f32 / 32768.0;
                         samples.push(sample);
                     }
                 }
@@ -267,7 +267,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame].inner() as f32 / 8388608.0;
+                        let sample = buf.chan(ch)[frame].inner() as f32 / 8388608.0;
                         samples.push(sample);
                     }
                 }
@@ -277,7 +277,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32 / 2147483648.0;
+                        let sample = buf.chan(ch)[frame] as f32 / 2147483648.0;
                         samples.push(sample);
                     }
                 }
@@ -287,7 +287,7 @@ impl AudioDecoder {
                 let frames = buf.frames();
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        let sample = buf.chan(ch as usize)[frame] as f32;
+                        let sample = buf.chan(ch)[frame] as f32;
                         samples.push(sample);
                     }
                 }
@@ -301,34 +301,6 @@ impl AudioDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
-    use tempfile::NamedTempFile;
-
-    fn create_test_wav_file() -> Result<NamedTempFile> {
-        // Create a simple WAV file for testing
-        let mut file = NamedTempFile::new()?;
-
-        // WAV header (simplified)
-        let header = [
-            0x52, 0x49, 0x46, 0x46, // "RIFF"
-            0x24, 0x00, 0x00, 0x00, // File size - 8
-            0x57, 0x41, 0x56, 0x45, // "WAVE"
-            0x66, 0x6D, 0x74, 0x20, // "fmt "
-            0x10, 0x00, 0x00, 0x00, // Format chunk size
-            0x01, 0x00, // Audio format (PCM)
-            0x02, 0x00, // Number of channels
-            0x44, 0xAC, 0x00, 0x00, // Sample rate (44100)
-            0x10, 0xB1, 0x02, 0x00, // Byte rate
-            0x04, 0x00, // Block align
-            0x10, 0x00, // Bits per sample
-            0x64, 0x61, 0x74, 0x61, // "data"
-            0x00, 0x00, 0x00, 0x00, // Data size
-        ];
-
-        file.write_all(&header)?;
-        file.flush()?;
-        Ok(file)
-    }
 
     #[test]
     fn test_decoder_creation() {

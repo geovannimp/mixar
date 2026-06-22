@@ -14,11 +14,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 fn create_host() -> Result<Host> {
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd"
+    #[cfg(all(
+        feature = "pipewire",
+        any(
+            target_os = "linux",
+            target_os = "dragonfly",
+            target_os = "freebsd",
+            target_os = "netbsd"
+        )
     ))]
     {
         match cpal::host_from_id(cpal::HostId::PipeWire) {
@@ -137,7 +140,7 @@ impl AudioBackend for CpalBackend {
                 Err(_) => continue,
             };
             let device_name = Self::device_name(&device);
-            let is_default = default_id.as_ref().map_or(false, |d| d.as_str() == id.as_str());
+            let is_default = default_id.as_ref().is_some_and(|d| d.as_str() == id.as_str());
 
             // Get supported sample rates (cpal 0.18: SampleRate is u32)
             let mut sample_rates = vec![44100, 48000];

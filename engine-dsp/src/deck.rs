@@ -152,7 +152,7 @@ impl Deck {
 
     /// Set volume level
     pub fn set_volume(&mut self, volume: f32) -> Result<()> {
-        if volume < 0.0 || volume > 1.0 {
+        if !(0.0..=1.0).contains(&volume) {
             return Err(anyhow::anyhow!("Volume must be between 0.0 and 1.0"));
         }
         self.volume = volume;
@@ -299,7 +299,7 @@ impl Deck {
             static mut STATE_LOG_COUNT: u32 = 0;
             unsafe {
                 STATE_LOG_COUNT += 1;
-                if STATE_LOG_COUNT % 100 == 0 {
+                if STATE_LOG_COUNT.is_multiple_of(100) {
                     log::warn!("Deck {} not playing, state: {:?}", self.id, self.state);
                 }
             }
@@ -321,7 +321,7 @@ impl Deck {
             static mut PLAY_LOG_COUNT: u32 = 0;
             unsafe {
                 PLAY_LOG_COUNT += 1;
-                if PLAY_LOG_COUNT % 100 == 0 {
+                if PLAY_LOG_COUNT.is_multiple_of(100) {
                     log::info!(
                         "Deck {} playing: {} non-zero samples out of {}",
                         self.id,
@@ -355,7 +355,7 @@ impl Deck {
     fn play_loaded_audio(&mut self, frames: u32, audio_samples: &[Sample]) -> u64 {
         let start_pos = self.position as usize * 2;
 
-        if self.position % 1000 == 0 {
+        if self.position.is_multiple_of(1000) {
             log::debug!(
                 "Deck {}: position={}, start_pos={}, audio_len={}, frames={}",
                 self.id,

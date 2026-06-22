@@ -155,6 +155,7 @@ impl AudioStream for NullStream {
         log::info!("Starting null audio stream");
         self.running.store(true, Ordering::Relaxed);
         self.start_time = Some(Instant::now());
+        self.process_audio()?;
         Ok(())
     }
 
@@ -208,10 +209,6 @@ mod tests {
                 frames_processed: Arc::new(AtomicU32::new(0)),
             }
         }
-
-        fn frames_processed(&self) -> u32 {
-            self.frames_processed.load(Ordering::Relaxed)
-        }
     }
 
     impl AudioCallback for TestCallback {
@@ -222,24 +219,24 @@ mod tests {
 
             for frame in 0..frames {
                 let sample = amplitude * (2.0 * std::f32::consts::PI * frequency * self.phase).sin();
-                
+
                 // Write to both channels (interleaved)
                 let left_idx = (frame * channels) as usize;
                 let right_idx = (frame * channels + 1) as usize;
-                
+
                 if left_idx < out.len() {
                     out[left_idx] = sample;
                 }
                 if right_idx < out.len() {
                     out[right_idx] = sample;
                 }
-                
+
                 self.phase += 1.0 / self.sample_rate as f32;
                 if self.phase >= 1.0 {
                     self.phase -= 1.0;
                 }
             }
-            
+
             self.frames_processed.fetch_add(frames, Ordering::Relaxed);
         }
     }

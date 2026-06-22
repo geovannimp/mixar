@@ -111,7 +111,7 @@ impl Mixer {
 
     /// Set the master volume
     pub fn set_master_volume(&mut self, volume: f32) -> Result<()> {
-        if volume < 0.0 || volume > 1.0 {
+        if !(0.0..=1.0).contains(&volume) {
             return Err(anyhow::anyhow!("Volume must be between 0.0 and 1.0"));
         }
         self.master_volume = volume;
@@ -125,7 +125,7 @@ impl Mixer {
 
     /// Set the cue volume
     pub fn set_cue_volume(&mut self, volume: f32) -> Result<()> {
-        if volume < 0.0 || volume > 1.0 {
+        if !(0.0..=1.0).contains(&volume) {
             return Err(anyhow::anyhow!("Volume must be between 0.0 and 1.0"));
         }
         self.cue_volume = volume;
@@ -156,7 +156,7 @@ impl Mixer {
         }
 
         let n_samples_per_channel = frames as usize;
-        let n_chunks = (n_samples_per_channel + CHUNK_SAMPLES - 1) / CHUNK_SAMPLES;
+        let n_chunks = n_samples_per_channel.div_ceil(CHUNK_SAMPLES);
 
         for chunk in 0..n_chunks {
             let start = chunk * CHUNK_SAMPLES;
@@ -171,18 +171,23 @@ impl Mixer {
                 let node_data = self.graph.node_weight_mut(node_id).unwrap();
                 let buffers = &mut node_data.buffers;
                 if buffers.len() >= 2 {
-                    for s in 0..len {
+                    let (ch0, ch1) = buffers.split_at_mut(1);
+                    let left = &mut ch0[0];
+                    let right = &mut ch1[0];
+                    for (s, (l, r)) in left[..len]
+                        .iter_mut()
+                        .zip(right[..len].iter_mut())
+                        .enumerate()
+                    {
                         let interleaved_idx = (start + s) * 2;
                         if interleaved_idx + 1 < deck_buf.len() {
-                            buffers[0][s] = deck_buf[interleaved_idx];
-                            buffers[1][s] = deck_buf[interleaved_idx + 1];
+                            *l = deck_buf[interleaved_idx];
+                            *r = deck_buf[interleaved_idx + 1];
                         }
                     }
                     if len < CHUNK_SAMPLES {
-                        for s in len..CHUNK_SAMPLES {
-                            buffers[0][s] = 0.0;
-                            buffers[1][s] = 0.0;
-                        }
+                        left[len..CHUNK_SAMPLES].fill(0.0);
+                        right[len..CHUNK_SAMPLES].fill(0.0);
                     }
                 }
             }
