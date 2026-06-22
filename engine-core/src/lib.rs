@@ -174,10 +174,7 @@ impl Engine {
         );
 
         let callback_count = Arc::new(AtomicU64::new(0));
-        let callback = Box::new(ConsumerCallback::new(
-            consumer,
-            Arc::clone(&callback_count),
-        ));
+        let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
 
         let mut stream = self
             .backend
@@ -241,7 +238,10 @@ impl Engine {
         // Let the producer fill the buffer before we start the stream (avoids startup underruns).
         const PRODUCER_WARMUP_MS: u64 = 200;
         std::thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
-        log::info!("Producer warmup done ({} ms), starting stream", PRODUCER_WARMUP_MS);
+        log::info!(
+            "Producer warmup done ({} ms), starting stream",
+            PRODUCER_WARMUP_MS
+        );
 
         stream.start()?;
 
@@ -337,10 +337,7 @@ impl Engine {
 
         let master_bus_id = BusId::new("master");
         let mut output_buses = HashMap::new();
-        output_buses.insert(
-            master_bus_id.clone(),
-            vec![0.0; fallback_buffer_size * 2],
-        );
+        output_buses.insert(master_bus_id.clone(), vec![0.0; fallback_buffer_size * 2]);
 
         const MAX_AHEAD_CHUNKS: u64 = 2;
         let mut produced_chunks: u64 = 0;
@@ -350,13 +347,16 @@ impl Engine {
                 .as_ref()
                 .and_then(|a| {
                     let v = a.load(Ordering::Relaxed);
-                    if v > 0 { Some(v as usize) } else { None }
+                    if v > 0 {
+                        Some(v as usize)
+                    } else {
+                        None
+                    }
                 })
                 .unwrap_or(fallback_buffer_size);
             let samples_per_chunk = chunk_frames * 2;
 
-            let buffer_duration =
-                Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
+            let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
             let device_callbacks = callback_count.load(Ordering::Relaxed);
 
@@ -431,12 +431,12 @@ impl Engine {
             );
 
             deck.load_audio_samples(audio_samples, sample_rate, path.to_string())?;
-        log::info!(
-            "Track loaded into deck {} (file: {} Hz, engine/stream: {} Hz)",
-            deck_id,
-            sample_rate,
-            engine_rate
-        );
+            log::info!(
+                "Track loaded into deck {} (file: {} Hz, engine/stream: {} Hz)",
+                deck_id,
+                sample_rate,
+                engine_rate
+            );
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -571,9 +571,6 @@ fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBackend
                 "CPAL backend not compiled in. Build with default features or enable 'backend-cpal'."
             ))
         }
-        "pipewire" => Err(anyhow::anyhow!(
-            "The standalone pipewire backend was removed; use \"cpal\" (CPAL uses the native PipeWire host on Linux) or \"auto\""
-        )),
         "auto" => {
             // Try to detect the best available backend
             #[cfg(feature = "backend-cpal")]
