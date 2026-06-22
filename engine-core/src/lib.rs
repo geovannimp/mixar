@@ -101,8 +101,8 @@ impl EngineConfig {
 pub struct Engine {
     /// Engine configuration
     config: EngineConfig,
-    /// DSP engine
-    dsp_engine: Arc<Mutex<DspEngine>>,
+    /// DSP engine (created on start once the audio stream sample rate is known)
+    dsp_engine: Option<Arc<Mutex<DspEngine>>>,
     /// Audio backend
     backend: Box<dyn audio_core::AudioBackend>,
     /// Audio stream
@@ -116,15 +116,11 @@ pub struct Engine {
 impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig) -> Result<Self> {
-        // Create DSP engine
-        let dsp_engine = DspEngine::new(config.sample_rate, 2); // 2 decks for MVP
-
-        // Create backend based on configuration
         let backend = create_backend(&config.backend)?;
 
         Ok(Self {
             config,
-            dsp_engine: Arc::new(Mutex::new(dsp_engine)),
+            dsp_engine: None,
             backend,
             stream: None,
             producer_thread: None,
@@ -134,6 +130,10 @@ impl Engine {
 
     /// Start the engine
     pub fn start(&mut self) -> Result<()> {
+        if self.stream.is_some() {
+            return Err(anyhow::anyhow!("Engine is already running"));
+        }
+
         log::info!("Starting engine with backend: {}", self.backend.name());
 
         // Ring buffer: spec §5.2 — preallocate N * frames_per_buffer (N ≥ 8) to tolerate producer jitter.
@@ -210,16 +210,14 @@ impl Engine {
                 self.config.sample_rate
             ));
         }
-        {
-            let mut dsp = self.dsp_engine.lock().unwrap();
-            dsp.set_sample_rate(sample_rate);
-            dsp.set_output_chunk_frames(actual_buffer_size as u32);
-        }
+        let mut dsp_engine = DspEngine::new(sample_rate, 2); // 2 decks for MVP
+        dsp_engine.set_output_chunk_frames(actual_buffer_size as u32);
+        let dsp_engine = Arc::new(Mutex::new(dsp_engine));
+        self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         // Start producer before the stream so the ring buffer is full when the first callback runs (spec §5.2: tolerate jitter).
         let callback_frames_atomic = stream.callback_frames_atomic();
         let callback_frames_for_producer = callback_frames_atomic.clone();
-        let dsp_engine = self.dsp_engine.clone();
         let running = self.running.clone();
         let fallback_buffer_size = actual_buffer_size;
         let producer_thread = thread::spawn(move || {
@@ -280,6 +278,8 @@ impl Engine {
             // we would need to properly handle the stream lifecycle.
             log::info!("Audio stream stopped");
         }
+
+        self.dsp_engine = None;
 
         log::info!("Engine stopped");
         Ok(())
@@ -419,7 +419,11 @@ impl Engine {
         let audio_samples = decoder.load_entire_file()?;
         log::info!("Loaded {} samples from audio file", audio_samples.len());
 
-        let mut dsp = self.dsp_engine.lock().unwrap();
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
         let engine_rate = dsp.sample_rate();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.set_sample_rate(engine_rate);
@@ -447,7 +451,11 @@ impl Engine {
     pub fn play(&mut self, deck_id: usize) -> Result<()> {
         log::info!("Playing deck {}", deck_id);
 
-        let mut dsp = self.dsp_engine.lock().unwrap();
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.play()?;
             Ok(())
@@ -460,7 +468,11 @@ impl Engine {
     pub fn pause(&mut self, deck_id: usize) -> Result<()> {
         log::info!("Pausing deck {}", deck_id);
 
-        let mut dsp = self.dsp_engine.lock().unwrap();
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.pause()?;
             Ok(())
@@ -708,16 +720,31 @@ mod tests {
 
     #[test]
     fn test_engine_deck_operations() {
-        let config = EngineConfig::default();
+        let config = EngineConfig {
+            backend: "null".to_string(),
+            ..Default::default()
+        };
         let mut engine = Engine::new(config).unwrap();
 
-        // Test deck operations
+        // Deck operations require a running engine
+        assert!(engine.play(0).is_err());
+        assert!(engine.pause(0).is_err());
+        assert!(engine.load_track(0, "test.mp3").is_err());
+
+        engine.start().unwrap();
+
         assert!(engine.play(0).is_ok());
         assert!(engine.pause(0).is_ok());
-        assert!(engine.load_track(0, "test.mp3").is_ok());
+        assert!(engine
+            .load_track(0, "test.mp3")
+            .unwrap_err()
+            .to_string()
+            .contains("not found"));
 
         // Test invalid deck
         assert!(engine.play(2).is_err());
+
+        engine.stop().unwrap();
     }
 
     #[test]
@@ -765,7 +792,10 @@ mod tests {
 
     #[test]
     fn test_engine_producer_consumer_architecture() {
-        let config = EngineConfig::default();
+        let config = EngineConfig {
+            backend: "null".to_string(),
+            ..Default::default()
+        };
         let mut engine = Engine::new(config).unwrap();
 
         // Test that we can start the engine with producer/consumer model
