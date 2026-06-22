@@ -113,6 +113,27 @@ pub struct Engine {
     running: Arc<Mutex<bool>>,
 }
 
+/// Opened master output stream; playback begins after the DSP producer warms up.
+struct MasterStreamSetup {
+    stream: Box<dyn AudioStream>,
+    callback_count: Arc<AtomicU64>,
+    callback_frames_atomic: Option<Arc<std::sync::atomic::AtomicU32>>,
+    sample_rate: u32,
+    buffer_size: usize,
+}
+
+impl MasterStreamSetup {
+    fn start_playback(mut self, expected_buffer_size: u32) -> Result<Box<dyn AudioStream>> {
+        self.stream.start()?;
+
+        if let Some(frames_atomic) = self.callback_frames_atomic {
+            Engine::wait_for_callback_frames(frames_atomic, expected_buffer_size)?;
+        }
+
+        Ok(self.stream)
+    }
+}
+
 impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig) -> Result<Self> {
@@ -135,10 +156,46 @@ impl Engine {
         }
 
         log::info!("Starting engine with backend: {}", self.backend.name());
+        *self.running.lock().unwrap() = true;
 
-        // Ring buffer: spec §5.2 — preallocate N * frames_per_buffer (N ≥ 8) to tolerate producer jitter.
+        let (producer, consumer, ring_buffer_capacity) =
+            Self::create_ring_buffer(self.config.buffer_size);
+
+        let master_stream = self.start_master_stream(consumer)?;
+
+        let producer_thread = match self.start_dsp_producer(
+            producer,
+            ring_buffer_capacity,
+            &master_stream,
+        ) {
+            Ok(thread) => thread,
+            Err(e) => {
+                self.abort_start(None)?;
+                return Err(e);
+            }
+        };
+
+        let stream = match master_stream.start_playback(self.config.buffer_size) {
+            Ok(stream) => stream,
+            Err(e) => {
+                self.abort_start(Some(producer_thread))?;
+                return Err(e);
+            }
+        };
+
+        self.stream = Some(stream);
+        self.producer_thread = Some(producer_thread);
+
+        log::info!("Engine started successfully with producer/consumer model");
+        Ok(())
+    }
+
+    /// Ring buffer: spec §5.2 — preallocate N × frames_per_buffer (N ≥ 8) to tolerate producer jitter.
+    fn create_ring_buffer(
+        buffer_size: u32,
+    ) -> (Producer<Sample>, Consumer<Sample>, usize) {
         const RING_BUFFER_MULTIPLIER: usize = 24;
-        let stereo_samples_per_buffer = self.config.buffer_size as usize * 2;
+        let stereo_samples_per_buffer = buffer_size as usize * 2;
         let ring_buffer_capacity = stereo_samples_per_buffer * RING_BUFFER_MULTIPLIER;
         let (mut producer, consumer) = RingBuffer::new(ring_buffer_capacity);
 
@@ -154,10 +211,14 @@ impl Engine {
             prefill
         );
 
-        // Set running state
-        *self.running.lock().unwrap() = true;
+        (producer, consumer, ring_buffer_capacity)
+    }
 
-        // Get default device from list (first with is_default, else first device) and open stream.
+    /// Open the master output stream and verify device parameters match config.
+    fn start_master_stream(
+        &mut self,
+        consumer: Consumer<Sample>,
+    ) -> Result<MasterStreamSetup> {
         let devices = self.backend.list_output_devices()?;
         let device = devices
             .iter()
@@ -176,87 +237,101 @@ impl Engine {
         let callback_count = Arc::new(AtomicU64::new(0));
         let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
 
-        let mut stream = self
+        let stream = self
             .backend
             .open_output_stream(&device.id, &params, callback)?;
 
-        // Get buffer size and sample rate from stream (backend may report requested or actual).
-        let actual_buffer_size = stream
+        let buffer_size = stream
             .actual_buffer_size()
             .unwrap_or(self.config.buffer_size) as usize;
-        let stream_sample_rate = stream
+        let sample_rate = stream
             .actual_sample_rate()
             .unwrap_or(self.config.sample_rate);
 
-        let sample_rate = stream_sample_rate;
         log::info!(
             "Audio stream opened: {} Hz, {} frames/buffer (config: {} Hz, {} frames)",
-            stream_sample_rate,
-            actual_buffer_size,
+            sample_rate,
+            buffer_size,
             self.config.sample_rate,
             self.config.buffer_size
         );
-        if actual_buffer_size != self.config.buffer_size as usize {
+
+        if buffer_size != self.config.buffer_size as usize {
             return Err(anyhow::anyhow!(
                 "Device buffer size {} frames does not match configured {} frames",
-                actual_buffer_size,
+                buffer_size,
                 self.config.buffer_size
             ));
         }
-        if stream_sample_rate != self.config.sample_rate {
+        if sample_rate != self.config.sample_rate {
             return Err(anyhow::anyhow!(
                 "Device sample rate {} Hz does not match configured {} Hz",
-                stream_sample_rate,
+                sample_rate,
                 self.config.sample_rate
             ));
         }
-        let mut dsp_engine = DspEngine::new(sample_rate, 2); // 2 decks for MVP
-        dsp_engine.set_output_chunk_frames(actual_buffer_size as u32);
+
+        let callback_frames_atomic = stream.callback_frames_atomic();
+
+        Ok(MasterStreamSetup {
+            stream,
+            callback_count,
+            callback_frames_atomic,
+            sample_rate,
+            buffer_size,
+        })
+    }
+
+    /// Create the DSP engine and start the producer thread (before master stream playback).
+    fn start_dsp_producer(
+        &mut self,
+        producer: Producer<Sample>,
+        ring_buffer_capacity: usize,
+        master_stream: &MasterStreamSetup,
+    ) -> Result<JoinHandle<()>> {
+        let mut dsp_engine = DspEngine::new(master_stream.sample_rate, 2); // 2 decks for MVP
+        dsp_engine.set_output_chunk_frames(master_stream.buffer_size as u32);
         let dsp_engine = Arc::new(Mutex::new(dsp_engine));
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
-        // Start producer before the stream so the ring buffer is full when the first callback runs (spec §5.2: tolerate jitter).
-        let callback_frames_atomic = stream.callback_frames_atomic();
-        let callback_frames_for_producer = callback_frames_atomic.clone();
+        let callback_frames_for_producer = master_stream.callback_frames_atomic.clone();
+        let sample_rate = master_stream.sample_rate;
+        let buffer_size = master_stream.buffer_size;
+        let callback_count = Arc::clone(&master_stream.callback_count);
         let running = self.running.clone();
-        let fallback_buffer_size = actual_buffer_size;
         let producer_thread = thread::spawn(move || {
             Self::producer_thread_loop(
                 dsp_engine,
                 producer,
                 running,
                 sample_rate,
-                fallback_buffer_size,
+                buffer_size,
                 ring_buffer_capacity,
                 callback_frames_for_producer,
                 callback_count,
             );
         });
 
-        // Let the producer fill the buffer before we start the stream (avoids startup underruns).
+        // Let the producer fill the buffer before the stream starts (avoids startup underruns).
         const PRODUCER_WARMUP_MS: u64 = 200;
-        std::thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
+        thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
         log::info!(
             "Producer warmup done ({} ms), starting stream",
             PRODUCER_WARMUP_MS
         );
 
-        stream.start()?;
+        Ok(producer_thread)
+    }
 
-        if let Some(frames_atomic) = callback_frames_atomic {
-            if let Err(e) = Self::wait_for_callback_frames(frames_atomic, self.config.buffer_size) {
-                *self.running.lock().unwrap() = false;
-                producer_thread
-                    .join()
-                    .map_err(|_| anyhow::anyhow!("Failed to join producer thread"))?;
-                return Err(e);
-            }
+    /// Tear down a partially started engine after a startup failure.
+    fn abort_start(&mut self, producer_thread: Option<JoinHandle<()>>) -> Result<()> {
+        *self.running.lock().unwrap() = false;
+        if let Some(thread) = producer_thread {
+            thread
+                .join()
+                .map_err(|_| anyhow::anyhow!("Failed to join producer thread"))?;
         }
-
-        self.stream = Some(stream);
-        self.producer_thread = Some(producer_thread);
-
-        log::info!("Engine started successfully with producer/consumer model");
+        self.dsp_engine = None;
         Ok(())
     }
 
