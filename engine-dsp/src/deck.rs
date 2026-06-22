@@ -7,6 +7,7 @@ use anyhow::Result;
 use audio_core::Sample;
 use resampler::{create_resampler, Resampler};
 use std::fmt;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -250,7 +251,10 @@ impl Deck {
         log::info!(
             "Loaded audio into deck {}: {} source frames at {} Hz (engine: {} Hz)",
             self.id,
-            self.audio_samples.as_ref().map(|s| s.len() / 2).unwrap_or(0),
+            self.audio_samples
+                .as_ref()
+                .map(|s| s.len() / 2)
+                .unwrap_or(0),
             original_sample_rate,
             self.sample_rate
         );
@@ -327,13 +331,14 @@ impl Deck {
                 }
             }
         } else {
-            // Fallback to test audio if no samples loaded
-            log::warn!(
-                "Deck {} has no audio samples loaded, generating test audio",
-                self.id
-            );
-            self.generate_test_audio(frames);
-            self.position += frames as u64;
+            static NO_TRACK_WARN: AtomicU32 = AtomicU32::new(0);
+            if NO_TRACK_WARN.fetch_add(1, Ordering::Relaxed) == 0 {
+                log::warn!(
+                    "Deck {} is playing but no track is loaded; outputting silence",
+                    self.id
+                );
+            }
+            self.buffer.fill(0.0);
         }
 
         // Apply volume
@@ -458,28 +463,6 @@ impl Deck {
 
         total_input_frames as u64
     }
-
-    /// Generate test audio (placeholder implementation)
-    fn generate_test_audio(&mut self, frames: u32) {
-        let frequency = 440.0 * self.speed; // A4 note adjusted for speed
-        let amplitude = 0.1;
-
-        for frame in 0..frames {
-            let phase = (self.position + frame as u64) as f32 / self.sample_rate as f32;
-            let sample = amplitude * (2.0 * std::f32::consts::PI * frequency * phase).sin();
-
-            // Write to both channels (interleaved)
-            let left_idx = (frame * 2) as usize;
-            let right_idx = (frame * 2 + 1) as usize;
-
-            if left_idx < self.buffer.len() {
-                self.buffer[left_idx] = sample;
-            }
-            if right_idx < self.buffer.len() {
-                self.buffer[right_idx] = sample;
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -600,12 +583,11 @@ mod tests {
             produced += n;
         }
 
-        let expected_source = (total_output_frames as f64 * input_rate as f64 / output_rate as f64) as u64;
+        let expected_source =
+            (total_output_frames as f64 * input_rate as f64 / output_rate as f64) as u64;
         let actual = deck.position();
         let ratio = actual as f64 / expected_source as f64;
-        eprintln!(
-            "expected_source={expected_source}, actual={actual}, ratio={ratio:.4}"
-        );
+        eprintln!("expected_source={expected_source}, actual={actual}, ratio={ratio:.4}");
         assert!(
             (ratio - 1.0).abs() < 0.02,
             "source consumption should match output duration (ratio {ratio:.3})"

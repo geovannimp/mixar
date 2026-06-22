@@ -269,10 +269,17 @@ mod tests {
         assert!(mixer.set_master_volume(1.1).is_err());
     }
 
+    fn load_test_tone(deck: &mut Deck) {
+        let samples = vec![0.8f32; 512 * 2];
+        deck.load_audio_samples(samples, 48000, "test.wav".to_string())
+            .unwrap();
+    }
+
     #[test]
     fn test_mixer_processing() {
         let mut mixer = Mixer::new(48000);
         let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
+        load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
         let mut output_buses = HashMap::new();
@@ -295,6 +302,7 @@ mod tests {
         mixer.set_cue_volume(0.3).unwrap();
 
         let mut decks = vec![Deck::new(0, 48000)];
+        load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
         let mut output_buses = HashMap::new();
@@ -314,6 +322,8 @@ mod tests {
     fn test_mixer_multiple_decks() {
         let mut mixer = Mixer::new(48000);
         let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
+        load_test_tone(&mut decks[0]);
+        load_test_tone(&mut decks[1]);
         decks[0].play().unwrap();
         decks[1].play().unwrap();
 
