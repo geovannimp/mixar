@@ -20,6 +20,8 @@ pub struct AudioDecoder {
     track_id: u32,
     sample_rate: u32,
     channels: u16,
+    /// Decoded samples waiting to be returned after a partial buffer fill.
+    pending: Vec<Sample>,
 }
 
 /// Audio metadata
@@ -80,15 +82,52 @@ impl AudioDecoder {
             track_id,
             sample_rate,
             channels,
+            pending: Vec::new(),
         })
+    }
+
+    fn copy_into_buffer(
+        buffer: &mut [Sample],
+        total_samples: &mut usize,
+        samples: &[Sample],
+        pending: &mut Vec<Sample>,
+    ) {
+        let space = buffer.len().saturating_sub(*total_samples);
+        if space == 0 {
+            pending.extend_from_slice(samples);
+            return;
+        }
+
+        if samples.len() <= space {
+            buffer[*total_samples..*total_samples + samples.len()].copy_from_slice(samples);
+            *total_samples += samples.len();
+        } else {
+            buffer[*total_samples..*total_samples + space].copy_from_slice(&samples[..space]);
+            pending.extend_from_slice(&samples[space..]);
+            *total_samples += space;
+        }
+    }
+
+    fn drain_pending(&mut self, buffer: &mut [Sample], total_samples: &mut usize) {
+        if self.pending.is_empty() {
+            return;
+        }
+        let space = buffer.len().saturating_sub(*total_samples);
+        let n = space.min(self.pending.len());
+        buffer[*total_samples..*total_samples + n].copy_from_slice(&self.pending[..n]);
+        self.pending.drain(..n);
+        *total_samples += n;
     }
 
     /// Read frames from the decoder
     pub fn read_frames(&mut self, buffer: &mut [Sample]) -> Result<usize> {
         let mut total_samples = 0;
-        let buffer_len = buffer.len();
+        self.drain_pending(buffer, &mut total_samples);
+        if total_samples >= buffer.len() {
+            return Ok(total_samples);
+        }
 
-        while total_samples < buffer_len {
+        while total_samples < buffer.len() {
             // Read the next packet from the media source.
             let packet = match self.format.next_packet() {
                 Ok(packet) => packet,
@@ -120,15 +159,9 @@ impl AudioDecoder {
 
             // Convert the audio buffer to f32 samples
             let samples = Self::audio_buffer_to_samples(&audio_buf);
-            let samples_to_copy = (buffer_len - total_samples).min(samples.len());
+            Self::copy_into_buffer(buffer, &mut total_samples, &samples, &mut self.pending);
 
-            buffer[total_samples..total_samples + samples_to_copy]
-                .copy_from_slice(&samples[..samples_to_copy]);
-
-            total_samples += samples_to_copy;
-
-            // If we've filled the buffer, we're done
-            if total_samples >= buffer_len {
+            if total_samples >= buffer.len() {
                 break;
             }
         }
