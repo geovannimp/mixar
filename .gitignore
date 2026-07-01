@@ -63,14 +63,6 @@ node_modules/
 tmp/
 temp/
 
-# Audio files (for testing)
-*.mp3
-*.wav
-*.flac
-*.aac
-*.ogg
-*.m4a
-
 # Configuration files (user-specific)
 config.toml
 *.config.toml
