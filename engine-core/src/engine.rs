@@ -157,9 +157,11 @@ impl Engine {
         ring_buffer_capacity: usize,
         master_stream: &MasterStreamSetup,
     ) -> Result<JoinHandle<()>> {
-        let mut dsp_engine = DspEngine::new(master_stream.sample_rate, 2);
-        dsp_engine.set_output_chunk_frames(master_stream.buffer_size as u32);
-        let dsp_engine = Arc::new(Mutex::new(dsp_engine));
+        let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
+            master_stream.sample_rate,
+            master_stream.buffer_size as u32,
+            2,
+        )));
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         let callback_frames_for_producer = master_stream.callback_frames_atomic.clone();
@@ -230,22 +232,9 @@ impl Engine {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        let engine_rate = dsp.sample_rate();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_sample_rate(engine_rate);
-            deck.set_output_chunk_frames(self.config.buffer_size);
-            log::info!(
-                "Deck {} configured for {} Hz (engine/stream rate)",
-                deck_id,
-                engine_rate
-            );
-
             deck.load(source)?;
-            log::info!(
-                "Track loaded into deck {} (engine/stream: {} Hz)",
-                deck_id,
-                engine_rate
-            );
+            log::info!("Track loaded into deck {}", deck_id);
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))

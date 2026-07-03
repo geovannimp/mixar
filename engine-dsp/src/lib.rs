@@ -25,23 +25,27 @@ pub struct DspEngine {
     mixer: Mixer,
     /// BPM analyzer for tempo detection
     bpm_analyzer: BpmAnalyzer,
-    /// Sample rate for all processing
+    /// Immutable engine output sample rate (from config)
     sample_rate: u32,
+    /// Immutable engine callback size in frames (from config)
+    buffer_size: u32,
 }
 
 impl DspEngine {
-    /// Create a new DSP engine
-    pub fn new(sample_rate: u32, num_decks: usize) -> Self {
+    /// Create a new DSP engine with an immutable output clock from config.
+    pub fn new(sample_rate: u32, buffer_size: u32, num_decks: usize) -> Self {
+        let buffer_size = buffer_size.max(1);
         let mut decks = Vec::with_capacity(num_decks);
         for i in 0..num_decks {
-            decks.push(Deck::new(i, sample_rate));
+            decks.push(Deck::new(i, sample_rate, buffer_size));
         }
 
         Self {
             decks,
-            mixer: Mixer::new(sample_rate),
+            mixer: Mixer::new(),
             bpm_analyzer: BpmAnalyzer::new(sample_rate),
             sample_rate,
+            buffer_size,
         }
     }
 
@@ -80,40 +84,23 @@ impl DspEngine {
         &mut self.bpm_analyzer
     }
 
-    /// Process audio for all decks and mix to output buses
-    ///
-    /// # Arguments
-    /// * `frames` - Number of frames to process
-    /// * `output_buses` - Map of bus ID to output buffer
-    pub fn process(&mut self, frames: u32, output_buses: &mut HashMap<BusId, Vec<Sample>>) -> Result<()> {
-        // Mix all decks to output buses
-        self.mixer.process(&mut self.decks, frames, output_buses)?;
-
-        Ok(())
+    /// Process audio for all decks and mix to output buses.
+    pub fn process(
+        &mut self,
+        frames: u32,
+        output_buses: &mut HashMap<BusId, Vec<Sample>>,
+    ) -> Result<()> {
+        self.mixer.process(&mut self.decks, frames, output_buses)
     }
 
-    /// Get the current sample rate
+    /// Get the immutable output sample rate
     pub fn sample_rate(&self) -> u32 {
         self.sample_rate
     }
 
-    /// Set the sample rate (requires reinitializing components)
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        self.sample_rate = sample_rate;
-
-        // Reinitialize all components with new sample rate
-        for deck in &mut self.decks {
-            deck.set_sample_rate(sample_rate);
-        }
-        self.mixer.set_sample_rate(sample_rate);
-        self.bpm_analyzer.set_sample_rate(sample_rate);
-    }
-
-    /// Set callback buffer size on all decks (must match the audio backend).
-    pub fn set_output_chunk_frames(&mut self, frames: u32) {
-        for deck in &mut self.decks {
-            deck.set_output_chunk_frames(frames);
-        }
+    /// Get the immutable callback buffer size in frames
+    pub fn buffer_size(&self) -> u32 {
+        self.buffer_size
     }
 }
 
@@ -124,20 +111,21 @@ mod tests {
 
     #[test]
     fn test_dsp_engine_creation() {
-        let engine = DspEngine::new(48000, 2);
+        let engine = DspEngine::new(48000, 512, 2);
         assert_eq!(engine.num_decks(), 2);
         assert_eq!(engine.sample_rate(), 48000);
+        assert_eq!(engine.buffer_size(), 512);
     }
 
     #[test]
     fn test_dsp_engine_deck_access() {
-        let mut engine = DspEngine::new(48000, 2);
-        
+        let mut engine = DspEngine::new(48000, 512, 2);
+
         // Test deck access
         assert!(engine.deck(0).is_some());
         assert!(engine.deck(1).is_some());
         assert!(engine.deck(2).is_none());
-        
+
         // Test mutable deck access
         assert!(engine.deck_mut(0).is_some());
         assert!(engine.deck_mut(1).is_some());
@@ -146,22 +134,13 @@ mod tests {
 
     #[test]
     fn test_dsp_engine_processing() {
-        let mut engine = DspEngine::new(48000, 2);
+        let mut engine = DspEngine::new(48000, 512, 2);
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
-        
+
         // Process some audio
         let result = engine.process(512, &mut output_buses);
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_sample_rate_change() {
-        let mut engine = DspEngine::new(48000, 2);
-        assert_eq!(engine.sample_rate(), 48000);
-        
-        engine.set_sample_rate(44100);
-        assert_eq!(engine.sample_rate(), 44100);
     }
 }

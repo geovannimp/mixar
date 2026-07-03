@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use audio_core::{AudioSource, Sample};
-use resampler::{create_resampler, Resampler};
+use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -32,22 +32,22 @@ pub struct Deck {
     speed: f32,
     /// Volume level (0.0 to 1.0)
     volume: f32,
-    /// Sample rate
+    /// Immutable engine output sample rate (from config).
     sample_rate: u32,
+    /// Immutable engine callback size in frames (from config).
+    buffer_size: u32,
     /// Internal buffer for audio processing
     buffer: Vec<Sample>,
     /// Whether the deck is currently processing audio
     processing: bool,
     /// Loaded audio samples (interleaved stereo)
     audio_samples: Option<Vec<Sample>>,
-    /// Original sample rate of loaded audio
+    /// Native sample rate of the loaded source
     original_sample_rate: Option<u32>,
     /// File path of loaded track
     file_path: Option<String>,
-    /// Resampler for converting between sample rates
+    /// Resampler for converting between sample rates (created on load when needed)
     resampler: Option<Box<dyn Resampler>>,
-    /// Engine/device callback size in frames (drives rubato output chunk size).
-    output_chunk_frames: u32,
 }
 
 impl fmt::Debug for Deck {
@@ -59,6 +59,7 @@ impl fmt::Debug for Deck {
             .field("speed", &self.speed)
             .field("volume", &self.volume)
             .field("sample_rate", &self.sample_rate)
+            .field("buffer_size", &self.buffer_size)
             .field("processing", &self.processing)
             .field(
                 "audio_samples",
@@ -72,8 +73,8 @@ impl fmt::Debug for Deck {
 }
 
 impl Deck {
-    /// Create a new deck
-    pub fn new(id: usize, sample_rate: u32) -> Self {
+    /// Create a new deck with an immutable output clock from engine config.
+    pub fn new(id: usize, sample_rate: u32, buffer_size: u32) -> Self {
         Self {
             id,
             state: DeckState::Stopped,
@@ -81,13 +82,13 @@ impl Deck {
             speed: 1.0,
             volume: 1.0,
             sample_rate,
+            buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
             processing: false,
             audio_samples: None,
             original_sample_rate: None,
             file_path: None,
             resampler: None,
-            output_chunk_frames: 512,
         }
     }
 
@@ -137,7 +138,7 @@ impl Deck {
     pub fn stop(&mut self) -> Result<()> {
         self.state = DeckState::Stopped;
         self.position = 0;
-        self.reset_resampler();
+        self.reset_resampler_state();
         Ok(())
     }
 
@@ -162,87 +163,60 @@ impl Deck {
     /// Seek to a specific position (in source frames at the file sample rate)
     pub fn seek(&mut self, position: u64) -> Result<()> {
         self.position = position;
-        self.reset_resampler();
+        self.reset_resampler_state();
         Ok(())
     }
 
-    /// Set the engine output sample rate; resampling happens at playback time.
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        if self.sample_rate == sample_rate {
-            return;
-        }
-
-        self.sample_rate = sample_rate;
-        self.configure_resampler();
-    }
-
-    /// Set the engine callback buffer size (must match CPAL `BufferSize::Fixed`).
-    pub fn set_output_chunk_frames(&mut self, frames: u32) {
-        let frames = frames.max(1);
-        if self.output_chunk_frames == frames {
-            return;
-        }
-
-        self.output_chunk_frames = frames;
-        if self.resampler.is_some() || self.original_sample_rate.is_some() {
-            self.configure_resampler();
-        }
-    }
-
-    fn configure_resampler(&mut self) {
-        let Some(original_rate) = self.original_sample_rate else {
+    /// Create or clear the resampler based on the loaded source rate and the
+    /// immutable engine output clock. Called on load only.
+    fn create_resampler(&mut self) -> Result<()> {
+        let Some(source_rate) = self.original_sample_rate else {
             self.resampler = None;
-            return;
+            return Ok(());
         };
 
-        if original_rate == self.sample_rate {
+        if source_rate == self.sample_rate {
             self.resampler = None;
             log::info!(
                 "Deck {} passthrough at {} Hz (no resampling)",
                 self.id,
                 self.sample_rate
             );
-            return;
+            return Ok(());
         }
 
-        match create_resampler(
-            original_rate,
+        self.resampler = Some(resampler::create_resampler(
+            source_rate,
             self.sample_rate,
             2,
-            self.output_chunk_frames as usize,
-        ) {
-            Ok(resampler) => {
-                log::info!(
-                    "Deck {} realtime resampler: {} Hz -> {} Hz ({}-frame chunks)",
-                    self.id,
-                    original_rate,
-                    self.sample_rate,
-                    self.output_chunk_frames
-                );
-                self.resampler = Some(resampler);
-            }
-            Err(e) => {
-                log::error!("Deck {} failed to create resampler: {}", self.id, e);
-                self.resampler = None;
-            }
-        }
+            self.buffer_size as usize,
+        )?);
+        log::info!(
+            "Deck {} realtime resampler: {} Hz -> {} Hz (buffer_size={})",
+            self.id,
+            source_rate,
+            self.sample_rate,
+            self.buffer_size
+        );
+        Ok(())
     }
 
-    fn reset_resampler(&mut self) {
-        if self.resampler.is_some() {
-            self.configure_resampler();
+    /// Clear resampler filter/history state after a position jump (seek/stop).
+    fn reset_resampler_state(&mut self) {
+        if let Some(resampler) = self.resampler.as_mut() {
+            resampler.reset();
         }
     }
 
     /// Load audio from a source at its native sample rate.
-    /// Resampling to the engine rate happens during playback.
+    /// Creates a resampler when the source rate differs from the engine rate.
     pub fn load(&mut self, source: &impl AudioSource) -> Result<()> {
         let loaded = source.load()?;
         self.original_sample_rate = Some(loaded.sample_rate);
         self.file_path = Some(loaded.source_id.clone());
         self.position = 0;
         self.audio_samples = Some(loaded.samples);
-        self.configure_resampler();
+        self.create_resampler()?;
 
         log::info!(
             "Loaded audio into deck {} from {}: {} source frames at {} Hz ({} channels, engine: {} Hz)",
@@ -282,13 +256,10 @@ impl Deck {
         }
     }
 
-    /// Process audio for this deck
+    /// Process audio for this deck.
     ///
     /// # Arguments
-    /// * `frames` - Number of frames to process
-    ///
-    /// # Returns
-    /// The processed audio buffer
+    /// * `frames` - Number of frames to process (should match the engine buffer size)
     pub fn process(&mut self, frames: u32) -> Result<&[Sample]> {
         if self.state != DeckState::Playing {
             // Return silence if not playing
@@ -406,11 +377,6 @@ impl Deck {
             None => return 0,
         };
 
-        // Safety: keep rubato aligned if process() is ever called with a different frame count.
-        if resampler.output_frames_next() != output_frames {
-            resampler.set_output_chunk_frames(output_frames);
-        }
-
         while out_frames < output_frames && src_pos < audio_samples.len() {
             let need_in = resampler.input_frames_next();
             let step_out = resampler
@@ -468,6 +434,13 @@ mod tests {
     use super::*;
     use audio_core::LoadedAudio;
 
+    const ENGINE_RATE: u32 = 48000;
+    const CHUNK: u32 = 512;
+
+    fn new_deck(chunk_frames: u32) -> Deck {
+        Deck::new(0, ENGINE_RATE, chunk_frames)
+    }
+
     fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {
         let audio = LoadedAudio {
             samples,
@@ -480,7 +453,7 @@ mod tests {
 
     #[test]
     fn test_deck_creation() {
-        let deck = Deck::new(0, 48000);
+        let deck = new_deck(CHUNK);
         assert_eq!(deck.id(), 0);
         assert_eq!(deck.state(), &DeckState::Stopped);
         assert_eq!(deck.position(), 0);
@@ -490,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_deck_playback_controls() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
 
         // Test play
         deck.play().unwrap();
@@ -508,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_deck_speed_control() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
 
         // Test valid speed
         deck.set_speed(1.5).unwrap();
@@ -520,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_deck_volume_control() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
 
         // Test valid volume
         deck.set_volume(0.5).unwrap();
@@ -533,7 +506,7 @@ mod tests {
 
     #[test]
     fn test_deck_seek() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
 
         deck.seek(1000).unwrap();
         assert_eq!(deck.position(), 1000);
@@ -541,36 +514,41 @@ mod tests {
 
     #[test]
     fn test_deck_audio_processing() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
 
         // Test processing when stopped (should return silence)
-        let audio = deck.process(512).unwrap();
+        let audio = deck.process(CHUNK).unwrap();
         assert_eq!(audio.len(), 1024); // Stereo
         assert!(audio.iter().all(|&s| s == 0.0));
 
-        // Test processing when playing
+        // Playing with no track loaded outputs silence
         deck.play().unwrap();
-        let audio = deck.process(512).unwrap();
-        assert_eq!(audio.len(), 1024); // Stereo
-        assert!(audio.iter().any(|&s| s != 0.0)); // Should have some audio
+        let audio = deck.process(CHUNK).unwrap();
+        assert_eq!(audio.len(), 1024);
+        assert!(audio.iter().all(|&s| s == 0.0));
+
+        // Loaded audio should produce non-zero samples
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK as usize * 2], ENGINE_RATE);
+        let audio = deck.process(CHUNK).unwrap();
+        assert!(audio.iter().any(|&s| s != 0.0));
     }
 
     #[test]
     fn test_deck_volume_application() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.1f32; CHUNK as usize * 2], ENGINE_RATE);
         deck.set_volume(0.5).unwrap();
         deck.play().unwrap();
 
-        let audio = deck.process(512).unwrap();
+        let audio = deck.process(CHUNK).unwrap();
         assert!(audio.iter().all(|&s| s.abs() <= 0.05)); // Max amplitude should be 0.1 * 0.5
     }
 
     #[test]
     fn test_deck_realtime_resample_playback_rate() {
-        let output_rate = 48000u32;
         let input_rate = 44100u32;
         let duration_secs = 10usize;
-        let mut deck = Deck::new(0, output_rate);
+        let mut deck = new_deck(CHUNK);
         let frames = input_rate as usize * duration_secs;
         let mut samples = vec![0.0f32; frames * 2];
         for i in 0..frames {
@@ -582,17 +560,17 @@ mod tests {
         load_test_samples(&mut deck, samples, input_rate);
         deck.play().unwrap();
 
-        let chunk = 512u32;
-        let total_output_frames = output_rate as usize * duration_secs;
+        // Only full chunks — resampler is sized to the immutable buffer size.
+        let total_output_frames =
+            (ENGINE_RATE as usize * duration_secs / CHUNK as usize) * CHUNK as usize;
         let mut produced = 0usize;
         while produced < total_output_frames {
-            let n = (total_output_frames - produced).min(chunk as usize);
-            deck.process(n as u32).unwrap();
-            produced += n;
+            deck.process(CHUNK).unwrap();
+            produced += CHUNK as usize;
         }
 
         let expected_source =
-            (total_output_frames as f64 * input_rate as f64 / output_rate as f64) as u64;
+            (total_output_frames as f64 * input_rate as f64 / ENGINE_RATE as f64) as u64;
         let actual = deck.position();
         let ratio = actual as f64 / expected_source as f64;
         eprintln!("expected_source={expected_source}, actual={actual}, ratio={ratio:.4}");
@@ -604,11 +582,10 @@ mod tests {
 
     #[test]
     fn test_deck_realtime_resample_playback_rate_480_frame_callback() {
-        let output_rate = 48000u32;
         let input_rate = 44100u32;
         let duration_secs = 10usize;
         let chunk = 480u32;
-        let mut deck = Deck::new(0, output_rate);
+        let mut deck = new_deck(chunk);
         let frames = input_rate as usize * duration_secs;
         let mut samples = vec![0.0f32; frames * 2];
         for i in 0..frames {
@@ -620,16 +597,16 @@ mod tests {
         load_test_samples(&mut deck, samples, input_rate);
         deck.play().unwrap();
 
-        let total_output_frames = output_rate as usize * duration_secs;
+        let total_output_frames =
+            (ENGINE_RATE as usize * duration_secs / chunk as usize) * chunk as usize;
         let mut produced = 0usize;
         while produced < total_output_frames {
-            let n = (total_output_frames - produced).min(chunk as usize);
-            deck.process(n as u32).unwrap();
-            produced += n;
+            deck.process(chunk).unwrap();
+            produced += chunk as usize;
         }
 
         let expected_source =
-            (total_output_frames as f64 * input_rate as f64 / output_rate as f64) as u64;
+            (total_output_frames as f64 * input_rate as f64 / ENGINE_RATE as f64) as u64;
         let actual = deck.position();
         let ratio = actual as f64 / expected_source as f64;
         assert!(
@@ -640,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_deck_realtime_resample_produces_audio() {
-        let mut deck = Deck::new(0, 48000);
+        let mut deck = new_deck(CHUNK);
         let frames = 44100usize;
         let mut samples = vec![0.0f32; frames * 2];
         for i in 0..frames {
@@ -654,7 +631,7 @@ mod tests {
 
         let mut non_zero = 0usize;
         for _ in 0..200 {
-            let audio = deck.process(512).unwrap();
+            let audio = deck.process(CHUNK).unwrap();
             non_zero += audio.iter().filter(|&&s| s.abs() > 0.001).count();
         }
 

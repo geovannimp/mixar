@@ -46,7 +46,6 @@ type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
 
 /// Audio mixer implemented as a dasp_graph (deck sources -> Sum -> buses).
 pub struct Mixer {
-    sample_rate: u32,
     master_volume: f32,
     cue_volume: f32,
     /// Internal mix buffer (interleaved stereo) filled from the graph output.
@@ -64,7 +63,6 @@ pub struct Mixer {
 impl std::fmt::Debug for Mixer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Mixer")
-            .field("sample_rate", &self.sample_rate)
             .field("master_volume", &self.master_volume)
             .field("cue_volume", &self.cue_volume)
             .field("mix_buffer_len", &self.mix_buffer.len())
@@ -75,7 +73,7 @@ impl std::fmt::Debug for Mixer {
 
 impl Mixer {
     /// Create a new mixer with a fixed number of deck slots (sources in the graph).
-    pub fn new(sample_rate: u32) -> Self {
+    pub fn new() -> Self {
         let max_decks = 2;
         let mut graph = MixerGraph::with_capacity(max_decks + 1, max_decks + 1);
         let mut deck_node_ids = Vec::with_capacity(max_decks);
@@ -93,7 +91,6 @@ impl Mixer {
         let processor = Processor::with_capacity(max_decks + 1);
 
         Self {
-            sample_rate,
             master_volume: 1.0,
             cue_volume: 1.0,
             mix_buffer: Vec::new(),
@@ -130,11 +127,6 @@ impl Mixer {
         }
         self.cue_volume = volume;
         Ok(())
-    }
-
-    /// Set the sample rate
-    pub fn set_sample_rate(&mut self, sample_rate: u32) {
-        self.sample_rate = sample_rate;
     }
 
     /// Process audio from all decks through the graph and route to output buses.
@@ -259,14 +251,14 @@ mod tests {
 
     #[test]
     fn test_mixer_creation() {
-        let mixer = Mixer::new(48000);
+        let mixer = Mixer::new();
         assert_eq!(mixer.master_volume(), 1.0);
         assert_eq!(mixer.cue_volume(), 1.0);
     }
 
     #[test]
     fn test_mixer_volume_controls() {
-        let mut mixer = Mixer::new(48000);
+        let mut mixer = Mixer::new();
         mixer.set_master_volume(0.5).unwrap();
         assert_eq!(mixer.master_volume(), 0.5);
         mixer.set_cue_volume(0.7).unwrap();
@@ -287,8 +279,8 @@ mod tests {
 
     #[test]
     fn test_mixer_processing() {
-        let mut mixer = Mixer::new(48000);
-        let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
+        let mut mixer = Mixer::new();
+        let mut decks = vec![Deck::new(0, 48000, 512), Deck::new(1, 48000, 512)];
         load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
@@ -307,11 +299,11 @@ mod tests {
 
     #[test]
     fn test_mixer_volume_application() {
-        let mut mixer = Mixer::new(48000);
+        let mut mixer = Mixer::new();
         mixer.set_master_volume(0.5).unwrap();
         mixer.set_cue_volume(0.3).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000)];
+        let mut decks = vec![Deck::new(0, 48000, 512)];
         load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
@@ -330,8 +322,8 @@ mod tests {
 
     #[test]
     fn test_mixer_multiple_decks() {
-        let mut mixer = Mixer::new(48000);
-        let mut decks = vec![Deck::new(0, 48000), Deck::new(1, 48000)];
+        let mut mixer = Mixer::new();
+        let mut decks = vec![Deck::new(0, 48000, 512), Deck::new(1, 48000, 512)];
         load_test_tone(&mut decks[0]);
         load_test_tone(&mut decks[1]);
         decks[0].play().unwrap();

@@ -34,6 +34,9 @@ pub trait Resampler: Send {
 
     /// Rebuild the resampler so each step produces `frames` output samples.
     fn set_output_chunk_frames(&mut self, frames: usize);
+
+    /// Clear internal filter/history state (e.g. after seek or stop).
+    fn reset(&mut self);
 }
 
 /// Rubato FFT resampler using fixed **output** chunks so input consumption tracks playback.
@@ -212,6 +215,12 @@ impl Resampler for RubatoResampler {
         self.output_chunk_frames = frames;
         if let Err(e) = self.update_resampler() {
             eprintln!("Failed to resize resampler chunk: {}", e);
+        }
+    }
+
+    fn reset(&mut self) {
+        if let Err(e) = self.update_resampler() {
+            eprintln!("Failed to reset resampler: {}", e);
         }
     }
 }
