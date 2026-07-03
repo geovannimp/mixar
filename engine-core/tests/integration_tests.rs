@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use audio_core::BusId;
-use engine_core::{Engine, EngineConfig};
+use engine_core::{Engine, EngineConfig, FileAudioSource};
 
 #[test]
 fn test_engine_with_null_backend() -> Result<()> {
@@ -23,7 +23,7 @@ fn test_engine_with_null_backend() -> Result<()> {
     engine.start()?;
 
     // Test basic operations
-    engine.load_track(0, "test.mp3")?;
+    engine.load_track(0, &FileAudioSource::new("test.mp3"))?;
     engine.play(0)?;
     engine.pause(0)?;
     engine.stop()?;
@@ -100,7 +100,9 @@ fn test_engine_deck_operations() -> Result<()> {
     // Test deck operations
     assert!(engine.play(0).is_ok());
     assert!(engine.pause(0).is_ok());
-    assert!(engine.load_track(0, "test.mp3").is_ok());
+    assert!(engine
+        .load_track(0, &FileAudioSource::new("test.mp3"))
+        .is_ok());
 
     // Test invalid deck
     assert!(engine.play(2).is_err());
@@ -143,7 +145,7 @@ fn test_producer_consumer_architecture() -> Result<()> {
     // Test that we can perform operations while the engine is running
     engine.play(0)?;
     engine.pause(0)?;
-    engine.load_track(0, "test.mp3")?;
+    engine.load_track(0, &FileAudioSource::new("test.mp3"))?;
 
     // Test device operations
     let devices = engine.list_devices()?;
