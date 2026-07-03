@@ -6,10 +6,11 @@ alwaysApply: false
 
 # app-example Module Rules
 
-Reference: `docs/tech-spec.md` §3, §12, §16.
+Reference: `docs/tech-spec.md` §3, §12, §16. Architecture overview: `README.md`.
 
 - **Role:** Minimal example binary that wires the engine with config and runtime backend selection. Demonstrates embedding the engine as a crate.
-- **Flow:** Load config from TOML (e.g. `EngineConfig::from_toml_file(path)`), construct `Engine::new(config)`, call `engine.start()`, then use `load_track`, `play`/`pause`, and optionally `set_bus_device`. Show how to list devices and choose backend.
-- **Config:** Use default path `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` or fallback `~/.config/rust-dj-engine/config.toml`; allow override via CLI or env if desired.
-- **Backend selection:** All backends compiled in; backend chosen at runtime from config (`auto` / `cpal` / `miniaudio` / `null`). No dynamic loading. Document in examples or README how to run with each backend.
-- **Maintainability:** Keep this example small and focused. It is the reference for “minimal app usage” (see tech spec §16). Add to examples folder and CI if applicable.
+- **Flow:** Optionally load config from TOML (`EngineConfig::from_toml_file`), construct `Engine::new(config)`, call `engine.start()`, then `load_track` with an `AudioSource` (e.g. `FileAudioSource::new(path)`), `play`/`pause`, and optionally `set_bus_device`. Show how to list backends/devices via `AudioBackend::list_names()` / `AudioBackend::new(name)`.
+- **Track loading:** Always pass `&FileAudioSource::new(...)` (or another `AudioSource`), never a bare path string.
+- **Config:** Prefer a local `config.toml` when present; otherwise `EngineConfig::default()`. Backend may be overridden in code for demos (e.g. `"cpal"`).
+- **Backend selection:** All backends compiled in; backend chosen at runtime from config (`auto` / `cpal` / `miniaudio` / `null`). No dynamic loading.
+- **Maintainability:** Keep this example small and focused. It is the reference for minimal app usage. Sample audio lives under `samples/`.

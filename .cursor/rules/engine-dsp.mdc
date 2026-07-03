@@ -6,10 +6,12 @@ alwaysApply: false
 
 # engine-dsp Module Rules
 
-Reference: `docs/tech-spec.md` §3, §12.
+Reference: `docs/tech-spec.md` §3, §12. Architecture overview: `README.md`.
 
 - **Role:** Pure DSP only: deck, mixer graph (minimal), and analyzers. No I/O or system calls.
 - **Constraint:** This crate must remain **pure Rust with zero I/O dependencies**. No `std::fs`, no network, no backend or codec imports that pull in I/O. Suitable for future WASM compilation.
-- **Components:** Decks (playback state, gain, per-deck/cue/master routing), mixer (bus mixing, channel mapping), analyzers (e.g. BPM). Use types from `audio-core` (e.g. `Sample`, `BusId`) as needed.
+- **Module layout:** `lib.rs` (`DspEngine`), `deck.rs`, `mixer.rs`, `analyzer.rs`. Keep DSP components in their own files.
+- **Components:** Decks (playback state, gain, per-deck/cue/master routing, in-deck resampling at playback), mixer (bus mixing, channel mapping), analyzers (e.g. BPM). Use types from `audio-core` (e.g. `Sample`, `BusId`) as needed.
+- **Track data:** Decks receive already-decoded samples via `load_audio_samples` (called from `engine-core` after an `AudioSource` loads). Do not decode or open files here.
 - **Design:** Keep each crate small with a single responsibility. Unit tests for DSP with golden data where appropriate; benchmarks (criterion) for mixer and critical paths.
 - **WASM:** Design so engine-dsp can be compiled to WASM (e.g. with wasm-pack/wasm-bindgen) for WebAudio integration; avoid dependencies that block WASM.

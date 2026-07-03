@@ -6,10 +6,10 @@ alwaysApply: false
 
 # library Module Rules
 
-Reference: `docs/tech-spec.md` §10.
+Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
 
-- **Role:** Tag reading from files and persistent storage for app-managed metadata (hotcues, beatgrid, BPM). Headless; no UI.
+- **Role:** Tag reading from files and persistent storage for app-managed metadata (hotcues, beatgrid, BPM). Headless; no UI. Currently a placeholder; implement without coupling to `Engine` internals.
 - **Tag reading:** Read ID3, Vorbis comments, FLAC metadata using symphonia and/or a dedicated tag crate (e.g. lofty). Primary read from file tags for initial metadata when present.
 - **Storage:** Internal SQLite DB (in this crate) as the canonical store for library entries and custom fields (hotcues, beatgrid corrections, user BPM). Optional write-back to file tags for portability (format-dependent); runtime data is authoritative in the DB.
-- **API:** Provide APIs for import (scan/add tracks), read/write metadata, and expose hotcue/beatgrid storage. Document which fields are file-tag vs DB-only.
+- **API:** Provide APIs for import (scan/add tracks), read/write metadata, and expose hotcue/beatgrid storage. Document which fields are file-tag vs DB-only. Track playback still goes through `engine-core` via `AudioSource` (e.g. `FileAudioSource`); this crate does not own the audio device path.
 - **Testing:** Fuzz tests for tag/parser code; unit tests for DB schema and metadata round-trips. No telemetry or opt-in data collection.

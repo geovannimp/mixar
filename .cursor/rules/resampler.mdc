@@ -6,10 +6,10 @@ alwaysApply: false
 
 # resampler Module Rules
 
-Reference: `docs/tech-spec.md` §7 (Resampler).
+Reference: `docs/tech-spec.md` §7 (Resampler). Architecture overview: `README.md`.
 
-- **Role:** Resample audio between sample rates. Expose a trait (e.g. `Resampler`) and a default implementation (rubato); keep implementation pluggable for A/B or future alternatives (e.g. speedxdsp).
+- **Role:** Resample audio between sample rates. Expose a trait (e.g. `Resampler`) and a default implementation (rubato); keep implementation pluggable for A/B or future alternatives.
 - **Trait (conceptually):** `process(&mut self, in_buf: &[f32], out_buf: &mut [f32], channels: usize) -> usize`, `set_rate(input_sr, output_sr)`. Use `audio_core::Sample` (f32) for consistency.
 - **Default impl:** Use rubato (high-quality, FFT-based). Handle passthrough when input_sr == output_sr without extra copies or state where possible.
 - **Performance:** No allocations in the hot path; preallocate internal buffers when rate is set. Benchmarks (criterion) for resampler throughput.
-- **Engine use:** Engine producer thread uses this to resample decoded audio to the engine internal sample rate before writing to ring buffers.
+- **Engine use:** Decks in `engine-dsp` use this to resample source audio to the engine/stream sample rate during playback (tracks are loaded at native rate via `AudioSource`).

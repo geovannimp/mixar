@@ -6,11 +6,20 @@ alwaysApply: false
 
 # engine-core Module Rules
 
-Reference: `docs/tech-spec.md` §4.2, §5, §6.
+Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.md`.
 
-- **Role:** Orchestrates engine lifecycle, clock, scheduler, and config. Owns the producer thread and implements ring-buffer writing plus decode/resample pipeline.
-- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, path)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Support control API for sample rate, buffer size.
-- **Config:** TOML from `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` (fallback `~/.config/...`). Parse `[engine]` (sample_rate, buffer_size, low_latency, backend), `[[device]]`, `[[bus]]` with 1-based channel indexes.
-- **Threading:** Producer thread (engine-controlled) decodes/resamples and writes interleaved stereo to per-bus lock-free ring buffers; wakes on commands (play/stop/seek/hotcue) via lock-free mailbox. Consumer is the backend’s audio callback (see audio-core).
-- **Ring buffer:** Preallocate; no allocations in the audio callback. Buffer at least N × frames_per_buffer (e.g. N = 8) to tolerate producer jitter.
-- **Backend selection:** Runtime choice via config (`auto` / `cpal` / `miniaudio` / `null`). All backends compiled in; no dynamic loading.
+- **Role:** Orchestrates engine lifecycle, config, backend selection, and the producer thread. Loads tracks via `AudioSource` and feeds decoded samples into `engine-dsp` decks.
+- **Module layout:** Keep responsibilities split across files; do not collapse back into a single `lib.rs`.
+  - `lib.rs` — module declarations and public re-exports only
+  - `config.rs` — `EngineConfig`, `DeviceConfig`, `AdvancedConfig`, `AudioConfig` (TOML load/save)
+  - `engine.rs` — `Engine` public API (`new`, `start`/`stop`, `load_track`, `play`/`pause`, bus/device helpers)
+  - `backend.rs` — `create_backend`, `AudioBackend` factory, `AudioBackendTrait` re-export
+  - `producer.rs` — ring buffer setup, `MasterStreamSetup`, producer thread loop
+  - `callback.rs` — `ConsumerCallback` (ring-buffer consumer for the audio device callback)
+  - `audio_source/` — `FileAudioSource`; re-exports `AudioSource` / `LoadedAudio` from `audio-core`
+- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, &impl AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path in `load_track`; callers pass an `AudioSource` (e.g. `FileAudioSource::new(path)`).
+- **Audio loading:** Trait and `LoadedAudio` live in `audio-core`. Disk loading is `FileAudioSource` in this crate (uses `codec`). New origins implement `AudioSource` without changing `Engine`.
+- **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `sample_rate`, `buffer_size`, `low_latency`, `backend`, buses/devices, optional advanced/audio sections.
+- **Threading:** Producer thread (engine-controlled) runs DSP and writes interleaved stereo to a lock-free ring buffer. Consumer is the backend audio callback (`ConsumerCallback`). No allocations in the callback path.
+- **Ring buffer:** Preallocate; buffer at least N × frames_per_buffer (current multiplier is higher than the minimum N ≥ 8) to tolerate producer jitter.
+- **Backend selection:** Runtime choice via config (`auto` / `cpal` / `miniaudio` / `null`). All backends compiled in; no dynamic loading. Use `AudioBackend::list_names()` / `AudioBackend::new(name)` for discovery before constructing an engine.

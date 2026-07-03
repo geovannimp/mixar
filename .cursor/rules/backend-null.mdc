@@ -6,9 +6,10 @@ alwaysApply: false
 
 # backend-null Module Rules
 
-Reference: `docs/tech-spec.md` §8.3, §12.
+Reference: `docs/tech-spec.md` §8.3, §12. Architecture overview: `README.md`.
 
 - **Role:** Deterministic backend for tests and CI. No real audio device; simulates timing and buffer behavior.
-- **Implementation:** Implement `AudioBackend` and `AudioStream`. Simulate buffer size negotiation (e.g. grant requested `frames_per_buffer` or a known multiple). Support deterministic timing so tests can assert on xruns, underruns, or callback counts.
+- **Implementation:** Implement `AudioBackend` and `AudioStream` from `audio-core`. Simulate buffer size negotiation (e.g. grant requested `frames_per_buffer` or a known multiple). Support deterministic timing so tests can assert on xruns, underruns, or callback counts.
+- **Selection:** Available as config backend `"null"` via `engine-core`'s `AudioBackend` factory.
 - **Testing:** Used by integration tests to validate producer/consumer plumbing, ring buffer behavior, and engine control flow without hardware. No heap allocations in the simulated callback path.
-- **CI:** Unit and integration tests should be able to run with backend-null only (no sound card required). Document how to run tests and any env vars or config for null backend.
+- **CI:** Unit and integration tests should be able to run with backend-null only (no sound card required).

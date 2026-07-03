@@ -6,9 +6,10 @@ alwaysApply: false
 
 # backend-cpal Module Rules
 
-Reference: `docs/tech-spec.md` §4.1, §8 (backends). CPAL is a workspace backend not explicitly named in the spec but follows the same contract.
+Reference: `docs/tech-spec.md` §4.1, §8 (backends). Architecture overview: `README.md`.
 
-- **Role:** Cross-platform audio backend using CPAL. Implements `AudioBackend` from `audio-core`; same contract as backend-miniaudio and backend-null. On Linux, uses CPAL's native PipeWire host when available.
+- **Role:** Cross-platform audio backend using CPAL. Implements `AudioBackend` from `audio-core`; same contract as backend-miniaudio and backend-null. On Linux, uses CPAL's native PipeWire host when available (there is no separate `backend-pipewire` crate).
 - **Implementation:** Implement `name`, `list_output_devices` (each `DeviceInfo` has `is_default`), `open_output_stream(device, params, callback)`. Map CPAL devices to `DeviceId`/`DeviceInfo` and stream config to `StreamParams`.
 - **Callback:** Call `AudioCallback::render` from the CPAL stream callback; no heap allocations or blocking. Report `actual_buffer_size` and `actual_latency` when CPAL provides them.
-- **Consistency:** Keep behavior and API aligned with other backends so engine-core can switch backends at runtime via config (e.g. backend = "cpal").
+- **Selection:** Available as config backend `"cpal"` (and preferred under `"auto"` when initialization succeeds). Optional Cargo feature `backend-cpal` on `engine-core`.
+- **Consistency:** Keep behavior and API aligned with other backends so engine-core can switch backends at runtime via config.

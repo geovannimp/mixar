@@ -2,67 +2,32 @@
 
 ## Table of Contents
 
-- [Tech Spec — Modular Rust Audio Engine (Backend-Only)](#tech-spec--modular-rust-audio-engine-backend-only)
-  - [Table of Contents](#table-of-contents)
-  - [1 — Project Overview](#1--project-overview)
-  - [1 — Objectives (What MVP Must Deliver)](#1--objectives-what-mvp-must-deliver)
-    - [Core Requirements](#core-requirements)
-  - [2 — Non-goals for MVP](#2--non-goals-for-mvp)
-  - [3 — High-level Architecture](#3--high-level-architecture)
-  - [4 — Core Runtime Contracts \& APIs](#4--core-runtime-contracts--apis)
-    - [4.1 audio-core (Types \& Traits)](#41-audio-core-types--traits)
-    - [4.2 Engine Entry Points (engine-core)](#42-engine-entry-points-engine-core)
-  - [5 — Threading \& Buffer Model](#5--threading--buffer-model)
-    - [5.1 Two-thread Design](#51-two-thread-design)
-      - [Producer Thread (engine-controlled)](#producer-thread-engine-controlled)
-      - [Consumer (audio callback)](#consumer-audio-callback)
-    - [5.2 Ring Buffer \& Zero Allocations](#52-ring-buffer--zero-allocations)
-    - [5.3 Channel Mapping](#53-channel-mapping)
-  - [6 — Config Schema (TOML in User Config Directory)](#6--config-schema-toml-in-user-config-directory)
-    - [Example Configuration](#example-configuration)
-    - [Configuration Notes](#configuration-notes)
-  - [7 — Codec \& Resampling Choices](#7--codec--resampling-choices)
-    - [Codec (Decoding)](#codec-decoding)
-    - [Resampler](#resampler)
-  - [8 — Backends](#8--backends)
-    - [8.1 backend-miniaudio](#81-backend-miniaudio)
-    - [8.2 backend-pipewire (Linux)](#82-backend-pipewire-linux)
-    - [8.3 backend-null](#83-backend-null)
-    - [Runtime Selection](#runtime-selection)
-  - [9 — WASM / Web Support](#9--wasm--web-support)
-    - [Approach](#approach)
-  - [10 — Metadata / Library Manager \& Tag Handling](#10--metadata--library-manager--tag-handling)
-    - [MVP Requirements](#mvp-requirements)
-    - [Design Decision](#design-decision)
-  - [11 — Acceptance Criteria \& Performance](#11--acceptance-criteria--performance)
-    - [Performance Target (MVP)](#performance-target-mvp)
-    - [Functional Acceptance](#functional-acceptance)
-  - [12 — CI, Testing \& Maintainability](#12--ci-testing--maintainability)
-    - [CI](#ci)
-    - [Tests](#tests)
-    - [Maintainability Rules](#maintainability-rules)
-  - [13 — Build Flags \& Runtime Tweaks (Recommended)](#13--build-flags--runtime-tweaks-recommended)
-    - [Notes](#notes)
-  - [14 — Roadmap (Phases)](#14--roadmap-phases)
-    - [MVP (Deliverable)](#mvp-deliverable)
-    - [v1](#v1)
-    - [v2](#v2)
-  - [15 — Implementation Plan \& Milestone Tasks (Developer-friendly)](#15--implementation-plan--milestone-tasks-developer-friendly)
-    - [Sprint 0 — Workspace \& Scaffolding](#sprint-0--workspace--scaffolding)
-    - [Sprint 1 — Miniaudio \& Codec](#sprint-1--miniaudio--codec)
-    - [Sprint 2 — Producer/Consumer Plumbing](#sprint-2--producerconsumer-plumbing)
-    - [Sprint 3 — Library Manager \& Tags](#sprint-3--library-manager--tags)
-    - [Sprint 4 — PipeWire \& WASM Prototyping](#sprint-4--pipewire--wasm-prototyping)
-  - [16 — Example Config \& Usage (Quick)](#16--example-config--usage-quick)
-    - [Configuration File](#configuration-file)
-    - [Minimal App Usage (Pseudo)](#minimal-app-usage-pseudo)
-  - [17 — Acceptance \& Next Steps (What I Will Deliver Next If You Want)](#17--acceptance--next-steps-what-i-will-deliver-next-if-you-want)
+- [1 — Project Overview](#1--project-overview)
+- [1 — Objectives (What MVP Must Deliver)](#1--objectives-what-mvp-must-deliver)
+- [2 — Non-goals for MVP](#2--non-goals-for-mvp)
+- [3 — High-level Architecture](#3--high-level-architecture)
+- [4 — Core Runtime Contracts & APIs](#4--core-runtime-contracts--apis)
+  - [4.1 audio-core (Types & Traits)](#41-audio-core-types--traits)
+  - [4.2 Engine Entry Points (engine-core)](#42-engine-entry-points-engine-core)
+  - [4.3 Audio loading (`AudioSource`)](#43-audio-loading-audiosource)
+- [5 — Threading & Buffer Model](#5--threading--buffer-model)
+- [6 — Config Schema](#6--config-schema)
+- [7 — Codec & Resampling Choices](#7--codec--resampling-choices)
+- [8 — Backends](#8--backends)
+- [9 — WASM / Web Support](#9--wasm--web-support)
+- [10 — Metadata / Library Manager & Tag Handling](#10--metadata--library-manager--tag-handling)
+- [11 — Acceptance Criteria & Performance](#11--acceptance-criteria--performance)
+- [12 — CI, Testing & Maintainability](#12--ci-testing--maintainability)
+- [13 — Build Flags & Runtime Tweaks](#13--build-flags--runtime-tweaks)
+- [14 — Roadmap (Phases)](#14--roadmap-phases)
+- [15 — Implementation Plan & Milestone Tasks](#15--implementation-plan--milestone-tasks)
+- [16 — Example Config & Usage](#16--example-config--usage)
 
 ---
 
 ## 1 — Project Overview
 
-- **Project name (placeholder):** `rust-dj-engine`
+- **Project name:** `rust-dj-engine`
 - **License:** GPLv3
 - **Primary dev / CI platform:** Linux x86_64
 - **Delivery form:** Rust crate (workspace) + optional static library build
@@ -73,23 +38,25 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 
 ### Core Requirements
 
-- **Runtime-selectable audio backend** (miniaudio primary on all platforms; PipeWire supported on Linux). No compile-time feature lock for selection — backends compiled in and chosen at runtime.
+- **Runtime-selectable audio backend** (`auto` / `cpal` / `miniaudio` / `null`). Backends are compiled in and chosen at runtime (no dynamic loading). On Linux, CPAL provides native PipeWire when available; there is no separate `backend-pipewire` crate.
 
 - **Two modular decks** (playback units) in the MVP; decks are modular so more can be added later.
 
-- **Per-deck/cue/master audio routing** with per-bus device + channel mapping (stereo pairs only).
+- **Per-deck/cue/master audio routing** with per-bus device + channel mapping (stereo pairs only). Mapping API exists; full multi-bus device routing is still incomplete.
 
-- **Configurable buffer size** (default 512) and sample rate (default 48 kHz but overridable in config). Latency is determined by buffer size.
+- **Configurable buffer size** (default 512) and sample rate (default 48 kHz, overridable in config). Latency is determined by buffer size.
 
-- **Two-thread model:** engine-controlled producer thread writes decoded/resampled audio into a ring buffer; audio callback thread (consumer) reads from it.
+- **Two-thread model:** engine-controlled producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer; the backend audio callback (consumer) reads from it.
 
-- **Support common audio formats** via a robust decoder (e.g., symphonia), high-quality but fast resampling via rubato (pluggable).
+- **Pluggable track loading** via `AudioSource` (trait in `audio-core`). Disk files use `FileAudioSource` (in `engine-core`), which decodes through the `codec` crate (symphonia).
 
-- **Tag reading** (read metadata from files) and ability to store per-track metadata (hotcues, BPM tag) — see storage notes below.
+- **Common audio formats** via symphonia; high-quality resampling via rubato (pluggable), applied in-deck at playback to the engine/stream sample rate.
 
-- **WASM support** (compile DSP to WASM) with multiple outputs in the browser (using miniaudio where feasible or WASM+WebAudio glue).
+- **Tag reading** and per-track metadata storage (hotcues, BPM) — library crate (placeholder; Sprint 3).
 
-- **Strong maintainability:** small crates, tests, null backend, CI build on Linux x86_64, static analysis.
+- **WASM support** (compile DSP to WASM) with multiple outputs in the browser — future work.
+
+- **Strong maintainability:** small crates, tests, null backend, CI on Linux x86_64, static analysis.
 
 ## 2 — Non-goals for MVP
 
@@ -97,56 +64,96 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 - Mixer GUI or UI (library is headless).
 - Telemetry / opt-in data collection.
 - Recording/streaming.
-- Android/iOS packaging or Raspberry Pi-specific packaging for MVP (architect supports them later).
+- Android/iOS packaging or Raspberry Pi-specific packaging for MVP (architecture supports them later).
 - WASAPI exclusive/ASIO native low-latency backends (target for v2).
+- A dedicated `backend-pipewire` crate (use `backend-cpal` instead).
 
 ## 3 — High-level Architecture
 
 ```
 rust-dj-engine/ (Cargo workspace)
-├─ engine-core/        # orchestrates engine lifecycle, clock, scheduler, config
-├─ engine-dsp/         # pure DSP: deck, mixer graph (minimal), analyzers
-├─ audio-core/         # shared traits/types: AudioBackend, StreamParams, DeviceId
+├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
+├─ backend-null/       # deterministic backend for tests and CI
 ├─ backend-miniaudio/  # miniaudio implementation
-├─ backend-pipewire/   # pipewire implementation (Linux)
-├─ backend-null/       # Null backend for testing
+├─ backend-cpal/       # CPAL implementation (native PipeWire on Linux when available)
+├─ engine-core/        # engine lifecycle, config, producer thread, track loading
+│  ├─ lib.rs           # module declarations and public re-exports
+│  ├─ config.rs        # EngineConfig and related types
+│  ├─ engine.rs        # Engine public API
+│  ├─ backend.rs       # backend factory (AudioBackend::list_names / new)
+│  ├─ producer.rs      # ring buffer, MasterStreamSetup, producer thread loop
+│  ├─ callback.rs      # ConsumerCallback (ring-buffer consumer)
+│  └─ audio_source/    # FileAudioSource; re-exports AudioSource / LoadedAudio
+├─ engine-dsp/         # pure DSP: deck, mixer, analyzers (no I/O)
+│  ├─ lib.rs           # DspEngine
+│  ├─ deck.rs
+│  ├─ mixer.rs
+│  └─ analyzer.rs
 ├─ codec/              # decoder wrapper (symphonia)
 ├─ resampler/          # resampler trait + rubato impl (pluggable)
-├─ library/            # tag reader + metadata manager (headless)
-└─ app-example/        # minimal example binary wiring engine + backend selection
+├─ library/            # tag reader + metadata manager (placeholder)
+├─ app-example/        # minimal example binary
+└─ samples/            # sample audio for local demos
+```
+
+### Data flow
+
+```
+AudioSource (e.g. FileAudioSource)
+        │ load() → LoadedAudio
+        ▼
+   Engine::load_track → Deck (engine-dsp)
+        │  (samples at native rate; deck resamples at playback)
+        ▼
+Producer thread ──► ring buffer ──► audio callback (backend)
+   (DspEngine::process)              (ConsumerCallback)
 ```
 
 **Design Principles:**
 
-- All crates are small and focused
-- `engine-dsp` is pure Rust and has zero I/O dependencies
-- `audio-core` defines the runtime trait boundary that backends implement
+- All crates are small and focused.
+- `engine-dsp` is pure Rust and has zero I/O dependencies (no filesystem, network, codec, or backend imports).
+- `audio-core` defines the runtime trait boundary that backends implement, plus `AudioSource` / `LoadedAudio`.
+- Track loading is pluggable via `AudioSource`. Concrete I/O loaders (e.g. `FileAudioSource`) live in `engine-core` (or other crates), not in `audio-core` or `engine-dsp`.
+- There is no separate `backend-pipewire` crate; use `backend-cpal` for native PipeWire on Linux.
 
 ## 4 — Core Runtime Contracts & APIs
 
 ### 4.1 audio-core (Types & Traits)
 
-Key types (Rust pseudo):
+Key types (simplified):
 
 ```rust
-// audio-core/src/lib.rs
-
-use std::time::Duration;
+// audio-core
 
 pub type Sample = f32; // internal sample format
 
-#[derive(Clone, Debug)]
-pub struct DeviceId(pub String);
+/// Decoded audio ready to load into a deck.
+pub struct LoadedAudio {
+    pub samples: Vec<Sample>,
+    pub sample_rate: u32,
+    pub channels: u16,
+    /// Identifier for the source (path, URL, etc.).
+    pub source_id: String,
+}
 
-#[derive(Clone, Debug)]
+/// Pluggable audio loader (disk, memory, network, …).
+pub trait AudioSource {
+    fn load(&self) -> anyhow::Result<LoadedAudio>;
+}
+
+// LoadedAudio implements AudioSource (identity load) for already-decoded buffers.
+
+pub struct DeviceId(/* … */);
+
 pub struct DeviceInfo {
     pub id: DeviceId,
     pub name: String,
     pub max_channels: u16,
     pub default_sample_rates: Vec<u32>,
+    pub is_default: bool,
 }
 
-#[derive(Clone, Debug)]
 pub struct StreamParams {
     pub sample_rate: u32,
     pub channels: u16,                 // e.g., 2 for stereo
@@ -155,20 +162,22 @@ pub struct StreamParams {
 }
 
 pub trait AudioCallback: Send {
-    /// Fill `out` with interleaved samples: out.len() == frames * channels
+    /// Fill `out` with interleaved samples: out.len() == frames * channels.
+    /// Runs on the audio thread: no heap allocations, no mutexes, no blocking.
     fn render(&mut self, out: &mut [Sample], frames: u32, sr: u32);
 }
 
 pub trait AudioStream: Send {
     fn start(&mut self) -> anyhow::Result<()>;
     fn stop(&mut self) -> anyhow::Result<()>;
-    fn actual_buffer_size(&self) -> Option<u32>; // what backend granted
+    fn actual_buffer_size(&self) -> Option<u32>;
     fn actual_latency(&self) -> Option<Duration>;
+    fn callback_frames_atomic(&self) -> Option<Arc<AtomicU32>>;
 }
 
 pub trait AudioBackend: Send + Sync {
     fn name(&self) -> &'static str;
-    fn list_output_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>; // each DeviceInfo has is_default
+    fn list_output_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>;
     fn open_output_stream(
         &mut self,
         device: &DeviceId,
@@ -178,11 +187,11 @@ pub trait AudioBackend: Send + Sync {
 }
 ```
 
-**Note:** `AudioCallback::render` is the consumer (audio thread) function that the backend will call.
+**Note:** `AudioCallback::render` is the consumer (audio thread) function that the backend calls. In `engine-core`, `ConsumerCallback` implements this by popping samples from the ring buffer.
 
 ### 4.2 Engine Entry Points (engine-core)
 
-The engine owns the producer thread and implements ring-buffer writing plus decode/resample pipeline. Public surface (simplified):
+The engine owns the producer thread, opens the backend stream, and loads tracks into decks. Public surface (simplified):
 
 ```rust
 pub struct EngineConfig { /* see config schema below */ }
@@ -192,87 +201,115 @@ impl Engine {
     pub fn new(config: EngineConfig) -> anyhow::Result<Self>;
     pub fn start(&mut self) -> anyhow::Result<()>;
     pub fn stop(&mut self) -> anyhow::Result<()>;
-    pub fn load_track(&mut self, deck_id: usize, path: &str) -> anyhow::Result<()>;
+    pub fn load_track(&mut self, deck_id: usize, source: &impl AudioSource) -> anyhow::Result<()>;
     pub fn play(&mut self, deck_id: usize) -> anyhow::Result<()>;
     pub fn pause(&mut self, deck_id: usize) -> anyhow::Result<()>;
-    pub fn set_bus_device(&mut self, bus: BusId, device: DeviceId, channels: [u16;2]) -> anyhow::Result<()>;
-    // plus control API to set sample rate, buffer size etc.
+    pub fn list_devices(&self) -> anyhow::Result<Vec<DeviceInfo>>;
+    pub fn default_device(&self) -> anyhow::Result<DeviceInfo>;
+    pub fn set_bus_device(&mut self, bus: BusId, device: DeviceId, channels: [u16; 2]) -> anyhow::Result<()>;
+    // bus/device config getters/setters
+}
+
+/// Factory for listing and creating backends without an engine.
+pub struct AudioBackend;
+impl AudioBackend {
+    pub fn list_names() -> Vec<String>; // e.g. ["null", "miniaudio", "cpal"]
+    pub fn new(name: &str) -> anyhow::Result<Box<dyn audio_core::AudioBackend>>;
 }
 ```
 
-Engine will spawn a producer thread that decodes / decimates / resamples audio into per-bus ring buffers.
+`load_track` requires a running engine (`start` first). It calls `source.load()`, then installs samples on the deck at the source’s native sample rate. Decks resample to the engine/stream rate during playback.
+
+### 4.3 Audio loading (`AudioSource`)
+
+| Type | Crate | Role |
+|------|--------|------|
+| `AudioSource` | `audio-core` | Trait: `load() -> LoadedAudio` |
+| `LoadedAudio` | `audio-core` | Decoded interleaved samples + metadata |
+| `FileAudioSource` | `engine-core` | Loads from disk via `codec::AudioDecoder` |
+
+Callers never pass a bare path to `Engine::load_track`. Example:
+
+```rust
+engine.load_track(0, &FileAudioSource::new("track.wav"))?;
+```
+
+New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changing `Engine` or `engine-dsp`.
 
 ## 5 — Threading & Buffer Model
 
 ### 5.1 Two-thread Design
 
+#### Load path (control thread)
+
+- App calls `Engine::load_track(deck_id, &source)`.
+- `AudioSource::load()` decodes (e.g. `FileAudioSource` → `codec`) into `LoadedAudio`.
+- Engine installs samples on the deck via `Deck::load_audio_samples` (native rate).
+
 #### Producer Thread (engine-controlled)
 
-- Decodes audio (via codec crate), resamples (via resampler crate) to the engine internal sample rate, applies pre-mixer transforms (gain/track-level).
-- Writes interleaved stereo frames to a lock-free ring buffer for each output bus.
-- Wakes on commands (play/stop/seek/hotcue) from control thread via control channel (lock-free mailbox).
+- Runs `DspEngine::process` for each chunk (decks render/resample, mixer routes).
+- Writes interleaved stereo frames to a lock-free ring buffer for the master bus.
+- Paced by the device callback count (does not run unbounded ahead of the consumer).
 
 #### Consumer (audio callback)
 
-- Implemented by the backend (miniaudio/pipewire). Backend's real-time callback reads from ring buffer into its output buffer, applying final mixing if needed (mixing can be done in producer or consumer depending on latency profile; recommended: producer does mixing into bus-specific ring buffers, consumer just copies to device output).
-- The backend calls `AudioCallback::render()` (which pulls the requested frames from ring buffer(s) and writes into the backend's buffer).
+- Implemented by the backend (`cpal` / `miniaudio` / `null`). The backend’s real-time callback invokes `AudioCallback::render`.
+- `ConsumerCallback` pops samples from the ring buffer into the device output buffer. On underrun it writes silence.
+- **No heap allocations, no mutexes, no blocking** in the callback path.
 
 ### 5.2 Ring Buffer & Zero Allocations
 
-- Use a tested lock-free ring buffer crate (or an in-tree ring buffer, `heapless::spsc::Queue` or `concurrentqueue` ported safe).
-- Preallocate buffer to hold at least `N * frames_per_buffer` where `N = e.g., 8` (configurable) to tolerate producer jitter.
-- **No heap allocations in the audio callback.** All buffers preallocated. No mutexes in audio callback.
+- Use a lock-free ring buffer (`rtrb`).
+- Preallocate capacity of at least `N * frames_per_buffer * channels` (current multiplier is higher than the minimum `N ≥ 8`) to tolerate producer jitter.
+- Prefill with silence before the stream starts so the callback has data immediately.
+- **No heap allocations in the audio callback.** All buffers preallocated.
 
 ### 5.3 Channel Mapping
 
-Bus is always a stereo pair (2 channels). Each Bus maps to a specific device and two contiguous device channels or arbitrary selected device channels (config supports explicit indexes).
+Bus is always a stereo pair (2 channels). Each bus maps to a specific device and two device channels (config supports explicit indexes). Full multi-bus device routing is partially implemented (`set_bus_device` is currently a stub).
 
 **Example:** DDJ-400 mapping where master uses channels 3–4 and cue uses 1–2.
 
-## 6 — Config Schema (TOML in User Config Directory)
+## 6 — Config Schema
 
-**Default config path:** `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` (fallback `~/.config/rust-dj-engine/config.toml`)
+Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map directly to the `EngineConfig` struct (flat TOML keys, not a nested `[engine]` table unless you wrap it yourself).
+
+**Conventional paths:** local `config.toml` (as used by `app-example`), or `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` (fallback `~/.config/rust-dj-engine/config.toml`).
 
 ### Example Configuration
 
 ```toml
-[engine]
-sample_rate = 48000         # engine internal SR, default 48k
-buffer_size = 512           # frames per buffer
-low_latency = false         # hint for backend
-backend = "auto"            # "auto", "miniaudio", or "pipewire"
+sample_rate = 48000
+buffer_size = 512
+low_latency = false
+backend = "auto"            # "auto", "cpal", "miniaudio", or "null"
 
-# device definitions
-[[device]]
+[[devices]]
 name = "Focusrite USB"
-id = "hw:1,0"               # human-friendly ID (backend maps it)
+id = "hw:1,0"
 
-# bus routing: bus -> device + channel pair
-[[bus]]
-name = "master"
-device = "default"          # device id or "default"
-channels = [3, 4]           # device channels (1-based indexing recommended)
-
-[[bus]]
-name = "cue"
-device = "default"
-channels = [1, 2]
+[[buses]]
+# BusConfig fields: id, name, device, channels (see audio-core)
 ```
 
 ### Configuration Notes
 
-- Engine interprets channels as 1-based channel indexes and maps to the device's available channels.
-- `backend = "auto"` tries to detect PipeWire when present; otherwise selects miniaudio.
+- `backend = "auto"` tries CPAL first (when compiled in), then miniaudio, then falls back to null.
+- Valid backend names: `"auto"`, `"cpal"`, `"miniaudio"`, `"null"`.
+- `backend-cpal` is an optional Cargo feature on `engine-core` (enabled by default).
 
 ## 7 — Codec & Resampling Choices
 
 ### Codec (Decoding)
 
-Use **symphonia** (Rust) for decoding common formats (MP3, AAC, FLAC, WAV, Ogg Vorbis). It's well-maintained and supports many formats. Wrap it in codec crate that presents a streaming API: `Decoder::read_frames(&mut [f32]) -> frames`.
+Use **symphonia** (Rust) for decoding common formats (MP3, AAC, FLAC, WAV, Ogg Vorbis). Wrap it in the `codec` crate with a streaming API (`read_frames`, `load_entire_file`). Do not expose symphonia types in the public API.
+
+**Consumers:** `AudioSource` implementations such as `FileAudioSource`. Do **not** call codec from `engine-dsp`.
 
 ### Resampler
 
-**Default resampler:** rubato (high quality, FFT-based), wrapped inside the resampler crate exposing trait `Resampler`:
+**Default resampler:** rubato (high quality, FFT-based), wrapped inside the `resampler` crate exposing a `Resampler` trait:
 
 ```rust
 pub trait Resampler: Send {
@@ -281,61 +318,72 @@ pub trait Resampler: Send {
 }
 ```
 
-Make implementation pluggable so you can swap `speedxdsp` or others later for A/B tests.
+Make the implementation pluggable so alternatives can be swapped later for A/B tests.
+
+**Engine use:** Decks in `engine-dsp` resample source audio to the engine/stream sample rate **during playback**. Tracks are stored at native rate after `AudioSource::load()`.
 
 ## 8 — Backends
 
 ### 8.1 backend-miniaudio
 
-Primary cross-platform backend. Uses miniaudio via Rust bindings or via FFI wrapper crate.
+Cross-platform backend via miniaudio.
 
-- Implements `AudioBackend` trait.
-- On Linux, miniaudio will enumerate ALSA/PulseAudio/Jack/PipeWire where available — but to support PipeWire directly we also provide backend-pipewire.
+- Implements `AudioBackend`.
+- On Linux, may enumerate ALSA/PulseAudio/Jack/PipeWire where available.
+- Selected as `"miniaudio"`, or as fallback under `"auto"` when CPAL is unavailable.
 
-### 8.2 backend-pipewire (Linux)
+### 8.2 backend-cpal
 
-Uses pipewire-rs bindings for low-latency native PipeWire streams and provides precise buffer/latency control.
+Cross-platform backend via CPAL.
 
-- Implement channel mapping and device selection.
-- If PipeWire is not present, `make_backend("pipewire")` returns an informative error and auto fallback uses miniaudio.
+- Implements `AudioBackend`.
+- On Linux, uses CPAL’s native PipeWire host when available (this is the supported path for PipeWire; there is no `backend-pipewire` crate).
+- Selected as `"cpal"`, and preferred under `"auto"` when initialization succeeds.
+- Optional Cargo feature `backend-cpal` on `engine-core` (default-on).
 
 ### 8.3 backend-null
 
-Provides a deterministic backend for tests and CI. Simulates audio timing and supports buffer size negotiation.
+Deterministic backend for tests and CI. Simulates audio timing and buffer size negotiation. No real audio device.
+
+- Selected as `"null"`.
 
 ### Runtime Selection
 
-All backends are compiled into the binary crate. The app chooses backend at runtime using the config. No dynamic loading.
+All backends are compiled into the binary (subject to features). The app chooses the backend at runtime using config or `AudioBackend::new(name)`. No dynamic loading.
 
 ## 9 — WASM / Web Support
 
-**Goal:** compile DSP and engine control logic to WASM and connect to the browser's WebAudio for output with multiple outputs (cue/master).
+**Goal:** compile DSP and engine control logic to WASM and connect to the browser’s WebAudio for output with multiple outputs (cue/master).
 
 ### Approach
 
-Build `engine-dsp` and resampler to WASM with `wasm-pack` / `wasm-bindgen`. Provide a thin JS glue that:
+Build `engine-dsp` and `resampler` to WASM with `wasm-pack` / `wasm-bindgen`. Provide a thin JS glue that:
 
 1. Installs an `AudioWorkletProcessor` that pulls audio from WASM (shared ring buffer or MessagePort).
-2. Creates two `MediaStreamAudioDestinationNodes` (master & cue). For multiple outputs: duplicate the audio stream into two destinations and use `setSinkId()` on `HTMLAudioElements` when supported. If the browser lacks `setSinkId()`, fallback to single output or show limitation to the host app (but you said you don't care about implementation as long as it works — so the library will provide a working approach leveraging miniaudio WASM if feasible).
+2. Creates destinations for master & cue outputs, using `setSinkId()` when supported.
 
-The WASM engine will still follow the 2-thread model logically (producer thread simulated via Web Worker) and use `SharedArrayBuffer` / `Atomics` or message passing for controls.
+The WASM engine should still follow the two-thread model logically (producer simulated via Web Worker) and use `SharedArrayBuffer` / `Atomics` or message passing for controls.
 
-**Note:** Browser limitations mean you may need to adapt how multiple outputs work; provide best-effort and document limitations.
+**Status:** Not implemented yet. `engine-dsp` is designed to remain I/O-free so WASM compilation stays feasible.
+
+**Note:** Browser limitations may require adapting how multiple outputs work; provide best-effort and document limitations.
 
 ## 10 — Metadata / Library Manager & Tag Handling
 
 ### MVP Requirements
 
 - Read tags from audio files (ID3, Vorbis comments, FLAC metadata) using symphonia or a dedicated tag reading crate (e.g., lofty).
-- Store per-track operational metadata (hotcues, beatgrid, corrected BPM) as tags where possible AND mirror them into an internal library database for reliability and performance.
+- Store per-track operational metadata (hotcues, beatgrid, corrected BPM) and mirror them into an internal library database for reliability and performance.
 
 ### Design Decision
 
 **Primary read:** use file tags for initial metadata (BPM, cues) when present.
 
-**Persistent storage for app-managed metadata:** keep an internal SQLite DB (crate: library) that stores library entries and custom fields (hotcues, beatgrid corrections, user BPM). For portability, support writing back to file tags as a secondary operation (optional; may be format-dependent) — but the canonical store for runtime data is the internal DB. This keeps write operations safe, and the tracks metadata portable across file formats.
+**Persistent storage for app-managed metadata:** keep an internal SQLite DB (crate: `library`) that stores library entries and custom fields (hotcues, beatgrid corrections, user BPM). Optional write-back to file tags for portability (format-dependent); the canonical store for runtime data is the internal DB.
 
-**Note:** You previously asked to "store all data as tags"; keeping an internal DB + optional write-back keeps the UX safe while allowing tag portability later.
+**Playback:** the library crate does not own the audio device path. Track playback still goes through `engine-core` via `AudioSource` (e.g. `FileAudioSource`).
+
+**Status:** Placeholder crate only; implementation is Sprint 3 work.
 
 ## 11 — Acceptance Criteria & Performance
 
@@ -343,52 +391,52 @@ The WASM engine will still follow the 2-thread model logically (producer thread 
 
 **Default config:** `buffer_size = 512`, `sample_rate = 48000`.
 
-Under typical dev machine (Linux x86_64, modern CPU), with two decks playing stereo files and one cue output:
+Under a typical dev machine (Linux x86_64, modern CPU), with two decks playing stereo files:
 
 - **No audible glitches** (no persistent xruns) under normal conditions.
 - **Callback worst-case execution time** must be < 50% of buffer duration:
   - Buffer duration at 48k/512 ≈ 10.67 ms → worst-case callback < 5.3 ms.
-- If underruns occur during startup, library should attempt fallback: try larger buffer (double) and return status to caller.
+- If underruns occur during startup, the library should attempt fallback (e.g. larger buffer) and return status to the caller (partially addressed via producer warmup and ring-buffer prefill).
 
 ### Functional Acceptance
 
-- Engine loads audio files, reads tags, exposes metadata.
-- Engine can be configured via TOML; starts with chosen backend; lists devices and channels.
-- Engine allows mapping buses to devices+channel pairs.
-- Engine spawns producer thread; audio callback pulls from ring buffer; playback is stable with no dynamic memory allocations in callback.
-- API allows embedding the engine as a crate; can also be built as a static library (`cargo build --release --target <...>` producing `libxxx.a`) with a C API wrapper added as a later task.
+- Engine loads audio via `AudioSource` (e.g. `FileAudioSource`), not a bare path.
+- Engine can be configured via TOML; starts with chosen backend; lists devices (`list_devices` / `default_device`).
+- Engine allows mapping buses to devices+channel pairs (API present; full routing still incomplete).
+- Engine spawns producer thread; audio callback pulls from ring buffer; playback is stable with no dynamic memory allocations in the callback.
+- API allows embedding the engine as a crate; can also be built as a static library with a C API wrapper as a later task.
 
 ## 12 — CI, Testing & Maintainability
 
 ### CI
 
-Linux x86_64 build + test job (MVP).
+Linux x86_64 build + test job.
 
 **Steps:**
 
 - `cargo fmt -- --check`
 - `cargo clippy -- -D warnings`
-- `cargo test --release` (unit tests)
+- `cargo test` (unit tests; prefer null backend for headless runs)
 - `cargo bench` (optional) for performance regression
-
-Run unit tests for DSP blocks and integration test using backend-null.
 
 ### Tests
 
-- Unit tests for DSP modules with golden data.
-- NullBackend integration tests to simulate timing, xruns, buffer negotiation.
-- Fuzz tests for file parsing and tag reading.
+- Unit tests for DSP modules.
+- NullBackend integration tests for producer/consumer plumbing and engine control flow.
+- Unit tests for `FileAudioSource` (e.g. missing file).
+- Fuzz tests for file parsing and tag reading (when library is implemented).
 - Benchmarks (criterion) for resampler, mixer, and decode pipeline.
 
 ### Maintainability Rules
 
 - Keep each crate small with a single responsibility.
-- Stable audio-core trait; minimize breaking changes. Use capability discovery for optional features.
-- Use semantic versioning, changelog.
+- Keep `engine-core` split across modules (`config`, `engine`, `backend`, `producer`, `callback`, `audio_source`); do not collapse into a single `lib.rs`.
+- Stable `audio-core` trait surface; minimize breaking changes.
+- Use semantic versioning and a changelog.
 - Document per-backend caveats and supported devices.
-- Add examples folder with app-example showing runtime selection and config usage.
+- `app-example` is the reference for minimal app usage (config, backend discovery, `FileAudioSource`, play/pause).
 
-## 13 — Build Flags & Runtime Tweaks (Recommended)
+## 13 — Build Flags & Runtime Tweaks
 
 Use `Cargo.toml` / `.cargo/config.toml` release profile tuned for audio performance:
 
@@ -398,119 +446,110 @@ opt-level = "z"   # or 3 for maximum speed; consider "z" if distribution size ma
 lto = true
 codegen-units = 1
 panic = "abort"
-
-[build]
-rustflags = ["-C", "target-cpu=native"]
 ```
 
 ### Notes
 
-- For distribution, set explicit target-cpu or build per-target.
-- Always test with `--release`.
+- For distribution, set explicit `target-cpu` or build per-target.
+- Always test with `--release` for latency-sensitive checks.
 - Document realtime scheduling instructions for users (`chrt` or `setcap`) so they can grant real-time priority when needed.
 
 ## 14 — Roadmap (Phases)
 
-### MVP (Deliverable)
+### Done (current codebase)
 
-- Implement workspace skeleton.
-- Implement audio-core trait + engine-core and engine-dsp minimal decks.
-- Implement backend-miniaudio and backend-null.
-- Implement codec (symphonia) and resampler (rubato).
-- Implement library reading tags + internal SQLite DB.
-- Implement TOML config & runtime selection, device listing, channel mapping, and example app.
-- CI on Linux x86_64 with tests.
+- Workspace skeleton and CI.
+- `audio-core` traits (`AudioBackend`, `AudioStream`, `AudioCallback`, `AudioSource`).
+- `backend-null`, `backend-miniaudio`, `backend-cpal`.
+- `codec` (symphonia) and `resampler` (rubato).
+- Producer/consumer ring-buffer plumbing (`rtrb`, `ConsumerCallback`).
+- `Engine` API with `AudioSource`-based `load_track` and `FileAudioSource`.
+- TOML config (`EngineConfig`) and `app-example`.
+
+### Next (MVP remaining)
+
+- Complete bus/device channel mapping (`set_bus_device` and multi-bus routing).
+- Library crate: tag reading + internal SQLite DB.
+- Latency reporting / buffer negotiation polish.
 
 ### v1
 
-- Add backend-pipewire implementation.
-- Fine tune latency reporting, buffer negotiation logging (requested vs granted).
-- Add safe optional tag write-back support.
-- Add WASM build path + JS glue for WebAudio multiple outputs (experimentally).
+- Optional tag write-back support.
+- WASM build path + JS glue for WebAudio multiple outputs (experimental).
 
 ### v2
 
-- Add optional ASIO/WASAPI/CoreAudio backends for low-latency pro targets (platform-specific builds).
-- Add advanced time-stretch/pitch-shift module and plugin hosting hooks (LV2/VST) research.
-- Add UI examples and packaging (AppImage/Flatpak/Homebrew).
+- Optional ASIO/WASAPI/CoreAudio backends for low-latency pro targets (platform-specific builds).
+- Advanced time-stretch/pitch-shift module and plugin hosting hooks (LV2/VST) research.
+- UI examples and packaging (AppImage/Flatpak/Homebrew).
 
-## 15 — Implementation Plan & Milestone Tasks (Developer-friendly)
+## 15 — Implementation Plan & Milestone Tasks
 
-### Sprint 0 — Workspace & Scaffolding
+### Sprint 0 — Workspace & Scaffolding ✅
 
 - Create workspace, crates, CI skeleton.
-- Implement audio-core trait & backend-null.
-- Add engine-dsp minimal deck & mixer stub, unit tests.
+- Implement `audio-core` traits & `backend-null`.
+- Add `engine-dsp` minimal deck & mixer stub, unit tests.
 
-### Sprint 1 — Miniaudio & Codec
+### Sprint 1 — Backends & Codec ✅
 
-- Implement backend-miniaudio (blocking streaming version).
-- Implement codec wrapper (symphonia) + unit tests for decoding files.
+- Implement `backend-miniaudio` and `backend-cpal`.
+- Implement `codec` wrapper (symphonia) + unit tests.
 - Implement resampler abstraction and rubato impl.
-- Add TOML config parsing and example app-example.
+- Add TOML config parsing and `app-example`.
 
-### Sprint 2 — Producer/Consumer Plumbing
+### Sprint 2 — Producer/Consumer & AudioSource ✅ (partial)
 
 - Implement ring buffer + producer thread (engine-controlled).
-- Integrate producer -> resampler -> ring buffer -> consumer render.
-- Add device + channel mapping logic and API.
+- Integrate producer → DSP → ring buffer → consumer render.
+- Pluggable `AudioSource` loading (`FileAudioSource`).
+- Device + channel mapping logic and API (stub / incomplete).
 
-### Sprint 3 — Library Manager & Tags
+### Sprint 3 — Library Manager & Tags (open)
 
 - Add library crate: read tags via lofty or symphonia metadata; implement SQLite schema; import tracks.
 - Provide APIs for reading/writing metadata; expose hotcue/beatgrid storage in DB. (Write-back optional.)
 
-### Sprint 4 — PipeWire & WASM Prototyping
+### Sprint 4 — WASM Prototyping (open)
 
-- Implement backend-pipewire and test on Linux.
-- Prototype WASM build for engine-dsp and experiment with WebAudio glue (AudioWorklet).
+- Prototype WASM build for `engine-dsp` and experiment with WebAudio glue (AudioWorklet).
+- PipeWire on Linux is covered by `backend-cpal` (no separate pipewire backend sprint).
 
-## 16 — Example Config & Usage (Quick)
+## 16 — Example Config & Usage
 
 ### Configuration File
 
-`~/.config/rust-dj-engine/config.toml`:
+Example `config.toml`:
 
 ```toml
-[engine]
-backend = "auto"
 sample_rate = 48000
 buffer_size = 512
 low_latency = false
-
-[[bus]]
-name = "cue"
-device = "default"
-channels = [1,2]
-
-[[bus]]
-name = "master"
-device = "default"
-channels = [3,4]
+backend = "auto"
 ```
 
-### Minimal App Usage (Pseudo)
+### Minimal App Usage
 
 ```rust
-let cfg = EngineConfig::from_toml_file(config_path)?;
+use engine_core::{AudioBackend, Engine, EngineConfig, FileAudioSource};
+
+// Optional: discover backends/devices before building config
+let names = AudioBackend::list_names();
+let backend = AudioBackend::new("cpal")?;
+let devices = backend.list_output_devices()?;
+
+let cfg = EngineConfig::from_toml_file("config.toml")
+    .unwrap_or_default();
 let mut engine = Engine::new(cfg)?;
-engine.start()?; // spawns producer & opens backend stream
-engine.load_track(0, "trackA.mp3")?;
+engine.start()?; // opens stream, warms producer, starts playback
+engine.load_track(0, &FileAudioSource::new("trackA.mp3"))?;
 engine.play(0)?;
+engine.pause(0)?;
+engine.stop()?;
 ```
 
-## 17 — Acceptance & Next Steps (What I Will Deliver Next If You Want)
-
-I can produce the following artifacts as follow-ups (pick any/all):
-
-1. **A GitHub/Cargo workspace skeleton** with audio-core, backend-null, engine-core, engine-dsp, app-example and CI pipeline.
-
-2. **A detailed audio-core trait file** and a working backend-null implementation and tests.
-
-3. **A backend-miniaudio stub** or fully working miniaudio backend (platform testing required).
-
-4. **WASM prototype** showing multi-output in the browser.
+See `app-example` and `README.md` for the runnable reference.
 
 ---
 
-_This tech spec provides a comprehensive roadmap for building a modular, high-performance Rust audio engine suitable for DJ applications. The architecture emphasizes maintainability, performance, and extensibility while delivering a solid MVP foundation._
+_This tech spec describes the modular Rust audio engine architecture. It is kept aligned with the current workspace layout, `AudioSource` loading model, and runtime-selectable backends (`auto` / `cpal` / `miniaudio` / `null`)._
