@@ -1,4 +1,4 @@
-use super::source::{AudioSource, LoadedAudio};
+use audio_core::{AudioSource, LoadedAudio};
 use anyhow::Result;
 use codec::AudioDecoder;
 use std::path::{Path, PathBuf};

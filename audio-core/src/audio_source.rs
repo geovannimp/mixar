@@ -1,5 +1,5 @@
+use crate::Sample;
 use anyhow::Result;
-use audio_core::Sample;
 
 /// Decoded audio ready to load into a deck.
 #[derive(Debug, Clone)]
@@ -15,4 +15,10 @@ pub struct LoadedAudio {
 pub trait AudioSource {
     /// Load and decode audio from this source.
     fn load(&self) -> Result<LoadedAudio>;
+}
+
+impl AudioSource for LoadedAudio {
+    fn load(&self) -> Result<LoadedAudio> {
+        Ok(self.clone())
+    }
 }

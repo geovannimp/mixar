@@ -255,6 +255,7 @@ impl Mixer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use audio_core::LoadedAudio;
 
     #[test]
     fn test_mixer_creation() {
@@ -275,9 +276,13 @@ mod tests {
     }
 
     fn load_test_tone(deck: &mut Deck) {
-        let samples = vec![0.8f32; 512 * 2];
-        deck.load_audio_samples(samples, 48000, "test.wav".to_string())
-            .unwrap();
+        let audio = LoadedAudio {
+            samples: vec![0.8f32; 512 * 2],
+            sample_rate: 48000,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        };
+        deck.load(&audio).unwrap();
     }
 
     #[test]

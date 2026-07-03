@@ -4,7 +4,7 @@
 //! play/pause, volume, pitch, and other DJ-style features.
 
 use anyhow::Result;
-use audio_core::Sample;
+use audio_core::{AudioSource, Sample};
 use resampler::{create_resampler, Resampler};
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -234,28 +234,26 @@ impl Deck {
         }
     }
 
-    /// Load audio samples into the deck at the file's native sample rate.
+    /// Load audio from a source at its native sample rate.
     /// Resampling to the engine rate happens during playback.
-    pub fn load_audio_samples(
-        &mut self,
-        samples: Vec<Sample>,
-        original_sample_rate: u32,
-        file_path: String,
-    ) -> Result<()> {
-        self.original_sample_rate = Some(original_sample_rate);
-        self.file_path = Some(file_path);
+    pub fn load(&mut self, source: &impl AudioSource) -> Result<()> {
+        let loaded = source.load()?;
+        self.original_sample_rate = Some(loaded.sample_rate);
+        self.file_path = Some(loaded.source_id.clone());
         self.position = 0;
-        self.audio_samples = Some(samples);
+        self.audio_samples = Some(loaded.samples);
         self.configure_resampler();
 
         log::info!(
-            "Loaded audio into deck {}: {} source frames at {} Hz (engine: {} Hz)",
+            "Loaded audio into deck {} from {}: {} source frames at {} Hz ({} channels, engine: {} Hz)",
             self.id,
+            loaded.source_id,
             self.audio_samples
                 .as_ref()
                 .map(|s| s.len() / 2)
                 .unwrap_or(0),
-            original_sample_rate,
+            loaded.sample_rate,
+            loaded.channels,
             self.sample_rate
         );
 
@@ -468,6 +466,17 @@ impl Deck {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use audio_core::LoadedAudio;
+
+    fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {
+        let audio = LoadedAudio {
+            samples,
+            sample_rate,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        };
+        deck.load(&audio).unwrap();
+    }
 
     #[test]
     fn test_deck_creation() {
@@ -570,8 +579,7 @@ mod tests {
             samples[i * 2 + 1] = s;
         }
 
-        deck.load_audio_samples(samples, input_rate, "test.wav".to_string())
-            .unwrap();
+        load_test_samples(&mut deck, samples, input_rate);
         deck.play().unwrap();
 
         let chunk = 512u32;
@@ -609,8 +617,7 @@ mod tests {
             samples[i * 2 + 1] = s;
         }
 
-        deck.load_audio_samples(samples, input_rate, "test.wav".to_string())
-            .unwrap();
+        load_test_samples(&mut deck, samples, input_rate);
         deck.play().unwrap();
 
         let total_output_frames = output_rate as usize * duration_secs;
@@ -642,8 +649,7 @@ mod tests {
             samples[i * 2 + 1] = s;
         }
 
-        deck.load_audio_samples(samples, 44100, "test.wav".to_string())
-            .unwrap();
+        load_test_samples(&mut deck, samples, 44100);
         deck.play().unwrap();
 
         let mut non_zero = 0usize;

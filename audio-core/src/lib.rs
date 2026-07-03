@@ -7,9 +7,13 @@
 //! Signal Processing): we use `f32` as the internal sample type (dasp `Sample` trait) and
 //! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
+mod audio_source;
+
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
+
+pub use audio_source::{AudioSource, LoadedAudio};
 
 // Re-export dasp fundamentals for samples, frames, and slice conversions
 pub use dasp::frame::Frame;

@@ -225,16 +225,6 @@ impl Engine {
 
     /// Load a track into a deck from an audio source.
     pub fn load_track(&mut self, deck_id: usize, source: &impl AudioSource) -> Result<()> {
-        let loaded = source.load()?;
-        log::info!(
-            "Loading track into deck {} from: {} ({} Hz, {} channels)",
-            deck_id,
-            loaded.source_id,
-            loaded.sample_rate,
-            loaded.channels
-        );
-        log::info!("Loaded {} samples from audio source", loaded.samples.len());
-
         let dsp_engine = self
             .dsp_engine
             .as_ref()
@@ -250,15 +240,10 @@ impl Engine {
                 engine_rate
             );
 
-            deck.load_audio_samples(
-                loaded.samples,
-                loaded.sample_rate,
-                loaded.source_id,
-            )?;
+            deck.load(source)?;
             log::info!(
-                "Track loaded into deck {} (source: {} Hz, engine/stream: {} Hz)",
+                "Track loaded into deck {} (engine/stream: {} Hz)",
                 deck_id,
-                loaded.sample_rate,
                 engine_rate
             );
             Ok(())
