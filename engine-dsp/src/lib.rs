@@ -3,6 +3,9 @@
 //! This crate contains the core DSP functionality including decks,
 //! mixer, and audio processing components. It has zero I/O dependencies
 //! and is designed to be pure Rust with no external system calls.
+//!
+//! BPM, key, and beat grid come from library track metadata (offline analysis),
+//! not from live buffer analysis in this crate.
 
 use audio_core::{BusId, Sample};
 use anyhow::Result;
@@ -10,11 +13,9 @@ use std::collections::HashMap;
 
 pub mod deck;
 pub mod mixer;
-pub mod analyzer;
 
 pub use deck::Deck;
 pub use mixer::Mixer;
-pub use analyzer::BpmAnalyzer;
 
 /// DSP engine that manages all audio processing components
 #[derive(Debug)]
@@ -23,8 +24,6 @@ pub struct DspEngine {
     decks: Vec<Deck>,
     /// Audio mixer for routing and mixing
     mixer: Mixer,
-    /// BPM analyzer for tempo detection
-    bpm_analyzer: BpmAnalyzer,
     /// Immutable engine output sample rate (from config)
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config)
@@ -43,7 +42,6 @@ impl DspEngine {
         Self {
             decks,
             mixer: Mixer::new(),
-            bpm_analyzer: BpmAnalyzer::new(sample_rate),
             sample_rate,
             buffer_size,
         }
@@ -72,16 +70,6 @@ impl DspEngine {
     /// Get a mutable reference to the mixer
     pub fn mixer_mut(&mut self) -> &mut Mixer {
         &mut self.mixer
-    }
-
-    /// Get a reference to the BPM analyzer
-    pub fn bpm_analyzer(&self) -> &BpmAnalyzer {
-        &self.bpm_analyzer
-    }
-
-    /// Get a mutable reference to the BPM analyzer
-    pub fn bpm_analyzer_mut(&mut self) -> &mut BpmAnalyzer {
-        &mut self.bpm_analyzer
     }
 
     /// Process audio for all decks and mix to output buses.

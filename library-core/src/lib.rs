@@ -19,7 +19,7 @@ pub use traits::{Library, WritableLibrary};
 pub use types::{
     Collection, CollectionConfig, CollectionConfigUpdate, CollectionId, CollectionTrack,
     CollectionType, LibraryConfig, NewCollection, ScanReport, TrackId, TrackMetadata,
-    UpdateCollection,
+    UpdateCollection, AnalyzeTrackOptions,
 };
 
 #[cfg(test)]

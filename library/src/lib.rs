@@ -29,6 +29,7 @@ pub use library_core::{
     CollectionTrack, CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError,
     LibrarySource, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
     StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    AnalyzeTrackOptions,
 };
 
 /// Audio file extensions recognized during scan/import.
@@ -397,7 +398,7 @@ impl LibraryManager {
                 report.skipped += 1;
                 continue;
             }
-            match self.analyze_file_source(file.path()) {
+            match self.analyze_file_source(file.path(), AnalyzeTrackOptions::default()) {
                 Ok(_) => report.updated += 1,
                 Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
                 Err(err) => {
@@ -535,7 +536,7 @@ impl LibraryManager {
     }
 
     pub(crate) fn import_path(&self, path: &Path) -> Result<LibrarySource> {
-        self.analyze_file_source(path)
+        self.analyze_file_source(path, AnalyzeTrackOptions::default())
     }
 
     pub(crate) fn import_stream(
@@ -598,7 +599,11 @@ impl LibraryManager {
         Ok(())
     }
 
-    fn analyze_file_source(&self, path: &Path) -> Result<LibrarySource> {
+    fn analyze_file_source(
+        &self,
+        path: &Path,
+        options: AnalyzeTrackOptions,
+    ) -> Result<LibrarySource> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path));
@@ -606,9 +611,34 @@ impl LibraryManager {
         if !is_audio_file(&path) {
             return Err(LibraryError::UnsupportedFile(path));
         }
-        let metadata = tags::read_tags(&path)?;
+        let tag_metadata = tags::read_tags(&path)?;
+        let metadata = merge_analyzed_metadata(&tag_metadata, None, None, options.force);
         self.upsert_file_source(&path, &metadata)
     }
+}
+
+/// Merge file tags with optional DSP analysis results.
+fn merge_analyzed_metadata(
+    tags: &TrackMetadata,
+    analysis_bpm: Option<f64>,
+    analysis_key: Option<&str>,
+    force: bool,
+) -> TrackMetadata {
+    let mut metadata = tags.clone();
+
+    match (force, analysis_bpm) {
+        (true, Some(bpm)) => metadata.bpm = Some(bpm),
+        (false, Some(bpm)) if metadata.bpm.is_none() => metadata.bpm = Some(bpm),
+        _ => {}
+    }
+
+    match (force, analysis_key) {
+        (true, Some(key)) => metadata.key = Some(key.to_string()),
+        (false, Some(key)) if metadata.key.is_none() => metadata.key = Some(key.to_string()),
+        _ => {}
+    }
+
+    metadata
 }
 
 impl Library for LibraryManager {
@@ -693,12 +723,16 @@ impl Library for LibraryManager {
 }
 
 impl WritableLibrary for LibraryManager {
-    fn analyze_track(&mut self, id: &TrackId) -> Result<LibrarySource> {
+    fn analyze_track(
+        &mut self,
+        id: &TrackId,
+        options: AnalyzeTrackOptions,
+    ) -> Result<LibrarySource> {
         let source = self
             .get_track(id)?
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
         match source {
-            LibrarySource::File(file) => self.analyze_file_source(file.path()),
+            LibrarySource::File(file) => self.analyze_file_source(file.path(), options),
             LibrarySource::Stream(_) => Err(LibraryError::Unsupported(
                 "stream track analysis not implemented",
             )),
@@ -1153,6 +1187,38 @@ mod tests {
     }
 
     #[test]
+    fn merge_analyzed_metadata_force_overrides_tags() {
+        let tags = TrackMetadata {
+            bpm: Some(120.0),
+            key: Some("Am".into()),
+            ..TrackMetadata::default()
+        };
+        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), true);
+        assert_eq!(merged.bpm, Some(128.0));
+        assert_eq!(merged.key.as_deref(), Some("F#m"));
+    }
+
+    #[test]
+    fn merge_analyzed_metadata_keeps_tags_when_not_forced() {
+        let tags = TrackMetadata {
+            bpm: Some(120.0),
+            key: Some("Am".into()),
+            ..TrackMetadata::default()
+        };
+        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), false);
+        assert_eq!(merged.bpm, Some(120.0));
+        assert_eq!(merged.key.as_deref(), Some("Am"));
+    }
+
+    #[test]
+    fn merge_analyzed_metadata_fills_missing_when_not_forced() {
+        let tags = TrackMetadata::default();
+        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), false);
+        assert_eq!(merged.bpm, Some(128.0));
+        assert_eq!(merged.key.as_deref(), Some("F#m"));
+    }
+
+    #[test]
     fn analyze_track_refreshes_from_file() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("song.wav");
@@ -1160,7 +1226,9 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
-        let analyzed = lib.analyze_track(track.id()).unwrap();
+        let analyzed = lib
+            .analyze_track(track.id(), AnalyzeTrackOptions::default())
+            .unwrap();
 
         assert_eq!(analyzed.metadata().title.as_deref(), Some("song"));
         assert_eq!(
@@ -1179,7 +1247,9 @@ mod tests {
                 Some(StreamProvider::Http),
             )
             .unwrap();
-        let err = lib.analyze_track(source.id()).unwrap_err();
+        let err = lib
+            .analyze_track(source.id(), AnalyzeTrackOptions::default())
+            .unwrap_err();
         assert!(matches!(err, LibraryError::Unsupported(_)));
     }
 

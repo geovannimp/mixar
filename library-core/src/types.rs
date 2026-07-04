@@ -85,7 +85,7 @@ pub struct TrackMetadata {
     pub genre: Option<String>,
     /// Beats per minute.
     pub bpm: Option<f64>,
-    /// Musical key (e.g. `"8A"`, `"C#m"`).
+    /// Musical key (e.g. `"Am"`, `"F#m"`, `"Bb"`). Always musical notation — never Camelot / Open Key codes.
     pub key: Option<String>,
     /// Duration in seconds.
     pub duration_secs: Option<f64>,
@@ -286,6 +286,22 @@ impl UpdateCollection {
             name: None,
             config: Some(CollectionConfigUpdate::Playlist { sortable }),
         }
+    }
+}
+
+/// Options for [`WritableLibrary::analyze_track`].
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AnalyzeTrackOptions {
+    /// When true, DSP analysis results replace BPM/key from file tags.
+    /// When false, existing tag values are kept when present; analysis fills
+    /// missing fields only.
+    pub force: bool,
+}
+
+impl AnalyzeTrackOptions {
+    /// Prefer DSP analysis over file tags for BPM/key (and beat grid when available).
+    pub fn force() -> Self {
+        Self { force: true }
     }
 }
 

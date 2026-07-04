@@ -48,8 +48,6 @@ pub struct AudioConfig {
     pub enable_resampling: Option<bool>,
     /// Resampler quality
     pub resampler_quality: Option<String>,
-    /// Enable BPM analysis
-    pub enable_bpm_analysis: Option<bool>,
 }
 
 impl Default for EngineConfig {

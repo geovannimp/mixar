@@ -17,7 +17,7 @@ rust-dj-engine/
 ├─ backend-miniaudio/  # Miniaudio backend
 ├─ backend-cpal/       # CPAL backend (native PipeWire on Linux when available)
 ├─ engine-core/        # Engine lifecycle, config, producer thread, track loading
-├─ engine-dsp/         # Pure DSP: decks, mixer, analyzers (no I/O)
+├─ engine-dsp/         # Pure DSP: decks, mixer (no I/O)
 ├─ codec/              # Decoder wrapper (symphonia)
 ├─ resampler/          # Resampler trait + rubato implementation
 ├─ library/            # Tag reader + metadata manager (placeholder)
@@ -72,7 +72,7 @@ engine.play(0)?;
 
 ### engine-dsp
 
-Pure DSP only (`deck`, `mixer`, `analyzer`). No filesystem, network, or backend/codec I/O. Suitable for future WASM builds.
+Pure DSP only (`deck`, `mixer`). No filesystem, network, or backend/codec I/O. BPM/key/beat grid come from library track metadata. Suitable for future WASM builds.
 
 ## Current Status
 

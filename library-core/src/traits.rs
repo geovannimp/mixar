@@ -3,7 +3,8 @@
 use crate::error::Result;
 use crate::source::LibrarySource;
 use crate::types::{
-    Collection, CollectionId, NewCollection, ScanReport, TrackId, UpdateCollection,
+    AnalyzeTrackOptions, Collection, CollectionId, NewCollection, ScanReport, TrackId,
+    UpdateCollection,
 };
 
 /// Read-only library manager access.
@@ -27,8 +28,16 @@ pub trait Library: Send + Sync {
 
 /// Mutable library manager operations.
 pub trait WritableLibrary: Library {
-    /// Re-read tags and audio properties for a track and update the pool.
-    fn analyze_track(&mut self, id: &TrackId) -> Result<LibrarySource>;
+    /// Re-read tags and/or run DSP analysis for a track and update the pool.
+    ///
+    /// When [`AnalyzeTrackOptions::force`] is false, file tags are kept for BPM/key
+    /// when present; analysis fills missing fields only. When `force` is true,
+    /// analysis results override tag values.
+    fn analyze_track(
+        &mut self,
+        id: &TrackId,
+        options: AnalyzeTrackOptions,
+    ) -> Result<LibrarySource>;
 
     /// Add a collection (folder or playlist).
     fn add_collection(&mut self, collection: &NewCollection) -> Result<Collection>;

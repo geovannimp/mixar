@@ -84,11 +84,10 @@ rust-dj-engine/ (Cargo workspace)
 │  ├─ producer.rs      # ring buffer, MasterStreamSetup, producer thread loop
 │  ├─ callback.rs      # ConsumerCallback (ring-buffer consumer)
 │  └─ audio_source/    # FileAudioSource; re-exports AudioSource / LoadedAudio
-├─ engine-dsp/         # pure DSP: deck, mixer, analyzers (no I/O)
+├─ engine-dsp/         # pure DSP: deck, mixer (no I/O)
 │  ├─ lib.rs           # DspEngine
 │  ├─ deck.rs
-│  ├─ mixer.rs
-│  └─ analyzer.rs
+│  └─ mixer.rs
 ├─ codec/              # decoder wrapper (symphonia)
 ├─ resampler/          # resampler trait + rubato impl (pluggable)
 ├─ library-core/       # Library traits + Collection/Track types
