@@ -8,7 +8,9 @@ members = [
     "engine-dsp",
     "codec",
     "resampler",
+    "library-core",
     "library",
+    "library-adapters",
     "app-example",
 ]
 resolver = "2"

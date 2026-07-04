@@ -1,4 +1,4 @@
-use crate::audio_source::AudioSource;
+use audio_core::AudioSource;
 use crate::backend::create_backend;
 use crate::callback::ConsumerCallback;
 use crate::config::{DeviceConfig, EngineConfig};
@@ -358,7 +358,7 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::audio_source::FileAudioSource;
+    use library_core::FileAudioSource;
     use audio_core::{BusId, ChannelMapping, DeviceId};
 
     #[test]
@@ -379,7 +379,7 @@ mod tests {
         assert!(engine.play(0).is_err());
         assert!(engine.pause(0).is_err());
         assert!(engine
-            .load_track(0, &FileAudioSource::new("test.mp3"))
+            .load_track(0, &FileAudioSource::from_path("test.mp3"))
             .is_err());
 
         engine.start().unwrap();
@@ -387,7 +387,7 @@ mod tests {
         assert!(engine.play(0).is_ok());
         assert!(engine.pause(0).is_ok());
         assert!(engine
-            .load_track(0, &FileAudioSource::new("test.mp3"))
+            .load_track(0, &FileAudioSource::from_path("test.mp3"))
             .unwrap_err()
             .to_string()
             .contains("not found"));

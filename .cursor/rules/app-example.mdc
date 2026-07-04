@@ -9,8 +9,8 @@ alwaysApply: false
 Reference: `docs/tech-spec.md` §3, §12, §16. Architecture overview: `README.md`.
 
 - **Role:** Minimal example binary that wires the engine with config and runtime backend selection. Demonstrates embedding the engine as a crate.
-- **Flow:** Optionally load config from TOML (`EngineConfig::from_toml_file`), construct `Engine::new(config)`, call `engine.start()`, then `load_track` with an `AudioSource` (e.g. `FileAudioSource::new(path)`), `play`/`pause`, and optionally `set_bus_device`. Show how to list backends/devices via `AudioBackend::list_names()` / `AudioBackend::new(name)`.
-- **Track loading:** Always pass `&FileAudioSource::new(...)` (or another `AudioSource`), never a bare path string.
+- **Flow:** Optionally load config from TOML (`EngineConfig::from_toml_file`), construct `Engine::new(config)`, call `engine.start()`, then `load_track` with an `AudioSource` (e.g. `FileAudioSource::from_path(path)`), `play`/`pause`, and optionally `set_bus_device`. Show how to list backends/devices via `AudioBackend::list_names()` / `AudioBackend::new(name)`.
+- **Track loading:** Import `FileAudioSource` from `library-core`. Pass `&FileAudioSource::from_path(...)` (or another `AudioSource`), never a bare path string.
 - **Config:** Prefer a local `config.toml` when present; otherwise `EngineConfig::default()`. Backend may be overridden in code for demos (e.g. `"cpal"`).
 - **Backend selection:** All backends compiled in; backend chosen at runtime from config (`auto` / `cpal` / `miniaudio` / `null`). No dynamic loading.
 - **Maintainability:** Keep this example small and focused. It is the reference for minimal app usage. Sample audio lives under `samples/`.

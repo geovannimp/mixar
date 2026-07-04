@@ -5,10 +5,13 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Library manager and metadata handling for rust-dj-engine"
+description = "Library manager for rust-dj-engine"
 
 [dependencies]
-audio-core = { path = "../audio-core" }
-anyhow.workspace = true
-thiserror.workspace = true
-serde.workspace = true
+library-core = { path = "../library-core" }
+rusqlite = { version = "0.32", features = ["bundled"] }
+lofty = "0.22"
+log.workspace = true
+
+[dev-dependencies]
+tempfile = "3.0"

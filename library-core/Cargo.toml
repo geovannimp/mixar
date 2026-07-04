@@ -1,0 +1,15 @@
+[package]
+name = "library-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Library traits and shared types for rust-dj-engine"
+
+[dependencies]
+audio-core = { path = "../audio-core" }
+codec = { path = "../codec" }
+anyhow.workspace = true
+serde = { workspace = true }
+thiserror.workspace = true

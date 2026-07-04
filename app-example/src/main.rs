@@ -4,7 +4,8 @@
 //! different backends, configuration, and audio processing features.
 
 use anyhow::Result;
-use engine_core::{AudioBackend, Engine, EngineConfig, FileAudioSource};
+use engine_core::{AudioBackend, Engine, EngineConfig};
+use library_core::FileAudioSource;
 use log::info;
 use std::path::Path;
 
@@ -50,7 +51,7 @@ fn main() -> Result<()> {
 
     let sample_path =
         "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
-    engine.load_track(0, &FileAudioSource::new(sample_path))?;
+    engine.load_track(0, &FileAudioSource::from_path(sample_path))?;
     info!("Sample track loaded: {}", sample_path);
 
     // Play the track

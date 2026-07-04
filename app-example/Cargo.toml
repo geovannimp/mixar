@@ -13,6 +13,7 @@ path = "src/main.rs"
 
 [dependencies]
 engine-core = { path = "../engine-core" }
+library-core = { path = "../library-core" }
 anyhow.workspace = true
 log.workspace = true
 env_logger.workspace = true

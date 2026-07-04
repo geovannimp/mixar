@@ -157,7 +157,7 @@ GitHub Actions includes format checking, Clippy, tests, security auditing, and d
 ### Next
 
 - [ ] Complete bus/device channel mapping
-- [ ] Library crate: tag reading and SQLite metadata
+- [ ] Library manager: collections, tag reading, and metadata storage
 - [ ] WASM prototype for `engine-dsp`
 
 ## License

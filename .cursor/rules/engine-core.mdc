@@ -16,9 +16,8 @@ Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.m
   - `backend.rs` — `create_backend`, `AudioBackend` factory, `AudioBackendTrait` re-export
   - `producer.rs` — ring buffer setup, `MasterStreamSetup`, producer thread loop
   - `callback.rs` — `ConsumerCallback` (ring-buffer consumer for the audio device callback)
-  - `audio_source/` — `FileAudioSource`; re-exports `AudioSource` / `LoadedAudio` from `audio-core`
-- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, &impl AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path in `load_track`; callers pass an `AudioSource` (e.g. `FileAudioSource::new(path)`).
-- **Audio loading:** Trait and `LoadedAudio` live in `audio-core`. Disk loading is `FileAudioSource` in this crate (uses `codec`). New origins implement `AudioSource` without changing `Engine`.
+- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, &impl AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path in `load_track`; callers pass an `AudioSource`.
+- **Audio loading:** `AudioSource` / `LoadedAudio` are re-exported from `audio-core`. Concrete loaders (`FileAudioSource`, `LibrarySource`, …) live in `library-core`. Ad-hoc path loads use `library_core::FileAudioSource::from_path`. This crate does not define audio source types.
 - **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `sample_rate`, `buffer_size`, `low_latency`, `backend`, buses/devices, optional advanced/audio sections.
 - **Threading:** Producer thread (engine-controlled) runs DSP and writes interleaved stereo to a lock-free ring buffer. Consumer is the backend audio callback (`ConsumerCallback`). No allocations in the callback path.
 - **Ring buffer:** Preallocate; buffer at least N × frames_per_buffer (current multiplier is higher than the minimum N ≥ 8) to tolerate producer jitter.

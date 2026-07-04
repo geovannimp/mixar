@@ -1,0 +1,15 @@
+---
+description: Rules for library-adapters — third-party DJ library formats
+globs: library-adapters/**/*.rs
+alwaysApply: false
+---
+
+# library-adapters Module Rules
+
+Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
+
+- **Role:** Adapters for external DJ software (Rekordbox, Serato, Traktor, VirtualDJ, Engine DJ, …). Each implements `library-core` traits (`Library`, optionally `WritableLibrary`).
+- **Depend on** `library-core` only for traits/types. Import into `WritableLibrary` (typically `library::LibraryManager`) via its public API — do not hard-wire proprietary parsers into `library`.
+- **Features:** Gate heavy format deps behind Cargo features (`rekordbox`, `serato`, …) as adapters are added.
+- **Fidelity:** Flatten virtual playlist folders on import; map crates to `Playlist { sortable: false }` per §10.
+- **Testing:** Fixture-based parse/import tests per adapter. No telemetry.

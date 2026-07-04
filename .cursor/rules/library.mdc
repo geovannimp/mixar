@@ -1,5 +1,5 @@
 ---
-description: Rules for library — tag reader and metadata manager
+description: Rules for library — library manager
 globs: library/**/*.rs
 alwaysApply: false
 ---
@@ -8,8 +8,10 @@ alwaysApply: false
 
 Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
 
-- **Role:** Tag reading from files and persistent storage for app-managed metadata (hotcues, beatgrid, BPM). Headless; no UI. Currently a placeholder; implement without coupling to `Engine` internals.
-- **Tag reading:** Read ID3, Vorbis comments, FLAC metadata using symphonia and/or a dedicated tag crate (e.g. lofty). Primary read from file tags for initial metadata when present.
-- **Storage:** Internal SQLite DB (in this crate) as the canonical store for library entries and custom fields (hotcues, beatgrid corrections, user BPM). Optional write-back to file tags for portability (format-dependent); runtime data is authoritative in the DB.
-- **API:** Provide APIs for import (scan/add tracks), read/write metadata, and expose hotcue/beatgrid storage. Document which fields are file-tag vs DB-only. Track playback still goes through `engine-core` via `AudioSource` (e.g. `FileAudioSource`); this crate does not own the audio device path.
-- **Testing:** Fuzz tests for tag/parser code; unit tests for DB schema and metadata round-trips. No telemetry or opt-in data collection.
+- **Role:** Canonical implementation of `Library` + `WritableLibrary` from `library-core`. One user library manager per app (`LibraryManager`). Persistence is an implementation detail of this crate.
+- **Collections:** Flat list ordered by name. Each has `CollectionConfig`: `Folder { fs_path }` or `Playlist { sortable }`. No playlist-folder tree.
+- **Sources:** Own `tracks` table (`source_type` + `source_ref`). Folder membership by file path prefix; playlist membership via M2M `collection_tracks`. Stream sources are playlist-only.
+- **Tag reading:** lofty on import/scan. DB is authoritative after import.
+- **API:** `add_collection` / `update_collection` / `sync_collection` / `delete_collection`; `get_collection_tracks`; `add_collection_track` / `remove_collection_track` / `update_collection_track`. Do not couple to `Engine` internals.
+- **Adapters:** Third-party DJ software lives in `library-adapters`, not here.
+- **Testing:** Schema, folder scan, playlist M2M, sortable toggle, delete keeps tracks. No telemetry.

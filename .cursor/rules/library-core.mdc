@@ -1,0 +1,16 @@
+---
+description: Rules for library-core — library traits and shared types
+globs: library-core/**/*.rs
+alwaysApply: false
+---
+
+# library-core Module Rules
+
+Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
+
+- **Role:** Defines the library trait boundary and shared types. No library storage I/O here (that lives in `library`).
+- **Key types:** `TrackId`, `TrackMetadata`, `FileAudioSource`, `StreamAudioSource`, `LibrarySource`, `StreamProvider`, `CollectionId`, `Collection`, `CollectionConfig` (`Folder { fs_path }` | `Playlist { sortable }`), `CollectionType`, `CollectionTrack`, `NewCollection`, `UpdateCollection`, `CollectionConfigUpdate`, `LibraryConfig`, `ScanReport`, `LibraryError`.
+- **Key traits:** `Library` (read), `WritableLibrary` (mutate).
+- **Implementations:** Canonical manager in `library` (`LibraryManager`); third-party formats in `library-adapters`.
+- **Stability:** Keep the trait surface stable; minimize breaking changes.
+- **Playback:** `LibrarySource` (and `FileAudioSource` / `StreamAudioSource`) implement `audio_core::AudioSource`. Apps pass `&source` to `Engine::load_track`. Path lives only on `FileAudioSource`. This crate does not own the audio device path.

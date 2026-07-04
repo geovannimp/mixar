@@ -1,0 +1,15 @@
+[package]
+name = "library-adapters"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Third-party library adapters for rust-dj-engine (Rekordbox, Serato, …)"
+
+[dependencies]
+library-core = { path = "../library-core" }
+
+[features]
+default = []
+# Future: rekordbox = [], serato = [], traktor = [], virtualdj = [], engine = []

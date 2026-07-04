@@ -11,7 +11,7 @@ Reference: `docs/tech-spec.md` §4.1, §12 (Maintainability). Architecture overv
 - **Role:** Defines the runtime trait boundary all backends implement, plus shared audio types. No backend I/O or engine orchestration.
 - **Key types:** `Sample` (f32), `DeviceId`, `DeviceInfo`, `StreamParams`, `BusId`, `BusConfig`, `ChannelMapping`, `LoadedAudio`.
 - **Key traits:** `AudioCallback`, `AudioStream`, `AudioBackend`, `AudioSource`. Backends are compiled in and chosen at runtime; no dynamic loading.
-- **AudioSource:** Pluggable load interface (`load(&self) -> Result<LoadedAudio>`). Lives here so loaders and the engine share one contract. Concrete loaders that need I/O (e.g. `FileAudioSource`) live in `engine-core` (or other crates), not in `audio-core`. `LoadedAudio` implements `AudioSource` (identity load) for already-decoded buffers.
+- **AudioSource:** Pluggable load interface (`load(&self) -> Result<LoadedAudio>`). Lives here so loaders and the engine share one contract. Concrete loaders: `LibrarySource` / `FileAudioSource` / `StreamAudioSource` (`library-core`). `LoadedAudio` implements `AudioSource` (identity load) for already-decoded buffers.
 - **Module layout:** Keep `AudioSource` / `LoadedAudio` in `audio_source.rs` (or a dedicated submodule); re-export from `lib.rs`.
 - **Stability:** Keep the `audio-core` trait surface stable; minimize breaking changes. Use capability discovery for optional features.
 - **AudioCallback::render:** Runs on the audio thread: no heap allocations, no mutexes, no blocking. `out.len() == frames * channels` (interleaved).
