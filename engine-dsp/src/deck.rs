@@ -262,8 +262,10 @@ impl Deck {
     /// * `frames` - Number of frames to process (should match the engine buffer size)
     pub fn process(&mut self, frames: u32) -> Result<&[Sample]> {
         if self.state != DeckState::Playing {
-            // Return silence if not playing
-            self.buffer.resize(frames as usize * 2, 0.0); // Stereo
+            // Return silence if not playing. resize() only zero-fills new capacity;
+            // after playback the buffer may already be the right length with stale audio.
+            self.buffer.resize(frames as usize * 2, 0.0);
+            self.buffer.fill(0.0);
                                                           // Debug: Log deck state
             static mut STATE_LOG_COUNT: u32 = 0;
             unsafe {
@@ -638,6 +640,40 @@ mod tests {
         assert!(
             non_zero > 0,
             "realtime resample should produce non-zero audio within 200 callbacks"
+        );
+    }
+
+    #[test]
+    fn test_deck_pause_outputs_silence_not_stale_buffer() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.8f32; CHUNK as usize * 2], ENGINE_RATE);
+        deck.play().unwrap();
+
+        let playing = deck.process(CHUNK).unwrap();
+        assert!(playing.iter().any(|&s| s.abs() > 0.01));
+
+        deck.pause().unwrap();
+        let paused = deck.process(CHUNK).unwrap();
+        assert!(
+            paused.iter().all(|&s| s == 0.0),
+            "paused deck must output silence, got stale samples: max={}",
+            paused.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
+        );
+    }
+
+    #[test]
+    fn test_deck_stop_outputs_silence_not_stale_buffer() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.8f32; CHUNK as usize * 2], ENGINE_RATE);
+        deck.play().unwrap();
+        deck.process(CHUNK).unwrap();
+
+        deck.stop().unwrap();
+        let stopped = deck.process(CHUNK).unwrap();
+        assert!(
+            stopped.iter().all(|&s| s == 0.0),
+            "stopped deck must output silence, got stale samples: max={}",
+            stopped.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
         );
     }
 }
