@@ -16,6 +16,9 @@ members = [
     "analyzer",
     "app-example",
 ]
+exclude = [
+    "gui-app/src-tauri"
+]
 resolver = "2"
 
 [workspace.package]
