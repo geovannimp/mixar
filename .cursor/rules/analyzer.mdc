@@ -1,0 +1,14 @@
+---
+description: Rules for analyzer — offline file analysis facade
+globs: analyzer/**/*.rs
+alwaysApply: false
+---
+
+# analyzer Module Rules
+
+Reference: `docs/audio-analyzer-spec.md`.
+
+- **Role:** Decode audio via `codec`, preprocess to mono `f32`, run default `StratumAnalyzer`.
+- **Entry points:** `analyze_file`, `analyze_pcm`; custom backends via `analyze_*_with`.
+- **Dependencies:** `analyzer-core`, `analyzer-stratum`, `codec` only — not `library` or `engine-dsp`.
+- **Library:** `library` calls `analyze_file` from `analyze_track` (feature `analysis`).

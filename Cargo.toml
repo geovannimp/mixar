@@ -11,6 +11,9 @@ members = [
     "library-core",
     "library",
     "library-adapters",
+    "analyzer-core",
+    "analyzer-stratum",
+    "analyzer",
     "app-example",
 ]
 resolver = "2"

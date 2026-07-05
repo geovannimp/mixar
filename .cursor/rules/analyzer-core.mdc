@@ -1,0 +1,15 @@
+---
+description: Rules for analyzer-core — analysis traits and shared types
+globs: analyzer-core/**/*.rs
+alwaysApply: false
+---
+
+# analyzer-core Module Rules
+
+Reference: `docs/audio-analyzer-spec.md`. Architecture overview: `README.md`.
+
+- **Role:** Defines the offline analysis trait boundary and shared types. No file I/O or backend dependencies.
+- **Key types:** `AnalysisConfig`, `AnalysisTargets`, `TrackAnalysis`, `BpmAnalysis`, `KeyAnalysis`, `BeatGridAnalysis`, `TagMetadata`, `AnalyzerError`.
+- **Key traits:** `AudioAnalyzer` (PCM in → `TrackAnalysis` out).
+- **Merge:** `merge_track_metadata` applies force/confidence policy for library integration.
+- **Stability:** Keep the trait surface stable; backends live in `analyzer-stratum` (and future crates).

@@ -1,95 +1,90 @@
-//! Database schema and connection helpers.
+//! SeaORM sync connection setup and entity-first schema sync.
 
 use std::path::Path;
+use std::sync::Mutex;
 
 use library_core::{LibraryError, Result};
-use rusqlite::Connection;
+use sea_orm::{ConnectOptions, ConnectionTrait, Database, DatabaseConnection, DbErr, Statement};
 
-pub(crate) fn open_connection(db_path: &Path) -> Result<Connection> {
-    if let Some(parent) = db_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
+/// Wrapper so `Db` can satisfy `Library: Send + Sync`.
+///
+/// SeaORM sync's `DatabaseConnection` is `!Send` because of an optional metric
+/// callback type; we never register one, and all access is serialized through
+/// the mutex around the rusqlite-backed connection.
+pub(crate) struct SyncConnection(DatabaseConnection);
+
+unsafe impl Send for SyncConnection {}
+unsafe impl Sync for SyncConnection {}
+
+pub struct Db {
+    conn: Mutex<SyncConnection>,
+}
+
+impl Db {
+    pub fn open(db_path: &Path) -> Result<Self> {
+        if let Some(parent) = db_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)?;
+            }
         }
+
+        let url = format!("sqlite://{}?mode=rwc", db_path.display());
+        Self::connect(&url)
     }
 
-    let conn = Connection::open(db_path).map_err(db_err)?;
-    configure(&conn)?;
-    migrate(&conn)?;
-    Ok(conn)
+    pub fn open_in_memory() -> Result<Self> {
+        Self::connect("sqlite::memory:")
+    }
+
+    fn connect(url: &str) -> Result<Self> {
+        let mut opts = ConnectOptions::new(url.to_string());
+        // SeaORM logs queries (with bound parameters) via the `sea_orm` target when
+        // RUST_LOG includes `sea_orm=debug`; keep sqlx's own logging off.
+        opts.max_connections(1).sqlx_logging(false);
+
+        let conn = Database::connect(opts).map_err(db_err)?;
+        sync_schema(&conn).map_err(db_err)?;
+        Ok(Self {
+            conn: Mutex::new(SyncConnection(conn)),
+        })
+    }
+
+    pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, SyncConnection>> {
+        self.conn.lock().map_err(|_| LibraryError::Backend {
+            backend: "library",
+            message: "library database lock poisoned".into(),
+        })
+    }
 }
 
-pub(crate) fn open_in_memory() -> Result<Connection> {
-    let conn = Connection::open_in_memory().map_err(db_err)?;
-    configure(&conn)?;
-    migrate(&conn)?;
-    Ok(conn)
+impl SyncConnection {
+    pub(crate) fn as_connection(&self) -> &DatabaseConnection {
+        &self.0
+    }
 }
 
-fn configure(conn: &Connection) -> Result<()> {
-    conn.execute_batch(
-        "
-        PRAGMA foreign_keys = ON;
-        PRAGMA journal_mode = WAL;
-        ",
-    )
-    .map_err(db_err)?;
-    Ok(())
+pub fn open(db_path: &Path) -> Result<Db> {
+    Db::open(db_path)
 }
 
-fn migrate(conn: &Connection) -> Result<()> {
-    conn.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS tracks (
-            id TEXT PRIMARY KEY NOT NULL,
-            source_type TEXT NOT NULL,
-            source_ref TEXT NOT NULL,
-            provider TEXT,
-            title TEXT,
-            artist TEXT,
-            album TEXT,
-            genre TEXT,
-            bpm REAL,
-            key TEXT,
-            duration_secs REAL,
-            sample_rate INTEGER,
-            channels INTEGER,
-            bitrate_kbps INTEGER,
-            added_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            UNIQUE (source_type, source_ref)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_tracks_source_ref ON tracks(source_ref);
-        CREATE INDEX IF NOT EXISTS idx_tracks_artist ON tracks(artist);
-        CREATE INDEX IF NOT EXISTS idx_tracks_title ON tracks(title);
-
-        CREATE TABLE IF NOT EXISTS collections (
-            id TEXT PRIMARY KEY NOT NULL,
-            name TEXT NOT NULL,
-            collection_type TEXT NOT NULL,
-            sortable INTEGER NOT NULL DEFAULT 1,
-            fs_path TEXT,
-            UNIQUE (fs_path)
-        );
-
-        CREATE TABLE IF NOT EXISTS collection_tracks (
-            collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
-            track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-            position INTEGER,
-            PRIMARY KEY (collection_id, track_id)
-        );
-
-        CREATE INDEX IF NOT EXISTS idx_collection_tracks_track
-            ON collection_tracks(track_id);
-        CREATE INDEX IF NOT EXISTS idx_collection_tracks_collection_pos
-            ON collection_tracks(collection_id, position);
-        ",
-    )
-    .map_err(db_err)?;
-    Ok(())
+pub fn open_in_memory() -> Result<Db> {
+    Db::open_in_memory()
 }
 
-pub(crate) fn db_err(err: rusqlite::Error) -> LibraryError {
+fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
+    conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA foreign_keys = ON;".to_string(),
+    ))?;
+    conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "PRAGMA journal_mode = WAL;".to_string(),
+    ))?;
+
+    conn.get_schema_registry("library::entity::*").sync(conn)
+}
+
+pub fn db_err(err: DbErr) -> LibraryError {
     LibraryError::Backend {
         backend: "library",
         message: err.to_string(),
@@ -101,26 +96,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn migrate_creates_all_tables() {
-        let conn = open_in_memory().unwrap();
-        for name in ["tracks", "collections", "collection_tracks"] {
-            let count: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
-                    [name],
-                    |row| row.get(0),
-                )
+    fn sync_creates_all_tables() {
+        let db = open_in_memory().unwrap();
+        for name in [
+            "tracks",
+            "collections",
+            "collection_tracks",
+            "track_analysis",
+        ] {
+            let count: i64 = db
+                .conn()
+                .unwrap()
+                .as_connection()
+                .query_one_raw(Statement::from_sql_and_values(
+                    sea_orm::DatabaseBackend::Sqlite,
+                    "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name=?",
+                    [name.into()],
+                ))
+                .map_err(db_err)
+                .unwrap()
+                .unwrap()
+                .try_get("", "count")
                 .unwrap();
             assert_eq!(count, 1, "missing table {name}");
         }
     }
 
     #[test]
-    fn open_connection_creates_parent_dirs() {
+    fn open_creates_parent_dirs() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("nested").join("library.db");
-        let conn = open_connection(&db_path).unwrap();
-        drop(conn);
+        let db = open(db_path.as_path()).unwrap();
+        drop(db);
         assert!(db_path.exists());
     }
 }

@@ -1,0 +1,16 @@
+[package]
+name = "analyzer-stratum"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "stratum-dsp backend for rust-dj-engine audio analysis"
+
+[dependencies]
+analyzer-core = { path = "../analyzer-core" }
+stratum-dsp = "1.0"
+
+[features]
+default = []
+ml = ["stratum-dsp/ml"]

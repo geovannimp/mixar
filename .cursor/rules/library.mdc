@@ -10,6 +10,7 @@ Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
 
 - **Role:** Canonical implementation of `Library` + `WritableLibrary` from `library-core`. One user library manager per app (`LibraryManager`). Persistence is an implementation detail of this crate.
 - **Collections:** Flat list ordered by name. Each has `CollectionConfig`: `Folder { fs_path }` or `Playlist { sortable }`. No playlist-folder tree.
+- **Persistence:** `sea-orm-sync` 2 (SQLite via rusqlite). Entities in `library/src/entity/` are the schema source of truth; `get_schema_registry(...).sync()` runs on open; queries in `library/src/store.rs`. Fully synchronous — no tokio runtime.
 - **Sources:** Own `tracks` table (`source_type` + `source_ref`). Folder membership by file path prefix; playlist membership via M2M `collection_tracks`. Stream sources are playlist-only.
 - **Tag reading:** lofty on import/scan. DB is authoritative after import.
 - **API:** `add_collection` / `update_collection` / `sync_collection` / `delete_collection`; `get_collection_tracks`; `add_collection_track` / `remove_collection_track` / `update_collection_track`. Do not couple to `Engine` internals.

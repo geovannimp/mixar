@@ -20,7 +20,11 @@ rust-dj-engine/
 ├─ engine-dsp/         # Pure DSP: decks, mixer (no I/O)
 ├─ codec/              # Decoder wrapper (symphonia)
 ├─ resampler/          # Resampler trait + rubato implementation
-├─ library/            # Tag reader + metadata manager (placeholder)
+├─ library/            # Library manager (collections, tags, analysis)
+├─ library-core/       # Library traits and shared types
+├─ analyzer-core/      # Offline analysis traits and types
+├─ analyzer-stratum/   # stratum-dsp backend
+├─ analyzer/           # decode + analyze_file facade
 ├─ app-example/        # Minimal example binary
 └─ samples/            # Sample audio for local demos
 ```

@@ -93,6 +93,9 @@ rust-dj-engine/ (Cargo workspace)
 ├─ library-core/       # Library traits + Collection/Track types
 ├─ library/            # library manager (canonical writable store)
 ├─ library-adapters/   # third-party formats (Rekordbox, Serato, …)
+├─ analyzer-core/       # offline analysis traits and types
+├─ analyzer-stratum/    # stratum-dsp backend
+├─ analyzer/            # decode + analyze_file facade
 ├─ app-example/        # minimal example binary
 └─ samples/            # sample audio for local demos
 ```

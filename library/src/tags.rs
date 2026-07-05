@@ -43,7 +43,7 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
 
         metadata.key = tag
             .get_string(&lofty::tag::ItemKey::InitialKey)
-            .map(|s| s.to_string());
+            .map(|s| normalize_key_notation(&s));
     }
 
     if metadata.title.is_none() {
@@ -54,6 +54,41 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     }
 
     Ok(metadata)
+}
+
+/// Convert Camelot/Open Key codes to musical notation; pass through other values.
+fn normalize_key_notation(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.len() < 2 {
+        return trimmed.to_string();
+    }
+    let upper = trimmed.to_uppercase();
+    let Some(code) = upper.strip_suffix('A').or_else(|| upper.strip_suffix('B')) else {
+        return trimmed.to_string();
+    };
+    let Ok(num) = code.parse::<usize>() else {
+        return trimmed.to_string();
+    };
+    if !(1..=12).contains(&num) {
+        return trimmed.to_string();
+    }
+    let minor = upper.ends_with('B');
+    camelot_to_musical(num, minor).unwrap_or_else(|| trimmed.to_string())
+}
+
+fn camelot_to_musical(code: usize, minor: bool) -> Option<String> {
+    const MAJOR: [&str; 12] = [
+        "C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F",
+    ];
+    const MINOR: [&str; 12] = [
+        "Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m", "A#m", "Fm", "Cm", "Gm", "Dm",
+    ];
+    let idx = code - 1;
+    if minor {
+        MINOR.get(idx).map(|s| (*s).to_string())
+    } else {
+        MAJOR.get(idx).map(|s| (*s).to_string())
+    }
 }
 
 fn duration_secs(duration: Duration) -> Option<f64> {
@@ -76,6 +111,14 @@ fn io_backend(message: String) -> library_core::LibraryError {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn normalize_camelot_key_to_musical() {
+        assert_eq!(camelot_to_musical(8, false), Some("C#".into()));
+        assert_eq!(camelot_to_musical(1, true), Some("Am".into()));
+        assert_eq!(normalize_key_notation("8A"), "C#");
+        assert_eq!(normalize_key_notation("F#m"), "F#m");
+    }
 
     #[test]
     fn read_tags_missing_file_errors() {

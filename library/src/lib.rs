@@ -16,13 +16,18 @@
 //! # Ok::<(), library::LibraryError>(())
 //! ```
 
+#[cfg(feature = "analysis")]
+mod analysis;
 mod db;
+mod entity;
+mod model;
+mod store;
 mod tags;
 
-use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+#[cfg(feature = "analysis")]
+use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
 
-use rusqlite::{params, Connection, OptionalExtension};
+use std::path::{Path, PathBuf};
 
 pub use library_core::{
     AudioSource, Collection, CollectionConfig, CollectionConfigUpdate, CollectionId,
@@ -39,34 +44,29 @@ const AUDIO_EXTENSIONS: &[&str] = &[
 
 /// The user’s library manager (canonical writable store).
 pub struct LibraryManager {
-    conn: Mutex<Connection>,
+    db: db::Db,
     config: LibraryConfig,
 }
 
 impl LibraryManager {
     /// Open (or create) a library database at `db_path`.
     pub fn open(db_path: impl AsRef<Path>, config: LibraryConfig) -> Result<Self> {
-        let conn = db::open_connection(db_path.as_ref())?;
         Ok(Self {
-            conn: Mutex::new(conn),
+            db: db::open(db_path.as_ref())?,
             config,
         })
     }
 
     /// Open an in-memory library (for tests).
     pub fn open_in_memory(config: LibraryConfig) -> Result<Self> {
-        let conn = db::open_in_memory()?;
         Ok(Self {
-            conn: Mutex::new(conn),
+            db: db::open_in_memory()?,
             config,
         })
     }
 
-    fn lock_conn(&self) -> Result<std::sync::MutexGuard<'_, Connection>> {
-        self.conn.lock().map_err(|_| LibraryError::Backend {
-            backend: "library",
-            message: "library database lock poisoned".into(),
-        })
+    fn store(&self) -> store::Store<'_> {
+        store::Store::new(&self.db)
     }
 
     /// Borrow the library configuration.
@@ -100,54 +100,8 @@ impl LibraryManager {
         let path = normalize_path(path)?;
         let id = Self::track_id_for(&path);
         let now = now_stamp();
-        let conn = self.lock_conn()?;
-        let source_ref = path.to_string_lossy();
-
-        conn.execute(
-            "
-            INSERT INTO tracks (
-                id, source_type, source_ref, provider, title, artist, album, genre, bpm, key,
-                duration_secs, sample_rate, channels, bitrate_kbps,
-                added_at, updated_at
-            ) VALUES (
-                ?1, 'file', ?2, NULL, ?3, ?4, ?5, ?6, ?7, ?8,
-                ?9, ?10, ?11, ?12,
-                ?13, ?13
-            )
-            ON CONFLICT(id) DO UPDATE SET
-                source_type = excluded.source_type,
-                source_ref = excluded.source_ref,
-                provider = excluded.provider,
-                title = excluded.title,
-                artist = excluded.artist,
-                album = excluded.album,
-                genre = excluded.genre,
-                bpm = excluded.bpm,
-                key = excluded.key,
-                duration_secs = excluded.duration_secs,
-                sample_rate = excluded.sample_rate,
-                channels = excluded.channels,
-                bitrate_kbps = excluded.bitrate_kbps,
-                updated_at = excluded.updated_at
-            ",
-            params![
-                id.as_str(),
-                source_ref.as_ref(),
-                metadata.title,
-                metadata.artist,
-                metadata.album,
-                metadata.genre,
-                metadata.bpm,
-                metadata.key,
-                metadata.duration_secs,
-                metadata.sample_rate,
-                metadata.channels.map(|c| c as i64),
-                metadata.bitrate_kbps.map(|b| b as i64),
-                now,
-            ],
-        )
-        .map_err(db::db_err)?;
-
+        self.store()
+            .upsert_file_track(&id, &path, metadata, &now)?;
         Ok(LibrarySource::File(FileAudioSource::new(
             id,
             path,
@@ -163,55 +117,9 @@ impl LibraryManager {
     ) -> Result<LibrarySource> {
         let id = Self::stream_id_for(uri, provider);
         let now = now_stamp();
-        let conn = self.lock_conn()?;
         let provider_str = provider.map(|p| p.as_str());
-
-        conn.execute(
-            "
-            INSERT INTO tracks (
-                id, source_type, source_ref, provider, title, artist, album, genre, bpm, key,
-                duration_secs, sample_rate, channels, bitrate_kbps,
-                added_at, updated_at
-            ) VALUES (
-                ?1, 'stream', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-                ?10, ?11, ?12, ?13,
-                ?14, ?14
-            )
-            ON CONFLICT(id) DO UPDATE SET
-                source_type = excluded.source_type,
-                source_ref = excluded.source_ref,
-                provider = excluded.provider,
-                title = excluded.title,
-                artist = excluded.artist,
-                album = excluded.album,
-                genre = excluded.genre,
-                bpm = excluded.bpm,
-                key = excluded.key,
-                duration_secs = excluded.duration_secs,
-                sample_rate = excluded.sample_rate,
-                channels = excluded.channels,
-                bitrate_kbps = excluded.bitrate_kbps,
-                updated_at = excluded.updated_at
-            ",
-            params![
-                id.as_str(),
-                uri,
-                provider_str,
-                metadata.title,
-                metadata.artist,
-                metadata.album,
-                metadata.genre,
-                metadata.bpm,
-                metadata.key,
-                metadata.duration_secs,
-                metadata.sample_rate,
-                metadata.channels.map(|c| c as i64),
-                metadata.bitrate_kbps.map(|b| b as i64),
-                now,
-            ],
-        )
-        .map_err(db::db_err)?;
-
+        self.store()
+            .upsert_stream_track(&id, uri, metadata, provider_str, &now)?;
         Ok(LibrarySource::Stream(StreamAudioSource::new(
             id,
             uri,
@@ -225,110 +133,6 @@ impl LibraryManager {
             Some(p) => TrackId::new(format!("stream:{}:{uri}", p.as_str())),
             None => TrackId::new(format!("stream:{uri}")),
         }
-    }
-
-    fn row_metadata(row: &rusqlite::Row<'_>, offset: usize) -> rusqlite::Result<TrackMetadata> {
-        let channels: Option<i64> = row.get(offset + 8)?;
-        let bitrate: Option<i64> = row.get(offset + 9)?;
-        Ok(TrackMetadata {
-            title: row.get(offset)?,
-            artist: row.get(offset + 1)?,
-            album: row.get(offset + 2)?,
-            genre: row.get(offset + 3)?,
-            bpm: row.get(offset + 4)?,
-            key: row.get(offset + 5)?,
-            duration_secs: row.get(offset + 6)?,
-            sample_rate: row.get::<_, Option<i64>>(offset + 7)?.map(|v| v as u32),
-            channels: channels.map(|v| v as u16),
-            bitrate_kbps: bitrate.map(|v| v as u32),
-        })
-    }
-
-    fn row_to_source(row: &rusqlite::Row<'_>) -> rusqlite::Result<LibrarySource> {
-        let id = TrackId::new(row.get::<_, String>(0)?);
-        let source_type: String = row.get(1)?;
-        let source_ref: String = row.get(2)?;
-        let provider: Option<String> = row.get(3)?;
-        let metadata = Self::row_metadata(row, 4)?;
-
-        match source_type.as_str() {
-            "file" => Ok(LibrarySource::File(FileAudioSource::new(
-                id,
-                PathBuf::from(source_ref),
-                metadata,
-            ))),
-            "stream" => {
-                let provider = provider
-                    .as_deref()
-                    .map(|s| s.parse::<StreamProvider>())
-                    .transpose()
-                    .map_err(|_| {
-                        rusqlite::Error::FromSqlConversionFailure(
-                            3,
-                            rusqlite::types::Type::Text,
-                            Box::new(std::io::Error::new(
-                                std::io::ErrorKind::InvalidData,
-                                format!("unknown stream provider: {:?}", provider),
-                            )),
-                        )
-                    })?;
-                Ok(LibrarySource::Stream(StreamAudioSource::new(
-                    id,
-                    source_ref,
-                    metadata,
-                    provider,
-                )))
-            }
-            other => Err(rusqlite::Error::FromSqlConversionFailure(
-                1,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("unknown source_type: {other}"),
-                )),
-            )),
-        }
-    }
-
-    fn row_to_collection(row: &rusqlite::Row<'_>) -> rusqlite::Result<Collection> {
-        let type_str: String = row.get(2)?;
-        let collection_type = type_str.parse::<CollectionType>().map_err(|_| {
-            rusqlite::Error::FromSqlConversionFailure(
-                2,
-                rusqlite::types::Type::Text,
-                Box::new(std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("unknown collection_type: {type_str}"),
-                )),
-            )
-        })?;
-        let sortable: i64 = row.get(3)?;
-        let fs_path: Option<String> = row.get(4)?;
-        let config = match collection_type {
-            CollectionType::Folder => {
-                let Some(fs_path) = fs_path else {
-                    return Err(rusqlite::Error::FromSqlConversionFailure(
-                        4,
-                        rusqlite::types::Type::Text,
-                        Box::new(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "folder collection missing fs_path",
-                        )),
-                    ));
-                };
-                CollectionConfig::Folder {
-                    fs_path: PathBuf::from(fs_path),
-                }
-            }
-            CollectionType::Playlist => CollectionConfig::Playlist {
-                sortable: sortable != 0,
-            },
-        };
-        Ok(Collection {
-            id: CollectionId::new(row.get::<_, String>(0)?),
-            name: row.get(1)?,
-            config,
-        })
     }
 
     fn require_collection(&self, id: &CollectionId) -> Result<Collection> {
@@ -398,7 +202,7 @@ impl LibraryManager {
                 report.skipped += 1;
                 continue;
             }
-            match self.analyze_file_source(file.path(), AnalyzeTrackOptions::default()) {
+            match self.refresh_file_source(file.path()) {
                 Ok(_) => report.updated += 1,
                 Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
                 Err(err) => {
@@ -439,15 +243,11 @@ impl LibraryManager {
             })
             .unwrap_or_else(|| path.display().to_string());
 
-        let conn = self.lock_conn()?;
-        conn.execute(
-            "
-            INSERT INTO collections (id, name, collection_type, sortable, fs_path)
-            VALUES (?1, ?2, 'folder', 0, ?3)
-            ",
-            params![id.as_str(), name, path.to_string_lossy().as_ref()],
-        )
-        .map_err(db::db_err)?;
+        self.store().insert_folder_collection(
+            &id,
+            &name,
+            &path.to_string_lossy(),
+        )?;
 
         Ok(Collection {
             id,
@@ -469,15 +269,8 @@ impl LibraryManager {
         })?;
 
         let id = Self::new_playlist_id();
-        let conn = self.lock_conn()?;
-        conn.execute(
-            "
-            INSERT INTO collections (id, name, collection_type, sortable, fs_path)
-            VALUES (?1, ?2, 'playlist', ?3, NULL)
-            ",
-            params![id.as_str(), name, i64::from(sortable)],
-        )
-        .map_err(db::db_err)?;
+        self.store()
+            .insert_playlist_collection(&id, name, sortable)?;
 
         Ok(Collection {
             id,
@@ -487,56 +280,17 @@ impl LibraryManager {
     }
 
     fn playlist_track_ids(&self, playlist_id: &CollectionId) -> Result<Vec<TrackId>> {
-        let conn = self.lock_conn()?;
-        let mut stmt = conn
-            .prepare(
-                "
-                SELECT track_id FROM collection_tracks
-                WHERE collection_id = ?1
-                ORDER BY CASE WHEN position IS NULL THEN 1 ELSE 0 END, position ASC, track_id ASC
-                ",
-            )
-            .map_err(db::db_err)?;
-        let rows = stmt
-            .query_map(params![playlist_id.as_str()], |row| {
-                Ok(TrackId::new(row.get::<_, String>(0)?))
-            })
-            .map_err(db::db_err)?;
-        let mut ids = Vec::new();
-        for row in rows {
-            ids.push(row.map_err(db::db_err)?);
-        }
-        Ok(ids)
+        self.store().playlist_track_ids(playlist_id)
     }
 
     fn file_sources_under(&self, root: &Path) -> Result<Vec<LibrarySource>> {
         let root_str = root.to_string_lossy().into_owned();
         let prefix = format!("{}/%", escape_like(&root_str));
-        let conn = self.lock_conn()?;
-        let mut stmt = conn
-            .prepare(
-                "
-                SELECT id, source_type, source_ref, provider, title, artist, album, genre, bpm, key,
-                       duration_secs, sample_rate, channels, bitrate_kbps
-                FROM tracks
-                WHERE source_type = 'file'
-                  AND (source_ref = ?1 OR source_ref LIKE ?2 ESCAPE '\\')
-                ORDER BY source_ref ASC
-                ",
-            )
-            .map_err(db::db_err)?;
-        let rows = stmt
-            .query_map(params![root_str, prefix], Self::row_to_source)
-            .map_err(db::db_err)?;
-        let mut sources = Vec::new();
-        for row in rows {
-            sources.push(row.map_err(db::db_err)?);
-        }
-        Ok(sources)
+        self.store().find_file_sources_under(&root_str, &prefix)
     }
 
     pub(crate) fn import_path(&self, path: &Path) -> Result<LibrarySource> {
-        self.analyze_file_source(path, AnalyzeTrackOptions::default())
+        self.refresh_file_source(path)
     }
 
     pub(crate) fn import_stream(
@@ -555,16 +309,7 @@ impl LibraryManager {
     }
 
     fn track_linked_to_collections(&self, track_id: &TrackId) -> Result<bool> {
-        let in_playlist: i64 = {
-            let conn = self.lock_conn()?;
-            conn.query_row(
-                "SELECT COUNT(*) FROM collection_tracks WHERE track_id = ?1",
-                params![track_id.as_str()],
-                |row| row.get(0),
-            )
-            .map_err(db::db_err)?
-        };
-        if in_playlist > 0 {
+        if self.store().count_playlist_links(track_id)? > 0 {
             return Ok(true);
         }
 
@@ -593,12 +338,23 @@ impl LibraryManager {
         if self.track_linked_to_collections(track_id)? {
             return Ok(());
         }
-        let conn = self.lock_conn()?;
-        conn.execute("DELETE FROM tracks WHERE id = ?1", params![track_id.as_str()])
-            .map_err(db::db_err)?;
+        self.store().delete_track(track_id)?;
         Ok(())
     }
 
+    fn refresh_file_source(&self, path: &Path) -> Result<LibrarySource> {
+        let path = normalize_path(path)?;
+        if !path.is_file() {
+            return Err(LibraryError::PathNotFound(path));
+        }
+        if !is_audio_file(&path) {
+            return Err(LibraryError::UnsupportedFile(path));
+        }
+        let metadata = tags::read_tags(&path)?;
+        self.upsert_file_source(&path, &metadata)
+    }
+
+    #[cfg(feature = "analysis")]
     fn analyze_file_source(
         &self,
         path: &Path,
@@ -611,34 +367,41 @@ impl LibraryManager {
         if !is_audio_file(&path) {
             return Err(LibraryError::UnsupportedFile(path));
         }
+
+        let config = AnalysisConfig::default();
         let tag_metadata = tags::read_tags(&path)?;
-        let metadata = merge_analyzed_metadata(&tag_metadata, None, None, options.force);
-        self.upsert_file_source(&path, &metadata)
-    }
-}
+        let analysis =
+            analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
 
-/// Merge file tags with optional DSP analysis results.
-fn merge_analyzed_metadata(
-    tags: &TrackMetadata,
-    analysis_bpm: Option<f64>,
-    analysis_key: Option<&str>,
-    force: bool,
-) -> TrackMetadata {
-    let mut metadata = tags.clone();
+        let tag_side = TagMetadata {
+            bpm: tag_metadata.bpm,
+            key: tag_metadata.key.clone(),
+        };
+        let merged = merge_track_metadata(
+            &tag_side,
+            &analysis,
+            options.force,
+            config.min_bpm_confidence,
+            config.min_key_confidence,
+        );
 
-    match (force, analysis_bpm) {
-        (true, Some(bpm)) => metadata.bpm = Some(bpm),
-        (false, Some(bpm)) if metadata.bpm.is_none() => metadata.bpm = Some(bpm),
-        _ => {}
-    }
+        let mut metadata = tag_metadata;
+        metadata.bpm = merged.bpm;
+        metadata.key = merged.key;
 
-    match (force, analysis_key) {
-        (true, Some(key)) => metadata.key = Some(key.to_string()),
-        (false, Some(key)) if metadata.key.is_none() => metadata.key = Some(key.to_string()),
-        _ => {}
+        let source = self.upsert_file_source(&path, &metadata)?;
+        analysis::upsert_track_analysis(&self.db, source.id(), &analysis)?;
+        Ok(source)
     }
 
-    metadata
+    #[cfg(not(feature = "analysis"))]
+    fn analyze_file_source(
+        &self,
+        path: &Path,
+        _options: AnalyzeTrackOptions,
+    ) -> Result<LibrarySource> {
+        self.refresh_file_source(path)
+    }
 }
 
 impl Library for LibraryManager {
@@ -647,55 +410,15 @@ impl Library for LibraryManager {
     }
 
     fn get_track(&self, id: &TrackId) -> Result<Option<LibrarySource>> {
-        let conn = self.lock_conn()?;
-        conn.query_row(
-            "
-            SELECT id, source_type, source_ref, provider, title, artist, album, genre, bpm, key,
-                   duration_secs, sample_rate, channels, bitrate_kbps
-            FROM tracks
-            WHERE id = ?1
-            ",
-            params![id.as_str()],
-            Self::row_to_source,
-        )
-        .optional()
-        .map_err(db::db_err)
+        self.store().get_track(id)
     }
 
     fn list_collections(&self) -> Result<Vec<Collection>> {
-        let conn = self.lock_conn()?;
-        let mut stmt = conn
-            .prepare(
-                "
-                SELECT id, name, collection_type, sortable, fs_path
-                FROM collections
-                ORDER BY name ASC
-                ",
-            )
-            .map_err(db::db_err)?;
-        let rows = stmt
-            .query_map([], Self::row_to_collection)
-            .map_err(db::db_err)?;
-        let mut out = Vec::new();
-        for row in rows {
-            out.push(row.map_err(db::db_err)?);
-        }
-        Ok(out)
+        self.store().list_collections()
     }
 
     fn get_collection(&self, id: &CollectionId) -> Result<Option<Collection>> {
-        let conn = self.lock_conn()?;
-        conn.query_row(
-            "
-            SELECT id, name, collection_type, sortable, fs_path
-            FROM collections
-            WHERE id = ?1
-            ",
-            params![id.as_str()],
-            Self::row_to_collection,
-        )
-        .optional()
-        .map_err(db::db_err)
+        self.store().get_collection(id)
     }
 
     fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<LibrarySource>> {
@@ -781,14 +504,7 @@ impl WritableLibrary for LibraryManager {
         }
 
         if let Some(name) = &update.name {
-            let conn = self.lock_conn()?;
-            let changed = conn
-                .execute(
-                    "UPDATE collections SET name = ?1 WHERE id = ?2",
-                    params![name, id.as_str()],
-                )
-                .map_err(db::db_err)?;
-            if changed == 0 {
+            if !self.store().update_collection_name(id, name)? {
                 return Err(LibraryError::NotFound(id.to_string()));
             }
         }
@@ -796,46 +512,16 @@ impl WritableLibrary for LibraryManager {
         if let Some(CollectionConfigUpdate::Playlist { sortable }) = update.config {
             let playlist = self.require_playlist(id)?;
             if playlist.sortable() != sortable {
-                let conn = self.lock_conn()?;
-                conn.execute(
-                    "UPDATE collections SET sortable = ?1 WHERE id = ?2",
-                    params![i64::from(sortable), id.as_str()],
-                )
-                .map_err(db::db_err)?;
+                self.store().update_collection_sortable(id, sortable)?;
 
                 if sortable {
-                    let mut stmt = conn
-                        .prepare(
-                            "
-                            SELECT track_id FROM collection_tracks
-                            WHERE collection_id = ?1
-                            ORDER BY track_id ASC
-                            ",
-                        )
-                        .map_err(db::db_err)?;
-                    let ids: Vec<String> = stmt
-                        .query_map(params![id.as_str()], |row| row.get(0))
-                        .map_err(db::db_err)?
-                        .collect::<std::result::Result<_, _>>()
-                        .map_err(db::db_err)?;
-                    drop(stmt);
-
+                    let ids = self.store().playlist_track_ids_by_track_id(id)?;
                     for (pos, track_id) in ids.iter().enumerate() {
-                        conn.execute(
-                            "
-                            UPDATE collection_tracks SET position = ?1
-                            WHERE collection_id = ?2 AND track_id = ?3
-                            ",
-                            params![pos as i32, id.as_str(), track_id],
-                        )
-                        .map_err(db::db_err)?;
+                        self.store()
+                            .set_collection_track_position(id, track_id, pos as i32)?;
                     }
                 } else {
-                    conn.execute(
-                        "UPDATE collection_tracks SET position = NULL WHERE collection_id = ?1",
-                        params![id.as_str()],
-                    )
-                    .map_err(db::db_err)?;
+                    self.store().clear_playlist_positions(id)?;
                 }
             }
         }
@@ -844,11 +530,7 @@ impl WritableLibrary for LibraryManager {
     }
 
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()> {
-        let conn = self.lock_conn()?;
-        let changed = conn
-            .execute("DELETE FROM collections WHERE id = ?1", params![id.as_str()])
-            .map_err(db::db_err)?;
-        if changed == 0 {
+        if !self.store().delete_collection(id)? {
             return Err(LibraryError::NotFound(id.to_string()));
         }
         Ok(())
@@ -875,17 +557,8 @@ impl WritableLibrary for LibraryManager {
             None
         };
 
-        let conn = self.lock_conn()?;
-        conn.execute(
-            "
-            INSERT INTO collection_tracks (collection_id, track_id, position)
-            VALUES (?1, ?2, ?3)
-            ON CONFLICT(collection_id, track_id) DO UPDATE SET
-                position = excluded.position
-            ",
-            params![collection_id.as_str(), track_id.as_str(), position],
-        )
-        .map_err(db::db_err)?;
+        self.store()
+            .upsert_collection_track(collection_id, track_id, position)?;
         Ok(())
     }
 
@@ -895,18 +568,10 @@ impl WritableLibrary for LibraryManager {
         track_id: &TrackId,
     ) -> Result<()> {
         let _ = self.require_playlist(collection_id)?;
-        let changed = {
-            let conn = self.lock_conn()?;
-            conn.execute(
-                "
-                DELETE FROM collection_tracks
-                WHERE collection_id = ?1 AND track_id = ?2
-                ",
-                params![collection_id.as_str(), track_id.as_str()],
-            )
-            .map_err(db::db_err)?
-        };
-        if changed == 0 {
+        if !self
+            .store()
+            .delete_collection_track(collection_id, track_id)?
+        {
             return Err(LibraryError::NotFound(format!(
                 "{collection_id}/{track_id}"
             )));
@@ -938,16 +603,9 @@ impl WritableLibrary for LibraryManager {
             });
         }
 
-        let conn = self.lock_conn()?;
         for (pos, track_id) in track_ids.iter().enumerate() {
-            conn.execute(
-                "
-                UPDATE collection_tracks SET position = ?1
-                WHERE collection_id = ?2 AND track_id = ?3
-                ",
-                params![pos as i32, collection_id.as_str(), track_id.as_str()],
-            )
-            .map_err(db::db_err)?;
+            self.store()
+                .set_collection_track_position(collection_id, track_id, pos as i32)?;
         }
         Ok(())
     }
@@ -1187,35 +845,19 @@ mod tests {
     }
 
     #[test]
-    fn merge_analyzed_metadata_force_overrides_tags() {
-        let tags = TrackMetadata {
-            bpm: Some(120.0),
-            key: Some("Am".into()),
-            ..TrackMetadata::default()
-        };
-        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), true);
-        assert_eq!(merged.bpm, Some(128.0));
-        assert_eq!(merged.key.as_deref(), Some("F#m"));
-    }
+    #[cfg(feature = "analysis")]
+    fn analyze_track_persists_track_analysis() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("song.wav");
+        write_minimal_wav(&wav);
 
-    #[test]
-    fn merge_analyzed_metadata_keeps_tags_when_not_forced() {
-        let tags = TrackMetadata {
-            bpm: Some(120.0),
-            key: Some("Am".into()),
-            ..TrackMetadata::default()
-        };
-        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), false);
-        assert_eq!(merged.bpm, Some(120.0));
-        assert_eq!(merged.key.as_deref(), Some("Am"));
-    }
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        lib.analyze_track(track.id(), AnalyzeTrackOptions::default())
+            .unwrap();
 
-    #[test]
-    fn merge_analyzed_metadata_fills_missing_when_not_forced() {
-        let tags = TrackMetadata::default();
-        let merged = merge_analyzed_metadata(&tags, Some(128.0), Some("F#m"), false);
-        assert_eq!(merged.bpm, Some(128.0));
-        assert_eq!(merged.key.as_deref(), Some("F#m"));
+        let count = lib.store().count_track_analysis(track.id()).unwrap();
+        assert_eq!(count, 1);
     }
 
     #[test]

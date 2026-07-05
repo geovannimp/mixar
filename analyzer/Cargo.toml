@@ -1,0 +1,18 @@
+[package]
+name = "analyzer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Offline audio analysis for rust-dj-engine (decode + default backend)"
+
+[dependencies]
+analyzer-core = { path = "../analyzer-core" }
+analyzer-stratum = { path = "../analyzer-stratum" }
+codec = { path = "../codec" }
+anyhow.workspace = true
+
+[dev-dependencies]
+hound = "3.5"
+tempfile = "3.0"

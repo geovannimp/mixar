@@ -10,8 +10,10 @@ use log::info;
 use std::path::Path;
 
 fn main() -> Result<()> {
-    // Default to info-level logs when RUST_LOG is not set.
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    // Disable sqlx query logs; SeaORM logs statements with bound parameters via
+    // the `sea_orm` target when RUST_LOG includes `sea_orm=debug`.
+    let env = env_logger::Env::default().filter_or("RUST_LOG", "info,sea_orm=debug,sqlx=warn");
+    env_logger::Builder::from_env(env).init();
 
     info!("Starting rust-dj-engine example");
 
