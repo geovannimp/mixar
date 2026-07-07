@@ -72,18 +72,6 @@ export function useEngine() {
     [loadTrack],
   );
 
-  const loadSample = useCallback(
-    async (deckId: number) => {
-      const samplePath = await invoke<string | null>("sample_track_path");
-      if (!samplePath) {
-        setError("Sample track not found. Use Load file instead.");
-        return;
-      }
-      await loadTrack(deckId, samplePath);
-    },
-    [loadTrack],
-  );
-
   const loadLibraryTrackToDeck = useCallback(
     async (deckId: number, trackId: string) => {
       await runAction(async () => {
@@ -118,7 +106,6 @@ export function useEngine() {
     toggleEngine,
     loadLibraryTrackToDeck,
     pickTrack,
-    loadSample,
     playDeck,
     pauseDeck,
   };

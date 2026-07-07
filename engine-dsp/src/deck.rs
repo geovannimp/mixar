@@ -263,14 +263,6 @@ impl Deck {
             // after playback the buffer may already be the right length with stale audio.
             self.buffer.resize(frames as usize * 2, 0.0);
             self.buffer.fill(0.0);
-                                                          // Debug: Log deck state
-            static mut STATE_LOG_COUNT: u32 = 0;
-            unsafe {
-                STATE_LOG_COUNT += 1;
-                if STATE_LOG_COUNT.is_multiple_of(100) {
-                    log::warn!("Deck {} not playing, state: {:?}", self.id, self.state);
-                }
-            }
             return Ok(&self.buffer);
         }
 

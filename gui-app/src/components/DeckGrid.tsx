@@ -7,9 +7,7 @@ interface DeckGridProps {
   engineRunning: boolean;
   busy: boolean;
   onPickTrack: (deckId: number) => void;
-  onLoadSample: (deckId: number) => void;
-  onPlay: (deckId: number) => void;
-  onPause: (deckId: number) => void;
+  onTogglePlayback: (deckId: number, playing: boolean) => void;
 }
 
 function defaultDecks(): DeckStatus[] {
@@ -21,9 +19,7 @@ export function DeckGrid({
   engineRunning,
   busy,
   onPickTrack,
-  onLoadSample,
-  onPlay,
-  onPause,
+  onTogglePlayback,
 }: DeckGridProps) {
   const deckList = decks.length > 0 ? decks : defaultDecks();
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -36,9 +32,9 @@ export function DeckGrid({
         engineRunning={engineRunning}
         busy={busy}
         onPickTrack={() => onPickTrack(deckList[0].id)}
-        onLoadSample={() => onLoadSample(deckList[0].id)}
-        onPlay={() => onPlay(deckList[0].id)}
-        onPause={() => onPause(deckList[0].id)}
+        onTogglePlayback={() =>
+          onTogglePlayback(deckList[0].id, deckList[0].playing)
+        }
       />
 
       <div
@@ -61,9 +57,9 @@ export function DeckGrid({
         engineRunning={engineRunning}
         busy={busy}
         onPickTrack={() => onPickTrack(deckList[1].id)}
-        onLoadSample={() => onLoadSample(deckList[1].id)}
-        onPlay={() => onPlay(deckList[1].id)}
-        onPause={() => onPause(deckList[1].id)}
+        onTogglePlayback={() =>
+          onTogglePlayback(deckList[1].id, deckList[1].playing)
+        }
       />
     </section>
   );

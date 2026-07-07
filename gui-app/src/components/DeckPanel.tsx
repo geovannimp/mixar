@@ -9,9 +9,7 @@ interface DeckPanelProps {
   engineRunning: boolean;
   busy: boolean;
   onPickTrack: () => void;
-  onLoadSample: () => void;
-  onPlay: () => void;
-  onPause: () => void;
+  onTogglePlayback: () => void;
 }
 
 export function DeckPanel({
@@ -20,9 +18,7 @@ export function DeckPanel({
   engineRunning,
   busy,
   onPickTrack,
-  onLoadSample,
-  onPlay,
-  onPause,
+  onTogglePlayback,
 }: DeckPanelProps) {
   const trackTitle = deck.track ? fileName(deck.track) : "No track loaded";
 
@@ -62,7 +58,7 @@ export function DeckPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap sm:justify-center sm:gap-1.5">
+      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
         <button
           type="button"
           className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs border-white/15 bg-white/5 hover:bg-white/10`}
@@ -73,27 +69,11 @@ export function DeckPanel({
         </button>
         <button
           type="button"
-          className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs border-white/15 bg-white/5 hover:bg-white/10`}
-          disabled={busy || !engineRunning}
-          onClick={onLoadSample}
-        >
-          Sample
-        </button>
-        <button
-          type="button"
           className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs ${accent.button}`}
           disabled={busy || !engineRunning || !deck.track}
-          onClick={onPlay}
+          onClick={onTogglePlayback}
         >
-          Play
-        </button>
-        <button
-          type="button"
-          className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs border-white/15 bg-white/5 hover:bg-white/10`}
-          disabled={busy || !engineRunning || !deck.playing}
-          onClick={onPause}
-        >
-          Pause
+          {deck.playing ? "Pause" : "Play"}
         </button>
       </div>
     </section>

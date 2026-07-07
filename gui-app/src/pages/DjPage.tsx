@@ -10,12 +10,19 @@ export function DjPage() {
     busy,
     loadLibraryTrackToDeck,
     pickTrack,
-    loadSample,
     playDeck,
     pauseDeck,
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
+
+  const toggleDeckPlayback = (deckId: number, playing: boolean) => {
+    if (playing) {
+      void pauseDeck(deckId);
+      return;
+    }
+    void playDeck(deckId);
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -30,9 +37,7 @@ export function DjPage() {
         engineRunning={engineRunning}
         busy={busy}
         onPickTrack={pickTrack}
-        onLoadSample={loadSample}
-        onPlay={playDeck}
-        onPause={pauseDeck}
+        onTogglePlayback={toggleDeckPlayback}
       />
 
       <LibraryPanel
