@@ -1,3 +1,4 @@
+import { Pause, Play } from "lucide-react";
 import { buttonTransport, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 import { fileName } from "../lib/format";
 import type { DeckStatus } from "../types";
@@ -12,6 +13,9 @@ interface DeckPanelProps {
   onTogglePlayback: () => void;
 }
 
+const vinylSizeClass =
+  "h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20";
+
 export function DeckPanel({
   accent,
   deck,
@@ -21,6 +25,8 @@ export function DeckPanel({
   onTogglePlayback,
 }: DeckPanelProps) {
   const trackTitle = deck.track ? fileName(deck.track) : "No track loaded";
+  const loadDisabled = busy || !engineRunning;
+  const hasTrack = Boolean(deck.track);
 
   return (
     <section
@@ -50,30 +56,62 @@ export function DeckPanel({
 
       <div className="flex items-center justify-center py-1 sm:py-2">
         <div
-          className={`flex h-12 w-12 items-center justify-center rounded-full border-[3px] sm:h-16 sm:w-16 sm:border-4 md:h-20 md:w-20 ${accent.ring} bg-zinc-900/80 shadow-inner`}
+          className={`relative ${vinylSizeClass} rounded-full border-[3px] sm:border-4 ${accent.ring} bg-zinc-900/80 shadow-inner`}
         >
-          <span className={`text-[10px] font-semibold uppercase sm:text-xs ${accent.text}`}>
-            {deck.playing ? "▶" : "○"}
-          </span>
+          {!hasTrack ? (
+            <button
+              type="button"
+              className={`${buttonTransport} flex size-full items-center justify-center rounded-full border-white/15 bg-zinc-900/90 px-0 py-0 text-[10px] font-semibold uppercase tracking-wide hover:bg-zinc-800/90 sm:text-xs`}
+              disabled={loadDisabled}
+              aria-label="Load track"
+              title="Load track"
+              onClick={onPickTrack}
+            >
+              Load
+            </button>
+          ) : (
+            <div className="group relative size-full overflow-hidden rounded-full">
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${accent.waveform} opacity-90`}
+                aria-hidden
+              />
+              <div
+                className={`pointer-events-none absolute left-1/2 top-1/2 flex h-[38%] w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-zinc-900/85 shadow-inner ${accent.ring}`}
+                aria-hidden
+              >
+                <span className={`text-[8px] font-semibold sm:text-[10px] ${accent.text}`}>
+                  {deck.playing ? "▶" : "○"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className={`${buttonTransport} absolute inset-0 flex items-center justify-center rounded-full bg-black/55 px-0 py-0 text-[10px] font-semibold uppercase tracking-wide opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-black/65 focus:opacity-100 sm:text-xs`}
+                disabled={loadDisabled}
+                aria-label="Load track"
+                title="Load track"
+                onClick={onPickTrack}
+              >
+                Load
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2">
+      <div className="flex justify-center">
         <button
           type="button"
-          className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs border-white/15 bg-white/5 hover:bg-white/10`}
-          disabled={busy || !engineRunning}
-          onClick={onPickTrack}
-        >
-          Load
-        </button>
-        <button
-          type="button"
-          className={`${buttonTransport} px-2 py-1 text-[10px] sm:px-3 sm:py-1.5 sm:text-xs ${accent.button}`}
+          className={`${buttonTransport} inline-flex items-center justify-center px-2.5 py-1.5 sm:px-3 sm:py-2 ${accent.button}`}
           disabled={busy || !engineRunning || !deck.track}
+          aria-label={deck.playing ? "Pause" : "Play"}
+          title={deck.playing ? "Pause" : "Play"}
           onClick={onTogglePlayback}
         >
-          {deck.playing ? "Pause" : "Play"}
+          {deck.playing ? (
+            <Pause className="size-4 sm:size-[1.125rem]" aria-hidden />
+          ) : (
+            <Play className="size-4 sm:size-[1.125rem]" aria-hidden />
+          )}
         </button>
       </div>
     </section>
