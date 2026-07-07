@@ -14,6 +14,7 @@ export function useLibrary() {
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [analyzingTrackId, setAnalyzingTrackId] = useState<string | null>(null);
 
   const refreshCollections = useCallback(async () => {
     const next = await invoke<CollectionSummary[]>("list_collections");
@@ -81,6 +82,21 @@ export function useLibrary() {
     }
   }, [refreshCollections, refreshTracks]);
 
+  const analyzeTrack = useCallback(async (trackId: string) => {
+    setAnalyzingTrackId(trackId);
+    setError(null);
+    try {
+      const updated = await invoke<TrackSummary>("analyze_library_track", { trackId });
+      setTracks((current) =>
+        current.map((track) => (track.id === trackId ? updated : track)),
+      );
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setAnalyzingTrackId(null);
+    }
+  }, []);
+
   return {
     collections,
     selectedCollectionId,
@@ -88,7 +104,9 @@ export function useLibrary() {
     scanMessage,
     error,
     busy,
+    analyzingTrackId,
     setSelectedCollectionId,
     addFolderCollection,
+    analyzeTrack,
   };
 }

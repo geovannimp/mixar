@@ -20,16 +20,14 @@ function App() {
   const engineRunning = Boolean(status?.running);
 
   return (
-    <div className="flex min-h-screen flex-col gap-5 bg-zinc-950 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.08),transparent_35%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.08),transparent_35%)] p-6">
+    <div className="flex h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
       <AppHeader status={status} busy={busy} onToggleEngine={toggleEngine} />
 
-      {error && <MessageBanner message={error} variant="error" />}
-
-      <LibraryPanel
-        engineRunning={engineRunning}
-        engineBusy={busy}
-        onLoadToDeck={loadLibraryTrackToDeck}
-      />
+      {error && (
+        <div className="shrink-0 px-4 pt-3">
+          <MessageBanner message={error} variant="error" />
+        </div>
+      )}
 
       <DeckGrid
         decks={status?.decks ?? []}
@@ -41,9 +39,11 @@ function App() {
         onPause={pauseDeck}
       />
 
-      <footer className="text-sm text-slate-500">
-        Add a folder collection, pick a track, load it to deck A or B, then hit Play.
-      </footer>
+      <LibraryPanel
+        engineRunning={engineRunning}
+        engineBusy={busy}
+        onLoadToDeck={loadLibraryTrackToDeck}
+      />
     </div>
   );
 }

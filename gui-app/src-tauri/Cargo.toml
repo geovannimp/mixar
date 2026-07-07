@@ -23,4 +23,4 @@ log = "0.4"
 env_logger = "0.10"
 engine-core = { path = "../../engine-core", features = ["backend-cpal"] }
 library-core = { path = "../../library-core" }
-library = { path = "../../library", default-features = false }
+library = { path = "../../library", features = ["analysis"] }

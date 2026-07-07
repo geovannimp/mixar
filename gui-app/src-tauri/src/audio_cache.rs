@@ -49,7 +49,7 @@ pub(crate) fn decode_file(path: &str) -> Result<LoadedAudio, String> {
 }
 
 pub(crate) async fn get_or_decode(
-    app_state: &State<'_, Mutex<crate::AppState>>,
+    app_state: &State<'_, Arc<Mutex<crate::AppState>>>,
     cache_key: String,
     path: String,
 ) -> Result<Arc<LoadedAudio>, String> {

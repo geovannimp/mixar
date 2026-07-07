@@ -1,9 +1,9 @@
 use engine_core::{Engine, EngineConfig};
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
-use library_core::{CollectionId, Library, LibrarySource, TrackId};
+use library_core::{AnalyzeTrackOptions, CollectionId, Library, LibrarySource, TrackId};
 use serde::Serialize;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 mod audio_cache;
@@ -11,6 +11,8 @@ mod audio_cache;
 use audio_cache::{get_or_decode, AudioCache};
 
 const NUM_DECKS: usize = 2;
+
+type SharedAppState = Arc<Mutex<AppState>>;
 
 #[derive(Debug, Clone, Default, Serialize)]
 struct DeckInfo {
@@ -55,6 +57,11 @@ struct TrackSummary {
     display_name: String,
     artist: Option<String>,
     title: Option<String>,
+    album: Option<String>,
+    genre: Option<String>,
+    bpm: Option<f64>,
+    key: Option<String>,
+    duration_secs: Option<f64>,
     path: String,
 }
 
@@ -101,11 +108,17 @@ fn track_display_name(source: &LibrarySource) -> String {
 
 fn track_summary(source: &LibrarySource) -> Option<TrackSummary> {
     let file = source.file()?;
+    let metadata = source.metadata();
     Some(TrackSummary {
         id: source.id().as_str().to_string(),
         display_name: track_display_name(source),
-        artist: source.metadata().artist.clone(),
-        title: source.metadata().title.clone(),
+        artist: metadata.artist.clone(),
+        title: metadata.title.clone(),
+        album: metadata.album.clone(),
+        genre: metadata.genre.clone(),
+        bpm: metadata.bpm,
+        key: metadata.key.clone(),
+        duration_secs: metadata.duration_secs,
         path: file.path().to_string_lossy().into_owned(),
     })
 }
@@ -142,7 +155,7 @@ where
 }
 
 #[tauri::command]
-fn start_engine(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, String> {
+fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     if state.engine.is_some() {
         return Ok(engine_status(&state));
@@ -159,7 +172,7 @@ fn start_engine(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, Strin
 }
 
 #[tauri::command]
-fn stop_engine(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, String> {
+fn stop_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     if let Some(mut engine) = state.engine.take() {
         engine.stop().map_err(|e| e.to_string())?;
@@ -173,13 +186,13 @@ fn stop_engine(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, String
 }
 
 #[tauri::command]
-fn get_status(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, String> {
+fn get_status(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     Ok(engine_status(&state))
 }
 
 #[tauri::command]
-fn list_collections(state: State<'_, Mutex<AppState>>) -> Result<Vec<CollectionSummary>, String> {
+fn list_collections(state: State<'_, SharedAppState>) -> Result<Vec<CollectionSummary>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let collections = state.library.list_collections().map_err(|e| e.to_string())?;
     collections
@@ -191,7 +204,7 @@ fn list_collections(state: State<'_, Mutex<AppState>>) -> Result<Vec<CollectionS
 #[tauri::command]
 fn add_folder_collection(
     folder_path: String,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, SharedAppState>,
 ) -> Result<AddFolderCollectionResult, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     let collection = state
@@ -213,7 +226,7 @@ fn add_folder_collection(
 #[tauri::command]
 fn list_collection_tracks(
     collection_id: String,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, SharedAppState>,
 ) -> Result<Vec<TrackSummary>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let tracks = state
@@ -225,10 +238,28 @@ fn list_collection_tracks(
 }
 
 #[tauri::command]
+async fn analyze_library_track(
+    track_id: String,
+    state: State<'_, SharedAppState>,
+) -> Result<TrackSummary, String> {
+    let state = Arc::clone(state.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        let source = guard
+            .library
+            .analyze_track(&TrackId::new(track_id), AnalyzeTrackOptions::default())
+            .map_err(|e| e.to_string())?;
+        track_summary(&source).ok_or_else(|| "Only file tracks can be analyzed.".to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 async fn load_track(
     deck_id: usize,
     path: String,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
@@ -253,7 +284,7 @@ async fn load_track(
 async fn load_library_track_to_deck(
     deck_id: usize,
     track_id: String,
-    state: State<'_, Mutex<AppState>>,
+    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
@@ -292,7 +323,7 @@ async fn load_library_track_to_deck(
 }
 
 #[tauri::command]
-fn play_deck(deck_id: usize, state: State<'_, Mutex<AppState>>) -> Result<DeckStatus, String> {
+fn play_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -310,7 +341,7 @@ fn play_deck(deck_id: usize, state: State<'_, Mutex<AppState>>) -> Result<DeckSt
 }
 
 #[tauri::command]
-fn pause_deck(deck_id: usize, state: State<'_, Mutex<AppState>>) -> Result<DeckStatus, String> {
+fn pause_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -354,12 +385,12 @@ pub fn run() {
             let library = LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
                 .map_err(|err| err.to_string())?;
 
-            app.manage(Mutex::new(AppState {
+            app.manage(Arc::new(Mutex::new(AppState {
                 library,
                 engine: None,
                 decks: Default::default(),
                 audio_cache: AudioCache::new(),
-            }));
+            })));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -369,6 +400,7 @@ pub fn run() {
             list_collections,
             add_folder_collection,
             list_collection_tracks,
+            analyze_library_track,
             load_track,
             load_library_track_to_deck,
             play_deck,

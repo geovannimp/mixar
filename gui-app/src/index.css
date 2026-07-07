@@ -5,5 +5,5 @@ body {
 }
 
 #root {
-  @apply min-h-screen;
+  @apply h-screen min-h-0 overflow-hidden;
 }

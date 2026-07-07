@@ -24,6 +24,11 @@ export interface TrackSummary {
   display_name: string;
   artist: string | null;
   title: string | null;
+  album: string | null;
+  genre: string | null;
+  bpm: number | null;
+  key: string | null;
+  duration_secs: number | null;
   path: string;
 }
 

@@ -14,15 +14,14 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     let sample_rate = decoder.sample_rate();
     let channels = decoder.channels().max(1) as usize;
 
-    let max_samples = config
+    let max_frames = config
         .max_duration_secs
-        .map(|secs| (secs * f64::from(sample_rate)).ceil() as usize)
-        .unwrap_or(usize::MAX);
+        .map(|secs| (secs * f64::from(sample_rate)).ceil() as usize);
 
     let mut interleaved = Vec::new();
     let mut chunk = vec![0.0f32; 8192 * channels];
 
-    while interleaved.len() / channels < max_samples {
+    while max_frames.is_none_or(|limit| interleaved.len() / channels < limit) {
         let read = decoder.read_frames(&mut chunk)?;
         if read == 0 {
             break;
@@ -30,8 +29,11 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
         interleaved.extend_from_slice(&chunk[..read]);
     }
 
-    if interleaved.len() > max_samples * channels {
-        interleaved.truncate(max_samples * channels);
+    if let Some(limit) = max_frames {
+        let max_len = limit.saturating_mul(channels);
+        if interleaved.len() > max_len {
+            interleaved.truncate(max_len);
+        }
     }
 
     let mono = downmix_to_mono(&interleaved, channels);
@@ -59,6 +61,22 @@ fn downmix_to_mono(interleaved: &[f32], channels: usize) -> Vec<f32> {
 mod tests {
     use super::*;
 
+    fn write_stereo_wav(path: &Path, frames: u32) {
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 44100,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(path, spec).unwrap();
+        for i in 0..frames {
+            let sample = (i % 100) as i16;
+            writer.write_sample(sample).unwrap();
+            writer.write_sample(sample).unwrap();
+        }
+        writer.finalize().unwrap();
+    }
+
     #[test]
     fn downmix_averages_channels() {
         let interleaved = vec![1.0, -1.0, 0.5, 0.5];
@@ -66,5 +84,16 @@ mod tests {
         assert_eq!(mono.len(), 2);
         assert!((mono[0] - 0.0).abs() < f32::EPSILON);
         assert!((mono[1] - 0.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn decode_unlimited_duration_stereo_does_not_overflow() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("stereo.wav");
+        write_stereo_wav(&wav, 2048);
+
+        let config = AnalysisConfig::default();
+        let decoded = decode_mono(&wav, &config).unwrap();
+        assert_eq!(decoded.samples.len(), 2048);
     }
 }
