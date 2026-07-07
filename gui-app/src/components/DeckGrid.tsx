@@ -25,7 +25,7 @@ export function DeckGrid({
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
 
   return (
-    <section className="grid max-h-[min(40vh,22rem)] min-h-0 shrink-0 grid-cols-2 overflow-y-auto border-b border-white/8 md:max-h-[min(45vh,28rem)] md:grid-cols-[1fr_auto_1fr]">
+    <section className="grid h-full min-h-0 grid-cols-2 grid-rows-1 md:grid-cols-[1fr_auto_1fr]">
       <DeckPanel
         accent={accents[0]}
         deck={deckList[0]}
@@ -39,7 +39,7 @@ export function DeckGrid({
 
       <div
         aria-hidden
-        className="hidden flex-col items-center justify-end gap-2 border-x border-white/6 bg-zinc-900/50 px-2 py-3 md:flex"
+        className="hidden h-full min-h-0 flex-col items-center justify-end gap-2 border-x border-white/6 bg-zinc-900/50 px-2 py-3 md:flex"
       >
         <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
           Mixer

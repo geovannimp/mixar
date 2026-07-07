@@ -1,3 +1,9 @@
+import { useDefaultLayout } from "react-resizable-panels";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { useLibrary } from "../hooks/useLibrary";
 import { buttonIcon } from "../lib/ui";
 import { CollectionList } from "./CollectionList";
@@ -34,8 +40,13 @@ export function LibraryPanel({
 
   const panelBusy = busy || engineBusy;
 
+  const librarySplit = useDefaultLayout({
+    id: "library-split-v2",
+    panelIds: ["collections", "tracks"],
+  });
+
   return (
-    <section className="flex min-h-0 flex-1 flex-col border-t border-white/8 bg-zinc-900/40">
+    <section className="flex h-full min-h-0 flex-col bg-zinc-900/40">
       {(error || scanMessage) && (
         <div className="shrink-0 space-y-2 px-4 pt-3">
           {error && <MessageBanner message={error} variant="error" />}
@@ -45,49 +56,71 @@ export function LibraryPanel({
         </div>
       )}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[minmax(140px,200px)_1fr]">
-        <aside className="flex min-h-0 flex-col border-b border-white/6 sm:border-b-0 sm:border-r">
-          <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-              Collections
-            </p>
-            <button
-              type="button"
-              className={`${buttonIcon} border-amber-500/35 bg-amber-500/12 hover:bg-amber-500/20`}
-              disabled={panelBusy}
-              title="Add folder collection"
-              aria-label="Add folder collection"
-              onClick={addFolderCollection}
-            >
-              +
-            </button>
-          </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 sm:max-h-none">
-            <CollectionList
-              collections={collections}
-              selectedCollectionId={selectedCollectionId}
-              onSelectCollection={setSelectedCollectionId}
-            />
-          </div>
-        </aside>
+      <ResizablePanelGroup
+        id="library-split-v2"
+        orientation="horizontal"
+        className="min-h-0 flex-1"
+        defaultLayout={librarySplit.defaultLayout}
+        onLayoutChanged={librarySplit.onLayoutChanged}
+      >
+        <ResizablePanel
+          id="collections"
+          defaultSize="24"
+          minSize="140px"
+          maxSize="50"
+          className="min-h-0 overflow-hidden"
+        >
+          <aside className="flex h-full min-h-0 flex-col">
+            <div className="flex shrink-0 items-center justify-between gap-2 px-3 py-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                Collections
+              </p>
+              <button
+                type="button"
+                className={`${buttonIcon} border-amber-500/35 bg-amber-500/12 hover:bg-amber-500/20`}
+                disabled={panelBusy}
+                title="Add folder collection"
+                aria-label="Add folder collection"
+                onClick={addFolderCollection}
+              >
+                +
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
+              <CollectionList
+                collections={collections}
+                selectedCollectionId={selectedCollectionId}
+                onSelectCollection={setSelectedCollectionId}
+              />
+            </div>
+          </aside>
+        </ResizablePanel>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <p className="shrink-0 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-            {selectedCollection ? selectedCollection.name : "Tracks"}
-          </p>
-          <div className="min-h-0 flex-1 overflow-auto px-2 pb-3">
-            <TrackList
-              tracks={tracks}
-              selectedCollection={selectedCollection}
-              engineRunning={engineRunning}
-              busy={panelBusy}
-              analyzingTrackId={analyzingTrackId}
-              onLoadToDeck={onLoadToDeck}
-              onAnalyze={analyzeTrack}
-            />
+        <ResizableHandle withHandle className="bg-white/6 hover:bg-emerald-500/25" />
+
+        <ResizablePanel
+          id="tracks"
+          minSize="35"
+          className="min-h-0 overflow-hidden"
+        >
+          <div className="flex h-full min-h-0 flex-col">
+            <p className="shrink-0 px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+              {selectedCollection ? selectedCollection.name : "Tracks"}
+            </p>
+            <div className="min-h-0 flex-1 overflow-auto px-2 pb-3">
+              <TrackList
+                tracks={tracks}
+                selectedCollection={selectedCollection}
+                engineRunning={engineRunning}
+                busy={panelBusy}
+                analyzingTrackId={analyzingTrackId}
+                onLoadToDeck={onLoadToDeck}
+                onAnalyze={analyzeTrack}
+              />
+            </div>
           </div>
-        </div>
-      </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </section>
   );
 }
