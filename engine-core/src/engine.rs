@@ -1,4 +1,4 @@
-use audio_core::AudioSource;
+use audio_core::LoadedAudio;
 use crate::backend::create_backend;
 use crate::callback::ConsumerCallback;
 use crate::config::{DeviceConfig, EngineConfig};
@@ -225,15 +225,15 @@ impl Engine {
         Ok(())
     }
 
-    /// Load a track into a deck from an audio source.
-    pub fn load_track(&mut self, deck_id: usize, source: &impl AudioSource) -> Result<()> {
+    /// Load a shared decoded track into a deck.
+    pub fn load_track(&mut self, deck_id: usize, audio: Arc<LoadedAudio>) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.load(source)?;
+            deck.load(audio)?;
             log::info!("Track loaded into deck {}", deck_id);
             Ok(())
         } else {
@@ -358,8 +358,18 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use audio_core::{AudioSource, BusId, ChannelMapping, DeviceId, LoadedAudio};
     use library_core::FileAudioSource;
-    use audio_core::{BusId, ChannelMapping, DeviceId};
+    use std::sync::Arc;
+
+    fn empty_audio() -> Arc<LoadedAudio> {
+        Arc::new(LoadedAudio {
+            samples: vec![],
+            sample_rate: 48_000,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        })
+    }
 
     #[test]
     fn test_engine_creation() {
@@ -378,19 +388,20 @@ mod tests {
 
         assert!(engine.play(0).is_err());
         assert!(engine.pause(0).is_err());
-        assert!(engine
-            .load_track(0, &FileAudioSource::from_path("test.mp3"))
-            .is_err());
+        assert!(engine.load_track(0, empty_audio()).is_err());
 
         engine.start().unwrap();
 
         assert!(engine.play(0).is_ok());
         assert!(engine.pause(0).is_ok());
-        assert!(engine
-            .load_track(0, &FileAudioSource::from_path("test.mp3"))
-            .unwrap_err()
-            .to_string()
-            .contains("not found"));
+        let missing = FileAudioSource::from_path("test.mp3").load();
+        assert!(missing.is_err());
+        assert!(
+            missing
+                .unwrap_err()
+                .to_string()
+                .contains("not found")
+        );
 
         assert!(engine.play(2).is_err());
 

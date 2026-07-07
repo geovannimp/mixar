@@ -4,7 +4,7 @@
 //! lives in `library`; third-party adapters live in `library-adapters`.
 //!
 //! [`LibrarySource`] implements [`AudioSource`] so library entries load directly
-//! into the engine: `engine.load_track(0, &source)?`.
+//! into the engine: `engine.load_track(0, Arc::new(source.load()?))?`.
 
 mod audio_source;
 mod error;

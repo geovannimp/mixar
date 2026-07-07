@@ -1,10 +1,14 @@
 use engine_core::{Engine, EngineConfig};
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
-use library_core::{CollectionId, FileAudioSource, Library, LibrarySource, TrackId};
+use library_core::{CollectionId, Library, LibrarySource, TrackId};
 use serde::Serialize;
 use std::path::Path;
 use std::sync::Mutex;
 use tauri::{Manager, State};
+
+mod audio_cache;
+
+use audio_cache::{get_or_decode, AudioCache};
 
 const NUM_DECKS: usize = 2;
 
@@ -18,6 +22,7 @@ struct AppState {
     library: LibraryManager,
     engine: Option<Engine>,
     decks: [DeckInfo; NUM_DECKS],
+    audio_cache: AudioCache,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -161,7 +166,9 @@ fn stop_engine(state: State<'_, Mutex<AppState>>) -> Result<EngineStatus, String
     }
     for deck in &mut state.decks {
         deck.playing = false;
+        deck.track = None;
     }
+    state.audio_cache.prune();
     Ok(engine_status(&state))
 }
 
@@ -218,7 +225,7 @@ fn list_collection_tracks(
 }
 
 #[tauri::command]
-fn load_track(
+async fn load_track(
     deck_id: usize,
     path: String,
     state: State<'_, Mutex<AppState>>,
@@ -226,14 +233,15 @@ fn load_track(
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    if !Path::new(&path).exists() {
-        return Err(format!("File not found: {path}"));
-    }
+
+    let cache_key = path.clone();
+    let audio = get_or_decode(&state, cache_key, path.clone()).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let source = FileAudioSource::from_path(&path);
     with_engine(&mut state, |engine| {
-        engine.load_track(deck_id, &source).map_err(|e| e.to_string())
+        engine
+            .load_track(deck_id, audio)
+            .map_err(|e| e.to_string())
     })?;
 
     state.decks[deck_id].track = Some(path);
@@ -242,7 +250,7 @@ fn load_track(
 }
 
 #[tauri::command]
-fn load_library_track_to_deck(
+async fn load_library_track_to_deck(
     deck_id: usize,
     track_id: String,
     state: State<'_, Mutex<AppState>>,
@@ -251,22 +259,31 @@ fn load_library_track_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
+    let (path, cache_key) = {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        let source = state
+            .library
+            .get_track(&TrackId::new(track_id))
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Track not found in library.".to_string())?;
+
+        let path = source
+            .file()
+            .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
+            .path()
+            .to_string_lossy()
+            .into_owned();
+
+        (path.clone(), path)
+    };
+
+    let audio = get_or_decode(&state, cache_key, path.clone()).await?;
+
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let source = state
-        .library
-        .get_track(&TrackId::new(track_id))
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "Track not found in library.".to_string())?;
-
-    let path = source
-        .file()
-        .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
-        .path()
-        .to_string_lossy()
-        .into_owned();
-
     with_engine(&mut state, |engine| {
-        engine.load_track(deck_id, &source).map_err(|e| e.to_string())
+        engine
+            .load_track(deck_id, audio)
+            .map_err(|e| e.to_string())
     })?;
 
     state.decks[deck_id].track = Some(path);
@@ -341,6 +358,7 @@ pub fn run() {
                 library,
                 engine: None,
                 decks: Default::default(),
+                audio_cache: AudioCache::new(),
             }));
             Ok(())
         })

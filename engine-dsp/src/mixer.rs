@@ -248,6 +248,7 @@ impl Mixer {
 mod tests {
     use super::*;
     use audio_core::LoadedAudio;
+    use std::sync::Arc;
 
     #[test]
     fn test_mixer_creation() {
@@ -274,7 +275,7 @@ mod tests {
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(&audio).unwrap();
+        deck.load(Arc::new(audio)).unwrap();
     }
 
     #[test]

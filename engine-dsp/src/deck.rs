@@ -4,10 +4,11 @@
 //! play/pause, volume, pitch, and other DJ-style features.
 
 use anyhow::Result;
-use audio_core::{AudioSource, Sample};
+use audio_core::{LoadedAudio, Sample};
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -40,12 +41,8 @@ pub struct Deck {
     buffer: Vec<Sample>,
     /// Whether the deck is currently processing audio
     processing: bool,
-    /// Loaded audio samples (interleaved stereo)
-    audio_samples: Option<Vec<Sample>>,
-    /// Native sample rate of the loaded source
-    original_sample_rate: Option<u32>,
-    /// File path of loaded track
-    file_path: Option<String>,
+    /// Shared decoded audio (cache and multiple decks can reference the same buffer).
+    loaded: Option<Arc<LoadedAudio>>,
     /// Resampler for converting between sample rates (created on load when needed)
     resampler: Option<Box<dyn Resampler>>,
 }
@@ -62,11 +59,13 @@ impl fmt::Debug for Deck {
             .field("buffer_size", &self.buffer_size)
             .field("processing", &self.processing)
             .field(
-                "audio_samples",
-                &self.audio_samples.as_ref().map(|s| s.len()),
+                "loaded",
+                &self.loaded.as_ref().map(|audio| audio.samples.len()),
             )
-            .field("original_sample_rate", &self.original_sample_rate)
-            .field("file_path", &self.file_path)
+            .field(
+                "source_id",
+                &self.loaded.as_ref().map(|audio| audio.source_id.as_str()),
+            )
             .field("resampler", &"<resampler>")
             .finish()
     }
@@ -85,9 +84,7 @@ impl Deck {
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
             processing: false,
-            audio_samples: None,
-            original_sample_rate: None,
-            file_path: None,
+            loaded: None,
             resampler: None,
         }
     }
@@ -170,7 +167,7 @@ impl Deck {
     /// Create or clear the resampler based on the loaded source rate and the
     /// immutable engine output clock. Called on load only.
     fn create_resampler(&mut self) -> Result<()> {
-        let Some(source_rate) = self.original_sample_rate else {
+        let Some(source_rate) = self.loaded.as_ref().map(|audio| audio.sample_rate) else {
             self.resampler = None;
             return Ok(());
         };
@@ -208,52 +205,47 @@ impl Deck {
         }
     }
 
-    /// Load audio from a source at its native sample rate.
-    /// Creates a resampler when the source rate differs from the engine rate.
-    pub fn load(&mut self, source: &impl AudioSource) -> Result<()> {
-        let loaded = source.load()?;
-        self.original_sample_rate = Some(loaded.sample_rate);
-        self.file_path = Some(loaded.source_id.clone());
+    /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
+    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
         self.position = 0;
-        self.audio_samples = Some(loaded.samples);
+        self.loaded = Some(audio);
         self.create_resampler()?;
 
-        log::info!(
-            "Loaded audio into deck {} from {}: {} source frames at {} Hz ({} channels, engine: {} Hz)",
-            self.id,
-            loaded.source_id,
-            self.audio_samples
-                .as_ref()
-                .map(|s| s.len() / 2)
-                .unwrap_or(0),
-            loaded.sample_rate,
-            loaded.channels,
-            self.sample_rate
-        );
+        if let Some(loaded) = self.loaded.as_ref() {
+            log::info!(
+                "Loaded audio into deck {} from {}: {} source frames at {} Hz ({} channels, engine: {} Hz)",
+                self.id,
+                loaded.source_id,
+                loaded.samples.len() / 2,
+                loaded.sample_rate,
+                loaded.channels,
+                self.sample_rate
+            );
+        }
 
         Ok(())
     }
 
+    /// Borrow the loaded audio reference, if any.
+    pub fn loaded_audio(&self) -> Option<&Arc<LoadedAudio>> {
+        self.loaded.as_ref()
+    }
+
     /// Check if audio is loaded
     pub fn has_audio_loaded(&self) -> bool {
-        self.audio_samples.is_some()
+        self.loaded.is_some()
     }
 
     /// Get the loaded file path
-    pub fn file_path(&self) -> Option<&String> {
-        self.file_path.as_ref()
+    pub fn file_path(&self) -> Option<&str> {
+        self.loaded.as_ref().map(|audio| audio.source_id.as_str())
     }
 
     /// Get the duration of loaded audio in seconds
     pub fn duration_seconds(&self) -> Option<f64> {
-        if let (Some(samples), Some(original_rate)) =
-            (&self.audio_samples, &self.original_sample_rate)
-        {
-            let frame_count = samples.len() / 2; // Stereo samples
-            Some(frame_count as f64 / *original_rate as f64)
-        } else {
-            None
-        }
+        let audio = self.loaded.as_ref()?;
+        let frame_count = audio.samples.len() / 2;
+        Some(frame_count as f64 / audio.sample_rate as f64)
     }
 
     /// Process audio for this deck.
@@ -282,9 +274,8 @@ impl Deck {
         self.buffer.resize(buffer_size, 0.0);
 
         // Play loaded audio samples if available, otherwise generate test audio
-        if let Some(audio_samples) = self.audio_samples.take() {
-            let source_frames = self.play_loaded_audio(frames, &audio_samples);
-            self.audio_samples = Some(audio_samples);
+        if let Some(loaded) = self.loaded.clone() {
+            let source_frames = self.play_loaded_audio(frames, &loaded.samples);
             self.position += source_frames;
 
             // Debug: Check if we're producing non-zero samples
@@ -435,6 +426,7 @@ impl Deck {
 mod tests {
     use super::*;
     use audio_core::LoadedAudio;
+    use std::sync::Arc;
 
     const ENGINE_RATE: u32 = 48000;
     const CHUNK: u32 = 512;
@@ -450,7 +442,7 @@ mod tests {
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(&audio).unwrap();
+        deck.load(Arc::new(audio)).unwrap();
     }
 
     #[test]
@@ -641,6 +633,26 @@ mod tests {
             non_zero > 0,
             "realtime resample should produce non-zero audio within 200 callbacks"
         );
+    }
+
+    #[test]
+    fn test_deck_shares_loaded_audio_arc() {
+        let audio = Arc::new(LoadedAudio {
+            samples: vec![0.5f32; CHUNK as usize * 2],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        });
+
+        let mut deck_a = new_deck(CHUNK);
+        let mut deck_b = new_deck(CHUNK);
+        deck_a.load(Arc::clone(&audio)).unwrap();
+        deck_b.load(Arc::clone(&audio)).unwrap();
+
+        assert!(Arc::ptr_eq(
+            deck_a.loaded_audio().unwrap(),
+            deck_b.loaded_audio().unwrap()
+        ));
     }
 
     #[test]
