@@ -76,7 +76,8 @@ fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
         sea_orm::DatabaseBackend::Sqlite,
         "PRAGMA foreign_keys = ON;".to_string(),
     ))?;
-    conn.execute_raw(Statement::from_string(
+    // journal_mode returns a row; execute_raw would fail with "did you mean to call query?"
+    conn.query_one_raw(Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
         "PRAGMA journal_mode = WAL;".to_string(),
     ))?;

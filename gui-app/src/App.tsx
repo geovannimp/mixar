@@ -15,10 +15,42 @@ interface EngineStatus {
   decks: DeckStatus[];
 }
 
+interface CollectionSummary {
+  id: string;
+  name: string;
+  kind: string;
+  path: string | null;
+  track_count: number;
+}
+
+interface TrackSummary {
+  id: string;
+  display_name: string;
+  artist: string | null;
+  title: string | null;
+  path: string;
+}
+
+interface ScanReport {
+  added: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}
+
+interface AddFolderCollectionResult {
+  collection: CollectionSummary;
+  scan: ScanReport;
+}
+
 const DECK_LABELS = ["Deck A", "Deck B"] as const;
 
 const buttonBase =
   "rounded-lg border px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-45";
+
+const buttonCompact =
+  "rounded-md border px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-45";
 
 function fileName(path: string | null): string {
   if (!path) return "No track loaded";
@@ -34,6 +66,10 @@ function statusPill(active: boolean): string {
 
 function App() {
   const [status, setStatus] = useState<EngineStatus | null>(null);
+  const [collections, setCollections] = useState<CollectionSummary[]>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [tracks, setTracks] = useState<TrackSummary[]>([]);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -42,11 +78,45 @@ function App() {
     setStatus(next);
   }, []);
 
+  const refreshCollections = useCallback(async () => {
+    const next = await invoke<CollectionSummary[]>("list_collections");
+    setCollections(next);
+    if (next.length === 0) {
+      setSelectedCollectionId(null);
+      setTracks([]);
+      return;
+    }
+    setSelectedCollectionId((current) => {
+      if (current && next.some((collection) => collection.id === current)) {
+        return current;
+      }
+      return next[0]?.id ?? null;
+    });
+  }, []);
+
+  const refreshTracks = useCallback(async (collectionId: string) => {
+    const next = await invoke<TrackSummary[]>("list_collection_tracks", { collectionId });
+    setTracks(next);
+  }, []);
+
   useEffect(() => {
     refreshStatus().catch((err: unknown) => {
       setError(String(err));
     });
-  }, [refreshStatus]);
+    refreshCollections().catch((err: unknown) => {
+      setError(String(err));
+    });
+  }, [refreshStatus, refreshCollections]);
+
+  useEffect(() => {
+    if (!selectedCollectionId) {
+      setTracks([]);
+      return;
+    }
+    refreshTracks(selectedCollectionId).catch((err: unknown) => {
+      setError(String(err));
+    });
+  }, [selectedCollectionId, refreshTracks]);
 
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
@@ -101,6 +171,41 @@ function App() {
     await loadTrack(deckId, samplePath);
   }
 
+  async function addFolderCollection() {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+    });
+    if (typeof selected !== "string") {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setScanMessage(null);
+    try {
+      const result = await invoke<AddFolderCollectionResult>("add_folder_collection", {
+        folderPath: selected,
+      });
+      setSelectedCollectionId(result.collection.id);
+      await refreshCollections();
+      await refreshTracks(result.collection.id);
+      setScanMessage(
+        `Imported ${result.scan.added} tracks, updated ${result.scan.updated}, skipped ${result.scan.skipped}.`,
+      );
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadLibraryTrackToDeck(deckId: number, trackId: string) {
+    await runAction(async () => {
+      await invoke("load_library_track_to_deck", { deckId, trackId });
+    });
+  }
+
   async function playDeck(deckId: number) {
     await runAction(async () => {
       await invoke("play_deck", { deckId });
@@ -113,13 +218,17 @@ function App() {
     });
   }
 
+  const selectedCollection = collections.find(
+    (collection) => collection.id === selectedCollectionId,
+  );
+
   return (
     <div className="flex min-h-screen flex-col gap-5 bg-zinc-950 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.08),transparent_35%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.08),transparent_35%)] p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Rust DJ Engine</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Tauri prototype — two decks, real audio output
+            Tauri prototype — library collections and two-deck playback
           </p>
         </div>
 
@@ -155,6 +264,112 @@ function App() {
           {error}
         </div>
       )}
+
+      {scanMessage && (
+        <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          {scanMessage}
+        </div>
+      )}
+
+      <section className="rounded-2xl border border-white/8 bg-white/3 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Library</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Add a folder collection, then load tracks onto a deck.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={`${buttonBase} border-amber-500/35 bg-amber-500/12 hover:bg-amber-500/20`}
+            disabled={busy}
+            onClick={addFolderCollection}
+          >
+            Add folder collection
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(220px,280px)_1fr]">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Collections
+            </p>
+            {collections.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-sm text-zinc-500">
+                No collections yet. Add a folder to scan audio files.
+              </p>
+            ) : (
+              <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+                {collections.map((collection) => {
+                  const selected = collection.id === selectedCollectionId;
+                  return (
+                    <li key={collection.id}>
+                      <button
+                        type="button"
+                        className={
+                          selected
+                            ? "w-full rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-left"
+                            : "w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-left hover:border-white/20 hover:bg-black/30"
+                        }
+                        onClick={() => setSelectedCollectionId(collection.id)}
+                      >
+                        <span className="block truncate font-medium">{collection.name}</span>
+                        <span className="mt-1 block truncate text-xs text-zinc-400">
+                          {collection.track_count} tracks
+                          {collection.path ? ` · ${collection.path}` : ""}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <div className="flex min-h-48 flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {selectedCollection ? `${selectedCollection.name} tracks` : "Tracks"}
+            </p>
+            {tracks.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-white/12 px-3 py-4 text-sm text-zinc-500">
+                {selectedCollection
+                  ? "No file tracks in this collection."
+                  : "Select a collection to browse tracks."}
+              </p>
+            ) : (
+              <ul className="flex max-h-72 flex-col gap-2 overflow-y-auto">
+                {tracks.map((track) => (
+                  <li
+                    key={track.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{track.display_name}</p>
+                      <p className="truncate text-xs text-zinc-500" title={track.path}>
+                        {fileName(track.path)}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-1">
+                      {DECK_LABELS.map((label, deckId) => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`${buttonCompact} border-violet-500/35 bg-violet-500/10 hover:bg-violet-500/20`}
+                          disabled={busy || !status?.running}
+                          title={`Load onto ${label}`}
+                          onClick={() => loadLibraryTrackToDeck(deckId, track.id)}
+                        >
+                          {label.replace("Deck ", "")}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
 
       <main className="grid flex-1 gap-4 md:grid-cols-2">
         {(status?.decks ?? DECK_LABELS.map((_, id) => ({ id, track: null, playing: false }))).map(
@@ -220,7 +435,7 @@ function App() {
       </main>
 
       <footer className="text-sm text-slate-500">
-        Start the engine, load a track on one or both decks, then hit Play.
+        Add a folder collection, pick a track, load it to deck A or B, then hit Play.
       </footer>
     </div>
   );
