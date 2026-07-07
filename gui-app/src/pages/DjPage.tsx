@@ -19,6 +19,7 @@ export function DjPage() {
     playDeck,
     pauseDeck,
     setDeckVolume,
+    setDeckEq,
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
@@ -64,6 +65,7 @@ export function DjPage() {
             onPickTrack={pickTrack}
             onTogglePlayback={toggleDeckPlayback}
             onVolumeChange={setDeckVolume}
+            onEqChange={setDeckEq}
           />
         </ResizablePanel>
 

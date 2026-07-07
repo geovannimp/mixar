@@ -10,6 +10,7 @@ use audio_core::{
     AudioStream, BusConfig, BusId, DeviceId, DeviceInfo, Sample, StreamParams,
 };
 use engine_dsp::DspEngine;
+use engine_dsp::DeckEqGains;
 use rtrb::Consumer;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
@@ -289,6 +290,32 @@ impl Engine {
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
         }
+    }
+
+    /// Set a deck's three-band EQ gains in decibels.
+    pub fn set_deck_eq(&mut self, deck_id: usize, gains: DeckEqGains) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_eq_gains(gains)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Set a deck's three-band EQ gains in decibels (clamped to ±24 dB).
+    pub fn set_deck_eq_bands(
+        &mut self,
+        deck_id: usize,
+        low_db: f32,
+        mid_db: f32,
+        high_db: f32,
+    ) -> Result<()> {
+        self.set_deck_eq(deck_id, DeckEqGains::clamped(low_db, mid_db, high_db))
     }
 
     /// List available audio devices for the engine's current backend

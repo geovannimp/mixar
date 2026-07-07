@@ -5,6 +5,7 @@
 
 use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
+use crate::eq::{DeckEqGains, ThreeBandEq};
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -33,6 +34,8 @@ pub struct Deck {
     speed: f32,
     /// Volume level (0.0 to 1.0)
     volume: f32,
+    /// Three-band channel EQ
+    eq: ThreeBandEq,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -82,6 +85,7 @@ impl Deck {
             position: 0,
             speed: 1.0,
             volume: 1.0,
+            eq: ThreeBandEq::new(sample_rate),
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -115,6 +119,31 @@ impl Deck {
     /// Get the current volume
     pub fn volume(&self) -> f32 {
         self.volume
+    }
+
+    /// Get the current EQ gains.
+    pub fn eq_gains(&self) -> DeckEqGains {
+        self.eq.gains()
+    }
+
+    /// Set all EQ band gains at once.
+    pub fn set_eq_gains(&mut self, gains: DeckEqGains) -> Result<()> {
+        self.eq.set_gains(gains)
+    }
+
+    /// Set low-band EQ gain in decibels.
+    pub fn set_eq_low_db(&mut self, gain_db: f32) -> Result<()> {
+        self.eq.set_low_db(gain_db)
+    }
+
+    /// Set mid-band EQ gain in decibels.
+    pub fn set_eq_mid_db(&mut self, gain_db: f32) -> Result<()> {
+        self.eq.set_mid_db(gain_db)
+    }
+
+    /// Set high-band EQ gain in decibels.
+    pub fn set_eq_high_db(&mut self, gain_db: f32) -> Result<()> {
+        self.eq.set_high_db(gain_db)
     }
 
     /// Start playback
@@ -300,7 +329,8 @@ impl Deck {
             self.buffer.fill(0.0);
         }
 
-        // Apply volume
+        // Apply channel EQ, then volume.
+        self.eq.process_buffer(&mut self.buffer);
         for sample in &mut self.buffer {
             *sample *= self.volume;
         }

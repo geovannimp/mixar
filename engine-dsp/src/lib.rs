@@ -12,9 +12,11 @@ use anyhow::Result;
 use std::collections::HashMap;
 
 pub mod deck;
+pub mod eq;
 pub mod mixer;
 
 pub use deck::Deck;
+pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use mixer::Mixer;
 
 /// DSP engine that manages all audio processing components

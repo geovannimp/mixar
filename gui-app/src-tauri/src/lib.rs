@@ -17,10 +17,28 @@ const NUM_DECKS: usize = 2;
 type SharedAppState = Arc<Mutex<AppState>>;
 
 #[derive(Debug, Clone, Serialize)]
+struct DeckEq {
+    low: f32,
+    mid: f32,
+    high: f32,
+}
+
+impl Default for DeckEq {
+    fn default() -> Self {
+        Self {
+            low: 0.0,
+            mid: 0.0,
+            high: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct DeckInfo {
     track: Option<String>,
     playing: bool,
     volume: f32,
+    eq: DeckEq,
 }
 
 impl Default for DeckInfo {
@@ -29,6 +47,7 @@ impl Default for DeckInfo {
             track: None,
             playing: false,
             volume: 1.0,
+            eq: DeckEq::default(),
         }
     }
 }
@@ -187,6 +206,7 @@ struct DeckStatus {
     track: Option<String>,
     playing: bool,
     volume: f32,
+    eq: DeckEq,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -226,6 +246,18 @@ struct AddFolderCollectionResult {
     scan: library_core::ScanReport,
 }
 
+fn clamp_eq_db(value: f32) -> f32 {
+    value.clamp(-24.0, 24.0)
+}
+
+fn deck_eq_gains(eq: &DeckEq) -> (f32, f32, f32) {
+    (
+        clamp_eq_db(eq.low),
+        clamp_eq_db(eq.mid),
+        clamp_eq_db(eq.high),
+    )
+}
+
 fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
     state
         .decks
@@ -236,6 +268,7 @@ fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
             track: deck.track.clone(),
             playing: deck.playing,
             volume: deck.volume,
+            eq: deck.eq.clone(),
         })
         .collect()
 }
@@ -323,6 +356,10 @@ fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String
     for (deck_id, deck) in state.decks.iter().enumerate() {
         engine
             .set_deck_volume(deck_id, deck.volume)
+            .map_err(|e| e.to_string())?;
+        let (low, mid, high) = deck_eq_gains(&deck.eq);
+        engine
+            .set_deck_eq_bands(deck_id, low, mid, high)
             .map_err(|e| e.to_string())?;
     }
     state.engine = Some(engine);
@@ -587,6 +624,33 @@ fn set_deck_volume(
 }
 
 #[tauri::command]
+fn set_deck_eq(
+    deck_id: usize,
+    low: f32,
+    mid: f32,
+    high: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    let eq = DeckEq {
+        low: clamp_eq_db(low),
+        mid: clamp_eq_db(mid),
+        high: clamp_eq_db(high),
+    };
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_eq_bands(deck_id, eq.low, eq.mid, eq.high)
+            .map_err(|e| e.to_string())?;
+    }
+    state.decks[deck_id].eq = eq;
+    Ok(deck_statuses(&state)[deck_id].clone())
+}
+
+#[tauri::command]
 fn sample_track_path() -> Option<String> {
     let candidates = [
         "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
@@ -642,6 +706,7 @@ pub fn run() {
             play_deck,
             pause_deck,
             set_deck_volume,
+            set_deck_eq,
             sample_track_path,
         ])
         .run(tauri::generate_context!())

@@ -1,6 +1,6 @@
 import { DeckMixer } from "./DeckMixer";
 import { DECK_ACCENTS, DECK_LABELS } from "../lib/ui";
-import type { DeckStatus } from "../types";
+import { DEFAULT_DECK_EQ, type DeckEq, type DeckStatus } from "../types";
 import { DeckPanel } from "./DeckPanel";
 
 interface DeckGridProps {
@@ -10,6 +10,7 @@ interface DeckGridProps {
   onPickTrack: (deckId: number) => void;
   onTogglePlayback: (deckId: number, playing: boolean) => void;
   onVolumeChange: (deckId: number, volume: number) => void;
+  onEqChange: (deckId: number, eq: DeckEq) => void;
 }
 
 function defaultDecks(): DeckStatus[] {
@@ -18,6 +19,7 @@ function defaultDecks(): DeckStatus[] {
     track: null,
     playing: false,
     volume: 1,
+    eq: DEFAULT_DECK_EQ,
   }));
 }
 
@@ -28,6 +30,7 @@ export function DeckGrid({
   onPickTrack,
   onTogglePlayback,
   onVolumeChange,
+  onEqChange,
 }: DeckGridProps) {
   const deckList = decks.length > 0 ? decks : defaultDecks();
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -50,6 +53,7 @@ export function DeckGrid({
           decks={deckList}
           disabled={busy}
           onVolumeChange={onVolumeChange}
+          onEqChange={onEqChange}
         />
       </div>
 
