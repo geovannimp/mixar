@@ -11,6 +11,7 @@ export function Slider({
   value,
   min = 0,
   max = 100,
+  thumbAlignment = "edge",
   ...props
 }: SliderPrimitive.Root.Props): React.ReactElement {
   const _values = React.useMemo(() => {
@@ -29,7 +30,7 @@ export function Slider({
       defaultValue={defaultValue}
       max={max}
       min={min}
-      thumbAlignment="edge"
+      thumbAlignment={thumbAlignment}
       value={value}
       {...props}
     >

@@ -2,6 +2,7 @@ export interface DeckStatus {
   id: number;
   track: string | null;
   playing: boolean;
+  volume: number;
 }
 
 export interface EngineStatus {

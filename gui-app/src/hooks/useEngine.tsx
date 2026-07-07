@@ -8,7 +8,7 @@ import {
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { EngineStatus } from "../types";
+import type { DeckStatus, EngineStatus } from "../types";
 
 export interface EngineContextValue {
   status: EngineStatus | null;
@@ -19,6 +19,7 @@ export interface EngineContextValue {
   pickTrack: (deckId: number) => Promise<void>;
   playDeck: (deckId: number) => Promise<void>;
   pauseDeck: (deckId: number) => Promise<void>;
+  setDeckVolume: (deckId: number, volume: number) => Promise<void>;
 }
 
 const EngineContext = createContext<EngineContextValue | null>(null);
@@ -134,6 +135,32 @@ function useEngineState(): EngineContextValue {
     [runAction],
   );
 
+  const setDeckVolume = useCallback(
+    async (deckId: number, volume: number) => {
+      setError(null);
+      try {
+        const updated = await invoke<DeckStatus>("set_deck_volume", {
+          deckId,
+          volume,
+        });
+        setStatus((current) => {
+          if (!current) {
+            return current;
+          }
+          return {
+            ...current,
+            decks: current.decks.map((deck) =>
+              deck.id === deckId ? updated : deck,
+            ),
+          };
+        });
+      } catch (err) {
+        setError(String(err));
+      }
+    },
+    [],
+  );
+
   return {
     status,
     error,
@@ -143,5 +170,6 @@ function useEngineState(): EngineContextValue {
     pickTrack,
     playDeck,
     pauseDeck,
+    setDeckVolume,
   };
 }

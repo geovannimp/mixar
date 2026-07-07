@@ -1,3 +1,4 @@
+import { DeckMixer } from "./DeckMixer";
 import { DECK_ACCENTS, DECK_LABELS } from "../lib/ui";
 import type { DeckStatus } from "../types";
 import { DeckPanel } from "./DeckPanel";
@@ -8,10 +9,16 @@ interface DeckGridProps {
   busy: boolean;
   onPickTrack: (deckId: number) => void;
   onTogglePlayback: (deckId: number, playing: boolean) => void;
+  onVolumeChange: (deckId: number, volume: number) => void;
 }
 
 function defaultDecks(): DeckStatus[] {
-  return DECK_LABELS.map((_, id) => ({ id, track: null, playing: false }));
+  return DECK_LABELS.map((_, id) => ({
+    id,
+    track: null,
+    playing: false,
+    volume: 1,
+  }));
 }
 
 export function DeckGrid({
@@ -20,6 +27,7 @@ export function DeckGrid({
   busy,
   onPickTrack,
   onTogglePlayback,
+  onVolumeChange,
 }: DeckGridProps) {
   const deckList = decks.length > 0 ? decks : defaultDecks();
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -37,18 +45,12 @@ export function DeckGrid({
         }
       />
 
-      <div
-        aria-hidden
-        className="hidden h-full min-h-0 flex-col items-center justify-end gap-2 border-x border-white/6 bg-zinc-900/50 px-2 py-3 md:flex"
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-          Mixer
-        </span>
-        <div className="flex flex-1 flex-col items-center justify-center gap-2">
-          <div className="h-16 w-1.5 rounded-full bg-zinc-800 lg:h-20" />
-          <div className="h-16 w-1.5 rounded-full bg-zinc-800 lg:h-20" />
-        </div>
-        <div className="h-1 w-12 rounded-full bg-zinc-800" />
+      <div className="hidden h-full min-h-0 shrink-0 md:block">
+        <DeckMixer
+          decks={deckList}
+          disabled={busy}
+          onVolumeChange={onVolumeChange}
+        />
       </div>
 
       <DeckPanel

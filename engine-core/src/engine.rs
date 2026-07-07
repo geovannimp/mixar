@@ -276,6 +276,21 @@ impl Engine {
         }
     }
 
+    /// Set a deck's volume (0.0..=1.0).
+    pub fn set_deck_volume(&mut self, deck_id: usize, volume: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_volume(volume)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
     /// List available audio devices for the engine's current backend
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
         self.backend.list_output_devices()

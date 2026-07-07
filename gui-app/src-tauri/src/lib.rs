@@ -16,10 +16,21 @@ const NUM_DECKS: usize = 2;
 
 type SharedAppState = Arc<Mutex<AppState>>;
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct DeckInfo {
     track: Option<String>,
     playing: bool,
+    volume: f32,
+}
+
+impl Default for DeckInfo {
+    fn default() -> Self {
+        Self {
+            track: None,
+            playing: false,
+            volume: 1.0,
+        }
+    }
 }
 
 struct AppState {
@@ -175,6 +186,7 @@ struct DeckStatus {
     id: usize,
     track: Option<String>,
     playing: bool,
+    volume: f32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -223,6 +235,7 @@ fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
             id,
             track: deck.track.clone(),
             playing: deck.playing,
+            volume: deck.volume,
         })
         .collect()
 }
@@ -307,6 +320,11 @@ fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String
     let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
+    for (deck_id, deck) in state.decks.iter().enumerate() {
+        engine
+            .set_deck_volume(deck_id, deck.volume)
+            .map_err(|e| e.to_string())?;
+    }
     state.engine = Some(engine);
 
     Ok(engine_status(&state))
@@ -546,6 +564,29 @@ fn pause_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckSt
 }
 
 #[tauri::command]
+fn set_deck_volume(
+    deck_id: usize,
+    volume: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+    if !(0.0..=1.0).contains(&volume) {
+        return Err("Volume must be between 0 and 1.".to_string());
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].volume = volume;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_volume(deck_id, volume)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(deck_statuses(&state)[deck_id].clone())
+}
+
+#[tauri::command]
 fn sample_track_path() -> Option<String> {
     let candidates = [
         "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
@@ -600,6 +641,7 @@ pub fn run() {
             load_library_track_to_deck,
             play_deck,
             pause_deck,
+            set_deck_volume,
             sample_track_path,
         ])
         .run(tauri::generate_context!())
