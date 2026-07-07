@@ -161,6 +161,7 @@ impl Engine {
             master_stream.sample_rate,
             master_stream.buffer_size as u32,
             2,
+            &self.config.resampler_quality(),
         )));
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 

@@ -6,7 +6,7 @@ mod merge;
 mod result;
 mod traits;
 
-pub use config::{AnalysisConfig, AnalysisTargets};
+pub use config::{AnalysisConfig, AnalysisDurationMode, AnalysisTargets};
 pub use error::{AnalyzerError, Result};
 pub use merge::{merge_track_metadata, TagMetadata};
 pub use result::{

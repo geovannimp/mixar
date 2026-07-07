@@ -1050,6 +1050,7 @@ dependencies = [
 name = "engine-core"
 version = "0.1.0"
 dependencies = [
+ "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "backend-cpal",
@@ -1058,6 +1059,7 @@ dependencies = [
  "engine-dsp",
  "library-core",
  "log",
+ "resampler",
  "rtrb",
  "serde",
  "thiserror 1.0.69",
@@ -1734,6 +1736,7 @@ dependencies = [
 name = "library-core"
 version = "0.1.0"
 dependencies = [
+ "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "codec",

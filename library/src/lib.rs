@@ -368,8 +368,11 @@ impl LibraryManager {
             return Err(LibraryError::UnsupportedFile(path));
         }
 
-        let config = AnalysisConfig::default();
+        let mut config = AnalysisConfig::default();
         let tag_metadata = tags::read_tags(&path)?;
+        config.max_duration_secs = options
+            .analysis_duration
+            .resolve_max_duration_secs(tag_metadata.duration_secs);
         let analysis =
             analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
 

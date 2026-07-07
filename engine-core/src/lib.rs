@@ -9,7 +9,8 @@ mod config;
 mod engine;
 mod producer;
 
-pub use audio_core::{AudioSource, LoadedAudio};
-pub use backend::{AudioBackend, AudioBackendTrait};
+pub use analyzer_core::AnalysisDurationMode;
+pub use audio_core::{AudioSource, DeviceInfo, LoadedAudio};
+pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
 pub use config::{AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig};
 pub use engine::Engine;

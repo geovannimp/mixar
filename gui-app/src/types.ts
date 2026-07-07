@@ -11,6 +11,35 @@ export interface EngineStatus {
   decks: DeckStatus[];
 }
 
+export interface BusRouteSettings {
+  device_id: string;
+  left_channel: number;
+  right_channel: number;
+}
+
+export interface AudioDeviceSummary {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
+
+export type AnalysisMode = "fast" | "precise" | "complete";
+
+export type ResamplerQuality = "low" | "medium" | "high";
+
+export interface AppSettings {
+  backend: string;
+  sample_rate: number;
+  buffer_size: number;
+  low_latency: boolean;
+  resampler_quality: ResamplerQuality;
+  master_bus: BusRouteSettings;
+  preview_enabled: boolean;
+  preview_bus: BusRouteSettings;
+  analysis_duration: AnalysisMode;
+  scan_folder_tree: boolean;
+}
+
 export interface CollectionSummary {
   id: string;
   name: string;
@@ -44,3 +73,5 @@ export interface AddFolderCollectionResult {
   collection: CollectionSummary;
   scan: ScanReport;
 }
+
+export type SettingsSection = "audio" | "library";

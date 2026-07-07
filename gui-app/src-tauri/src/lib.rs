@@ -1,7 +1,9 @@
-use engine_core::{Engine, EngineConfig};
+use audio_core::{BusConfig, BusId, ChannelMapping, DeviceId};
+use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
+use resampler::normalize_resampler_quality;
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
 use library_core::{AnalyzeTrackOptions, CollectionId, Library, LibrarySource, TrackId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
@@ -23,8 +25,149 @@ struct DeckInfo {
 struct AppState {
     library: LibraryManager,
     engine: Option<Engine>,
+    engine_config: EngineConfig,
     decks: [DeckInfo; NUM_DECKS],
     audio_cache: AudioCache,
+}
+
+const MASTER_BUS_ID: &str = "master";
+const PREVIEW_BUS_ID: &str = "cue";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct BusRouteSettings {
+    device_id: String,
+    left_channel: u16,
+    right_channel: u16,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct AppSettings {
+    backend: String,
+    sample_rate: u32,
+    buffer_size: u32,
+    low_latency: bool,
+    resampler_quality: String,
+    master_bus: BusRouteSettings,
+    preview_enabled: bool,
+    preview_bus: BusRouteSettings,
+    analysis_duration: AnalysisDurationMode,
+    scan_folder_tree: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DeviceSummary {
+    id: String,
+    name: String,
+    is_default: bool,
+}
+
+fn default_master_bus_route() -> BusRouteSettings {
+    BusRouteSettings {
+        device_id: "default".to_string(),
+        left_channel: 1,
+        right_channel: 2,
+    }
+}
+
+fn default_preview_bus_route() -> BusRouteSettings {
+    BusRouteSettings {
+        device_id: "default".to_string(),
+        left_channel: 3,
+        right_channel: 4,
+    }
+}
+
+fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
+    BusRouteSettings {
+        device_id: bus.device.as_str().to_string(),
+        left_channel: bus.channels.left,
+        right_channel: bus.channels.right,
+    }
+}
+
+fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
+    BusConfig::new(
+        BusId::new(id),
+        name.to_string(),
+        DeviceId::new(route.device_id.clone()),
+        ChannelMapping::new(route.left_channel, route.right_channel),
+    )
+}
+
+fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
+    let mut buses = vec![bus_config(MASTER_BUS_ID, "Master", &settings.master_bus)];
+    if settings.preview_enabled {
+        buses.push(bus_config(
+            PREVIEW_BUS_ID,
+            "Preview",
+            &settings.preview_bus,
+        ));
+    }
+    buses
+}
+
+fn settings_from_state(state: &AppState) -> AppSettings {
+    let config = &state.engine_config;
+    let audio = config.audio.as_ref();
+    let master_bus = config
+        .buses
+        .iter()
+        .find(|bus| bus.id.as_str() == MASTER_BUS_ID)
+        .map(bus_route_from_config)
+        .unwrap_or_else(default_master_bus_route);
+    let preview_bus_config = config
+        .buses
+        .iter()
+        .find(|bus| bus.id.as_str() == PREVIEW_BUS_ID);
+    AppSettings {
+        backend: config.backend.clone(),
+        sample_rate: config.sample_rate,
+        buffer_size: config.buffer_size,
+        low_latency: config.low_latency,
+        resampler_quality: normalize_resampler_quality(
+            audio.and_then(|a| a.resampler_quality.as_deref()),
+        )
+        .to_string(),
+        master_bus,
+        preview_enabled: preview_bus_config.is_some(),
+        preview_bus: preview_bus_config
+            .map(bus_route_from_config)
+            .unwrap_or_else(default_preview_bus_route),
+        analysis_duration: config.analysis_duration,
+        scan_folder_tree: state.library.config().scan_folder_tree,
+    }
+}
+
+fn apply_settings(state: &mut AppState, settings: AppSettings) {
+    let config = &mut state.engine_config;
+    config.buses = buses_from_settings(&settings);
+    config.backend = settings.backend;
+    config.sample_rate = settings.sample_rate;
+    config.buffer_size = settings.buffer_size;
+    config.low_latency = settings.low_latency;
+    config.analysis_duration = settings.analysis_duration;
+
+    config.audio = Some(AudioConfig {
+        resampler_quality: Some(settings.resampler_quality.clone()),
+    });
+
+    state.library.set_config(LibraryConfig {
+        scan_folder_tree: settings.scan_folder_tree,
+    });
+}
+
+fn default_engine_config() -> EngineConfig {
+    let mut config = EngineConfig::default();
+    config.backend = "cpal".to_string();
+    config.audio = Some(AudioConfig {
+        resampler_quality: Some("medium".to_string()),
+    });
+    config.buses = vec![bus_config(
+        MASTER_BUS_ID,
+        "Master",
+        &default_master_bus_route(),
+    )];
+    config
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -161,9 +304,7 @@ fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String
         return Ok(engine_status(&state));
     }
 
-    let mut config = EngineConfig::default();
-    config.backend = "cpal".to_string();
-
+    let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
     state.engine = Some(engine);
@@ -189,6 +330,52 @@ fn stop_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String>
 fn get_status(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     Ok(engine_status(&state))
+}
+
+#[tauri::command]
+fn get_settings(state: State<'_, SharedAppState>) -> Result<AppSettings, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    Ok(settings_from_state(&state))
+}
+
+#[tauri::command]
+fn save_settings(
+    settings: AppSettings,
+    state: State<'_, SharedAppState>,
+) -> Result<AppSettings, String> {
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    if state.engine.is_some() {
+        return Err("Stop the engine before changing settings.".to_string());
+    }
+    apply_settings(&mut state, settings);
+    Ok(settings_from_state(&state))
+}
+
+#[tauri::command]
+fn list_output_devices(backend: String) -> Result<Vec<DeviceSummary>, String> {
+    let devices = create_backend(&backend)
+        .map_err(|e| e.to_string())?
+        .list_output_devices()
+        .map_err(|e| e.to_string())?;
+
+    let mut summaries: Vec<DeviceSummary> = vec![DeviceSummary {
+        id: "default".to_string(),
+        name: "System default".to_string(),
+        is_default: true,
+    }];
+
+    for device in devices {
+        if device.id.as_str() == "default" {
+            continue;
+        }
+        summaries.push(DeviceSummary {
+            id: device.id.as_str().to_string(),
+            name: device.name,
+            is_default: device.is_default,
+        });
+    }
+
+    Ok(summaries)
 }
 
 #[tauri::command]
@@ -245,9 +432,13 @@ async fn analyze_library_track(
     let state = Arc::clone(state.inner());
     tauri::async_runtime::spawn_blocking(move || {
         let mut guard = state.lock().map_err(|e| e.to_string())?;
+        let options = AnalyzeTrackOptions {
+            force: false,
+            analysis_duration: guard.engine_config.analysis_duration,
+        };
         let source = guard
             .library
-            .analyze_track(&TrackId::new(track_id), AnalyzeTrackOptions::default())
+            .analyze_track(&TrackId::new(track_id), options)
             .map_err(|e| e.to_string())?;
         track_summary(&source).ok_or_else(|| "Only file tracks can be analyzed.".to_string())
     })
@@ -388,6 +579,7 @@ pub fn run() {
             app.manage(Arc::new(Mutex::new(AppState {
                 library,
                 engine: None,
+                engine_config: default_engine_config(),
                 decks: Default::default(),
                 audio_cache: AudioCache::new(),
             })));
@@ -397,6 +589,9 @@ pub fn run() {
             start_engine,
             stop_engine,
             get_status,
+            get_settings,
+            save_settings,
+            list_output_devices,
             list_collections,
             add_folder_collection,
             list_collection_tracks,

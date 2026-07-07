@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use analyzer_core::AnalysisDurationMode;
 use serde::{Deserialize, Serialize};
 
 /// Stable track identifier within a library.
@@ -290,18 +291,23 @@ impl UpdateCollection {
 }
 
 /// Options for [`WritableLibrary::analyze_track`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AnalyzeTrackOptions {
     /// When true, DSP analysis results replace BPM/key from file tags.
     /// When false, existing tag values are kept when present; analysis fills
     /// missing fields only.
     pub force: bool,
+    /// How much of the track to analyze.
+    pub analysis_duration: AnalysisDurationMode,
 }
 
 impl AnalyzeTrackOptions {
     /// Prefer DSP analysis over file tags for BPM/key (and beat grid when available).
     pub fn force() -> Self {
-        Self { force: true }
+        Self {
+            force: true,
+            analysis_duration: AnalysisDurationMode::Complete,
+        }
     }
 }
 

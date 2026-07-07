@@ -46,6 +46,9 @@ pub struct RubatoResampler {
     output_sample_rate: u32,
     channels: usize,
     output_chunk_frames: usize,
+    /// Reserved for future rubato quality presets.
+    #[allow(dead_code)]
+    quality: String,
 }
 
 impl RubatoResampler {
@@ -58,6 +61,7 @@ impl RubatoResampler {
         output_sr: u32,
         channels: usize,
         output_chunk_frames: usize,
+        quality: &str,
     ) -> Result<Self> {
         let mut resampler = Self {
             resampler: None,
@@ -65,6 +69,7 @@ impl RubatoResampler {
             output_sample_rate: output_sr,
             channels,
             output_chunk_frames: output_chunk_frames.max(1),
+            quality: quality.to_string(),
         };
 
         resampler.update_resampler()?;
@@ -225,18 +230,35 @@ impl Resampler for RubatoResampler {
     }
 }
 
+/// Default rubato quality preset when config omits an explicit value.
+pub const DEFAULT_RESAMPLER_QUALITY: &str = "medium";
+
+/// Normalize legacy/empty config values to a supported resampler quality.
+pub fn normalize_resampler_quality(quality: Option<&str>) -> &'static str {
+    match quality {
+        Some("low") => "low",
+        Some("high") => "high",
+        Some("medium") | Some("default") | Some("") => "medium",
+        None => DEFAULT_RESAMPLER_QUALITY,
+        Some(_) => DEFAULT_RESAMPLER_QUALITY,
+    }
+}
+
 /// Create a new resampler instance sized for one engine callback.
 pub fn create_resampler(
     input_sr: u32,
     output_sr: u32,
     channels: usize,
     output_chunk_frames: usize,
+    quality: Option<&str>,
 ) -> Result<Box<dyn Resampler>> {
+    let quality = normalize_resampler_quality(quality);
     Ok(Box::new(RubatoResampler::new(
         input_sr,
         output_sr,
         channels,
         output_chunk_frames,
+        quality,
     )?))
 }
 
@@ -248,14 +270,14 @@ mod tests {
 
     #[test]
     fn test_resampler_creation() {
-        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES);
+        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium");
         assert!(resampler.is_ok());
     }
 
     #[test]
     fn test_resampler_no_resampling() {
         let mut resampler =
-            RubatoResampler::new(44100, 44100, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+            RubatoResampler::new(44100, 44100, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
 
         let input = vec![0.1, 0.2, 0.3, 0.4];
         let mut output = vec![0.0; 4];
@@ -268,7 +290,7 @@ mod tests {
 
     #[test]
     fn test_fft_stream_consumption_over_many_callbacks() {
-        let mut resampler = RubatoResampler::new(44100, 48000, 2, 512).unwrap();
+        let mut resampler = RubatoResampler::new(44100, 48000, 2, 512, "medium").unwrap();
         let mut total_in = 0usize;
         let mut total_out = 0usize;
         let callbacks = 480000 / 512;
@@ -296,7 +318,7 @@ mod tests {
 
     #[test]
     fn test_output_mode_512_frames() {
-        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
         assert_eq!(resampler.output_frames_next(), 512);
         let need_in = resampler.input_frames_next();
         assert!(need_in > 0);
@@ -307,7 +329,7 @@ mod tests {
     #[test]
     fn test_512_output_consumes_proportional_input() {
         let mut resampler =
-            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
         let mut total_in = 0usize;
         let mut total_out = 0usize;
         let source = vec![0.5f32; 600_000 * 2];
@@ -334,14 +356,14 @@ mod tests {
 
     #[test]
     fn test_create_resampler_function() {
-        let resampler = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES);
+        let resampler = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, None);
         assert!(resampler.is_ok());
     }
 
     #[test]
     fn test_480_output_consumes_proportional_input() {
         let mut resampler =
-            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES).unwrap();
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
         resampler.set_output_chunk_frames(480);
         assert_eq!(resampler.output_frames_next(), 480);
 

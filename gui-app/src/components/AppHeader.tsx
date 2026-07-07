@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import type { EngineStatus } from "../types";
 import { buttonBase } from "../lib/ui";
 import { StatusPill } from "./StatusPill";
@@ -8,19 +9,30 @@ interface AppHeaderProps {
   onToggleEngine: () => void;
 }
 
+function navClass({ isActive }: { isActive: boolean }): string {
+  return isActive
+    ? "rounded border border-white/20 bg-white/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-100"
+    : "rounded border border-transparent px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300";
+}
+
 export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
   return (
     <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 bg-zinc-900/80 px-4 py-2.5 backdrop-blur-sm">
-      <div className="flex items-center gap-4">
-        <h1 className="text-sm font-bold uppercase tracking-widest text-zinc-200">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <h1 className="shrink-0 text-sm font-bold uppercase tracking-widest text-zinc-200">
           Rust DJ
         </h1>
-        <span className="hidden text-xs text-zinc-500 sm:inline">
-          Prototype
-        </span>
+        <nav className="flex items-center gap-1">
+          <NavLink to="/" end className={navClass}>
+            Decks
+          </NavLink>
+          <NavLink to="/settings" className={navClass}>
+            Settings
+          </NavLink>
+        </nav>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         {status?.running && (
           <span className="hidden text-xs text-zinc-500 md:inline">
             {status.backend} · {status.sample_rate} Hz

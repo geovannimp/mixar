@@ -12,6 +12,7 @@ mod source;
 mod traits;
 mod types;
 
+pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{AudioSource, LoadedAudio};
 pub use error::{LibraryError, Result};
 pub use source::{FileAudioSource, LibrarySource, StreamAudioSource, StreamProvider};

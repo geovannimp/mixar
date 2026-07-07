@@ -1574,6 +1574,7 @@ checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
 name = "engine-core"
 version = "0.1.0"
 dependencies = [
+ "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "backend-cpal",
@@ -1581,6 +1582,7 @@ dependencies = [
  "backend-null",
  "engine-dsp",
  "log",
+ "resampler",
  "rtrb",
  "serde",
  "thiserror 1.0.69",
@@ -2182,11 +2184,13 @@ name = "gui-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "audio-core 0.1.0",
  "engine-core",
  "env_logger",
  "library",
  "library-core",
  "log",
+ "resampler",
  "serde",
  "serde_json",
  "tauri",
@@ -2873,6 +2877,7 @@ dependencies = [
 name = "library-core"
 version = "0.1.0"
 dependencies = [
+ "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "codec",

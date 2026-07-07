@@ -43,6 +43,8 @@ pub struct Deck {
     processing: bool,
     /// Shared decoded audio (cache and multiple decks can reference the same buffer).
     loaded: Option<Arc<LoadedAudio>>,
+    /// Resampler quality preset (`low`, `medium`, or `high`).
+    resampler_quality: String,
     /// Resampler for converting between sample rates (created on load when needed)
     resampler: Option<Box<dyn Resampler>>,
 }
@@ -73,7 +75,7 @@ impl fmt::Debug for Deck {
 
 impl Deck {
     /// Create a new deck with an immutable output clock from engine config.
-    pub fn new(id: usize, sample_rate: u32, buffer_size: u32) -> Self {
+    pub fn new(id: usize, sample_rate: u32, buffer_size: u32, resampler_quality: &str) -> Self {
         Self {
             id,
             state: DeckState::Stopped,
@@ -85,6 +87,7 @@ impl Deck {
             buffer: Vec::new(),
             processing: false,
             loaded: None,
+            resampler_quality: resampler_quality.to_string(),
             resampler: None,
         }
     }
@@ -187,13 +190,15 @@ impl Deck {
             self.sample_rate,
             2,
             self.buffer_size as usize,
+            Some(&self.resampler_quality),
         )?);
         log::info!(
-            "Deck {} realtime resampler: {} Hz -> {} Hz (buffer_size={})",
+            "Deck {} realtime resampler: {} Hz -> {} Hz (buffer_size={}, quality={})",
             self.id,
             source_rate,
             self.sample_rate,
-            self.buffer_size
+            self.buffer_size,
+            self.resampler_quality
         );
         Ok(())
     }
@@ -432,7 +437,7 @@ mod tests {
     const CHUNK: u32 = 512;
 
     fn new_deck(chunk_frames: u32) -> Deck {
-        Deck::new(0, ENGINE_RATE, chunk_frames)
+        Deck::new(0, ENGINE_RATE, chunk_frames, "medium")
     }
 
     fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {

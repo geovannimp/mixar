@@ -1,4 +1,5 @@
 use anyhow::Result;
+use analyzer_core::AnalysisDurationMode;
 use audio_core::BusConfig;
 use std::path::Path;
 
@@ -21,6 +22,8 @@ pub struct EngineConfig {
     pub advanced: Option<AdvancedConfig>,
     /// Audio processing settings
     pub audio: Option<AudioConfig>,
+    /// How much of each track to analyze when running offline analysis.
+    pub analysis_duration: AnalysisDurationMode,
 }
 
 /// Device configuration
@@ -44,8 +47,6 @@ pub struct AdvancedConfig {
 /// Audio processing configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AudioConfig {
-    /// Enable resampling
-    pub enable_resampling: Option<bool>,
     /// Resampler quality
     pub resampler_quality: Option<String>,
 }
@@ -61,11 +62,21 @@ impl Default for EngineConfig {
             devices: None,
             advanced: None,
             audio: None,
+            analysis_duration: AnalysisDurationMode::Precise,
         }
     }
 }
 
 impl EngineConfig {
+    /// Effective resampler quality (`low`, `medium`, or `high`).
+    pub fn resampler_quality(&self) -> String {
+        let quality = self
+            .audio
+            .as_ref()
+            .and_then(|audio| audio.resampler_quality.as_deref());
+        resampler::normalize_resampler_quality(quality).to_string()
+    }
+
     /// Load configuration from a TOML file
     pub fn from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
@@ -92,5 +103,6 @@ mod tests {
         assert_eq!(config.buffer_size, 512);
         assert!(!config.low_latency);
         assert_eq!(config.backend, "auto");
+        assert_eq!(config.analysis_duration, AnalysisDurationMode::Precise);
     }
 }

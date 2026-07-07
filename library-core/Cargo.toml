@@ -9,6 +9,7 @@ description = "Library traits and shared types for rust-dj-engine"
 
 [dependencies]
 audio-core = { path = "../audio-core" }
+analyzer-core = { path = "../analyzer-core" }
 codec = { path = "../codec" }
 anyhow.workspace = true
 serde = { workspace = true }

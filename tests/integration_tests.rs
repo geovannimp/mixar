@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use audio_core::AudioSource;
-use engine_core::{Engine, EngineConfig};
+use engine_core::{AnalysisDurationMode, Engine, EngineConfig};
 use library_core::FileAudioSource;
 use std::sync::Arc;
 
@@ -19,6 +19,7 @@ fn test_engine_with_null_backend() -> Result<()> {
         devices: None,
         advanced: None,
         audio: None,
+        analysis_duration: AnalysisDurationMode::Complete,
     };
 
     let mut engine = Engine::new(config)?;
@@ -47,6 +48,7 @@ fn test_engine_with_auto_backend() -> Result<()> {
         devices: None,
         advanced: None,
         audio: None,
+        analysis_duration: AnalysisDurationMode::Complete,
     };
 
     let mut engine = Engine::new(config)?;

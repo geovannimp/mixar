@@ -24,6 +24,71 @@ impl Default for AnalysisTargets {
     }
 }
 
+/// How much of a track to decode for offline analysis.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisDurationMode {
+    /// First 30 seconds.
+    Fast,
+    /// Half of the track length (from metadata when available).
+    #[default]
+    Precise,
+    /// Full track.
+    Complete,
+}
+
+impl AnalysisDurationMode {
+    /// Resolve to a decode cap in seconds (`None` = entire file).
+    pub fn resolve_max_duration_secs(self, track_duration_secs: Option<f64>) -> Option<f64> {
+        match self {
+            Self::Fast => Some(30.0),
+            Self::Precise => track_duration_secs.map(|duration| (duration * 0.5).max(1.0)),
+            Self::Complete => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod duration_mode_tests {
+    use super::AnalysisDurationMode;
+
+    #[test]
+    fn fast_is_30_seconds() {
+        assert_eq!(
+            AnalysisDurationMode::Fast.resolve_max_duration_secs(None),
+            Some(30.0)
+        );
+    }
+
+    #[test]
+    fn precise_is_half_track() {
+        assert_eq!(
+            AnalysisDurationMode::Precise.resolve_max_duration_secs(Some(240.0)),
+            Some(120.0)
+        );
+        assert_eq!(
+            AnalysisDurationMode::Precise.resolve_max_duration_secs(Some(1.0)),
+            Some(1.0)
+        );
+    }
+
+    #[test]
+    fn precise_without_duration_is_none() {
+        assert_eq!(
+            AnalysisDurationMode::Precise.resolve_max_duration_secs(None),
+            None
+        );
+    }
+
+    #[test]
+    fn complete_is_full_file() {
+        assert_eq!(
+            AnalysisDurationMode::Complete.resolve_max_duration_secs(Some(300.0)),
+            None
+        );
+    }
+}
+
 /// Parameters for an offline analysis run.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisConfig {

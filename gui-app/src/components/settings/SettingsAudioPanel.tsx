@@ -1,0 +1,296 @@
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Slider, SliderValue } from "@/components/ui/slider";
+import {
+  RESAMPLER_QUALITY_STEPS,
+  resamplerQualityFromIndex,
+  resamplerQualityIndex,
+  resamplerQualityLabel,
+} from "@/lib/resamplerQuality";
+import type { AppSettings, AudioDeviceSummary, BusRouteSettings } from "@/types";
+import { DeviceSelect } from "./DeviceSelect";
+import { SettingsField, SettingsSectionHeader } from "./SettingsField";
+import { SettingsSelect } from "./SettingsSelect";
+import { SettingsToggle } from "./SettingsToggle";
+
+const BACKENDS = ["cpal", "auto", "null"] as const;
+
+const BACKEND_OPTIONS = BACKENDS.map((backend) => ({
+  value: backend,
+  label: backend,
+}));
+
+const RESAMPLER_QUALITY_MIN = 0;
+const RESAMPLER_QUALITY_MAX = RESAMPLER_QUALITY_STEPS.length - 1;
+
+const BUFFER_SIZE_MIN = 64;
+const BUFFER_SIZE_MAX = 2048;
+const BUFFER_SIZE_STEP = 64;
+
+function snapBufferSize(value: number): number {
+  const snapped = Math.round(value / BUFFER_SIZE_STEP) * BUFFER_SIZE_STEP;
+  return Math.min(BUFFER_SIZE_MAX, Math.max(BUFFER_SIZE_MIN, snapped));
+}
+
+interface SettingsAudioPanelProps {
+  draft: AppSettings;
+  devices: AudioDeviceSummary[];
+  devicesLoading: boolean;
+  onChange: (next: AppSettings) => void;
+}
+
+function updateBusRoute(
+  route: BusRouteSettings,
+  patch: Partial<BusRouteSettings>,
+): BusRouteSettings {
+  return { ...route, ...patch };
+}
+
+export function SettingsAudioPanel({
+  draft,
+  devices,
+  devicesLoading,
+  onChange,
+}: SettingsAudioPanelProps) {
+  return (
+    <div className="space-y-8">
+      <section className="space-y-5">
+        <SettingsSectionHeader
+          title="Engine"
+          description="Output backend and buffering."
+        />
+
+        <SettingsField label="Audio backend">
+          <SettingsSelect
+            aria-label="Audio backend"
+            value={draft.backend}
+            options={BACKEND_OPTIONS}
+            onValueChange={(backend) => onChange({ ...draft, backend })}
+          />
+        </SettingsField>
+
+        <SettingsField label="Sample rate (Hz)">
+          <Input
+            type="number"
+            min={8000}
+            step={1000}
+            value={draft.sample_rate}
+            onChange={(event) =>
+              onChange({
+                ...draft,
+                sample_rate: Number(event.target.value) || draft.sample_rate,
+              })
+            }
+          />
+        </SettingsField>
+
+        <Field>
+          <Slider
+            aria-label="Buffer size"
+            value={draft.buffer_size}
+            min={BUFFER_SIZE_MIN}
+            max={BUFFER_SIZE_MAX}
+            step={BUFFER_SIZE_STEP}
+            onValueChange={(value) => {
+              const next = Array.isArray(value) ? value[0] : value;
+              if (next == null) {
+                return;
+              }
+              onChange({
+                ...draft,
+                buffer_size: snapBufferSize(next),
+              });
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <FieldLabel className="font-medium text-sm">
+                Buffer size (frames)
+              </FieldLabel>
+              <SliderValue />
+            </div>
+          </Slider>
+        </Field>
+
+        <SettingsToggle
+          label="Low latency mode"
+          checked={draft.low_latency}
+          onCheckedChange={(low_latency) =>
+            onChange({ ...draft, low_latency })
+          }
+        />
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Resample"
+          description="Converts each track to what your audio device expects."
+        />
+
+        <Field className="gap-1.5">
+          <Slider
+            aria-label="Resampler quality"
+            value={resamplerQualityIndex(draft.resampler_quality)}
+            min={RESAMPLER_QUALITY_MIN}
+            max={RESAMPLER_QUALITY_MAX}
+            step={1}
+            onValueChange={(value) => {
+              const next = Array.isArray(value) ? value[0] : value;
+              if (next == null) {
+                return;
+              }
+              onChange({
+                ...draft,
+                resampler_quality: resamplerQualityFromIndex(next),
+              });
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <FieldLabel className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Resampler quality
+              </FieldLabel>
+              <span className="text-sm">
+                {resamplerQualityLabel(draft.resampler_quality)}
+              </span>
+            </div>
+          </Slider>
+          <div
+            aria-label="Resampler quality levels"
+            className="mt-1 flex w-full items-center justify-between gap-1 px-2.5 font-medium text-muted-foreground text-xs"
+            role="group"
+          >
+            {RESAMPLER_QUALITY_STEPS.map((step) => (
+              <span
+                className="flex w-0 flex-col items-center justify-center gap-2"
+                key={step.value}
+              >
+                <span className="h-1 w-px bg-muted-foreground/72" />
+                <span>{step.label}</span>
+              </span>
+            ))}
+          </div>
+          <FieldDescription>Higher quality uses more CPU.</FieldDescription>
+        </Field>
+      </section>
+
+      <section className="space-y-4 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Buses"
+          description="Route master and optional preview output to devices."
+        />
+
+        <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Master
+          </p>
+          <DeviceSelect
+            label="Output device"
+            value={draft.master_bus.device_id}
+            devices={devices}
+            loading={devicesLoading}
+            onChange={(deviceId) =>
+              onChange({
+                ...draft,
+                master_bus: updateBusRoute(draft.master_bus, { device_id: deviceId }),
+              })
+            }
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <SettingsField label="Left channel">
+              <Input
+                type="number"
+                min={1}
+                value={draft.master_bus.left_channel}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    master_bus: updateBusRoute(draft.master_bus, {
+                      left_channel: Number(event.target.value) || 1,
+                    }),
+                  })
+                }
+              />
+            </SettingsField>
+            <SettingsField label="Right channel">
+              <Input
+                type="number"
+                min={1}
+                value={draft.master_bus.right_channel}
+                onChange={(event) =>
+                  onChange({
+                    ...draft,
+                    master_bus: updateBusRoute(draft.master_bus, {
+                      right_channel: Number(event.target.value) || 2,
+                    }),
+                  })
+                }
+              />
+            </SettingsField>
+          </div>
+        </div>
+
+        <SettingsToggle
+          label="Enable preview bus"
+          checked={draft.preview_enabled}
+          onCheckedChange={(preview_enabled) =>
+            onChange({ ...draft, preview_enabled })
+          }
+        />
+
+        {draft.preview_enabled && (
+          <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Preview
+            </p>
+            <DeviceSelect
+              label="Output device"
+              hint="Often headphones or a separate interface output."
+              value={draft.preview_bus.device_id}
+              devices={devices}
+              loading={devicesLoading}
+              onChange={(deviceId) =>
+                onChange({
+                  ...draft,
+                  preview_bus: updateBusRoute(draft.preview_bus, {
+                    device_id: deviceId,
+                  }),
+                })
+              }
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <SettingsField label="Left channel">
+                <Input
+                  type="number"
+                  min={1}
+                  value={draft.preview_bus.left_channel}
+                  onChange={(event) =>
+                    onChange({
+                      ...draft,
+                      preview_bus: updateBusRoute(draft.preview_bus, {
+                        left_channel: Number(event.target.value) || 1,
+                      }),
+                    })
+                  }
+                />
+              </SettingsField>
+              <SettingsField label="Right channel">
+                <Input
+                  type="number"
+                  min={1}
+                  value={draft.preview_bus.right_channel}
+                  onChange={(event) =>
+                    onChange({
+                      ...draft,
+                      preview_bus: updateBusRoute(draft.preview_bus, {
+                        right_channel: Number(event.target.value) || 2,
+                      }),
+                    })
+                  }
+                />
+              </SettingsField>
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

@@ -32,11 +32,16 @@ pub struct DspEngine {
 
 impl DspEngine {
     /// Create a new DSP engine with an immutable output clock from config.
-    pub fn new(sample_rate: u32, buffer_size: u32, num_decks: usize) -> Self {
+    pub fn new(
+        sample_rate: u32,
+        buffer_size: u32,
+        num_decks: usize,
+        resampler_quality: &str,
+    ) -> Self {
         let buffer_size = buffer_size.max(1);
         let mut decks = Vec::with_capacity(num_decks);
         for i in 0..num_decks {
-            decks.push(Deck::new(i, sample_rate, buffer_size));
+            decks.push(Deck::new(i, sample_rate, buffer_size, resampler_quality));
         }
 
         Self {
@@ -99,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_dsp_engine_creation() {
-        let engine = DspEngine::new(48000, 512, 2);
+        let engine = DspEngine::new(48000, 512, 2, "medium");
         assert_eq!(engine.num_decks(), 2);
         assert_eq!(engine.sample_rate(), 48000);
         assert_eq!(engine.buffer_size(), 512);
@@ -107,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_dsp_engine_deck_access() {
-        let mut engine = DspEngine::new(48000, 512, 2);
+        let mut engine = DspEngine::new(48000, 512, 2, "medium");
 
         // Test deck access
         assert!(engine.deck(0).is_some());
@@ -122,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_dsp_engine_processing() {
-        let mut engine = DspEngine::new(48000, 512, 2);
+        let mut engine = DspEngine::new(48000, 512, 2, "medium");
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);

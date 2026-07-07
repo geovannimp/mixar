@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 /// Create backend by name (used by Engine and by AudioBackend factory).
-pub(crate) fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBackend>> {
+pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBackend>> {
     match backend_name {
         "null" => {
             let backend = backend_null::NullBackend::new();

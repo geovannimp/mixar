@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn test_mixer_processing() {
         let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512), Deck::new(1, 48000, 512)];
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
         load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
@@ -304,7 +304,7 @@ mod tests {
         mixer.set_master_volume(0.5).unwrap();
         mixer.set_cue_volume(0.3).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000, 512)];
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
         load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn test_mixer_multiple_decks() {
         let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512), Deck::new(1, 48000, 512)];
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
         load_test_tone(&mut decks[0]);
         load_test_tone(&mut decks[1]);
         decks[0].play().unwrap();
