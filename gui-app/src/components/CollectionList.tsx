@@ -1,3 +1,4 @@
+import { Folder } from "lucide-react";
 import type { CollectionSummary } from "../types";
 
 interface CollectionListProps {
@@ -34,11 +35,21 @@ export function CollectionList({
               }
               onClick={() => onSelectCollection(collection.id)}
             >
-              <span className="block truncate text-sm font-medium">
-                {collection.name}
-              </span>
-              <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                {collection.track_count} tracks
+              <span className="flex items-start gap-2">
+                {collection.kind === "folder" && (
+                  <Folder
+                    className="mt-0.5 size-4 shrink-0 text-zinc-500"
+                    aria-hidden
+                  />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
+                    {collection.name}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-zinc-500">
+                    {collection.track_count} tracks
+                  </span>
+                </span>
               </span>
             </button>
           </li>
