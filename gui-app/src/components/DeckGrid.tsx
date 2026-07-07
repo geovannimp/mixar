@@ -11,6 +11,8 @@ interface DeckGridProps {
   onTogglePlayback: (deckId: number, playing: boolean) => void;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
+  crossfader: number;
+  onCrossfaderChange: (position: number) => void;
 }
 
 function defaultDecks(): DeckStatus[] {
@@ -31,6 +33,8 @@ export function DeckGrid({
   onTogglePlayback,
   onVolumeChange,
   onEqChange,
+  crossfader,
+  onCrossfaderChange,
 }: DeckGridProps) {
   const deckList = decks.length > 0 ? decks : defaultDecks();
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -51,9 +55,11 @@ export function DeckGrid({
       <div className="hidden h-full min-h-0 shrink-0 md:block">
         <DeckMixer
           decks={deckList}
+          crossfader={crossfader}
           disabled={busy}
           onVolumeChange={onVolumeChange}
           onEqChange={onEqChange}
+          onCrossfaderChange={onCrossfaderChange}
         />
       </div>
 

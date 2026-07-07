@@ -318,6 +318,16 @@ impl Engine {
         self.set_deck_eq(deck_id, DeckEqGains::clamped(low_db, mid_db, high_db))
     }
 
+    /// Set crossfader position (0.0 = deck A, 1.0 = deck B).
+    pub fn set_crossfader(&mut self, position: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_crossfader(position)
+    }
+
     /// List available audio devices for the engine's current backend
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
         self.backend.list_output_devices()

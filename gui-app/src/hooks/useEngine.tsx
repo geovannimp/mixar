@@ -21,6 +21,7 @@ export interface EngineContextValue {
   pauseDeck: (deckId: number) => Promise<void>;
   setDeckVolume: (deckId: number, volume: number) => Promise<void>;
   setDeckEq: (deckId: number, eq: DeckEq) => Promise<void>;
+  setCrossfader: (position: number) => Promise<void>;
 }
 
 const EngineContext = createContext<EngineContextValue | null>(null);
@@ -187,6 +188,18 @@ function useEngineState(): EngineContextValue {
     }
   }, []);
 
+  const setCrossfader = useCallback(async (position: number) => {
+    setError(null);
+    try {
+      const updated = await invoke<EngineStatus>("set_crossfader", {
+        crossfader: position,
+      });
+      setStatus(updated);
+    } catch (err) {
+      setError(String(err));
+    }
+  }, []);
+
   return {
     status,
     error,
@@ -198,5 +211,6 @@ function useEngineState(): EngineContextValue {
     pauseDeck,
     setDeckVolume,
     setDeckEq,
+    setCrossfader,
   };
 }

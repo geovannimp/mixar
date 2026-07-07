@@ -20,6 +20,7 @@ export function DjPage() {
     pauseDeck,
     setDeckVolume,
     setDeckEq,
+    setCrossfader,
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
@@ -66,6 +67,8 @@ export function DjPage() {
             onTogglePlayback={toggleDeckPlayback}
             onVolumeChange={setDeckVolume}
             onEqChange={setDeckEq}
+            crossfader={status?.crossfader ?? 0.5}
+            onCrossfaderChange={setCrossfader}
           />
         </ResizablePanel>
 

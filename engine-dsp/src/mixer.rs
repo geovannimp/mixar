@@ -48,6 +48,8 @@ type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
 pub struct Mixer {
     master_volume: f32,
     cue_volume: f32,
+    /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
+    crossfader: f32,
     /// Internal mix buffer (interleaved stereo) filled from the graph output.
     mix_buffer: Vec<Sample>,
     /// Graph: deck source nodes + sum node.
@@ -65,6 +67,7 @@ impl std::fmt::Debug for Mixer {
         f.debug_struct("Mixer")
             .field("master_volume", &self.master_volume)
             .field("cue_volume", &self.cue_volume)
+            .field("crossfader", &self.crossfader)
             .field("mix_buffer_len", &self.mix_buffer.len())
             .field("deck_node_count", &self.deck_node_ids.len())
             .finish()
@@ -93,6 +96,7 @@ impl Mixer {
         Self {
             master_volume: 1.0,
             cue_volume: 1.0,
+            crossfader: 0.5,
             mix_buffer: Vec::new(),
             graph,
             processor,
@@ -129,6 +133,27 @@ impl Mixer {
         Ok(())
     }
 
+    /// Crossfader position (0.0 = deck A, 1.0 = deck B).
+    pub fn crossfader(&self) -> f32 {
+        self.crossfader
+    }
+
+    /// Set crossfader position (0.0 = deck A, 1.0 = deck B).
+    pub fn set_crossfader(&mut self, position: f32) -> Result<()> {
+        if !(0.0..=1.0).contains(&position) {
+            return Err(anyhow::anyhow!("Crossfader must be between 0.0 and 1.0"));
+        }
+        self.crossfader = position;
+        Ok(())
+    }
+
+    /// Equal-power crossfader gains for deck A and deck B.
+    pub fn crossfader_gains(position: f32) -> (f32, f32) {
+        let t = position.clamp(0.0, 1.0);
+        let angle = t * std::f32::consts::FRAC_PI_2;
+        (angle.cos(), angle.sin())
+    }
+
     /// Process audio from all decks through the graph and route to output buses.
     pub fn process(
         &mut self,
@@ -145,6 +170,20 @@ impl Mixer {
         for deck in decks.iter_mut() {
             let out = deck.process(frames)?;
             deck_buffers.push(out.to_vec());
+        }
+
+        let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
+        for (i, deck_buf) in deck_buffers.iter_mut().enumerate() {
+            let gain = match i {
+                0 => gain_a,
+                1 => gain_b,
+                _ => 1.0,
+            };
+            if gain != 1.0 {
+                for sample in deck_buf.iter_mut() {
+                    *sample *= gain;
+                }
+            }
         }
 
         let n_samples_per_channel = frames as usize;
@@ -337,5 +376,54 @@ mod tests {
 
         let master_audio = &output_buses[&BusId::new("master")];
         assert!(master_audio.iter().any(|&s| s != 0.0));
+    }
+
+    #[test]
+    fn test_crossfader_gains() {
+        let (a, b) = Mixer::crossfader_gains(0.0);
+        assert!((a - 1.0).abs() < 1e-6);
+        assert!(b.abs() < 1e-6);
+
+        let (a, b) = Mixer::crossfader_gains(1.0);
+        assert!(a.abs() < 1e-6);
+        assert!((b - 1.0).abs() < 1e-6);
+
+        let (a, b) = Mixer::crossfader_gains(0.5);
+        assert!((a - b).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_crossfader_attenuates_deck() {
+        let mut mixer = Mixer::new();
+        mixer.set_crossfader(0.0).unwrap();
+
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
+        load_test_tone(&mut decks[0]);
+        load_test_tone(&mut decks[1]);
+        decks[0].play().unwrap();
+        decks[1].play().unwrap();
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        let full_a = output_buses[&BusId::new("master")]
+            .iter()
+            .map(|s| s.abs())
+            .fold(0.0_f32, f32::max);
+
+        decks[0].seek(0).unwrap();
+        decks[1].seek(0).unwrap();
+        mixer.set_crossfader(1.0).unwrap();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        let full_b = output_buses[&BusId::new("master")]
+            .iter()
+            .map(|s| s.abs())
+            .fold(0.0_f32, f32::max);
+
+        assert!(full_a > 0.0);
+        assert!(full_b > 0.0);
+        assert!((full_a - full_b).abs() < 0.2);
     }
 }

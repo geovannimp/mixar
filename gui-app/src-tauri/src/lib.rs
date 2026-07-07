@@ -57,6 +57,7 @@ struct AppState {
     engine: Option<Engine>,
     engine_config: EngineConfig,
     decks: [DeckInfo; NUM_DECKS],
+    crossfader: f32,
     audio_cache: AudioCache,
 }
 
@@ -214,6 +215,7 @@ struct EngineStatus {
     running: bool,
     backend: String,
     sample_rate: u32,
+    crossfader: f32,
     decks: Vec<DeckStatus>,
 }
 
@@ -278,6 +280,7 @@ fn engine_status(state: &AppState) -> EngineStatus {
         running: state.engine.is_some(),
         backend: "cpal".to_string(),
         sample_rate: 48_000,
+        crossfader: state.crossfader,
         decks: deck_statuses(state),
     }
 }
@@ -362,6 +365,9 @@ fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String
             .set_deck_eq_bands(deck_id, low, mid, high)
             .map_err(|e| e.to_string())?;
     }
+    engine
+        .set_crossfader(state.crossfader)
+        .map_err(|e| e.to_string())?;
     state.engine = Some(engine);
 
     Ok(engine_status(&state))
@@ -651,6 +657,25 @@ fn set_deck_eq(
 }
 
 #[tauri::command]
+fn set_crossfader(
+    crossfader: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<EngineStatus, String> {
+    if !(0.0..=1.0).contains(&crossfader) {
+        return Err("Crossfader must be between 0 and 1.".to_string());
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.crossfader = crossfader;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_crossfader(crossfader)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(engine_status(&state))
+}
+
+#[tauri::command]
 fn sample_track_path() -> Option<String> {
     let candidates = [
         "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
@@ -686,6 +711,7 @@ pub fn run() {
                 engine: None,
                 engine_config: default_engine_config(),
                 decks: Default::default(),
+                crossfader: 0.5,
                 audio_cache: AudioCache::new(),
             })));
             Ok(())
@@ -707,6 +733,7 @@ pub fn run() {
             pause_deck,
             set_deck_volume,
             set_deck_eq,
+            set_crossfader,
             sample_track_path,
         ])
         .run(tauri::generate_context!())

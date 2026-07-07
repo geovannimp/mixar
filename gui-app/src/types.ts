@@ -18,6 +18,7 @@ export interface EngineStatus {
   running: boolean;
   backend: string;
   sample_rate: number;
+  crossfader: number;
   decks: DeckStatus[];
 }
 

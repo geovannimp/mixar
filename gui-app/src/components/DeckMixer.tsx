@@ -115,18 +115,62 @@ function DeckChannelStrip({
   );
 }
 
+interface CrossfaderProps {
+  position: number;
+  disabled?: boolean;
+  onPositionChange: (position: number) => void;
+}
+
+function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
+  const percent = Math.round(position * 100);
+
+  return (
+    <div className="flex w-full shrink-0 flex-col gap-1 border-t border-white/6 pt-2">
+      <span className="text-center text-[8px] font-semibold uppercase tracking-widest text-zinc-600">
+        Crossfader
+      </span>
+      <div className="flex items-center gap-1.5 px-0.5">
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">
+          A
+        </span>
+        <Slider
+          orientation="horizontal"
+          thumbAlignment="center"
+          min={0}
+          max={100}
+          value={percent}
+          disabled={disabled}
+          aria-label="Crossfader"
+          className="min-w-0 flex-1 [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:min-w-0 [&_[data-slot=slider-thumb]]:size-3"
+          onValueChange={(value) => {
+            const next = Array.isArray(value) ? (value[0] ?? 0) : value;
+            onPositionChange(next / 100);
+          }}
+        />
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-rose-300">
+          B
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface DeckMixerProps {
   decks: DeckStatus[];
+  crossfader: number;
   disabled?: boolean;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
+  onCrossfaderChange: (position: number) => void;
 }
 
 export function DeckMixer({
   decks,
+  crossfader,
   disabled,
   onVolumeChange,
   onEqChange,
+  onCrossfaderChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
   const labels = ["A", "B"] as const;
@@ -137,19 +181,27 @@ export function DeckMixer({
         Mixer
       </span>
 
-      <div className="flex min-h-0 flex-1 items-stretch justify-center gap-1">
-        {labels.map((label, index) => (
-          <DeckChannelStrip
-            key={label}
-            label={label}
-            accent={accents[index]}
-            volume={decks[index]?.volume ?? 1}
-            eq={decks[index]?.eq ?? DEFAULT_DECK_EQ}
-            disabled={disabled}
-            onVolumeChange={(volume) => onVolumeChange(index, volume)}
-            onEqChange={(eq) => onEqChange(index, eq)}
-          />
-        ))}
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex min-h-0 flex-1 items-stretch justify-center gap-1">
+          {labels.map((label, index) => (
+            <DeckChannelStrip
+              key={label}
+              label={label}
+              accent={accents[index]}
+              volume={decks[index]?.volume ?? 1}
+              eq={decks[index]?.eq ?? DEFAULT_DECK_EQ}
+              disabled={disabled}
+              onVolumeChange={(volume) => onVolumeChange(index, volume)}
+              onEqChange={(eq) => onEqChange(index, eq)}
+            />
+          ))}
+        </div>
+
+        <Crossfader
+          position={crossfader}
+          disabled={disabled}
+          onPositionChange={onCrossfaderChange}
+        />
       </div>
     </div>
   );
