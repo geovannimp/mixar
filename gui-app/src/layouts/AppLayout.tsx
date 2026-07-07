@@ -1,8 +1,8 @@
 import { Outlet } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
-import { useEngine } from "../hooks/useEngine";
+import { EngineProvider, useEngine } from "../hooks/useEngine";
 
-export function AppLayout() {
+function AppLayoutContent() {
   const { status, busy, toggleEngine } = useEngine();
 
   return (
@@ -10,5 +10,13 @@ export function AppLayout() {
       <AppHeader status={status} busy={busy} onToggleEngine={toggleEngine} />
       <Outlet />
     </div>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <EngineProvider>
+      <AppLayoutContent />
+    </EngineProvider>
   );
 }

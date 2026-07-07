@@ -1,9 +1,44 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { EngineStatus } from "../types";
 
-export function useEngine() {
+export interface EngineContextValue {
+  status: EngineStatus | null;
+  error: string | null;
+  busy: boolean;
+  toggleEngine: () => Promise<void>;
+  loadLibraryTrackToDeck: (deckId: number, trackId: string) => Promise<void>;
+  pickTrack: (deckId: number) => Promise<void>;
+  playDeck: (deckId: number) => Promise<void>;
+  pauseDeck: (deckId: number) => Promise<void>;
+}
+
+const EngineContext = createContext<EngineContextValue | null>(null);
+
+export function EngineProvider({ children }: { children: ReactNode }) {
+  const value = useEngineState();
+  return (
+    <EngineContext.Provider value={value}>{children}</EngineContext.Provider>
+  );
+}
+
+export function useEngine(): EngineContextValue {
+  const context = useContext(EngineContext);
+  if (!context) {
+    throw new Error("useEngine must be used within EngineProvider");
+  }
+  return context;
+}
+
+function useEngineState(): EngineContextValue {
   const [status, setStatus] = useState<EngineStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
