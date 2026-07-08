@@ -111,6 +111,12 @@ impl Deck {
         self.position
     }
 
+    /// Current playback position in seconds (source file time).
+    pub fn position_seconds(&self) -> Option<f64> {
+        let audio = self.loaded.as_ref()?;
+        Some(self.position as f64 / f64::from(audio.sample_rate))
+    }
+
     /// Get the current playback speed
     pub fn speed(&self) -> f32 {
         self.speed

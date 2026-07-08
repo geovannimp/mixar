@@ -1,4 +1,5 @@
 import { DeckMixer } from "./DeckMixer";
+import { DualDeckWaveform } from "./DualDeckWaveform";
 import { DECK_ACCENTS, DECK_LABELS } from "../lib/ui";
 import { DEFAULT_DECK_EQ, type DeckEq, type DeckStatus } from "../types";
 import { DeckPanel } from "./DeckPanel";
@@ -19,9 +20,12 @@ function defaultDecks(): DeckStatus[] {
   return DECK_LABELS.map((_, id) => ({
     id,
     track: null,
+    track_id: null,
     playing: false,
     volume: 1,
     eq: DEFAULT_DECK_EQ,
+    position_secs: null,
+    duration_secs: null,
   }));
 }
 
@@ -40,8 +44,11 @@ export function DeckGrid({
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
 
   return (
-    <section className="grid h-full min-h-0 grid-cols-2 grid-rows-1 md:grid-cols-[1fr_auto_1fr]">
-      <DeckPanel
+    <section className="flex h-full min-h-0 flex-col">
+      <DualDeckWaveform decks={deckList} />
+
+      <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 md:grid-cols-[1fr_auto_1fr]">
+        <DeckPanel
         accent={accents[0]}
         deck={deckList[0]}
         engineRunning={engineRunning}
@@ -73,6 +80,7 @@ export function DeckGrid({
           onTogglePlayback(deckList[1].id, deckList[1].playing)
         }
       />
+      </div>
     </section>
   );
 }

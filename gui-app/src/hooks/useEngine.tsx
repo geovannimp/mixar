@@ -57,6 +57,22 @@ function useEngineState(): EngineContextValue {
     });
   }, [refreshStatus]);
 
+  const anyDeckPlaying = status?.decks.some((deck) => deck.playing) ?? false;
+
+  useEffect(() => {
+    if (!status?.running || !anyDeckPlaying) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshStatus().catch((err: unknown) => {
+        setError(String(err));
+      });
+    }, 100);
+
+    return () => window.clearInterval(intervalId);
+  }, [status?.running, anyDeckPlaying, refreshStatus]);
+
   const runAction = useCallback(
     async (action: () => Promise<void>) => {
       setBusy(true);

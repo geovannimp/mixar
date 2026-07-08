@@ -105,18 +105,12 @@ export function DeckPanel({
         </StatusPill>
       </div>
 
-      <div
-        className={`relative flex h-10 shrink-0 items-end overflow-hidden rounded border sm:h-12 md:h-14 ${accent.border} bg-black/40`}
+      <p
+        className="shrink-0 truncate rounded border border-white/8 bg-black/30 px-2 py-1 text-[11px] font-medium text-zinc-200 sm:text-xs"
         title={deck.track ?? undefined}
       >
-        <div
-          className={`absolute inset-0 bg-gradient-to-t ${accent.waveform} opacity-60`}
-        />
-        <div className="absolute inset-y-0 left-1/2 w-px bg-white/20" />
-        <p className="relative z-10 truncate px-2 py-1 text-[11px] font-medium text-zinc-100 sm:text-xs md:text-sm">
-          {trackTitle}
-        </p>
-      </div>
+        {trackTitle}
+      </p>
 
       <div className="@container/controls flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-hidden py-1 [container-type:size] @max-h-48/controls:flex-row @max-h-48/controls:justify-center @max-h-48/controls:gap-3 sm:py-2">
         <DeckCover

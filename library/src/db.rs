@@ -104,6 +104,7 @@ mod tests {
             "collections",
             "collection_tracks",
             "track_analysis",
+            "track_waveform",
         ] {
             let count: i64 = db
                 .conn()

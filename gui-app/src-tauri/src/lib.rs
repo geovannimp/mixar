@@ -9,8 +9,13 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 mod audio_cache;
+mod waveform_render;
 
-use audio_cache::{get_or_decode, AudioCache};
+use audio_cache::{
+    get_or_compute_detail, get_or_compute_overview, get_or_decode, AudioCache,
+};
+use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
 const NUM_DECKS: usize = 2;
 
@@ -36,6 +41,7 @@ impl Default for DeckEq {
 #[derive(Debug, Clone, Serialize)]
 struct DeckInfo {
     track: Option<String>,
+    track_id: Option<String>,
     playing: bool,
     volume: f32,
     eq: DeckEq,
@@ -45,6 +51,7 @@ impl Default for DeckInfo {
     fn default() -> Self {
         Self {
             track: None,
+            track_id: None,
             playing: false,
             volume: 1.0,
             eq: DeckEq::default(),
@@ -205,9 +212,20 @@ fn default_engine_config() -> EngineConfig {
 struct DeckStatus {
     id: usize,
     track: Option<String>,
+    track_id: Option<String>,
     playing: bool,
     volume: f32,
     eq: DeckEq,
+    position_secs: Option<f64>,
+    duration_secs: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct WaveformFrame {
+    width: u32,
+    height: u32,
+    /// Base64-encoded RGBA bytes (width * height * 4).
+    rgba_base64: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -260,17 +278,33 @@ fn deck_eq_gains(eq: &DeckEq) -> (f32, f32, f32) {
     )
 }
 
+fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
+    let Some(engine) = state.engine.as_ref() else {
+        return (None, None);
+    };
+    match engine.deck_playback_secs(deck_id) {
+        Some((position, duration)) => (Some(position), Some(duration)),
+        None => (None, None),
+    }
+}
+
 fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
     state
         .decks
         .iter()
         .enumerate()
-        .map(|(id, deck)| DeckStatus {
-            id,
-            track: deck.track.clone(),
-            playing: deck.playing,
-            volume: deck.volume,
-            eq: deck.eq.clone(),
+        .map(|(id, deck)| {
+            let (position_secs, duration_secs) = deck_playback_secs(state, id);
+            DeckStatus {
+                id,
+                track: deck.track.clone(),
+                track_id: deck.track_id.clone(),
+                playing: deck.playing,
+                volume: deck.volume,
+                eq: deck.eq.clone(),
+                position_secs,
+                duration_secs,
+            }
         })
         .collect()
 }
@@ -528,6 +562,7 @@ async fn load_track(
     })?;
 
     state.decks[deck_id].track = Some(path);
+    state.decks[deck_id].track_id = None;
     state.decks[deck_id].playing = false;
     Ok(deck_statuses(&state)[deck_id].clone())
 }
@@ -546,7 +581,7 @@ async fn load_library_track_to_deck(
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
-            .get_track(&TrackId::new(track_id))
+            .get_track(&TrackId::new(track_id.clone()))
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
 
@@ -560,6 +595,14 @@ async fn load_library_track_to_deck(
         (path.clone(), path)
     };
 
+    {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        state
+            .library
+            .ensure_track_waveform(&TrackId::new(track_id.clone()))
+            .map_err(|e| e.to_string())?;
+    }
+
     let audio = get_or_decode(&state, cache_key, path.clone()).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
@@ -570,6 +613,7 @@ async fn load_library_track_to_deck(
     })?;
 
     state.decks[deck_id].track = Some(path);
+    state.decks[deck_id].track_id = Some(track_id);
     state.decks[deck_id].playing = false;
     Ok(deck_statuses(&state)[deck_id].clone())
 }
@@ -676,6 +720,120 @@ fn set_crossfader(
 }
 
 #[tauri::command]
+async fn render_waveform_lane(
+    track_id: Option<String>,
+    path: Option<String>,
+    width: u32,
+    height: u32,
+    position_secs: f64,
+    visible_secs: f64,
+    buffer_ratio: f64,
+    include_detail: bool,
+    eq_low_db: f32,
+    eq_mid_db: f32,
+    eq_high_db: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<WaveformFrame, String> {
+    let width = width.max(1) as usize;
+    let height = height.max(1) as usize;
+
+    let file_path = if let Some(path) = path {
+        path
+    } else if let Some(ref id) = track_id {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        let source = state
+            .library
+            .get_track(&TrackId::new(id.clone()))
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Track not found in library.".to_string())?;
+        source
+            .file()
+            .ok_or_else(|| "Only file tracks have waveforms.".to_string())?
+            .path()
+            .to_string_lossy()
+            .into_owned()
+    } else {
+        return Err("path or track_id is required for waveform rendering.".to_string());
+    };
+
+    let cache_key = file_path.clone();
+    let (overview, track_duration_secs, beat_grid) = {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        let beat_grid = track_id.as_ref().and_then(|id| {
+            state
+                .library
+                .get_track_beat_grid(&TrackId::new(id.clone()))
+                .ok()
+                .flatten()
+        });
+
+        if let Some(ref id) = track_id {
+            if let Some(overview_row) = state
+                .library
+                .get_track_waveform_overview(&TrackId::new(id.clone()))
+                .map_err(|e| e.to_string())?
+            {
+                let duration = state
+                    .library
+                    .get_track(&TrackId::new(id.clone()))
+                    .map_err(|e| e.to_string())?
+                    .and_then(|source| source.metadata().duration_secs)
+                    .unwrap_or(0.0);
+                if !overview_row.peaks.is_empty() && duration > 0.0 {
+                    (Some(overview_row.peaks), duration, beat_grid)
+                } else {
+                    (None, 0.0, beat_grid)
+                }
+            } else {
+                (None, 0.0, beat_grid)
+            }
+        } else {
+            (None, 0.0, beat_grid)
+        }
+    };
+
+    let (overview, track_duration_secs) = if let Some(peaks) = overview {
+        (peaks, track_duration_secs)
+    } else {
+        get_or_compute_overview(&state, cache_key.clone(), file_path.clone()).await?
+    };
+
+    let detail = if include_detail {
+        get_or_compute_detail(
+            &state,
+            cache_key,
+            file_path,
+            position_secs,
+            visible_secs,
+            buffer_ratio,
+            width,
+        )
+        .await?
+    } else {
+        None
+    };
+
+    let gains = WaveformDisplayGains::from_eq_db(eq_low_db, eq_mid_db, eq_high_db);
+    let rgba = render_scrolling_lane(
+        width,
+        height,
+        &overview,
+        detail.as_ref(),
+        track_duration_secs,
+        position_secs,
+        visible_secs,
+        gains,
+        beat_grid.as_ref(),
+    );
+
+    Ok(WaveformFrame {
+        width: width as u32,
+        height: height as u32,
+        rgba_base64: BASE64.encode(rgba),
+    })
+}
+
+#[tauri::command]
 fn sample_track_path() -> Option<String> {
     let candidates = [
         "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
@@ -734,6 +892,7 @@ pub fn run() {
             set_deck_volume,
             set_deck_eq,
             set_crossfader,
+            render_waveform_lane,
             sample_track_path,
         ])
         .run(tauri::generate_context!())

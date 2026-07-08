@@ -328,6 +328,16 @@ impl Engine {
         dsp.mixer_mut().set_crossfader(position)
     }
 
+    /// Playback position and duration for a deck (seconds), when the engine is running.
+    pub fn deck_playback_secs(&self, deck_id: usize) -> Option<(f64, f64)> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        let duration = deck.duration_seconds()?;
+        let position = deck.position_seconds().unwrap_or(0.0);
+        Some((position, duration))
+    }
+
     /// List available audio devices for the engine's current backend
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
         self.backend.list_output_devices()

@@ -501,6 +501,14 @@ Phase 1: no new public types required — `get_track` returns `TrackMetadata` wi
 
 Phase 2: optional `Library::get_track_analysis(&TrackId) -> Result<Option<TrackAnalysis>>` in `library-core` when UI/engine needs grid without re-analyzing.
 
+### 11.5 Waveform storage (Phase 2+)
+
+**Persist overview only** in `library.db` (`track_waveform` table). See **[`dj-waveform-spec.md`](dj-waveform-spec.md) §8.4, §9, §13** for progressive UI and open decisions.
+
+- **DB:** full-track overview on `analyze_track`.
+- **Runtime:** hi-res analysis for the **visible scroll window** only.
+- **No** full-track scroll blobs on disk.
+
 ---
 
 ## 12 — Performance & Resource Limits

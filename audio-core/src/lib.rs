@@ -8,12 +8,20 @@
 //! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
 mod audio_source;
+mod waveform;
 
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
 pub use audio_source::{AudioSource, LoadedAudio};
+pub use waveform::{
+    compute_overview_envelope, compute_peak_envelope, compute_spectral_envelope,
+    compute_spectral_window, peaks_to_rgb_bytes, rgb_bytes_to_peaks,
+    waveform_buckets_for_duration, waveform_buckets_for_window, SpectralPeak,
+    WaveformAnalysisConfig, WaveformAmplitudeMode, WaveformChannelMode, WaveformFilterKind,
+    OVERVIEW_SAMPLE_COUNT, MAX_WAVEFORM_BUCKETS, MIN_WAVEFORM_BUCKETS, WAVEFORM_SCHEMA_VERSION,
+};
 
 // Re-export dasp fundamentals for samples, frames, and slice conversions
 pub use dasp::frame::Frame;

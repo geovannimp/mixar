@@ -9,9 +9,18 @@ export const DEFAULT_DECK_EQ: DeckEq = { low: 0, mid: 0, high: 0 };
 export interface DeckStatus {
   id: number;
   track: string | null;
+  track_id: string | null;
   playing: boolean;
   volume: number;
   eq: DeckEq;
+  position_secs: number | null;
+  duration_secs: number | null;
+}
+
+export interface WaveformFrame {
+  width: number;
+  height: number;
+  rgba_base64: string;
 }
 
 export interface EngineStatus {

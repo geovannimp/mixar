@@ -23,6 +23,7 @@ mod entity;
 mod model;
 mod store;
 mod tags;
+mod waveform;
 
 #[cfg(feature = "analysis")]
 use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
@@ -36,6 +37,8 @@ pub use library_core::{
     StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
     AnalyzeTrackOptions,
 };
+
+pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
 /// Audio file extensions recognized during scan/import.
 const AUDIO_EXTENSIONS: &[&str] = &[
@@ -77,6 +80,34 @@ impl LibraryManager {
     /// Replace the library configuration.
     pub fn set_config(&mut self, config: LibraryConfig) {
         self.config = config;
+    }
+
+    /// Load the stored L0 waveform overview for a track, if present.
+    pub fn get_track_waveform_overview(
+        &self,
+        id: &TrackId,
+    ) -> Result<Option<waveform::TrackWaveformOverview>> {
+        waveform::get_track_waveform_row(&self.db, id)
+    }
+
+    /// Generate and persist the overview when missing (e.g. first deck load).
+    pub fn ensure_track_waveform(&self, id: &TrackId) -> Result<()> {
+        if waveform::has_track_waveform(&self.db, id)? {
+            return Ok(());
+        }
+        let source = self
+            .get_track(id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+        let path = source
+            .file()
+            .ok_or_else(|| LibraryError::Unsupported("stream tracks have no waveform"))?
+            .path();
+        waveform::generate_and_store_overview(&self.db, id, path)
+    }
+
+    /// Beat grid overlay data when the track has been analyzed.
+    pub fn get_track_beat_grid(&self, id: &TrackId) -> Result<Option<waveform::BeatGridSnapshot>> {
+        waveform::get_track_beat_grid(&self.db, id)
     }
 
     fn track_id_for(path: &Path) -> TrackId {
@@ -394,6 +425,7 @@ impl LibraryManager {
 
         let source = self.upsert_file_source(&path, &metadata)?;
         analysis::upsert_track_analysis(&self.db, source.id(), &analysis)?;
+        waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         Ok(source)
     }
 
@@ -861,6 +893,31 @@ mod tests {
 
         let count = lib.store().count_track_analysis(track.id()).unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
+    fn analyze_track_persists_waveform_overview() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("song.wav");
+        write_minimal_wav(&wav);
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        assert!(lib.get_track_waveform_overview(track.id()).unwrap().is_none());
+
+        lib.analyze_track(track.id(), AnalyzeTrackOptions::default())
+            .unwrap();
+
+        let overview = lib
+            .get_track_waveform_overview(track.id())
+            .unwrap()
+            .expect("waveform overview should exist after analyze");
+        assert_eq!(overview.overview_count, audio_core::OVERVIEW_SAMPLE_COUNT);
+        assert_eq!(overview.peaks.len(), audio_core::OVERVIEW_SAMPLE_COUNT);
+
+        lib.ensure_track_waveform(track.id()).unwrap();
+        assert!(lib.get_track_waveform_overview(track.id()).unwrap().is_some());
     }
 
     #[test]
