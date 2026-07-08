@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { toastManager } from "@/components/ui/toast";
 import type {
   AddFolderCollectionResult,
   CollectionSummary,
@@ -11,7 +12,6 @@ export function useLibrary() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [tracks, setTracks] = useState<TrackSummary[]>([]);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [analyzingTrackId, setAnalyzingTrackId] = useState<string | null>(null);
@@ -53,6 +53,32 @@ export function useLibrary() {
     });
   }, [selectedCollectionId, refreshTracks]);
 
+  const addFolderCollectionFromPath = useCallback(
+    async (folderPath: string) => {
+      setBusy(true);
+      setError(null);
+      try {
+        const result = await invoke<AddFolderCollectionResult>("add_folder_collection", {
+          folderPath,
+        });
+        setSelectedCollectionId(result.collection.id);
+        await refreshCollections();
+        await refreshTracks(result.collection.id);
+        toastManager.add({
+          title: "Collection created",
+          type: "success",
+        });
+        return result;
+      } catch (err) {
+        setError(String(err));
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refreshCollections, refreshTracks],
+  );
+
   const addFolderCollection = useCallback(async () => {
     const selected = await open({
       directory: true,
@@ -62,25 +88,8 @@ export function useLibrary() {
       return;
     }
 
-    setBusy(true);
-    setError(null);
-    setScanMessage(null);
-    try {
-      const result = await invoke<AddFolderCollectionResult>("add_folder_collection", {
-        folderPath: selected,
-      });
-      setSelectedCollectionId(result.collection.id);
-      await refreshCollections();
-      await refreshTracks(result.collection.id);
-      setScanMessage(
-        `Imported ${result.scan.added} tracks, updated ${result.scan.updated}, skipped ${result.scan.skipped}.`,
-      );
-    } catch (err) {
-      setError(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [refreshCollections, refreshTracks]);
+    await addFolderCollectionFromPath(selected);
+  }, [addFolderCollectionFromPath]);
 
   const analyzeTrack = useCallback(async (trackId: string) => {
     setAnalyzingTrackId(trackId);
@@ -103,12 +112,12 @@ export function useLibrary() {
     collections,
     selectedCollectionId,
     tracks,
-    scanMessage,
     error,
     busy,
     analyzingTrackId,
     setSelectedCollectionId,
     addFolderCollection,
+    addFolderCollectionFromPath,
     analyzeTrack,
   };
 }

@@ -1,7 +1,7 @@
-import { Folder } from "lucide-react";
 import { splitPathBreadcrumbs } from "../lib/driveVolumes";
 import type { DirectoryListing, VolumeInfo } from "../types";
 import { DrivePathBreadcrumbs } from "./DrivePathBreadcrumbs";
+import { DriveFolderRow } from "./DriveFolderRow";
 import { DriveVolumeList } from "./DriveSelector";
 
 interface DriveBrowserProps {
@@ -11,6 +11,7 @@ interface DriveBrowserProps {
   busy: boolean;
   onSelectVolume: (path: string) => void;
   onOpenDirectory: (path: string) => void;
+  onCreateCollectionFromFolder: (folderPath: string) => void;
 }
 
 export function DriveBrowser({
@@ -20,6 +21,7 @@ export function DriveBrowser({
   busy,
   onSelectVolume,
   onOpenDirectory,
+  onCreateCollectionFromFolder,
 }: DriveBrowserProps) {
   const { ancestors, current } = listing
     ? splitPathBreadcrumbs(listing.path, selectedVolume)
@@ -37,17 +39,12 @@ export function DriveBrowser({
         <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {current && (
             <li>
-              <div
-                className="w-full rounded border-l-2 border-l-emerald-500/60 bg-white/5 px-3 py-2"
-                aria-current="location"
+              <DriveFolderRow
+                busy={busy}
                 title={current.path}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <Folder
-                    className="size-4 shrink-0 text-zinc-400"
-                    aria-hidden
-                  />
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-0.5 gap-y-0">
+                selected
+                label={
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-0.5 gap-y-0">
                     {ancestors.length > 0 && (
                       <DrivePathBreadcrumbs
                         crumbs={ancestors}
@@ -66,8 +63,9 @@ export function DriveBrowser({
                       {current.label}
                     </span>
                   </div>
-                </div>
-              </div>
+                }
+                onCreateCollection={() => onCreateCollectionFromFolder(current.path)}
+              />
             </li>
           )}
 
@@ -80,22 +78,20 @@ export function DriveBrowser({
           ) : (
             listing.directories.map((directory) => (
               <li key={directory.path}>
-                <button
-                  type="button"
-                  className="w-full rounded border-l-2 border-l-transparent py-2 pl-6 pr-3 text-left hover:bg-white/5"
-                  disabled={busy}
-                  onClick={() => onOpenDirectory(directory.path)}
-                >
-                  <span className="flex items-center gap-2">
-                    <Folder
-                      className="size-4 shrink-0 text-zinc-500"
-                      aria-hidden
-                    />
+                <DriveFolderRow
+                  busy={busy}
+                  title={directory.path}
+                  indented
+                  label={
                     <span className="truncate text-sm leading-5">
                       {directory.name}
                     </span>
-                  </span>
-                </button>
+                  }
+                  onOpen={() => onOpenDirectory(directory.path)}
+                  onCreateCollection={() =>
+                    onCreateCollectionFromFolder(directory.path)
+                  }
+                />
               </li>
             ))
           )}

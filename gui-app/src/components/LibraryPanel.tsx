@@ -50,12 +50,12 @@ export function LibraryPanel({
     collections,
     selectedCollectionId,
     tracks,
-    scanMessage,
     error: libraryError,
     busy: libraryBusy,
     analyzingTrackId,
     setSelectedCollectionId,
     addFolderCollection,
+    addFolderCollectionFromPath,
     analyzeTrack,
   } = useLibrary();
 
@@ -169,14 +169,18 @@ export function LibraryPanel({
     [analyzeTrack, upsertResolvedTrack],
   );
 
+  const handleCreateCollectionFromFolder = useCallback(
+    (folderPath: string) => {
+      void addFolderCollectionFromPath(folderPath);
+    },
+    [addFolderCollectionFromPath],
+  );
+
   return (
     <section className="flex h-full min-h-0 flex-col bg-zinc-900/40">
-      {(error || scanMessage) && (
+      {error && (
         <div className="shrink-0 space-y-2 px-4 pt-3">
-          {error && <MessageBanner message={error} variant="error" />}
-          {scanMessage && sourceTab === "collections" && (
-            <MessageBanner message={scanMessage} variant="success" />
-          )}
+          <MessageBanner message={error} variant="error" />
         </div>
       )}
 
@@ -239,9 +243,10 @@ export function LibraryPanel({
                   volumes={volumes}
                   selectedVolume={selectedVolume}
                   listing={listing}
-                  busy={driveBusy}
+                  busy={panelBusy}
                   onSelectVolume={openVolume}
                   onOpenDirectory={openDirectory}
+                  onCreateCollectionFromFolder={handleCreateCollectionFromFolder}
                 />
               )}
             </LibraryPane>

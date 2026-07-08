@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { buttonIcon } from "../lib/ui";
 
 export interface TrackActionItem {
@@ -11,9 +12,16 @@ export interface TrackActionItem {
 interface TrackActionsMenuProps {
   actions: TrackActionItem[];
   busy?: boolean;
+  hiddenUntilHover?: boolean;
+  menuLabel?: string;
 }
 
-export function TrackActionsMenu({ actions, busy = false }: TrackActionsMenuProps) {
+export function TrackActionsMenu({
+  actions,
+  busy = false,
+  hiddenUntilHover = false,
+  menuLabel = "Track actions",
+}: TrackActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -43,15 +51,26 @@ export function TrackActionsMenu({ actions, busy = false }: TrackActionsMenuProp
   }, [open]);
 
   return (
-    <div ref={rootRef} className="relative flex justify-end">
+    <div
+      ref={rootRef}
+      className={cn(
+        "relative flex shrink-0 justify-end",
+        hiddenUntilHover &&
+          "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+        open && "opacity-100",
+      )}
+    >
       <button
         type="button"
         className={`${buttonIcon} border-white/10 bg-white/5 hover:bg-white/10`}
         disabled={busy}
         draggable={false}
-        aria-label="Track actions"
+        aria-label={menuLabel}
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={(event) => {
+          event.stopPropagation();
+          setOpen((current) => !current);
+        }}
       >
         <MoreHorizontal className="size-4" aria-hidden />
       </button>

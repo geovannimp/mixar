@@ -1,3 +1,4 @@
+import { ToastProvider } from "@/components/ui/toast";
 import { Outlet } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
 import { EngineProvider, useEngine } from "../hooks/useEngine";
@@ -16,7 +17,9 @@ function AppLayoutContent() {
 export function AppLayout() {
   return (
     <EngineProvider>
-      <AppLayoutContent />
+      <ToastProvider>
+        <AppLayoutContent />
+      </ToastProvider>
     </EngineProvider>
   );
 }
