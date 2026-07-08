@@ -17,7 +17,7 @@ function WaveformLane({
   const { ref, size } = useLaneDimensions();
   const positionSecs = deck.position_secs ?? 0;
 
-  const { frame } = useRenderWaveformLane({
+  const { frame, estimatedPosition } = useRenderWaveformLane({
     trackId: deck.track_id,
     path: deck.track,
     positionSecs,
@@ -31,6 +31,9 @@ function WaveformLane({
     <div ref={ref} className="relative min-h-0 flex-1">
       <RustRenderedLane
         frame={frame}
+        positionSecs={positionSecs}
+        playing={deck.playing}
+        estimatedPosition={estimatedPosition}
         label={accent.label}
         labelClass={accent.text}
       />

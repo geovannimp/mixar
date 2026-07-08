@@ -21,6 +21,10 @@ export interface WaveformFrame {
   width: number;
   height: number;
   rgba_base64: string;
+  center_secs: number;
+  cover_start_secs: number;
+  cover_end_secs: number;
+  visible_secs: number;
 }
 
 export interface EngineStatus {

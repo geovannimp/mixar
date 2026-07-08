@@ -1,4 +1,8 @@
 export const WAVEFORM_VISIBLE_SECS = 24;
+/** Extra cover on each side of the viewport (fraction of visible window). */
+export const WAVEFORM_BUFFER_RATIO = 1.0;
+/** Refresh the strip when the playhead reaches this fraction of the buffer. */
+export const WAVEFORM_REFRESH_MARGIN = 0.35;
 
 const LOW_RGB: readonly [number, number, number] = [255, 72, 48];
 const MID_RGB: readonly [number, number, number] = [118, 228, 88];

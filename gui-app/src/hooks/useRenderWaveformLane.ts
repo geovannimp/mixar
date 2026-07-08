@@ -1,10 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeckEq, WaveformFrame } from "../types";
-import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
-
-const BUFFER_RATIO = 0.5;
-const PLAYING_REFRESH_MS = 80;
+import {
+  WAVEFORM_BUFFER_RATIO,
+  WAVEFORM_REFRESH_MARGIN,
+  WAVEFORM_VISIBLE_SECS,
+} from "../lib/spectralColor";
 
 interface UseRenderWaveformLaneOptions {
   trackId: string | null;
@@ -27,24 +28,39 @@ export function useRenderWaveformLane({
 }: UseRenderWaveformLaneOptions) {
   const [frame, setFrame] = useState<WaveformFrame | null>(null);
   const [loading, setLoading] = useState(false);
-  const detailReadyRef = useRef(false);
-  const inFlightRef = useRef(false);
-  const queuedRef = useRef<{ includeDetail: boolean; position: number } | null>(
-    null,
-  );
-  const requestIdRef = useRef(0);
-  const positionRef = useRef(positionSecs);
-  positionRef.current = positionSecs;
 
-  const renderLane = useCallback(
-    async (includeDetail: boolean, position: number) => {
+  const frameRef = useRef<WaveformFrame | null>(null);
+  const inFlightRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  const enginePosRef = useRef(positionSecs);
+  const engineAtRef = useRef(performance.now());
+  const playingRef = useRef(playing);
+
+  playingRef.current = playing;
+
+  useEffect(() => {
+    enginePosRef.current = positionSecs;
+    engineAtRef.current = performance.now();
+  }, [positionSecs]);
+
+  const estimatedPosition = useCallback(() => {
+    if (!playingRef.current) {
+      return enginePosRef.current;
+    }
+    const elapsed = (performance.now() - engineAtRef.current) / 1000;
+    return enginePosRef.current + elapsed;
+  }, []);
+
+  const fetchStrip = useCallback(
+    async (position: number, includeDetail: boolean) => {
       if ((!trackId && !path) || width <= 0 || height <= 0) {
+        frameRef.current = null;
         setFrame(null);
         return;
       }
 
       if (inFlightRef.current) {
-        queuedRef.current = { includeDetail, position };
         return;
       }
 
@@ -60,7 +76,7 @@ export function useRenderWaveformLane({
           height,
           positionSecs: position,
           visibleSecs: WAVEFORM_VISIBLE_SECS,
-          bufferRatio: BUFFER_RATIO,
+          bufferRatio: WAVEFORM_BUFFER_RATIO,
           includeDetail,
           eqLowDb: eq.low,
           eqMidDb: eq.mid,
@@ -68,14 +84,13 @@ export function useRenderWaveformLane({
         });
 
         if (requestId === requestIdRef.current) {
+          frameRef.current = nextFrame;
           setFrame(nextFrame);
-          if (includeDetail) {
-            detailReadyRef.current = true;
-          }
         }
       } catch (err) {
         console.error("render_waveform_lane failed", err);
         if (requestId === requestIdRef.current) {
+          frameRef.current = null;
           setFrame(null);
         }
       } finally {
@@ -83,35 +98,39 @@ export function useRenderWaveformLane({
         if (requestId === requestIdRef.current) {
           setLoading(false);
         }
-        const queued = queuedRef.current;
-        if (queued) {
-          queuedRef.current = null;
-          void renderLane(queued.includeDetail, queued.position);
-        }
       }
     },
     [trackId, path, width, height, eq.low, eq.mid, eq.high],
   );
 
   useEffect(() => {
-    detailReadyRef.current = false;
-    void renderLane(false, positionRef.current).then(() =>
-      renderLane(true, positionRef.current),
-    );
-  }, [trackId, path, width, height, renderLane]);
+    frameRef.current = null;
+    setFrame(null);
+    const pos = enginePosRef.current;
+    void fetchStrip(pos, false).then(() => fetchStrip(pos, true));
+  }, [trackId, path, width, height, fetchStrip]);
+
+  useEffect(() => {
+    if (playing) {
+      return;
+    }
+    const current = frameRef.current;
+    if (!current || needsRefresh(current, positionSecs)) {
+      void fetchStrip(positionSecs, true);
+    }
+  }, [playing, positionSecs, fetchStrip]);
 
   useEffect(() => {
     if (!playing) {
-      void renderLane(detailReadyRef.current, positionSecs);
       return;
     }
 
     let frameId = 0;
-    let lastFetch = 0;
-    const tick = (now: number) => {
-      if (now - lastFetch >= PLAYING_REFRESH_MS) {
-        lastFetch = now;
-        void renderLane(true, positionRef.current);
+    const tick = () => {
+      const estimated = estimatedPosition();
+      const current = frameRef.current;
+      if (current && needsRefresh(current, estimated) && !inFlightRef.current) {
+        void fetchStrip(estimated, true);
       }
       frameId = window.requestAnimationFrame(tick);
     };
@@ -120,7 +139,16 @@ export function useRenderWaveformLane({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [playing, positionSecs, renderLane]);
+  }, [playing, fetchStrip, estimatedPosition]);
 
-  return { frame, loading };
+  return { frame, estimatedPosition, loading };
+}
+
+function needsRefresh(frame: WaveformFrame, positionSecs: number): boolean {
+  const halfVisible = frame.visible_secs / 2;
+  const leftSlack = positionSecs - halfVisible - frame.cover_start_secs;
+  const rightSlack = frame.cover_end_secs - (positionSecs + halfVisible);
+  const minSlack =
+    frame.visible_secs * WAVEFORM_BUFFER_RATIO * WAVEFORM_REFRESH_MARGIN;
+  return leftSlack < minSlack || rightSlack < minSlack;
 }

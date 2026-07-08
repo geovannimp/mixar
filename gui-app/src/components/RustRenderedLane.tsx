@@ -3,6 +3,10 @@ import type { WaveformFrame } from "../types";
 
 interface RustRenderedLaneProps {
   frame: WaveformFrame | null;
+  positionSecs: number;
+  playing: boolean;
+  /** Returns a smoothly estimated playhead while playing. */
+  estimatedPosition: () => number;
   label: string;
   labelClass: string;
 }
@@ -18,32 +22,29 @@ function decodeBase64Rgba(base64: string): Uint8ClampedArray {
 
 export function RustRenderedLane({
   frame,
+  positionSecs,
+  playing,
+  estimatedPosition,
   label,
   labelClass,
 }: RustRenderedLaneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stripRef = useRef<HTMLCanvasElement | null>(null);
+  const frameRef = useRef<WaveformFrame | null>(null);
+  const estimatedPositionRef = useRef(estimatedPosition);
+  const playingRef = useRef(playing);
+  const pausedPosRef = useRef(positionSecs);
+
+  estimatedPositionRef.current = estimatedPosition;
+  playingRef.current = playing;
+  pausedPosRef.current = positionSecs;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !frame || frame.width <= 0 || frame.height <= 0) {
+    frameRef.current = frame;
+    if (!frame || frame.width <= 0 || frame.height <= 0) {
+      stripRef.current = null;
       return;
     }
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
-
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = canvas.clientWidth;
-    const displayHeight = canvas.clientHeight;
-    if (displayWidth <= 0 || displayHeight <= 0) {
-      return;
-    }
-
-    canvas.width = Math.floor(displayWidth * dpr);
-    canvas.height = Math.floor(displayHeight * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     try {
       const rgba = decodeBase64Rgba(frame.rgba_base64);
@@ -52,22 +53,93 @@ export function RustRenderedLane({
         console.error(
           `waveform rgba size mismatch: got ${rgba.length}, expected ${expected}`,
         );
+        stripRef.current = null;
         return;
       }
 
       const image = new ImageData(rgba, frame.width, frame.height);
-      const scratch = document.createElement("canvas");
-      scratch.width = frame.width;
-      scratch.height = frame.height;
-      scratch.getContext("2d")?.putImageData(image, 0, 0);
-
-      ctx.clearRect(0, 0, displayWidth, displayHeight);
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(scratch, 0, 0, displayWidth, displayHeight);
+      const strip = document.createElement("canvas");
+      strip.width = frame.width;
+      strip.height = frame.height;
+      strip.getContext("2d")?.putImageData(image, 0, 0);
+      stripRef.current = strip;
     } catch (err) {
-      console.error("failed to paint waveform frame", err);
+      console.error("failed to decode waveform frame", err);
+      stripRef.current = null;
     }
   }, [frame]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    let frameId = 0;
+    const paint = () => {
+      const ctx = canvas.getContext("2d");
+      const strip = stripRef.current;
+      const stripFrame = frameRef.current;
+      if (!ctx) {
+        frameId = window.requestAnimationFrame(paint);
+        return;
+      }
+
+      const dpr = window.devicePixelRatio || 1;
+      const displayWidth = canvas.clientWidth;
+      const displayHeight = canvas.clientHeight;
+      if (displayWidth <= 0 || displayHeight <= 0) {
+        frameId = window.requestAnimationFrame(paint);
+        return;
+      }
+
+      const targetW = Math.floor(displayWidth * dpr);
+      const targetH = Math.floor(displayHeight * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+      ctx.fillStyle = "#050508";
+      ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+      if (strip && stripFrame && stripFrame.visible_secs > 0) {
+        const coverSecs =
+          stripFrame.cover_end_secs - stripFrame.cover_start_secs;
+        if (coverSecs > 0) {
+          const viewPos = playingRef.current
+            ? estimatedPositionRef.current()
+            : pausedPosRef.current;
+          const pxPerSec = stripFrame.width / coverSecs;
+          const viewStart = viewPos - stripFrame.visible_secs / 2;
+          const srcX = (viewStart - stripFrame.cover_start_secs) * pxPerSec;
+          const srcW =
+            (stripFrame.visible_secs / coverSecs) * stripFrame.width;
+
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(
+            strip,
+            srcX,
+            0,
+            srcW,
+            stripFrame.height,
+            0,
+            0,
+            displayWidth,
+            displayHeight,
+          );
+        }
+      }
+
+      frameId = window.requestAnimationFrame(paint);
+    };
+
+    frameId = window.requestAnimationFrame(paint);
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, []);
 
   return (
     <div className="absolute inset-0 bg-black">

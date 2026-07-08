@@ -222,10 +222,19 @@ struct DeckStatus {
 
 #[derive(Debug, Clone, Serialize)]
 struct WaveformFrame {
+    /// Full strip pixel width (may be wider than the viewport).
     width: u32,
     height: u32,
     /// Base64-encoded RGBA bytes (width * height * 4).
     rgba_base64: String,
+    /// Playhead time the strip was centered on when rendered.
+    center_secs: f64,
+    /// Absolute timeline start covered by the strip.
+    cover_start_secs: f64,
+    /// Absolute timeline end covered by the strip.
+    cover_end_secs: f64,
+    /// Seconds shown in the viewport (center playhead window).
+    visible_secs: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -734,8 +743,15 @@ async fn render_waveform_lane(
     eq_high_db: f32,
     state: State<'_, SharedAppState>,
 ) -> Result<WaveformFrame, String> {
-    let width = width.max(1) as usize;
+    let viewport_width = width.max(1) as usize;
     let height = height.max(1) as usize;
+    let visible_secs = visible_secs.max(0.1);
+    let buffer_ratio = buffer_ratio.clamp(0.0, 4.0);
+    // Wider strip so the client can pan smoothly between IPC refreshes.
+    let cover_secs = visible_secs * (1.0 + 2.0 * buffer_ratio);
+    let strip_width = ((viewport_width as f64) * (cover_secs / visible_secs))
+        .round()
+        .max(viewport_width as f64) as usize;
 
     let file_path = if let Some(path) = path {
         path
@@ -804,9 +820,9 @@ async fn render_waveform_lane(
             cache_key,
             file_path,
             position_secs,
-            visible_secs,
-            buffer_ratio,
-            width,
+            cover_secs,
+            0.0,
+            strip_width,
         )
         .await?
     } else {
@@ -815,21 +831,26 @@ async fn render_waveform_lane(
 
     let gains = WaveformDisplayGains::from_eq_db(eq_low_db, eq_mid_db, eq_high_db);
     let rgba = render_scrolling_lane(
-        width,
+        strip_width,
         height,
         &overview,
         detail.as_ref(),
         track_duration_secs,
         position_secs,
-        visible_secs,
+        cover_secs,
         gains,
         beat_grid.as_ref(),
     );
 
+    let half_cover = cover_secs / 2.0;
     Ok(WaveformFrame {
-        width: width as u32,
+        width: strip_width as u32,
         height: height as u32,
         rgba_base64: BASE64.encode(rgba),
+        center_secs: position_secs,
+        cover_start_secs: position_secs - half_cover,
+        cover_end_secs: position_secs + half_cover,
+        visible_secs,
     })
 }
 
