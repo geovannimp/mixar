@@ -15,6 +15,7 @@ export function DjPage() {
     error,
     busy,
     loadLibraryTrackToDeck,
+    loadPathToDeck,
     pickTrack,
     playDeck,
     pauseDeck,
@@ -87,6 +88,7 @@ export function DjPage() {
             engineRunning={engineRunning}
             engineBusy={busy}
             onLoadToDeck={loadLibraryTrackToDeck}
+            onLoadPathToDeck={loadPathToDeck}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

@@ -9,11 +9,13 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 mod audio_cache;
+mod fs_browser;
 mod waveform_render;
 
 use audio_cache::{
     get_or_compute_detail, get_or_compute_overview, get_or_decode, AudioCache,
 };
+use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
@@ -551,6 +553,66 @@ async fn analyze_library_track(
 }
 
 #[tauri::command]
+fn list_fs_volumes() -> Result<Vec<VolumeInfo>, String> {
+    list_volumes()
+}
+
+#[tauri::command]
+fn browse_fs_directory(path: String) -> Result<DirectoryListing, String> {
+    browse_directory(&path)
+}
+
+#[tauri::command]
+async fn load_path_to_deck(
+    deck_id: usize,
+    path: String,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let (track_id, cache_key) = {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        let source = state
+            .library
+            .import_file_path(Path::new(&path))
+            .map_err(|e| e.to_string())?;
+
+        let file_path = source
+            .file()
+            .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
+            .path()
+            .to_string_lossy()
+            .into_owned();
+
+        (source.id().as_str().to_string(), file_path)
+    };
+
+    {
+        let state = state.lock().map_err(|e| e.to_string())?;
+        state
+            .library
+            .ensure_track_waveform(&TrackId::new(track_id.clone()))
+            .map_err(|e| e.to_string())?;
+    }
+
+    let audio = get_or_decode(&state, cache_key.clone(), cache_key).await?;
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    with_engine(&mut state, |engine| {
+        engine
+            .load_track(deck_id, audio)
+            .map_err(|e| e.to_string())
+    })?;
+
+    state.decks[deck_id].track = Some(path);
+    state.decks[deck_id].track_id = Some(track_id);
+    state.decks[deck_id].playing = false;
+    Ok(deck_statuses(&state)[deck_id].clone())
+}
+
+#[tauri::command]
 async fn load_track(
     deck_id: usize,
     path: String,
@@ -905,8 +967,11 @@ pub fn run() {
             list_collections,
             add_folder_collection,
             list_collection_tracks,
+            list_fs_volumes,
+            browse_fs_directory,
             analyze_library_track,
             load_track,
+            load_path_to_deck,
             load_library_track_to_deck,
             play_deck,
             pause_deck,

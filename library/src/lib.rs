@@ -324,6 +324,11 @@ impl LibraryManager {
         self.refresh_file_source(path)
     }
 
+    /// Import or refresh a file track at `path` and return the library source.
+    pub fn import_file_path(&self, path: &Path) -> Result<LibrarySource> {
+        self.refresh_file_source(path)
+    }
+
     pub(crate) fn import_stream(
         &self,
         uri: &str,

@@ -99,3 +99,23 @@ export interface AddFolderCollectionResult {
 }
 
 export type SettingsSection = "audio" | "library";
+
+export type LibrarySourceTab = "collections" | "drive";
+
+export interface VolumeInfo {
+  name: string;
+  path: string;
+  is_removable: boolean;
+}
+
+export interface FsEntry {
+  name: string;
+  path: string;
+}
+
+export interface DirectoryListing {
+  path: string;
+  parent: string | null;
+  directories: FsEntry[];
+  audio_files: FsEntry[];
+}

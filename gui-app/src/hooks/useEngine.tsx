@@ -16,6 +16,7 @@ export interface EngineContextValue {
   busy: boolean;
   toggleEngine: () => Promise<void>;
   loadLibraryTrackToDeck: (deckId: number, trackId: string) => Promise<void>;
+  loadPathToDeck: (deckId: number, path: string) => Promise<void>;
   pickTrack: (deckId: number) => Promise<void>;
   playDeck: (deckId: number) => Promise<void>;
   pauseDeck: (deckId: number) => Promise<void>;
@@ -135,6 +136,15 @@ function useEngineState(): EngineContextValue {
     [runAction],
   );
 
+  const loadPathToDeck = useCallback(
+    async (deckId: number, path: string) => {
+      await runAction(async () => {
+        await invoke("load_path_to_deck", { deckId, path });
+      });
+    },
+    [runAction],
+  );
+
   const playDeck = useCallback(
     async (deckId: number) => {
       await runAction(async () => {
@@ -222,6 +232,7 @@ function useEngineState(): EngineContextValue {
     busy,
     toggleEngine,
     loadLibraryTrackToDeck,
+    loadPathToDeck,
     pickTrack,
     playDeck,
     pauseDeck,
