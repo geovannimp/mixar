@@ -9,6 +9,7 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Host, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfigRange,
 };
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -118,6 +119,92 @@ impl CpalBackend {
 
         Ok(())
     }
+
+    fn device_candidates(&self, preferred: &DeviceId) -> Vec<cpal::Device> {
+        let mut candidates = Vec::new();
+        let mut seen = HashSet::new();
+
+        let mut push = |device: cpal::Device| {
+            if let Ok(id) = Self::device_id(&device) {
+                if seen.insert(id.as_str().to_string()) {
+                    candidates.push(device);
+                }
+            }
+        };
+
+        if let Ok(device) = self.find_device_by_id(preferred) {
+            push(device);
+        }
+        if let Some(device) = self.host.default_output_device() {
+            push(device);
+        }
+        if let Ok(devices) = self.host.output_devices() {
+            for device in devices {
+                push(device);
+            }
+        }
+
+        candidates
+    }
+
+    fn select_stream_config(
+        device: &cpal::Device,
+        params: &StreamParams,
+    ) -> Result<SupportedStreamConfigRange> {
+        let desired_sample_rate = params.sample_rate;
+        let supported_configs: Vec<_> = device.supported_output_configs()?.collect();
+
+        let matching_configs: Vec<_> = supported_configs
+            .iter()
+            .filter(|config| {
+                config.min_sample_rate() <= desired_sample_rate
+                    && config.max_sample_rate() >= desired_sample_rate
+            })
+            .collect();
+
+        let config_range = matching_configs
+            .iter()
+            .find(|config| config.channels() == 2)
+            .or_else(|| matching_configs.first())
+            .copied()
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No supported config found for sample rate {}",
+                    params.sample_rate
+                )
+            })?;
+
+        Self::validate_buffer_size(device, &config_range, params.frames_per_buffer)?;
+
+        Ok(*config_range)
+    }
+
+    fn resolve_open_target(
+        &self,
+        preferred: &DeviceId,
+        params: &StreamParams,
+    ) -> Result<(cpal::Device, SupportedStreamConfigRange)> {
+        let mut last_error: Option<anyhow::Error> = None;
+
+        for cpal_device in self.device_candidates(preferred) {
+            let device_name = Self::device_name(&cpal_device);
+            match Self::select_stream_config(&cpal_device, params) {
+                Ok(config_range) => return Ok((cpal_device, config_range)),
+                Err(error) => {
+                    log::warn!(
+                        "Skipping output device '{}' for stream setup: {}",
+                        device_name,
+                        error
+                    );
+                    last_error = Some(error);
+                }
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| {
+            anyhow::anyhow!("No output device available")
+        }))
+    }
 }
 
 impl AudioBackend for CpalBackend {
@@ -149,6 +236,8 @@ impl AudioBackend for CpalBackend {
                     sample_rates.push(config.min_sample_rate());
                     sample_rates.push(config.max_sample_rate());
                 }
+            } else {
+                continue;
             }
             sample_rates.sort();
             sample_rates.dedup();
@@ -166,49 +255,10 @@ impl AudioBackend for CpalBackend {
         params: &StreamParams,
         callback: Box<dyn AudioCallback>,
     ) -> Result<Box<dyn AudioStream>> {
-        let cpal_device = self.find_device_by_id(device)?;
-
-        // Query supported configurations and find the best match (cpal 0.18: sample rates are u32)
         let desired_sample_rate = params.sample_rate;
-        let supported_configs: Vec<_> = cpal_device.supported_output_configs()?.collect();
-
-        // Log all supported configurations for debugging
-        log::info!("Available device configurations:");
-        for (i, config) in supported_configs.iter().enumerate() {
-            log::info!(
-                "  {}: {} channels, {} Hz - {} Hz",
-                i,
-                config.channels(),
-                config.min_sample_rate(),
-                config.max_sample_rate()
-            );
-        }
-
-        // Find a supported configuration that matches our desired sample rate
-        // Prefer stereo (2 channels) if available, otherwise use the first available
-        let matching_configs: Vec<_> = supported_configs
-            .iter()
-            .filter(|config| {
-                config.min_sample_rate() <= desired_sample_rate
-                    && config.max_sample_rate() >= desired_sample_rate
-            })
-            .collect();
-
-        let config_range = matching_configs
-            .iter()
-            .find(|config| config.channels() == 2)
-            .or_else(|| matching_configs.first())
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "No supported config found for sample rate {}",
-                    params.sample_rate
-                )
-            })?;
-
-        Self::validate_buffer_size(&cpal_device, config_range, params.frames_per_buffer)?;
-
+        let (cpal_device, config_range) = self.resolve_open_target(device, params)?;
+        let device_name = Self::device_name(&cpal_device);
         let supported_config = config_range.with_sample_rate(desired_sample_rate);
-
         let actual_sample_rate = supported_config.sample_rate();
         if actual_sample_rate != desired_sample_rate {
             return Err(anyhow::anyhow!(
@@ -219,7 +269,8 @@ impl AudioBackend for CpalBackend {
         }
 
         log::info!(
-            "Using CPAL config: {} Hz, {} channels, buffer size: {}",
+            "Opening CPAL output on '{}' ({} Hz, {} channels, buffer size: {})",
+            device_name,
             actual_sample_rate,
             supported_config.channels(),
             params.frames_per_buffer
@@ -227,11 +278,9 @@ impl AudioBackend for CpalBackend {
 
         let channels = supported_config.channels();
         let frames_per_buffer = params.frames_per_buffer;
-
         let callback_arc = Arc::new(Mutex::new(callback));
         let last_callback_frames = Arc::new(AtomicU32::new(0));
 
-        // Require the configured fixed buffer size; do not silently fall back to host default.
         let build_stream = |buffer_size: BufferSize| {
             let config = StreamConfig {
                 channels: supported_config.channels(),
@@ -256,11 +305,11 @@ impl AudioBackend for CpalBackend {
             )
         };
 
-        let stream = build_stream(BufferSize::Fixed(params.frames_per_buffer)).map_err(|e| {
+        let stream = build_stream(BufferSize::Fixed(params.frames_per_buffer)).map_err(|error| {
             anyhow::anyhow!(
                 "Device does not support fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
                 params.frames_per_buffer,
-                e
+                error
             )
         })?;
 
@@ -272,7 +321,12 @@ impl AudioBackend for CpalBackend {
                 frames_per_buffer
             ));
         }
-        log::info!("CPAL stream buffer size confirmed: {} frames", granted_buffer);
+
+        log::info!(
+            "CPAL stream opened on '{}' with buffer size {} frames",
+            device_name,
+            granted_buffer
+        );
 
         Ok(Box::new(CpalStream {
             stream,

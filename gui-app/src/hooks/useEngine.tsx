@@ -3,18 +3,29 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { toastManager } from "@/components/ui/toast";
 import type { DeckEq, DeckStatus, EngineStatus } from "../types";
+
+const ENGINE_ERROR_TOAST_ID = "engine-error";
+
+function reportEngineError(message: string) {
+  toastManager.add({
+    id: ENGINE_ERROR_TOAST_ID,
+    title: message,
+    type: "error",
+  });
+}
 
 export interface EngineContextValue {
   status: EngineStatus | null;
-  error: string | null;
   busy: boolean;
-  toggleEngine: () => Promise<void>;
+  ensureEngineRunning: () => Promise<void>;
   loadLibraryTrackToDeck: (deckId: number, trackId: string) => Promise<void>;
   loadPathToDeck: (deckId: number, path: string) => Promise<void>;
   pickTrack: (deckId: number) => Promise<void>;
@@ -44,8 +55,8 @@ export function useEngine(): EngineContextValue {
 
 function useEngineState(): EngineContextValue {
   const [status, setStatus] = useState<EngineStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const startingRef = useRef(false);
 
   const refreshStatus = useCallback(async () => {
     const next = await invoke<EngineStatus>("get_status");
@@ -54,7 +65,7 @@ function useEngineState(): EngineContextValue {
 
   useEffect(() => {
     refreshStatus().catch((err: unknown) => {
-      setError(String(err));
+      reportEngineError(String(err));
     });
   }, [refreshStatus]);
 
@@ -67,7 +78,7 @@ function useEngineState(): EngineContextValue {
 
     const intervalId = window.setInterval(() => {
       refreshStatus().catch((err: unknown) => {
-        setError(String(err));
+        reportEngineError(String(err));
       });
     }, 100);
 
@@ -77,12 +88,11 @@ function useEngineState(): EngineContextValue {
   const runAction = useCallback(
     async (action: () => Promise<void>) => {
       setBusy(true);
-      setError(null);
       try {
         await action();
         await refreshStatus();
       } catch (err) {
-        setError(String(err));
+        reportEngineError(String(err));
       } finally {
         setBusy(false);
       }
@@ -90,15 +100,40 @@ function useEngineState(): EngineContextValue {
     [refreshStatus],
   );
 
-  const toggleEngine = useCallback(async () => {
-    await runAction(async () => {
-      if (status?.running) {
-        await invoke("stop_engine");
-      } else {
-        await invoke("start_engine");
-      }
-    });
-  }, [runAction, status?.running]);
+  const ensureEngineRunning = useCallback(async () => {
+    if (status?.running || startingRef.current) {
+      return;
+    }
+
+    startingRef.current = true;
+    setBusy(true);
+
+    try {
+      await toastManager.promise(
+        (async () => {
+          await invoke("start_engine");
+          await refreshStatus();
+        })(),
+        {
+          loading: {
+            title: "Starting engine…",
+            type: "loading",
+          },
+          success: {
+            title: "Engine running",
+            type: "success",
+          },
+          error: (err: unknown) => ({
+            title: err instanceof Error ? err.message : String(err),
+            type: "error",
+          }),
+        },
+      );
+    } finally {
+      startingRef.current = false;
+      setBusy(false);
+    }
+  }, [refreshStatus, status?.running]);
 
   const loadTrack = useCallback(
     async (deckId: number, path: string) => {
@@ -165,7 +200,6 @@ function useEngineState(): EngineContextValue {
 
   const setDeckVolume = useCallback(
     async (deckId: number, volume: number) => {
-      setError(null);
       try {
         const updated = await invoke<DeckStatus>("set_deck_volume", {
           deckId,
@@ -183,14 +217,13 @@ function useEngineState(): EngineContextValue {
           };
         });
       } catch (err) {
-        setError(String(err));
+        reportEngineError(String(err));
       }
     },
     [],
   );
 
   const setDeckEq = useCallback(async (deckId: number, eq: DeckEq) => {
-    setError(null);
     try {
       const updated = await invoke<DeckStatus>("set_deck_eq", {
         deckId,
@@ -210,27 +243,25 @@ function useEngineState(): EngineContextValue {
         };
       });
     } catch (err) {
-      setError(String(err));
+      reportEngineError(String(err));
     }
   }, []);
 
   const setCrossfader = useCallback(async (position: number) => {
-    setError(null);
     try {
       const updated = await invoke<EngineStatus>("set_crossfader", {
         crossfader: position,
       });
       setStatus(updated);
     } catch (err) {
-      setError(String(err));
+      reportEngineError(String(err));
     }
   }, []);
 
   return {
     status,
-    error,
     busy,
-    toggleEngine,
+    ensureEngineRunning,
     loadLibraryTrackToDeck,
     loadPathToDeck,
     pickTrack,

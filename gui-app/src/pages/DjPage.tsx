@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useDefaultLayout } from "react-resizable-panels";
 import {
   ResizableHandle,
@@ -6,15 +7,14 @@ import {
 } from "@/components/ui/resizable";
 import { DeckGrid } from "../components/DeckGrid";
 import { LibraryPanel } from "../components/LibraryPanel";
-import { MessageBanner } from "../components/MessageBanner";
 import { useEngine } from "../hooks/useEngine";
 import type { TrackDragPayload } from "../lib/libraryTable";
 
 export function DjPage() {
   const {
     status,
-    error,
     busy,
+    ensureEngineRunning,
     loadLibraryTrackToDeck,
     loadPathToDeck,
     pickTrack,
@@ -26,6 +26,10 @@ export function DjPage() {
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
+
+  useEffect(() => {
+    void ensureEngineRunning();
+  }, [ensureEngineRunning]);
 
   const djLayout = useDefaultLayout({
     id: "dj-layout-v2",
@@ -50,12 +54,6 @@ export function DjPage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {error && (
-        <div className="shrink-0 px-4 pt-3">
-          <MessageBanner message={error} variant="error" />
-        </div>
-      )}
-
       <ResizablePanelGroup
         id="dj-layout-v2"
         orientation="vertical"

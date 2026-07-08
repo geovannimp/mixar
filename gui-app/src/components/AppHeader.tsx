@@ -1,6 +1,5 @@
 import { NavLink } from "react-router-dom";
 import type { EngineStatus } from "../types";
-import { buttonBase } from "../lib/ui";
 import { isTauriApp } from "../lib/tauriApp";
 import { StatusPill } from "./StatusPill";
 import { TitleBarDragRegion } from "./TitleBarDragRegion";
@@ -8,8 +7,6 @@ import { WindowTitleBarControls } from "./WindowTitleBarControls";
 
 interface AppHeaderProps {
   status: EngineStatus | null;
-  busy: boolean;
-  onToggleEngine: () => void;
 }
 
 function navClass({ isActive }: { isActive: boolean }): string {
@@ -18,7 +15,7 @@ function navClass({ isActive }: { isActive: boolean }): string {
     : "rounded border border-transparent px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300";
 }
 
-export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
+export function AppHeader({ status }: AppHeaderProps) {
   const showWindowControls = isTauriApp();
 
   return (
@@ -51,18 +48,6 @@ export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
         <StatusPill active={Boolean(status?.running)}>
           {status?.running ? "Running" : "Stopped"}
         </StatusPill>
-        <button
-          type="button"
-          className={
-            status?.running
-              ? `${buttonBase} border-red-500/45 bg-red-500/15 px-3 py-1.5 text-xs hover:bg-red-500/25`
-              : `${buttonBase} border-emerald-500/45 bg-emerald-500/15 px-3 py-1.5 text-xs hover:bg-emerald-500/25`
-          }
-          disabled={busy}
-          onClick={onToggleEngine}
-        >
-          {status?.running ? "Stop" : "Start"}
-        </button>
       </div>
 
       {showWindowControls && <WindowTitleBarControls />}

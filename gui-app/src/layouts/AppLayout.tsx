@@ -4,11 +4,11 @@ import { AppHeader } from "../components/AppHeader";
 import { EngineProvider, useEngine } from "../hooks/useEngine";
 
 function AppLayoutContent() {
-  const { status, busy, toggleEngine } = useEngine();
+  const { status } = useEngine();
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-      <AppHeader status={status} busy={busy} onToggleEngine={toggleEngine} />
+      <AppHeader status={status} />
       <Outlet />
     </div>
   );
