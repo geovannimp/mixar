@@ -1,7 +1,10 @@
 import { NavLink } from "react-router-dom";
 import type { EngineStatus } from "../types";
 import { buttonBase } from "../lib/ui";
+import { isTauriApp } from "../lib/tauriApp";
 import { StatusPill } from "./StatusPill";
+import { TitleBarDragRegion } from "./TitleBarDragRegion";
+import { WindowTitleBarControls } from "./WindowTitleBarControls";
 
 interface AppHeaderProps {
   status: EngineStatus | null;
@@ -16,12 +19,19 @@ function navClass({ isActive }: { isActive: boolean }): string {
 }
 
 export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
+  const showWindowControls = isTauriApp();
+
   return (
-    <header className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 bg-zinc-900/80 px-4 py-2.5 backdrop-blur-sm">
-      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+    <header className="flex h-11 shrink-0 items-stretch border-b border-white/8 bg-zinc-900/80 backdrop-blur-sm">
+      <TitleBarDragRegion className="flex min-w-0 items-center px-4">
         <h1 className="shrink-0 text-sm font-bold uppercase tracking-widest text-zinc-200">
           Rust DJ
         </h1>
+      </TitleBarDragRegion>
+
+      <TitleBarDragRegion className="min-w-6 flex-1" />
+
+      <div className="flex min-w-0 items-center gap-3 px-2 sm:gap-4 sm:px-3">
         <nav className="flex items-center gap-1">
           <NavLink to="/" end className={navClass}>
             Decks
@@ -32,7 +42,7 @@ export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
         </nav>
       </div>
 
-      <div className="flex shrink-0 items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3 px-3 sm:px-4">
         {status?.running && (
           <span className="hidden text-xs text-zinc-500 md:inline">
             {status.backend} · {status.sample_rate} Hz
@@ -54,6 +64,8 @@ export function AppHeader({ status, busy, onToggleEngine }: AppHeaderProps) {
           {status?.running ? "Stop" : "Start"}
         </button>
       </div>
+
+      {showWindowControls && <WindowTitleBarControls />}
     </header>
   );
 }

@@ -13,6 +13,10 @@ body {
   @apply h-screen min-h-0 overflow-hidden;
 }
 
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+
 @theme inline {
 
   --font-heading: var(--font-sans);

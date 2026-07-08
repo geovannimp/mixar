@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "Rust DJ Engine",
+        "title": "Rust DJ",
         "width": 900,
-        "height": 640
+        "height": 640,
+        "decorations": false
       }
     ],
     "security": {
