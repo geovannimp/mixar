@@ -68,7 +68,6 @@ export function LibraryPanel({
     busy: driveBusy,
     openVolume,
     openDirectory,
-    goUp,
   } = useDriveBrowser();
 
   useEffect(() => {
@@ -243,7 +242,6 @@ export function LibraryPanel({
                   busy={driveBusy}
                   onSelectVolume={openVolume}
                   onOpenDirectory={openDirectory}
-                  onGoUp={goUp}
                 />
               )}
             </LibraryPane>

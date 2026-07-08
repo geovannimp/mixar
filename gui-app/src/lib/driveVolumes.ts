@@ -84,3 +84,14 @@ export function buildPathBreadcrumbs(
 
   return crumbs;
 }
+
+export function splitPathBreadcrumbs(
+  listingPath: string,
+  selectedVolume: VolumeInfo | null,
+): { ancestors: PathBreadcrumb[]; current: PathBreadcrumb } {
+  const crumbs = buildPathBreadcrumbs(listingPath, selectedVolume);
+  const current = crumbs.find((crumb) => crumb.isCurrent) ?? crumbs[crumbs.length - 1];
+  const ancestors = crumbs.filter((crumb) => !crumb.isCurrent);
+
+  return { ancestors, current };
+}
