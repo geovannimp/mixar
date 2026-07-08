@@ -4,7 +4,7 @@ use resampler::normalize_resampler_quality;
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
 use library_core::{AnalyzeTrackOptions, CollectionId, Library, LibrarySource, TrackId};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
@@ -68,6 +68,7 @@ struct AppState {
     decks: [DeckInfo; NUM_DECKS],
     crossfader: f32,
     audio_cache: AudioCache,
+    library_table_columns: Vec<String>,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -92,6 +93,18 @@ struct AppSettings {
     preview_bus: BusRouteSettings,
     analysis_duration: AnalysisDurationMode,
     scan_folder_tree: bool,
+    #[serde(default = "default_library_table_columns")]
+    library_table_columns: Vec<String>,
+}
+
+fn default_library_table_columns() -> Vec<String> {
+    vec![
+        "title".to_string(),
+        "artist".to_string(),
+        "bpm".to_string(),
+        "key".to_string(),
+        "duration".to_string(),
+    ]
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -175,6 +188,7 @@ fn settings_from_state(state: &AppState) -> AppSettings {
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration,
         scan_folder_tree: state.library.config().scan_folder_tree,
+        library_table_columns: state.library_table_columns.clone(),
     }
 }
 
@@ -194,6 +208,11 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     state.library.set_config(LibraryConfig {
         scan_folder_tree: settings.scan_folder_tree,
     });
+    state.library_table_columns = if settings.library_table_columns.is_empty() {
+        default_library_table_columns()
+    } else {
+        settings.library_table_columns
+    };
 }
 
 fn default_engine_config() -> EngineConfig {
@@ -528,6 +547,40 @@ fn list_collection_tracks(
         .map_err(|e| e.to_string())?;
 
     Ok(tracks.iter().filter_map(track_summary).collect())
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ResolvedLibraryTrack {
+    request_path: String,
+    track: TrackSummary,
+}
+
+#[tauri::command]
+async fn resolve_library_tracks_for_paths(
+    paths: Vec<String>,
+    state: State<'_, SharedAppState>,
+) -> Result<Vec<ResolvedLibraryTrack>, String> {
+    let state = Arc::clone(state.inner());
+    tauri::async_runtime::spawn_blocking(move || {
+        let guard = state.lock().map_err(|e| e.to_string())?;
+        let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+        let resolved = guard
+            .library
+            .lookup_file_tracks_at_paths(&path_bufs)
+            .map_err(|e| e.to_string())?;
+
+        Ok(resolved
+            .into_iter()
+            .filter_map(|(request_path, source)| {
+                track_summary(&source).map(|track| ResolvedLibraryTrack {
+                    request_path,
+                    track,
+                })
+            })
+            .collect())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -954,6 +1007,7 @@ pub fn run() {
                 decks: Default::default(),
                 crossfader: 0.5,
                 audio_cache: AudioCache::new(),
+                library_table_columns: default_library_table_columns(),
             })));
             Ok(())
         })
@@ -967,6 +1021,7 @@ pub fn run() {
             list_collections,
             add_folder_collection,
             list_collection_tracks,
+            resolve_library_tracks_for_paths,
             list_fs_volumes,
             browse_fs_directory,
             analyze_library_track,

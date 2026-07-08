@@ -90,8 +90,10 @@ export function useLibrary() {
       setTracks((current) =>
         current.map((track) => (track.id === trackId ? updated : track)),
       );
+      return updated;
     } catch (err) {
       setError(String(err));
+      return null;
     } finally {
       setAnalyzingTrackId(null);
     }

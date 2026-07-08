@@ -2,6 +2,7 @@ import { DeckMixer } from "./DeckMixer";
 import { DualDeckWaveform } from "./DualDeckWaveform";
 import { DECK_ACCENTS, DECK_LABELS } from "../lib/ui";
 import { DEFAULT_DECK_EQ, type DeckEq, type DeckStatus } from "../types";
+import type { TrackDragPayload } from "../lib/libraryTable";
 import { DeckPanel } from "./DeckPanel";
 
 interface DeckGridProps {
@@ -12,6 +13,7 @@ interface DeckGridProps {
   onTogglePlayback: (deckId: number, playing: boolean) => void;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
+  onDropTrack: (deckId: number, payload: TrackDragPayload) => void;
   crossfader: number;
   onCrossfaderChange: (position: number) => void;
 }
@@ -37,6 +39,7 @@ export function DeckGrid({
   onTogglePlayback,
   onVolumeChange,
   onEqChange,
+  onDropTrack,
   crossfader,
   onCrossfaderChange,
 }: DeckGridProps) {
@@ -57,6 +60,7 @@ export function DeckGrid({
         onTogglePlayback={() =>
           onTogglePlayback(deckList[0].id, deckList[0].playing)
         }
+        onDropTrack={(payload) => onDropTrack(deckList[0].id, payload)}
       />
 
       <div className="hidden h-full min-h-0 shrink-0 md:block">
@@ -79,6 +83,7 @@ export function DeckGrid({
         onTogglePlayback={() =>
           onTogglePlayback(deckList[1].id, deckList[1].playing)
         }
+        onDropTrack={(payload) => onDropTrack(deckList[1].id, payload)}
       />
       </div>
     </section>

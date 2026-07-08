@@ -1,4 +1,5 @@
 import type { AppSettings, BusRouteSettings } from "../types";
+import { DEFAULT_LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "./libraryTable";
 
 export const DEFAULT_DEVICE_ID = "default";
 
@@ -19,5 +20,8 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     ...settings,
     master_bus: settings.master_bus ?? DEFAULT_MASTER_BUS,
     preview_bus: settings.preview_bus ?? DEFAULT_PREVIEW_BUS,
+    library_table_columns: normalizeLibraryTableColumns(
+      settings.library_table_columns ?? DEFAULT_LIBRARY_TABLE_COLUMNS,
+    ),
   };
 }

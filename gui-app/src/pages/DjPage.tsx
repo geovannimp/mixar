@@ -8,6 +8,7 @@ import { DeckGrid } from "../components/DeckGrid";
 import { LibraryPanel } from "../components/LibraryPanel";
 import { MessageBanner } from "../components/MessageBanner";
 import { useEngine } from "../hooks/useEngine";
+import type { TrackDragPayload } from "../lib/libraryTable";
 
 export function DjPage() {
   const {
@@ -39,6 +40,14 @@ export function DjPage() {
     void playDeck(deckId);
   };
 
+  const loadDraggedTrack = (deckId: number, payload: TrackDragPayload) => {
+    if (payload.source === "library" && payload.trackId) {
+      void loadLibraryTrackToDeck(deckId, payload.trackId);
+      return;
+    }
+    void loadPathToDeck(deckId, payload.path);
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {error && (
@@ -68,6 +77,7 @@ export function DjPage() {
             onTogglePlayback={toggleDeckPlayback}
             onVolumeChange={setDeckVolume}
             onEqChange={setDeckEq}
+            onDropTrack={loadDraggedTrack}
             crossfader={status?.crossfader ?? 0.5}
             onCrossfaderChange={setCrossfader}
           />

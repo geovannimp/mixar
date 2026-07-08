@@ -1,6 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
-import { buttonTransport, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 import { fileName } from "../lib/format";
+import {
+  acceptsTrackDrag,
+  readTrackDragData,
+  type TrackDragPayload,
+} from "../lib/libraryTable";
+import { buttonTransport, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 import type { DeckStatus } from "../types";
 import { StatusPill } from "./StatusPill";
 
@@ -11,6 +17,7 @@ interface DeckPanelProps {
   busy: boolean;
   onPickTrack: () => void;
   onTogglePlayback: () => void;
+  onDropTrack?: (payload: TrackDragPayload) => void;
 }
 
 const coverClass =
@@ -85,14 +92,78 @@ export function DeckPanel({
   busy,
   onPickTrack,
   onTogglePlayback,
+  onDropTrack,
 }: DeckPanelProps) {
+  const [dragOver, setDragOver] = useState(false);
+  const dragDepthRef = useRef(0);
   const trackTitle = deck.track ? fileName(deck.track) : "No track loaded";
   const loadDisabled = busy || !engineRunning;
   const hasTrack = Boolean(deck.track);
+  const dropEnabled = Boolean(onDropTrack) && engineRunning && !busy;
+
+  useEffect(() => {
+    const resetDragState = () => {
+      dragDepthRef.current = 0;
+      setDragOver(false);
+    };
+
+    window.addEventListener("dragend", resetDragState);
+    window.addEventListener("drop", resetDragState);
+    return () => {
+      window.removeEventListener("dragend", resetDragState);
+      window.removeEventListener("drop", resetDragState);
+    };
+  }, []);
+
+  const handleDragEnter = (event: React.DragEvent<HTMLElement>) => {
+    if (!dropEnabled || !acceptsTrackDrag(event.dataTransfer)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    if (dragDepthRef.current === 1) {
+      setDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
+    if (!dropEnabled) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setDragOver(false);
+    }
+  };
 
   return (
     <section
-      className={`flex h-full min-h-0 min-w-0 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3 md:gap-3 md:p-4 ${accent.bg}`}
+      className={`flex h-full min-h-0 min-w-0 flex-col gap-1.5 p-2 transition-shadow sm:gap-2 sm:p-3 md:gap-3 md:p-4 ${accent.bg} ${
+        dragOver ? "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]" : ""
+      }`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={(event) => {
+        if (!dropEnabled || !acceptsTrackDrag(event.dataTransfer)) {
+          return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={(event) => {
+        dragDepthRef.current = 0;
+        setDragOver(false);
+        if (!dropEnabled) {
+          return;
+        }
+        event.preventDefault();
+        const payload = readTrackDragData(event.dataTransfer);
+        if (!payload) {
+          return;
+        }
+        onDropTrack?.(payload);
+      }}
     >
       <div className="flex items-center justify-between gap-1">
         <h2

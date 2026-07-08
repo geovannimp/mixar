@@ -329,6 +329,52 @@ impl LibraryManager {
         self.refresh_file_source(path)
     }
 
+    /// Look up an indexed file track for `path`, if it exists in the library DB.
+    pub fn lookup_file_track_at_path(&self, path: &Path) -> Result<Option<LibrarySource>> {
+        if let Ok(normalized) = normalize_path(path) {
+            let id = Self::track_id_for(&normalized);
+            if let Some(source) = self.get_track(&id)? {
+                return Ok(Some(source));
+            }
+
+            let normalized_ref = normalized.to_string_lossy().into_owned();
+            if let Some(source) = self.store().find_file_track_by_source_ref(&normalized_ref)? {
+                return Ok(Some(source));
+            }
+        }
+
+        let raw_ref = path.to_string_lossy().into_owned();
+        if let Some(source) = self.get_track(&TrackId::new(&raw_ref))? {
+            return Ok(Some(source));
+        }
+
+        self.store().find_file_track_by_source_ref(&raw_ref)
+    }
+
+    /// Resolve any library tracks that match the given filesystem paths.
+    pub fn lookup_file_tracks_at_paths(
+        &self,
+        paths: &[PathBuf],
+    ) -> Result<Vec<(String, LibrarySource)>> {
+        let mut results = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+
+        for path in paths {
+            let request_path = path.to_string_lossy().into_owned();
+            if !seen.insert(request_path.clone()) {
+                continue;
+            }
+
+            let Some(source) = self.lookup_file_track_at_path(path)? else {
+                continue;
+            };
+
+            results.push((request_path, source));
+        }
+
+        Ok(results)
+    }
+
     pub(crate) fn import_stream(
         &self,
         uri: &str,
@@ -753,6 +799,19 @@ mod tests {
             fetched.file().unwrap().path(),
             track.file().unwrap().path()
         );
+    }
+
+    #[test]
+    fn lookup_file_track_at_path_finds_imported_track() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_minimal_wav(&wav);
+
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+
+        let found = lib.lookup_file_track_at_path(&wav).unwrap().unwrap();
+        assert_eq!(found.id(), track.id());
     }
 
     #[test]

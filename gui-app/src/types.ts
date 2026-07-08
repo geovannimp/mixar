@@ -62,7 +62,22 @@ export interface AppSettings {
   preview_bus: BusRouteSettings;
   analysis_duration: AnalysisMode;
   scan_folder_tree: boolean;
+  library_table_columns: LibraryTableColumn[];
 }
+
+export type LibraryTableColumn =
+  | "title"
+  | "artist"
+  | "album"
+  | "genre"
+  | "bpm"
+  | "key"
+  | "duration"
+  | "path";
+
+export type LibraryTableRow =
+  | { source: "library"; track: TrackSummary }
+  | { source: "filesystem"; file: FsEntry; libraryTrack?: TrackSummary };
 
 export interface CollectionSummary {
   id: string;
@@ -96,6 +111,11 @@ export interface ScanReport {
 export interface AddFolderCollectionResult {
   collection: CollectionSummary;
   scan: ScanReport;
+}
+
+export interface ResolvedLibraryTrack {
+  request_path: string;
+  track: TrackSummary;
 }
 
 export type SettingsSection = "audio" | "library";

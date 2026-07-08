@@ -137,6 +137,18 @@ impl<'a> Store<'a> {
         row.map(model::track_source).transpose()
     }
 
+    pub fn find_file_track_by_source_ref(
+        &self,
+        source_ref: &str,
+    ) -> Result<Option<library_core::LibrarySource>> {
+        let row = TrackEntity::find()
+            .filter(tracks::Column::SourceType.eq("file"))
+            .filter(tracks::Column::SourceRef.eq(source_ref))
+            .one(&*self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        row.map(model::track_source).transpose()
+    }
+
     pub fn find_file_sources_under(
         &self,
         root: &str,
