@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 import { DECK_ACCENTS } from "../lib/ui";
 import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
 import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
+import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
 import {
   engineActions,
   useDeckHasTrack,
@@ -10,7 +11,7 @@ import {
 } from "../hooks/useEngine";
 import { useRenderWaveformLane } from "../hooks/useRenderWaveformLane";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
-import { WaveformWindowMarkers } from "./WaveformWindowMarkers";
+import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
 
 const WaveformLane = memo(function WaveformLane({
   deckId,
@@ -26,14 +27,24 @@ const WaveformLane = memo(function WaveformLane({
   const hasTrack = Boolean(deck.track);
   const durationSecs = deck.duration_secs ?? undefined;
 
-  const { frame, estimatedPosition } = useRenderWaveformLane({
+  const playhead = useSmoothPlayhead({
+    positionSecs,
+    playing: deck.playing,
+    speed: deck.speed,
+    maxSecs: durationSecs,
+  });
+
+  const { frame } = useRenderWaveformLane({
     trackId: deck.track_id,
     path: deck.track,
     positionSecs,
     playing: deck.playing,
+    speed: deck.speed,
     eq: deck.eq,
     width: size.width,
     height: size.height,
+    getPosition: playhead.getPosition,
+    isScrubbing: playhead.isScrubbing,
   });
 
   const visibleSecs = frame?.visible_secs ?? WAVEFORM_VISIBLE_SECS;
@@ -46,44 +57,41 @@ const WaveformLane = memo(function WaveformLane({
     [deckId],
   );
 
-  const { scrubbing, displayPosition, handlers, cursorClass } =
-    useWaveformDragScrub({
-      enabled: seekEnabled,
-      mode: "center",
-      spanSecs: visibleSecs,
-      positionSecs,
-      estimatedPosition,
-      playing: deck.playing,
-      maxSecs: durationSecs,
-      onSeek: handleSeek,
-    });
+  const { scrubbing, getPosition, handlers, cursorClass } = useWaveformDragScrub({
+    enabled: seekEnabled,
+    mode: "center",
+    spanSecs: visibleSecs,
+    positionSecs,
+    playing: deck.playing,
+    speed: deck.speed,
+    maxSecs: durationSecs,
+    onSeek: handleSeek,
+    playhead,
+  });
 
-  const viewCenterSecs = displayPosition;
-  const windowStartSecs = viewCenterSecs - visibleSecs / 2;
-  const windowEndSecs = viewCenterSecs + visibleSecs / 2;
+  const ariaValueNow = scrubbing ? getPosition() : positionSecs;
 
   return (
     <div
       ref={ref}
       className={`relative min-h-0 flex-1 ${cursorClass}`}
+      style={{ touchAction: seekEnabled ? "none" : undefined }}
       {...handlers}
       role={seekEnabled ? "slider" : undefined}
       aria-label={seekEnabled ? `${accent.label} waveform scrub` : undefined}
       aria-valuemin={0}
       aria-valuemax={deck.duration_secs ?? undefined}
-      aria-valuenow={displayPosition}
+      aria-valuenow={ariaValueNow}
     >
       <RustRenderedLane
         frame={frame}
-        positionSecs={displayPosition}
-        playing={deck.playing && !scrubbing}
-        estimatedPosition={() => displayPosition}
+        motionPos={playhead.motionPos}
         label={accent.label}
         labelClass={accent.text}
       />
-      <WaveformWindowMarkers
-        windowStartSecs={windowStartSecs}
-        windowEndSecs={windowEndSecs}
+      <WaveformWindowMarkersMotion
+        motionPos={playhead.motionPos}
+        visibleSecs={visibleSecs}
         hotCues={deck.hot_cues}
         activeLoop={deck.active_loop}
       />

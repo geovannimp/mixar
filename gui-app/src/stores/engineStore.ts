@@ -342,6 +342,7 @@ function selectDeckWaveform(state: EngineStoreState, deckId: number) {
     track_id: deck.track_id,
     position_secs: deck.position_secs,
     playing: deck.playing,
+    speed: deck.speed,
     eq: deck.eq,
     hot_cues: deck.hot_cues,
     active_loop: deck.active_loop,
@@ -375,6 +376,8 @@ function selectDeckOverview(state: EngineStoreState, deckId: number) {
     track_id: deck.track_id,
     track: deck.track,
     position_secs: deck.position_secs,
+    playing: deck.playing,
+    speed: deck.speed,
     duration_secs: deck.duration_secs,
     hot_cues: deck.hot_cues,
   };

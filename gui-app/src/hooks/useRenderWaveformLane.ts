@@ -12,9 +12,12 @@ interface UseRenderWaveformLaneOptions {
   path: string | null;
   positionSecs: number;
   playing: boolean;
+  speed?: number;
   eq: DeckEq;
   width: number;
   height: number;
+  getPosition: () => number;
+  isScrubbing?: () => boolean;
 }
 
 export function useRenderWaveformLane({
@@ -22,9 +25,12 @@ export function useRenderWaveformLane({
   path,
   positionSecs,
   playing,
+  speed = 1,
   eq,
   width,
   height,
+  getPosition,
+  isScrubbing,
 }: UseRenderWaveformLaneOptions) {
   const [frame, setFrame] = useState<WaveformFrame | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,8 +42,14 @@ export function useRenderWaveformLane({
   const enginePosRef = useRef(positionSecs);
   const engineAtRef = useRef(performance.now());
   const playingRef = useRef(playing);
+  const speedRef = useRef(speed);
+  const getPositionRef = useRef(getPosition);
+  const isScrubbingRef = useRef(isScrubbing);
 
   playingRef.current = playing;
+  speedRef.current = speed;
+  getPositionRef.current = getPosition;
+  isScrubbingRef.current = isScrubbing;
 
   useEffect(() => {
     enginePosRef.current = positionSecs;
@@ -45,11 +57,14 @@ export function useRenderWaveformLane({
   }, [positionSecs]);
 
   const estimatedPosition = useCallback(() => {
+    if (isScrubbingRef.current?.()) {
+      return getPositionRef.current();
+    }
     if (!playingRef.current) {
       return enginePosRef.current;
     }
     const elapsed = (performance.now() - engineAtRef.current) / 1000;
-    return enginePosRef.current + elapsed;
+    return enginePosRef.current + elapsed * speedRef.current;
   }, []);
 
   const fetchStrip = useCallback(
@@ -107,12 +122,12 @@ export function useRenderWaveformLane({
   useEffect(() => {
     frameRef.current = null;
     setFrame(null);
-    const pos = enginePosRef.current;
+    const pos = getPositionRef.current();
     void fetchStrip(pos, false).then(() => fetchStrip(pos, true));
   }, [trackId, path, width, height, fetchStrip]);
 
   useEffect(() => {
-    if (playing) {
+    if (playing || isScrubbingRef.current?.()) {
       return;
     }
     const current = frameRef.current;
@@ -128,7 +143,12 @@ export function useRenderWaveformLane({
 
     let frameId = 0;
     const tick = () => {
-      const estimated = estimatedPosition();
+      if (isScrubbingRef.current?.()) {
+        frameId = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      const estimated = getPositionRef.current();
       const current = frameRef.current;
       if (current && needsRefresh(current, estimated) && !inFlightRef.current) {
         void fetchStrip(estimated, true);
@@ -140,7 +160,7 @@ export function useRenderWaveformLane({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [playing, fetchStrip, estimatedPosition]);
+  }, [playing, fetchStrip]);
 
   return { frame, estimatedPosition, loading };
 }

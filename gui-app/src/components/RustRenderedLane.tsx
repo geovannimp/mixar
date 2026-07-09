@@ -1,12 +1,10 @@
+import { type MotionValue } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import type { WaveformFrame } from "../types";
 
 interface RustRenderedLaneProps {
   frame: WaveformFrame | null;
-  positionSecs: number;
-  playing: boolean;
-  /** Returns a smoothly estimated playhead while playing. */
-  estimatedPosition: () => number;
+  motionPos: MotionValue<number>;
   label: string;
   labelClass: string;
 }
@@ -22,22 +20,16 @@ function decodeBase64Rgba(base64: string): Uint8ClampedArray {
 
 export function RustRenderedLane({
   frame,
-  positionSecs,
-  playing,
-  estimatedPosition,
+  motionPos,
   label,
   labelClass,
 }: RustRenderedLaneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stripRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<WaveformFrame | null>(null);
-  const estimatedPositionRef = useRef(estimatedPosition);
-  const playingRef = useRef(playing);
-  const pausedPosRef = useRef(positionSecs);
+  const motionPosRef = useRef(motionPos);
 
-  estimatedPositionRef.current = estimatedPosition;
-  playingRef.current = playing;
-  pausedPosRef.current = positionSecs;
+  motionPosRef.current = motionPos;
 
   useEffect(() => {
     frameRef.current = frame;
@@ -108,9 +100,7 @@ export function RustRenderedLane({
         const coverSecs =
           stripFrame.cover_end_secs - stripFrame.cover_start_secs;
         if (coverSecs > 0) {
-          const viewPos = playingRef.current
-            ? estimatedPositionRef.current()
-            : pausedPosRef.current;
+          const viewPos = motionPosRef.current.get();
           const pxPerSec = stripFrame.width / coverSecs;
           const viewStart = viewPos - stripFrame.visible_secs / 2;
           const srcX = (viewStart - stripFrame.cover_start_secs) * pxPerSec;

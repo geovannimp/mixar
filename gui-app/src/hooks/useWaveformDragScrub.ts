@@ -1,4 +1,8 @@
 import { useCallback, useRef, useState } from "react";
+import {
+  type SmoothPlayhead,
+  useSmoothPlayhead,
+} from "./useSmoothPlayhead";
 
 export type WaveformScrubMode = "center" | "track";
 
@@ -7,11 +11,13 @@ export interface WaveformDragScrubConfig {
   mode: WaveformScrubMode;
   spanSecs: number;
   positionSecs: number;
-  estimatedPosition?: () => number;
   playing?: boolean;
+  speed?: number;
   maxSecs?: number;
   onSeek: (positionSecs: number) => void;
   seekThrottleMs?: number;
+  /** Reuse an existing smooth playhead (DualDeckWaveform + lane renderer). */
+  playhead?: SmoothPlayhead;
 }
 
 export function useWaveformDragScrub({
@@ -19,26 +25,25 @@ export function useWaveformDragScrub({
   mode,
   spanSecs,
   positionSecs,
-  estimatedPosition,
   playing = false,
+  speed = 1,
   maxSecs,
   onSeek,
   seekThrottleMs = 32,
+  playhead: externalPlayhead,
 }: WaveformDragScrubConfig) {
+  const internalPlayhead = useSmoothPlayhead({
+    positionSecs,
+    playing,
+    speed,
+    maxSecs,
+  });
+  const playhead = externalPlayhead ?? internalPlayhead;
+
   const [scrubbing, setScrubbing] = useState(false);
-  const [scrubPosition, setScrubPosition] = useState<number | null>(null);
   const scrubbingRef = useRef(false);
   const anchorRef = useRef({ x: 0, position: 0, width: 1 });
   const lastSeekRef = useRef(0);
-
-  const resolveBasePosition = useCallback(() => {
-    if (playing && estimatedPosition) {
-      return estimatedPosition();
-    }
-    return positionSecs;
-  }, [estimatedPosition, playing, positionSecs]);
-
-  const displayPosition = scrubPosition ?? resolveBasePosition();
 
   const clampPosition = useCallback(
     (secs: number) => {
@@ -80,12 +85,12 @@ export function useWaveformDragScrub({
       }
       scrubbingRef.current = false;
       setScrubbing(false);
-      setScrubPosition(null);
+      playhead.endScrub();
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [],
+    [playhead],
   );
 
   const handlePointerDown = useCallback(
@@ -95,7 +100,7 @@ export function useWaveformDragScrub({
       }
       event.preventDefault();
       const rect = event.currentTarget.getBoundingClientRect();
-      const startPosition = resolveBasePosition();
+      const startPosition = playhead.getPosition();
       anchorRef.current = {
         x: event.clientX,
         position: startPosition,
@@ -103,10 +108,10 @@ export function useWaveformDragScrub({
       };
       scrubbingRef.current = true;
       setScrubbing(true);
-      setScrubPosition(startPosition);
+      playhead.beginScrub(startPosition);
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [enabled, resolveBasePosition, spanSecs],
+    [enabled, playhead, spanSecs],
   );
 
   const handlePointerMove = useCallback(
@@ -115,10 +120,10 @@ export function useWaveformDragScrub({
         return;
       }
       const nextPosition = positionFromPointer(event.clientX);
-      setScrubPosition(nextPosition);
+      playhead.updateScrub(nextPosition);
       emitSeek(nextPosition);
     },
-    [emitSeek, enabled, positionFromPointer],
+    [emitSeek, enabled, playhead, positionFromPointer],
   );
 
   const handlePointerUp = useCallback(
@@ -127,17 +132,19 @@ export function useWaveformDragScrub({
         return;
       }
       const nextPosition = positionFromPointer(event.clientX);
+      playhead.updateScrub(nextPosition);
       onSeek(nextPosition);
       endScrub(event);
     },
-    [endScrub, onSeek, positionFromPointer],
+    [endScrub, onSeek, playhead, positionFromPointer],
   );
 
   const handlePointerCancel = endScrub;
 
   return {
     scrubbing,
-    displayPosition,
+    playhead,
+    getPosition: playhead.getPosition,
     handlers: {
       onPointerDown: handlePointerDown,
       onPointerMove: handlePointerMove,

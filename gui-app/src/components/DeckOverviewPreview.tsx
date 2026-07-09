@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { motion, useMotionValue, useTransform } from "motion/react";
+import { motion, useTransform } from "motion/react";
 import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
+import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
 import type { DeckHotCueMarker, WaveformFrame } from "../types";
 import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
@@ -11,6 +12,8 @@ interface DeckOverviewPreviewProps {
   trackId: string | null;
   path: string | null;
   positionSecs: number;
+  playing?: boolean;
+  speed?: number;
   durationSecs: number | null;
   hotCues?: DeckHotCueMarker[];
   disabled?: boolean;
@@ -21,6 +24,8 @@ export function DeckOverviewPreview({
   trackId,
   path,
   positionSecs,
+  playing = false,
+  speed = 1,
   durationSecs,
   hotCues = [],
   disabled,
@@ -30,22 +35,35 @@ export function DeckOverviewPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frame, setFrame] = useState<WaveformFrame | null>(null);
   const [width, setWidth] = useState(0);
-  const playheadPercent = useMotionValue(0);
-  const playheadLeft = useTransform(playheadPercent, (value) => `${value}%`);
 
   const hasTrack = Boolean(trackId || path);
   const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 1;
   const seekEnabled = Boolean(onSeek) && !disabled && hasTrack;
 
-  const { scrubbing, displayPosition, handlers, cursorClass } =
-    useWaveformDragScrub({
-      enabled: seekEnabled,
-      mode: "track",
-      spanSecs: duration,
-      positionSecs,
-      maxSecs: duration,
-      onSeek: onSeek ?? (() => undefined),
-    });
+  const playhead = useSmoothPlayhead({
+    positionSecs,
+    playing,
+    speed,
+    maxSecs: duration,
+  });
+
+  const playheadLeft = useTransform(playhead.motionPos, (value) => {
+    const percent =
+      duration > 0 ? Math.min(100, Math.max(0, (value / duration) * 100)) : 0;
+    return `${percent}%`;
+  });
+
+  const { scrubbing, getPosition, handlers, cursorClass } = useWaveformDragScrub({
+    enabled: seekEnabled,
+    mode: "track",
+    spanSecs: duration,
+    positionSecs,
+    playing,
+    speed,
+    maxSecs: duration,
+    onSeek: onSeek ?? (() => undefined),
+    playhead,
+  });
 
   useEffect(() => {
     const node = containerRef.current;
@@ -141,24 +159,17 @@ export function DeckOverviewPreview({
     }
   }, [frame, width]);
 
-  useEffect(() => {
-    const percent =
-      duration > 0
-        ? Math.min(100, Math.max(0, (displayPosition / duration) * 100))
-        : 0;
-    playheadPercent.set(percent);
-  }, [displayPosition, duration, playheadPercent]);
-
   return (
     <div
       ref={containerRef}
       className={`relative h-12 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${cursorClass}`}
+      style={{ touchAction: seekEnabled ? "none" : undefined }}
       {...handlers}
       role={seekEnabled ? "slider" : undefined}
       aria-label={seekEnabled ? "Overview waveform seek" : undefined}
       aria-valuemin={0}
       aria-valuemax={duration}
-      aria-valuenow={displayPosition}
+      aria-valuenow={getPosition()}
     >
       {hasTrack ? (
         <>
