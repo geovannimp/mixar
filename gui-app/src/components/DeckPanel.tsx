@@ -6,7 +6,8 @@ import {
   readTrackDragData,
   type TrackDragPayload,
 } from "../lib/libraryTable";
-import { buttonCompact, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
+import { DeckButton } from "@/components/ui/deck-button";
+import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 import {
   formatDeckRemainingDisplay,
   formatDeckTotalDisplay,
@@ -198,7 +199,6 @@ export function DeckPanel({
             <DeckCircularButton
               label={deck.playing ? "Pause" : "Play"}
               accent={accentKey}
-              variant="play"
               active={deck.playing}
               disabled={transportDisabled}
               onClick={onTogglePlayback}
@@ -215,7 +215,6 @@ export function DeckPanel({
             <DeckCircularButton
               label={deck.playing ? "Pause" : "Play"}
               accent={accentKey}
-              variant="play"
               active={deck.playing}
               disabled={transportDisabled}
               onClick={onTogglePlayback}
@@ -350,28 +349,25 @@ export function DeckPanel({
           {accent.label}
         </h2>
         <div className="flex shrink-0 items-center gap-1">
-          <button
+          <DeckButton
             type="button"
+            active={deck.quantize}
+            size="toggle"
             disabled={transportDisabled}
-            className={`${buttonCompact} border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-              deck.quantize
-                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-200"
-                : "border-white/10 bg-black/25 text-zinc-400"
-            }`}
             title={deck.quantize ? "Quantize on" : "Quantize off"}
             onClick={() => onToggleQuantize(!deck.quantize)}
           >
             Q
-          </button>
-          <button
+          </DeckButton>
+          <DeckButton
             type="button"
-            className={`${buttonCompact} border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45`}
+            size="compact"
             disabled={loadDisabled}
             title={hasTrack ? "Eject track" : "Load track"}
             onClick={hasTrack ? onUnload : onPickTrack}
           >
             {hasTrack ? "Eject" : "Load"}
-          </button>
+          </DeckButton>
         </div>
       </div>
 

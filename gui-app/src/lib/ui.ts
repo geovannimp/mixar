@@ -46,6 +46,33 @@ export const DECK_ACCENTS: Record<
   },
 };
 
+export type HotCueAccent = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export const HOT_CUE_ACCENTS: Record<HotCueAccent, string> = {
+  0: "border-red-500/55 bg-red-500/20 text-red-100",
+  1: "border-orange-500/55 bg-orange-500/20 text-orange-100",
+  2: "border-yellow-500/55 bg-yellow-500/20 text-yellow-100",
+  3: "border-green-500/55 bg-green-500/20 text-green-100",
+  4: "border-cyan-500/55 bg-cyan-500/20 text-cyan-100",
+  5: "border-blue-500/55 bg-blue-500/20 text-blue-100",
+  6: "border-violet-500/55 bg-violet-500/20 text-violet-100",
+  7: "border-pink-500/55 bg-pink-500/20 text-pink-100",
+};
+
+export type DeckButtonAccent = DeckAccent | HotCueAccent;
+
+export function hotCueAccentForSlot(slot: number): HotCueAccent {
+  return (((slot % 8) + 8) % 8) as HotCueAccent;
+}
+
+export function deckButtonAccentTone(accent: DeckButtonAccent): string {
+  if (accent === "a" || accent === "b") {
+    const styles = DECK_ACCENTS[accent];
+    return `${styles.ring} ${styles.button} ${styles.text}`;
+  }
+  return HOT_CUE_ACCENTS[accent];
+}
+
 export const FADER_KNOB = {
   thumb:
     "border-zinc-400/65 bg-linear-to-b from-zinc-300/98 to-zinc-400/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_1px_2px_rgba(0,0,0,0.18)]",

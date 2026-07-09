@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { animate, motion, useMotionValue } from "motion/react";
+import { DeckButton } from "@/components/ui/deck-button";
 import { barCycleRotationDeg, getBarCycleDurationSecs } from "../lib/format";
 import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 
@@ -173,7 +174,6 @@ interface DeckCircularButtonProps {
   onPointerUp?: () => void;
   onPointerLeave?: () => void;
   children?: ReactNode;
-  variant?: "default" | "play";
 }
 
 export function DeckCircularButton({
@@ -187,43 +187,31 @@ export function DeckCircularButton({
   onPointerUp,
   onPointerLeave,
   children,
-  variant = "default",
 }: DeckCircularButtonProps) {
-  const accentStyles = DECK_ACCENTS[accent];
-  const isPlay = variant === "play";
-
   return (
-    <button
-      type="button"
-      className="flex shrink-0 flex-col items-center gap-0.5 disabled:cursor-not-allowed disabled:opacity-45"
-      disabled={disabled}
-      aria-label={label}
-      title={title ?? label}
-      onClick={onClick}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerLeave}
-    >
-      <span
-        className={`inline-flex size-11 items-center justify-center rounded-full border-2 text-sm font-bold shadow-md transition sm:size-12 ${
-          isPlay && active
-            ? "border-emerald-400/70 bg-emerald-500/25 text-emerald-100"
-            : isPlay
-              ? `${accentStyles.button} ${accentStyles.ring}`
-              : active
-                ? `${accentStyles.button} ${accentStyles.ring} ${accentStyles.text}`
-                : "border-white/15 bg-zinc-900/90 text-zinc-300 hover:bg-zinc-800/90"
-        }`}
+    <div className="flex shrink-0 flex-col items-center gap-0.5">
+      <DeckButton
+        type="button"
+        active={active}
+        accent={accent}
+        size="circular"
+        disabled={disabled}
+        aria-label={label}
+        title={title ?? label}
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
       >
         {children ?? (
           <span className="text-[9px] font-bold uppercase tracking-wide sm:text-[10px]">
             {label}
           </span>
         )}
-      </span>
+      </DeckButton>
       <span className="text-[8px] font-semibold uppercase tracking-widest text-zinc-500">
         {label}
       </span>
-    </button>
+    </div>
   );
 }

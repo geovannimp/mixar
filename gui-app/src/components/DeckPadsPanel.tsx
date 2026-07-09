@@ -1,18 +1,7 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { buttonIcon } from "../lib/ui";
+import { DeckButton } from "@/components/ui/deck-button";
+import { hotCueAccentForSlot } from "../lib/ui";
 import type { DeckStatus } from "../types";
-
-const HOT_CUE_COLORS = [
-  "border-red-500/55 bg-red-500/20 text-red-100",
-  "border-orange-500/55 bg-orange-500/20 text-orange-100",
-  "border-yellow-500/55 bg-yellow-500/20 text-yellow-100",
-  "border-green-500/55 bg-green-500/20 text-green-100",
-  "border-cyan-500/55 bg-cyan-500/20 text-cyan-100",
-  "border-blue-500/55 bg-blue-500/20 text-blue-100",
-  "border-violet-500/55 bg-violet-500/20 text-violet-100",
-  "border-pink-500/55 bg-pink-500/20 text-pink-100",
-] as const;
 
 const PAD_MODES = ["Hot Cue"] as const;
 
@@ -42,53 +31,40 @@ export function DeckPadsPanel({
   return (
     <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-inner">
       <div className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-1 border-b border-white/8 px-2 py-1.5">
-        <button
+        <DeckButton
           type="button"
+          size="icon"
           disabled
-          className={cn(
-            buttonIcon,
-            "h-7 w-7 border-white/10 bg-zinc-900/80 text-zinc-600",
-          )}
           title="Previous pad mode (coming soon)"
           aria-label="Previous pad mode"
         >
           <ChevronLeft className="size-4" aria-hidden />
-        </button>
+        </DeckButton>
         <span className="text-center text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-300">
           {PAD_MODES[padModeIndex]}
         </span>
-        <button
+        <DeckButton
           type="button"
+          size="icon"
           disabled
-          className={cn(
-            buttonIcon,
-            "h-7 w-7 border-white/10 bg-zinc-900/80 text-zinc-600",
-          )}
           title="Next pad mode (coming soon)"
           aria-label="Next pad mode"
         >
           <ChevronRight className="size-4" aria-hidden />
-        </button>
+        </DeckButton>
       </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-4 gap-1.5 p-2 sm:gap-2 sm:p-2.5">
         {hotCueSlots.map((cue, slot) => {
           const filled = Boolean(cue);
-          const colorClass =
-            HOT_CUE_COLORS[slot % HOT_CUE_COLORS.length] ?? HOT_CUE_COLORS[0];
 
           return (
-            <button
+            <DeckButton
               key={slot}
               type="button"
+              size="pad"
+              accent={filled ? hotCueAccentForSlot(slot) : undefined}
               disabled={controlsDisabled}
-              className={cn(
-                "flex min-h-11 flex-col items-center justify-center rounded-md border px-1 py-1.5 text-center transition sm:min-h-12",
-                "disabled:cursor-not-allowed disabled:opacity-45",
-                filled
-                  ? colorClass
-                  : "border-white/12 bg-zinc-900/90 text-zinc-500 hover:bg-zinc-800/90",
-              )}
               title={
                 filled
                   ? `Pad ${slot + 1} — click trigger, shift+click delete`
@@ -114,7 +90,7 @@ export function DeckPadsPanel({
                   {slot + 1}
                 </span>
               ) : null}
-            </button>
+            </DeckButton>
           );
         })}
       </div>

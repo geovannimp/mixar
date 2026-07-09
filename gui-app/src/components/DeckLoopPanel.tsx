@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DeckButton } from "@/components/ui/deck-button";
 import { cn } from "@/lib/utils";
 import type { DeckStatus } from "../types";
 
@@ -31,15 +32,6 @@ export function DeckLoopPanel({
   const resolvedLoopBeatIndex =
     loopBeatIndex >= 0 ? loopBeatIndex : AUTO_LOOP_BEATS.indexOf(4);
 
-  const controlClass = loopActive
-    ? "border-emerald-500/35 bg-emerald-950/50 text-emerald-100 hover:bg-emerald-900/55"
-    : "border-white/12 bg-zinc-900/90 text-zinc-300 hover:bg-zinc-800";
-
-  const cellClass = cn(
-    "flex h-8 min-w-0 items-center justify-center rounded border px-0 py-0 transition disabled:cursor-not-allowed disabled:opacity-45 sm:h-9",
-    controlClass,
-  );
-
   const setLoopLength = (beats: number) => {
     setLoopBeats(beats);
     onAutoLoop(beats);
@@ -55,14 +47,10 @@ export function DeckLoopPanel({
       )}
     >
       <div className="flex shrink-0 flex-col gap-1 p-1.5">
-        <button
+        <DeckButton
           type="button"
-          className={cn(
-            "flex h-8 w-full items-center justify-center rounded border px-1 text-[9px] font-bold uppercase tracking-[0.2em] transition disabled:cursor-not-allowed disabled:opacity-45 sm:h-9",
-            loopActive
-              ? "border-emerald-400/55 bg-emerald-500/25 text-emerald-100 hover:bg-emerald-500/35"
-              : controlClass,
-          )}
+          active={loopActive}
+          size="cellWide"
           disabled={controlsDisabled}
           title={loopActive ? "Disable loop" : "Enable auto loop"}
           onClick={() => {
@@ -74,13 +62,14 @@ export function DeckLoopPanel({
           }}
         >
           Loop
-        </button>
+        </DeckButton>
 
         <div className="grid grid-cols-3 gap-1">
-          <button
+          <DeckButton
             type="button"
+            active={loopActive}
+            size="cell"
             disabled={controlsDisabled || resolvedLoopBeatIndex <= 0}
-            className={cn(cellClass, "text-xs font-semibold")}
             title="Halve loop length"
             onClick={() => {
               const nextIndex = Math.max(0, resolvedLoopBeatIndex - 1);
@@ -89,20 +78,21 @@ export function DeckLoopPanel({
             }}
           >
             ‹
-          </button>
+          </DeckButton>
           <span
             className="flex h-8 min-w-0 items-center justify-center text-[11px] font-medium tabular-nums text-zinc-500 sm:h-9"
             title="Loop length in beats (reference)"
           >
             {loopBeats}
           </span>
-          <button
+          <DeckButton
             type="button"
+            active={loopActive}
+            size="cell"
             disabled={
               controlsDisabled ||
               resolvedLoopBeatIndex >= AUTO_LOOP_BEATS.length - 1
             }
-            className={cn(cellClass, "text-xs font-semibold")}
             title="Double loop length"
             onClick={() => {
               const nextIndex = Math.min(
@@ -114,26 +104,30 @@ export function DeckLoopPanel({
             }}
           >
             ›
-          </button>
+          </DeckButton>
         </div>
 
         <div className="grid grid-cols-2 gap-1">
-          <button
+          <DeckButton
             type="button"
+            active={loopActive}
+            size="cell"
+            className="text-[9px] font-bold uppercase tracking-wide"
             disabled={controlsDisabled}
-            className={cn(cellClass, "text-[9px] font-bold uppercase tracking-wide")}
             onClick={onLoopIn}
           >
             IN
-          </button>
-          <button
+          </DeckButton>
+          <DeckButton
             type="button"
+            active={loopActive}
+            size="cell"
+            className="text-[9px] font-bold uppercase tracking-wide"
             disabled={controlsDisabled}
-            className={cn(cellClass, "text-[9px] font-bold uppercase tracking-wide")}
             onClick={onLoopOut}
           >
             OUT
-          </button>
+          </DeckButton>
         </div>
       </div>
     </div>

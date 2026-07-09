@@ -1,4 +1,5 @@
 import { Slider } from "@/components/ui/slider";
+import { DeckButton } from "@/components/ui/deck-button";
 import type { DeckAccent } from "../lib/ui";
 import { DECK_ACCENTS } from "../lib/ui";
 import {
@@ -38,14 +39,14 @@ export function DeckTempoPanel({
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
           {formatPitchOffset(deck.speed)}
         </span>
-        <button
+        <DeckButton
           type="button"
-          className="mt-0.5 w-full rounded border border-white/12 bg-zinc-900/90 px-1 py-1 text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-300 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-45"
+          size="sync"
           disabled={disabled}
           title="Coming in Phase 2"
         >
           Sync
-        </button>
+        </DeckButton>
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-2 py-2 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center">
