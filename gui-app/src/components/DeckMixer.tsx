@@ -329,7 +329,7 @@ export function DeckMixer({
         Mixer
       </span>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
+      <div className="flex min-h-0 flex-1 flex-col gap-2">
         <MixerTopKnobRow
           decks={decks}
           accents={accents}
