@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 import { DECK_LABELS } from "../lib/ui";
 import {
   formatColumnValue,
   LIBRARY_TABLE_COLUMNS,
   rowKey,
   rowMatchesFilter,
+  rowTitle,
   rowTrackId,
   sortLibraryRows,
 } from "../lib/libraryTable";
@@ -105,15 +108,24 @@ export function LibraryTrackTable({
           return (
             <tr
               key={rowKey(row)}
-              draggable={dragEnabled}
-              className={
-                dragEnabled
-                  ? "cursor-grab border-b border-white/5 transition hover:bg-white/3 active:cursor-grabbing"
-                  : "cursor-not-allowed border-b border-white/5 opacity-80"
+              draggable={dragEnabled && !isAnalyzing}
+              aria-busy={isAnalyzing}
+              className={cn(
+                "border-b border-white/5 transition",
+                !isAnalyzing &&
+                  (dragEnabled
+                    ? "cursor-grab hover:bg-white/3 active:cursor-grabbing"
+                    : "cursor-not-allowed opacity-80"),
+              )}
+              title={
+                isAnalyzing
+                  ? "Analyzing track…"
+                  : dragEnabled
+                    ? "Drag to a deck"
+                    : "Start the engine to drag tracks"
               }
-              title={dragEnabled ? "Drag to a deck" : "Start the engine to drag tracks"}
               onDragStart={(event) => {
-                if (!dragEnabled) {
+                if (!dragEnabled || isAnalyzing) {
                   event.preventDefault();
                   return;
                 }
@@ -132,16 +144,28 @@ export function LibraryTrackTable({
                   }
                   title={
                     column.id === "title" || column.id === "path"
-                      ? formatColumnValue(row, column.id)
+                      ? isAnalyzing && column.id === "title"
+                        ? rowTitle(row)
+                        : formatColumnValue(row, column.id)
                       : undefined
                   }
                 >
-                  {formatColumnValue(row, column.id)}
+                  {column.id === "title" && isAnalyzing ? (
+                    <span className="inline-flex min-w-0 items-center gap-2 text-emerald-200">
+                      <Spinner className="size-3.5 shrink-0 text-emerald-400" />
+                      <span className="truncate">{rowTitle(row)}</span>
+                    </span>
+                  ) : isAnalyzing &&
+                    (column.id === "bpm" || column.id === "key") ? (
+                    <span className="text-emerald-400/70">…</span>
+                  ) : (
+                    formatColumnValue(row, column.id)
+                  )}
                 </td>
               ))}
               <td className="px-2 py-1.5">
                 <TrackActionsMenu
-                  busy={busy}
+                  busy={busy || isAnalyzing}
                   actions={[
                     ...DECK_LABELS.map((label, deckId) => ({
                       label: `Load to ${label}`,
