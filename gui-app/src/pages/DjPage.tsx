@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useDefaultLayout } from "react-resizable-panels";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -32,11 +31,6 @@ export function DjPage() {
     void ensureEngineRunning();
   }, [ensureEngineRunning]);
 
-  const djLayout = useDefaultLayout({
-    id: "dj-layout-v2",
-    panelIds: ["decks", "library"],
-  });
-
   const toggleDeckPlayback = (deckId: number, playing: boolean) => {
     if (playing) {
       void pauseDeck(deckId);
@@ -56,16 +50,14 @@ export function DjPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ResizablePanelGroup
-        id="dj-layout-v2"
+        id="dj-layout"
         orientation="vertical"
         className="min-h-0 flex-1"
-        defaultLayout={djLayout.defaultLayout}
-        onLayoutChanged={djLayout.onLayoutChanged}
       >
         <ResizablePanel
           id="decks"
-          defaultSize="48"
-          minSize="30"
+          defaultSize="480px"
+          minSize="420px"
           className="min-h-0 overflow-hidden"
         >
           <DeckGrid

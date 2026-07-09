@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useDefaultLayout } from "react-resizable-panels";
 import { Input } from "@/components/ui/input";
 import {
   ResizableHandle,
@@ -100,11 +99,6 @@ export function LibraryPanel({
     },
   );
 
-  const librarySplit = useDefaultLayout({
-    id: "library-split-v3",
-    panelIds: ["collections", "tracks"],
-  });
-
   const leftPaneTitle =
     sourceTab === "collections" ? "Collections" : "Browse";
 
@@ -185,11 +179,9 @@ export function LibraryPanel({
       )}
 
       <ResizablePanelGroup
-        id="library-split-v3"
+        id="library-split"
         orientation="horizontal"
         className="min-h-0 flex-1"
-        defaultLayout={librarySplit.defaultLayout}
-        onLayoutChanged={librarySplit.onLayoutChanged}
       >
         <ResizablePanel
           id="collections"

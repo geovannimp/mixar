@@ -46,7 +46,7 @@ export function DualDeckWaveform({ decks }: DualDeckWaveformProps) {
   const deckB = decks[1] ?? decks[0];
 
   return (
-    <div className="relative flex h-28 shrink-0 flex-col overflow-hidden border-b border-white/10 bg-black sm:h-32">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden border-b border-white/10 bg-black">
       <WaveformLane deck={deckA} accent={DECK_ACCENTS.a} />
       <div className="h-px shrink-0 bg-white/10" aria-hidden />
       <WaveformLane deck={deckB} accent={DECK_ACCENTS.b} />
