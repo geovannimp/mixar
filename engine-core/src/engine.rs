@@ -5,6 +5,7 @@ use crate::config::{DeviceConfig, EngineConfig};
 use crate::producer::{
     create_ring_buffer, producer_thread_loop, MasterStreamSetup,
 };
+use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{
     AudioStream, BusConfig, BusId, DeviceId, DeviceInfo, Sample, StreamParams,
@@ -25,6 +26,7 @@ pub struct Engine {
     stream: Option<Box<dyn AudioStream>>,
     producer_thread: Option<JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
+    transport_events: Arc<Mutex<Vec<TransportEvent>>>,
 }
 
 impl Engine {
@@ -39,6 +41,7 @@ impl Engine {
             stream: None,
             producer_thread: None,
             running: Arc::new(Mutex::new(false)),
+            transport_events: Arc::new(Mutex::new(Vec::new())),
         })
     }
 
@@ -171,6 +174,7 @@ impl Engine {
         let buffer_size = master_stream.buffer_size;
         let callback_count = Arc::clone(&master_stream.callback_count);
         let running = self.running.clone();
+        let transport_events = Arc::clone(&self.transport_events);
         let producer_thread = thread::spawn(move || {
             producer_thread_loop(
                 dsp_engine,
@@ -181,6 +185,7 @@ impl Engine {
                 ring_buffer_capacity,
                 callback_frames_for_producer,
                 callback_count,
+                transport_events,
             );
         });
 
@@ -222,9 +227,39 @@ impl Engine {
         }
 
         self.dsp_engine = None;
+        self.transport_events.lock().unwrap().clear();
 
         log::info!("Engine stopped");
         Ok(())
+    }
+
+    /// Drain transport events posted by the producer thread (track ended, etc.).
+    pub fn drain_transport_events(&mut self) -> Vec<TransportEvent> {
+        std::mem::take(&mut *self.transport_events.lock().unwrap())
+    }
+
+    /// Snapshot playback positions for all decks that currently have loaded audio.
+    pub fn deck_playback_snapshot(&self) -> Vec<(usize, f64, f64)> {
+        let Some(dsp_engine) = self.dsp_engine.as_ref() else {
+            return Vec::new();
+        };
+        let dsp = match dsp_engine.lock() {
+            Ok(dsp) => dsp,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut snapshot = Vec::new();
+        for deck_id in 0..dsp.num_decks() {
+            let Some(deck) = dsp.deck(deck_id) else {
+                continue;
+            };
+            let Some(duration) = deck.duration_seconds() else {
+                continue;
+            };
+            let position = deck.position_seconds().unwrap_or(0.0);
+            snapshot.push((deck_id, position, duration));
+        }
+        snapshot
     }
 
     /// Load a shared decoded track into a deck.

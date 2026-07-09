@@ -1,6 +1,7 @@
 use anyhow::Result;
 use audio_core::{AudioStream, BusId, Sample};
 use engine_dsp::DspEngine;
+use crate::transport::TransportEvent;
 use rtrb::{Consumer, Producer, RingBuffer};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -98,6 +99,7 @@ pub(crate) fn producer_thread_loop(
     ring_buffer_capacity: usize,
     callback_frames_atomic: Option<Arc<std::sync::atomic::AtomicU32>>,
     callback_count: Arc<AtomicU64>,
+    transport_events: Arc<Mutex<Vec<TransportEvent>>>,
 ) {
     log::info!(
         "Producer thread started (fallback_buffer_size={}, ring_capacity={}, sample_rate={})",
@@ -148,6 +150,15 @@ pub(crate) fn producer_thread_loop(
             let mut dsp = dsp_engine.lock().unwrap();
             if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
                 log::error!("DSP processing error: {}", e);
+            }
+            let deck_events = dsp.drain_transport_events();
+            if !deck_events.is_empty() {
+                let mut queue = transport_events.lock().unwrap();
+                queue.extend(
+                    deck_events
+                        .into_iter()
+                        .map(|(deck_id, event)| TransportEvent::from_deck(deck_id, event)),
+                );
             }
         }
 

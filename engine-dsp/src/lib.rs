@@ -14,10 +14,12 @@ use std::collections::HashMap;
 pub mod deck;
 pub mod eq;
 pub mod mixer;
+pub mod transport;
 
 pub use deck::{Deck, DeckState};
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use mixer::Mixer;
+pub use transport::DeckTransportEvent;
 
 /// DSP engine that manages all audio processing components
 #[derive(Debug)]
@@ -86,6 +88,17 @@ impl DspEngine {
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
         self.mixer.process(&mut self.decks, frames, output_buses)
+    }
+
+    /// Drain transport events from all decks after a process cycle.
+    pub fn drain_transport_events(&mut self) -> Vec<(usize, DeckTransportEvent)> {
+        let mut events = Vec::new();
+        for (deck_id, deck) in self.decks.iter_mut().enumerate() {
+            for event in deck.drain_transport_events() {
+                events.push((deck_id, event));
+            }
+        }
+        events
     }
 
     /// Get the immutable output sample rate

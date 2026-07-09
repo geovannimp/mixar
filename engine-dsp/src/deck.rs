@@ -6,6 +6,7 @@
 use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
 use crate::eq::{DeckEqGains, ThreeBandEq};
+use crate::transport::DeckTransportEvent;
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -58,6 +59,8 @@ pub struct Deck {
     cue_point_secs: Option<f64>,
     /// Saved transport state while cue is held.
     cue_hold_return: Option<(f64, bool)>,
+    /// Events to deliver to the engine notifier after processing.
+    pending_transport: Vec<DeckTransportEvent>,
 }
 
 impl fmt::Debug for Deck {
@@ -105,6 +108,29 @@ impl Deck {
             loop_region: None,
             cue_point_secs: None,
             cue_hold_return: None,
+            pending_transport: Vec::new(),
+        }
+    }
+
+    /// Take pending transport events produced during the last process cycle.
+    pub fn drain_transport_events(&mut self) -> Vec<DeckTransportEvent> {
+        std::mem::take(&mut self.pending_transport)
+    }
+
+    fn check_track_end(&mut self) {
+        if self.state != DeckState::Playing || self.loop_region.is_some() {
+            return;
+        }
+        let Some(audio) = self.loaded.as_ref() else {
+            return;
+        };
+        let total_frames = audio.samples.len() / 2;
+        if total_frames == 0 {
+            return;
+        }
+        if self.position_frac >= total_frames as f64 {
+            self.state = DeckState::Paused;
+            self.pending_transport.push(DeckTransportEvent::TrackEnded);
         }
     }
 
@@ -461,6 +487,8 @@ impl Deck {
         for sample in &mut self.buffer {
             *sample *= self.volume;
         }
+
+        self.check_track_end();
 
         Ok(&self.buffer)
     }

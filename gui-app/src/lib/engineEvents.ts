@@ -5,6 +5,7 @@ export const ENGINE_EVENT = "engine://event";
 export type EngineEvent =
   | { type: "status"; revision: number; status: EngineStatus }
   | { type: "deck_updated"; revision: number; deck: DeckStatus }
+  | { type: "position"; deck_id: number; position_secs: number }
   | { type: "notice"; message: string }
   | { type: "error"; message: string };
 
@@ -35,6 +36,16 @@ export function applyEngineEvent(
         ),
       },
       revision: event.revision,
+    };
+  }
+
+  if (event.type === "position") {
+    if (!current) {
+      return { status: current, revision: lastRevision };
+    }
+    return {
+      status: patchDeckPosition(current, event.deck_id, event.position_secs),
+      revision: lastRevision,
     };
   }
 

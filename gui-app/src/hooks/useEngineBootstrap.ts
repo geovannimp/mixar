@@ -40,28 +40,4 @@ export function useEngineBootstrap(): void {
       unlisten?.();
     };
   }, [applyEvent]);
-
-  useEffect(() => {
-    const refreshStatus = () => {
-      invoke<EngineStatus>("get_status")
-        .then((status) => {
-          setStatus(status);
-        })
-        .catch((err: unknown) => {
-          reportBootstrapError(String(err));
-        });
-    };
-
-    const intervalId = window.setInterval(() => {
-      const { status } = useEngineStore.getState();
-      const anyPlaying = status?.decks.some((deck) => deck.playing) ?? false;
-      if (status?.running && anyPlaying) {
-        refreshStatus();
-      }
-    }, 100);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [setStatus]);
 }

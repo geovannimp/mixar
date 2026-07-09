@@ -18,6 +18,10 @@ pub enum EngineEvent {
         revision: u64,
         deck: DeckStatus,
     },
+    Position {
+        deck_id: usize,
+        position_secs: f64,
+    },
     #[allow(dead_code)]
     Notice {
         message: String,
@@ -54,6 +58,16 @@ pub fn emit_deck_updated(app: &AppHandle, revision: u64, deck: DeckStatus) {
     );
 }
 
+pub fn emit_position(app: &AppHandle, deck_id: usize, position_secs: f64) {
+    emit_event(
+        app,
+        EngineEvent::Position {
+            deck_id,
+            position_secs,
+        },
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,6 +96,11 @@ mod tests {
                     eq: DeckEq::default(),
                     position_secs: None,
                     duration_secs: None,
+                    cue_point_secs: None,
+                    quantize: true,
+                    hot_cues: vec![],
+                    saved_loops: vec![],
+                    active_loop: None,
                 }],
             },
         };

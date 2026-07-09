@@ -20,7 +20,9 @@ use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
 mod deck_performance;
+mod engine_controller;
 mod engine_events;
+mod engine_notifier;
 mod fs_browser;
 mod waveform_render;
 
@@ -31,7 +33,10 @@ use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
-use engine_events::{emit_deck_updated, emit_status};
+use engine_controller::{engine_status, publish_deck, publish_status};
+use engine_notifier::EngineNotifier;
+
+pub(crate) use engine_controller::{bump_revision, deck_status};
 
 const NUM_DECKS: usize = 2;
 
@@ -104,6 +109,7 @@ struct AppState {
     revision: u64,
     audio_cache: AudioCache,
     library_table_columns: Vec<String>,
+    notifier: Option<EngineNotifier>,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -363,44 +369,6 @@ fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<
     }
 }
 
-fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
-    state
-        .decks
-        .iter()
-        .enumerate()
-        .map(|(id, deck)| deck_status(state, id, deck))
-        .collect()
-}
-
-fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
-    let (position_secs, duration_secs) = deck_playback_secs(state, id);
-    DeckStatus {
-        id,
-        track: deck.track.clone(),
-        track_id: deck.track_id.clone(),
-        title: deck.title.clone(),
-        artist: deck.artist.clone(),
-        bpm: deck.bpm,
-        key: deck.key.clone(),
-        playing: deck.playing,
-        volume: deck.volume,
-        speed: deck.speed,
-        eq: deck.eq.clone(),
-        position_secs,
-        duration_secs,
-        cue_point_secs: deck.cue_point_secs,
-        quantize: deck.quantize,
-        hot_cues: deck.hot_cues.clone(),
-        saved_loops: deck.saved_loops.clone(),
-        active_loop: deck.active_loop.clone(),
-    }
-}
-
-fn bump_revision(state: &mut AppState) -> u64 {
-    state.revision += 1;
-    state.revision
-}
-
 fn apply_path_metadata(deck: &mut DeckInfo, path: &str) {
     deck.title = Path::new(path)
         .file_name()
@@ -416,30 +384,6 @@ fn clear_deck_info(deck: &mut DeckInfo) {
         eq: deck.eq.clone(),
         ..DeckInfo::default()
     };
-}
-
-fn publish_status(app: &AppHandle, state: &mut AppState) -> EngineStatus {
-    let revision = bump_revision(state);
-    let status = engine_status(state);
-    emit_status(app, revision, status.clone());
-    status
-}
-
-fn publish_deck(app: &AppHandle, state: &mut AppState, deck_id: usize) -> DeckStatus {
-    let revision = bump_revision(state);
-    let deck = deck_status(state, deck_id, &state.decks[deck_id]);
-    emit_deck_updated(app, revision, deck.clone());
-    deck
-}
-
-fn engine_status(state: &AppState) -> EngineStatus {
-    EngineStatus {
-        running: state.engine.is_some(),
-        backend: "cpal".to_string(),
-        sample_rate: 48_000,
-        crossfader: state.crossfader,
-        decks: deck_statuses(state),
-    }
 }
 
 fn track_display_name(source: &LibrarySource) -> String {
@@ -506,9 +450,10 @@ where
 #[tauri::command]
 fn start_engine(
     app: AppHandle,
-    state: State<'_, SharedAppState>,
+    shared: State<'_, SharedAppState>,
 ) -> Result<EngineStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
+    let shared_state = shared.inner().clone();
+    let mut state = shared.lock().map_err(|e| e.to_string())?;
     if state.engine.is_some() {
         return Ok(engine_status(&state));
     }
@@ -532,6 +477,7 @@ fn start_engine(
         .set_crossfader(state.crossfader)
         .map_err(|e| e.to_string())?;
     state.engine = Some(engine);
+    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
 }
@@ -542,6 +488,7 @@ fn stop_engine(
     state: State<'_, SharedAppState>,
 ) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.notifier = None;
     if let Some(mut engine) = state.engine.take() {
         engine.stop().map_err(|e| e.to_string())?;
     }
@@ -1207,6 +1154,7 @@ pub fn run() {
                 revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
+                notifier: None,
             })));
             Ok(())
         })
