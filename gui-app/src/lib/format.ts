@@ -62,6 +62,76 @@ export function effectiveBpm(
   return bpm * speed;
 }
 
+/** Default DJ time signature: 4/4. */
+export const DEFAULT_BEATS_PER_BAR = 4;
+
+/** Bars per jog position cycle. */
+export const JOG_BAR_CYCLE_LENGTH = 4;
+
+/** Playhead progress within a repeating bar window (0–1 per cycle). */
+export function barCycleProgress(
+  positionSecs: number,
+  bpm: number,
+  beatsPerBar: number = DEFAULT_BEATS_PER_BAR,
+  cycleBars: number = JOG_BAR_CYCLE_LENGTH,
+): number {
+  if (!Number.isFinite(positionSecs)) {
+    return 0;
+  }
+  const cycleDurationSecs = barCycleDurationSecs(
+    bpm,
+    beatsPerBar,
+    cycleBars,
+  );
+  if (cycleDurationSecs == null) {
+    return 0;
+  }
+  const positionInCycle =
+    ((positionSecs % cycleDurationSecs) + cycleDurationSecs) % cycleDurationSecs;
+  return positionInCycle / cycleDurationSecs;
+}
+
+/** Continuous jog tracker angle (no 0–360 wrap) to avoid transition glitches at cycle boundaries. */
+export function barCycleRotationDeg(
+  positionSecs: number,
+  bpm: number,
+  beatsPerBar: number = DEFAULT_BEATS_PER_BAR,
+  cycleBars: number = JOG_BAR_CYCLE_LENGTH,
+): number {
+  if (!Number.isFinite(positionSecs)) {
+    return 0;
+  }
+  const cycleDurationSecs = barCycleDurationSecs(
+    bpm,
+    beatsPerBar,
+    cycleBars,
+  );
+  if (cycleDurationSecs == null) {
+    return 0;
+  }
+  return (positionSecs / cycleDurationSecs) * 360;
+}
+
+function barCycleDurationSecs(
+  bpm: number,
+  beatsPerBar: number,
+  cycleBars: number,
+): number | null {
+  if (!Number.isFinite(bpm) || bpm <= 0) {
+    return null;
+  }
+  const beatsInCycle = cycleBars * beatsPerBar;
+  const cycleDurationSecs = (beatsInCycle * 60) / bpm;
+  if (cycleDurationSecs <= 0) {
+    return null;
+  }
+  return cycleDurationSecs;
+}
+
+export function getBarCycleDurationSecs(bpm: number): number | null {
+  return barCycleDurationSecs(bpm, DEFAULT_BEATS_PER_BAR, JOG_BAR_CYCLE_LENGTH);
+}
+
 export const PITCH_RANGE_PERCENT = 8;
 
 function clampSpeedToPitchRange(speed: number): number {

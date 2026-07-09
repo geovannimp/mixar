@@ -142,15 +142,141 @@ export function DeckPanel({
     />
   );
 
+  const transportControls = (
+    <div className="flex shrink-0 flex-col items-center justify-end gap-2">
+      <JogPlatter
+        accent={accentKey}
+        playing={deck.playing}
+        bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
+        hasTrack={hasTrack}
+        positionSecs={deck.position_secs ?? 0}
+        durationSecs={deck.duration_secs}
+      />
+      <div className="flex items-end gap-2">
+        {isDeckA ? (
+          <>
+            <DeckCircularButton
+              label="Cue"
+              accent={accentKey}
+              disabled={transportDisabled}
+              title="Hold to audition cue — click without hold to set cue point"
+              onPointerDown={() => {
+                if (transportDisabled) {
+                  return;
+                }
+                cueWasHoldRef.current = false;
+                cueHeldRef.current = true;
+                void onBeginCueHold();
+              }}
+              onPointerUp={() => {
+                if (!cueHeldRef.current) {
+                  return;
+                }
+                cueWasHoldRef.current = true;
+                cueHeldRef.current = false;
+                void onEndCueHold();
+              }}
+              onPointerLeave={() => {
+                if (!cueHeldRef.current) {
+                  return;
+                }
+                cueWasHoldRef.current = true;
+                cueHeldRef.current = false;
+                void onEndCueHold();
+              }}
+              onClick={() => {
+                if (transportDisabled || cueWasHoldRef.current) {
+                  cueWasHoldRef.current = false;
+                  return;
+                }
+                void onSetCuePoint();
+              }}
+            />
+            <DeckCircularButton
+              label={deck.playing ? "Pause" : "Play"}
+              accent={accentKey}
+              variant="play"
+              active={deck.playing}
+              disabled={transportDisabled}
+              onClick={onTogglePlayback}
+            >
+              {deck.playing ? (
+                <Pause className="size-5" aria-hidden />
+              ) : (
+                <Play className="size-5 translate-x-0.5" aria-hidden />
+              )}
+            </DeckCircularButton>
+          </>
+        ) : (
+          <>
+            <DeckCircularButton
+              label={deck.playing ? "Pause" : "Play"}
+              accent={accentKey}
+              variant="play"
+              active={deck.playing}
+              disabled={transportDisabled}
+              onClick={onTogglePlayback}
+            >
+              {deck.playing ? (
+                <Pause className="size-5" aria-hidden />
+              ) : (
+                <Play className="size-5 translate-x-0.5" aria-hidden />
+              )}
+            </DeckCircularButton>
+            <DeckCircularButton
+              label="Cue"
+              accent={accentKey}
+              disabled={transportDisabled}
+              title="Hold to audition cue — click without hold to set cue point"
+              onPointerDown={() => {
+                if (transportDisabled) {
+                  return;
+                }
+                cueWasHoldRef.current = false;
+                cueHeldRef.current = true;
+                void onBeginCueHold();
+              }}
+              onPointerUp={() => {
+                if (!cueHeldRef.current) {
+                  return;
+                }
+                cueWasHoldRef.current = true;
+                cueHeldRef.current = false;
+                void onEndCueHold();
+              }}
+              onPointerLeave={() => {
+                if (!cueHeldRef.current) {
+                  return;
+                }
+                cueWasHoldRef.current = true;
+                cueHeldRef.current = false;
+                void onEndCueHold();
+              }}
+              onClick={() => {
+                if (transportDisabled || cueWasHoldRef.current) {
+                  cueWasHoldRef.current = false;
+                  return;
+                }
+                void onSetCuePoint();
+              }}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+
   const performancePanels = isDeckA ? (
     <>
       {hotCuePanel}
       {loopPanel}
+      {transportControls}
     </>
   ) : (
     <>
       {loopPanel}
       {hotCuePanel}
+      {transportControls}
     </>
   );
 
@@ -169,133 +295,11 @@ export function DeckPanel({
 
       <div
         className={cn(
-          "flex w-full min-h-[7.5rem] shrink-0 flex-row items-stretch gap-2 sm:min-h-32",
+          "flex w-full min-h-36 shrink-0 flex-row items-stretch gap-2 sm:min-h-40",
           isDeckA ? "justify-start" : "justify-end",
         )}
       >
         {performancePanels}
-      </div>
-
-      <div className="mt-auto flex justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <JogPlatter
-            accent={accentKey}
-            playing={deck.playing}
-            bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
-            hasTrack={hasTrack}
-          />
-          <div className="flex items-end gap-2">
-            {isDeckA ? (
-              <>
-                <DeckCircularButton
-                  label="Cue"
-                  accent={accentKey}
-                  disabled={transportDisabled}
-                  title="Hold to audition cue — click without hold to set cue point"
-                  onPointerDown={() => {
-                    if (transportDisabled) {
-                      return;
-                    }
-                    cueWasHoldRef.current = false;
-                    cueHeldRef.current = true;
-                    void onBeginCueHold();
-                  }}
-                  onPointerUp={() => {
-                    if (!cueHeldRef.current) {
-                      return;
-                    }
-                    cueWasHoldRef.current = true;
-                    cueHeldRef.current = false;
-                    void onEndCueHold();
-                  }}
-                  onPointerLeave={() => {
-                    if (!cueHeldRef.current) {
-                      return;
-                    }
-                    cueWasHoldRef.current = true;
-                    cueHeldRef.current = false;
-                    void onEndCueHold();
-                  }}
-                  onClick={() => {
-                    if (transportDisabled || cueWasHoldRef.current) {
-                      cueWasHoldRef.current = false;
-                      return;
-                    }
-                    void onSetCuePoint();
-                  }}
-                />
-                <DeckCircularButton
-                  label={deck.playing ? "Pause" : "Play"}
-                  accent={accentKey}
-                  variant="play"
-                  active={deck.playing}
-                  disabled={transportDisabled}
-                  onClick={onTogglePlayback}
-                >
-                  {deck.playing ? (
-                    <Pause className="size-5" aria-hidden />
-                  ) : (
-                    <Play className="size-5 translate-x-0.5" aria-hidden />
-                  )}
-                </DeckCircularButton>
-              </>
-            ) : (
-              <>
-                <DeckCircularButton
-                  label={deck.playing ? "Pause" : "Play"}
-                  accent={accentKey}
-                  variant="play"
-                  active={deck.playing}
-                  disabled={transportDisabled}
-                  onClick={onTogglePlayback}
-                >
-                  {deck.playing ? (
-                    <Pause className="size-5" aria-hidden />
-                  ) : (
-                    <Play className="size-5 translate-x-0.5" aria-hidden />
-                  )}
-                </DeckCircularButton>
-                <DeckCircularButton
-                  label="Cue"
-                  accent={accentKey}
-                  disabled={transportDisabled}
-                  title="Hold to audition cue — click without hold to set cue point"
-                  onPointerDown={() => {
-                    if (transportDisabled) {
-                      return;
-                    }
-                    cueWasHoldRef.current = false;
-                    cueHeldRef.current = true;
-                    void onBeginCueHold();
-                  }}
-                  onPointerUp={() => {
-                    if (!cueHeldRef.current) {
-                      return;
-                    }
-                    cueWasHoldRef.current = true;
-                    cueHeldRef.current = false;
-                    void onEndCueHold();
-                  }}
-                  onPointerLeave={() => {
-                    if (!cueHeldRef.current) {
-                      return;
-                    }
-                    cueWasHoldRef.current = true;
-                    cueHeldRef.current = false;
-                    void onEndCueHold();
-                  }}
-                  onClick={() => {
-                    if (transportDisabled || cueWasHoldRef.current) {
-                      cueWasHoldRef.current = false;
-                      return;
-                    }
-                    void onSetCuePoint();
-                  }}
-                />
-              </>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -338,9 +342,10 @@ export function DeckPanel({
           type="button"
           className={`${buttonCompact} shrink-0 border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45`}
           disabled={loadDisabled}
-          onClick={onPickTrack}
+          title={hasTrack ? "Eject track" : "Load track"}
+          onClick={hasTrack ? onUnload : onPickTrack}
         >
-          Load
+          {hasTrack ? "Eject" : "Load"}
         </button>
       </div>
 
@@ -350,7 +355,6 @@ export function DeckPanel({
         deck={deck}
         disabled={transportDisabled}
         onToggleQuantize={onToggleQuantize}
-        onUnload={onUnload}
       />
 
       <div className="flex min-h-0 flex-1 gap-2">
