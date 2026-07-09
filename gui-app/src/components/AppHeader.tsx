@@ -1,13 +1,9 @@
 import { NavLink } from "react-router-dom";
-import type { EngineStatus } from "../types";
+import { useEngineHeaderInfo } from "../hooks/useEngine";
 import { isTauriApp } from "../lib/tauriApp";
 import { StatusPill } from "./StatusPill";
 import { TitleBarDragRegion } from "./TitleBarDragRegion";
 import { WindowTitleBarControls } from "./WindowTitleBarControls";
-
-interface AppHeaderProps {
-  status: EngineStatus | null;
-}
 
 function navClass({ isActive }: { isActive: boolean }): string {
   return isActive
@@ -15,7 +11,8 @@ function navClass({ isActive }: { isActive: boolean }): string {
     : "rounded border border-transparent px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 hover:text-zinc-300";
 }
 
-export function AppHeader({ status }: AppHeaderProps) {
+export function AppHeader() {
+  const { running, backend, sampleRate } = useEngineHeaderInfo();
   const showWindowControls = isTauriApp();
 
   return (
@@ -40,13 +37,13 @@ export function AppHeader({ status }: AppHeaderProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-3 px-3 sm:px-4">
-        {status?.running && (
+        {running && (
           <span className="hidden text-xs text-zinc-500 md:inline">
-            {status.backend} · {status.sample_rate} Hz
+            {backend} · {sampleRate} Hz
           </span>
         )}
-        <StatusPill active={Boolean(status?.running)}>
-          {status?.running ? "Running" : "Stopped"}
+        <StatusPill active={running}>
+          {running ? "Running" : "Stopped"}
         </StatusPill>
       </div>
 

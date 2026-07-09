@@ -1,30 +1,26 @@
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { DECK_ACCENTS } from "../lib/ui";
 import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
 import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
+import {
+  engineActions,
+  useDeckHasTrack,
+  useDeckWaveform,
+  useEngineRunning,
+} from "../hooks/useEngine";
 import { useRenderWaveformLane } from "../hooks/useRenderWaveformLane";
-import type { DeckStatus } from "../types";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
 import { WaveformWindowMarkers } from "./WaveformWindowMarkers";
 
-interface DualDeckWaveformProps {
-  decks: DeckStatus[];
-  engineRunning: boolean;
-  busy: boolean;
-  onSeek: (deckId: number, positionSecs: number) => void;
-}
-
-function WaveformLane({
-  deck,
+const WaveformLane = memo(function WaveformLane({
+  deckId,
   accent,
-  seekDisabled,
-  onSeek,
 }: {
-  deck: DeckStatus;
+  deckId: number;
   accent: (typeof DECK_ACCENTS)["a"];
-  seekDisabled: boolean;
-  onSeek: (deckId: number, positionSecs: number) => void;
 }) {
+  const engineRunning = useEngineRunning();
+  const deck = useDeckWaveform(deckId);
   const { ref, size } = useLaneDimensions();
   const positionSecs = deck.position_secs ?? 0;
   const hasTrack = Boolean(deck.track);
@@ -41,13 +37,13 @@ function WaveformLane({
   });
 
   const visibleSecs = frame?.visible_secs ?? WAVEFORM_VISIBLE_SECS;
-  const seekEnabled = hasTrack && !seekDisabled;
+  const seekEnabled = hasTrack && engineRunning;
 
   const handleSeek = useCallback(
     (secs: number) => {
-      onSeek(deck.id, secs);
+      void engineActions.seekDeck(deckId, secs);
     },
-    [deck.id, onSeek],
+    [deckId],
   );
 
   const { scrubbing, displayPosition, handlers, cursorClass } =
@@ -93,44 +89,28 @@ function WaveformLane({
       />
     </div>
   );
-}
+});
 
-export function DualDeckWaveform({
-  decks,
-  engineRunning,
-  busy,
-  onSeek,
-}: DualDeckWaveformProps) {
-  const deckA = decks[0];
-  const deckB = decks[1] ?? decks[0];
-  const seekDisabled = busy || !engineRunning;
+export const DualDeckWaveform = memo(function DualDeckWaveform() {
+  const deckAHasTrack = useDeckHasTrack(0);
+  const deckBHasTrack = useDeckHasTrack(1);
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden border-b border-white/10 bg-black">
-      <WaveformLane
-        deck={deckA}
-        accent={DECK_ACCENTS.a}
-        seekDisabled={seekDisabled}
-        onSeek={onSeek}
-      />
+      <WaveformLane deckId={0} accent={DECK_ACCENTS.a} />
       <div className="h-px shrink-0 bg-white/10" aria-hidden />
-      <WaveformLane
-        deck={deckB}
-        accent={DECK_ACCENTS.b}
-        seekDisabled={seekDisabled}
-        onSeek={onSeek}
-      />
+      <WaveformLane deckId={1} accent={DECK_ACCENTS.b} />
 
       <div
         className="pointer-events-none absolute inset-y-0 left-1/2 z-20 w-px -translate-x-1/2 bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.45)]"
         aria-hidden
       />
 
-      {!deckA.track && !deckB.track ? (
+      {!deckAHasTrack && !deckBHasTrack ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/60 text-xs font-medium uppercase tracking-widest text-zinc-500">
           Load tracks to see waveforms
         </div>
       ) : null}
     </div>
   );
-}
+});

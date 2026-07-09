@@ -7,43 +7,11 @@ import {
 import { DeckGrid } from "../components/DeckGrid";
 import { LibraryPanel } from "../components/LibraryPanel";
 import { useDeckHotkeys } from "../hooks/useDeckHotkeys";
-import { useEngine } from "../hooks/useEngine";
-import type { TrackDragPayload } from "../lib/libraryTable";
+import { engineActions } from "../hooks/useEngine";
 
 export function DjPage() {
   const [focusedDeckId, setFocusedDeckId] = useState(0);
-  const {
-    status,
-    busy,
-    ensureEngineRunning,
-    loadLibraryTrackToDeck,
-    loadPathToDeck,
-    pickTrack,
-    playDeck,
-    pauseDeck,
-    setDeckVolume,
-    setDeckEq,
-    setDeckSpeed,
-    setCrossfader,
-    seekDeck,
-    unloadDeck,
-    setDeckCuePoint,
-    beginDeckCueHold,
-    endDeckCueHold,
-    setDeckQuantize,
-    setDeckAutoLoop,
-    setDeckLoopIn,
-    setDeckLoopOut,
-    exitDeckLoop,
-    triggerHotCue,
-    saveHotCue,
-    deleteHotCue,
-    saveLoop,
-    deleteLoop,
-    recallSavedLoop,
-  } = useEngine();
-
-  const engineRunning = Boolean(status?.running);
+  const { ensureEngineRunning, triggerHotCue } = engineActions;
 
   useEffect(() => {
     void ensureEngineRunning();
@@ -53,22 +21,6 @@ export function DjPage() {
     focusedDeckId,
     onTriggerHotCue: triggerHotCue,
   });
-
-  const toggleDeckPlayback = (deckId: number, playing: boolean) => {
-    if (playing) {
-      void pauseDeck(deckId);
-      return;
-    }
-    void playDeck(deckId);
-  };
-
-  const loadDraggedTrack = (deckId: number, payload: TrackDragPayload) => {
-    if (payload.source === "library" && payload.trackId) {
-      void loadLibraryTrackToDeck(deckId, payload.trackId);
-      return;
-    }
-    void loadPathToDeck(deckId, payload.path);
-  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -84,35 +36,8 @@ export function DjPage() {
           className="min-h-0 overflow-hidden"
         >
           <DeckGrid
-            decks={status?.decks ?? []}
-            engineRunning={engineRunning}
-            busy={busy}
-            onPickTrack={pickTrack}
-            onTogglePlayback={toggleDeckPlayback}
-            onVolumeChange={setDeckVolume}
-            onEqChange={setDeckEq}
-            onSpeedChange={setDeckSpeed}
-            onDropTrack={loadDraggedTrack}
-            onSeek={seekDeck}
-            onSetCuePoint={setDeckCuePoint}
-            onBeginCueHold={beginDeckCueHold}
-            onEndCueHold={endDeckCueHold}
-            onTriggerHotCue={triggerHotCue}
-            onSaveHotCue={saveHotCue}
-            onDeleteHotCue={deleteHotCue}
-            onAutoLoop={setDeckAutoLoop}
-            onLoopIn={setDeckLoopIn}
-            onLoopOut={setDeckLoopOut}
-            onExitLoop={exitDeckLoop}
-            onSaveLoop={saveLoop}
-            onRecallSavedLoop={recallSavedLoop}
-            onDeleteLoop={deleteLoop}
-            onToggleQuantize={setDeckQuantize}
-            onUnload={unloadDeck}
             focusedDeckId={focusedDeckId}
             onFocusDeck={setFocusedDeckId}
-            crossfader={status?.crossfader ?? 0.5}
-            onCrossfaderChange={setCrossfader}
           />
         </ResizablePanel>
 
@@ -127,12 +52,7 @@ export function DjPage() {
           minSize="30"
           className="min-h-0 overflow-hidden"
         >
-          <LibraryPanel
-            engineRunning={engineRunning}
-            engineBusy={busy}
-            onLoadToDeck={loadLibraryTrackToDeck}
-            onLoadPathToDeck={loadPathToDeck}
-          />
+          <LibraryPanel />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

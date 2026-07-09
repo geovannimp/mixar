@@ -5,6 +5,13 @@ import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "../lib/ui";
 import { DEFAULT_DECK_EQ, type DeckEq, type DeckStatus } from "../types";
+import {
+  engineActions,
+  useCrossfader,
+  useDeckMixerChannel,
+  useEngineBusy,
+} from "../hooks/useEngine";
+import { getDefaultDeck } from "../stores/defaultDeck";
 import { RotaryKnob } from "./RotaryKnob";
 
 const EQ_COLUMN_CLASS = "w-12";
@@ -297,7 +304,7 @@ interface DeckMixerProps {
   onCrossfaderChange: (position: number) => void;
 }
 
-export function DeckMixer({
+function DeckMixerView({
   decks,
   crossfader,
   disabled,
@@ -385,5 +392,29 @@ export function DeckMixer({
         />
       </div>
     </div>
+  );
+}
+
+export function DeckMixer() {
+  const busy = useEngineBusy();
+  const crossfader = useCrossfader();
+  const deck0 = useDeckMixerChannel(0);
+  const deck1 = useDeckMixerChannel(1);
+  const { setDeckVolume, setDeckEq, setCrossfader } = engineActions;
+
+  const decks: DeckStatus[] = [
+    { ...getDefaultDeck(0), volume: deck0.volume, eq: deck0.eq },
+    { ...getDefaultDeck(1), volume: deck1.volume, eq: deck1.eq },
+  ];
+
+  return (
+    <DeckMixerView
+      decks={decks}
+      crossfader={crossfader}
+      disabled={busy}
+      onVolumeChange={setDeckVolume}
+      onEqChange={setDeckEq}
+      onCrossfaderChange={setCrossfader}
+    />
   );
 }

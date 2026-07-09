@@ -26,20 +26,12 @@ import { LibraryPane } from "./LibraryPane";
 import { LibrarySourceTabs } from "./LibrarySourceTabs";
 import { LibraryTrackTable } from "./LibraryTrackTable";
 import { MessageBanner } from "./MessageBanner";
+import { engineActions, useEngineBusy, useEngineRunning } from "../hooks/useEngine";
 
-interface LibraryPanelProps {
-  engineRunning: boolean;
-  engineBusy: boolean;
-  onLoadToDeck: (deckId: number, trackId: string) => void;
-  onLoadPathToDeck: (deckId: number, path: string) => void;
-}
-
-export function LibraryPanel({
-  engineRunning,
-  engineBusy,
-  onLoadToDeck,
-  onLoadPathToDeck,
-}: LibraryPanelProps) {
+export function LibraryPanel() {
+  const engineRunning = useEngineRunning();
+  const engineBusy = useEngineBusy();
+  const { loadLibraryTrackToDeck, loadPathToDeck } = engineActions;
   const [sourceTab, setSourceTab] = useState<LibrarySourceTab>("collections");
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<LibraryTableSort>(null);
@@ -135,16 +127,16 @@ export function LibraryPanel({
   const handleLoadRow = useCallback(
     (deckId: number, row: LibraryTableRow) => {
       if (row.source === "library") {
-        void onLoadToDeck(deckId, row.track.id);
+        void loadLibraryTrackToDeck(deckId, row.track.id);
         return;
       }
       if (row.libraryTrack) {
-        void onLoadToDeck(deckId, row.libraryTrack.id);
+        void loadLibraryTrackToDeck(deckId, row.libraryTrack.id);
         return;
       }
-      void onLoadPathToDeck(deckId, row.file.path);
+      void loadPathToDeck(deckId, row.file.path);
     },
-    [onLoadPathToDeck, onLoadToDeck],
+    [loadPathToDeck, loadLibraryTrackToDeck],
   );
 
   const handleAnalyze = useCallback(
