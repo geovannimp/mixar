@@ -19,6 +19,7 @@
 #[cfg(feature = "analysis")]
 mod analysis;
 mod db;
+mod deck_data;
 mod entity;
 mod model;
 mod store;
@@ -38,6 +39,7 @@ pub use library_core::{
     TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
+pub use deck_data::{delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord, LoopRecord};
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
 /// The user’s library manager (canonical writable store).
@@ -75,6 +77,55 @@ impl LibraryManager {
     /// Replace the library configuration.
     pub fn set_config(&mut self, config: LibraryConfig) {
         self.config = config;
+    }
+
+    /// Load hot cues and saved loops for a track.
+    pub fn list_track_hot_cues(&self, id: &TrackId) -> Result<Vec<HotCueRecord>> {
+        deck_data::list_hot_cues(&self.db, id)
+    }
+
+    pub fn list_track_loops(&self, id: &TrackId) -> Result<Vec<LoopRecord>> {
+        deck_data::list_loops(&self.db, id)
+    }
+
+    pub fn save_track_hot_cue(
+        &self,
+        id: &TrackId,
+        slot_index: u8,
+        position_secs: f64,
+        loop_length_beats: Option<i32>,
+        color: Option<String>,
+        label: Option<String>,
+    ) -> Result<()> {
+        deck_data::save_hot_cue(
+            &self.db,
+            id,
+            slot_index,
+            position_secs,
+            loop_length_beats,
+            color,
+            label,
+        )
+    }
+
+    pub fn delete_track_hot_cue(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        deck_data::delete_hot_cue(&self.db, id, slot_index)
+    }
+
+    pub fn save_track_loop(
+        &self,
+        id: &TrackId,
+        slot_index: u8,
+        in_secs: f64,
+        out_secs: f64,
+        label: Option<String>,
+        color: Option<String>,
+    ) -> Result<()> {
+        deck_data::save_loop(&self.db, id, slot_index, in_secs, out_secs, label, color)
+    }
+
+    pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
+        deck_data::delete_loop(&self.db, id, slot_index)
     }
 
     /// Load the stored L0 waveform overview for a track, if present.

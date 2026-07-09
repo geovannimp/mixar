@@ -15,7 +15,7 @@ pub mod deck;
 pub mod eq;
 pub mod mixer;
 
-pub use deck::Deck;
+pub use deck::{Deck, DeckState};
 pub use eq::{clamp_gain_db, DeckEqGains, ThreeBandEq, EQ_MAX_DB, EQ_MIN_DB};
 pub use mixer::Mixer;
 

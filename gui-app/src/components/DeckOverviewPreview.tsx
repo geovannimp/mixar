@@ -1,22 +1,35 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { DeckHotCueMarker, DeckLoopMarker, WaveformFrame } from "../types";
+import type {
+  DeckActiveLoop,
+  DeckHotCueMarker,
+  DeckLoopMarker,
+  WaveformFrame,
+} from "../types";
 import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
 interface DeckOverviewPreviewProps {
   trackId: string | null;
   path: string | null;
+  positionSecs: number;
   durationSecs: number | null;
   hotCues?: DeckHotCueMarker[];
   loops?: DeckLoopMarker[];
+  activeLoop?: DeckActiveLoop | null;
+  disabled?: boolean;
+  onSeek?: (positionSecs: number) => void;
 }
 
 export function DeckOverviewPreview({
   trackId,
   path,
+  positionSecs,
   durationSecs,
   hotCues = [],
   loops = [],
+  activeLoop = null,
+  disabled,
+  onSeek,
 }: DeckOverviewPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,6 +38,17 @@ export function DeckOverviewPreview({
 
   const hasTrack = Boolean(trackId || path);
   const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 1;
+
+  const overlayLoops: DeckLoopMarker[] = activeLoop
+    ? [
+        ...loops,
+        {
+          start_secs: activeLoop.in_secs,
+          end_secs: activeLoop.out_secs,
+          active: true,
+        },
+      ]
+    : loops;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -58,7 +82,7 @@ export function DeckOverviewPreview({
       visibleSecs: duration,
       bufferRatio: 0,
       includeDetail: false,
-      includeBeatGrid: false,
+      includeBeatGrid: true,
       eqLowDb: 0,
       eqMidDb: 0,
       eqHighDb: 0,
@@ -110,10 +134,30 @@ export function DeckOverviewPreview({
     }
   }, [frame, width]);
 
+  const handleSeek = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek || disabled || !hasTrack) {
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    onSeek(ratio * duration);
+  };
+
+  const playheadPercent =
+    duration > 0 ? Math.min(100, Math.max(0, (positionSecs / duration) * 100)) : 0;
+
   return (
     <div
       ref={containerRef}
-      className="relative h-8 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40"
+      className={`relative h-8 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${
+        onSeek && !disabled && hasTrack ? "cursor-pointer" : ""
+      }`}
+      onClick={handleSeek}
+      role={onSeek && hasTrack ? "slider" : undefined}
+      aria-label={onSeek && hasTrack ? "Overview waveform seek" : undefined}
+      aria-valuemin={0}
+      aria-valuemax={duration}
+      aria-valuenow={positionSecs}
     >
       {hasTrack ? (
         <>
@@ -121,7 +165,12 @@ export function DeckOverviewPreview({
           <WaveformCueMarkers
             durationSecs={duration}
             hotCues={hotCues}
-            loops={loops}
+            loops={overlayLoops}
+          />
+          <div
+            className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.45)]"
+            style={{ left: `${playheadPercent}%` }}
+            aria-hidden
           />
         </>
       ) : null}

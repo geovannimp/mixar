@@ -9,10 +9,16 @@ use library_core::{
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use engine_events::{emit_deck_updated, emit_status};
+use deck_performance::{
+    begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold, exit_deck_loop,
+    apply_deck_performance, fetch_deck_performance, save_hot_cue, save_loop, seek_deck, set_deck_auto_loop,
+    set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize, trigger_hot_cue,
+    unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+};
 use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
+mod deck_performance;
 mod engine_events;
 mod fs_browser;
 mod waveform_render;
@@ -23,6 +29,8 @@ use audio_cache::{
 use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+
+use engine_events::{emit_deck_updated, emit_status};
 
 const NUM_DECKS: usize = 2;
 
@@ -57,6 +65,11 @@ struct DeckInfo {
     volume: f32,
     speed: f32,
     eq: DeckEq,
+    cue_point_secs: Option<f64>,
+    quantize: bool,
+    hot_cues: Vec<HotCueStatus>,
+    saved_loops: Vec<SavedLoopStatus>,
+    active_loop: Option<LoopRegionStatus>,
 }
 
 impl Default for DeckInfo {
@@ -72,6 +85,11 @@ impl Default for DeckInfo {
             volume: 1.0,
             speed: 1.0,
             eq: DeckEq::default(),
+            cue_point_secs: None,
+            quantize: true,
+            hot_cues: Vec::new(),
+            saved_loops: Vec::new(),
+            active_loop: None,
         }
     }
 }
@@ -260,6 +278,11 @@ struct DeckStatus {
     eq: DeckEq,
     position_secs: Option<f64>,
     duration_secs: Option<f64>,
+    cue_point_secs: Option<f64>,
+    quantize: bool,
+    hot_cues: Vec<HotCueStatus>,
+    saved_loops: Vec<SavedLoopStatus>,
+    active_loop: Option<LoopRegionStatus>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -364,6 +387,11 @@ fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         eq: deck.eq.clone(),
         position_secs,
         duration_secs,
+        cue_point_secs: deck.cue_point_secs,
+        quantize: deck.quantize,
+        hot_cues: deck.hot_cues.clone(),
+        saved_loops: deck.saved_loops.clone(),
+        active_loop: deck.active_loop.clone(),
     }
 }
 
@@ -740,15 +768,21 @@ async fn load_path_to_deck(
             .map_err(|e| e.to_string())
     })?;
 
-    let deck = &mut state.decks[deck_id];
-    deck.track = Some(path);
-    deck.track_id = Some(track_id);
-    deck.playing = false;
-    deck.speed = 1.0;
-    deck.title = title;
-    deck.artist = artist;
-    deck.bpm = bpm;
-    deck.key = key;
+    {
+        let deck = &mut state.decks[deck_id];
+        deck.track = Some(path);
+        deck.track_id = Some(track_id.clone());
+        deck.playing = false;
+        deck.speed = 1.0;
+        deck.title = title;
+        deck.artist = artist;
+        deck.bpm = bpm;
+        deck.key = key;
+    }
+    let track_id_for_perf = state.decks[deck_id].track_id.clone();
+    let (hot_cues, saved_loops) =
+        fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -773,12 +807,16 @@ async fn load_track(
             .map_err(|e| e.to_string())
     })?;
 
-    let deck = &mut state.decks[deck_id];
-    deck.track = Some(path.clone());
-    deck.track_id = None;
-    deck.playing = false;
-    deck.speed = 1.0;
-    apply_path_metadata(deck, &path);
+    {
+        let deck = &mut state.decks[deck_id];
+        deck.track = Some(path.clone());
+        deck.track_id = None;
+        deck.playing = false;
+        deck.speed = 1.0;
+        apply_path_metadata(deck, &path);
+    }
+    let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -836,15 +874,21 @@ async fn load_library_track_to_deck(
             .map_err(|e| e.to_string())
     })?;
 
-    let deck = &mut state.decks[deck_id];
-    deck.track = Some(path);
-    deck.track_id = Some(track_id);
-    deck.playing = false;
-    deck.speed = 1.0;
-    deck.title = title;
-    deck.artist = artist;
-    deck.bpm = bpm;
-    deck.key = key;
+    {
+        let deck = &mut state.decks[deck_id];
+        deck.track = Some(path);
+        deck.track_id = Some(track_id.clone());
+        deck.playing = false;
+        deck.speed = 1.0;
+        deck.title = title;
+        deck.artist = artist;
+        deck.bpm = bpm;
+        deck.key = key;
+    }
+    let track_id_for_perf = state.decks[deck_id].track_id.clone();
+    let (hot_cues, saved_loops) =
+        fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -1187,6 +1231,21 @@ pub fn run() {
             set_deck_eq,
             set_deck_speed,
             set_crossfader,
+            seek_deck,
+            unload_deck,
+            set_deck_cue_point,
+            begin_deck_cue_hold,
+            end_deck_cue_hold,
+            set_deck_quantize,
+            set_deck_auto_loop,
+            set_deck_loop_in,
+            set_deck_loop_out,
+            exit_deck_loop,
+            trigger_hot_cue,
+            save_hot_cue,
+            delete_hot_cue,
+            save_loop,
+            delete_loop,
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,

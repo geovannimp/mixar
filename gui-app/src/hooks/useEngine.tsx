@@ -42,6 +42,21 @@ export interface EngineContextValue {
   setDeckEq: (deckId: number, eq: DeckEq) => Promise<void>;
   setDeckSpeed: (deckId: number, speed: number) => Promise<void>;
   setCrossfader: (position: number) => Promise<void>;
+  seekDeck: (deckId: number, positionSecs: number) => Promise<void>;
+  unloadDeck: (deckId: number) => Promise<void>;
+  setDeckCuePoint: (deckId: number) => Promise<void>;
+  beginDeckCueHold: (deckId: number) => Promise<void>;
+  endDeckCueHold: (deckId: number) => Promise<void>;
+  setDeckQuantize: (deckId: number, enabled: boolean) => Promise<void>;
+  setDeckAutoLoop: (deckId: number, beats: number) => Promise<void>;
+  setDeckLoopIn: (deckId: number) => Promise<void>;
+  setDeckLoopOut: (deckId: number) => Promise<void>;
+  exitDeckLoop: (deckId: number) => Promise<void>;
+  triggerHotCue: (deckId: number, slot: number) => Promise<void>;
+  saveHotCue: (deckId: number, slot: number) => Promise<void>;
+  deleteHotCue: (deckId: number, slot: number) => Promise<void>;
+  saveLoop: (deckId: number, slot: number) => Promise<void>;
+  deleteLoop: (deckId: number, slot: number) => Promise<void>;
 }
 
 const EngineContext = createContext<EngineContextValue | null>(null);
@@ -269,6 +284,147 @@ function useEngineState(): EngineContextValue {
     }
   }, []);
 
+  const seekDeck = useCallback(
+    async (deckId: number, positionSecs: number) => {
+      await runAction(async () => {
+        await invoke("seek_deck", { deckId, positionSecs });
+      });
+    },
+    [runAction],
+  );
+
+  const unloadDeck = useCallback(
+    async (deckId: number) => {
+      await runAction(async () => {
+        await invoke("unload_deck", { deckId });
+      });
+    },
+    [runAction],
+  );
+
+  const setDeckCuePoint = useCallback(
+    async (deckId: number) => {
+      await runAction(async () => {
+        await invoke("set_deck_cue_point", { deckId });
+      });
+    },
+    [runAction],
+  );
+
+  const beginDeckCueHold = useCallback(
+    async (deckId: number) => {
+      try {
+        await invoke("begin_deck_cue_hold", { deckId });
+      } catch (err) {
+        reportEngineError(String(err));
+      }
+    },
+    [],
+  );
+
+  const endDeckCueHold = useCallback(
+    async (deckId: number) => {
+      try {
+        await invoke("end_deck_cue_hold", { deckId });
+      } catch (err) {
+        reportEngineError(String(err));
+      }
+    },
+    [],
+  );
+
+  const setDeckQuantize = useCallback(
+    async (deckId: number, enabled: boolean) => {
+      try {
+        await invoke("set_deck_quantize", { deckId, enabled });
+      } catch (err) {
+        reportEngineError(String(err));
+      }
+    },
+    [],
+  );
+
+  const setDeckAutoLoop = useCallback(
+    async (deckId: number, beats: number) => {
+      await runAction(async () => {
+        await invoke("set_deck_auto_loop", { deckId, beats });
+      });
+    },
+    [runAction],
+  );
+
+  const setDeckLoopIn = useCallback(
+    async (deckId: number) => {
+      await runAction(async () => {
+        await invoke("set_deck_loop_in", { deckId });
+      });
+    },
+    [runAction],
+  );
+
+  const setDeckLoopOut = useCallback(
+    async (deckId: number) => {
+      await runAction(async () => {
+        await invoke("set_deck_loop_out", { deckId });
+      });
+    },
+    [runAction],
+  );
+
+  const exitDeckLoop = useCallback(
+    async (deckId: number) => {
+      await runAction(async () => {
+        await invoke("exit_deck_loop", { deckId });
+      });
+    },
+    [runAction],
+  );
+
+  const triggerHotCue = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("trigger_hot_cue", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
+  const saveHotCue = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("save_hot_cue", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
+  const deleteHotCue = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("delete_hot_cue", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
+  const saveLoop = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("save_loop", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
+  const deleteLoop = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("delete_loop", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
   return {
     status,
     busy,
@@ -282,5 +438,20 @@ function useEngineState(): EngineContextValue {
     setDeckEq,
     setDeckSpeed,
     setCrossfader,
+    seekDeck,
+    unloadDeck,
+    setDeckCuePoint,
+    beginDeckCueHold,
+    endDeckCueHold,
+    setDeckQuantize,
+    setDeckAutoLoop,
+    setDeckLoopIn,
+    setDeckLoopOut,
+    exitDeckLoop,
+    triggerHotCue,
+    saveHotCue,
+    deleteHotCue,
+    saveLoop,
+    deleteLoop,
   };
 }

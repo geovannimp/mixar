@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   acceptsTrackDrag,
   readTrackDragData,
@@ -7,7 +8,10 @@ import {
 } from "../lib/libraryTable";
 import { buttonCompact, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 import type { DeckStatus } from "../types";
+import { DeckPadsPanel } from "./DeckPadsPanel";
+import { DeckLoopPanel } from "./DeckLoopPanel";
 import { DeckOverviewPreview } from "./DeckOverviewPreview";
+import { DeckPerformancePanel } from "./DeckPerformancePanel";
 import { DeckTempoPanel } from "./DeckTempoPanel";
 import { DeckTrackInfo } from "./DeckTrackInfo";
 import { DeckCircularButton, JogPlatter } from "./DeckTransport";
@@ -21,6 +25,19 @@ interface DeckPanelProps {
   onPickTrack: () => void;
   onTogglePlayback: () => void;
   onSpeedChange: (speed: number) => void;
+  onSeek: (positionSecs: number) => void;
+  onSetCuePoint: () => void;
+  onBeginCueHold: () => void;
+  onEndCueHold: () => void;
+  onTriggerHotCue: (slot: number) => void;
+  onSaveHotCue: (slot: number) => void;
+  onDeleteHotCue: (slot: number) => void;
+  onAutoLoop: (beats: number) => void;
+  onLoopIn: () => void;
+  onLoopOut: () => void;
+  onExitLoop: () => void;
+  onToggleQuantize: (enabled: boolean) => void;
+  onUnload: () => void;
   onDropTrack?: (payload: TrackDragPayload) => void;
 }
 
@@ -33,10 +50,25 @@ export function DeckPanel({
   onPickTrack,
   onTogglePlayback,
   onSpeedChange,
+  onSeek,
+  onSetCuePoint,
+  onBeginCueHold,
+  onEndCueHold,
+  onTriggerHotCue,
+  onSaveHotCue,
+  onDeleteHotCue,
+  onAutoLoop,
+  onLoopIn,
+  onLoopOut,
+  onExitLoop,
+  onToggleQuantize,
+  onUnload,
   onDropTrack,
 }: DeckPanelProps) {
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
+  const cueHeldRef = useRef(false);
+  const cueWasHoldRef = useRef(false);
   const loadDisabled = busy || !engineRunning;
   const hasTrack = Boolean(deck.track);
   const dropEnabled = Boolean(onDropTrack) && engineRunning && !busy;
@@ -77,6 +109,196 @@ export function DeckPanel({
       setDragOver(false);
     }
   };
+
+  const isDeckA = accentKey === "a";
+
+  const tempoPanel = (
+    <DeckTempoPanel
+      accent={accentKey}
+      deck={deck}
+      disabled={transportDisabled}
+      onSpeedChange={onSpeedChange}
+    />
+  );
+
+  const hotCuePanel = (
+    <DeckPadsPanel
+      deck={deck}
+      disabled={transportDisabled}
+      onTriggerHotCue={onTriggerHotCue}
+      onSaveHotCue={onSaveHotCue}
+      onDeleteHotCue={onDeleteHotCue}
+    />
+  );
+
+  const loopPanel = (
+    <DeckLoopPanel
+      deck={deck}
+      disabled={transportDisabled}
+      onAutoLoop={onAutoLoop}
+      onLoopIn={onLoopIn}
+      onLoopOut={onLoopOut}
+      onExitLoop={onExitLoop}
+    />
+  );
+
+  const performancePanels = isDeckA ? (
+    <>
+      {hotCuePanel}
+      {loopPanel}
+    </>
+  ) : (
+    <>
+      {loopPanel}
+      {hotCuePanel}
+    </>
+  );
+
+  const mainColumn = (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+      <DeckOverviewPreview
+        trackId={deck.track_id}
+        path={deck.track}
+        positionSecs={deck.position_secs ?? 0}
+        durationSecs={deck.duration_secs}
+        hotCues={deck.hot_cues}
+        activeLoop={deck.active_loop}
+        disabled={transportDisabled}
+        onSeek={onSeek}
+      />
+
+      <div
+        className={cn(
+          "flex w-full min-h-[7.5rem] shrink-0 flex-row items-stretch gap-2 sm:min-h-32",
+          isDeckA ? "justify-start" : "justify-end",
+        )}
+      >
+        {performancePanels}
+      </div>
+
+      <div className="mt-auto flex justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <JogPlatter
+            accent={accentKey}
+            playing={deck.playing}
+            bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
+            hasTrack={hasTrack}
+          />
+          <div className="flex items-end gap-2">
+            {isDeckA ? (
+              <>
+                <DeckCircularButton
+                  label="Cue"
+                  accent={accentKey}
+                  disabled={transportDisabled}
+                  title="Hold to audition cue — click without hold to set cue point"
+                  onPointerDown={() => {
+                    if (transportDisabled) {
+                      return;
+                    }
+                    cueWasHoldRef.current = false;
+                    cueHeldRef.current = true;
+                    void onBeginCueHold();
+                  }}
+                  onPointerUp={() => {
+                    if (!cueHeldRef.current) {
+                      return;
+                    }
+                    cueWasHoldRef.current = true;
+                    cueHeldRef.current = false;
+                    void onEndCueHold();
+                  }}
+                  onPointerLeave={() => {
+                    if (!cueHeldRef.current) {
+                      return;
+                    }
+                    cueWasHoldRef.current = true;
+                    cueHeldRef.current = false;
+                    void onEndCueHold();
+                  }}
+                  onClick={() => {
+                    if (transportDisabled || cueWasHoldRef.current) {
+                      cueWasHoldRef.current = false;
+                      return;
+                    }
+                    void onSetCuePoint();
+                  }}
+                />
+                <DeckCircularButton
+                  label={deck.playing ? "Pause" : "Play"}
+                  accent={accentKey}
+                  variant="play"
+                  active={deck.playing}
+                  disabled={transportDisabled}
+                  onClick={onTogglePlayback}
+                >
+                  {deck.playing ? (
+                    <Pause className="size-5" aria-hidden />
+                  ) : (
+                    <Play className="size-5 translate-x-0.5" aria-hidden />
+                  )}
+                </DeckCircularButton>
+              </>
+            ) : (
+              <>
+                <DeckCircularButton
+                  label={deck.playing ? "Pause" : "Play"}
+                  accent={accentKey}
+                  variant="play"
+                  active={deck.playing}
+                  disabled={transportDisabled}
+                  onClick={onTogglePlayback}
+                >
+                  {deck.playing ? (
+                    <Pause className="size-5" aria-hidden />
+                  ) : (
+                    <Play className="size-5 translate-x-0.5" aria-hidden />
+                  )}
+                </DeckCircularButton>
+                <DeckCircularButton
+                  label="Cue"
+                  accent={accentKey}
+                  disabled={transportDisabled}
+                  title="Hold to audition cue — click without hold to set cue point"
+                  onPointerDown={() => {
+                    if (transportDisabled) {
+                      return;
+                    }
+                    cueWasHoldRef.current = false;
+                    cueHeldRef.current = true;
+                    void onBeginCueHold();
+                  }}
+                  onPointerUp={() => {
+                    if (!cueHeldRef.current) {
+                      return;
+                    }
+                    cueWasHoldRef.current = true;
+                    cueHeldRef.current = false;
+                    void onEndCueHold();
+                  }}
+                  onPointerLeave={() => {
+                    if (!cueHeldRef.current) {
+                      return;
+                    }
+                    cueWasHoldRef.current = true;
+                    cueHeldRef.current = false;
+                    void onEndCueHold();
+                  }}
+                  onClick={() => {
+                    if (transportDisabled || cueWasHoldRef.current) {
+                      cueWasHoldRef.current = false;
+                      return;
+                    }
+                    void onSetCuePoint();
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <section
@@ -124,54 +346,17 @@ export function DeckPanel({
 
       <DeckTrackInfo deck={deck} />
 
+      <DeckPerformancePanel
+        deck={deck}
+        disabled={transportDisabled}
+        onToggleQuantize={onToggleQuantize}
+        onUnload={onUnload}
+      />
+
       <div className="flex min-h-0 flex-1 gap-2">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          <DeckOverviewPreview
-            trackId={deck.track_id}
-            path={deck.track}
-            durationSecs={deck.duration_secs}
-          />
-
-          <div className="mt-auto flex justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <JogPlatter
-                accent={accentKey}
-                playing={deck.playing}
-                bpm={deck.bpm}
-                hasTrack={hasTrack}
-              />
-              <div className="flex items-end gap-2">
-                <DeckCircularButton
-                  label="Cue"
-                  accent={accentKey}
-                  disabled={true}
-                  title="Coming in Phase 2"
-                />
-                <DeckCircularButton
-                  label={deck.playing ? "Pause" : "Play"}
-                  accent={accentKey}
-                  variant="play"
-                  active={deck.playing}
-                  disabled={transportDisabled}
-                  onClick={onTogglePlayback}
-                >
-                  {deck.playing ? (
-                    <Pause className="size-5" aria-hidden />
-                  ) : (
-                    <Play className="size-5 translate-x-0.5" aria-hidden />
-                  )}
-                </DeckCircularButton>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <DeckTempoPanel
-          accent={accentKey}
-          deck={deck}
-          disabled={transportDisabled}
-          onSpeedChange={onSpeedChange}
-        />
+        {!isDeckA ? tempoPanel : null}
+        {mainColumn}
+        {isDeckA ? tempoPanel : null}
       </div>
     </section>
   );

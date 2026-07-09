@@ -55,6 +55,9 @@ interface DeckCircularButtonProps {
   active?: boolean;
   title?: string;
   onClick?: () => void;
+  onPointerDown?: () => void;
+  onPointerUp?: () => void;
+  onPointerLeave?: () => void;
   children?: ReactNode;
   variant?: "default" | "play";
 }
@@ -66,6 +69,9 @@ export function DeckCircularButton({
   active,
   title,
   onClick,
+  onPointerDown,
+  onPointerUp,
+  onPointerLeave,
   children,
   variant = "default",
 }: DeckCircularButtonProps) {
@@ -80,6 +86,9 @@ export function DeckCircularButton({
       aria-label={label}
       title={title ?? label}
       onClick={onClick}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerLeave={onPointerLeave}
     >
       <span
         className={`inline-flex size-11 items-center justify-center rounded-full border-2 text-sm font-bold shadow-md transition sm:size-12 ${

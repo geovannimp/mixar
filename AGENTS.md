@@ -1,7 +1,7 @@
 ## Learned User Preferences
 
 - Follow `docs/tech-spec.md` for architecture and module boundaries.
-- Follow `docs/deck-spec.md` for deck UI and feature scope.
+- Follow `docs/deck-spec.md` for deck UI and phased features; group performance controls (tempo, loops, hot cues) in bordered panels; disable them when no track is loaded; do not persist deck/waveform layout resizes across sessions.
 - Use `dasp` for internal sample/frame types and conversions; use `dasp_graph` for the mixer graph.
 - Use `rubato` for resampling.
 - Read real device capabilities from CPAL (channels, sample-rate ranges); avoid hardcoded defaults like fixed channel counts or sample rates in device listing.

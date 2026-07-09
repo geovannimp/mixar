@@ -28,7 +28,7 @@ export function DeckTempoPanel({
   const sliderValue = speedToPitchSlider(deck.speed);
 
   return (
-    <div className="flex h-full min-h-0 w-[4.5rem] shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-inner sm:w-[5rem]">
+    <div className="flex h-full min-h-0 w-18 shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-inner sm:w-20">
       <div className="flex shrink-0 flex-col items-center gap-0.5 border-b border-white/8 px-1.5 py-1.5">
         <span
           className={`text-base font-bold leading-none tabular-nums tracking-tight sm:text-lg ${accentStyles.text}`}

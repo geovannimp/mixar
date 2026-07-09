@@ -23,6 +23,19 @@ export function DjPage() {
     setDeckEq,
     setDeckSpeed,
     setCrossfader,
+    seekDeck,
+    unloadDeck,
+    setDeckCuePoint,
+    beginDeckCueHold,
+    endDeckCueHold,
+    setDeckQuantize,
+    setDeckAutoLoop,
+    setDeckLoopIn,
+    setDeckLoopOut,
+    exitDeckLoop,
+    triggerHotCue,
+    saveHotCue,
+    deleteHotCue,
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
@@ -70,6 +83,19 @@ export function DjPage() {
             onEqChange={setDeckEq}
             onSpeedChange={setDeckSpeed}
             onDropTrack={loadDraggedTrack}
+            onSeek={seekDeck}
+            onSetCuePoint={setDeckCuePoint}
+            onBeginCueHold={beginDeckCueHold}
+            onEndCueHold={endDeckCueHold}
+            onTriggerHotCue={triggerHotCue}
+            onSaveHotCue={saveHotCue}
+            onDeleteHotCue={deleteHotCue}
+            onAutoLoop={setDeckAutoLoop}
+            onLoopIn={setDeckLoopIn}
+            onLoopOut={setDeckLoopOut}
+            onExitLoop={exitDeckLoop}
+            onToggleQuantize={setDeckQuantize}
+            onUnload={unloadDeck}
             crossfader={status?.crossfader ?? 0.5}
             onCrossfaderChange={setCrossfader}
           />

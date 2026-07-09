@@ -1,8 +1,23 @@
 export interface DeckHotCueMarker {
   slot: number;
   position_secs: number;
+  loop_length_beats?: number | null;
   color?: string | null;
   label?: string | null;
+}
+
+export interface DeckSavedLoop {
+  slot: number;
+  in_secs: number;
+  out_secs: number;
+  label?: string | null;
+  color?: string | null;
+}
+
+export interface DeckActiveLoop {
+  in_secs: number;
+  out_secs: number;
+  active: boolean;
 }
 
 export interface DeckLoopMarker {
@@ -33,6 +48,11 @@ export interface DeckStatus {
   eq: DeckEq;
   position_secs: number | null;
   duration_secs: number | null;
+  cue_point_secs: number | null;
+  quantize: boolean;
+  hot_cues: DeckHotCueMarker[];
+  saved_loops: DeckSavedLoop[];
+  active_loop: DeckActiveLoop | null;
 }
 
 export interface WaveformFrame {

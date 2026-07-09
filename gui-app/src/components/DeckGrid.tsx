@@ -27,6 +27,19 @@ interface DeckGridProps {
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onSpeedChange: (deckId: number, speed: number) => void;
   onDropTrack: (deckId: number, payload: TrackDragPayload) => void;
+  onSeek: (deckId: number, positionSecs: number) => void;
+  onSetCuePoint: (deckId: number) => void;
+  onBeginCueHold: (deckId: number) => void;
+  onEndCueHold: (deckId: number) => void;
+  onTriggerHotCue: (deckId: number, slot: number) => void;
+  onSaveHotCue: (deckId: number, slot: number) => void;
+  onDeleteHotCue: (deckId: number, slot: number) => void;
+  onAutoLoop: (deckId: number, beats: number) => void;
+  onLoopIn: (deckId: number) => void;
+  onLoopOut: (deckId: number) => void;
+  onExitLoop: (deckId: number) => void;
+  onToggleQuantize: (deckId: number, enabled: boolean) => void;
+  onUnload: (deckId: number) => void;
   crossfader: number;
   onCrossfaderChange: (position: number) => void;
 }
@@ -46,6 +59,11 @@ function defaultDecks(): DeckStatus[] {
     eq: DEFAULT_DECK_EQ,
     position_secs: null,
     duration_secs: null,
+    cue_point_secs: null,
+    quantize: true,
+    hot_cues: [],
+    saved_loops: [],
+    active_loop: null,
   }));
 }
 
@@ -59,6 +77,19 @@ export function DeckGrid({
   onEqChange,
   onSpeedChange,
   onDropTrack,
+  onSeek,
+  onSetCuePoint,
+  onBeginCueHold,
+  onEndCueHold,
+  onTriggerHotCue,
+  onSaveHotCue,
+  onDeleteHotCue,
+  onAutoLoop,
+  onLoopIn,
+  onLoopOut,
+  onExitLoop,
+  onToggleQuantize,
+  onUnload,
   crossfader,
   onCrossfaderChange,
 }: DeckGridProps) {
@@ -107,6 +138,21 @@ export function DeckGrid({
               onTogglePlayback(deckList[0].id, deckList[0].playing)
             }
             onSpeedChange={(speed) => onSpeedChange(deckList[0].id, speed)}
+            onSeek={(positionSecs) => onSeek(deckList[0].id, positionSecs)}
+            onSetCuePoint={() => onSetCuePoint(deckList[0].id)}
+            onBeginCueHold={() => onBeginCueHold(deckList[0].id)}
+            onEndCueHold={() => onEndCueHold(deckList[0].id)}
+            onTriggerHotCue={(slot) => onTriggerHotCue(deckList[0].id, slot)}
+            onSaveHotCue={(slot) => onSaveHotCue(deckList[0].id, slot)}
+            onDeleteHotCue={(slot) => onDeleteHotCue(deckList[0].id, slot)}
+            onAutoLoop={(beats) => onAutoLoop(deckList[0].id, beats)}
+            onLoopIn={() => onLoopIn(deckList[0].id)}
+            onLoopOut={() => onLoopOut(deckList[0].id)}
+            onExitLoop={() => onExitLoop(deckList[0].id)}
+            onToggleQuantize={(enabled) =>
+              onToggleQuantize(deckList[0].id, enabled)
+            }
+            onUnload={() => onUnload(deckList[0].id)}
             onDropTrack={(payload) => onDropTrack(deckList[0].id, payload)}
           />
         </div>
@@ -134,6 +180,21 @@ export function DeckGrid({
               onTogglePlayback(deckList[1].id, deckList[1].playing)
             }
             onSpeedChange={(speed) => onSpeedChange(deckList[1].id, speed)}
+            onSeek={(positionSecs) => onSeek(deckList[1].id, positionSecs)}
+            onSetCuePoint={() => onSetCuePoint(deckList[1].id)}
+            onBeginCueHold={() => onBeginCueHold(deckList[1].id)}
+            onEndCueHold={() => onEndCueHold(deckList[1].id)}
+            onTriggerHotCue={(slot) => onTriggerHotCue(deckList[1].id, slot)}
+            onSaveHotCue={(slot) => onSaveHotCue(deckList[1].id, slot)}
+            onDeleteHotCue={(slot) => onDeleteHotCue(deckList[1].id, slot)}
+            onAutoLoop={(beats) => onAutoLoop(deckList[1].id, beats)}
+            onLoopIn={() => onLoopIn(deckList[1].id)}
+            onLoopOut={() => onLoopOut(deckList[1].id)}
+            onExitLoop={() => onExitLoop(deckList[1].id)}
+            onToggleQuantize={(enabled) =>
+              onToggleQuantize(deckList[1].id, enabled)
+            }
+            onUnload={() => onUnload(deckList[1].id)}
             onDropTrack={(payload) => onDropTrack(deckList[1].id, payload)}
           />
         </div>

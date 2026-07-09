@@ -17,9 +17,9 @@ This document defines what a **professional DJ deck** should contain in rust-mix
   - [5.2 Waveforms & visual navigation](#52-waveforms--visual-navigation)
   - [5.3 Transport & playback controls](#53-transport--playback-controls)
   - [5.4 Tempo, pitch & sync](#54-tempo-pitch--sync)
-  - [5.5 Cues & memory points](#55-cues--memory-points)
+  - [5.5 Controller pads](#55-controller-pads)
   - [5.6 Loops](#56-loops)
-  - [5.6 Beat grid & quantize](#57-beat-grid--quantize)
+  - [5.7 Beat grid & quantize](#57-beat-grid--quantize)
   - [5.8 Mixer channel (per deck)](#58-mixer-channel-per-deck)
   - [5.9 Effects (FX)](#59-effects-fx)
   - [5.10 Stems & pad modes](#510-stems--pad-modes)
@@ -46,7 +46,7 @@ A DJ deck is a **performance surface** for one loaded track. It combines:
 1. **Navigation** — waveforms, overview, beat grid, cues, loops.
 2. **Playback control** — play/pause, cue, seek, jog/scratch.
 3. **Tempo & harmony** — pitch fader, sync, key lock, key display/shift.
-4. **Creative tools** — hot cues, loops, FX, stems, sampler pads.
+4. **Creative tools** — controller pads (default: hot cues), loops, FX, stems, sampler.
 5. **Mixer integration** — volume, EQ, filter, cue/PFL, crossfader assignment.
 
 Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pattern visible in the reference screenshots:
@@ -57,8 +57,8 @@ Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pa
 ├──────────────────────────────────────────────────────────────────────┤
 │  Scrolling detailed waveform(s) — fixed center playhead              │
 ├───────────────┬──────────────────────────────────────┬───────────────┤
-│ Track info    │  BPM · Key · Time · Sync state       │  FX / Stems   │
-│ Title/Artist  │  Hot cues / Pad modes                │  Loop controls│
+│ Track info    │  BPM · Key · Time · Sync state       │  FX / filter  │
+│ Title/Artist  │  Controller pads (mode selector)     │  Loop controls│
 ├───────────────┴──────────────────────────────────────┴───────────────┤
 │  Jog wheel · CUE · PLAY · SYNC · Pitch fader · Filter · Loop · PFL   │
 └──────────────────────────────────────────────────────────────────────┘
@@ -75,13 +75,15 @@ Our MVP deck today covers **load, play/pause, dual scrolling waveforms, volume, 
 | **Rekordbox 7** ([manual](https://cdn.rekordbox.com/files/20241213141602/rekordbox7.0.7_manual_EN.pdf)) | 2–4 | 16 | 10 | In/out, saved, hotcue-as-loop | Beat / BPM / Key sync | Musical + Camelot | Stems (subscription) | 3 slots + RMX/DJM-style | Intelligent cue analysis, phrase/vocal analysis, master deck |
 | **Serato DJ Pro** ([manual](https://serato.com/dj/pro)) | 2–4 | 8 | Temp cue | Auto + manual + loop roll | Smart + Simple sync | Key detect + display | Stems FX / pad modes | 50+ built-in | Slip mode, quantize, beat jump, slicer, key lock |
 | **Traktor Pro** | 2–4 | 8 | Load marker | In/out, beat-sized | Sync | Key + transpose | Stems (version-dependent) | 2 FX units + filter | Colored waveforms, flux/slip variants, MIDI mapping |
+| **Virtual DJ** ([manual](https://www.virtualdj.com/manuals/)) | 2–99 | 8 (pad mode) | — | In/out, pad modes | Beat / BPM sync | Key detect + display | **Stems pad mode** (Vocal, Instru, Bass, Kick, HiHat, Stems FX) | Pad-assigned FX | **8 performance pads** switch function by mode (Hot Cue, Stems, Sampler, …); vertical PADS / LOOP side labels |
 | **DJUCED / Hercules** (screenshot ref.) | 2 | 8 labeled | — | 1/2× length, IN/OUT | Beat / Key / Master sync | Key shift ± | Vocal / Drums / Inst mute | 3 FX dropdowns | Named hot cues (Intro, Drop), quantize, slip, vinyl |
 
 Common expectations across all products:
 
 - **Dual-resolution waveforms** (overview + scrolling detail).
 - **Beat grid** aligned to offline analysis; sync/quantize depend on it.
-- **Hot cues** with color, optional name/comment, jump on trigger.
+- **Controller pads** (8 slots, 2×4 grid) whose **function changes by pad mode**; default mode is **Hot Cue** (Virtual DJ, Serato pad modes).
+- **Hot cues** (in Hot Cue mode): color, optional name/comment, jump on trigger.
 - **Pitch/tempo** via fader or numeric control; **key lock** when tempo changes.
 - **Sync** to align deck tempo (and optionally key) to master or other deck.
 - **Loops** with beat-quantized length and halve/double.
@@ -149,7 +151,8 @@ DeckState
 ├── key: display_key, key_shift_semitones, key_lock
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
 ├── slip: enabled, shadow_position_secs
-├── hot_cues: [HotCue; 8 or 16]
+├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
+│   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
 ├── stems: { vocal, instrumental, bass, drums, hihat } mute/solo gains
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
@@ -162,12 +165,12 @@ UI layout zones (match competitor ergonomics):
 |------|----------|----------|
 | **A — Waveform stack** | P0 | Overview + scrolling lane + playhead + grid + markers |
 | **B — Metadata bar** | P0 | Title, artist, elapsed/remain/total, BPM, key |
-| **C — Performance pads** | P1 | Hot cues 1–8 (expand to 16) |
-| **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump |
+| **C — Controller pads** | P1 | 8 performance pads (2×4); **mode selector**; default **Hot Cue** mode |
+| **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel; Virtual DJ “LOOP” side label) |
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range, key lock |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
-| **H — Stems / pads** | P3 | Stem mute/solo or pad mode selector |
+| **H — Extended pad modes** | P3+ | Stems, Sampler, Beat Jump, Slicer (reuse same 8 pads) |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
 
 ---
@@ -248,20 +251,63 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 
 ---
 
-### 5.5 Cues & memory points
+### 5.5 Controller pads
+
+The **8 numbered buttons** (slots 1–8) on each deck are **controller pads**, not “hot cue buttons only.” Industry software (especially **Virtual DJ**) reuses the same physical/UI pad grid for **multiple pad modes** selected via a dropdown or cycle control above the grid.
+
+```text
+┌─────────────────────────────────────────┐
+│  [◀]  HOT CUE  [▶]     ← mode selector  │
+├───────┬───────┬───────┬───────┤
+│   1   │   2   │   3   │   4   │  row A
+├───────┼───────┼───────┼───────┤
+│   5   │   6   │   7   │   8   │  row B
+└───────┴───────┴───────┴───────┘
+```
+
+**Default mode:** **Hot Cue** — matches Serato/Rekordbox behavior and our Phase 2 implementation.
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| PD1 | **Pad grid** | Fixed **8 slots** in **2×4** layout (rows 1–4 / 5–8); mirrored per deck (Deck A cues outer-left, Deck B outer-right) | P1 |
+| PD2 | **Pad mode selector** | Dropdown or ◀/▶ cycle above grid (Virtual DJ pattern); shows current mode name | P2 |
+| PD3 | **Per-deck active mode** | `pad_mode` stored in runtime deck state (not per track); MIDI maps to slot + mode | P2 |
+| PD4 | **Mode-specific labels** | Pads show mode labels when set (e.g. Stems: Vocal, Kick; Hot Cue: time or user label) | P2 |
+| PD5 | **Pad active state** | Visual on/off per pad (border highlight, underline color — Virtual DJ stems reference) | P2 |
+| PD6 | **Empty pad affordance** | Unassigned pad shows slot number; assigned pad shows label/color | P1 |
+
+#### Pad modes (target)
+
+| Mode | Pad function | Persistence | Priority |
+|------|--------------|-------------|----------|
+| **Hot Cue** | Jump (or hotcue-loop) to stored point | `track_hot_cue` per slot | **P1 (default)** |
+| **Loop Roll** | Temporary quantized loop while held | — | P2 |
+| **Beat Jump** | Jump forward/back N beats | — | P2 |
+| **Sampler** | Trigger one-shot from library | Sampler bank (future) | P3 |
+| **Stems** | Mute/solo/isolate stem (Vocal, Instru, Bass, Kick, HiHat, …) | Per-session | P3 |
+| **Stems FX** | Stem-aware effect on pad | — | P4 |
+| **Slicer** | Rhythmic slice/repeat | — | P4 |
+
+**Virtual DJ reference (screenshot):** mode **STEMS** maps pads to Vocal, Instru, Bass, Kick, HiHat, Stems FX with colored underlines and toggle borders; **PADS** and **LOOP** appear as vertical side labels flanking the pad/loop areas.
+
+#### Hot Cue mode (default)
+
+When `pad_mode = hot_cue`, pads behave as hot cues:
 
 | ID | Feature | Description | Count | Priority |
 |----|---------|-------------|-------|----------|
 | C1 | **Hot cues** | Instant jump; optional stored loop | 8 (Serato) → 16 (Rekordbox) | P1 |
 | C2 | **Hot cue color** | User-selectable palette | — | P1 |
 | C3 | **Hot cue label** | Short text (e.g. “Drop”, “Intro”) | — | P1 |
-| C4 | **Hot cue set / delete** | Empty pad = set at playhead; long-press = delete | — | P1 |
+| C4 | **Hot cue set / delete** | Empty pad = set at playhead; shift+click = delete | — | P1 |
 | C5 | **Memory cues** | Non-destructive timeline markers (Rekordbox) | 10 | P2 |
 | C6 | **Cue quantize on set/trigger** | Snap to beat grid when quantize on | — | P1 |
 | C7 | **Persist cues in library** | Save per track_id; load on deck load | — | P1 |
 | C8 | **Intelligent / auto cues** | Analysis-suggested cues (Rekordbox 7) | — | P3 |
 
-**Interaction model (from screenshots):** vertical list or pad grid; numbered 1–8; show time + label; green = cue, orange = loop cue (Rekordbox convention).
+**Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue in Phase 2).
+
+**Implementation note:** Current rust-mixer code (`DeckPadsPanel`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
 
 ---
 
@@ -327,17 +373,22 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 
 ---
 
-### 5.10 Stems & pad modes
+### 5.10 Additional pad modes (Stems, Sampler, …)
+
+Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section details non–hot-cue modes.
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (screenshot ref.) | P3 |
+| S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (Virtual DJ Stems mode) | P3 |
 | S2 | **Stem isolation gain** | Per-stem level 0–100% | P3 |
-| S3 | **Pad mode selector** | Hot Cue / Loop / Sampler / Stems / Beat Jump (Serato) | P2 |
-| S4 | **Sampler pads** | Trigger one-shots from library | P3 |
-| S5 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
+| S3 | **Sampler pads** | Trigger one-shots from library | P3 |
+| S4 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
+| S5 | **Loop roll pad mode** | Beat-quantized temporary loop per pad | P2 |
+| S6 | **Beat jump pad mode** | ±N beats per pad | P2 |
 
-**Dependency:** Offline or real-time stem separation (Rekordbox Stems, Serato Stems). Requires separate analysis pipeline or third-party model — **not** in current analyzer MVP.
+**Dependency:** Offline or real-time stem separation (Rekordbox Stems, Serato Stems, Virtual DJ stems). Requires separate analysis pipeline or third-party model — **not** in current analyzer MVP.
+
+**Removed from this section:** pad mode selector and grid layout — defined in §5.5 (controller pads are the primary abstraction).
 
 ---
 
@@ -458,7 +509,7 @@ track_deck_prefs (
 | Table | Rows per track | Written by |
 |-------|----------------|------------|
 | `track_waveform` | 1 | `analyze_track` |
-| `track_hot_cue` | 0–8+ (one per slot) | `save_hot_cue` |
+| `track_hot_cue` | 0–8+ (one per slot) | `save_hot_cue` (Hot Cue **pad mode** only) |
 | `track_loop` | 0–N (one per slot) | `save_loop` |
 
 Load path: when a track is loaded to a deck, read all `track_hot_cue` / `track_loop` rows for that `track_id` into engine memory. No separate bulk `load_*` command required unless we add lazy fetch later.
@@ -470,7 +521,7 @@ Extend `Deck` in `engine-dsp` with:
 - `transport`: cue point, reverse, slip shadow position
 - `loop`: active region, roll state; saved loops via **`save_loop`** → `track_loop` table
 - `sync`: master reference, tempo target
-- `hot_cues`: in-memory copy; persisted via **`save_hot_cue`** → `track_hot_cue` table
+- `pads`: `{ mode, slots[8] }` — mode-specific runtime state; **hot_cue** mode loads from **`track_hot_cue`**
 - `fx_chain`: ordered effects
 - `scratch/jog`: transient speed override
 
@@ -495,7 +546,7 @@ Extend `Deck` in `engine-dsp` with:
 | Audio playback, EQ, FX | Yes | Controls only |
 | Beat grid math, sync, quantize | Yes | Display grid lines |
 | Waveform rasterization | Yes ([dj-waveform-spec.md](dj-waveform-spec.md)) | Blit images |
-| Hot cue / loop persistence | Via `library` commands | Edit UI |
+| Hot cue / loop persistence | Via `library` commands (hot cues = pad mode data) | Pad UI + mode selector |
 | Keyboard shortcuts | — | Yes |
 | Jog/scratch gesture | Receives delta commands | Pointer events |
 | State sync to UI | **Emit engine events** (§9) | Subscribe; render only |
@@ -544,8 +595,9 @@ cue_deck, seek_deck, set_pitch, set_reverse
 # Sync (Phase 3+)
 set_deck_sync_mode, set_master_deck, nudge_phase
 
-# Cues & loops — runtime (Phase 2+)
-set_hot_cue, trigger_hot_cue, delete_hot_cue
+# Pads & cues — runtime (Phase 2+)
+set_pad_mode, trigger_pad, save_pad, delete_pad   # generic; hot_cue mode → existing hot cue commands
+set_hot_cue, trigger_hot_cue, delete_hot_cue      # Hot Cue mode (implemented)
 set_loop_in, set_loop_out, set_auto_loop, exit_loop
 
 # FX (Phase 3+)
@@ -759,7 +811,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 - Overview waveform + click seek
 - Beat grid overlay on scroll lane
 - Cue button (hold) + seek/scrub on waveform
-- Hot cues 1–8 (set, trigger, delete) + **`save_hot_cue`** / **`delete_hot_cue`** → `track_hot_cue` table
+- **Controller pads** in **Hot Cue mode** (default): set, trigger, delete + **`save_hot_cue`** / **`delete_hot_cue`** → `track_hot_cue` table
 - Auto loop + manual loop in/out + **`save_loop`** / **`delete_loop`** → `track_loop` table
 - Quantize toggle
 - Unload / eject track
@@ -768,6 +820,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 ### Phase 3 — “Sync & mix tools” (P2)
 
 - Beat sync + master deck
+- **Pad mode selector** (PD2); Loop Roll + Beat Jump pad modes
 - Loop halve/double, beat jump
 - Filter knob (audio + optional waveform tint per dj-waveform-spec §8.6)
 - Key display modes (musical / Camelot)
@@ -786,9 +839,8 @@ Make **what we already have** reliable and **look like** professional deck softw
 
 ### Phase 5 — “Differentiators” (P4+)
 
-- Stems / pad modes
+- **Stems / Sampler / Slicer pad modes** (§5.10)
 - Intelligent cues
-- Sampler
 - Grid editor
 - **MIDI mapping** (consumes §9 event bus + shared `EngineCommand` path)
 - 4-deck layout
@@ -808,7 +860,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 7. Engine errors use **coss toasts** only.
 8. **`engine://event`** delivered to UI: external `EngineController::apply` (simulated in test) updates React state without a matching UI invoke.
 
-**Phase 2 adds:** overview, beat grid, hot cues/loops with **`save_hot_cue`** / **`save_loop`** persistence in `track_hot_cue` / `track_loop` tables; optional **`engine://position`** stream (§9.6 B).
+**Phase 2 adds:** overview, beat grid, **pads in Hot Cue mode**, loops with **`save_hot_cue`** / **`save_loop`** persistence; optional **`engine://position`** stream (§9.6 B).
 
 ---
 
@@ -839,6 +891,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 - Rekordbox-style: FX row, stem pads, hot cues, loop controls, sync, pitch — `assets/image-42583e66-*.png`
 - DJUCED-style: labeled hot cues, key sync/shift, stem mute, master sync — `assets/image-27f8012a-*.png`
 - Traktor-style: FX assign, colored hot cues 1–8, filter, sync, loop on waveform — `assets/image-f960b3e2-*.png`
+- Virtual DJ-style: **STEMS pad mode**, mode dropdown, 2×4 pad grid, PADS/LOOP side labels — `assets/image-7f761d7a-*.png`
 
 ---
 
@@ -846,7 +899,8 @@ Make **what we already have** reliable and **look like** professional deck softw
 
 | # | Topic | Decision |
 |---|--------|----------|
-| DK1 | Hot cue count MVP | **8** (Serato parity); schema allows **16** |
+| DK1 | Pad count | **8 slots** (2×4 grid); schema allows **16** for Hot Cue mode expansion |
+| DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode** (Virtual DJ / Serato model); `track_hot_cue` stores Hot Cue mode data only |
 | DK2 | Key lock | **Deferred** until time-stretch exists; pitch fader = vinyl mode |
 | DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
 | DK4 | Stems | **Phase 4**; separate spec when chosen |

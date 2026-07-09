@@ -333,6 +333,135 @@ impl Engine {
         }
     }
 
+    /// Seek a deck to a position in seconds.
+    pub fn seek_deck(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.seek_secs(position_secs)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Unload the track from a deck.
+    pub fn unload_deck(&mut self, deck_id: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.unload()?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Set the temporary cue point in seconds.
+    pub fn set_deck_cue_point(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_cue_point_secs(position_secs)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Begin cue-hold audition.
+    pub fn begin_deck_cue_hold(&mut self, deck_id: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.begin_cue_hold()?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// End cue-hold audition.
+    pub fn end_deck_cue_hold(&mut self, deck_id: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.end_cue_hold()?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Activate a loop region on a deck.
+    pub fn set_deck_loop_region(
+        &mut self,
+        deck_id: usize,
+        in_secs: f64,
+        out_secs: f64,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_loop_region_secs(in_secs, out_secs)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Clear the active loop on a deck.
+    pub fn clear_deck_loop(&mut self, deck_id: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.clear_loop();
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Cue point and loop region for status mirroring.
+    pub fn deck_transport_state(
+        &self,
+        deck_id: usize,
+    ) -> Option<(Option<f64>, Option<(f64, f64)>)> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some((deck.cue_point_secs(), deck.loop_region_secs()))
+    }
+
+    /// Whether a deck is currently playing.
+    pub fn deck_is_playing(&self, deck_id: usize) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some(matches!(deck.state(), engine_dsp::DeckState::Playing))
+    }
+
     /// Set crossfader position (0.0 = deck A, 1.0 = deck B).
     pub fn set_crossfader(&mut self, position: f32) -> Result<()> {
         let dsp_engine = self
