@@ -157,6 +157,14 @@ export function LibraryPanel({
     [analyzeTrack, upsertResolvedTrack],
   );
 
+  const handleBrowseCollectionFolder = useCallback(
+    (folderPath: string) => {
+      setSourceTab("drive");
+      void openDirectory(folderPath);
+    },
+    [openDirectory],
+  );
+
   const handleCreateCollectionFromFolder = useCallback(
     (folderPath: string) => {
       void addFolderCollectionFromPath(folderPath);
@@ -223,6 +231,7 @@ export function LibraryPanel({
                   collections={collections}
                   selectedCollectionId={selectedCollectionId}
                   onSelectCollection={setSelectedCollectionId}
+                  onBrowseFolder={handleBrowseCollectionFolder}
                 />
               ) : (
                 <DriveBrowser
