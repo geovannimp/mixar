@@ -6,12 +6,24 @@ use anyhow::Result;
 use audio_core::Sample;
 use std::fs::File;
 use std::path::Path;
+use std::sync::OnceLock;
 use symphonia::core::audio::{AudioBufferRef, Signal};
-use symphonia::core::codecs::{Decoder, DecoderOptions};
+use symphonia::core::codecs::{CodecRegistry, Decoder, DecoderOptions};
 use symphonia::core::formats::{FormatOptions, FormatReader};
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
+use symphonia_adapter_libopus::OpusDecoder;
+
+fn codec_registry() -> &'static CodecRegistry {
+    static REGISTRY: OnceLock<CodecRegistry> = OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = CodecRegistry::new();
+        symphonia::default::register_enabled_codecs(&mut registry);
+        registry.register_all::<OpusDecoder>();
+        registry
+    })
+}
 
 /// Audio decoder for various formats
 pub struct AudioDecoder {
@@ -69,7 +81,7 @@ impl AudioDecoder {
 
         // Create a decoder for the track.
         let dec_opts: DecoderOptions = Default::default();
-        let decoder = symphonia::default::get_codecs().make(&track.codec_params, &dec_opts)?;
+        let decoder = codec_registry().make(&track.codec_params, &dec_opts)?;
 
         // Get the audio parameters
         let codec_params = &track.codec_params;
@@ -334,6 +346,21 @@ impl AudioDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_opus_sample_if_present() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../samples/Palawan by SKIRK  Vlog Music [xXRDR-ycIeo].opus"
+        );
+        if !std::path::Path::new(path).exists() {
+            return;
+        }
+        let mut decoder = AudioDecoder::from_file(path).expect("opus decode");
+        let mut buf = vec![0.0; 4096];
+        let n = decoder.read_frames(&mut buf).expect("read opus");
+        assert!(n > 0, "expected decoded samples from opus file");
+    }
 
     #[test]
     fn test_decoder_creation() {

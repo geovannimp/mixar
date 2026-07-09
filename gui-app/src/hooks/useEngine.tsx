@@ -16,6 +16,7 @@ import {
   ENGINE_EVENT,
   type EngineEvent,
 } from "../lib/engineEvents";
+import { getSupportedAudioExtensions } from "../lib/audioExtensions";
 import type { DeckEq, EngineStatus } from "../types";
 
 const ENGINE_ERROR_TOAST_ID = "engine-error";
@@ -184,12 +185,13 @@ function useEngineState(): EngineContextValue {
 
   const pickTrack = useCallback(
     async (deckId: number) => {
+      const extensions = await getSupportedAudioExtensions();
       const selected = await open({
         multiple: false,
         filters: [
           {
             name: "Audio",
-            extensions: ["wav", "mp3", "flac", "ogg", "aiff", "aif"],
+            extensions,
           },
         ],
       });

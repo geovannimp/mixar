@@ -77,6 +77,7 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn upsert_stream_track(
         &self,
         id: &TrackId,
@@ -347,6 +348,7 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn count_track_analysis(&self, track_id: &TrackId) -> Result<u64> {
         TrackAnalysisEntity::find_by_id(track_id.as_str())
             .count(&*self.db.conn()?.as_connection())

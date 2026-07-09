@@ -78,6 +78,7 @@ export function useRenderWaveformLane({
           visibleSecs: WAVEFORM_VISIBLE_SECS,
           bufferRatio: WAVEFORM_BUFFER_RATIO,
           includeDetail,
+          includeBeatGrid: true,
           eqLowDb: eq.low,
           eqMidDb: eq.mid,
           eqHighDb: eq.high,

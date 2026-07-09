@@ -1,3 +1,16 @@
+export interface DeckHotCueMarker {
+  slot: number;
+  position_secs: number;
+  color?: string | null;
+  label?: string | null;
+}
+
+export interface DeckLoopMarker {
+  start_secs: number;
+  end_secs: number;
+  active?: boolean;
+}
+
 export interface DeckEq {
   low: number;
   mid: number;

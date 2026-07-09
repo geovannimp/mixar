@@ -1,6 +1,7 @@
 use super::config::FilterKind;
 
 pub trait BandFilterBank {
+    #[allow(dead_code)]
     fn reset(&mut self);
     fn split(&mut self, mono: f32) -> (f32, f32, f32);
 }
@@ -144,6 +145,7 @@ impl Biquad {
         }
     }
 
+    #[allow(dead_code)]
     fn reset(&mut self) {
         self.z1 = 0.0;
         self.z2 = 0.0;

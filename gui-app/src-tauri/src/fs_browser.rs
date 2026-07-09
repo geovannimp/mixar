@@ -2,6 +2,8 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use library_core::is_supported_audio_path;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct VolumeInfo {
     pub name: String,
@@ -23,15 +25,8 @@ pub struct DirectoryListing {
     pub audio_files: Vec<FsEntry>,
 }
 
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "aiff", "aif", "ogg", "m4a", "aac", "opus", "wma", "alac",
-];
-
 fn is_audio_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| AUDIO_EXTENSIONS.iter().any(|e| ext.eq_ignore_ascii_case(e)))
-        .unwrap_or(false)
+    is_supported_audio_path(path)
 }
 
 fn is_hidden(name: &str) -> bool {

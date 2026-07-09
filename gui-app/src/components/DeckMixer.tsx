@@ -180,7 +180,6 @@ function DeckEqColumn({
 
 interface DeckVolumeFaderProps {
   channelAccent: DeckAccent;
-  accent: (typeof DECK_ACCENTS)[DeckAccent];
   volume: number;
   cue: boolean;
   disabled?: boolean;
@@ -190,7 +189,6 @@ interface DeckVolumeFaderProps {
 
 function DeckVolumeFader({
   channelAccent,
-  accent,
   volume,
   cue,
   disabled,
@@ -232,8 +230,8 @@ function DeckVolumeFader({
         className={cn(
           buttonIcon,
           "size-7 shrink-0 border-white/10 text-zinc-400 hover:bg-zinc-800/90",
-          cue && accent.button,
-          cue && accent.text,
+          cue &&
+            "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
         )}
         disabled={disabled}
         aria-label="Cue"
@@ -354,7 +352,6 @@ export function DeckMixer({
           <div className="flex min-h-0 shrink-0 items-stretch gap-0.5 px-0.5">
             <DeckVolumeFader
               channelAccent={channelAccents[0]}
-              accent={accents[0]}
               volume={decks[0]?.volume ?? 1}
               cue={channelUi[0]?.cue ?? false}
               disabled={disabled}
@@ -363,7 +360,6 @@ export function DeckMixer({
             />
             <DeckVolumeFader
               channelAccent={channelAccents[1]}
-              accent={accents[1]}
               volume={decks[1]?.volume ?? 1}
               cue={channelUi[1]?.cue ?? false}
               disabled={disabled}

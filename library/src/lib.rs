@@ -31,19 +31,14 @@ use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
 use std::path::{Path, PathBuf};
 
 pub use library_core::{
-    AudioSource, Collection, CollectionConfig, CollectionConfigUpdate, CollectionId,
-    CollectionTrack, CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError,
-    LibrarySource, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
-    StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
-    AnalyzeTrackOptions,
+    is_supported_audio_extension, is_supported_audio_path, AnalyzeTrackOptions, AudioSource,
+    Collection, CollectionConfig, CollectionConfigUpdate, CollectionId, CollectionTrack,
+    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LibrarySource,
+    LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId,
+    TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
-
-/// Audio file extensions recognized during scan/import.
-const AUDIO_EXTENSIONS: &[&str] = &[
-    "mp3", "flac", "wav", "aiff", "aif", "ogg", "m4a", "aac", "opus", "wma", "alac",
-];
 
 /// The user’s library manager (canonical writable store).
 pub struct LibraryManager {
@@ -140,6 +135,7 @@ impl LibraryManager {
         )))
     }
 
+    #[allow(dead_code)]
     fn upsert_stream_source(
         &self,
         uri: &str,
@@ -159,6 +155,7 @@ impl LibraryManager {
         )))
     }
 
+    #[allow(dead_code)]
     fn stream_id_for(uri: &str, provider: Option<StreamProvider>) -> TrackId {
         match provider {
             Some(p) => TrackId::new(format!("stream:{}:{uri}", p.as_str())),
@@ -375,6 +372,7 @@ impl LibraryManager {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn import_stream(
         &self,
         uri: &str,
@@ -710,10 +708,7 @@ fn normalize_path(path: &Path) -> Result<PathBuf> {
 }
 
 fn is_audio_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| AUDIO_EXTENSIONS.iter().any(|e| ext.eq_ignore_ascii_case(e)))
-        .unwrap_or(false)
+    is_supported_audio_path(path)
 }
 
 fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {

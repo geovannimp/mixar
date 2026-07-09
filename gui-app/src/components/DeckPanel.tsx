@@ -129,9 +129,7 @@ export function DeckPanel({
           <DeckOverviewPreview
             trackId={deck.track_id}
             path={deck.track}
-            positionSecs={deck.position_secs ?? 0}
             durationSecs={deck.duration_secs}
-            eq={deck.eq}
           />
 
           <div className="mt-auto flex justify-center">

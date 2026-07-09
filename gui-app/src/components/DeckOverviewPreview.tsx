@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { DeckEq, WaveformFrame } from "../types";
+import type { DeckHotCueMarker, DeckLoopMarker, WaveformFrame } from "../types";
+import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
 interface DeckOverviewPreviewProps {
   trackId: string | null;
   path: string | null;
-  positionSecs: number;
   durationSecs: number | null;
-  eq: DeckEq;
+  hotCues?: DeckHotCueMarker[];
+  loops?: DeckLoopMarker[];
 }
 
 export function DeckOverviewPreview({
   trackId,
   path,
-  positionSecs,
   durationSecs,
-  eq,
+  hotCues = [],
+  loops = [],
 }: DeckOverviewPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -57,9 +58,10 @@ export function DeckOverviewPreview({
       visibleSecs: duration,
       bufferRatio: 0,
       includeDetail: false,
-      eqLowDb: eq.low,
-      eqMidDb: eq.mid,
-      eqHighDb: eq.high,
+      includeBeatGrid: false,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
     })
       .then((next) => {
         if (!cancelled) {
@@ -75,7 +77,7 @@ export function DeckOverviewPreview({
     return () => {
       cancelled = true;
     };
-  }, [hasTrack, trackId, path, width, duration, eq.low, eq.mid, eq.high]);
+  }, [hasTrack, trackId, path, width, duration]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -108,9 +110,6 @@ export function DeckOverviewPreview({
     }
   }, [frame, width]);
 
-  const playheadPercent =
-    duration > 0 ? Math.min(100, Math.max(0, (positionSecs / duration) * 100)) : 0;
-
   return (
     <div
       ref={containerRef}
@@ -119,16 +118,13 @@ export function DeckOverviewPreview({
       {hasTrack ? (
         <>
           <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
-          <div
-            className="pointer-events-none absolute inset-y-0 z-10 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.5)]"
-            style={{ left: `${playheadPercent}%` }}
+          <WaveformCueMarkers
+            durationSecs={duration}
+            hotCues={hotCues}
+            loops={loops}
           />
         </>
-      ) : (
-        <div className="flex h-full items-center justify-center text-[9px] font-medium uppercase tracking-widest text-zinc-700">
-          Overview
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

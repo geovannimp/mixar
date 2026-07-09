@@ -2,7 +2,10 @@ use audio_core::{BusConfig, BusId, ChannelMapping, DeviceId};
 use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
 use resampler::normalize_resampler_quality;
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
-use library_core::{AnalyzeTrackOptions, CollectionId, Library, LibrarySource, TrackId};
+use library_core::{
+    AnalyzeTrackOptions, CollectionId, Library, LibrarySource, SUPPORTED_AUDIO_EXTENSIONS,
+    TrackId,
+};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -991,6 +994,7 @@ async fn render_waveform_lane(
     visible_secs: f64,
     buffer_ratio: f64,
     include_detail: bool,
+    include_beat_grid: bool,
     eq_low_db: f32,
     eq_mid_db: f32,
     eq_high_db: f32,
@@ -1083,6 +1087,11 @@ async fn render_waveform_lane(
     };
 
     let gains = WaveformDisplayGains::from_eq_db(eq_low_db, eq_mid_db, eq_high_db);
+    let beat_grid_for_render = if include_beat_grid {
+        beat_grid.as_ref()
+    } else {
+        None
+    };
     let rgba = render_scrolling_lane(
         strip_width,
         height,
@@ -1092,7 +1101,7 @@ async fn render_waveform_lane(
         position_secs,
         cover_secs,
         gains,
-        beat_grid.as_ref(),
+        beat_grid_for_render,
     );
 
     let half_cover = cover_secs / 2.0;
@@ -1105,6 +1114,11 @@ async fn render_waveform_lane(
         cover_end_secs: position_secs + half_cover,
         visible_secs,
     })
+}
+
+#[tauri::command]
+fn get_supported_audio_extensions() -> Vec<&'static str> {
+    SUPPORTED_AUDIO_EXTENSIONS.to_vec()
 }
 
 #[tauri::command]
@@ -1174,6 +1188,7 @@ pub fn run() {
             set_deck_speed,
             set_crossfader,
             render_waveform_lane,
+            get_supported_audio_extensions,
             sample_track_path,
         ])
         .run(tauri::generate_context!())

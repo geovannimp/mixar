@@ -18,9 +18,11 @@ pub enum EngineEvent {
         revision: u64,
         deck: DeckStatus,
     },
+    #[allow(dead_code)]
     Notice {
         message: String,
     },
+    #[allow(dead_code)]
     Error {
         message: String,
     },
