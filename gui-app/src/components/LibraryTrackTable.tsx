@@ -11,6 +11,7 @@ import {
   rowTitle,
   rowTrackId,
   sortLibraryRows,
+  type LibraryTableSort,
 } from "../lib/libraryTable";
 import { startTrackDrag } from "../lib/trackDragPreview";
 import type { LibraryTableColumn, LibraryTableRow } from "../types";
@@ -22,8 +23,7 @@ interface LibraryTrackTableProps {
   rows: LibraryTableRow[];
   columns: LibraryTableColumn[];
   filter: string;
-  sortColumn: LibraryTableColumn;
-  sortDirection: SortDirection;
+  sort: LibraryTableSort;
   emptyMessage: string;
   engineRunning: boolean;
   busy: boolean;
@@ -37,8 +37,7 @@ export function LibraryTrackTable({
   rows,
   columns,
   filter,
-  sortColumn,
-  sortDirection,
+  sort,
   emptyMessage,
   engineRunning,
   busy,
@@ -57,8 +56,11 @@ export function LibraryTrackTable({
 
   const displayRows = useMemo(() => {
     const filtered = rows.filter((row) => rowMatchesFilter(row, filter));
-    return sortLibraryRows(filtered, sortColumn, sortDirection);
-  }, [rows, filter, sortColumn, sortDirection]);
+    if (!sort) {
+      return filtered;
+    }
+    return sortLibraryRows(filtered, sort.column, sort.direction);
+  }, [rows, filter, sort]);
 
   const dragEnabled = engineRunning && !busy;
 
@@ -91,8 +93,8 @@ export function LibraryTrackTable({
               >
                 <span>{column.label}</span>
                 <SortIndicator
-                  active={sortColumn === column.id}
-                  direction={sortDirection}
+                  active={sort?.column === column.id}
+                  direction={sort?.direction ?? "asc"}
                 />
               </button>
             </th>

@@ -164,6 +164,24 @@ export function acceptsTrackDrag(dataTransfer: DataTransfer): boolean {
 
 type SortDirection = "asc" | "desc";
 
+export type LibraryTableSort = {
+  column: LibraryTableColumn;
+  direction: SortDirection;
+} | null;
+
+export function cycleLibraryTableSort(
+  current: LibraryTableSort,
+  column: LibraryTableColumn,
+): LibraryTableSort {
+  if (current?.column !== column) {
+    return { column, direction: "asc" };
+  }
+  if (current.direction === "asc") {
+    return { column, direction: "desc" };
+  }
+  return null;
+}
+
 function compareValues(
   left: string | number | null,
   right: string | number | null,

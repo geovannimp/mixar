@@ -12,6 +12,8 @@ import { useSettings } from "../hooks/useSettings";
 import {
   libraryRowFromFile,
   libraryRowFromTrack,
+  cycleLibraryTableSort,
+  type LibraryTableSort,
 } from "../lib/libraryTable";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "../lib/libraryTable";
 import { normalizeAppSettings } from "../lib/busSettings";
@@ -40,8 +42,7 @@ export function LibraryPanel({
 }: LibraryPanelProps) {
   const [sourceTab, setSourceTab] = useState<LibrarySourceTab>("collections");
   const [filter, setFilter] = useState("");
-  const [sortColumn, setSortColumn] = useState<LibraryTableColumn>("title");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [sort, setSort] = useState<LibraryTableSort>(null);
 
   const { settings, refresh: refreshSettings } = useSettings();
 
@@ -128,14 +129,7 @@ export function LibraryPanel({
         : "No audio files in this folder.";
 
   const handleSortChange = useCallback((column: LibraryTableColumn) => {
-    setSortColumn((current) => {
-      if (current === column) {
-        setSortDirection((direction) => (direction === "asc" ? "desc" : "asc"));
-        return current;
-      }
-      setSortDirection("asc");
-      return column;
-    });
+    setSort((current) => cycleLibraryTableSort(current, column));
   }, []);
 
   const handleLoadRow = useCallback(
@@ -270,8 +264,7 @@ export function LibraryPanel({
               rows={tableRows}
               columns={tableSettings.library_table_columns}
               filter={filter}
-              sortColumn={sortColumn}
-              sortDirection={sortDirection}
+              sort={sort}
               emptyMessage={emptyMessage}
               engineRunning={engineRunning}
               busy={panelBusy}
