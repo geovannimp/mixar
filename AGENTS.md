@@ -1,14 +1,16 @@
 ## Learned User Preferences
 
 - Follow `docs/tech-spec.md` for architecture and module boundaries.
+- Follow `docs/deck-spec.md` for deck UI and feature scope.
 - Use `dasp` for internal sample/frame types and conversions; use `dasp_graph` for the mixer graph.
 - Use `rubato` for resampling.
 - Read real device capabilities from CPAL (channels, sample-rate ranges); avoid hardcoded defaults like fixed channel counts or sample rates in device listing.
-- In the Tauri GUI, use coss UI components and toast notifications instead of verbose inline status messages.
+- In the Tauri GUI, use coss UI components and toast notifications (including `toast.promise` for async startup) instead of verbose inline status messages.
 - Custom in-app title bar on Tauri (decorations off), matching app chrome, with min/max/close controls.
 - Prefer minimal, focused changes when refining UI; user may narrow scope mid-task.
 - Use cpal with low-latency/realtime features as the default audio backend.
 - Audio backend API: `AudioBackend::list_names()` and `AudioBackend::new(name)`; enumerate devices on the backend instance; mark default devices with an `is_default` flag on `DeviceInfo`.
+- Auto-start the audio engine when entering the decks view; no manual start button.
 - Exit the application with an error if the engine fails to load rather than continuing in a broken state.
 
 ## Learned Workspace Facts
@@ -19,3 +21,6 @@
 - `engine-core` default features enable `backend-cpal`; CPAL is the primary Linux backend (native PipeWire when available).
 - `gui-app` is the Tauri desktop UI over the engine; folder browser supports collections created from folders.
 - Device optimization in `backend-cpal` prefers 2-channel config with lowest min sample rate and smallest buffer size when opening streams.
+- `docs/deck-spec.md` defines target deck UI, features, data model, and phased roadmap.
+- Engine emits events to the UI for state sync with external control sources (e.g. MIDI); GUI subscribes and renders.
+- Hot cues and loops persist in dedicated `track_hot_cue` / `track_loop` tables in `library.db` (same pattern as waveforms).

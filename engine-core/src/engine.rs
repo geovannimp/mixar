@@ -318,6 +318,21 @@ impl Engine {
         self.set_deck_eq(deck_id, DeckEqGains::clamped(low_db, mid_db, high_db))
     }
 
+    /// Set playback speed for a deck (1.0 = normal tempo).
+    pub fn set_deck_speed(&mut self, deck_id: usize, speed: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_speed(speed)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
     /// Set crossfader position (0.0 = deck A, 1.0 = deck B).
     pub fn set_crossfader(&mut self, position: f32) -> Result<()> {
         let dsp_engine = self

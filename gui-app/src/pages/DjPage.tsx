@@ -22,6 +22,7 @@ export function DjPage() {
     pauseDeck,
     setDeckVolume,
     setDeckEq,
+    setDeckSpeed,
     setCrossfader,
   } = useEngine();
 
@@ -63,8 +64,8 @@ export function DjPage() {
       >
         <ResizablePanel
           id="decks"
-          defaultSize="40"
-          minSize="25"
+          defaultSize="48"
+          minSize="30"
           className="min-h-0 overflow-hidden"
         >
           <DeckGrid
@@ -75,6 +76,7 @@ export function DjPage() {
             onTogglePlayback={toggleDeckPlayback}
             onVolumeChange={setDeckVolume}
             onEqChange={setDeckEq}
+            onSpeedChange={setDeckSpeed}
             onDropTrack={loadDraggedTrack}
             crossfader={status?.crossfader ?? 0.5}
             onCrossfaderChange={setCrossfader}

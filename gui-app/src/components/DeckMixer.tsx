@@ -43,28 +43,33 @@ function DeckEqKnob({
 
 interface DeckChannelStripProps {
   label: string;
+  channelAccent: DeckAccent;
   accent: (typeof DECK_ACCENTS)[DeckAccent];
   volume: number;
   eq: DeckEq;
   disabled?: boolean;
+  compact?: boolean;
   onVolumeChange: (volume: number) => void;
   onEqChange: (eq: DeckEq) => void;
 }
 
 function DeckChannelStrip({
   label,
+  channelAccent,
   accent,
   volume,
   eq,
   disabled,
+  compact,
   onVolumeChange,
   onEqChange,
 }: DeckChannelStripProps) {
   const percent = Math.round(volume * 100);
+  const channelWidth = compact ? "w-12" : CHANNEL_WIDTH_CLASS;
 
   return (
     <div
-      className={`flex h-full ${CHANNEL_WIDTH_CLASS} shrink-0 flex-col items-center gap-1`}
+      className={`flex ${compact ? "h-auto" : "h-full"} ${channelWidth} shrink-0 flex-col items-center gap-1`}
     >
       <span
         className={`shrink-0 text-center text-[9px] font-semibold uppercase tracking-widest ${accent.text}`}
@@ -90,17 +95,20 @@ function DeckChannelStrip({
       <div className="w-full shrink-0 border-t border-white/6" />
 
       <div
-        className={`flex min-h-0 flex-1 ${FADER_WIDTH_CLASS} items-center justify-center py-1 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center [&_[data-slot=slider-thumb]]:size-3.5`}
+        className={`flex ${compact ? `h-20 ${FADER_WIDTH_CLASS}` : `min-h-0 flex-1 ${FADER_WIDTH_CLASS}`} items-center justify-center py-1 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center`}
       >
         <Slider
           orientation="vertical"
           thumbAlignment="center"
+          thumbVariant="fader"
+          channelAccent={channelAccent}
+          showIndicator
           min={0}
           max={100}
           value={percent}
           disabled={disabled}
           aria-label={`${label} volume`}
-          className={`h-full ${FADER_WIDTH_CLASS}`}
+          className={`${compact ? "h-20" : "h-full"} ${FADER_WIDTH_CLASS}`}
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onVolumeChange(next / 100);
@@ -136,12 +144,15 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
         <Slider
           orientation="horizontal"
           thumbAlignment="center"
+          showIndicator={false}
+          thumbVariant="fader"
+          crossfaderTrack
           min={0}
           max={100}
           value={percent}
           disabled={disabled}
           aria-label="Crossfader"
-          className="min-w-0 flex-1 [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:min-w-0 [&_[data-slot=slider-thumb]]:size-3"
+          className="min-w-0 flex-1 [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:min-w-0"
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onPositionChange(next / 100);
@@ -159,6 +170,7 @@ interface DeckMixerProps {
   decks: DeckStatus[];
   crossfader: number;
   disabled?: boolean;
+  layout?: "full" | "compact";
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onCrossfaderChange: (position: number) => void;
@@ -168,29 +180,52 @@ export function DeckMixer({
   decks,
   crossfader,
   disabled,
+  layout = "full",
   onVolumeChange,
   onEqChange,
   onCrossfaderChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
+  const channelAccents = ["a", "b"] as const satisfies readonly DeckAccent[];
   const labels = ["A", "B"] as const;
+  const compact = layout === "compact";
 
   return (
-    <div className="flex h-full min-h-0 w-[8.25rem] shrink-0 flex-col gap-2 overflow-hidden border-x border-white/6 bg-zinc-900/50 px-1.5 py-3">
+    <div
+      className={`flex shrink-0 flex-col gap-2 overflow-hidden bg-zinc-900/50 ${
+        compact
+          ? "w-full px-2 py-2"
+          : "h-full min-h-0 w-[8.25rem] border-x border-white/6 px-1.5 py-3"
+      }`}
+    >
       <span className="shrink-0 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
         Mixer
       </span>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <div className="flex min-h-0 flex-1 items-stretch justify-center gap-1">
+      <div
+        className={
+          compact
+            ? "flex min-h-0 flex-col gap-2"
+            : "flex min-h-0 flex-1 flex-col gap-2"
+        }
+      >
+        <div
+          className={
+            compact
+              ? "flex items-end justify-center gap-3"
+              : "flex min-h-0 flex-1 items-stretch justify-center gap-1"
+          }
+        >
           {labels.map((label, index) => (
             <DeckChannelStrip
               key={label}
               label={label}
+              channelAccent={channelAccents[index]}
               accent={accents[index]}
               volume={decks[index]?.volume ?? 1}
               eq={decks[index]?.eq ?? DEFAULT_DECK_EQ}
               disabled={disabled}
+              compact={compact}
               onVolumeChange={(volume) => onVolumeChange(index, volume)}
               onEqChange={(eq) => onEqChange(index, eq)}
             />

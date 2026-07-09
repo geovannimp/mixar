@@ -6,9 +6,11 @@ use library_core::{AnalyzeTrackOptions, CollectionId, Library, LibrarySource, Tr
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use tauri::{Manager, State};
+use engine_events::{emit_deck_updated, emit_status};
+use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
+mod engine_events;
 mod fs_browser;
 mod waveform_render;
 
@@ -44,8 +46,13 @@ impl Default for DeckEq {
 struct DeckInfo {
     track: Option<String>,
     track_id: Option<String>,
+    title: Option<String>,
+    artist: Option<String>,
+    bpm: Option<f64>,
+    key: Option<String>,
     playing: bool,
     volume: f32,
+    speed: f32,
     eq: DeckEq,
 }
 
@@ -54,8 +61,13 @@ impl Default for DeckInfo {
         Self {
             track: None,
             track_id: None,
+            title: None,
+            artist: None,
+            bpm: None,
+            key: None,
             playing: false,
             volume: 1.0,
+            speed: 1.0,
             eq: DeckEq::default(),
         }
     }
@@ -67,6 +79,7 @@ struct AppState {
     engine_config: EngineConfig,
     decks: [DeckInfo; NUM_DECKS],
     crossfader: f32,
+    revision: u64,
     audio_cache: AudioCache,
     library_table_columns: Vec<String>,
 }
@@ -234,8 +247,13 @@ struct DeckStatus {
     id: usize,
     track: Option<String>,
     track_id: Option<String>,
+    title: Option<String>,
+    artist: Option<String>,
+    bpm: Option<f64>,
+    key: Option<String>,
     playing: bool,
     volume: f32,
+    speed: f32,
     eq: DeckEq,
     position_secs: Option<f64>,
     duration_secs: Option<f64>,
@@ -323,20 +341,63 @@ fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
         .decks
         .iter()
         .enumerate()
-        .map(|(id, deck)| {
-            let (position_secs, duration_secs) = deck_playback_secs(state, id);
-            DeckStatus {
-                id,
-                track: deck.track.clone(),
-                track_id: deck.track_id.clone(),
-                playing: deck.playing,
-                volume: deck.volume,
-                eq: deck.eq.clone(),
-                position_secs,
-                duration_secs,
-            }
-        })
+        .map(|(id, deck)| deck_status(state, id, deck))
         .collect()
+}
+
+fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
+    let (position_secs, duration_secs) = deck_playback_secs(state, id);
+    DeckStatus {
+        id,
+        track: deck.track.clone(),
+        track_id: deck.track_id.clone(),
+        title: deck.title.clone(),
+        artist: deck.artist.clone(),
+        bpm: deck.bpm,
+        key: deck.key.clone(),
+        playing: deck.playing,
+        volume: deck.volume,
+        speed: deck.speed,
+        eq: deck.eq.clone(),
+        position_secs,
+        duration_secs,
+    }
+}
+
+fn bump_revision(state: &mut AppState) -> u64 {
+    state.revision += 1;
+    state.revision
+}
+
+fn apply_path_metadata(deck: &mut DeckInfo, path: &str) {
+    deck.title = Path::new(path)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned());
+    deck.artist = None;
+    deck.bpm = None;
+    deck.key = None;
+}
+
+fn clear_deck_info(deck: &mut DeckInfo) {
+    *deck = DeckInfo {
+        volume: deck.volume,
+        eq: deck.eq.clone(),
+        ..DeckInfo::default()
+    };
+}
+
+fn publish_status(app: &AppHandle, state: &mut AppState) -> EngineStatus {
+    let revision = bump_revision(state);
+    let status = engine_status(state);
+    emit_status(app, revision, status.clone());
+    status
+}
+
+fn publish_deck(app: &AppHandle, state: &mut AppState, deck_id: usize) -> DeckStatus {
+    let revision = bump_revision(state);
+    let deck = deck_status(state, deck_id, &state.decks[deck_id]);
+    emit_deck_updated(app, revision, deck.clone());
+    deck
 }
 
 fn engine_status(state: &AppState) -> EngineStatus {
@@ -411,7 +472,10 @@ where
 }
 
 #[tauri::command]
-fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
+fn start_engine(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     if state.engine.is_some() {
         return Ok(engine_status(&state));
@@ -428,27 +492,32 @@ fn start_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String
         engine
             .set_deck_eq_bands(deck_id, low, mid, high)
             .map_err(|e| e.to_string())?;
+        engine
+            .set_deck_speed(deck_id, deck.speed)
+            .map_err(|e| e.to_string())?;
     }
     engine
         .set_crossfader(state.crossfader)
         .map_err(|e| e.to_string())?;
     state.engine = Some(engine);
 
-    Ok(engine_status(&state))
+    Ok(publish_status(&app, &mut state))
 }
 
 #[tauri::command]
-fn stop_engine(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
+fn stop_engine(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     if let Some(mut engine) = state.engine.take() {
         engine.stop().map_err(|e| e.to_string())?;
     }
     for deck in &mut state.decks {
-        deck.playing = false;
-        deck.track = None;
+        clear_deck_info(deck);
     }
     state.audio_cache.prune();
-    Ok(engine_status(&state))
+    Ok(publish_status(&app, &mut state))
 }
 
 #[tauri::command]
@@ -617,6 +686,7 @@ fn browse_fs_directory(path: String) -> Result<DirectoryListing, String> {
 
 #[tauri::command]
 async fn load_path_to_deck(
+    app: AppHandle,
     deck_id: usize,
     path: String,
     state: State<'_, SharedAppState>,
@@ -625,7 +695,7 @@ async fn load_path_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (track_id, cache_key) = {
+    let (track_id, cache_key, title, artist, bpm, key) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
@@ -639,7 +709,15 @@ async fn load_path_to_deck(
             .to_string_lossy()
             .into_owned();
 
-        (source.id().as_str().to_string(), file_path)
+        let metadata = source.metadata();
+        (
+            source.id().as_str().to_string(),
+            file_path,
+            metadata.title.clone(),
+            metadata.artist.clone(),
+            metadata.bpm,
+            metadata.key.clone(),
+        )
     };
 
     {
@@ -659,14 +737,21 @@ async fn load_path_to_deck(
             .map_err(|e| e.to_string())
     })?;
 
-    state.decks[deck_id].track = Some(path);
-    state.decks[deck_id].track_id = Some(track_id);
-    state.decks[deck_id].playing = false;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    let deck = &mut state.decks[deck_id];
+    deck.track = Some(path);
+    deck.track_id = Some(track_id);
+    deck.playing = false;
+    deck.speed = 1.0;
+    deck.title = title;
+    deck.artist = artist;
+    deck.bpm = bpm;
+    deck.key = key;
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
 async fn load_track(
+    app: AppHandle,
     deck_id: usize,
     path: String,
     state: State<'_, SharedAppState>,
@@ -685,14 +770,18 @@ async fn load_track(
             .map_err(|e| e.to_string())
     })?;
 
-    state.decks[deck_id].track = Some(path);
-    state.decks[deck_id].track_id = None;
-    state.decks[deck_id].playing = false;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    let deck = &mut state.decks[deck_id];
+    deck.track = Some(path.clone());
+    deck.track_id = None;
+    deck.playing = false;
+    deck.speed = 1.0;
+    apply_path_metadata(deck, &path);
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
 async fn load_library_track_to_deck(
+    app: AppHandle,
     deck_id: usize,
     track_id: String,
     state: State<'_, SharedAppState>,
@@ -701,7 +790,7 @@ async fn load_library_track_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (path, cache_key) = {
+    let (path, cache_key, title, artist, bpm, key) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
@@ -716,7 +805,15 @@ async fn load_library_track_to_deck(
             .to_string_lossy()
             .into_owned();
 
-        (path.clone(), path)
+        let metadata = source.metadata();
+        (
+            path.clone(),
+            path,
+            metadata.title.clone(),
+            metadata.artist.clone(),
+            metadata.bpm,
+            metadata.key.clone(),
+        )
     };
 
     {
@@ -736,14 +833,24 @@ async fn load_library_track_to_deck(
             .map_err(|e| e.to_string())
     })?;
 
-    state.decks[deck_id].track = Some(path);
-    state.decks[deck_id].track_id = Some(track_id);
-    state.decks[deck_id].playing = false;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    let deck = &mut state.decks[deck_id];
+    deck.track = Some(path);
+    deck.track_id = Some(track_id);
+    deck.playing = false;
+    deck.speed = 1.0;
+    deck.title = title;
+    deck.artist = artist;
+    deck.bpm = bpm;
+    deck.key = key;
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
-fn play_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckStatus, String> {
+fn play_deck(
+    app: AppHandle,
+    deck_id: usize,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -757,11 +864,15 @@ fn play_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckSta
         engine.play(deck_id).map_err(|e| e.to_string())
     })?;
     state.decks[deck_id].playing = true;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
-fn pause_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckStatus, String> {
+fn pause_deck(
+    app: AppHandle,
+    deck_id: usize,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -771,11 +882,12 @@ fn pause_deck(deck_id: usize, state: State<'_, SharedAppState>) -> Result<DeckSt
         engine.pause(deck_id).map_err(|e| e.to_string())
     })?;
     state.decks[deck_id].playing = false;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
 fn set_deck_volume(
+    app: AppHandle,
     deck_id: usize,
     volume: f32,
     state: State<'_, SharedAppState>,
@@ -794,11 +906,12 @@ fn set_deck_volume(
             .set_deck_volume(deck_id, volume)
             .map_err(|e| e.to_string())?;
     }
-    Ok(deck_statuses(&state)[deck_id].clone())
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
 fn set_deck_eq(
+    app: AppHandle,
     deck_id: usize,
     low: f32,
     mid: f32,
@@ -821,11 +934,12 @@ fn set_deck_eq(
             .map_err(|e| e.to_string())?;
     }
     state.decks[deck_id].eq = eq;
-    Ok(deck_statuses(&state)[deck_id].clone())
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
 fn set_crossfader(
+    app: AppHandle,
     crossfader: f32,
     state: State<'_, SharedAppState>,
 ) -> Result<EngineStatus, String> {
@@ -840,7 +954,31 @@ fn set_crossfader(
             .set_crossfader(crossfader)
             .map_err(|e| e.to_string())?;
     }
-    Ok(engine_status(&state))
+    Ok(publish_status(&app, &mut state))
+}
+
+#[tauri::command]
+fn set_deck_speed(
+    app: AppHandle,
+    deck_id: usize,
+    speed: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+    if speed <= 0.0 || speed > 2.0 {
+        return Err("Speed must be between 0 and 2.".to_string());
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].speed = speed;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_speed(deck_id, speed)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
@@ -1006,6 +1144,7 @@ pub fn run() {
                 engine_config: default_engine_config(),
                 decks: Default::default(),
                 crossfader: 0.5,
+                revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
             })));
@@ -1032,6 +1171,7 @@ pub fn run() {
             pause_deck,
             set_deck_volume,
             set_deck_eq,
+            set_deck_speed,
             set_crossfader,
             render_waveform_lane,
             sample_track_path,

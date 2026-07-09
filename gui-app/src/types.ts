@@ -10,8 +10,13 @@ export interface DeckStatus {
   id: number;
   track: string | null;
   track_id: string | null;
+  title: string | null;
+  artist: string | null;
+  bpm: number | null;
+  key: string | null;
   playing: boolean;
   volume: number;
+  speed: number;
   eq: DeckEq;
   position_secs: number | null;
   duration_secs: number | null;

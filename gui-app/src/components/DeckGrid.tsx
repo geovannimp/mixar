@@ -13,6 +13,7 @@ interface DeckGridProps {
   onTogglePlayback: (deckId: number, playing: boolean) => void;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
+  onSpeedChange: (deckId: number, speed: number) => void;
   onDropTrack: (deckId: number, payload: TrackDragPayload) => void;
   crossfader: number;
   onCrossfaderChange: (position: number) => void;
@@ -23,8 +24,13 @@ function defaultDecks(): DeckStatus[] {
     id,
     track: null,
     track_id: null,
+    title: null,
+    artist: null,
+    bpm: null,
+    key: null,
     playing: false,
     volume: 1,
+    speed: 1,
     eq: DEFAULT_DECK_EQ,
     position_secs: null,
     duration_secs: null,
@@ -39,6 +45,7 @@ export function DeckGrid({
   onTogglePlayback,
   onVolumeChange,
   onEqChange,
+  onSpeedChange,
   onDropTrack,
   crossfader,
   onCrossfaderChange,
@@ -52,39 +59,55 @@ export function DeckGrid({
 
       <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-1 md:grid-cols-[1fr_auto_1fr]">
         <DeckPanel
-        accent={accents[0]}
-        deck={deckList[0]}
-        engineRunning={engineRunning}
-        busy={busy}
-        onPickTrack={() => onPickTrack(deckList[0].id)}
-        onTogglePlayback={() =>
-          onTogglePlayback(deckList[0].id, deckList[0].playing)
-        }
-        onDropTrack={(payload) => onDropTrack(deckList[0].id, payload)}
-      />
+          accent={accents[0]}
+          accentKey="a"
+          deck={deckList[0]}
+          engineRunning={engineRunning}
+          busy={busy}
+          onPickTrack={() => onPickTrack(deckList[0].id)}
+          onTogglePlayback={() =>
+            onTogglePlayback(deckList[0].id, deckList[0].playing)
+          }
+          onSpeedChange={(speed) => onSpeedChange(deckList[0].id, speed)}
+          onDropTrack={(payload) => onDropTrack(deckList[0].id, payload)}
+        />
 
-      <div className="hidden h-full min-h-0 shrink-0 md:block">
+        <div className="hidden h-full min-h-0 shrink-0 md:block">
+          <DeckMixer
+            decks={deckList}
+            crossfader={crossfader}
+            disabled={busy}
+            onVolumeChange={onVolumeChange}
+            onEqChange={onEqChange}
+            onCrossfaderChange={onCrossfaderChange}
+          />
+        </div>
+
+        <DeckPanel
+          accent={accents[1]}
+          accentKey="b"
+          deck={deckList[1]}
+          engineRunning={engineRunning}
+          busy={busy}
+          onPickTrack={() => onPickTrack(deckList[1].id)}
+          onTogglePlayback={() =>
+            onTogglePlayback(deckList[1].id, deckList[1].playing)
+          }
+          onSpeedChange={(speed) => onSpeedChange(deckList[1].id, speed)}
+          onDropTrack={(payload) => onDropTrack(deckList[1].id, payload)}
+        />
+      </div>
+
+      <div className="shrink-0 border-t border-white/8 md:hidden">
         <DeckMixer
           decks={deckList}
           crossfader={crossfader}
           disabled={busy}
+          layout="compact"
           onVolumeChange={onVolumeChange}
           onEqChange={onEqChange}
           onCrossfaderChange={onCrossfaderChange}
         />
-      </div>
-
-      <DeckPanel
-        accent={accents[1]}
-        deck={deckList[1]}
-        engineRunning={engineRunning}
-        busy={busy}
-        onPickTrack={() => onPickTrack(deckList[1].id)}
-        onTogglePlayback={() =>
-          onTogglePlayback(deckList[1].id, deckList[1].playing)
-        }
-        onDropTrack={(payload) => onDropTrack(deckList[1].id, payload)}
-      />
       </div>
     </section>
   );

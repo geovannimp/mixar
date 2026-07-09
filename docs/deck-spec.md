@@ -1,0 +1,860 @@
+# Tech Spec — DJ Deck (UI + Engine)
+
+Reference: [`tech-spec.md`](tech-spec.md), [`dj-waveform-spec.md`](dj-waveform-spec.md), [`audio-analyzer-spec.md`](audio-analyzer-spec.md).
+
+This document defines what a **professional DJ deck** should contain in rust-mixer, based on competitor products (Rekordbox, Serato DJ Pro, Traktor Pro, DJUCED / Hercules), the attached reference screenshots, and the gap between our current MVP and industry expectations.
+
+---
+
+## Table of Contents
+
+- [1 — Summary](#1--summary)
+- [2 — Competitor Reference](#2--competitor-reference)
+- [3 — Current State (rust-mixer)](#3--current-state-rust-mixer)
+- [4 — Deck Information Architecture](#4--deck-information-architecture)
+- [5 — Feature Specification](#5--feature-specification)
+  - [5.1 Track metadata & status](#51-track-metadata--status)
+  - [5.2 Waveforms & visual navigation](#52-waveforms--visual-navigation)
+  - [5.3 Transport & playback controls](#53-transport--playback-controls)
+  - [5.4 Tempo, pitch & sync](#54-tempo-pitch--sync)
+  - [5.5 Cues & memory points](#55-cues--memory-points)
+  - [5.6 Loops](#56-loops)
+  - [5.6 Beat grid & quantize](#57-beat-grid--quantize)
+  - [5.8 Mixer channel (per deck)](#58-mixer-channel-per-deck)
+  - [5.9 Effects (FX)](#59-effects-fx)
+  - [5.10 Stems & pad modes](#510-stems--pad-modes)
+  - [5.11 Jog / scratch / vinyl mode](#511-jog--scratch--vinyl-mode)
+  - [5.12 Slip mode & advanced transport](#512-slip-mode--advanced-transport)
+  - [5.13 Beat jump & navigation](#513-beat-jump--navigation)
+  - [5.14 Library & load workflow](#514-library--load-workflow)
+  - [5.15 Headphone cue / PFL](#515-headphone-cue--pfl)
+  - [5.16 Hardware & MIDI](#516-hardware--midi)
+- [6 — Data Model](#6--data-model)
+- [7 — Engine vs GUI Responsibilities](#7--engine-vs-gui-responsibilities)
+- [8 — API Surface](#8--api-surface)
+- [9 — Engine Event System](#9--engine-event-system)
+- [10 — Phased Roadmap](#10--phased-roadmap)
+- [11 — Acceptance Criteria](#11--acceptance-criteria)
+- [12 — References](#12--references)
+
+---
+
+## 1 — Summary
+
+A DJ deck is a **performance surface** for one loaded track. It combines:
+
+1. **Navigation** — waveforms, overview, beat grid, cues, loops.
+2. **Playback control** — play/pause, cue, seek, jog/scratch.
+3. **Tempo & harmony** — pitch fader, sync, key lock, key display/shift.
+4. **Creative tools** — hot cues, loops, FX, stems, sampler pads.
+5. **Mixer integration** — volume, EQ, filter, cue/PFL, crossfader assignment.
+
+Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pattern visible in the reference screenshots:
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│  Overview waveform (full track) + cue/loop markers                   │
+├──────────────────────────────────────────────────────────────────────┤
+│  Scrolling detailed waveform(s) — fixed center playhead              │
+├───────────────┬──────────────────────────────────────┬───────────────┤
+│ Track info    │  BPM · Key · Time · Sync state       │  FX / Stems   │
+│ Title/Artist  │  Hot cues / Pad modes                │  Loop controls│
+├───────────────┴──────────────────────────────────────┴───────────────┤
+│  Jog wheel · CUE · PLAY · SYNC · Pitch fader · Filter · Loop · PFL   │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Our MVP deck today covers **load, play/pause, dual scrolling waveforms, volume, 3-band EQ, crossfader** only. This spec lists everything a complete deck needs and prioritizes implementation.
+
+---
+
+## 2 — Competitor Reference
+
+| Product | Deck count | Hot cues | Memory cues | Loops | Sync | Key | Stems | FX | Notable UX |
+|---------|------------|----------|-------------|-------|------|-----|-------|-----|------------|
+| **Rekordbox 7** ([manual](https://cdn.rekordbox.com/files/20241213141602/rekordbox7.0.7_manual_EN.pdf)) | 2–4 | 16 | 10 | In/out, saved, hotcue-as-loop | Beat / BPM / Key sync | Musical + Camelot | Stems (subscription) | 3 slots + RMX/DJM-style | Intelligent cue analysis, phrase/vocal analysis, master deck |
+| **Serato DJ Pro** ([manual](https://serato.com/dj/pro)) | 2–4 | 8 | Temp cue | Auto + manual + loop roll | Smart + Simple sync | Key detect + display | Stems FX / pad modes | 50+ built-in | Slip mode, quantize, beat jump, slicer, key lock |
+| **Traktor Pro** | 2–4 | 8 | Load marker | In/out, beat-sized | Sync | Key + transpose | Stems (version-dependent) | 2 FX units + filter | Colored waveforms, flux/slip variants, MIDI mapping |
+| **DJUCED / Hercules** (screenshot ref.) | 2 | 8 labeled | — | 1/2× length, IN/OUT | Beat / Key / Master sync | Key shift ± | Vocal / Drums / Inst mute | 3 FX dropdowns | Named hot cues (Intro, Drop), quantize, slip, vinyl |
+
+Common expectations across all products:
+
+- **Dual-resolution waveforms** (overview + scrolling detail).
+- **Beat grid** aligned to offline analysis; sync/quantize depend on it.
+- **Hot cues** with color, optional name/comment, jump on trigger.
+- **Pitch/tempo** via fader or numeric control; **key lock** when tempo changes.
+- **Sync** to align deck tempo (and optionally key) to master or other deck.
+- **Loops** with beat-quantized length and halve/double.
+- **Per-deck FX** (at least filter + 1–2 insert effects).
+- **Stem or frequency isolation** increasingly standard (mute vocals, drums-only, etc.).
+
+---
+
+## 3 — Current State (rust-mixer)
+
+### GUI (`gui-app`)
+
+| Area | Implemented | Missing |
+|------|-------------|---------|
+| Deck panel | Load (file picker + drag-drop), play/pause, title, playing pill | Artist, album art, BPM/key/time, all transport buttons |
+| Waveforms | Dual-lane scrolling (Rust-rendered), center playhead | Overview strip, beat grid, cue/loop overlays, zoom |
+| Mixer strip | Volume fader, 3-band EQ knobs, crossfader | Filter, gain trim, cue/PFL, per-deck VU |
+| Engine start | Auto-start on Decks page with promise toast | — |
+| State sync | Poll `get_status` @ 100 ms + merge command returns | **Engine event bus** (§9) |
+
+### Engine / DSP (`engine-dsp`, `engine-core`)
+
+| Capability | Status |
+|------------|--------|
+| Play / pause / stop | Yes |
+| Volume | Yes |
+| 3-band EQ (audio path) | Yes |
+| Playback speed (`set_speed`) | **Engine only** — no GUI, no key lock |
+| Seek (`seek`) | **Engine only** — no GUI scrub/jog |
+| Hot cues / loops | No |
+| Sync / quantize / slip | No |
+| FX chain | No |
+| Stems | No |
+| Scratch / vinyl simulation | No |
+
+### Library metadata (available but not shown on deck)
+
+From `TrackSummary` / analysis: `title`, `artist`, `bpm`, `key`, `duration_secs`, beat grid (DB). Deck UI does not display or use these yet.
+
+### Runtime playback time (already in `DeckStatus`)
+
+| Field | Source | Meaning |
+|-------|--------|---------|
+| `position_secs` | Engine poll (`get_status`) | Current playhead position (elapsed time) |
+| `duration_secs` | Loaded track metadata | Total track length |
+
+Both are exposed today via Tauri → `DeckStatus` in `gui-app/src/types.ts`. The deck UI does not render them yet (metadata bar is Phase 1). `remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
+
+---
+
+## 4 — Deck Information Architecture
+
+Each deck exposes a single **`DeckState`** snapshot to the UI (poll or event stream) and accepts **`DeckCommand`** mutations.
+
+```text
+DeckState
+├── identity: deck_id (0..N-1)
+├── loaded: Option<LoadedTrackView>
+│   ├── track_id, path, title, artist, album, artwork_ref
+│   ├── bpm, key, duration_secs
+│   └── analysis: beat_grid_ref, cue_points[], loops[]
+├── transport: playing, position_secs, remaining_secs
+├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
+├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
+├── key: display_key, key_shift_semitones, key_lock
+├── loop: { inactive | active(in, out, length_beats, rolling) }
+├── slip: enabled, shadow_position_secs
+├── hot_cues: [HotCue; 8 or 16]
+├── fx: filter, slots[3]
+├── stems: { vocal, instrumental, bass, drums, hihat } mute/solo gains
+├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
+└── waveform: scroll_window_secs, zoom_level
+```
+
+UI layout zones (match competitor ergonomics):
+
+| Zone | Priority | Contents |
+|------|----------|----------|
+| **A — Waveform stack** | P0 | Overview + scrolling lane + playhead + grid + markers |
+| **B — Metadata bar** | P0 | Title, artist, elapsed/remain/total, BPM, key |
+| **C — Performance pads** | P1 | Hot cues 1–8 (expand to 16) |
+| **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump |
+| **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
+| **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range, key lock |
+| **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
+| **H — Stems / pads** | P3 | Stem mute/solo or pad mode selector |
+| **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
+
+---
+
+## 5 — Feature Specification
+
+### 5.1 Track metadata & status
+
+| ID | Feature | Description | Competitors | Priority |
+|----|---------|-------------|-------------|----------|
+| M1 | **Title & artist** | Primary and secondary line; truncate with tooltip | All | P0 |
+| M2 | **Album art** | Circular or square thumbnail; placeholder when missing | Rekordbox, Serato | P1 |
+| M3 | **Duration** | Total track length | All | P0 |
+| M4 | **Elapsed time** | Display `position_secs` as mm:ss.ms | All | P0 |
+| M5 | **Remaining time** | `-mm:ss` from `duration_secs - position_secs` | All | P0 |
+| M6 | **Original BPM** | From library analysis | All | P0 |
+| M7 | **Effective BPM** | After pitch adjustment (`original × pitch_ratio`) | All | P1 |
+| M8 | **Musical key** | e.g. `Gm`, `8A` (user preference) | All | P0 |
+| M9 | **Sync state indicator** | Off / armed / tempo synced / beat synced / master | Serato, Rekordbox | P1 |
+| M10 | **Track rating / color** | Optional library field on deck | Serato, Traktor | P3 |
+| M11 | **Loading / analyzing state** | Spinner when decode or waveform job running | All | P0 |
+
+**Data source:** `library` track row + live `DeckStatus` from engine.
+
+---
+
+### 5.2 Waveforms & visual navigation
+
+See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| W1 | **Scrolling main waveform** | Fixed center playhead; spectral RGB | P0 (partial) |
+| W2 | **Overview waveform** | Full-track strip above main lane; click to seek | P0 |
+| W3 | **Beat grid overlay** | Vertical lines from `beat_grid`; downbeat emphasis | P0 |
+| W4 | **Hot cue markers** | Colored flags on overview + scroll | P1 |
+| W5 | **Loop region highlight** | Active loop bracket on waveform | P1 |
+| W6 | **Zoom** | Adjust `visible_secs` (e.g. 4–64 s); mouse wheel or buttons | P1 |
+| W7 | **Stacked dual-deck view** | Deck A lane above Deck B (current) | P0 |
+| W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar (Serato) | P2 |
+| W9 | **End-of-track warning** | Visual cue near track end | P2 |
+| W10 | **Intro / outro markers** | From analysis phrases (Rekordbox) | P3 |
+
+---
+
+### 5.3 Transport & playback controls
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| T1 | **Play / Pause** | Toggle playback | P0 |
+| T2 | **Cue (hold)** | Hold = temporary cue point audition; release = resume | P0 |
+| T3 | **Cue (set)** | Set temporary cue at current position (Serato) | P1 |
+| T4 | **Previous cue / jump to start** | Jump to first hot cue or track start | P2 |
+| T5 | **Unload / eject** | Clear deck | P1 |
+| T6 | **Reverse** | Play backward while held or toggled | P3 |
+| T7 | **Emergency brake** | Instant stop + cue (hardware pattern) | P3 |
+
+**Keyboard shortcuts** (Serato-style): cue, play, sync, hot cues 1–8 — map in GUI layer.
+
+---
+
+### 5.4 Tempo, pitch & sync
+
+| ID | Feature | Description | Engine notes | Priority |
+|----|---------|-------------|--------------|----------|
+| P1 | **Pitch fader** | Vertical slider; selectable range ±6 / ±10 / ±50 % | Maps to `Deck::set_speed` | P1 |
+| P2 | **Pitch bend buttons** | Momentary ± adjustment | Temporary speed offset | P2 |
+| P3 | **Key lock / Master Tempo** | Change tempo without changing key | Requires time-stretch (not in MVP engine) | P2 |
+| P4 | **Key shift** | ± semitones independent of tempo | Pitch shift DSP | P3 |
+| P5 | **Sync (beat)** | Match phase and tempo to master deck | Compare beat grids + positions | P1 |
+| P6 | **Sync (tempo only)** | Match BPM without phase lock | Adjust pitch fader target | P1 |
+| P7 | **Sync (key)** | Harmonic match via key metadata | Key shift or reject incompatible | P2 |
+| P8 | **Master deck** | One deck defines master BPM/phase | UI + engine flag | P1 |
+| P9 | **BPM display (live)** | Updates during pitch fader move | Derived | P1 |
+| P10 | **Snap pitch to BPM** | Optional: round effective BPM to 0.01 | UX nicety | P3 |
+
+**Critical dependency:** True **key lock** and **quality tempo change** need a time-stretch engine (Rubber Band, SoundTouch, or phase-vocoder). Until then, pitch fader changes **both** tempo and key (classic vinyl behavior) and UI must label this honestly (“Vinyl tempo”).
+
+---
+
+### 5.5 Cues & memory points
+
+| ID | Feature | Description | Count | Priority |
+|----|---------|-------------|-------|----------|
+| C1 | **Hot cues** | Instant jump; optional stored loop | 8 (Serato) → 16 (Rekordbox) | P1 |
+| C2 | **Hot cue color** | User-selectable palette | — | P1 |
+| C3 | **Hot cue label** | Short text (e.g. “Drop”, “Intro”) | — | P1 |
+| C4 | **Hot cue set / delete** | Empty pad = set at playhead; long-press = delete | — | P1 |
+| C5 | **Memory cues** | Non-destructive timeline markers (Rekordbox) | 10 | P2 |
+| C6 | **Cue quantize on set/trigger** | Snap to beat grid when quantize on | — | P1 |
+| C7 | **Persist cues in library** | Save per track_id; load on deck load | — | P1 |
+| C8 | **Intelligent / auto cues** | Analysis-suggested cues (Rekordbox 7) | — | P3 |
+
+**Interaction model (from screenshots):** vertical list or pad grid; numbered 1–8; show time + label; green = cue, orange = loop cue (Rekordbox convention).
+
+---
+
+### 5.6 Loops
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| L1 | **Auto loop** | Quantized loop of N beats (1, 2, 4, 8, 16, 32) | P1 |
+| L2 | **Loop in / out** | Manual set in and out points | P1 |
+| L3 | **Loop halve / double** | ÷2 / ×2 current length | P1 |
+| L4 | **Loop roll** | Temporary loop while held (Serato) | P2 |
+| L5 | **Saved loops** | Named loops persisted per track | P2 |
+| L6 | **Active loop on waveform** | Visual bracket + beat count | P1 |
+| L7 | **Reloop / exit loop** | Toggle loop off; optional slip exit | P1 |
+
+Loop engine must **wrap read position** within `[in, out)` while optionally advancing **shadow position** for slip mode.
+
+---
+
+### 5.7 Beat grid & quantize
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| G1 | **Beat grid display** | From library analysis | P0 |
+| G2 | **Grid edit mode** | Adjust downbeat / BPM (Traktor, Serato) | P3 |
+| G3 | **Quantize toggle (Q)** | Snap cue/loop/hotcue to grid | P1 |
+| G4 | **Quantize value** | 1/2 beat, 1 beat, 1 bar | P1 |
+| G5 | **Phase nudge** | Micro-adjust phase vs master (± ms) | P2 |
+| G6 | **Tap tempo** | Manual BPM override | P3 |
+
+---
+
+### 5.8 Mixer channel (per deck)
+
+Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips on wide layouts.
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| X1 | **Channel volume fader** | 0–100% | P0 |
+| X2 | **3-band EQ** | Low / mid / high kill or ± dB | P0 |
+| X3 | **Filter (HP/LP)** | Single knob wet/dry or crossfade | P1 |
+| X4 | **Gain trim** | Pre-fader level; persisted per track (Serato) | P2 |
+| X5 | **VU / level meter** | Peak or RMS per deck | P2 |
+| X6 | **Crossfader assign** | A / B / thru (4-deck future) | P2 |
+| X7 | **Channel fader curve** | Configurable crossfader law | P3 |
+
+---
+
+### 5.9 Effects (FX)
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| F1 | **Filter effect** | DJ-style one-knob HP/LP (Traktor) | P1 |
+| F2 | **FX slot 1–3** | Insert or send; dropdown selection | P2 |
+| F3 | **FX parameters** | 1–3 knobs per effect | P2 |
+| F4 | **FX on/off & wet/dry** | Per slot | P2 |
+| F5 | **Beat-synced FX** | LFO synced to deck BPM | P3 |
+| F6 | **FX favorites / banks** | User presets | P3 |
+
+**MVP FX list (industry common):** Filter, Echo/Delay, Reverb, Flanger, Phaser, Bit Crusher, Roll (loop + decay).
+
+**Engine placement:** Per-deck pre-fader insert chain in `engine-dsp` before mixer bus.
+
+---
+
+### 5.10 Stems & pad modes
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (screenshot ref.) | P3 |
+| S2 | **Stem isolation gain** | Per-stem level 0–100% | P3 |
+| S3 | **Pad mode selector** | Hot Cue / Loop / Sampler / Stems / Beat Jump (Serato) | P2 |
+| S4 | **Sampler pads** | Trigger one-shots from library | P3 |
+| S5 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
+
+**Dependency:** Offline or real-time stem separation (Rekordbox Stems, Serato Stems). Requires separate analysis pipeline or third-party model — **not** in current analyzer MVP.
+
+---
+
+### 5.11 Jog / scratch / vinyl mode
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| J1 | **Jog wheel (UI)** | Drag to seek/scratch; visual rotation | P2 |
+| J2 | **Vinyl mode** | Touch top = stop platter; outer ring = scratch | P2 |
+| J3 | **CDJ mode** | Constant-speed jog vs vinyl | P3 |
+| J4 | **Scratch algorithm** | Interpolation + motor model; low latency | P2 |
+| J5 | **Jog sensitivity** | Configurable | P3 |
+| J6 | **Platter animation** | Sync rotation to effective BPM | P2 |
+
+**Engine:** Jog updates `seek` + brief speed override; scratch requires small buffer and high callback rate.
+
+---
+
+### 5.12 Slip mode & advanced transport
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit ([Serato manual](https://serato.com/dj/pro)) | P2 |
+| A2 | **Censor / censor button** | Temporary reverse or mute (Serato) | P3 |
+| A3 | **Brake / spin down** | Vinyl stop effect | P3 |
+
+---
+
+### 5.13 Beat jump & navigation
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| B1 | **Beat jump forward/back** | ±1, 2, 4, 8, 16, 32 beats | P2 |
+| B2 | **Seek via overview click** | Jump to timestamp | P0 |
+| B3 | **Seek via waveform drag** | Scrub playhead | P1 |
+| B4 | **Bar / phrase jump** | Jump to next analyzed phrase boundary | P3 |
+
+---
+
+### 5.14 Library & load workflow
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| D1 | **Load from library** | Drag track or double-click | P0 |
+| D2 | **Load from file picker** | Current behavior | P0 |
+| D3 | **Instant double** | Load same track on other deck | P2 |
+| D4 | **Load to play from cue** | Start at hot cue 1 or first memory cue | P2 |
+| D5 | **Analyze on first load** | BPM/key/grid if missing | P0 (partial) |
+| D6 | **Prepare / pre-load** | Decode next track in background | P3 |
+
+---
+
+### 5.15 Headphone cue / PFL
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| H1 | **Cue button per deck** | Route pre-fader audio to preview bus | P2 |
+| H2 | **Cue mix knob** | Master vs cue balance (mixer section) | P2 |
+| H3 | **Split cue** | Mono split left=master right=cue | P3 |
+
+**Engine:** Requires preview bus routing (config exists in settings; engine routing incomplete per main tech spec).
+
+---
+
+### 5.16 Hardware & MIDI
+
+| ID | Feature | Description | Priority |
+|----|---------|-------------|----------|
+| HW1 | **MIDI map deck controls** | Learn mode; maps to `EngineCommand` → same events as UI (§9) | P3 |
+| HW2 | **HID controller profiles** | Rekordbox / Serato compatible devices | P4 |
+| HW3 | **Motorized fader feedback** | — | P4 |
+| HW4 | **Low-latency WASAPI/ASIO** | Windows pro audio | v2 (main spec) |
+
+---
+
+## 6 — Data Model
+
+### 6.1 Persisted per track (`library.db`)
+
+Deck-specific data lives in **dedicated tables** in the same `library.db` as waveforms — not as extra columns on `tracks` or `track_analysis`. Same pattern as `track_waveform` (see [`dj-waveform-spec.md`](dj-waveform-spec.md) §9.4).
+
+```sql
+-- Existing / planned
+track_analysis (bpm, key, duration, ...)
+track_beat_grid (beat timestamps, downbeats)
+track_waveform (overview blob)          -- see dj-waveform-spec.md
+
+-- Deck performance data (separate tables, CASCADE on track delete)
+CREATE TABLE IF NOT EXISTS track_hot_cue (
+    track_id            TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    slot_index          INTEGER NOT NULL,   -- 0..7 (expand to 15)
+    position_secs       REAL NOT NULL,
+    loop_length_beats   INTEGER,            -- NULL = jump cue; set = hotcue loop
+    color               TEXT,
+    label               TEXT,
+    updated_at          TEXT NOT NULL,
+    PRIMARY KEY (track_id, slot_index)
+);
+
+CREATE TABLE IF NOT EXISTS track_loop (
+    track_id            TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
+    slot_index          INTEGER NOT NULL,
+    in_secs             REAL NOT NULL,
+    out_secs            REAL NOT NULL,
+    label               TEXT,
+    color               TEXT,
+    updated_at          TEXT NOT NULL,
+    PRIMARY KEY (track_id, slot_index)
+);
+
+-- Optional later
+track_deck_prefs (
+  track_id, gain_trim_db, last_pitch_percent, last_key_shift,
+  PRIMARY KEY (track_id)
+);
+```
+
+| Table | Rows per track | Written by |
+|-------|----------------|------------|
+| `track_waveform` | 1 | `analyze_track` |
+| `track_hot_cue` | 0–8+ (one per slot) | `save_hot_cue` |
+| `track_loop` | 0–N (one per slot) | `save_loop` |
+
+Load path: when a track is loaded to a deck, read all `track_hot_cue` / `track_loop` rows for that `track_id` into engine memory. No separate bulk `load_*` command required unless we add lazy fetch later.
+
+### 6.2 Runtime per deck (engine)
+
+Extend `Deck` in `engine-dsp` with:
+
+- `transport`: cue point, reverse, slip shadow position
+- `loop`: active region, roll state; saved loops via **`save_loop`** → `track_loop` table
+- `sync`: master reference, tempo target
+- `hot_cues`: in-memory copy; persisted via **`save_hot_cue`** → `track_hot_cue` table
+- `fx_chain`: ordered effects
+- `scratch/jog`: transient speed override
+
+### 6.3 GUI view model
+
+**Today** (`DeckStatus` in `gui-app/src/types.ts`):
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `position_secs` | `number \| null` | Live playhead; null when no track loaded |
+| `duration_secs` | `number \| null` | From loaded track; null when unknown |
+| `playing`, `volume`, `eq`, `track`, `track_id` | — | Already wired |
+
+**Target:** extend `DeckStatus` to expose everything in §4 for 60 fps-safe polling (waveform remains separate invoke). `remaining_secs` stays a UI-derived field unless we add it to the API for convenience.
+
+---
+
+## 7 — Engine vs GUI Responsibilities
+
+| Concern | Engine (Rust) | GUI (React) |
+|---------|---------------|-------------|
+| Audio playback, EQ, FX | Yes | Controls only |
+| Beat grid math, sync, quantize | Yes | Display grid lines |
+| Waveform rasterization | Yes ([dj-waveform-spec.md](dj-waveform-spec.md)) | Blit images |
+| Hot cue / loop persistence | Via `library` commands | Edit UI |
+| Keyboard shortcuts | — | Yes |
+| Jog/scratch gesture | Receives delta commands | Pointer events |
+| State sync to UI | **Emit engine events** (§9) | Subscribe; render only |
+| Toast / errors | Returns structured errors | coss toast |
+
+**Rule:** Any action that affects audio within **<10 ms** must be engine-side; UI sends commands, never computes audio.
+
+**Rule:** The UI must **not** assume it is the only writer of engine state. All consumers (React, future MIDI mapper, future OSC) observe the same **event stream** from the backend (§9).
+
+---
+
+## 8 — API Surface
+
+### 8.1 Current (implemented)
+
+There is **no** `get_deck_state` command. Deck state comes from **`get_status`**, which returns `EngineStatus`:
+
+```text
+EngineStatus
+├── running, backend, sample_rate, crossfader
+└── decks: DeckStatus[]     // one entry per deck (0 = A, 1 = B)
+        ├── id, track, track_id, playing, volume, eq
+        └── position_secs, duration_secs
+```
+
+Most deck mutations (`play_deck`, `pause_deck`, `load_deck_track`, `set_deck_volume`, `set_deck_eq`, …) return an updated **`DeckStatus`** for that deck. The GUI also polls `get_status` every **100 ms** while a deck is playing (`useEngine.tsx`) — this is a stopgap until the event system (§9) lands.
+
+| Command | Returns | Role |
+|---------|---------|------|
+| `get_status` | `EngineStatus` | Snapshot / initial hydrate; fallback if events missed |
+| `play_deck` / `pause_deck` | `DeckStatus` | Transport |
+| `load_deck_track` | `DeckStatus` | Load file or library track |
+| `set_deck_volume` / `set_deck_eq` | `DeckStatus` | Mixer |
+| `render_waveform_lane` | `WaveformFrame` | Rust-side waveform raster (separate from status) |
+
+**Target:** commands still return updated state for convenience, but the **authoritative UI update path** becomes Tauri events (§9), not merge-return + poll.
+
+**Not planned:** a separate `get_deck_state` unless `DeckStatus` grows large enough that per-deck fetch is needed. Prefer extending `DeckStatus` inside `get_status` (and mutation return values) instead.
+
+### 8.2 Proposed — engine (Tauri)
+
+```text
+# Transport (Phase 2+)
+cue_deck, seek_deck, set_pitch, set_reverse
+
+# Sync (Phase 3+)
+set_deck_sync_mode, set_master_deck, nudge_phase
+
+# Cues & loops — runtime (Phase 2+)
+set_hot_cue, trigger_hot_cue, delete_hot_cue
+set_loop_in, set_loop_out, set_auto_loop, exit_loop
+
+# FX (Phase 3+)
+set_deck_filter, set_deck_fx_slot, set_fx_param
+```
+
+### 8.3 Proposed — library persistence
+
+One row per cue/loop slot, same DB as waveforms:
+
+```text
+save_hot_cue(track_id, slot_index, position_secs, loop_length_beats?, color?, label?)
+delete_hot_cue(track_id, slot_index)
+
+save_loop(track_id, slot_index, in_secs, out_secs, label?, color?)
+delete_loop(track_id, slot_index)
+```
+
+No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes one row. `delete_*` clears the slot; engine reload picks up changes on next track load (or immediately if we add a refresh hook).
+
+---
+
+## 9 — Engine Event System
+
+### 9.1 Problem
+
+Today the data flow is **UI-centric**:
+
+```text
+React control  →  Tauri command  →  engine mutates  →  return DeckStatus
+React poll (100 ms)  →  get_status  →  merge into React state
+```
+
+That works when **only the UI** changes the engine. It breaks when:
+
+- A **MIDI controller** adjusts volume, pitch, or transport on a background thread.
+- **Sync logic** changes deck tempo without a matching UI action.
+- **End-of-track** or **loop wrap** updates transport state from the audio thread.
+- Two UI surfaces (e.g. deck panel + mixer) must stay in sync without duplicate invokes.
+
+The UI must subscribe to **engine-originated changes**, not only refresh after its own commands.
+
+### 9.2 Design goals
+
+| Goal | Approach |
+|------|----------|
+| Single source of truth | Engine state lives in Rust; UI is a read-only mirror |
+| Any input path | UI, MIDI, keyboard shortcuts, automation → same command queue |
+| Push, not poll | Tauri events for discrete changes; optional high-rate position channel |
+| Efficient | Coalesce noisy sources (MIDI CC); don’t emit full `EngineStatus` at audio rate |
+| Testable | Emit events from headless engine tests without a window |
+
+### 9.3 Architecture
+
+```text
+                    ┌─────────────────────────────────────┐
+                    │         EngineController            │
+                    │  (owns Engine + AppState.decks)     │
+                    └──────────────┬──────────────────────┘
+                                   │
+         ┌─────────────────────────┼─────────────────────────┐
+         │                         │                         │
+         ▼                         ▼                         ▼
+   UI / Tauri cmd            MIDI mapper (future)      Audio / sync thread
+         │                         │                         │
+         └─────────────────────────┴─────────────────────────┘
+                                   │
+                          apply(EngineCommand)
+                                   │
+                                   ▼
+                          mutate engine state
+                                   │
+                                   ▼
+                          EventBus::emit(...)
+                                   │
+                                   ▼
+                    Tauri AppHandle::emit("engine://…")
+                                   │
+                                   ▼
+              React listen() → setStatus / patch deck fields
+```
+
+**All mutations** go through one Rust entry point (e.g. `EngineController::apply`). Never call `Deck::set_volume` directly from a Tauri command and skip the bus — MIDI will use the same path.
+
+### 9.4 Event types
+
+Use a small versioned envelope so payloads can grow without breaking listeners.
+
+```rust
+#[derive(Clone, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum EngineEvent {
+    /// Full snapshot — after load, start/stop engine, crossfader, any multi-deck change.
+    Status { revision: u64, status: EngineStatus },
+
+    /// Partial patch — preferred for single-deck MIDI tweaks (smaller payload).
+    DeckUpdated { revision: u64, deck: DeckStatus },
+
+    /// High-frequency playhead — optional separate channel (see §9.6).
+    Position { deck_id: usize, position_secs: f64 },
+
+    /// Non-fatal warning (device fallback, analysis skipped, etc.).
+    Notice { message: String },
+
+    /// Fatal to engine session (device lost). UI shows toast; may stop engine.
+    Error { message: String },
+}
+```
+
+Tauri channel names (stable contract):
+
+| Event name | Payload | When |
+|------------|---------|------|
+| `engine://event` | `EngineEvent` | All engine notifications (recommended single listener) |
+| `engine://position` | `{ deck_id, position_secs }` | Optional; only if position split from `Status` |
+
+Frontend: one `listen<EngineEvent>("engine://event", …)` in `EngineProvider`.
+
+### 9.5 When to emit
+
+| Source | Event |
+|--------|-------|
+| `start_engine` / `stop_engine` | `Status` |
+| `load_*`, `play_deck`, `pause_deck`, seek, cue | `DeckUpdated` or `Status` |
+| `set_deck_volume`, `set_deck_eq`, pitch, FX | `DeckUpdated` |
+| `set_crossfader` | `Status` (affects mix globally) |
+| MIDI mapping (future) | Same as equivalent command |
+| Track ended / loop wrapped | `DeckUpdated` (`playing: false` or position jump) |
+| Engine error | `Error` |
+
+Increment **`revision`** on every emit so the UI can ignore out-of-order duplicates.
+
+**Coalescing:** MIDI control change floods (e.g. volume fader) may be coalesced to **≤60 Hz** per `(deck_id, control)` before emit. Final value always emitted on CC release if supported.
+
+### 9.6 Position updates vs full status
+
+`position_secs` changes continuously during playback. Options:
+
+| Strategy | Pros | Cons |
+|----------|------|------|
+| **A — Keep UI poll for position only** | Simple; matches waveform interpolation today | Two mechanisms |
+| **B — `engine://position` at 20–60 Hz from backend timer** | Single push model; MIDI seek updates same stream | Extra thread / timer in Tauri |
+| **C — Extrapolate in UI** | Lowest backend load | Drift if pitch/sync changes |
+
+**Decision (DK11):** Phase 1 — **A** (poll position only). Phase 2 — move to **B** when MIDI + sync land, so external seeks update the same stream as playback.
+
+Waveform hook (`useRenderWaveformLane`) already extrapolates between polls; wire it to `engine://position` when available.
+
+### 9.7 UI integration (`useEngine`)
+
+```text
+Mount EngineProvider
+  ├─ invoke("get_status")           // initial hydrate
+  ├─ listen("engine://event")       // all discrete updates → setStatus / patch
+  └─ optional: listen("engine://position") or 100 ms position poll until §9.6 B
+
+User action (e.g. play)
+  ├─ invoke("play_deck", { deckId })   // fire-and-forget OK once events work
+  └─ do NOT require return value to update UI — wait for DeckUpdated event
+```
+
+Remove duplicate state merges from command return values once events are reliable (keep returns for error handling and tests).
+
+### 9.8 MIDI (future consumer)
+
+MIDI input thread **never** touches React or Tauri directly:
+
+```text
+MIDI IN → map to EngineCommand → EngineController::apply → EventBus → UI
+```
+
+Same events the UI sees from mouse clicks. Hardware faders stay in sync because the UI listens to the same `DeckUpdated` events it did not originate.
+
+### 9.9 Implementation notes (Rust)
+
+- Hold `AppHandle` in `AppState` (or dedicated `EngineNotifier`) for emit after `apply`.
+- Audio callback must **not** call `emit` directly — post to a lock-free queue; Tauri thread drains at 20–60 Hz (position) or immediately (transport).
+- Unit tests: inject a mock `EventSink` trait instead of Tauri.
+
+---
+
+## 10 — Phased Roadmap
+
+### Phase 1 — “Real DJ app shell” (current focus)
+
+Make **what we already have** reliable and **look like** professional deck software (Rekordbox / Serato / Traktor layout), without new engine features yet.
+
+**Engine / behavior (fix & wire existing):**
+
+- Stable load → play/pause on both decks (file picker + library drag-drop)
+- `position_secs` / `duration_secs` polled and shown (elapsed + remaining)
+- Volume faders, 3-band EQ, crossfader — responsive, no stale UI
+- Waveform scroll tracks playhead smoothly during playback
+- Engine auto-start + errors via coss toasts (done)
+- Load library track metadata: **title, artist, BPM, key** on deck (from `TrackSummary` / analysis, not just filename)
+- **Engine event bus (§9):** `engine://event` with `Status` / `DeckUpdated`; UI subscribes in `EngineProvider` (foundation for MIDI)
+
+**UI layout (visual parity, placeholders OK):**
+
+- **Metadata bar** per deck: title, artist, BPM, key, elapsed / remaining / total
+- **Deck chrome**: accent colors, transport row (play/pause prominent; cue/sync as disabled placeholders)
+- **Jog / platter** area: visual only (rotation tied to BPM when playing)
+- **Mixer column** between decks (desktop): faders + EQ + crossfader — already present; polish spacing and labels
+- **Waveform stack** on top: dual scrolling lanes (done); reserve space for overview strip (can be empty or low-res overview until Phase 2)
+- Responsive: deck controls usable at common window sizes
+
+**Explicitly not Phase 1:** hot cues, loops, sync, pitch fader, beat grid overlay, FX, stems, scratch, PFL.
+
+### Phase 2 — “Performance controls” (P1)
+
+- Overview waveform + click seek
+- Beat grid overlay on scroll lane
+- Cue button (hold) + seek/scrub on waveform
+- Hot cues 1–8 (set, trigger, delete) + **`save_hot_cue`** / **`delete_hot_cue`** → `track_hot_cue` table
+- Auto loop + manual loop in/out + **`save_loop`** / **`delete_loop`** → `track_loop` table
+- Quantize toggle
+- Unload / eject track
+- Pitch fader (vinyl-style speed) + effective BPM display
+
+### Phase 3 — “Sync & mix tools” (P2)
+
+- Beat sync + master deck
+- Loop halve/double, beat jump
+- Filter knob (audio + optional waveform tint per dj-waveform-spec §8.6)
+- Key display modes (musical / Camelot)
+- Album art
+- Gain trim per track
+
+### Phase 4 — “Pro features” (P3)
+
+- Slip mode
+- Key lock / time-stretch (requires DSP crate)
+- FX slots (filter + echo + reverb)
+- Jog wheel / scratch (functional)
+- Cue/PFL routing to preview bus
+- VU meters
+- Memory cues
+
+### Phase 5 — “Differentiators” (P4+)
+
+- Stems / pad modes
+- Intelligent cues
+- Sampler
+- Grid editor
+- **MIDI mapping** (consumes §9 event bus + shared `EngineCommand` path)
+- 4-deck layout
+
+---
+
+## 11 — Acceptance Criteria
+
+**Phase 1 complete when:**
+
+1. Both decks: load (picker + drag-drop), play, pause work reliably with no silent failures.
+2. Deck UI shows **title, artist, BPM, key**, **elapsed** (`position_secs`), **remaining**, and **total** (`duration_secs`).
+3. Layout reads as a **DJ app**: waveform stack → deck panels → center mixer; transport and platter visible per deck.
+4. **Volume, EQ, crossfader** reflect engine state; changes apply without glitching audio.
+5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.
+6. Disabled placeholders for future controls (cue, sync, hot cues) do not clutter — clear “coming later” or omitted until Phase 2.
+7. Engine errors use **coss toasts** only.
+8. **`engine://event`** delivered to UI: external `EngineController::apply` (simulated in test) updates React state without a matching UI invoke.
+
+**Phase 2 adds:** overview, beat grid, hot cues/loops with **`save_hot_cue`** / **`save_loop`** persistence in `track_hot_cue` / `track_loop` tables; optional **`engine://position`** stream (§9.6 B).
+
+---
+
+## 12 — References
+
+### Competitor documentation
+
+| Resource | URL |
+|----------|-----|
+| Rekordbox 7 introduction | https://cdn.rekordbox.com/files/20260409151246/rekordbox7.2.14_introduction_EN.pdf |
+| Rekordbox 7 manual (hot cues, analysis) | https://cdn.rekordbox.com/files/20241213141602/rekordbox7.0.7_manual_EN.pdf |
+| Rekordbox features (sync, layouts) | https://rekordbox.com/en/feature/style/ |
+| Serato DJ Pro features | https://serato.com/dj/pro |
+| Serato DJ Pro user manual (cue, loop, slip, sync) | https://d1aeri3ty3izns.cloudfront.net/media/36/366330/download_366330.pdf |
+
+### This repository
+
+| Resource | Path |
+|----------|------|
+| Engine deck DSP | `engine-dsp/src/deck.rs` |
+| GUI deck panel | `gui-app/src/components/DeckPanel.tsx` |
+| GUI deck grid | `gui-app/src/components/DeckGrid.tsx` |
+| Waveform spec | `docs/dj-waveform-spec.md` |
+| Analyzer / beat grid | `docs/audio-analyzer-spec.md` |
+
+### Reference screenshots (session)
+
+- Rekordbox-style: FX row, stem pads, hot cues, loop controls, sync, pitch — `assets/image-42583e66-*.png`
+- DJUCED-style: labeled hot cues, key sync/shift, stem mute, master sync — `assets/image-27f8012a-*.png`
+- Traktor-style: FX assign, colored hot cues 1–8, filter, sync, loop on waveform — `assets/image-f960b3e2-*.png`
+
+---
+
+## Decision log (initial)
+
+| # | Topic | Decision |
+|---|--------|----------|
+| DK1 | Hot cue count MVP | **8** (Serato parity); schema allows **16** |
+| DK2 | Key lock | **Deferred** until time-stretch exists; pitch fader = vinyl mode |
+| DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
+| DK4 | Stems | **Phase 4**; separate spec when chosen |
+| DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |
+| DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (Phase 2) |
+| DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (Phase 2) |
+| DK8 | Deck state API | **`get_status`** only — no `get_deck_state`; extend `DeckStatus` as needed |
+| DK9 | Error UX | **coss toast**; engine start uses **promise toast** |
+| DK10 | Phase 1 scope | **Polish existing features + DJ app look** — no new performance engine features |
+| DK11 | Position stream | Poll in Phase 1; **`engine://position`** push in Phase 2 |
+| DK12 | State sync | **Event bus** — UI subscribes; all inputs use `EngineController::apply` |
