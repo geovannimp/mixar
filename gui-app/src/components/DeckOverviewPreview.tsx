@@ -1,21 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type {
-  DeckActiveLoop,
-  DeckHotCueMarker,
-  DeckLoopMarker,
-  WaveformFrame,
-} from "../types";
-import { WaveformCueMarkers } from "./WaveformCueMarkers";
+import type { WaveformFrame } from "../types";
+
+const OVERVIEW_HEIGHT = 48;
 
 interface DeckOverviewPreviewProps {
   trackId: string | null;
   path: string | null;
   positionSecs: number;
   durationSecs: number | null;
-  hotCues?: DeckHotCueMarker[];
-  loops?: DeckLoopMarker[];
-  activeLoop?: DeckActiveLoop | null;
   disabled?: boolean;
   onSeek?: (positionSecs: number) => void;
 }
@@ -25,9 +18,6 @@ export function DeckOverviewPreview({
   path,
   positionSecs,
   durationSecs,
-  hotCues = [],
-  loops = [],
-  activeLoop = null,
   disabled,
   onSeek,
 }: DeckOverviewPreviewProps) {
@@ -38,17 +28,6 @@ export function DeckOverviewPreview({
 
   const hasTrack = Boolean(trackId || path);
   const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 1;
-
-  const overlayLoops: DeckLoopMarker[] = activeLoop
-    ? [
-        ...loops,
-        {
-          start_secs: activeLoop.in_secs,
-          end_secs: activeLoop.out_secs,
-          active: true,
-        },
-      ]
-    : loops;
 
   useEffect(() => {
     const node = containerRef.current;
@@ -77,12 +56,12 @@ export function DeckOverviewPreview({
       trackId,
       path: trackId ? null : path,
       width,
-      height: 32,
+      height: OVERVIEW_HEIGHT,
       positionSecs: duration / 2,
       visibleSecs: duration,
       bufferRatio: 0,
       includeDetail: false,
-      includeBeatGrid: true,
+      includeBeatGrid: false,
       eqLowDb: 0,
       eqMidDb: 0,
       eqHighDb: 0,
@@ -110,7 +89,7 @@ export function DeckOverviewPreview({
     }
 
     canvas.width = width;
-    canvas.height = 32;
+    canvas.height = OVERVIEW_HEIGHT;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       return;
@@ -127,10 +106,20 @@ export function DeckOverviewPreview({
       strip.width = frame.width;
       strip.height = frame.height;
       strip.getContext("2d")?.putImageData(image, 0, 0);
-      ctx.clearRect(0, 0, width, 32);
-      ctx.drawImage(strip, 0, 0, frame.width, frame.height, 0, 0, width, 32);
+      ctx.clearRect(0, 0, width, OVERVIEW_HEIGHT);
+      ctx.drawImage(
+        strip,
+        0,
+        0,
+        frame.width,
+        frame.height,
+        0,
+        0,
+        width,
+        OVERVIEW_HEIGHT,
+      );
     } catch {
-      ctx.clearRect(0, 0, width, 32);
+      ctx.clearRect(0, 0, width, OVERVIEW_HEIGHT);
     }
   }, [frame, width]);
 
@@ -149,7 +138,7 @@ export function DeckOverviewPreview({
   return (
     <div
       ref={containerRef}
-      className={`relative h-8 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${
+      className={`relative h-12 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${
         onSeek && !disabled && hasTrack ? "cursor-pointer" : ""
       }`}
       onClick={handleSeek}
@@ -162,11 +151,6 @@ export function DeckOverviewPreview({
       {hasTrack ? (
         <>
           <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
-          <WaveformCueMarkers
-            durationSecs={duration}
-            hotCues={hotCues}
-            loops={overlayLoops}
-          />
           <div
             className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.45)]"
             style={{ left: `${playheadPercent}%` }}

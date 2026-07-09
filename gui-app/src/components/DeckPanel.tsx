@@ -7,11 +7,14 @@ import {
   type TrackDragPayload,
 } from "../lib/libraryTable";
 import { buttonCompact, type DeckAccent, DECK_ACCENTS } from "../lib/ui";
+import {
+  formatDeckRemainingDisplay,
+  formatDeckTotalDisplay,
+} from "../lib/format";
 import type { DeckStatus } from "../types";
 import { DeckPadsPanel } from "./DeckPadsPanel";
 import { DeckLoopPanel } from "./DeckLoopPanel";
 import { DeckOverviewPreview } from "./DeckOverviewPreview";
-import { DeckPerformancePanel } from "./DeckPerformancePanel";
 import { DeckTempoPanel } from "./DeckTempoPanel";
 import { DeckTrackInfo } from "./DeckTrackInfo";
 import { DeckCircularButton, JogPlatter } from "./DeckTransport";
@@ -282,16 +285,24 @@ export function DeckPanel({
 
   const mainColumn = (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-      <DeckOverviewPreview
-        trackId={deck.track_id}
-        path={deck.track}
-        positionSecs={deck.position_secs ?? 0}
-        durationSecs={deck.duration_secs}
-        hotCues={deck.hot_cues}
-        activeLoop={deck.active_loop}
-        disabled={transportDisabled}
-        onSeek={onSeek}
-      />
+      <div className="flex shrink-0 flex-col gap-0.5">
+        <div className="flex items-baseline justify-between gap-3 font-mono tabular-nums">
+          <span className="text-sm font-semibold text-zinc-100 sm:text-base">
+            {formatDeckRemainingDisplay(deck.position_secs, deck.duration_secs)}
+          </span>
+          <span className="text-[11px] text-zinc-500 sm:text-xs">
+            {formatDeckTotalDisplay(deck.duration_secs)}
+          </span>
+        </div>
+        <DeckOverviewPreview
+          trackId={deck.track_id}
+          path={deck.track}
+          positionSecs={deck.position_secs ?? 0}
+          durationSecs={deck.duration_secs}
+          disabled={transportDisabled}
+          onSeek={onSeek}
+        />
+      </div>
 
       <div
         className={cn(
@@ -338,24 +349,33 @@ export function DeckPanel({
         >
           {accent.label}
         </h2>
-        <button
-          type="button"
-          className={`${buttonCompact} shrink-0 border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45`}
-          disabled={loadDisabled}
-          title={hasTrack ? "Eject track" : "Load track"}
-          onClick={hasTrack ? onUnload : onPickTrack}
-        >
-          {hasTrack ? "Eject" : "Load"}
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            disabled={transportDisabled}
+            className={`${buttonCompact} border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+              deck.quantize
+                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-200"
+                : "border-white/10 bg-black/25 text-zinc-400"
+            }`}
+            title={deck.quantize ? "Quantize on" : "Quantize off"}
+            onClick={() => onToggleQuantize(!deck.quantize)}
+          >
+            Q
+          </button>
+          <button
+            type="button"
+            className={`${buttonCompact} border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45`}
+            disabled={loadDisabled}
+            title={hasTrack ? "Eject track" : "Load track"}
+            onClick={hasTrack ? onUnload : onPickTrack}
+          >
+            {hasTrack ? "Eject" : "Load"}
+          </button>
+        </div>
       </div>
 
       <DeckTrackInfo deck={deck} />
-
-      <DeckPerformancePanel
-        deck={deck}
-        disabled={transportDisabled}
-        onToggleQuantize={onToggleQuantize}
-      />
 
       <div className="flex min-h-0 flex-1 gap-2">
         {!isDeckA ? tempoPanel : null}

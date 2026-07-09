@@ -1,7 +1,5 @@
 import {
   deckDisplayTitle,
-  formatDeckRemainingDisplay,
-  formatDeckTotalDisplay,
   formatOptional,
 } from "../lib/format";
 import type { DeckStatus } from "../types";
@@ -32,15 +30,6 @@ export function DeckTrackInfo({ deck }: DeckTrackInfoProps) {
         </div>
         <span className="shrink-0 text-[11px] font-medium tabular-nums text-zinc-400">
           {formatOptional(deck.key)}
-        </span>
-      </div>
-
-      <div className="flex items-baseline justify-between gap-3 font-mono tabular-nums">
-        <span className="text-base font-semibold text-zinc-100 sm:text-lg">
-          {formatDeckRemainingDisplay(deck.position_secs, deck.duration_secs)}
-        </span>
-        <span className="text-xs text-zinc-600 sm:text-sm">
-          {formatDeckTotalDisplay(deck.duration_secs)}
         </span>
       </div>
     </div>
