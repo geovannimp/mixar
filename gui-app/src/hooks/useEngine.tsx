@@ -56,6 +56,7 @@ export interface EngineContextValue {
   saveHotCue: (deckId: number, slot: number) => Promise<void>;
   deleteHotCue: (deckId: number, slot: number) => Promise<void>;
   saveLoop: (deckId: number, slot: number) => Promise<void>;
+  recallSavedLoop: (deckId: number, slot: number) => Promise<void>;
   deleteLoop: (deckId: number, slot: number) => Promise<void>;
 }
 
@@ -416,6 +417,15 @@ function useEngineState(): EngineContextValue {
     [runAction],
   );
 
+  const recallSavedLoop = useCallback(
+    async (deckId: number, slot: number) => {
+      await runAction(async () => {
+        await invoke("recall_saved_loop", { deckId, slot });
+      });
+    },
+    [runAction],
+  );
+
   const deleteLoop = useCallback(
     async (deckId: number, slot: number) => {
       await runAction(async () => {
@@ -452,6 +462,7 @@ function useEngineState(): EngineContextValue {
     saveHotCue,
     deleteHotCue,
     saveLoop,
+    recallSavedLoop,
     deleteLoop,
   };
 }

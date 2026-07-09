@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use deck_performance::{
     begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold, exit_deck_loop,
-    apply_deck_performance, fetch_deck_performance, save_hot_cue, save_loop, seek_deck, set_deck_auto_loop,
+    apply_deck_performance, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
+    seek_deck, set_deck_auto_loop,
     set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize, trigger_hot_cue,
     unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
@@ -782,7 +783,7 @@ async fn load_path_to_deck(
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -816,7 +817,7 @@ async fn load_track(
         apply_path_metadata(deck, &path);
     }
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -888,7 +889,7 @@ async fn load_library_track_to_deck(
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -1146,6 +1147,7 @@ async fn render_waveform_lane(
         cover_secs,
         gains,
         beat_grid_for_render,
+        include_beat_grid,
     );
 
     let half_cover = cover_secs / 2.0;
@@ -1245,6 +1247,7 @@ pub fn run() {
             save_hot_cue,
             delete_hot_cue,
             save_loop,
+            recall_saved_loop,
             delete_loop,
             render_waveform_lane,
             get_supported_audio_extensions,

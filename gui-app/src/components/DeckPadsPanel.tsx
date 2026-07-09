@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DeckButton } from "@/components/ui/deck-button";
+import { formatDeckTimeTenth } from "../lib/format";
 import { hotCueAccentForSlot } from "../lib/ui";
 import type { DeckStatus } from "../types";
 
@@ -85,9 +86,9 @@ export function DeckPadsPanel({
               <span className="text-sm font-bold leading-none sm:text-base">
                 {filled && cue?.label ? cue.label : slot + 1}
               </span>
-              {filled && cue?.label ? (
-                <span className="mt-0.5 text-[9px] font-medium uppercase tracking-wide opacity-75">
-                  {slot + 1}
+              {filled ? (
+                <span className="mt-0.5 text-[9px] tabular-nums opacity-75">
+                  {formatDeckTimeTenth(cue?.position_secs)}
                 </span>
               ) : null}
             </DeckButton>

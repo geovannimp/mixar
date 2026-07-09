@@ -59,6 +59,7 @@ pub fn render_scrolling_lane(
     visible_secs: f64,
     gains: WaveformDisplayGains,
     beat_grid: Option<&BeatGridSnapshot>,
+    allow_fallback_grid: bool,
 ) -> Vec<u8> {
     let width = width.max(1);
     let height = height.max(1);
@@ -94,7 +95,7 @@ pub fn render_scrolling_lane(
         })
         .unwrap_or(false);
 
-    if !drew_bpm_grid {
+    if !drew_bpm_grid && allow_fallback_grid {
         draw_second_grid(
             &mut rgba,
             width,
@@ -474,6 +475,7 @@ mod tests {
             24.0,
             WaveformDisplayGains::default(),
             None,
+            false,
         );
         assert_eq!(rgba.len(), 120 * 40 * 4);
     }

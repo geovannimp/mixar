@@ -38,8 +38,13 @@ interface DeckGridProps {
   onLoopIn: (deckId: number) => void;
   onLoopOut: (deckId: number) => void;
   onExitLoop: (deckId: number) => void;
+  onSaveLoop: (deckId: number, slot: number) => void;
+  onRecallSavedLoop: (deckId: number, slot: number) => void;
+  onDeleteLoop: (deckId: number, slot: number) => void;
   onToggleQuantize: (deckId: number, enabled: boolean) => void;
   onUnload: (deckId: number) => void;
+  focusedDeckId: number;
+  onFocusDeck: (deckId: number) => void;
   crossfader: number;
   onCrossfaderChange: (position: number) => void;
 }
@@ -88,8 +93,13 @@ export function DeckGrid({
   onLoopIn,
   onLoopOut,
   onExitLoop,
+  onSaveLoop,
+  onRecallSavedLoop,
+  onDeleteLoop,
   onToggleQuantize,
   onUnload,
+  focusedDeckId,
+  onFocusDeck,
   crossfader,
   onCrossfaderChange,
 }: DeckGridProps) {
@@ -110,7 +120,12 @@ export function DeckGrid({
           maxSize={WAVEFORM_MAX_HEIGHT}
           className="min-h-0 overflow-hidden"
         >
-          <DualDeckWaveform decks={deckList} />
+          <DualDeckWaveform
+            decks={deckList}
+            engineRunning={engineRunning}
+            busy={busy}
+            onSeek={onSeek}
+          />
         </ResizablePanel>
 
         <ResizableHandle
@@ -131,8 +146,10 @@ export function DeckGrid({
             accent={accents[0]}
             accentKey="a"
             deck={deckList[0]}
+            focused={focusedDeckId === deckList[0].id}
             engineRunning={engineRunning}
             busy={busy}
+            onFocus={() => onFocusDeck(deckList[0].id)}
             onPickTrack={() => onPickTrack(deckList[0].id)}
             onTogglePlayback={() =>
               onTogglePlayback(deckList[0].id, deckList[0].playing)
@@ -149,6 +166,11 @@ export function DeckGrid({
             onLoopIn={() => onLoopIn(deckList[0].id)}
             onLoopOut={() => onLoopOut(deckList[0].id)}
             onExitLoop={() => onExitLoop(deckList[0].id)}
+            onSaveLoop={(slot) => onSaveLoop(deckList[0].id, slot)}
+            onRecallSavedLoop={(slot) =>
+              onRecallSavedLoop(deckList[0].id, slot)
+            }
+            onDeleteLoop={(slot) => onDeleteLoop(deckList[0].id, slot)}
             onToggleQuantize={(enabled) =>
               onToggleQuantize(deckList[0].id, enabled)
             }
@@ -173,8 +195,10 @@ export function DeckGrid({
             accent={accents[1]}
             accentKey="b"
             deck={deckList[1]}
+            focused={focusedDeckId === deckList[1].id}
             engineRunning={engineRunning}
             busy={busy}
+            onFocus={() => onFocusDeck(deckList[1].id)}
             onPickTrack={() => onPickTrack(deckList[1].id)}
             onTogglePlayback={() =>
               onTogglePlayback(deckList[1].id, deckList[1].playing)
@@ -191,6 +215,11 @@ export function DeckGrid({
             onLoopIn={() => onLoopIn(deckList[1].id)}
             onLoopOut={() => onLoopOut(deckList[1].id)}
             onExitLoop={() => onExitLoop(deckList[1].id)}
+            onSaveLoop={(slot) => onSaveLoop(deckList[1].id, slot)}
+            onRecallSavedLoop={(slot) =>
+              onRecallSavedLoop(deckList[1].id, slot)
+            }
+            onDeleteLoop={(slot) => onDeleteLoop(deckList[1].id, slot)}
             onToggleQuantize={(enabled) =>
               onToggleQuantize(deckList[1].id, enabled)
             }

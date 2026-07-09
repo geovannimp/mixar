@@ -40,9 +40,14 @@ interface DeckPanelProps {
   onLoopIn: () => void;
   onLoopOut: () => void;
   onExitLoop: () => void;
+  onSaveLoop: (slot: number) => void;
+  onRecallSavedLoop: (slot: number) => void;
+  onDeleteLoop: (slot: number) => void;
   onToggleQuantize: (enabled: boolean) => void;
   onUnload: () => void;
   onDropTrack?: (payload: TrackDragPayload) => void;
+  focused?: boolean;
+  onFocus?: () => void;
 }
 
 export function DeckPanel({
@@ -65,9 +70,14 @@ export function DeckPanel({
   onLoopIn,
   onLoopOut,
   onExitLoop,
+  onSaveLoop,
+  onRecallSavedLoop,
+  onDeleteLoop,
   onToggleQuantize,
   onUnload,
   onDropTrack,
+  focused = false,
+  onFocus,
 }: DeckPanelProps) {
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
@@ -143,6 +153,9 @@ export function DeckPanel({
       onLoopIn={onLoopIn}
       onLoopOut={onLoopOut}
       onExitLoop={onExitLoop}
+      onSaveLoop={onSaveLoop}
+      onRecallSavedLoop={onRecallSavedLoop}
+      onDeleteLoop={onDeleteLoop}
     />
   );
 
@@ -298,6 +311,7 @@ export function DeckPanel({
           path={deck.track}
           positionSecs={deck.position_secs ?? 0}
           durationSecs={deck.duration_secs}
+          hotCues={deck.hot_cues}
           disabled={transportDisabled}
           onSeek={onSeek}
         />
@@ -318,7 +332,8 @@ export function DeckPanel({
     <section
       className={`flex h-full min-h-0 min-w-0 flex-col gap-1 p-2 transition-shadow sm:gap-1.5 sm:p-2.5 ${accent.bg} ${
         dragOver ? "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]" : ""
-      }`}
+      } ${focused ? "ring-1 ring-inset ring-white/20" : ""}`}
+      onPointerDown={() => onFocus?.()}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={(event) => {

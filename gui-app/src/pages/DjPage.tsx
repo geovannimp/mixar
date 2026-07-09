@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -6,10 +6,12 @@ import {
 } from "@/components/ui/resizable";
 import { DeckGrid } from "../components/DeckGrid";
 import { LibraryPanel } from "../components/LibraryPanel";
+import { useDeckHotkeys } from "../hooks/useDeckHotkeys";
 import { useEngine } from "../hooks/useEngine";
 import type { TrackDragPayload } from "../lib/libraryTable";
 
 export function DjPage() {
+  const [focusedDeckId, setFocusedDeckId] = useState(0);
   const {
     status,
     busy,
@@ -36,6 +38,9 @@ export function DjPage() {
     triggerHotCue,
     saveHotCue,
     deleteHotCue,
+    saveLoop,
+    deleteLoop,
+    recallSavedLoop,
   } = useEngine();
 
   const engineRunning = Boolean(status?.running);
@@ -43,6 +48,11 @@ export function DjPage() {
   useEffect(() => {
     void ensureEngineRunning();
   }, [ensureEngineRunning]);
+
+  useDeckHotkeys({
+    focusedDeckId,
+    onTriggerHotCue: triggerHotCue,
+  });
 
   const toggleDeckPlayback = (deckId: number, playing: boolean) => {
     if (playing) {
@@ -94,8 +104,13 @@ export function DjPage() {
             onLoopIn={setDeckLoopIn}
             onLoopOut={setDeckLoopOut}
             onExitLoop={exitDeckLoop}
+            onSaveLoop={saveLoop}
+            onRecallSavedLoop={recallSavedLoop}
+            onDeleteLoop={deleteLoop}
             onToggleQuantize={setDeckQuantize}
             onUnload={unloadDeck}
+            focusedDeckId={focusedDeckId}
+            onFocusDeck={setFocusedDeckId}
             crossfader={status?.crossfader ?? 0.5}
             onCrossfaderChange={setCrossfader}
           />

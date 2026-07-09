@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { WaveformFrame } from "../types";
+import { motion, useMotionValue, useTransform } from "motion/react";
+import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
+import type { DeckHotCueMarker, WaveformFrame } from "../types";
+import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
 const OVERVIEW_HEIGHT = 48;
 
@@ -9,6 +12,7 @@ interface DeckOverviewPreviewProps {
   path: string | null;
   positionSecs: number;
   durationSecs: number | null;
+  hotCues?: DeckHotCueMarker[];
   disabled?: boolean;
   onSeek?: (positionSecs: number) => void;
 }
@@ -18,6 +22,7 @@ export function DeckOverviewPreview({
   path,
   positionSecs,
   durationSecs,
+  hotCues = [],
   disabled,
   onSeek,
 }: DeckOverviewPreviewProps) {
@@ -25,9 +30,22 @@ export function DeckOverviewPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frame, setFrame] = useState<WaveformFrame | null>(null);
   const [width, setWidth] = useState(0);
+  const playheadPercent = useMotionValue(0);
+  const playheadLeft = useTransform(playheadPercent, (value) => `${value}%`);
 
   const hasTrack = Boolean(trackId || path);
   const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 1;
+  const seekEnabled = Boolean(onSeek) && !disabled && hasTrack;
+
+  const { scrubbing, displayPosition, handlers, cursorClass } =
+    useWaveformDragScrub({
+      enabled: seekEnabled,
+      mode: "track",
+      spanSecs: duration,
+      positionSecs,
+      maxSecs: duration,
+      onSeek: onSeek ?? (() => undefined),
+    });
 
   useEffect(() => {
     const node = containerRef.current;
@@ -123,37 +141,39 @@ export function DeckOverviewPreview({
     }
   }, [frame, width]);
 
-  const handleSeek = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!onSeek || disabled || !hasTrack) {
-      return;
-    }
-    const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    onSeek(ratio * duration);
-  };
-
-  const playheadPercent =
-    duration > 0 ? Math.min(100, Math.max(0, (positionSecs / duration) * 100)) : 0;
+  useEffect(() => {
+    const percent =
+      duration > 0
+        ? Math.min(100, Math.max(0, (displayPosition / duration) * 100))
+        : 0;
+    playheadPercent.set(percent);
+  }, [displayPosition, duration, playheadPercent]);
 
   return (
     <div
       ref={containerRef}
-      className={`relative h-12 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${
-        onSeek && !disabled && hasTrack ? "cursor-pointer" : ""
-      }`}
-      onClick={handleSeek}
-      role={onSeek && hasTrack ? "slider" : undefined}
-      aria-label={onSeek && hasTrack ? "Overview waveform seek" : undefined}
+      className={`relative h-12 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${cursorClass}`}
+      {...handlers}
+      role={seekEnabled ? "slider" : undefined}
+      aria-label={seekEnabled ? "Overview waveform seek" : undefined}
       aria-valuemin={0}
       aria-valuemax={duration}
-      aria-valuenow={positionSecs}
+      aria-valuenow={displayPosition}
     >
       {hasTrack ? (
         <>
           <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
-          <div
+          <WaveformCueMarkers
+            durationSecs={duration}
+            hotCues={hotCues}
+          />
+          <motion.div
             className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.45)]"
-            style={{ left: `${playheadPercent}%` }}
+            style={{
+              left: playheadLeft,
+              x: "-50%",
+              opacity: scrubbing ? 1 : 0.92,
+            }}
             aria-hidden
           />
         </>

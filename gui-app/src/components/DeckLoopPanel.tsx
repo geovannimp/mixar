@@ -12,6 +12,9 @@ interface DeckLoopPanelProps {
   onLoopIn: () => void;
   onLoopOut: () => void;
   onExitLoop: () => void;
+  onSaveLoop: (slot: number) => void;
+  onRecallSavedLoop: (slot: number) => void;
+  onDeleteLoop: (slot: number) => void;
 }
 
 export function DeckLoopPanel({
@@ -21,6 +24,9 @@ export function DeckLoopPanel({
   onLoopIn,
   onLoopOut,
   onExitLoop,
+  onSaveLoop,
+  onRecallSavedLoop,
+  onDeleteLoop,
 }: DeckLoopPanelProps) {
   const hasTrack = Boolean(deck.track);
   const controlsDisabled = disabled || !hasTrack;
@@ -31,6 +37,8 @@ export function DeckLoopPanel({
   );
   const resolvedLoopBeatIndex =
     loopBeatIndex >= 0 ? loopBeatIndex : AUTO_LOOP_BEATS.indexOf(4);
+  const loopSlot = Math.min(7, resolvedLoopBeatIndex);
+  const savedLoop = deck.saved_loops.find((loop) => loop.slot === loopSlot);
 
   const setLoopLength = (beats: number) => {
     setLoopBeats(beats);
@@ -52,8 +60,16 @@ export function DeckLoopPanel({
           active={loopActive}
           size="cellWide"
           disabled={controlsDisabled}
-          title={loopActive ? "Disable loop" : "Enable auto loop"}
-          onClick={() => {
+          title={
+            loopActive
+              ? "Disable loop — shift+click to save to slot"
+              : "Enable auto loop"
+          }
+          onClick={(event) => {
+            if (event.shiftKey && loopActive) {
+              onSaveLoop(loopSlot);
+              return;
+            }
             if (loopActive) {
               onExitLoop();
               return;
@@ -79,12 +95,30 @@ export function DeckLoopPanel({
           >
             ‹
           </DeckButton>
-          <span
-            className="flex h-8 min-w-0 items-center justify-center text-[11px] font-medium tabular-nums text-zinc-500 sm:h-9"
-            title="Loop length in beats (reference)"
+          <DeckButton
+            type="button"
+            active={Boolean(savedLoop)}
+            size="cell"
+            disabled={controlsDisabled}
+            className="text-[11px] font-medium tabular-nums"
+            title={
+              savedLoop
+                ? "Click to recall saved loop — shift+click to delete"
+                : "Loop length in beats"
+            }
+            onClick={(event) => {
+              if (!savedLoop) {
+                return;
+              }
+              if (event.shiftKey) {
+                onDeleteLoop(loopSlot);
+                return;
+              }
+              onRecallSavedLoop(loopSlot);
+            }}
           >
             {loopBeats}
-          </span>
+          </DeckButton>
           <DeckButton
             type="button"
             active={loopActive}
