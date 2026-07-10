@@ -1004,22 +1004,26 @@ fn set_deck_speed(
             .map_err(|e| e.to_string())?;
     }
 
+    let mut synced_slaves = Vec::new();
     if deck_id == state.master_deck {
         for slave_id in 0..NUM_DECKS {
             if slave_id == deck_id {
                 continue;
             }
-            if state.decks[slave_id].sync_mode != SyncMode::Off {
-                let mode = state.decks[slave_id].sync_mode;
-                deck_sync::apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
-                if mode == SyncMode::Beat {
-                    deck_sync::align_beat_phase_for_state(&mut state, slave_id, deck_id)?;
-                }
+            if state.decks[slave_id].sync_mode == SyncMode::Off {
+                continue;
             }
+            // Follow master tempo only — do not re-seek phase on every pitch nudge.
+            deck_sync::apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
+            synced_slaves.push(slave_id);
         }
     }
 
-    Ok(publish_deck(&app, &mut state, deck_id))
+    let master_status = publish_deck(&app, &mut state, deck_id);
+    for slave_id in synced_slaves {
+        let _ = publish_deck(&app, &mut state, slave_id);
+    }
+    Ok(master_status)
 }
 
 #[tauri::command]
