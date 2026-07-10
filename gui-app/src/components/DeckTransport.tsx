@@ -1,5 +1,5 @@
-import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { barCycleRotationDeg, getBarCycleDurationSecs } from "../lib/format";
@@ -16,7 +16,7 @@ interface JogPlatterProps {
   speed?: number;
 }
 
-/** Flat jog wheel — rotation follows track tempo; accent ring shows playhead progress. */
+/** Flat jog wheel — bar tracker follows tempo; outer ring shows track progress. */
 export function JogPlatter({
   accent: accentKey,
   playing,
@@ -27,7 +27,6 @@ export function JogPlatter({
   speed = 1,
 }: JogPlatterProps) {
   const accent = DECK_ACCENTS[accentKey];
-  const [spinKey, setSpinKey] = useState(0);
   const trackerRotate = useMotionValue(0);
   const lastPositionRef = useRef(0);
   const rotationRef = useRef(0);
@@ -49,14 +48,7 @@ export function JogPlatter({
   const ringStroke =
     accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
 
-  useEffect(() => {
-    if (playing) {
-      setSpinKey((value) => value + 1);
-    }
-  }, [playing]);
-
   const effectiveBpm = bpm != null && bpm > 0 ? bpm : 120;
-  const spinDurationSec = 60 / effectiveBpm;
 
   useEffect(() => {
     if (!hasTrack) {
@@ -134,15 +126,7 @@ export function JogPlatter({
           ) : null}
         </svg>
 
-        <div
-          key={spinKey}
-          className={`absolute inset-3 rounded-full border border-white/10 bg-zinc-900/90 sm:inset-3.5 ${playing ? "animate-deck-platter" : ""}`}
-          style={
-            playing
-              ? ({ animationDuration: `${spinDurationSec}s` } satisfies CSSProperties)
-              : undefined
-          }
-        >
+        <div className="absolute inset-3 rounded-full border border-white/10 bg-zinc-900/90 sm:inset-3.5">
           <div
             className={`absolute inset-0 rounded-full bg-linear-to-br opacity-25 ${accent.waveform}`}
           />
