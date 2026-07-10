@@ -9,7 +9,6 @@ import {
   engineActions,
   useCrossfader,
   useDeckMixerChannel,
-  useEngineBusy,
 } from "../hooks/useEngine";
 import { getDefaultDeck } from "../stores/defaultDeck";
 import { RotaryKnob } from "./RotaryKnob";
@@ -73,7 +72,6 @@ interface MixerTopKnobRowProps {
   decks: DeckStatus[];
   accents: readonly [(typeof DECK_ACCENTS)["a"], (typeof DECK_ACCENTS)["b"]];
   channelUi: ChannelMixerUi[];
-  disabled?: boolean;
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onGainChange: (deckId: number, gainDb: number) => void;
 }
@@ -82,7 +80,6 @@ function MixerTopKnobRow({
   decks,
   accents,
   channelUi,
-  disabled,
   onEqChange,
   onGainChange,
 }: MixerTopKnobRowProps) {
@@ -96,7 +93,6 @@ function MixerTopKnobRow({
           label="HI"
           value={eq0.high}
           accent={accents[0]}
-          disabled={disabled}
           onValueChange={(high) => onEqChange(0, { ...eq0, high })}
         />
       </div>
@@ -109,7 +105,6 @@ function MixerTopKnobRow({
             accent={accents[0]}
             min={EQ_MIN_DB}
             max={EQ_MAX_DB}
-            disabled={disabled}
             onValueChange={(gainDb) => onGainChange(0, gainDb)}
           />
         </div>
@@ -120,7 +115,6 @@ function MixerTopKnobRow({
             accent={accents[1]}
             min={EQ_MIN_DB}
             max={EQ_MAX_DB}
-            disabled={disabled}
             onValueChange={(gainDb) => onGainChange(1, gainDb)}
           />
         </div>
@@ -131,7 +125,6 @@ function MixerTopKnobRow({
           label="HI"
           value={eq1.high}
           accent={accents[1]}
-          disabled={disabled}
           onValueChange={(high) => onEqChange(1, { ...eq1, high })}
         />
       </div>
@@ -298,7 +291,6 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
 interface DeckMixerProps {
   decks: DeckStatus[];
   crossfader: number;
-  disabled?: boolean;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onCrossfaderChange: (position: number) => void;
@@ -307,7 +299,6 @@ interface DeckMixerProps {
 function DeckMixerView({
   decks,
   crossfader,
-  disabled,
   onVolumeChange,
   onEqChange,
   onCrossfaderChange,
@@ -341,7 +332,6 @@ function DeckMixerView({
           decks={decks}
           accents={accents}
           channelUi={channelUi}
-          disabled={disabled}
           onEqChange={onEqChange}
           onGainChange={(deckId, gainDb) => updateChannelUi(deckId, { gainDb })}
         />
@@ -351,7 +341,6 @@ function DeckMixerView({
             accent={accents[0]}
             eq={decks[0]?.eq ?? DEFAULT_DECK_EQ}
             filterDb={channelUi[0]?.filterDb ?? 0}
-            disabled={disabled}
             onEqChange={(eq) => onEqChange(0, eq)}
             onFilterChange={(filterDb) => updateChannelUi(0, { filterDb })}
           />
@@ -361,7 +350,6 @@ function DeckMixerView({
               channelAccent={channelAccents[0]}
               volume={decks[0]?.volume ?? 1}
               cue={channelUi[0]?.cue ?? false}
-              disabled={disabled}
               onVolumeChange={(volume) => onVolumeChange(0, volume)}
               onCueChange={(cue) => updateChannelUi(0, { cue })}
             />
@@ -369,7 +357,6 @@ function DeckMixerView({
               channelAccent={channelAccents[1]}
               volume={decks[1]?.volume ?? 1}
               cue={channelUi[1]?.cue ?? false}
-              disabled={disabled}
               onVolumeChange={(volume) => onVolumeChange(1, volume)}
               onCueChange={(cue) => updateChannelUi(1, { cue })}
             />
@@ -379,7 +366,6 @@ function DeckMixerView({
             accent={accents[1]}
             eq={decks[1]?.eq ?? DEFAULT_DECK_EQ}
             filterDb={channelUi[1]?.filterDb ?? 0}
-            disabled={disabled}
             onEqChange={(eq) => onEqChange(1, eq)}
             onFilterChange={(filterDb) => updateChannelUi(1, { filterDb })}
           />
@@ -387,7 +373,6 @@ function DeckMixerView({
 
         <Crossfader
           position={crossfader}
-          disabled={disabled}
           onPositionChange={onCrossfaderChange}
         />
       </div>
@@ -396,7 +381,6 @@ function DeckMixerView({
 }
 
 export function DeckMixer() {
-  const busy = useEngineBusy();
   const crossfader = useCrossfader();
   const deck0 = useDeckMixerChannel(0);
   const deck1 = useDeckMixerChannel(1);
@@ -411,7 +395,6 @@ export function DeckMixer() {
     <DeckMixerView
       decks={decks}
       crossfader={crossfader}
-      disabled={busy}
       onVolumeChange={setDeckVolume}
       onEqChange={setDeckEq}
       onCrossfaderChange={setCrossfader}

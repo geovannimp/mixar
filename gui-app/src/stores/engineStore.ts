@@ -28,13 +28,15 @@ function getDeck(status: EngineStatus | null, deckId: number): DeckStatus {
 
 interface EngineStoreState {
   status: EngineStatus | null;
-  busy: boolean;
+  busyDecks: [boolean, boolean];
   revision: number;
   starting: boolean;
   applyEvent: (event: EngineEvent) => void;
   setStatus: (status: EngineStatus | null) => void;
-  setBusy: (busy: boolean) => void;
-  runBlockingAction: (action: () => Promise<void>) => Promise<void>;
+  runDeckBlockingAction: (
+    deckId: number,
+    action: () => Promise<void>,
+  ) => Promise<void>;
   ensureEngineRunning: () => Promise<void>;
   loadLibraryTrackToDeck: (deckId: number, trackId: string) => Promise<void>;
   loadPathToDeck: (deckId: number, path: string) => Promise<void>;
@@ -65,7 +67,7 @@ interface EngineStoreState {
 
 export const useEngineStore = create<EngineStoreState>((set, get) => ({
   status: null,
-  busy: false,
+  busyDecks: [false, false],
   revision: 0,
   starting: false,
 
@@ -91,16 +93,25 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setStatus: (status) => set({ status }),
 
-  setBusy: (busy) => set({ busy }),
-
-  runBlockingAction: async (action) => {
-    set({ busy: true });
+  runDeckBlockingAction: async (deckId, action) => {
+    if (deckId < 0 || deckId > 1) {
+      return;
+    }
+    set((state) => {
+      const busyDecks = [...state.busyDecks] as [boolean, boolean];
+      busyDecks[deckId] = true;
+      return { busyDecks };
+    });
     try {
       await action();
     } catch (err) {
       reportEngineError(String(err));
     } finally {
-      set({ busy: false });
+      set((state) => {
+        const busyDecks = [...state.busyDecks] as [boolean, boolean];
+        busyDecks[deckId] = false;
+        return { busyDecks };
+      });
     }
   },
 
@@ -110,7 +121,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       return;
     }
 
-    set({ starting: true, busy: true });
+    set({ starting: true });
     try {
       await toastManager.promise(
         (async () => {
@@ -126,12 +137,12 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
         },
       );
     } finally {
-      set({ starting: false, busy: false });
+      set({ starting: false });
     }
   },
 
   loadPathToDeck: async (deckId, path) => {
-    await get().runBlockingAction(async () => {
+    await get().runDeckBlockingAction(deckId, async () => {
       await invoke("load_path_to_deck", { deckId, path });
     });
   },
@@ -148,21 +159,25 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   loadLibraryTrackToDeck: async (deckId, trackId) => {
-    await get().runBlockingAction(async () => {
+    await get().runDeckBlockingAction(deckId, async () => {
       await invoke("load_library_track_to_deck", { deckId, trackId });
     });
   },
 
   playDeck: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("play_deck", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   pauseDeck: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("pause_deck", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   setDeckVolume: async (deckId, volume) => {
@@ -215,15 +230,17 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   unloadDeck: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    await get().runDeckBlockingAction(deckId, async () => {
       await invoke("unload_deck", { deckId });
     });
   },
 
   setDeckCuePoint: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("set_deck_cue_point", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   beginDeckCueHold: async (deckId) => {
@@ -251,63 +268,83 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setDeckAutoLoop: async (deckId, beats) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("set_deck_auto_loop", { deckId, beats });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   setDeckLoopIn: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("set_deck_loop_in", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   setDeckLoopOut: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("set_deck_loop_out", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   exitDeckLoop: async (deckId) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("exit_deck_loop", { deckId });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   triggerHotCue: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("trigger_hot_cue", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   saveHotCue: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("save_hot_cue", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   deleteHotCue: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("delete_hot_cue", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   saveLoop: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("save_loop", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   recallSavedLoop: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("recall_saved_loop", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 
   deleteLoop: async (deckId, slot) => {
-    await get().runBlockingAction(async () => {
+    try {
       await invoke("delete_loop", { deckId, slot });
-    });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
   },
 }));
 
@@ -495,7 +532,13 @@ export function useEngineRunning(): boolean {
 }
 
 export function useEngineBusy(): boolean {
-  return useEngineStore((state) => state.busy);
+  return useEngineStore(
+    (state) => state.starting || state.busyDecks[0] || state.busyDecks[1],
+  );
+}
+
+export function useDeckBusy(deckId: number): boolean {
+  return useEngineStore((state) => state.busyDecks[deckId] ?? false);
 }
 
 export function useEngineHeaderInfo() {

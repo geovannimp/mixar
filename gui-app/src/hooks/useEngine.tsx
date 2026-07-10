@@ -4,6 +4,7 @@ export {
   engineActions,
   useEngineRunning,
   useEngineBusy,
+  useDeckBusy,
   useEngineHeaderInfo,
   useCrossfader,
   useDeckHasTrack,

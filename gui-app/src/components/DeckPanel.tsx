@@ -17,7 +17,7 @@ import {
   useDeckControls,
   useDeckOverview,
   useDeckTransport,
-  useEngineBusy,
+  useDeckBusy,
   useEngineRunning,
 } from "../hooks/useEngine";
 import { getDefaultDeck } from "../stores/defaultDeck";
@@ -305,15 +305,15 @@ export function DeckPanel({
 }: DeckPanelProps) {
   const accent = DECK_ACCENTS[accentKey];
   const engineRunning = useEngineRunning();
-  const busy = useEngineBusy();
+  const deckBusy = useDeckBusy(deckId);
   const controls = useDeckControls(deckId);
   const [dragOver, setDragOver] = useState(false);
   const dragDepthRef = useRef(0);
 
-  const loadDisabled = busy || !engineRunning;
+  const loadDisabled = deckBusy || !engineRunning;
   const hasTrack = Boolean(controls.track);
-  const dropEnabled = engineRunning && !busy;
-  const transportDisabled = busy || !engineRunning || !hasTrack;
+  const dropEnabled = engineRunning && !deckBusy;
+  const transportDisabled = deckBusy || !engineRunning || !hasTrack;
   const isDeckA = accentKey === "a";
 
   const deckForInfo: DeckStatus = {
