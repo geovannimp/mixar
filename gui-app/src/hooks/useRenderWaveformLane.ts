@@ -2,14 +2,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeckEq, WaveformFrame } from "../types";
 import {
-  WAVEFORM_BUFFER_RATIO,
-  WAVEFORM_REFRESH_MARGIN,
-  WAVEFORM_VISIBLE_SECS,
-} from "../lib/spectralColor";
+  WaveformTrackCache,
+} from "../lib/waveformTrackCache";
+import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
+
+const MAX_CONCURRENT_TILE_FETCHES = 3;
 
 interface UseRenderWaveformLaneOptions {
   trackId: string | null;
   path: string | null;
+  durationSecs: number | null | undefined;
   positionSecs: number;
   playing: boolean;
   speed?: number;
@@ -23,118 +25,138 @@ interface UseRenderWaveformLaneOptions {
 export function useRenderWaveformLane({
   trackId,
   path,
+  durationSecs,
   positionSecs,
   playing,
-  speed = 1,
   eq,
   width,
   height,
   getPosition,
   isScrubbing,
 }: UseRenderWaveformLaneOptions) {
-  const [frame, setFrame] = useState<WaveformFrame | null>(null);
+  const [trackCache, setTrackCache] = useState<WaveformTrackCache | null>(null);
+  const [tileRevision, setTileRevision] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const frameRef = useRef<WaveformFrame | null>(null);
-  const inFlightRef = useRef(false);
+  const cacheRef = useRef<WaveformTrackCache | null>(null);
+  const inFlightRef = useRef(0);
   const requestIdRef = useRef(0);
 
-  const enginePosRef = useRef(positionSecs);
-  const engineAtRef = useRef(performance.now());
-  const playingRef = useRef(playing);
-  const speedRef = useRef(speed);
   const getPositionRef = useRef(getPosition);
   const isScrubbingRef = useRef(isScrubbing);
+  const eqRef = useRef(eq);
 
-  playingRef.current = playing;
-  speedRef.current = speed;
   getPositionRef.current = getPosition;
   isScrubbingRef.current = isScrubbing;
+  eqRef.current = eq;
 
-  useEffect(() => {
-    enginePosRef.current = positionSecs;
-    engineAtRef.current = performance.now();
-  }, [positionSecs]);
+  const duration =
+    durationSecs != null && durationSecs > 0 ? durationSecs : null;
 
-  const estimatedPosition = useCallback(() => {
-    if (isScrubbingRef.current?.()) {
-      return getPositionRef.current();
-    }
-    if (!playingRef.current) {
-      return enginePosRef.current;
-    }
-    const elapsed = (performance.now() - engineAtRef.current) / 1000;
-    return enginePosRef.current + elapsed * speedRef.current;
-  }, []);
-
-  const fetchStrip = useCallback(
-    async (position: number, includeDetail: boolean) => {
-      if ((!trackId && !path) || width <= 0 || height <= 0) {
-        frameRef.current = null;
-        setFrame(null);
+  const fetchTile = useCallback(
+    async (cache: WaveformTrackCache, tileIndex: number, requestId: number) => {
+      if ((!trackId && !path) || !cache.tryMarkPending(tileIndex)) {
         return;
       }
 
-      if (inFlightRef.current) {
-        return;
-      }
-
-      inFlightRef.current = true;
-      const requestId = ++requestIdRef.current;
+      inFlightRef.current += 1;
       setLoading(true);
 
+      const { start, duration: tileDuration } = cache.tileRange(tileIndex);
+      const tileWidth = cache.tileWidthPx(tileIndex);
+
       try {
-        const nextFrame = await invoke<WaveformFrame>("render_waveform_lane", {
+        const frame = await invoke<WaveformFrame>("render_waveform_lane", {
           trackId,
           path: trackId ? null : path,
-          width,
+          width: tileWidth,
           height,
-          positionSecs: position,
-          visibleSecs: WAVEFORM_VISIBLE_SECS,
-          bufferRatio: WAVEFORM_BUFFER_RATIO,
-          includeDetail,
+          positionSecs: start + tileDuration / 2,
+          visibleSecs: tileDuration,
+          bufferRatio: 0,
+          includeDetail: true,
           includeBeatGrid: true,
-          eqLowDb: eq.low,
-          eqMidDb: eq.mid,
-          eqHighDb: eq.high,
+          eqLowDb: eqRef.current.low,
+          eqMidDb: eqRef.current.mid,
+          eqHighDb: eqRef.current.high,
         });
 
-        if (requestId === requestIdRef.current) {
-          frameRef.current = nextFrame;
-          setFrame(nextFrame);
+        if (requestId !== requestIdRef.current) {
+          cache.clearPending(tileIndex);
+          return;
         }
+
+        cache.blitTile(frame, tileIndex);
+        setTileRevision(cache.tileRevision);
       } catch (err) {
-        console.error("render_waveform_lane failed", err);
-        if (requestId === requestIdRef.current) {
-          frameRef.current = null;
-          setFrame(null);
-        }
+        console.error("render_waveform_lane tile failed", err);
+        cache.clearPending(tileIndex);
       } finally {
-        inFlightRef.current = false;
-        if (requestId === requestIdRef.current) {
+        inFlightRef.current = Math.max(0, inFlightRef.current - 1);
+        if (inFlightRef.current === 0) {
           setLoading(false);
         }
       }
     },
-    [trackId, path, width, height, eq.low, eq.mid, eq.high],
+    [trackId, path, height],
+  );
+
+  const ensureVisibleTiles = useCallback(
+    (prefetchMargin = 1) => {
+      const cache = cacheRef.current;
+      if (!cache || !duration) {
+        return;
+      }
+
+      const position = getPositionRef.current();
+      const viewStart = position - cache.visibleSecs / 2;
+      const viewEnd = position + cache.visibleSecs / 2;
+      const missing = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin);
+      const requestId = requestIdRef.current;
+
+      let started = 0;
+      for (const tileIndex of missing) {
+        if (inFlightRef.current + started >= MAX_CONCURRENT_TILE_FETCHES) {
+          break;
+        }
+        started += 1;
+        void fetchTile(cache, tileIndex, requestId);
+      }
+    },
+    [duration, fetchTile],
   );
 
   useEffect(() => {
-    frameRef.current = null;
-    setFrame(null);
-    const pos = getPositionRef.current();
-    void fetchStrip(pos, false).then(() => fetchStrip(pos, true));
-  }, [trackId, path, width, height, fetchStrip]);
+    requestIdRef.current += 1;
+    cacheRef.current = null;
+    setTrackCache(null);
+    setTileRevision(0);
 
-  useEffect(() => {
-    if (playing || isScrubbingRef.current?.()) {
+    if ((!trackId && !path) || width <= 0 || height <= 0 || !duration) {
       return;
     }
-    const current = frameRef.current;
-    if (!current || needsRefresh(current, positionSecs)) {
-      void fetchStrip(positionSecs, true);
+
+    const cache = WaveformTrackCache.create(width, height, duration);
+    cacheRef.current = cache;
+    setTrackCache(cache);
+
+    const position = getPositionRef.current();
+    const viewStart = position - cache.visibleSecs / 2;
+    const viewEnd = position + cache.visibleSecs / 2;
+    const requestId = requestIdRef.current;
+    const initialTiles = cache.missingTileIndices(viewStart, viewEnd, 0);
+
+    for (const tileIndex of initialTiles.slice(0, MAX_CONCURRENT_TILE_FETCHES)) {
+      void fetchTile(cache, tileIndex, requestId);
     }
-  }, [playing, positionSecs, fetchStrip]);
+  }, [trackId, path, width, height, duration, eq.low, eq.mid, eq.high, fetchTile]);
+
+  useEffect(() => {
+    if (playing) {
+      return;
+    }
+    ensureVisibleTiles(0);
+  }, [playing, positionSecs, ensureVisibleTiles]);
 
   useEffect(() => {
     if (!playing) {
@@ -143,16 +165,7 @@ export function useRenderWaveformLane({
 
     let frameId = 0;
     const tick = () => {
-      if (isScrubbingRef.current?.()) {
-        frameId = window.requestAnimationFrame(tick);
-        return;
-      }
-
-      const estimated = getPositionRef.current();
-      const current = frameRef.current;
-      if (current && needsRefresh(current, estimated) && !inFlightRef.current) {
-        void fetchStrip(estimated, true);
-      }
+      ensureVisibleTiles(1);
       frameId = window.requestAnimationFrame(tick);
     };
     frameId = window.requestAnimationFrame(tick);
@@ -160,16 +173,15 @@ export function useRenderWaveformLane({
     return () => {
       window.cancelAnimationFrame(frameId);
     };
-  }, [playing, fetchStrip]);
+  }, [playing, ensureVisibleTiles]);
 
-  return { frame, estimatedPosition, loading };
-}
+  const estimatedPosition = useCallback(() => getPositionRef.current(), []);
 
-function needsRefresh(frame: WaveformFrame, positionSecs: number): boolean {
-  const halfVisible = frame.visible_secs / 2;
-  const leftSlack = positionSecs - halfVisible - frame.cover_start_secs;
-  const rightSlack = frame.cover_end_secs - (positionSecs + halfVisible);
-  const minSlack =
-    frame.visible_secs * WAVEFORM_BUFFER_RATIO * WAVEFORM_REFRESH_MARGIN;
-  return leftSlack < minSlack || rightSlack < minSlack;
+  return {
+    trackCache,
+    tileRevision,
+    visibleSecs: WAVEFORM_VISIBLE_SECS,
+    estimatedPosition,
+    loading,
+  };
 }

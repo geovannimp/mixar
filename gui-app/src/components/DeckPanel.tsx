@@ -157,6 +157,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
         hasTrack={Boolean(deck.track)}
         positionSecs={deck.position_secs ?? 0}
         durationSecs={deck.duration_secs}
+        speed={deck.speed}
       />
       <div className="flex items-end gap-2">
         {isDeckA ? (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, useTransform } from "motion/react";
-import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
+import { useWaveformClickSeek } from "../hooks/useWaveformClickSeek";
 import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
 import type { DeckHotCueMarker, WaveformFrame } from "../types";
 import { WaveformCueMarkers } from "./WaveformCueMarkers";
@@ -53,16 +53,10 @@ export function DeckOverviewPreview({
     return `${percent}%`;
   });
 
-  const { scrubbing, getPosition, handlers, cursorClass } = useWaveformDragScrub({
+  const { handlers, cursorClass } = useWaveformClickSeek({
     enabled: seekEnabled,
-    mode: "track",
-    spanSecs: duration,
-    positionSecs,
-    playing,
-    speed,
-    maxSecs: duration,
+    durationSecs: duration,
     onSeek: onSeek ?? (() => undefined),
-    playhead,
   });
 
   useEffect(() => {
@@ -163,13 +157,12 @@ export function DeckOverviewPreview({
     <div
       ref={containerRef}
       className={`relative h-12 shrink-0 overflow-hidden rounded border border-white/8 bg-black/40 ${cursorClass}`}
-      style={{ touchAction: seekEnabled ? "none" : undefined }}
       {...handlers}
       role={seekEnabled ? "slider" : undefined}
       aria-label={seekEnabled ? "Overview waveform seek" : undefined}
       aria-valuemin={0}
       aria-valuemax={duration}
-      aria-valuenow={getPosition()}
+      aria-valuenow={playhead.getPosition()}
     >
       {hasTrack ? (
         <>
@@ -183,7 +176,7 @@ export function DeckOverviewPreview({
             style={{
               left: playheadLeft,
               x: "-50%",
-              opacity: scrubbing ? 1 : 0.92,
+              opacity: 0.92,
             }}
             aria-hidden
           />

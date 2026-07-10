@@ -1,8 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { animate, motion, useMotionValue } from "motion/react";
+import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { barCycleRotationDeg, getBarCycleDurationSecs } from "../lib/format";
+import { useSmoothTrackProgress } from "../hooks/useSmoothTrackProgress";
 import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
 
 interface JogPlatterProps {
@@ -12,6 +13,7 @@ interface JogPlatterProps {
   hasTrack: boolean;
   positionSecs?: number;
   durationSecs?: number | null;
+  speed?: number;
 }
 
 /** Flat jog wheel — rotation follows track tempo; accent ring shows playhead progress. */
@@ -22,6 +24,7 @@ export function JogPlatter({
   hasTrack,
   positionSecs = 0,
   durationSecs,
+  speed = 1,
 }: JogPlatterProps) {
   const accent = DECK_ACCENTS[accentKey];
   const [spinKey, setSpinKey] = useState(0);
@@ -29,6 +32,22 @@ export function JogPlatter({
   const lastPositionRef = useRef(0);
   const rotationRef = useRef(0);
   const trackerInitializedRef = useRef(false);
+
+  const trackProgress = useSmoothTrackProgress({
+    positionSecs,
+    durationSecs,
+    playing,
+    speed,
+  });
+
+  const ringRadius = 46;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringDashoffset = useTransform(
+    trackProgress,
+    (progress) => ringCircumference * (1 - progress),
+  );
+  const ringStroke =
+    accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
 
   useEffect(() => {
     if (playing) {
@@ -77,15 +96,6 @@ export function JogPlatter({
       ease: "linear",
     });
   }, [positionSecs, effectiveBpm, hasTrack, trackerRotate]);
-  const trackProgress =
-    durationSecs != null && durationSecs > 0
-      ? Math.min(1, Math.max(0, positionSecs / durationSecs))
-      : 0;
-  const ringRadius = 46;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringDashoffset = ringCircumference * (1 - trackProgress);
-  const ringStroke =
-    accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
 
   return (
     <div
@@ -110,7 +120,7 @@ export function JogPlatter({
             strokeWidth="2"
           />
           {hasTrack ? (
-            <circle
+            <motion.circle
               cx="50"
               cy="50"
               r={ringRadius}
@@ -119,8 +129,7 @@ export function JogPlatter({
               strokeWidth="2"
               strokeLinecap="round"
               strokeDasharray={ringCircumference}
-              strokeDashoffset={ringDashoffset}
-              className="transition-[stroke-dashoffset] duration-150"
+              style={{ strokeDashoffset: ringDashoffset }}
             />
           ) : null}
         </svg>

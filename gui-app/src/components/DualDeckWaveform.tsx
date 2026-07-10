@@ -1,6 +1,5 @@
 import { memo, useCallback } from "react";
 import { DECK_ACCENTS } from "../lib/ui";
-import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
 import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
 import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
 import {
@@ -34,9 +33,10 @@ const WaveformLane = memo(function WaveformLane({
     maxSecs: durationSecs,
   });
 
-  const { frame } = useRenderWaveformLane({
+  const { trackCache, tileRevision, visibleSecs } = useRenderWaveformLane({
     trackId: deck.track_id,
     path: deck.track,
+    durationSecs: deck.duration_secs,
     positionSecs,
     playing: deck.playing,
     speed: deck.speed,
@@ -46,8 +46,6 @@ const WaveformLane = memo(function WaveformLane({
     getPosition: playhead.getPosition,
     isScrubbing: playhead.isScrubbing,
   });
-
-  const visibleSecs = frame?.visible_secs ?? WAVEFORM_VISIBLE_SECS;
   const seekEnabled = hasTrack && engineRunning;
 
   const handleSeek = useCallback(
@@ -84,7 +82,9 @@ const WaveformLane = memo(function WaveformLane({
       aria-valuenow={ariaValueNow}
     >
       <RustRenderedLane
-        frame={frame}
+        trackCache={trackCache}
+        tileRevision={tileRevision}
+        viewportWidth={size.width}
         motionPos={playhead.motionPos}
         label={accent.label}
         labelClass={accent.text}
