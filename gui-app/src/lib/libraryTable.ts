@@ -319,13 +319,8 @@ export function formatColumnValue(
   }
 }
 
-export function rowMatchesFilter(row: LibraryTableRow, filter: string): boolean {
-  const query = filter.trim().toLowerCase();
-  if (!query) {
-    return true;
-  }
-
-  const haystack = [
+export function libraryRowSearchText(row: LibraryTableRow): string {
+  return [
     rowTitle(row),
     rowPath(row),
     row.source === "library"
@@ -347,10 +342,16 @@ export function rowMatchesFilter(row: LibraryTableRow, filter: string): boolean 
         : null,
   ]
     .filter((value): value is string => Boolean(value))
-    .join(" ")
-    .toLowerCase();
+    .join(" ");
+}
 
-  return haystack.includes(query);
+export function rowMatchesFilter(row: LibraryTableRow, filter: string): boolean {
+  const query = filter.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  return libraryRowSearchText(row).toLowerCase().includes(query);
 }
 
 export function sortLibraryRows(

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface LibraryPaneProps {
   title: string;
@@ -6,6 +7,7 @@ interface LibraryPaneProps {
   tabs?: ReactNode;
   headerInline?: ReactNode;
   headerAction?: ReactNode;
+  scrollable?: boolean;
   children: ReactNode;
 }
 
@@ -15,6 +17,7 @@ export function LibraryPane({
   tabs,
   headerInline,
   headerAction,
+  scrollable = true,
   children,
 }: LibraryPaneProps) {
   return (
@@ -28,7 +31,14 @@ export function LibraryPane({
           action={headerAction}
         />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">{children}</div>
+      <div
+        className={cn(
+          "min-h-0 flex-1 px-2 pb-3",
+          scrollable ? "overflow-y-auto" : "flex flex-col overflow-hidden",
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }

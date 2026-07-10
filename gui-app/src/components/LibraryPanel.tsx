@@ -12,13 +12,11 @@ import { useSettings } from "../hooks/useSettings";
 import {
   libraryRowFromFile,
   libraryRowFromTrack,
-  cycleLibraryTableSort,
-  type LibraryTableSort,
 } from "../lib/libraryTable";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "../lib/libraryTable";
 import { normalizeAppSettings } from "../lib/busSettings";
 import { buttonIcon } from "../lib/ui";
-import type { LibrarySourceTab, LibraryTableColumn, LibraryTableRow } from "../types";
+import type { LibrarySourceTab, LibraryTableRow } from "../types";
 import { CollectionList } from "./CollectionList";
 import { DriveBrowser } from "./DriveBrowser";
 import { DriveSelector } from "./DriveSelector";
@@ -34,7 +32,15 @@ export function LibraryPanel() {
   const { loadLibraryTrackToDeck, loadPathToDeck } = engineActions;
   const [sourceTab, setSourceTab] = useState<LibrarySourceTab>("collections");
   const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<LibraryTableSort>(null);
+  const [debouncedFilter, setDebouncedFilter] = useState("");
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedFilter(filter);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [filter]);
 
   const { settings, refresh: refreshSettings } = useSettings();
 
@@ -119,10 +125,6 @@ export function LibraryPanel() {
       : !currentPath
         ? "Select a drive or folder to browse audio files."
         : "No audio files in this folder.";
-
-  const handleSortChange = useCallback((column: LibraryTableColumn) => {
-    setSort((current) => cycleLibraryTableSort(current, column));
-  }, []);
 
   const handleLoadRow = useCallback(
     (deckId: number, row: LibraryTableRow) => {
@@ -249,6 +251,7 @@ export function LibraryPanel() {
         >
           <LibraryPane
             title="Tracks"
+            scrollable={false}
             headerInline={
               <Input
                 type="search"
@@ -264,13 +267,11 @@ export function LibraryPanel() {
             <LibraryTrackTable
               rows={tableRows}
               columns={tableSettings.library_table_columns}
-              filter={filter}
-              sort={sort}
+              globalFilter={debouncedFilter}
               emptyMessage={emptyMessage}
               engineRunning={engineRunning}
               busy={panelBusy}
               analyzingTrackId={analyzingTrackId}
-              onSortChange={handleSortChange}
               onLoadToDeck={handleLoadRow}
               onAnalyze={handleAnalyze}
             />
