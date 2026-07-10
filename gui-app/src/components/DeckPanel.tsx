@@ -271,28 +271,16 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
     </div>
   );
 
-  const performancePanels = isDeckA ? (
-    <>
-      {hotCuePanel}
-      {loopPanel}
-      {transportControls}
-    </>
-  ) : (
-    <>
-      {loopPanel}
-      {hotCuePanel}
-      {transportControls}
-    </>
-  );
-
   return (
     <div
       className={cn(
-        "flex w-full min-h-36 shrink-0 flex-row items-stretch gap-2 sm:min-h-40",
-        isDeckA ? "justify-start" : "justify-end",
+        "flex w-full min-h-36 shrink-0 items-stretch gap-2 sm:min-h-40",
+        isDeckA ? "flex-row justify-start" : "flex-row-reverse justify-start",
       )}
     >
-      {performancePanels}
+      {hotCuePanel}
+      {loopPanel}
+      {transportControls}
     </div>
   );
 });
