@@ -18,7 +18,7 @@ use deck_performance::{
 };
 use deck_sync::{
     beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
-    set_deck_gain_trim, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+    set_deck_gain_trim, set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
 };
 use tauri::{AppHandle, Manager, State};
 
@@ -1271,6 +1271,7 @@ pub fn run() {
             set_master_deck,
             toggle_deck_sync,
             beat_jump_deck,
+            set_deck_pad_mode,
             cycle_deck_pad_mode,
             set_deck_filter,
             set_deck_gain_trim,

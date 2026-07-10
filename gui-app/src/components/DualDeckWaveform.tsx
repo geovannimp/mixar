@@ -85,6 +85,7 @@ const WaveformLane = memo(function WaveformLane({
         trackCache={trackCache}
         tileRevision={tileRevision}
         viewportWidth={size.width}
+        speed={deck.speed}
         motionPos={playhead.motionPos}
         label={accent.label}
         labelClass={accent.text}

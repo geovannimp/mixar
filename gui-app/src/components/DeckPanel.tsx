@@ -100,8 +100,8 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
     <DeckPadsPanel
       deck={deck}
       disabled={transportDisabled}
-      onCyclePadMode={(direction) => {
-        void engineActions.cycleDeckPadMode(deckId, direction);
+      onSetPadMode={(mode) => {
+        void engineActions.setDeckPadMode(deckId, mode);
       }}
       onTriggerHotCue={(slot) => {
         void engineActions.triggerHotCue(deckId, slot);

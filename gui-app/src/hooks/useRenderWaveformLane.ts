@@ -4,7 +4,7 @@ import type { DeckEq, WaveformFrame } from "../types";
 import {
   WaveformTrackCache,
 } from "../lib/waveformTrackCache";
-import { WAVEFORM_VISIBLE_SECS } from "../lib/spectralColor";
+import { waveformVisibleSourceSecs } from "../lib/spectralColor";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
 
@@ -28,6 +28,7 @@ export function useRenderWaveformLane({
   durationSecs,
   positionSecs,
   playing,
+  speed = 1,
   eq,
   width,
   height,
@@ -45,10 +46,13 @@ export function useRenderWaveformLane({
   const getPositionRef = useRef(getPosition);
   const isScrubbingRef = useRef(isScrubbing);
   const eqRef = useRef(eq);
+  const visibleSourceSecs = waveformVisibleSourceSecs(speed);
+  const visibleSourceSecsRef = useRef(visibleSourceSecs);
 
   getPositionRef.current = getPosition;
   isScrubbingRef.current = isScrubbing;
   eqRef.current = eq;
+  visibleSourceSecsRef.current = visibleSourceSecs;
 
   const duration =
     durationSecs != null && durationSecs > 0 ? durationSecs : null;
@@ -109,8 +113,9 @@ export function useRenderWaveformLane({
       }
 
       const position = getPositionRef.current();
-      const viewStart = position - cache.visibleSecs / 2;
-      const viewEnd = position + cache.visibleSecs / 2;
+      const halfWindow = visibleSourceSecsRef.current / 2;
+      const viewStart = position - halfWindow;
+      const viewEnd = position + halfWindow;
       const missing = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin);
       const requestId = requestIdRef.current;
 
@@ -180,7 +185,7 @@ export function useRenderWaveformLane({
   return {
     trackCache,
     tileRevision,
-    visibleSecs: WAVEFORM_VISIBLE_SECS,
+    visibleSecs: visibleSourceSecs,
     estimatedPosition,
     loading,
   };

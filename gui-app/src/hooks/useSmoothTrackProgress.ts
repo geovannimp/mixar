@@ -36,7 +36,20 @@ export function useSmoothTrackProgress({
   const engineRef = useRef({ pos: positionSecs, at: performance.now() });
   const speedRef = useRef(speed);
 
-  speedRef.current = speed;
+  // Rebase when tempo changes so the new rate only applies going forward.
+  useEffect(() => {
+    if (speedRef.current === speed) {
+      return;
+    }
+    speedRef.current = speed;
+    if (duration <= 0) {
+      return;
+    }
+    engineRef.current = {
+      pos: motionProgress.get() * duration,
+      at: performance.now(),
+    };
+  }, [duration, motionProgress, speed]);
 
   useEffect(() => {
     engineRef.current = { pos: positionSecs, at: performance.now() };

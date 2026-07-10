@@ -4,6 +4,12 @@ export const WAVEFORM_BUFFER_RATIO = 1.0;
 /** Refresh the strip when the playhead reaches this fraction of the buffer. */
 export const WAVEFORM_REFRESH_MARGIN = 0.35;
 
+/** Source-time window shown in the scrolling lane (scales with vinyl tempo). */
+export function waveformVisibleSourceSecs(speed: number): number {
+  const clamped = Number.isFinite(speed) && speed > 0 ? speed : 1;
+  return WAVEFORM_VISIBLE_SECS * Math.min(2, Math.max(0.5, clamped));
+}
+
 const LOW_RGB: readonly [number, number, number] = [255, 72, 48];
 const MID_RGB: readonly [number, number, number] = [118, 228, 88];
 const HIGH_RGB: readonly [number, number, number] = [72, 188, 255];

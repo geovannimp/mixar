@@ -38,13 +38,25 @@ export function useSmoothPlayhead({
   const speedRef = useRef(speed);
   const maxSecsRef = useRef(maxSecs);
 
-  speedRef.current = speed;
   maxSecsRef.current = maxSecs;
 
   const clamp = useCallback((value: number) => {
     const max = maxSecsRef.current ?? Number.POSITIVE_INFINITY;
     return Math.min(max, Math.max(0, value));
   }, []);
+
+  // Rebase the engine anchor when tempo changes so drift correction does not
+  // apply the new rate to the whole interval since the last position poll.
+  useEffect(() => {
+    if (speedRef.current === speed) {
+      return;
+    }
+    speedRef.current = speed;
+    if (scrubbingRef.current) {
+      return;
+    }
+    engineRef.current = { pos: motionPos.get(), at: performance.now() };
+  }, [motionPos, speed]);
 
   useEffect(() => {
     engineRef.current = { pos: positionSecs, at: performance.now() };

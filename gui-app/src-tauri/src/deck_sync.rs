@@ -260,6 +260,22 @@ pub fn beat_jump_deck(
 }
 
 #[tauri::command]
+pub fn set_deck_pad_mode(
+    app: AppHandle,
+    deck_id: usize,
+    mode: PadMode,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].pad_mode = mode;
+    Ok(publish_deck(&app, &mut state, deck_id))
+}
+
+#[tauri::command]
 pub fn cycle_deck_pad_mode(
     app: AppHandle,
     deck_id: usize,

@@ -9,7 +9,7 @@ import {
   patchDeckPosition,
   type EngineEvent,
 } from "../lib/engineEvents";
-import type { DeckEq, DeckStatus, EngineStatus } from "../types";
+import type { DeckEq, DeckStatus, EngineStatus, PadMode } from "../types";
 import { getDefaultDeck } from "./defaultDeck";
 
 const ENGINE_ERROR_TOAST_ID = "engine-error";
@@ -67,6 +67,7 @@ interface EngineStoreState {
   setMasterDeck: (deckId: number) => Promise<void>;
   beatJumpDeck: (deckId: number, beats: number) => Promise<void>;
   cycleDeckPadMode: (deckId: number, direction: number) => Promise<void>;
+  setDeckPadMode: (deckId: number, mode: PadMode) => Promise<void>;
   setDeckFilter: (deckId: number, filterDb: number) => Promise<void>;
   setDeckGainTrim: (deckId: number, gainDb: number) => Promise<void>;
   beginLoopRoll: (deckId: number, beats: number) => Promise<void>;
@@ -387,6 +388,14 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     }
   },
 
+  setDeckPadMode: async (deckId, mode) => {
+    try {
+      await invoke("set_deck_pad_mode", { deckId, mode });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
   setDeckFilter: async (deckId, filterDb) => {
     try {
       await invoke("set_deck_filter", { deckId, filterDb });
@@ -610,6 +619,8 @@ export const engineActions = {
     useEngineStore.getState().beatJumpDeck(deckId, beats),
   cycleDeckPadMode: (deckId: number, direction: number) =>
     useEngineStore.getState().cycleDeckPadMode(deckId, direction),
+  setDeckPadMode: (deckId: number, mode: PadMode) =>
+    useEngineStore.getState().setDeckPadMode(deckId, mode),
   setDeckFilter: (deckId: number, filterDb: number) =>
     useEngineStore.getState().setDeckFilter(deckId, filterDb),
   setDeckGainTrim: (deckId: number, gainDb: number) =>
