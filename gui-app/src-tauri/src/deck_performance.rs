@@ -99,6 +99,8 @@ pub fn apply_deck_performance(
         deck.quantize = true;
         deck.cue_point_secs = Some(0.0);
         deck.active_loop = None;
+        deck.sync_mode = crate::SyncMode::Off;
+        deck.speed = 1.0;
     }
     deck.hot_cues = hot_cues;
     deck.saved_loops = saved_loops;

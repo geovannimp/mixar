@@ -40,6 +40,7 @@ pub use library_core::{
 };
 
 pub use deck_data::{delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord, LoopRecord};
+pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
 /// The user’s library manager (canonical writable store).
@@ -82,6 +83,17 @@ impl LibraryManager {
     /// Load hot cues and saved loops for a track.
     pub fn list_track_hot_cues(&self, id: &TrackId) -> Result<Vec<HotCueRecord>> {
         deck_data::list_hot_cues(&self.db, id)
+    }
+
+    /// Read embedded album artwork bytes for a library track, if present.
+    pub fn get_track_artwork(&self, id: &TrackId) -> Result<Option<Vec<u8>>> {
+        let Some(source) = self.get_track(id)? else {
+            return Ok(None);
+        };
+        let Some(file) = source.file() else {
+            return Ok(None);
+        };
+        tags::read_artwork(file.path())
     }
 
     pub fn list_track_loops(&self, id: &TrackId) -> Result<Vec<LoopRecord>> {

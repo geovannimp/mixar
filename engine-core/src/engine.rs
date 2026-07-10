@@ -368,6 +368,36 @@ impl Engine {
         }
     }
 
+    /// Set DJ filter position for a deck (negative = LP, positive = HP).
+    pub fn set_deck_filter_db(&mut self, deck_id: usize, filter_db: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_filter_db(filter_db)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    /// Set pre-fader gain trim for a deck in decibels.
+    pub fn set_deck_gain_trim_db(&mut self, deck_id: usize, gain_db: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_gain_trim_db(gain_db)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
     /// Seek a deck to a position in seconds.
     pub fn seek_deck(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         let dsp_engine = self

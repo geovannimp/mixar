@@ -34,6 +34,10 @@ export interface DeckEq {
 
 export const DEFAULT_DECK_EQ: DeckEq = { low: 0, mid: 0, high: 0 };
 
+export type SyncMode = "off" | "tempo" | "beat";
+export type PadMode = "hot_cue" | "loop_roll" | "beat_jump";
+export type KeyDisplayMode = "musical" | "camelot";
+
 export interface DeckStatus {
   id: number;
   track: string | null;
@@ -53,6 +57,11 @@ export interface DeckStatus {
   hot_cues: DeckHotCueMarker[];
   saved_loops: DeckSavedLoop[];
   active_loop: DeckActiveLoop | null;
+  filter_db: number;
+  gain_trim_db: number;
+  sync_mode: SyncMode;
+  is_master: boolean;
+  pad_mode: PadMode;
 }
 
 export interface WaveformFrame {
@@ -70,6 +79,7 @@ export interface EngineStatus {
   backend: string;
   sample_rate: number;
   crossfader: number;
+  master_deck?: number;
   decks: DeckStatus[];
 }
 

@@ -71,7 +71,7 @@ pub fn emit_position(app: &AppHandle, deck_id: usize, position_secs: f64) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{DeckEq, EngineStatus};
+    use crate::{DeckEq, EngineStatus, SyncMode};
 
     #[test]
     fn engine_event_status_serializes_with_type_tag() {
@@ -101,6 +101,11 @@ mod tests {
                     hot_cues: vec![],
                     saved_loops: vec![],
                     active_loop: None,
+                    filter_db: 0.0,
+                    gain_trim_db: 0.0,
+                    sync_mode: SyncMode::Off,
+                    is_master: true,
+                    pad_mode: crate::deck_sync::PadMode::HotCue,
                 }],
             },
         };

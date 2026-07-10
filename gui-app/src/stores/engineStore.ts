@@ -63,6 +63,14 @@ interface EngineStoreState {
   saveLoop: (deckId: number, slot: number) => Promise<void>;
   recallSavedLoop: (deckId: number, slot: number) => Promise<void>;
   deleteLoop: (deckId: number, slot: number) => Promise<void>;
+  toggleDeckSync: (deckId: number, beatSync?: boolean) => Promise<void>;
+  setMasterDeck: (deckId: number) => Promise<void>;
+  beatJumpDeck: (deckId: number, beats: number) => Promise<void>;
+  cycleDeckPadMode: (deckId: number, direction: number) => Promise<void>;
+  setDeckFilter: (deckId: number, filterDb: number) => Promise<void>;
+  setDeckGainTrim: (deckId: number, gainDb: number) => Promise<void>;
+  beginLoopRoll: (deckId: number, beats: number) => Promise<void>;
+  endLoopRoll: (deckId: number) => Promise<void>;
 }
 
 export const useEngineStore = create<EngineStoreState>((set, get) => ({
@@ -346,6 +354,70 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       reportEngineError(String(err));
     }
   },
+
+  toggleDeckSync: async (deckId, beatSync) => {
+    try {
+      await invoke("toggle_deck_sync", { deckId, beatSync: beatSync ?? null });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setMasterDeck: async (deckId) => {
+    try {
+      await invoke("set_master_deck", { deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  beatJumpDeck: async (deckId, beats) => {
+    try {
+      await invoke("beat_jump_deck", { deckId, beats });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  cycleDeckPadMode: async (deckId, direction) => {
+    try {
+      await invoke("cycle_deck_pad_mode", { deckId, direction });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setDeckFilter: async (deckId, filterDb) => {
+    try {
+      await invoke("set_deck_filter", { deckId, filterDb });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setDeckGainTrim: async (deckId, gainDb) => {
+    try {
+      await invoke("set_deck_gain_trim", { deckId, gainDb });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  beginLoopRoll: async (deckId, beats) => {
+    try {
+      await invoke("begin_loop_roll", { deckId, beats });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  endLoopRoll: async (deckId) => {
+    try {
+      await invoke("end_loop_roll", { deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
 }));
 
 const selectEngineHeaderInfo = (state: EngineStoreState) => ({
@@ -359,6 +431,8 @@ function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
   return {
     volume: deck.volume,
     eq: deck.eq,
+    filter_db: deck.filter_db,
+    gain_trim_db: deck.gain_trim_db,
   };
 }
 
@@ -404,6 +478,9 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
     hot_cues: deck.hot_cues,
     saved_loops: deck.saved_loops,
     active_loop: deck.active_loop,
+    sync_mode: deck.sync_mode,
+    is_master: deck.is_master,
+    pad_mode: deck.pad_mode,
   };
 }
 
@@ -525,6 +602,22 @@ export const engineActions = {
     useEngineStore.getState().recallSavedLoop(deckId, slot),
   deleteLoop: (deckId: number, slot: number) =>
     useEngineStore.getState().deleteLoop(deckId, slot),
+  toggleDeckSync: (deckId: number, beatSync?: boolean) =>
+    useEngineStore.getState().toggleDeckSync(deckId, beatSync),
+  setMasterDeck: (deckId: number) =>
+    useEngineStore.getState().setMasterDeck(deckId),
+  beatJumpDeck: (deckId: number, beats: number) =>
+    useEngineStore.getState().beatJumpDeck(deckId, beats),
+  cycleDeckPadMode: (deckId: number, direction: number) =>
+    useEngineStore.getState().cycleDeckPadMode(deckId, direction),
+  setDeckFilter: (deckId: number, filterDb: number) =>
+    useEngineStore.getState().setDeckFilter(deckId, filterDb),
+  setDeckGainTrim: (deckId: number, gainDb: number) =>
+    useEngineStore.getState().setDeckGainTrim(deckId, gainDb),
+  beginLoopRoll: (deckId: number, beats: number) =>
+    useEngineStore.getState().beginLoopRoll(deckId, beats),
+  endLoopRoll: (deckId: number) =>
+    useEngineStore.getState().endLoopRoll(deckId),
 };
 
 export function useEngineRunning(): boolean {

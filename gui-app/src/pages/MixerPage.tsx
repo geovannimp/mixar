@@ -7,11 +7,18 @@ import {
 import { DeckGrid } from "../components/DeckGrid";
 import { LibraryPanel } from "../components/LibraryPanel";
 import { useDeckHotkeys } from "../hooks/useDeckHotkeys";
-import { engineActions } from "../hooks/useEngine";
+import { engineActions, useDeckControls } from "../hooks/useEngine";
 
 export function MixerPage() {
   const [focusedDeckId, setFocusedDeckId] = useState(0);
-  const { ensureEngineRunning, triggerHotCue } = engineActions;
+  const focusedDeck = useDeckControls(focusedDeckId);
+  const {
+    ensureEngineRunning,
+    triggerHotCue,
+    beatJumpDeck,
+    beginLoopRoll,
+    endLoopRoll,
+  } = engineActions;
 
   useEffect(() => {
     void ensureEngineRunning();
@@ -19,7 +26,11 @@ export function MixerPage() {
 
   useDeckHotkeys({
     focusedDeckId,
+    padMode: focusedDeck.pad_mode,
     onTriggerHotCue: triggerHotCue,
+    onBeatJump: beatJumpDeck,
+    onBeginLoopRoll: beginLoopRoll,
+    onEndLoopRoll: endLoopRoll,
   });
 
   return (

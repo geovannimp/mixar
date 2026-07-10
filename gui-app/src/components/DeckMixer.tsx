@@ -24,14 +24,10 @@ const EQ_BANDS_LOWER: { id: EqBand; label: string }[] = [
 ];
 
 interface ChannelMixerUi {
-  gainDb: number;
-  filterDb: number;
   cue: boolean;
 }
 
 const DEFAULT_CHANNEL_MIXER_UI: ChannelMixerUi = {
-  gainDb: 0,
-  filterDb: 0,
   cue: false,
 };
 
@@ -71,7 +67,6 @@ function MixerKnob({
 interface MixerTopKnobRowProps {
   decks: DeckStatus[];
   accents: readonly [(typeof DECK_ACCENTS)["a"], (typeof DECK_ACCENTS)["b"]];
-  channelUi: ChannelMixerUi[];
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onGainChange: (deckId: number, gainDb: number) => void;
 }
@@ -79,7 +74,6 @@ interface MixerTopKnobRowProps {
 function MixerTopKnobRow({
   decks,
   accents,
-  channelUi,
   onEqChange,
   onGainChange,
 }: MixerTopKnobRowProps) {
@@ -101,7 +95,7 @@ function MixerTopKnobRow({
         <div className={`${FADER_COLUMN_CLASS} shrink-0`}>
           <MixerKnob
             label="GAIN"
-            value={channelUi[0]?.gainDb ?? 0}
+            value={decks[0]?.gain_trim_db ?? 0}
             accent={accents[0]}
             min={EQ_MIN_DB}
             max={EQ_MAX_DB}
@@ -111,7 +105,7 @@ function MixerTopKnobRow({
         <div className={`${FADER_COLUMN_CLASS} shrink-0`}>
           <MixerKnob
             label="GAIN"
-            value={channelUi[1]?.gainDb ?? 0}
+            value={decks[1]?.gain_trim_db ?? 0}
             accent={accents[1]}
             min={EQ_MIN_DB}
             max={EQ_MAX_DB}
@@ -171,6 +165,8 @@ function DeckEqColumn({
           value={filterDb}
           accent={accent}
           disabled={disabled}
+          min={EQ_MIN_DB}
+          max={EQ_MAX_DB}
           onValueChange={onFilterChange}
         />
       </div>
@@ -236,7 +232,7 @@ function DeckVolumeFader({
         disabled={disabled}
         aria-label="Cue"
         aria-pressed={cue}
-        title="Headphone cue"
+        title="Headphone cue (routing coming in Phase 4)"
         onClick={() => onCueChange(!cue)}
       >
         <Headphones className="size-3.5" aria-hidden />
@@ -293,6 +289,8 @@ interface DeckMixerProps {
   crossfader: number;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
+  onFilterChange: (deckId: number, filterDb: number) => void;
+  onGainChange: (deckId: number, gainDb: number) => void;
   onCrossfaderChange: (position: number) => void;
 }
 
@@ -301,6 +299,8 @@ function DeckMixerView({
   crossfader,
   onVolumeChange,
   onEqChange,
+  onFilterChange,
+  onGainChange,
   onCrossfaderChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -331,18 +331,17 @@ function DeckMixerView({
         <MixerTopKnobRow
           decks={decks}
           accents={accents}
-          channelUi={channelUi}
           onEqChange={onEqChange}
-          onGainChange={(deckId, gainDb) => updateChannelUi(deckId, { gainDb })}
+          onGainChange={onGainChange}
         />
 
         <div className="flex min-h-0 flex-1 items-stretch justify-center gap-0.5">
           <DeckEqColumn
             accent={accents[0]}
             eq={decks[0]?.eq ?? DEFAULT_DECK_EQ}
-            filterDb={channelUi[0]?.filterDb ?? 0}
+            filterDb={decks[0]?.filter_db ?? 0}
             onEqChange={(eq) => onEqChange(0, eq)}
-            onFilterChange={(filterDb) => updateChannelUi(0, { filterDb })}
+            onFilterChange={(filterDb) => onFilterChange(0, filterDb)}
           />
 
           <div className="flex min-h-0 shrink-0 items-stretch gap-0.5 px-0.5">
@@ -365,9 +364,9 @@ function DeckMixerView({
           <DeckEqColumn
             accent={accents[1]}
             eq={decks[1]?.eq ?? DEFAULT_DECK_EQ}
-            filterDb={channelUi[1]?.filterDb ?? 0}
+            filterDb={decks[1]?.filter_db ?? 0}
             onEqChange={(eq) => onEqChange(1, eq)}
-            onFilterChange={(filterDb) => updateChannelUi(1, { filterDb })}
+            onFilterChange={(filterDb) => onFilterChange(1, filterDb)}
           />
         </div>
 
@@ -384,11 +383,29 @@ export function DeckMixer() {
   const crossfader = useCrossfader();
   const deck0 = useDeckMixerChannel(0);
   const deck1 = useDeckMixerChannel(1);
-  const { setDeckVolume, setDeckEq, setCrossfader } = engineActions;
+  const {
+    setDeckVolume,
+    setDeckEq,
+    setCrossfader,
+    setDeckFilter,
+    setDeckGainTrim,
+  } = engineActions;
 
   const decks: DeckStatus[] = [
-    { ...getDefaultDeck(0), volume: deck0.volume, eq: deck0.eq },
-    { ...getDefaultDeck(1), volume: deck1.volume, eq: deck1.eq },
+    {
+      ...getDefaultDeck(0),
+      volume: deck0.volume,
+      eq: deck0.eq,
+      filter_db: deck0.filter_db,
+      gain_trim_db: deck0.gain_trim_db,
+    },
+    {
+      ...getDefaultDeck(1),
+      volume: deck1.volume,
+      eq: deck1.eq,
+      filter_db: deck1.filter_db,
+      gain_trim_db: deck1.gain_trim_db,
+    },
   ];
 
   return (
@@ -397,6 +414,8 @@ export function DeckMixer() {
       crossfader={crossfader}
       onVolumeChange={setDeckVolume}
       onEqChange={setDeckEq}
+      onFilterChange={setDeckFilter}
+      onGainChange={setDeckGainTrim}
       onCrossfaderChange={setCrossfader}
     />
   );

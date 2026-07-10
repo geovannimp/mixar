@@ -15,6 +15,7 @@ interface DeckLoopPanelProps {
   onSaveLoop: (slot: number) => void;
   onRecallSavedLoop: (slot: number) => void;
   onDeleteLoop: (slot: number) => void;
+  onBeatJump: (beats: number) => void;
 }
 
 export function DeckLoopPanel({
@@ -27,6 +28,7 @@ export function DeckLoopPanel({
   onSaveLoop,
   onRecallSavedLoop,
   onDeleteLoop,
+  onBeatJump,
 }: DeckLoopPanelProps) {
   const hasTrack = Boolean(deck.track);
   const controlsDisabled = disabled || !hasTrack;
@@ -161,6 +163,28 @@ export function DeckLoopPanel({
             onClick={onLoopOut}
           >
             OUT
+          </DeckButton>
+        </div>
+        <div className="grid grid-cols-2 gap-1">
+          <DeckButton
+            type="button"
+            size="cell"
+            className="text-[9px] font-bold uppercase tracking-wide"
+            disabled={controlsDisabled}
+            title="Jump back 4 beats"
+            onClick={() => onBeatJump(-4)}
+          >
+            -4
+          </DeckButton>
+          <DeckButton
+            type="button"
+            size="cell"
+            className="text-[9px] font-bold uppercase tracking-wide"
+            disabled={controlsDisabled}
+            title="Jump forward 4 beats"
+            onClick={() => onBeatJump(4)}
+          >
+            +4
           </DeckButton>
         </div>
       </div>

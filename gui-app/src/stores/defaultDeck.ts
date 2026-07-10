@@ -22,11 +22,17 @@ export const DEFAULT_DECK_A: DeckStatus = {
   hot_cues: EMPTY_HOT_CUES,
   saved_loops: EMPTY_SAVED_LOOPS,
   active_loop: null,
+  filter_db: 0,
+  gain_trim_db: 0,
+  sync_mode: "off",
+  is_master: true,
+  pad_mode: "hot_cue",
 };
 
 export const DEFAULT_DECK_B: DeckStatus = {
   ...DEFAULT_DECK_A,
   id: 1,
+  is_master: false,
 };
 
 const DEFAULT_DECKS = [DEFAULT_DECK_A, DEFAULT_DECK_B] as const;

@@ -100,6 +100,9 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
     <DeckPadsPanel
       deck={deck}
       disabled={transportDisabled}
+      onCyclePadMode={(direction) => {
+        void engineActions.cycleDeckPadMode(deckId, direction);
+      }}
       onTriggerHotCue={(slot) => {
         void engineActions.triggerHotCue(deckId, slot);
       }}
@@ -108,6 +111,15 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       }}
       onDeleteHotCue={(slot) => {
         void engineActions.deleteHotCue(deckId, slot);
+      }}
+      onBeginLoopRoll={(beats) => {
+        void engineActions.beginLoopRoll(deckId, beats);
+      }}
+      onEndLoopRoll={() => {
+        void engineActions.endLoopRoll(deckId);
+      }}
+      onBeatJump={(beats) => {
+        void engineActions.beatJumpDeck(deckId, beats);
       }}
     />
   );
@@ -136,6 +148,9 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       }}
       onDeleteLoop={(slot) => {
         void engineActions.deleteLoop(deckId, slot);
+      }}
+      onBeatJump={(beats) => {
+        void engineActions.beatJumpDeck(deckId, beats);
       }}
     />
   );
@@ -360,6 +375,12 @@ export function DeckPanel({
       disabled={transportDisabled}
       onSpeedChange={(speed) => {
         void engineActions.setDeckSpeed(deckId, speed);
+      }}
+      onToggleSync={(beatSync) => {
+        void engineActions.toggleDeckSync(deckId, beatSync);
+      }}
+      onSetMaster={() => {
+        void engineActions.setMasterDeck(deckId);
       }}
     />
   );

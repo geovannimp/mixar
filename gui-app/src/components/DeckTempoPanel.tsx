@@ -16,6 +16,8 @@ interface DeckTempoPanelProps {
   deck: DeckStatus;
   disabled?: boolean;
   onSpeedChange: (speed: number) => void;
+  onToggleSync: (beatSync: boolean) => void;
+  onSetMaster: () => void;
 }
 
 export function DeckTempoPanel({
@@ -23,10 +25,14 @@ export function DeckTempoPanel({
   deck,
   disabled,
   onSpeedChange,
+  onToggleSync,
+  onSetMaster,
 }: DeckTempoPanelProps) {
   const accentStyles = DECK_ACCENTS[accent];
   const liveBpm = effectiveBpm(deck.bpm, deck.speed);
   const sliderValue = speedToPitchSlider(deck.speed);
+  const syncActive = deck.sync_mode !== "off";
+  const beatSynced = deck.sync_mode === "beat";
 
   return (
     <div className="flex h-full min-h-0 w-18 shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-inner sm:w-20">
@@ -42,11 +48,37 @@ export function DeckTempoPanel({
         <DeckButton
           type="button"
           size="sync"
-          disabled={disabled}
-          title="Coming in Phase 2"
+          active={syncActive}
+          disabled={disabled || deck.is_master}
+          title={
+            deck.is_master
+              ? "Master deck — shift+click to set master"
+              : beatSynced
+                ? "Beat sync on — click to disable"
+                : syncActive
+                  ? "Tempo sync on — click to disable, shift+click for beat sync"
+                  : "Tempo sync — shift+click for beat sync"
+          }
+          onClick={(event) => {
+            onToggleSync(event.shiftKey);
+          }}
         >
-          Sync
+          {deck.is_master ? "M" : beatSynced ? "B" : syncActive ? "S" : "Sync"}
         </DeckButton>
+        {!deck.is_master ? (
+          <button
+            type="button"
+            className="text-[9px] font-medium uppercase tracking-wide text-zinc-500 hover:text-zinc-300"
+            disabled={disabled}
+            onClick={onSetMaster}
+          >
+            Set master
+          </button>
+        ) : (
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-emerald-400/90">
+            Master
+          </span>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 items-center justify-center px-2 py-2 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center">
@@ -59,7 +91,7 @@ export function DeckTempoPanel({
           min={0}
           max={100}
           value={sliderValue}
-          disabled={disabled}
+          disabled={disabled || syncActive}
           aria-label="Tempo"
           className="h-full w-8"
           onValueChange={(value) => {

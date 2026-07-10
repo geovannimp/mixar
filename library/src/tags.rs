@@ -91,6 +91,24 @@ fn camelot_to_musical(code: usize, minor: bool) -> Option<String> {
     }
 }
 
+/// Read embedded album artwork from an audio file, if present.
+pub fn read_artwork(path: &Path) -> library_core::Result<Option<Vec<u8>>> {
+    let tagged = Probe::open(path)
+        .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
+        .read()
+        .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
+
+    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
+        return Ok(None);
+    };
+
+    let Some(picture) = tag.pictures().first() else {
+        return Ok(None);
+    };
+
+    Ok(Some(picture.data().to_vec()))
+}
+
 fn duration_secs(duration: Duration) -> Option<f64> {
     let secs = duration.as_secs_f64();
     if secs > 0.0 {

@@ -6,6 +6,7 @@
 use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
 use crate::eq::{DeckEqGains, ThreeBandEq};
+use crate::filter::{db_to_linear, DjFilter};
 use crate::transport::DeckTransportEvent;
 use resampler::Resampler;
 use std::fmt;
@@ -39,6 +40,10 @@ pub struct Deck {
     volume: f32,
     /// Three-band channel EQ
     eq: ThreeBandEq,
+    /// DJ-style HP/LP filter (mixer FLT knob).
+    filter: DjFilter,
+    /// Pre-fader gain trim in decibels.
+    gain_trim_db: f32,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -98,6 +103,8 @@ impl Deck {
             speed: 1.0,
             volume: 1.0,
             eq: ThreeBandEq::new(sample_rate),
+            filter: DjFilter::new(sample_rate),
+            gain_trim_db: 0.0,
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -201,6 +208,26 @@ impl Deck {
     /// Set high-band EQ gain in decibels.
     pub fn set_eq_high_db(&mut self, gain_db: f32) -> Result<()> {
         self.eq.set_high_db(gain_db)
+    }
+
+    /// Set DJ filter position in decibels (negative = LP, positive = HP).
+    pub fn set_filter_db(&mut self, filter_db: f32) -> Result<()> {
+        self.filter.set_filter_db(filter_db);
+        Ok(())
+    }
+
+    pub fn filter_db(&self) -> f32 {
+        self.filter.filter_db()
+    }
+
+    /// Set pre-fader gain trim in decibels.
+    pub fn set_gain_trim_db(&mut self, gain_db: f32) -> Result<()> {
+        self.gain_trim_db = crate::eq::clamp_gain_db(gain_db);
+        Ok(())
+    }
+
+    pub fn gain_trim_db(&self) -> f32 {
+        self.gain_trim_db
     }
 
     /// Start playback
@@ -482,8 +509,13 @@ impl Deck {
             self.buffer.fill(0.0);
         }
 
-        // Apply channel EQ, then volume.
+        // Apply gain trim, channel EQ, filter, then volume.
+        let trim = db_to_linear(self.gain_trim_db);
+        for sample in &mut self.buffer {
+            *sample *= trim;
+        }
         self.eq.process_buffer(&mut self.buffer);
+        self.filter.process_buffer(&mut self.buffer);
         for sample in &mut self.buffer {
             *sample *= self.volume;
         }

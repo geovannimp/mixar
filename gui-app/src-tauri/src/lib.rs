@@ -16,10 +16,15 @@ use deck_performance::{
     set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize, trigger_hot_cue,
     unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
+use deck_sync::{
+    beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
+    set_deck_gain_trim, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+};
 use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
 mod deck_performance;
+mod deck_sync;
 mod engine_controller;
 mod engine_events;
 mod engine_notifier;
@@ -60,7 +65,7 @@ impl Default for DeckEq {
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct DeckInfo {
+pub(crate) struct DeckInfo {
     track: Option<String>,
     track_id: Option<String>,
     title: Option<String>,
@@ -76,6 +81,11 @@ struct DeckInfo {
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
     active_loop: Option<LoopRegionStatus>,
+    filter_db: f32,
+    gain_trim_db: f32,
+    sync_mode: SyncMode,
+    pad_mode: PadMode,
+    loop_roll_restore: Option<LoopRegionStatus>,
 }
 
 impl Default for DeckInfo {
@@ -96,20 +106,26 @@ impl Default for DeckInfo {
             hot_cues: Vec::new(),
             saved_loops: Vec::new(),
             active_loop: None,
+            filter_db: 0.0,
+            gain_trim_db: 0.0,
+            sync_mode: SyncMode::Off,
+            pad_mode: PadMode::HotCue,
+            loop_roll_restore: None,
         }
     }
 }
 
-struct AppState {
-    library: LibraryManager,
-    engine: Option<Engine>,
-    engine_config: EngineConfig,
-    decks: [DeckInfo; NUM_DECKS],
-    crossfader: f32,
-    revision: u64,
-    audio_cache: AudioCache,
-    library_table_columns: Vec<String>,
-    notifier: Option<EngineNotifier>,
+pub(crate) struct AppState {
+    pub library: LibraryManager,
+    pub engine: Option<Engine>,
+    pub engine_config: EngineConfig,
+    pub decks: [DeckInfo; NUM_DECKS],
+    pub crossfader: f32,
+    pub master_deck: usize,
+    pub revision: u64,
+    pub audio_cache: AudioCache,
+    pub library_table_columns: Vec<String>,
+    pub notifier: Option<EngineNotifier>,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -271,7 +287,7 @@ fn default_engine_config() -> EngineConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct DeckStatus {
+pub(crate) struct DeckStatus {
     id: usize,
     track: Option<String>,
     track_id: Option<String>,
@@ -290,6 +306,11 @@ struct DeckStatus {
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
     active_loop: Option<LoopRegionStatus>,
+    filter_db: f32,
+    gain_trim_db: f32,
+    sync_mode: SyncMode,
+    is_master: bool,
+    pad_mode: PadMode,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -347,7 +368,7 @@ struct AddFolderCollectionResult {
     scan: library_core::ScanReport,
 }
 
-fn clamp_eq_db(value: f32) -> f32 {
+pub(crate) fn clamp_eq_db(value: f32) -> f32 {
     value.clamp(-24.0, 24.0)
 }
 
@@ -382,6 +403,9 @@ fn clear_deck_info(deck: &mut DeckInfo) {
     *deck = DeckInfo {
         volume: deck.volume,
         eq: deck.eq.clone(),
+        filter_db: deck.filter_db,
+        gain_trim_db: deck.gain_trim_db,
+        pad_mode: deck.pad_mode,
         ..DeckInfo::default()
     };
 }
@@ -471,6 +495,12 @@ fn start_engine(
             .map_err(|e| e.to_string())?;
         engine
             .set_deck_speed(deck_id, deck.speed)
+            .map_err(|e| e.to_string())?;
+        engine
+            .set_deck_filter_db(deck_id, deck.filter_db)
+            .map_err(|e| e.to_string())?;
+        engine
+            .set_deck_gain_trim_db(deck_id, deck.gain_trim_db)
             .map_err(|e| e.to_string())?;
     }
     engine
@@ -973,6 +1003,22 @@ fn set_deck_speed(
             .set_deck_speed(deck_id, speed)
             .map_err(|e| e.to_string())?;
     }
+
+    if deck_id == state.master_deck {
+        for slave_id in 0..NUM_DECKS {
+            if slave_id == deck_id {
+                continue;
+            }
+            if state.decks[slave_id].sync_mode != SyncMode::Off {
+                let mode = state.decks[slave_id].sync_mode;
+                deck_sync::apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
+                if mode == SyncMode::Beat {
+                    deck_sync::align_beat_phase_for_state(&mut state, slave_id, deck_id)?;
+                }
+            }
+        }
+    }
+
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -1110,6 +1156,27 @@ async fn render_waveform_lane(
 }
 
 #[tauri::command]
+fn get_track_artwork(
+    track_id: Option<String>,
+    path: Option<String>,
+    state: State<'_, SharedAppState>,
+) -> Result<Option<String>, String> {
+    let state = state.lock().map_err(|e| e.to_string())?;
+    let bytes = if let Some(track_id) = track_id {
+        state
+            .library
+            .get_track_artwork(&TrackId::new(track_id))
+            .map_err(|e| e.to_string())?
+    } else if let Some(path) = path {
+        library::read_artwork(std::path::Path::new(&path)).map_err(|e| e.to_string())?
+    } else {
+        return Err("track_id or path is required.".to_string());
+    };
+
+    Ok(bytes.map(|data| BASE64.encode(data)))
+}
+
+#[tauri::command]
 fn get_supported_audio_extensions() -> Vec<&'static str> {
     SUPPORTED_AUDIO_EXTENSIONS.to_vec()
 }
@@ -1151,6 +1218,7 @@ pub fn run() {
                 engine_config: default_engine_config(),
                 decks: Default::default(),
                 crossfader: 0.5,
+                master_deck: 0,
                 revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
@@ -1200,6 +1268,15 @@ pub fn run() {
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
+            set_master_deck,
+            toggle_deck_sync,
+            beat_jump_deck,
+            cycle_deck_pad_mode,
+            set_deck_filter,
+            set_deck_gain_trim,
+            begin_loop_roll,
+            end_loop_roll,
+            get_track_artwork,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
