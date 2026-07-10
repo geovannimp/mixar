@@ -1,6 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
-import { DjPage } from "./pages/DjPage";
+import { MixerPage } from "./pages/MixerPage";
 import { SettingsPage } from "./pages/SettingsPage";
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<DjPage />} />
+          <Route index element={<MixerPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
