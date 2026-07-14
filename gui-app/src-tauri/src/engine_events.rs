@@ -22,6 +22,13 @@ pub enum EngineEvent {
         deck_id: usize,
         position_secs: f64,
     },
+    Levels {
+        deck_id: usize,
+        peak_l: f32,
+        peak_r: f32,
+        peak_hold_l: f32,
+        peak_hold_r: f32,
+    },
     #[allow(dead_code)]
     Notice {
         message: String,
@@ -64,6 +71,26 @@ pub fn emit_position(app: &AppHandle, deck_id: usize, position_secs: f64) {
         EngineEvent::Position {
             deck_id,
             position_secs,
+        },
+    );
+}
+
+pub fn emit_levels(
+    app: &AppHandle,
+    deck_id: usize,
+    peak_l: f32,
+    peak_r: f32,
+    peak_hold_l: f32,
+    peak_hold_r: f32,
+) {
+    emit_event(
+        app,
+        EngineEvent::Levels {
+            deck_id,
+            peak_l,
+            peak_r,
+            peak_hold_l,
+            peak_hold_r,
         },
     );
 }
@@ -112,5 +139,19 @@ mod tests {
         let json = serde_json::to_value(&event).expect("serialize");
         assert_eq!(json.get("type").and_then(|v| v.as_str()), Some("status"));
         assert_eq!(json.get("revision").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    #[test]
+    fn engine_event_levels_serializes_with_type_tag() {
+        let event = EngineEvent::Levels {
+            deck_id: 0,
+            peak_l: 0.5,
+            peak_r: 0.6,
+            peak_hold_l: 0.7,
+            peak_hold_r: 0.8,
+        };
+        let json = serde_json::to_value(&event).expect("serialize");
+        assert_eq!(json.get("type").and_then(|v| v.as_str()), Some("levels"));
+        assert_eq!(json.get("deck_id").and_then(|v| v.as_u64()), Some(0));
     }
 }
