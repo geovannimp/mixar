@@ -1,4 +1,4 @@
-import type { DeckStatus, EngineStatus } from "../types";
+import type { DeckLevels, DeckStatus, EngineStatus } from "../types";
 
 export const ENGINE_EVENT = "engine://event";
 
@@ -6,6 +6,14 @@ export type EngineEvent =
   | { type: "status"; revision: number; status: EngineStatus }
   | { type: "deck_updated"; revision: number; deck: DeckStatus }
   | { type: "position"; deck_id: number; position_secs: number }
+  | {
+      type: "levels";
+      deck_id: number;
+      peak_l: number;
+      peak_r: number;
+      peak_hold_l: number;
+      peak_hold_r: number;
+    }
   | { type: "notice"; message: string }
   | { type: "error"; message: string };
 
@@ -49,6 +57,22 @@ export function applyEngineEvent(
     };
   }
 
+  if (event.type === "levels") {
+    if (!current) {
+      return { status: current, revision: lastRevision };
+    }
+    const levels: DeckLevels = {
+      peak_l: event.peak_l,
+      peak_r: event.peak_r,
+      peak_hold_l: event.peak_hold_l,
+      peak_hold_r: event.peak_hold_r,
+    };
+    return {
+      status: patchDeckLevels(current, event.deck_id, levels),
+      revision: lastRevision,
+    };
+  }
+
   return { status: current, revision: lastRevision };
 }
 
@@ -61,6 +85,19 @@ export function patchDeckPosition(
     ...status,
     decks: status.decks.map((deck) =>
       deck.id === deckId ? { ...deck, position_secs: positionSecs } : deck,
+    ),
+  };
+}
+
+export function patchDeckLevels(
+  status: EngineStatus,
+  deckId: number,
+  levels: DeckLevels,
+): EngineStatus {
+  return {
+    ...status,
+    decks: status.decks.map((deck) =>
+      deck.id === deckId ? { ...deck, levels } : deck,
     ),
   };
 }

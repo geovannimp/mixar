@@ -7,6 +7,7 @@ export {
   useDeckBusy,
   useEngineHeaderInfo,
   useCrossfader,
+  useLevelMeterMode,
   useDeckHasTrack,
   useAnyDeckHasTrack,
   useDeckMixerChannel,

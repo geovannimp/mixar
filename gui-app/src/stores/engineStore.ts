@@ -9,7 +9,14 @@ import {
   patchDeckPosition,
   type EngineEvent,
 } from "../lib/engineEvents";
-import type { DeckEq, DeckStatus, EngineStatus, PadMode } from "../types";
+import {
+  ZERO_DECK_LEVELS,
+  type DeckEq,
+  type DeckStatus,
+  type EngineStatus,
+  type LevelMeterMode,
+  type PadMode,
+} from "../types";
 import { getDefaultDeck } from "./defaultDeck";
 
 const ENGINE_ERROR_TOAST_ID = "engine-error";
@@ -23,7 +30,16 @@ function reportEngineError(message: string) {
 }
 
 function getDeck(status: EngineStatus | null, deckId: number): DeckStatus {
-  return status?.decks[deckId] ?? getDefaultDeck(deckId);
+  const defaults = getDefaultDeck(deckId);
+  const deck = status?.decks[deckId];
+  if (!deck) {
+    return defaults;
+  }
+  return {
+    ...defaults,
+    ...deck,
+    levels: deck.levels ?? ZERO_DECK_LEVELS,
+  };
 }
 
 interface EngineStoreState {
@@ -31,8 +47,10 @@ interface EngineStoreState {
   busyDecks: [boolean, boolean];
   revision: number;
   starting: boolean;
+  levelMeterMode: LevelMeterMode;
   applyEvent: (event: EngineEvent) => void;
   setStatus: (status: EngineStatus | null) => void;
+  setLevelMeterMode: (mode: LevelMeterMode) => void;
   runDeckBlockingAction: (
     deckId: number,
     action: () => Promise<void>,
@@ -79,6 +97,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   busyDecks: [false, false],
   revision: 0,
   starting: false,
+  levelMeterMode: "mono",
 
   applyEvent: (event) => {
     if (event.type === "error") {
@@ -101,6 +120,8 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setStatus: (status) => set({ status }),
+
+  setLevelMeterMode: (mode) => set({ levelMeterMode: mode }),
 
   runDeckBlockingAction: async (deckId, action) => {
     if (deckId < 0 || deckId > 1) {
@@ -442,6 +463,7 @@ function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
     eq: deck.eq,
     filter_db: deck.filter_db,
     gain_trim_db: deck.gain_trim_db,
+    levels: deck.levels,
   };
 }
 
@@ -565,6 +587,8 @@ function deckSelector<T>(
 
 export const engineActions = {
   ensureEngineRunning: () => useEngineStore.getState().ensureEngineRunning(),
+  setLevelMeterMode: (mode: LevelMeterMode) =>
+    useEngineStore.getState().setLevelMeterMode(mode),
   loadLibraryTrackToDeck: (deckId: number, trackId: string) =>
     useEngineStore.getState().loadLibraryTrackToDeck(deckId, trackId),
   loadPathToDeck: (deckId: number, path: string) =>
@@ -651,6 +675,10 @@ export function useEngineHeaderInfo() {
 
 export function useCrossfader(): number {
   return useEngineStore((state) => state.status?.crossfader ?? 0.5);
+}
+
+export function useLevelMeterMode(): LevelMeterMode {
+  return useEngineStore((state) => state.levelMeterMode);
 }
 
 export function useDeckHasTrack(deckId: number): boolean {

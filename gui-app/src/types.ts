@@ -34,6 +34,22 @@ export interface DeckEq {
 
 export const DEFAULT_DECK_EQ: DeckEq = { low: 0, mid: 0, high: 0 };
 
+export type LevelMeterMode = "mono" | "stereo";
+
+export interface DeckLevels {
+  peak_l: number;
+  peak_r: number;
+  peak_hold_l: number;
+  peak_hold_r: number;
+}
+
+export const ZERO_DECK_LEVELS: DeckLevels = {
+  peak_l: 0,
+  peak_r: 0,
+  peak_hold_l: 0,
+  peak_hold_r: 0,
+};
+
 export type SyncMode = "off" | "tempo" | "beat";
 export type PadMode = "hot_cue" | "loop_roll" | "beat_jump";
 export type KeyDisplayMode = "musical" | "camelot";
@@ -62,6 +78,7 @@ export interface DeckStatus {
   sync_mode: SyncMode;
   is_master: boolean;
   pad_mode: PadMode;
+  levels: DeckLevels;
 }
 
 export interface WaveformFrame {

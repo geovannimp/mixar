@@ -1,4 +1,4 @@
-import { DEFAULT_DECK_EQ, type DeckStatus } from "../types";
+import { DEFAULT_DECK_EQ, ZERO_DECK_LEVELS, type DeckStatus } from "../types";
 
 const EMPTY_HOT_CUES: DeckStatus["hot_cues"] = [];
 const EMPTY_SAVED_LOOPS: DeckStatus["saved_loops"] = [];
@@ -27,6 +27,7 @@ export const DEFAULT_DECK_A: DeckStatus = {
   sync_mode: "off",
   is_master: true,
   pad_mode: "hot_cue",
+  levels: ZERO_DECK_LEVELS,
 };
 
 export const DEFAULT_DECK_B: DeckStatus = {
