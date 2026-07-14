@@ -61,15 +61,22 @@ export function LevelMeter({
   levels: DeckLevels;
   mode: LevelMeterMode;
 }) {
-  if (mode === "mono") {
-    const peak = Math.max(levels.peak_l, levels.peak_r);
-    const hold = Math.max(levels.peak_hold_l, levels.peak_hold_r);
-    return <Ladder peak={peak} hold={hold} />;
+  switch (mode) {
+    case "mono": {
+      const peak = Math.max(levels.peak_l, levels.peak_r);
+      const hold = Math.max(levels.peak_hold_l, levels.peak_hold_r);
+      return <Ladder peak={peak} hold={hold} />;
+    }
+    case "stereo":
+      return (
+        <div className="flex h-full gap-px">
+          <Ladder peak={levels.peak_l} hold={levels.peak_hold_l} />
+          <Ladder peak={levels.peak_r} hold={levels.peak_hold_r} />
+        </div>
+      );
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
   }
-  return (
-    <div className="flex h-full gap-px">
-      <Ladder peak={levels.peak_l} hold={levels.peak_hold_l} />
-      <Ladder peak={levels.peak_r} hold={levels.peak_hold_r} />
-    </div>
-  );
 }
