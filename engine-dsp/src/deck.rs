@@ -7,6 +7,7 @@ use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
 use crate::eq::{DeckEqGains, ThreeBandEq};
 use crate::filter::{db_to_linear, DjFilter};
+use crate::level_meter::LevelPeaks;
 use crate::transport::DeckTransportEvent;
 use resampler::Resampler;
 use std::fmt;
@@ -66,6 +67,8 @@ pub struct Deck {
     cue_hold_return: Option<(f64, bool)>,
     /// Events to deliver to the engine notifier after processing.
     pending_transport: Vec<DeckTransportEvent>,
+    /// Pre-fader peak levels from the last process cycle.
+    level_peaks: LevelPeaks,
 }
 
 impl fmt::Debug for Deck {
@@ -116,6 +119,7 @@ impl Deck {
             cue_point_secs: None,
             cue_hold_return: None,
             pending_transport: Vec::new(),
+            level_peaks: LevelPeaks::default(),
         }
     }
 
@@ -228,6 +232,11 @@ impl Deck {
 
     pub fn gain_trim_db(&self) -> f32 {
         self.gain_trim_db
+    }
+
+    /// Pre-fader peak levels from the last process cycle.
+    pub fn level_peaks(&self) -> LevelPeaks {
+        self.level_peaks
     }
 
     /// Start playback
@@ -465,6 +474,7 @@ impl Deck {
             // after playback the buffer may already be the right length with stale audio.
             self.buffer.resize(frames as usize * 2, 0.0);
             self.buffer.fill(0.0);
+            self.level_peaks = LevelPeaks::default();
             return Ok(&self.buffer);
         }
 
@@ -516,6 +526,7 @@ impl Deck {
         }
         self.eq.process_buffer(&mut self.buffer);
         self.filter.process_buffer(&mut self.buffer);
+        self.level_peaks = LevelPeaks::from_buffer(&self.buffer);
         for sample in &mut self.buffer {
             *sample *= self.volume;
         }
@@ -793,6 +804,33 @@ mod tests {
         load_test_samples(&mut deck, vec![0.5f32; CHUNK as usize * 2], ENGINE_RATE);
         let audio = deck.process(CHUNK).unwrap();
         assert!(audio.iter().any(|&s| s != 0.0));
+    }
+
+    #[test]
+    fn levels_measure_pre_volume() {
+        let frames = 64u32;
+        let mut deck = new_deck(frames);
+        let mut samples = Vec::with_capacity(frames as usize * 2);
+        for _ in 0..frames {
+            samples.push(0.5);
+            samples.push(-0.25);
+        }
+        load_test_samples(&mut deck, samples, ENGINE_RATE);
+        deck.set_volume(0.0).unwrap();
+        deck.play().unwrap();
+
+        deck.process(frames).unwrap();
+        let peaks = deck.level_peaks();
+        assert!(
+            peaks.peak_l > 0.4,
+            "pre-fader peak_l should reflect source level, got {}",
+            peaks.peak_l
+        );
+        assert!(
+            peaks.peak_r > 0.2,
+            "pre-fader peak_r should reflect source level, got {}",
+            peaks.peak_r
+        );
     }
 
     #[test]
