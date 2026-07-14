@@ -1,4 +1,9 @@
-import type { DeckLevels, DeckStatus, EngineStatus } from "../types";
+import {
+  ZERO_DECK_LEVELS,
+  type DeckLevels,
+  type DeckStatus,
+  type EngineStatus,
+} from "../types";
 
 export const ENGINE_EVENT = "engine://event";
 
@@ -26,7 +31,20 @@ export function applyEngineEvent(
     if (event.revision < lastRevision) {
       return { status: current, revision: lastRevision };
     }
-    return { status: event.status, revision: event.revision };
+    if (!current) {
+      return { status: event.status, revision: event.revision };
+    }
+    const currentById = new Map(current.decks.map((deck) => [deck.id, deck]));
+    return {
+      status: {
+        ...event.status,
+        decks: event.status.decks.map((deck) => ({
+          ...deck,
+          levels: currentById.get(deck.id)?.levels ?? ZERO_DECK_LEVELS,
+        })),
+      },
+      revision: event.revision,
+    };
   }
 
   if (event.type === "deck_updated") {
@@ -40,7 +58,9 @@ export function applyEngineEvent(
       status: {
         ...current,
         decks: current.decks.map((deck) =>
-          deck.id === event.deck.id ? event.deck : deck,
+          deck.id === event.deck.id
+            ? { ...event.deck, levels: deck.levels ?? ZERO_DECK_LEVELS }
+            : deck,
         ),
       },
       revision: event.revision,
