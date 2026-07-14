@@ -308,8 +308,9 @@ mod tests {
     }
 
     fn load_test_tone(deck: &mut Deck) {
+        // Longer than one mixer callback so multi-pass tests don't hit track-end.
         let audio = LoadedAudio {
-            samples: vec![0.8f32; 512 * 2],
+            samples: vec![0.8f32; 4096 * 2],
             sample_rate: 48000,
             channels: 2,
             source_id: "test.wav".to_string(),
@@ -414,6 +415,9 @@ mod tests {
 
         decks[0].seek(0).unwrap();
         decks[1].seek(0).unwrap();
+        // Seek does not resume playback after TrackEnded / pause.
+        decks[0].play().unwrap();
+        decks[1].play().unwrap();
         mixer.set_crossfader(1.0).unwrap();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         mixer.process(&mut decks, 512, &mut output_buses).unwrap();
