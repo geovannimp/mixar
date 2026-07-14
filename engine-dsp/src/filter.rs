@@ -2,7 +2,7 @@
 
 use audio_core::Sample;
 
-use crate::eq::{clamp_gain_db, EQ_MAX_DB};
+use crate::eq::{clamp_gain_db, EQ_MAX_DB, EQ_MIN_DB};
 
 const LP_CUTOFF_HZ: f32 = 180.0;
 const HP_CUTOFF_HZ: f32 = 1_800.0;
