@@ -102,3 +102,9 @@ test_data/
 # Local development files
 local/
 dev/
+
+# Brainstorm / agent session artifacts
+.superpowers/
+
+# Local git worktrees
+.worktrees/
