@@ -4,13 +4,21 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "../lib/ui";
-import { DEFAULT_DECK_EQ, type DeckEq, type DeckStatus } from "../types";
+import {
+  DEFAULT_DECK_EQ,
+  ZERO_DECK_LEVELS,
+  type DeckEq,
+  type DeckStatus,
+  type LevelMeterMode,
+} from "../types";
 import {
   engineActions,
   useCrossfader,
   useDeckMixerChannel,
+  useLevelMeterMode,
 } from "../hooks/useEngine";
 import { getDefaultDeck } from "../stores/defaultDeck";
+import { LevelMeter } from "./LevelMeter";
 import { RotaryKnob } from "./RotaryKnob";
 
 const EQ_COLUMN_CLASS = "w-12";
@@ -287,21 +295,25 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
 interface DeckMixerProps {
   decks: DeckStatus[];
   crossfader: number;
+  levelMeterMode: LevelMeterMode;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onFilterChange: (deckId: number, filterDb: number) => void;
   onGainChange: (deckId: number, gainDb: number) => void;
   onCrossfaderChange: (position: number) => void;
+  onLevelMeterModeChange: (mode: LevelMeterMode) => void;
 }
 
 function DeckMixerView({
   decks,
   crossfader,
+  levelMeterMode,
   onVolumeChange,
   onEqChange,
   onFilterChange,
   onGainChange,
   onCrossfaderChange,
+  onLevelMeterModeChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
   const channelAccents = ["a", "b"] as const satisfies readonly DeckAccent[];
@@ -323,9 +335,35 @@ function DeckMixerView({
 
   return (
     <div className="flex h-full min-h-0 w-[12.5rem] shrink-0 flex-col gap-2 overflow-hidden border-x border-white/6 bg-zinc-900/50 px-1.5 py-3">
-      <span className="shrink-0 text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
-        Mixer
-      </span>
+      <div className="flex shrink-0 items-center justify-center gap-1">
+        <span className="text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+          Mixer
+        </span>
+        <button
+          type="button"
+          className={cn(
+            buttonIcon,
+            "size-4 border-white/10 text-[7px] font-semibold text-zinc-500 hover:bg-zinc-800/90",
+          )}
+          aria-label={
+            levelMeterMode === "mono"
+              ? "Level meter mode: mono. Switch to stereo."
+              : "Level meter mode: stereo. Switch to mono."
+          }
+          title={
+            levelMeterMode === "mono"
+              ? "Mono meters (max L/R)"
+              : "Stereo meters (L/R)"
+          }
+          onClick={() =>
+            onLevelMeterModeChange(
+              levelMeterMode === "mono" ? "stereo" : "mono",
+            )
+          }
+        >
+          {levelMeterMode === "mono" ? "M" : "S"}
+        </button>
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
         <MixerTopKnobRow
@@ -352,6 +390,16 @@ function DeckMixerView({
               onVolumeChange={(volume) => onVolumeChange(0, volume)}
               onCueChange={(cue) => updateChannelUi(0, { cue })}
             />
+            <div className="flex h-full items-stretch gap-0.5 px-0.5">
+              <LevelMeter
+                levels={decks[0]?.levels ?? ZERO_DECK_LEVELS}
+                mode={levelMeterMode}
+              />
+              <LevelMeter
+                levels={decks[1]?.levels ?? ZERO_DECK_LEVELS}
+                mode={levelMeterMode}
+              />
+            </div>
             <DeckVolumeFader
               channelAccent={channelAccents[1]}
               volume={decks[1]?.volume ?? 1}
@@ -381,6 +429,7 @@ function DeckMixerView({
 
 export function DeckMixer() {
   const crossfader = useCrossfader();
+  const levelMeterMode = useLevelMeterMode();
   const deck0 = useDeckMixerChannel(0);
   const deck1 = useDeckMixerChannel(1);
   const {
@@ -389,6 +438,7 @@ export function DeckMixer() {
     setCrossfader,
     setDeckFilter,
     setDeckGainTrim,
+    setLevelMeterMode,
   } = engineActions;
 
   const decks: DeckStatus[] = [
@@ -398,6 +448,7 @@ export function DeckMixer() {
       eq: deck0.eq,
       filter_db: deck0.filter_db,
       gain_trim_db: deck0.gain_trim_db,
+      levels: deck0.levels,
     },
     {
       ...getDefaultDeck(1),
@@ -405,6 +456,7 @@ export function DeckMixer() {
       eq: deck1.eq,
       filter_db: deck1.filter_db,
       gain_trim_db: deck1.gain_trim_db,
+      levels: deck1.levels,
     },
   ];
 
@@ -412,11 +464,13 @@ export function DeckMixer() {
     <DeckMixerView
       decks={decks}
       crossfader={crossfader}
+      levelMeterMode={levelMeterMode}
       onVolumeChange={setDeckVolume}
       onEqChange={setDeckEq}
       onFilterChange={setDeckFilter}
       onGainChange={setDeckGainTrim}
       onCrossfaderChange={setCrossfader}
+      onLevelMeterModeChange={setLevelMeterMode}
     />
   );
 }
