@@ -262,6 +262,27 @@ impl Engine {
         snapshot
     }
 
+    /// Snapshot pre-fader stereo peaks for all decks.
+    pub fn deck_level_snapshot(&self) -> Vec<(usize, f32, f32)> {
+        let Some(dsp_engine) = self.dsp_engine.as_ref() else {
+            return Vec::new();
+        };
+        let dsp = match dsp_engine.lock() {
+            Ok(dsp) => dsp,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut snapshot = Vec::with_capacity(dsp.num_decks());
+        for deck_id in 0..dsp.num_decks() {
+            let Some(deck) = dsp.deck(deck_id) else {
+                continue;
+            };
+            let peaks = deck.level_peaks();
+            snapshot.push((deck_id, peaks.peak_l, peaks.peak_r));
+        }
+        snapshot
+    }
+
     /// Load a shared decoded track into a deck.
     pub fn load_track(&mut self, deck_id: usize, audio: Arc<LoadedAudio>) -> Result<()> {
         let dsp_engine = self
