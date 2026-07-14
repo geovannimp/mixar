@@ -35,18 +35,14 @@ function Ladder({
         const isHold = holdIdx === fromBottom;
         let color = "bg-zinc-800";
         if (on || isHold) {
-          if (fromBottom >= RED_FROM) color = "bg-red-500";
-          else if (fromBottom >= YELLOW_FROM) color = "bg-amber-400";
-          else color = "bg-emerald-500";
+          if (fromBottom >= RED_FROM) color = "bg-red-500/50";
+          else if (fromBottom >= YELLOW_FROM) color = "bg-amber-400/45";
+          else color = "bg-emerald-500/45";
         }
         return (
           <div
             key={fromBottom}
-            className={cn(
-              "min-h-0 flex-1 rounded-[1px]",
-              color,
-              isHold && !on && "opacity-100 ring-1 ring-white/70",
-            )}
+            className={cn("min-h-0 flex-1 rounded-[1px]", color)}
           />
         );
       })}

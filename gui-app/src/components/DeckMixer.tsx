@@ -390,15 +390,25 @@ function DeckMixerView({
               onVolumeChange={(volume) => onVolumeChange(0, volume)}
               onCueChange={(cue) => updateChannelUi(0, { cue })}
             />
-            <div className="flex h-full items-stretch gap-0.5 px-0.5">
-              <LevelMeter
-                levels={decks[0]?.levels ?? ZERO_DECK_LEVELS}
-                mode={levelMeterMode}
-              />
-              <LevelMeter
-                levels={decks[1]?.levels ?? ZERO_DECK_LEVELS}
-                mode={levelMeterMode}
-              />
+            {/* Match DeckVolumeFader: meters only as tall as the slider track. */}
+            <div className="flex h-full shrink-0 flex-col items-center gap-1">
+              <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
+                <LevelMeter
+                  levels={decks[0]?.levels ?? ZERO_DECK_LEVELS}
+                  mode={levelMeterMode}
+                />
+                <LevelMeter
+                  levels={decks[1]?.levels ?? ZERO_DECK_LEVELS}
+                  mode={levelMeterMode}
+                />
+              </div>
+              <span
+                className="invisible w-full shrink-0 text-center text-[9px] tabular-nums"
+                aria-hidden
+              >
+                100%
+              </span>
+              <div className="invisible size-7 shrink-0" aria-hidden />
             </div>
             <DeckVolumeFader
               channelAccent={channelAccents[1]}
