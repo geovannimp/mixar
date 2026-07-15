@@ -238,3 +238,26 @@ fn test_ring_buffer_integration() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn starts_with_master_and_cue_buses_on_null() {
+    let mut config = EngineConfig::default();
+    config.backend = "null".into();
+    config.buses = vec![
+        audio_core::BusConfig::new(
+            BusId::new("master"),
+            "Master".into(),
+            audio_core::DeviceId::new("null-device"),
+            audio_core::ChannelMapping::new(3, 4),
+        ),
+        audio_core::BusConfig::new(
+            BusId::new("cue"),
+            "Preview".into(),
+            audio_core::DeviceId::new("null-device"),
+            audio_core::ChannelMapping::new(1, 2),
+        ),
+    ];
+    let mut engine = Engine::new(config).unwrap();
+    assert!(engine.start().is_ok());
+    engine.stop().unwrap();
+}
