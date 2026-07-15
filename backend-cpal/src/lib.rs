@@ -147,6 +147,24 @@ impl CpalBackend {
         candidates
     }
 
+    fn pick_config_range(
+        matching_configs: &[&SupportedStreamConfigRange],
+        sample_rate: u32,
+        desired_channels: u16,
+    ) -> Result<SupportedStreamConfigRange> {
+        matching_configs
+            .iter()
+            .find(|config| config.channels() == desired_channels)
+            .map(|&&config| config)
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No supported config for {} Hz with {} channels",
+                    sample_rate,
+                    desired_channels
+                )
+            })
+    }
+
     fn select_stream_config(
         device: &cpal::Device,
         params: &StreamParams,
@@ -162,21 +180,12 @@ impl CpalBackend {
             })
             .collect();
 
-        let config_range = matching_configs
-            .iter()
-            .find(|config| config.channels() == 2)
-            .or_else(|| matching_configs.first())
-            .copied()
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "No supported config found for sample rate {}",
-                    params.sample_rate
-                )
-            })?;
+        let config_range =
+            Self::pick_config_range(&matching_configs, params.sample_rate, params.channels)?;
 
         Self::validate_buffer_size(device, &config_range, params.frames_per_buffer)?;
 
-        Ok(*config_range)
+        Ok(config_range)
     }
 
     fn resolve_open_target(
@@ -265,6 +274,14 @@ impl AudioBackend for CpalBackend {
                 "Device opened at {} Hz but {} Hz was requested",
                 actual_sample_rate,
                 desired_sample_rate
+            ));
+        }
+        if supported_config.channels() != params.channels {
+            return Err(anyhow::anyhow!(
+                "Device '{}' opened with {} channels but {} channels were requested",
+                device_name,
+                supported_config.channels(),
+                params.channels
             ));
         }
 
@@ -385,6 +402,44 @@ impl AudioStream for CpalStream {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cpal::SampleFormat;
+
+    fn test_config_range(
+        sample_rate: u32,
+        channels: u16,
+    ) -> SupportedStreamConfigRange {
+        SupportedStreamConfigRange::new(
+            channels,
+            sample_rate,
+            sample_rate * 2,
+            SupportedBufferSize::Range { min: 256, max: 512 },
+            SampleFormat::F32,
+        )
+    }
+
+    #[test]
+    fn pick_config_range_selects_exact_channels() {
+        let stereo = test_config_range(48_000, 2);
+        let quad = test_config_range(48_000, 4);
+        let configs = [&stereo, &quad];
+
+        let picked = CpalBackend::pick_config_range(&configs, 48_000, 4).unwrap();
+        assert_eq!(picked.channels(), 4);
+
+        let picked = CpalBackend::pick_config_range(&configs, 48_000, 2).unwrap();
+        assert_eq!(picked.channels(), 2);
+    }
+
+    #[test]
+    fn pick_config_range_errors_when_channels_unavailable() {
+        let stereo = test_config_range(48_000, 2);
+        let configs = [&stereo];
+
+        let error = CpalBackend::pick_config_range(&configs, 48_000, 4).unwrap_err();
+        let message = error.to_string();
+        assert!(message.contains("48000"));
+        assert!(message.contains("4 channels"));
+    }
 
     #[test]
     fn test_cpal_backend_creation() {
