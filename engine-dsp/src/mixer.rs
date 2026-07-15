@@ -10,7 +10,7 @@ use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
 
-use crate::deck::Deck;
+use crate::deck::{Deck, DeckState};
 
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
 const CHUNK_SAMPLES: usize = Buffer::LEN;
@@ -237,7 +237,7 @@ impl Mixer {
             }
         }
 
-        self.route_to_buses(frames, output_buses)?;
+        self.route_to_buses(frames, decks, output_buses)?;
         Ok(())
     }
 
@@ -245,18 +245,37 @@ impl Mixer {
     fn route_to_buses(
         &self,
         frames: u32,
+        decks: &[Deck],
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
+        let required_size = frames as usize * 2;
+
         for (bus_id, output_buffer) in output_buses.iter_mut() {
-            let bus_name = bus_id.as_str();
-            let required_size = frames as usize * 2;
             if output_buffer.len() < required_size {
                 output_buffer.resize(required_size, 0.0);
             }
 
-            for (i, &sample) in self.mix_buffer.iter().enumerate() {
-                if i < output_buffer.len() {
-                    output_buffer[i] = sample;
+            let bus_name = bus_id.as_str();
+            match bus_name {
+                "cue" => {
+                    output_buffer.fill(0.0);
+                    for deck in decks {
+                        if deck.headphone_cue() && deck.state() == &DeckState::Playing {
+                            let pre_fader = deck.pre_fader_buffer();
+                            for (i, &sample) in pre_fader.iter().enumerate() {
+                                if i < output_buffer.len() {
+                                    output_buffer[i] += sample;
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    for (i, &sample) in self.mix_buffer.iter().enumerate() {
+                        if i < output_buffer.len() {
+                            output_buffer[i] = sample;
+                        }
+                    }
                 }
             }
 
@@ -335,7 +354,60 @@ mod tests {
         let master_audio = &output_buses[&BusId::new("master")];
         let cue_audio = &output_buses[&BusId::new("cue")];
         assert!(master_audio.iter().any(|&s| s != 0.0));
-        assert!(cue_audio.iter().any(|&s| s != 0.0));
+        let cue_max = cue_audio
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(cue_max < 1e-6, "cue should be silent without headphone cue");
+    }
+
+    #[test]
+    fn cue_bus_silent_when_no_headphone_cue() {
+        let mut mixer = Mixer::new();
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
+        load_test_tone(&mut decks[0]);
+        decks[0].play().unwrap();
+        // headphone_cue stays false
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+
+        let cue_max = output_buses[&BusId::new("cue")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(cue_max < 1e-6, "cue should be silent, got {}", cue_max);
+        assert!(output_buses[&BusId::new("master")]
+            .iter()
+            .any(|&s| s != 0.0));
+    }
+
+    #[test]
+    fn cue_bus_sums_pre_fader_when_cued() {
+        let mut mixer = Mixer::new();
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
+        load_test_tone(&mut decks[0]);
+        decks[0].set_volume(0.0).unwrap(); // master silent
+        decks[0].set_headphone_cue(true);
+        decks[0].play().unwrap();
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+
+        let master_max = output_buses[&BusId::new("master")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        let cue_max = output_buses[&BusId::new("cue")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(master_max < 1e-6);
+        assert!(cue_max > 0.1, "cued pre-fader should reach cue bus, got {}", cue_max);
     }
 
     #[test]
@@ -346,6 +418,7 @@ mod tests {
 
         let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
         load_test_tone(&mut decks[0]);
+        decks[0].set_headphone_cue(true);
         decks[0].play().unwrap();
 
         let mut output_buses = HashMap::new();
@@ -358,6 +431,8 @@ mod tests {
         let cue_audio = &output_buses[&BusId::new("cue")];
         let master_max = master_audio.iter().map(|&s| s.abs()).fold(0.0, f32::max);
         let cue_max = cue_audio.iter().map(|&s| s.abs()).fold(0.0, f32::max);
+        assert!(master_max > 0.0);
+        assert!(cue_max > 0.0);
         assert!(master_max > cue_max);
     }
 
