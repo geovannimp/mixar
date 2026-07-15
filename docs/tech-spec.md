@@ -274,7 +274,7 @@ New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changi
 
 ### 5.3 Channel Mapping
 
-Bus is always a stereo pair (2 channels). Each bus maps to a specific device and two device channels (config supports explicit indexes). Full multi-bus device routing is partially implemented (`set_bus_device` is currently a stub).
+Bus is always a stereo pair (2 channels). Each bus maps to a specific device and two device channels (config supports explicit indexes). Multi-bus device routing, including `set_bus_device`, is implemented.
 
 **Example:** DDJ-400 mapping where master uses channels 3–4 and cue uses 1–2.
 
@@ -826,10 +826,10 @@ panic = "abort"
 - Producer/consumer ring-buffer plumbing (`rtrb`, `ConsumerCallback`).
 - `Engine` API with `AudioSource`-based `load_track` and `FileAudioSource`.
 - TOML config (`EngineConfig`) and `app-example`.
+- Bus/device channel mapping (`set_bus_device` and multi-bus routing), including settings-driven engine restart with deck/track rehydration.
 
 ### Next (MVP remaining)
 
-- Complete bus/device channel mapping (`set_bus_device` and multi-bus routing).
 - Library manager: disk `Folder` collections + `Playlist` (`sortable`); track scan/tags.
 - Latency reporting / buffer negotiation polish.
 
