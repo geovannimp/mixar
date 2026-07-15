@@ -1,5 +1,4 @@
 import { Headphones } from "lucide-react";
-import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
@@ -30,14 +29,6 @@ const EQ_BANDS_LOWER: { id: EqBand; label: string }[] = [
   { id: "mid", label: "MID" },
   { id: "low", label: "LOW" },
 ];
-
-interface ChannelMixerUi {
-  cue: boolean;
-}
-
-const DEFAULT_CHANNEL_MIXER_UI: ChannelMixerUi = {
-  cue: false,
-};
 
 interface MixerKnobProps {
   label: string;
@@ -240,7 +231,7 @@ function DeckVolumeFader({
         disabled={disabled}
         aria-label="Cue"
         aria-pressed={cue}
-        title="Headphone cue (routing coming in Phase 4)"
+        title="Headphone cue"
         onClick={() => onCueChange(!cue)}
       >
         <Headphones className="size-3.5" aria-hidden />
@@ -300,6 +291,7 @@ interface DeckMixerProps {
   onEqChange: (deckId: number, eq: DeckEq) => void;
   onFilterChange: (deckId: number, filterDb: number) => void;
   onGainChange: (deckId: number, gainDb: number) => void;
+  onCueChange: (deckId: number, enabled: boolean) => void;
   onCrossfaderChange: (position: number) => void;
   onLevelMeterModeChange: (mode: LevelMeterMode) => void;
 }
@@ -312,26 +304,12 @@ function DeckMixerView({
   onEqChange,
   onFilterChange,
   onGainChange,
+  onCueChange,
   onCrossfaderChange,
   onLevelMeterModeChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
   const channelAccents = ["a", "b"] as const satisfies readonly DeckAccent[];
-  const [channelUi, setChannelUi] = useState<ChannelMixerUi[]>([
-    DEFAULT_CHANNEL_MIXER_UI,
-    DEFAULT_CHANNEL_MIXER_UI,
-  ]);
-
-  const updateChannelUi = (
-    index: number,
-    patch: Partial<ChannelMixerUi>,
-  ): void => {
-    setChannelUi((current) =>
-      current.map((channel, channelIndex) =>
-        channelIndex === index ? { ...channel, ...patch } : channel,
-      ),
-    );
-  };
 
   return (
     <div className="flex h-full min-h-0 w-[12.5rem] shrink-0 flex-col gap-2 overflow-hidden border-x border-white/6 bg-zinc-900/50 px-1.5 py-3">
@@ -386,9 +364,9 @@ function DeckMixerView({
             <DeckVolumeFader
               channelAccent={channelAccents[0]}
               volume={decks[0]?.volume ?? 1}
-              cue={channelUi[0]?.cue ?? false}
+              cue={decks[0]?.headphone_cue ?? false}
               onVolumeChange={(volume) => onVolumeChange(0, volume)}
-              onCueChange={(cue) => updateChannelUi(0, { cue })}
+              onCueChange={(cue) => onCueChange(0, cue)}
             />
             {/* Match DeckVolumeFader: meters only as tall as the slider track. */}
             <div className="flex h-full shrink-0 flex-col items-center gap-1">
@@ -413,9 +391,9 @@ function DeckMixerView({
             <DeckVolumeFader
               channelAccent={channelAccents[1]}
               volume={decks[1]?.volume ?? 1}
-              cue={channelUi[1]?.cue ?? false}
+              cue={decks[1]?.headphone_cue ?? false}
               onVolumeChange={(volume) => onVolumeChange(1, volume)}
-              onCueChange={(cue) => updateChannelUi(1, { cue })}
+              onCueChange={(cue) => onCueChange(1, cue)}
             />
           </div>
 
@@ -448,6 +426,7 @@ export function DeckMixer() {
     setCrossfader,
     setDeckFilter,
     setDeckGainTrim,
+    setDeckHeadphoneCue,
     setLevelMeterMode,
   } = engineActions;
 
@@ -458,6 +437,7 @@ export function DeckMixer() {
       eq: deck0.eq,
       filter_db: deck0.filter_db,
       gain_trim_db: deck0.gain_trim_db,
+      headphone_cue: deck0.headphone_cue,
       levels: deck0.levels,
     },
     {
@@ -466,6 +446,7 @@ export function DeckMixer() {
       eq: deck1.eq,
       filter_db: deck1.filter_db,
       gain_trim_db: deck1.gain_trim_db,
+      headphone_cue: deck1.headphone_cue,
       levels: deck1.levels,
     },
   ];
@@ -479,6 +460,7 @@ export function DeckMixer() {
       onEqChange={setDeckEq}
       onFilterChange={setDeckFilter}
       onGainChange={setDeckGainTrim}
+      onCueChange={setDeckHeadphoneCue}
       onCrossfaderChange={setCrossfader}
       onLevelMeterModeChange={setLevelMeterMode}
     />

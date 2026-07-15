@@ -387,6 +387,20 @@ impl Engine {
         }
     }
 
+    /// Set whether a deck is routed to the headphone cue bus.
+    pub fn set_deck_headphone_cue(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_headphone_cue(enabled);
+        Ok(())
+    }
+
     /// Set a deck's three-band EQ gains in decibels.
     pub fn set_deck_eq(&mut self, deck_id: usize, gains: DeckEqGains) -> Result<()> {
         let dsp_engine = self

@@ -86,6 +86,7 @@ pub(crate) struct DeckInfo {
     sync_mode: SyncMode,
     pad_mode: PadMode,
     loop_roll_restore: Option<LoopRegionStatus>,
+    headphone_cue: bool,
 }
 
 impl Default for DeckInfo {
@@ -111,6 +112,7 @@ impl Default for DeckInfo {
             sync_mode: SyncMode::Off,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
+            headphone_cue: false,
         }
     }
 }
@@ -311,6 +313,7 @@ pub(crate) struct DeckStatus {
     sync_mode: SyncMode,
     is_master: bool,
     pad_mode: PadMode,
+    headphone_cue: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -406,6 +409,7 @@ fn clear_deck_info(deck: &mut DeckInfo) {
         filter_db: deck.filter_db,
         gain_trim_db: deck.gain_trim_db,
         pad_mode: deck.pad_mode,
+        headphone_cue: deck.headphone_cue,
         ..DeckInfo::default()
     };
 }
@@ -501,6 +505,9 @@ fn start_engine(
             .map_err(|e| e.to_string())?;
         engine
             .set_deck_gain_trim_db(deck_id, deck.gain_trim_db)
+            .map_err(|e| e.to_string())?;
+        engine
+            .set_deck_headphone_cue(deck_id, deck.headphone_cue)
             .map_err(|e| e.to_string())?;
     }
     engine
@@ -963,6 +970,27 @@ fn set_deck_eq(
 }
 
 #[tauri::command]
+fn set_deck_headphone_cue(
+    app: AppHandle,
+    deck_id: usize,
+    enabled: bool,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].headphone_cue = enabled;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_headphone_cue(deck_id, enabled)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(publish_deck(&app, &mut state, deck_id))
+}
+
+#[tauri::command]
 fn set_crossfader(
     app: AppHandle,
     crossfader: f32,
@@ -1252,6 +1280,7 @@ pub fn run() {
             set_deck_volume,
             set_deck_eq,
             set_deck_speed,
+            set_deck_headphone_cue,
             set_crossfader,
             seek_deck,
             unload_deck,
