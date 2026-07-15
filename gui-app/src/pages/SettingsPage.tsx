@@ -70,7 +70,7 @@ export function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Stop the engine before saving changes.
+          Saving restarts the engine automatically if it&apos;s running.
         </p>
         {(error || saved) && (
           <div className="mt-3 space-y-2">
