@@ -7,7 +7,12 @@ import {
   resamplerQualityIndex,
   resamplerQualityLabel,
 } from "@/lib/resamplerQuality";
-import type { AppSettings, AudioDeviceSummary, BusRouteSettings } from "@/types";
+import type {
+  AppSettings,
+  AudioDeviceSummary,
+  BusChannelMode,
+  BusRouteSettings,
+} from "@/types";
 import { DeviceSelect } from "./DeviceSelect";
 import { SettingsField, SettingsSectionHeader } from "./SettingsField";
 import { SettingsSelect } from "./SettingsSelect";
@@ -19,6 +24,11 @@ const BACKEND_OPTIONS = BACKENDS.map((backend) => ({
   value: backend,
   label: backend,
 }));
+
+const CHANNEL_MODE_OPTIONS: { value: BusChannelMode; label: string }[] = [
+  { value: "stereo", label: "Stereo pair" },
+  { value: "mono", label: "Mono (fold L+R)" },
+];
 
 const RESAMPLER_QUALITY_MIN = 0;
 const RESAMPLER_QUALITY_MAX = RESAMPLER_QUALITY_STEPS.length - 1;
@@ -44,6 +54,98 @@ function updateBusRoute(
   patch: Partial<BusRouteSettings>,
 ): BusRouteSettings {
   return { ...route, ...patch };
+}
+
+function busMode(route: BusRouteSettings): BusChannelMode {
+  return route.mode === "mono" ? "mono" : "stereo";
+}
+
+interface BusChannelFieldsProps {
+  route: BusRouteSettings;
+  onChange: (next: BusRouteSettings) => void;
+}
+
+function BusChannelFields({ route, onChange }: BusChannelFieldsProps) {
+  const mode = busMode(route);
+
+  return (
+    <>
+      <SettingsField label="Channel mode">
+        <SettingsSelect
+          aria-label="Channel mode"
+          value={mode}
+          options={CHANNEL_MODE_OPTIONS}
+          onValueChange={(selected) => {
+            onChange(
+              updateBusRoute(route, {
+                mode: selected,
+                ...(selected === "mono"
+                  ? { right_channel: route.left_channel }
+                  : {
+                      right_channel:
+                        route.right_channel === route.left_channel
+                          ? route.left_channel + 1
+                          : route.right_channel,
+                    }),
+              }),
+            );
+          }}
+        />
+      </SettingsField>
+      {mode === "mono" ? (
+        <SettingsField label="Mono channel">
+          <Input
+            type="number"
+            min={1}
+            value={route.left_channel}
+            onChange={(event) => {
+              const channel = Number(event.target.value) || 1;
+              onChange(
+                updateBusRoute(route, {
+                  left_channel: channel,
+                  right_channel: channel,
+                  mode: "mono",
+                }),
+              );
+            }}
+          />
+        </SettingsField>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <SettingsField label="Left channel">
+            <Input
+              type="number"
+              min={1}
+              value={route.left_channel}
+              onChange={(event) =>
+                onChange(
+                  updateBusRoute(route, {
+                    left_channel: Number(event.target.value) || 1,
+                    mode: "stereo",
+                  }),
+                )
+              }
+            />
+          </SettingsField>
+          <SettingsField label="Right channel">
+            <Input
+              type="number"
+              min={1}
+              value={route.right_channel}
+              onChange={(event) =>
+                onChange(
+                  updateBusRoute(route, {
+                    right_channel: Number(event.target.value) || 2,
+                    mode: "stereo",
+                  }),
+                )
+              }
+            />
+          </SettingsField>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function SettingsAudioPanel({
@@ -101,32 +203,23 @@ export function SettingsAudioPanel({
                 buffer_size: snapBufferSize(next),
               });
             }}
-          >
-            <div className="mb-2 flex items-center justify-between gap-1">
-              <FieldLabel className="font-medium text-sm">
-                Buffer size (frames)
-              </FieldLabel>
-              <SliderValue />
-            </div>
-          </Slider>
+          />
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel>Buffer size (frames)</FieldLabel>
+            <SliderValue>{draft.buffer_size}</SliderValue>
+          </div>
+          <FieldDescription>
+            Smaller buffers reduce latency and raise CPU / drop risk.
+          </FieldDescription>
         </Field>
 
         <SettingsToggle
-          label="Low latency mode"
+          label="Low latency"
           checked={draft.low_latency}
-          onCheckedChange={(low_latency) =>
-            onChange({ ...draft, low_latency })
-          }
-        />
-      </section>
-
-      <section className="space-y-5 border-t border-white/8 pt-6">
-        <SettingsSectionHeader
-          title="Resample"
-          description="Converts each track to what your audio device expects."
+          onCheckedChange={(low_latency) => onChange({ ...draft, low_latency })}
         />
 
-        <Field className="gap-1.5">
+        <Field>
           <Slider
             aria-label="Resampler quality"
             value={resamplerQualityIndex(draft.resampler_quality)}
@@ -143,30 +236,12 @@ export function SettingsAudioPanel({
                 resampler_quality: resamplerQualityFromIndex(next),
               });
             }}
-          >
-            <div className="mb-2 flex items-center justify-between gap-1">
-              <FieldLabel className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                Resampler quality
-              </FieldLabel>
-              <span className="text-sm">
-                {resamplerQualityLabel(draft.resampler_quality)}
-              </span>
-            </div>
-          </Slider>
-          <div
-            aria-label="Resampler quality levels"
-            className="mt-1 flex w-full items-center justify-between gap-1 px-2.5 font-medium text-muted-foreground text-xs"
-            role="group"
-          >
-            {RESAMPLER_QUALITY_STEPS.map((step) => (
-              <span
-                className="flex w-0 flex-col items-center justify-center gap-2"
-                key={step.value}
-              >
-                <span className="h-1 w-px bg-muted-foreground/72" />
-                <span>{step.label}</span>
-              </span>
-            ))}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel>Resampler quality</FieldLabel>
+            <SliderValue>
+              {resamplerQualityLabel(draft.resampler_quality)}
+            </SliderValue>
           </div>
           <FieldDescription>Higher quality uses more CPU.</FieldDescription>
         </Field>
@@ -175,7 +250,7 @@ export function SettingsAudioPanel({
       <section className="space-y-4 border-t border-white/8 pt-6">
         <SettingsSectionHeader
           title="Buses"
-          description="Route master and optional preview output to devices."
+          description="Route master and optional preview output to devices. Mono mode folds stereo to one device channel."
         />
 
         <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
@@ -190,42 +265,16 @@ export function SettingsAudioPanel({
             onChange={(deviceId) =>
               onChange({
                 ...draft,
-                master_bus: updateBusRoute(draft.master_bus, { device_id: deviceId }),
+                master_bus: updateBusRoute(draft.master_bus, {
+                  device_id: deviceId,
+                }),
               })
             }
           />
-          <div className="grid grid-cols-2 gap-3">
-            <SettingsField label="Left channel">
-              <Input
-                type="number"
-                min={1}
-                value={draft.master_bus.left_channel}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    master_bus: updateBusRoute(draft.master_bus, {
-                      left_channel: Number(event.target.value) || 1,
-                    }),
-                  })
-                }
-              />
-            </SettingsField>
-            <SettingsField label="Right channel">
-              <Input
-                type="number"
-                min={1}
-                value={draft.master_bus.right_channel}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    master_bus: updateBusRoute(draft.master_bus, {
-                      right_channel: Number(event.target.value) || 2,
-                    }),
-                  })
-                }
-              />
-            </SettingsField>
-          </div>
+          <BusChannelFields
+            route={draft.master_bus}
+            onChange={(master_bus) => onChange({ ...draft, master_bus })}
+          />
         </div>
 
         <SettingsToggle
@@ -256,38 +305,10 @@ export function SettingsAudioPanel({
                 })
               }
             />
-            <div className="grid grid-cols-2 gap-3">
-              <SettingsField label="Left channel">
-                <Input
-                  type="number"
-                  min={1}
-                  value={draft.preview_bus.left_channel}
-                  onChange={(event) =>
-                    onChange({
-                      ...draft,
-                      preview_bus: updateBusRoute(draft.preview_bus, {
-                        left_channel: Number(event.target.value) || 1,
-                      }),
-                    })
-                  }
-                />
-              </SettingsField>
-              <SettingsField label="Right channel">
-                <Input
-                  type="number"
-                  min={1}
-                  value={draft.preview_bus.right_channel}
-                  onChange={(event) =>
-                    onChange({
-                      ...draft,
-                      preview_bus: updateBusRoute(draft.preview_bus, {
-                        right_channel: Number(event.target.value) || 2,
-                      }),
-                    })
-                  }
-                />
-              </SettingsField>
-            </div>
+            <BusChannelFields
+              route={draft.preview_bus}
+              onChange={(preview_bus) => onChange({ ...draft, preview_bus })}
+            />
           </div>
         )}
       </section>

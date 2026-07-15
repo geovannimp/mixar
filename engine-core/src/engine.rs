@@ -666,8 +666,7 @@ impl Engine {
 
     /// Update bus configuration
     pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
-        let mapping =
-            crate::routing::validate_channel_pair([new_config.channels.left, new_config.channels.right])?;
+        let mapping = crate::routing::validate_channel_mapping(&new_config.channels)?;
         let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
 
         if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
@@ -710,7 +709,7 @@ impl Engine {
         }
     }
 
-    /// Set bus device mapping
+    /// Set bus device mapping to a stereo channel pair (1-based).
     pub fn set_bus_device(
         &mut self,
         bus: BusId,
@@ -718,6 +717,17 @@ impl Engine {
         channels: [u16; 2],
     ) -> Result<()> {
         let mapping = crate::routing::validate_channel_pair(channels)?;
+        self.set_bus_channel_mapping(bus, device, mapping)
+    }
+
+    /// Set bus device mapping (stereo pair or mono fold).
+    pub fn set_bus_channel_mapping(
+        &mut self,
+        bus: BusId,
+        device: DeviceId,
+        channels: ChannelMapping,
+    ) -> Result<()> {
+        let mapping = crate::routing::validate_channel_mapping(&channels)?;
         let resolved = self.validate_bus_device_mapping(&bus, &device, &mapping)?;
 
         if let Some(existing) = self.config.buses.iter_mut().find(|b| b.id == bus) {
@@ -729,12 +739,9 @@ impl Engine {
                 "cue" => "Preview".to_string(),
                 other => other.to_string(),
             };
-            self.config.buses.push(BusConfig::new(
-                bus,
-                name,
-                resolved,
-                mapping,
-            ));
+            self.config
+                .buses
+                .push(BusConfig::new(bus, name, resolved, mapping));
         }
         Ok(())
     }
@@ -872,6 +879,33 @@ mod tests {
             .set_bus_device(BusId::new("cue"), DeviceId::new("null-device"), [2, 3])
             .unwrap_err();
         assert!(err.to_string().contains("overlaps"));
+    }
+
+    #[test]
+    fn set_bus_channel_mapping_accepts_mono() {
+        let mut config = EngineConfig::default();
+        config.backend = "null".into();
+        let mut engine = Engine::new(config).unwrap();
+        engine
+            .set_bus_channel_mapping(
+                BusId::new("master"),
+                DeviceId::new("null-device"),
+                ChannelMapping::mono(1),
+            )
+            .unwrap();
+        engine
+            .set_bus_channel_mapping(
+                BusId::new("cue"),
+                DeviceId::new("null-device"),
+                ChannelMapping::mono(2),
+            )
+            .unwrap();
+        let master = engine.get_bus_config(&BusId::new("master")).unwrap();
+        assert!(master.channels.is_mono());
+        assert_eq!(master.channels.left, 1);
+        let cue = engine.get_bus_config(&BusId::new("cue")).unwrap();
+        assert!(cue.channels.is_mono());
+        assert_eq!(cue.channels.left, 2);
     }
 
     #[test]

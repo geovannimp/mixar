@@ -101,10 +101,14 @@ export interface EngineStatus {
   decks: DeckStatus[];
 }
 
+export type BusChannelMode = "stereo" | "mono";
+
 export interface BusRouteSettings {
   device_id: string;
   left_channel: number;
   right_channel: number;
+  /** Defaults to stereo when omitted (older settings). */
+  mode?: BusChannelMode;
 }
 
 export interface AudioDeviceSummary {

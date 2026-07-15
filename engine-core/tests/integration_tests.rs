@@ -261,3 +261,29 @@ fn starts_with_master_and_cue_buses_on_null() {
     assert!(engine.start().is_ok());
     engine.stop().unwrap();
 }
+
+#[test]
+fn starts_with_mono_master_and_cue_on_null() {
+    let mut config = EngineConfig::default();
+    config.backend = "null".into();
+    config.buses = vec![
+        audio_core::BusConfig::new(
+            BusId::new("master"),
+            "Master".into(),
+            audio_core::DeviceId::new("null-device"),
+            audio_core::ChannelMapping::mono(1),
+        ),
+        audio_core::BusConfig::new(
+            BusId::new("cue"),
+            "Preview".into(),
+            audio_core::DeviceId::new("null-device"),
+            audio_core::ChannelMapping::mono(2),
+        ),
+    ];
+    let mut engine = Engine::new(config).unwrap();
+    assert!(engine.start().is_ok());
+    engine
+        .set_deck_headphone_cue(0, true)
+        .expect("headphone cue API");
+    engine.stop().unwrap();
+}
