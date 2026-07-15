@@ -8,7 +8,7 @@ use crate::producer::{
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{
-    AudioStream, BusConfig, BusId, DeviceId, DeviceInfo, Sample, StreamParams,
+    AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
 use engine_dsp::DspEngine;
 use engine_dsp::DeckEqGains;
@@ -589,10 +589,38 @@ impl Engine {
         self.config.buses.iter().find(|bus| &bus.id == bus_id)
     }
 
+    fn validate_bus_device_mapping(
+        &self,
+        bus_id: &BusId,
+        device: &DeviceId,
+        mapping: &ChannelMapping,
+    ) -> Result<DeviceId> {
+        let devices = self.backend.list_output_devices()?;
+        let resolved = crate::routing::resolve_device_id(device, &devices)?;
+        let info = devices
+            .iter()
+            .find(|d| d.id == resolved)
+            .ok_or_else(|| anyhow::anyhow!("Output device not found: {}", resolved.as_str()))?;
+        crate::routing::ensure_channels_in_range(mapping, info.max_channels, &resolved)?;
+        crate::routing::ensure_no_channel_conflicts(
+            &self.config.buses,
+            bus_id,
+            &resolved,
+            mapping,
+        )?;
+        Ok(resolved)
+    }
+
     /// Update bus configuration
     pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
+        let mapping =
+            crate::routing::validate_channel_pair([new_config.channels.left, new_config.channels.right])?;
+        let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
+
         if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
-            *bus = new_config;
+            bus.name = new_config.name;
+            bus.device = resolved;
+            bus.channels = mapping;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()))
@@ -636,14 +664,25 @@ impl Engine {
         device: DeviceId,
         channels: [u16; 2],
     ) -> Result<()> {
-        log::info!(
-            "Setting bus {} to device {} channels {:?}",
-            bus.as_str(),
-            device.as_str(),
-            channels
-        );
+        let mapping = crate::routing::validate_channel_pair(channels)?;
+        let resolved = self.validate_bus_device_mapping(&bus, &device, &mapping)?;
 
-        // TODO: Implement bus device mapping in Sprint 2
+        if let Some(existing) = self.config.buses.iter_mut().find(|b| b.id == bus) {
+            existing.device = resolved;
+            existing.channels = mapping;
+        } else {
+            let name = match bus.as_str() {
+                "master" => "Master".to_string(),
+                "cue" => "Preview".to_string(),
+                other => other.to_string(),
+            };
+            self.config.buses.push(BusConfig::new(
+                bus,
+                name,
+                resolved,
+                mapping,
+            ));
+        }
         Ok(())
     }
 }
@@ -737,6 +776,49 @@ mod tests {
             ChannelMapping::new(1, 2),
         );
         assert!(engine.update_bus_config(&master_bus_id, new_config).is_ok());
+    }
+
+    #[test]
+    fn set_bus_device_updates_master_config() {
+        let mut config = EngineConfig::default();
+        config.backend = "null".into();
+        let mut engine = Engine::new(config).unwrap();
+        engine
+            .set_bus_device(
+                BusId::new("master"),
+                DeviceId::new("null-device"),
+                [3, 4],
+            )
+            .unwrap();
+        let bus = engine.get_bus_config(&BusId::new("master")).unwrap();
+        assert_eq!(bus.channels.left, 3);
+        assert_eq!(bus.channels.right, 4);
+        assert_eq!(bus.device.as_str(), "null-device");
+    }
+
+    #[test]
+    fn set_bus_device_rejects_overlap_on_same_device() {
+        let mut config = EngineConfig::default();
+        config.backend = "null".into();
+        config.buses = vec![
+            BusConfig::new(
+                BusId::new("master"),
+                "Master".into(),
+                DeviceId::new("null-device"),
+                ChannelMapping::new(1, 2),
+            ),
+            BusConfig::new(
+                BusId::new("cue"),
+                "Preview".into(),
+                DeviceId::new("null-device"),
+                ChannelMapping::new(3, 4),
+            ),
+        ];
+        let mut engine = Engine::new(config).unwrap();
+        let err = engine
+            .set_bus_device(BusId::new("cue"), DeviceId::new("null-device"), [2, 3])
+            .unwrap_err();
+        assert!(err.to_string().contains("overlaps"));
     }
 
     #[test]
