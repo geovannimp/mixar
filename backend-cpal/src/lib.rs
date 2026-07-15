@@ -147,6 +147,10 @@ impl CpalBackend {
         candidates
     }
 
+    fn max_output_channels(configs: &[SupportedStreamConfigRange]) -> u16 {
+        configs.iter().map(|config| config.channels()).max().unwrap_or(0)
+    }
+
     fn pick_config_range(
         matching_configs: &[&SupportedStreamConfigRange],
         sample_rate: u32,
@@ -238,20 +242,29 @@ impl AudioBackend for CpalBackend {
             let device_name = Self::device_name(&device);
             let is_default = default_id.as_ref().is_some_and(|d| d.as_str() == id.as_str());
 
-            // Get supported sample rates (cpal 0.18: SampleRate is u32)
-            let mut sample_rates = vec![44100, 48000];
-            if let Ok(configs) = device.supported_output_configs() {
-                for config in configs {
-                    sample_rates.push(config.min_sample_rate());
-                    sample_rates.push(config.max_sample_rate());
-                }
-            } else {
+            let supported_configs: Vec<_> = match device.supported_output_configs() {
+                Ok(configs) => configs.collect(),
+                Err(_) => continue,
+            };
+            if supported_configs.is_empty() {
                 continue;
+            }
+
+            let max_channels = Self::max_output_channels(&supported_configs);
+            if max_channels == 0 {
+                continue;
+            }
+
+            let mut sample_rates = vec![44100, 48000];
+            for config in &supported_configs {
+                sample_rates.push(config.min_sample_rate());
+                sample_rates.push(config.max_sample_rate());
             }
             sample_rates.sort();
             sample_rates.dedup();
 
-            let device_info = DeviceInfo::new(id, device_name, 2, sample_rates, is_default);
+            let device_info =
+                DeviceInfo::new(id, device_name, max_channels, sample_rates, is_default);
             devices.push(device_info);
         }
 
@@ -418,6 +431,14 @@ mod tests {
     }
 
     #[test]
+    fn max_output_channels_reports_highest_supported() {
+        let stereo = test_config_range(48_000, 2);
+        let quad = test_config_range(48_000, 4);
+        let configs = [stereo, quad];
+        assert_eq!(CpalBackend::max_output_channels(&configs), 4);
+    }
+
+    #[test]
     fn pick_config_range_selects_exact_channels() {
         let stereo = test_config_range(48_000, 2);
         let quad = test_config_range(48_000, 4);
@@ -461,14 +482,42 @@ mod tests {
 
         let devices = devices.unwrap();
         if !devices.is_empty() {
-            // Test that device IDs use the new format
+            let host = create_host().unwrap();
             for device in &devices {
                 assert!(
                     device.id.as_str().starts_with("cpal:"),
                     "Device ID should start with 'cpal:': {}",
                     device.id.as_str()
                 );
-                println!("Device: {} -> ID: {}", device.name, device.id.as_str());
+                assert!(
+                    device.max_channels >= 2,
+                    "Device '{}' should report at least stereo channels",
+                    device.name
+                );
+
+                let suffix = device.id.as_str().strip_prefix("cpal:").unwrap();
+                let cpal_id: cpal::DeviceId = suffix.parse().unwrap();
+                let cpal_device = host.device_by_id(&cpal_id).unwrap();
+                let expected = cpal_device
+                    .supported_output_configs()
+                    .ok()
+                    .into_iter()
+                    .flatten()
+                    .map(|config| config.channels())
+                    .max()
+                    .unwrap_or(0);
+                assert_eq!(
+                    device.max_channels, expected,
+                    "max_channels mismatch for device '{}'",
+                    device.name
+                );
+
+                println!(
+                    "Device: {} -> ID: {} (max_channels={})",
+                    device.name,
+                    device.id.as_str(),
+                    device.max_channels
+                );
             }
         }
     }
