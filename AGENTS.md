@@ -15,8 +15,8 @@
 
 ## Learned Workspace Facts
 
-- First local `cargo build` bootstraps [betterhook](https://crates.io/crates/betterhook-cli) git hooks (`hooks-install` via `audio-core`); pre-commit runs `rustfmt` on staged `*.rs` with `stage_fixed`. Skip job: `BETTERHOOK_SKIP=cargo-fmt`; skip bootstrap: `BETTERHOOK_BOOTSTRAP=0`; emergency: `git commit --no-verify`. Prefer not bypassing the hook.
-- Cargo workspace: `audio-core`, `engine-core`, `engine-dsp`, `backend-cpal`, `backend-null`, `backend-miniaudio`, `library*`, `codec`, `resampler`, `analyzer*`, plus `app-example` CLI and `gui-app` (Tauri + React).
+- Root `npm install` installs [lefthook](https://lefthook.dev) via npm workspaces (`gui-app` package) and `prepare` → `lefthook install`; pre-commit runs `rustfmt` on staged `*.rs` with `stage_fixed`. Skip job: `LEFTHOOK_EXCLUDE=cargo-fmt`; disable: `LEFTHOOK=0`; emergency: `git commit --no-verify`. Prefer not bypassing the hook.
+- Cargo workspace: `audio-core`, `engine-core`, `engine-dsp`, `backend-cpal`, `backend-null`, `backend-miniaudio`, `library*`, `codec`, `resampler`, `analyzer*`, plus `app-example` CLI and `gui-app` (Tauri + React; npm workspace).
 - Headless audio engine uses a producer thread writing interleaved stereo into a lock-free ring buffer; the backend audio callback consumes it.
 - Default engine config: 48 kHz sample rate, 512-frame buffer size (latency tied to buffer size).
 - `engine-core` default features enable `backend-cpal`; CPAL is the primary Linux backend (native PipeWire when available).

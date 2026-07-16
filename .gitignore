@@ -103,11 +103,11 @@ test_data/
 local/
 dev/
 
-# betterhook binary installed by hooks-install build.rs
-/tools/
-
 # Brainstorm / agent session artifacts
 .superpowers/
 
 # Local git worktrees
 .worktrees/
+
+# Local tool installs (leftover betterhook, etc.)
+/tools/

@@ -12,7 +12,3 @@ anyhow.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 dasp.workspace = true
-
-# Built so hooks-install's build.rs can install betterhook on first local build.
-[build-dependencies]
-hooks-install = { path = "../hooks-install" }

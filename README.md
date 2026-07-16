@@ -8,10 +8,12 @@ Headless Rust library providing a reusable audio engine for DJ apps. It features
 
 ## Architecture
 
-Cargo workspace layout:
+Cargo + npm workspace layout:
 
 ```
 rust-dj-engine/
+├─ package.json        # npm workspaces root (gui-app + lefthook)
+├─ lefthook.yml        # pre-commit rustfmt + stage_fixed
 ├─ audio-core/         # Shared types and traits (AudioBackend, AudioSource, Sample, …)
 ├─ backend-null/       # Deterministic backend for tests and CI
 ├─ backend-miniaudio/  # Miniaudio backend
@@ -26,6 +28,7 @@ rust-dj-engine/
 ├─ analyzer-stratum/   # stratum-dsp backend
 ├─ analyzer/           # decode + analyze_file facade
 ├─ app-example/        # Minimal example binary
+├─ gui-app/            # Tauri + React desktop UI (npm workspace package)
 └─ samples/            # Sample audio for local demos
 ```
 
@@ -132,11 +135,18 @@ Integration tests that open real devices may fail without audio hardware; prefer
 
 ### Git hooks
 
-The first local `cargo build` installs [betterhook](https://crates.io/crates/betterhook-cli) into `tools/` and wires a pre-commit hook that runs `rustfmt` on staged `*.rs` files and restages fixes (`stage_fixed`). CI skips this bootstrap (`CI` is set) and still enforces `cargo fmt -- --check`.
+Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) (npm workspace + `prepare`) and wires a pre-commit hook that runs `rustfmt` on staged `*.rs` files and restages fixes (`stage_fixed`). CI still enforces `cargo fmt -- --check`.
 
-- Skip the fmt job for one commit: `BETTERHOOK_SKIP=cargo-fmt git commit ...`
-- Skip bootstrap entirely: `BETTERHOOK_BOOTSTRAP=0`
+- Skip the fmt job for one commit: `LEFTHOOK_EXCLUDE=cargo-fmt git commit ...`
+- Disable all lefthook hooks: `LEFTHOOK=0 git commit ...`
 - Emergency only: `git commit --no-verify`
+
+GUI app (npm workspace package `gui-app`):
+
+```bash
+npm install          # root — hooks + gui-app deps
+npm run dev:gui      # or: npm run tauri -w gui-app -- dev
+```
 
 ### Code Style
 
@@ -181,7 +191,7 @@ GPL-3.0
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Run `cargo build` once so git hooks install; then `cargo fmt` / `cargo clippy` as needed
+5. Run `npm install` at the repo root (installs git hooks); then `cargo fmt` / `cargo clippy` as needed
 6. Submit a pull request
 
 ## Technical Details
