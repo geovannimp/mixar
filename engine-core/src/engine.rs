@@ -472,6 +472,21 @@ impl Engine {
         }
     }
 
+    /// Set offline loudness normalization gain for a deck in decibels.
+    pub fn set_deck_auto_gain_db(&mut self, deck_id: usize, gain_db: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_auto_gain_db(gain_db)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
     /// Seek a deck to a position in seconds.
     pub fn seek_deck(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         let dsp_engine = self
@@ -831,6 +846,9 @@ mod tests {
         );
 
         assert!(engine.play(2).is_err());
+
+        assert!(engine.set_deck_auto_gain_db(0, 6.0).is_ok());
+        assert!(engine.set_deck_auto_gain_db(2, 0.0).is_err());
 
         engine.stop().unwrap();
     }
