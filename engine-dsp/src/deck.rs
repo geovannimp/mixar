@@ -45,6 +45,8 @@ pub struct Deck {
     filter: DjFilter,
     /// Pre-fader gain trim in decibels.
     gain_trim_db: f32,
+    /// Automatic loudness normalization gain in decibels.
+    auto_gain_db: f32,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -112,6 +114,7 @@ impl Deck {
             eq: ThreeBandEq::new(sample_rate),
             filter: DjFilter::new(sample_rate),
             gain_trim_db: 0.0,
+            auto_gain_db: 0.0,
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -238,6 +241,16 @@ impl Deck {
 
     pub fn gain_trim_db(&self) -> f32 {
         self.gain_trim_db
+    }
+
+    /// Set automatic loudness normalization gain in decibels.
+    pub fn set_auto_gain_db(&mut self, gain_db: f32) -> Result<()> {
+        self.auto_gain_db = crate::eq::clamp_gain_db(gain_db);
+        Ok(())
+    }
+
+    pub fn auto_gain_db(&self) -> f32 {
+        self.auto_gain_db
     }
 
     /// Pre-fader peak levels from the last process cycle.
@@ -538,7 +551,7 @@ impl Deck {
         }
 
         // Apply gain trim, channel EQ, filter, then volume.
-        let trim = db_to_linear(self.gain_trim_db);
+        let trim = db_to_linear(self.auto_gain_db + self.gain_trim_db);
         for sample in &mut self.buffer {
             *sample *= trim;
         }
@@ -1028,6 +1041,51 @@ mod tests {
             paused.iter().all(|&s| s == 0.0),
             "paused deck must output silence, got stale samples: max={}",
             paused.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
+        );
+    }
+
+    #[test]
+    fn auto_gain_defaults_zero_and_adds_to_trim() {
+        let frames = 64u32;
+        let mut samples = Vec::with_capacity(frames as usize * 2);
+        for _ in 0..frames {
+            samples.push(0.25);
+            samples.push(-0.25);
+        }
+
+        let mut deck_baseline = Deck::new(0, 48000, 512, "medium");
+        assert_eq!(deck_baseline.auto_gain_db(), 0.0);
+        load_test_samples(&mut deck_baseline, samples.clone(), ENGINE_RATE);
+        deck_baseline.set_volume(1.0).unwrap();
+        deck_baseline.set_gain_trim_db(0.0).unwrap();
+        deck_baseline.play().unwrap();
+        deck_baseline.process(frames).unwrap();
+        let peak_baseline = deck_baseline
+            .pre_fader_buffer()
+            .iter()
+            .copied()
+            .map(f32::abs)
+            .fold(0.0_f32, f32::max);
+
+        let mut deck_boosted = Deck::new(1, 48000, 512, "medium");
+        load_test_samples(&mut deck_boosted, samples, ENGINE_RATE);
+        deck_boosted.set_volume(1.0).unwrap();
+        deck_boosted.set_gain_trim_db(0.0).unwrap();
+        deck_boosted.set_auto_gain_db(6.0).unwrap();
+        assert_eq!(deck_boosted.auto_gain_db(), 6.0);
+        deck_boosted.play().unwrap();
+        deck_boosted.process(frames).unwrap();
+        let peak_boosted = deck_boosted
+            .pre_fader_buffer()
+            .iter()
+            .copied()
+            .map(f32::abs)
+            .fold(0.0_f32, f32::max);
+
+        let ratio = peak_boosted / peak_baseline;
+        assert!(
+            (ratio - 2.0).abs() < 0.15,
+            "+6 dB auto gain should roughly double peak (ratio {ratio:.3})"
         );
     }
 
