@@ -1,6 +1,7 @@
 //! Offline audio analysis: decode files to mono PCM and run the default backend.
 
 mod decode;
+mod loudness;
 mod preprocess;
 
 use std::path::Path;
@@ -12,6 +13,7 @@ pub use analyzer_core::{
     TagMetadata, TrackAnalysis,
 };
 pub use analyzer_stratum::{musical_key_from_stratum, StratumAnalyzer};
+pub use loudness::integrated_lufs_mono;
 
 static DEFAULT_ANALYZER: OnceLock<analyzer_stratum::StratumAnalyzer> = OnceLock::new();
 
@@ -26,7 +28,13 @@ pub fn analyze_pcm(
     config: &AnalysisConfig,
 ) -> Result<TrackAnalysis> {
     let processed = preprocess::prepare(samples, sample_rate, config);
-    default_analyzer().analyze_pcm(&processed.samples, processed.sample_rate, config)
+    let mut track =
+        default_analyzer().analyze_pcm(&processed.samples, processed.sample_rate, config)?;
+    track.loudness_lufs = Some(integrated_lufs_mono(
+        &processed.samples,
+        processed.sample_rate,
+    )?);
+    Ok(track)
 }
 
 /// Decode a file and run analysis with the default backend.
@@ -44,7 +52,12 @@ pub fn analyze_pcm_with<A: AudioAnalyzer>(
     config: &AnalysisConfig,
 ) -> Result<TrackAnalysis> {
     let processed = preprocess::prepare(samples, sample_rate, config);
-    analyzer.analyze_pcm(&processed.samples, processed.sample_rate, config)
+    let mut track = analyzer.analyze_pcm(&processed.samples, processed.sample_rate, config)?;
+    track.loudness_lufs = Some(integrated_lufs_mono(
+        &processed.samples,
+        processed.sample_rate,
+    )?);
+    Ok(track)
 }
 
 /// Decode a file and analyze with a custom backend.
@@ -89,7 +102,10 @@ mod tests {
         let mut config = AnalysisConfig::default();
         config.max_duration_secs = Some(5.0);
 
-        let result = analyze_file(&wav, &config);
-        assert!(result.is_ok(), "expected ok, got {result:?}");
+        let result = analyze_file(&wav, &config).expect("analysis should succeed");
+        assert!(
+            result.loudness_lufs.is_some_and(f64::is_finite),
+            "analysis should include finite integrated loudness"
+        );
     }
 }

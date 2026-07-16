@@ -32,6 +32,7 @@ mod tests {
             }),
             key: None,
             beat_grid: None,
+            loudness_lufs: None,
             metadata: AnalysisRunMetadata {
                 backend: "test".into(),
                 backend_version: "0".into(),

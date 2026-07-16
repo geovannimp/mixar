@@ -53,6 +53,7 @@ mod tests {
                 clarity: 0.9,
             }),
             beat_grid: None,
+            loudness_lufs: None,
             metadata: AnalysisRunMetadata {
                 backend: "test".into(),
                 backend_version: "0".into(),
