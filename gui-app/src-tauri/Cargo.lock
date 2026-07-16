@@ -93,6 +93,7 @@ dependencies = [
  "analyzer-stratum",
  "anyhow",
  "codec",
+ "ebur128",
 ]
 
 [[package]]
@@ -530,7 +531,6 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 name = "backend-cpal"
 version = "0.1.0"
 dependencies = [
- "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "cpal",
@@ -1543,6 +1543,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "ebur128"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e227cc62d64d6fe01abbef48134b9c1f17d470cef1e7a56337ad05b1f81df7f9"
+dependencies = [
+ "bitflags 1.3.2",
+ "dasp_frame",
+ "dasp_sample",
+ "smallvec",
+]
+
+[[package]]
 name = "either"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2196,6 +2208,7 @@ dependencies = [
 name = "gui-app"
 version = "0.1.0"
 dependencies = [
+ "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "base64 0.22.1",
@@ -2889,6 +2902,7 @@ name = "library"
 version = "0.1.0"
 dependencies = [
  "analyzer",
+ "analyzer-core",
  "audio-core 0.1.0",
  "library-core",
  "lofty",
