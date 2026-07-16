@@ -11,6 +11,7 @@ use petgraph::graph::DiGraph;
 use std::collections::HashMap;
 
 use crate::deck::{Deck, DeckState};
+use crate::HeadphoneMonitor;
 
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
 const CHUNK_SAMPLES: usize = Buffer::LEN;
@@ -48,10 +49,14 @@ type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
 pub struct Mixer {
     master_volume: f32,
     cue_volume: f32,
+    cue_mix: f32,
+    master_cue: bool,
     /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
     crossfader: f32,
     /// Internal mix buffer (interleaved stereo) filled from the graph output.
     mix_buffer: Vec<Sample>,
+    /// Reusable scratch for PFL sum before HeadphoneMonitor blend.
+    pfl_scratch: Vec<Sample>,
     /// Graph: deck source nodes + sum node.
     graph: MixerGraph,
     /// Processor for running the graph (reused to avoid allocs).
@@ -67,6 +72,8 @@ impl std::fmt::Debug for Mixer {
         f.debug_struct("Mixer")
             .field("master_volume", &self.master_volume)
             .field("cue_volume", &self.cue_volume)
+            .field("cue_mix", &self.cue_mix)
+            .field("master_cue", &self.master_cue)
             .field("crossfader", &self.crossfader)
             .field("mix_buffer_len", &self.mix_buffer.len())
             .field("deck_node_count", &self.deck_node_ids.len())
@@ -96,8 +103,11 @@ impl Mixer {
         Self {
             master_volume: 1.0,
             cue_volume: 1.0,
+            cue_mix: 0.0,
+            master_cue: false,
             crossfader: 0.5,
             mix_buffer: Vec::new(),
+            pfl_scratch: Vec::new(),
             graph,
             processor,
             deck_node_ids,
@@ -131,6 +141,30 @@ impl Mixer {
         }
         self.cue_volume = volume;
         Ok(())
+    }
+
+    /// Cue blend: 0.0 = PFL only, 1.0 = master tap only (when `master_cue`).
+    pub fn cue_mix(&self) -> f32 {
+        self.cue_mix
+    }
+
+    /// Set cue blend (0.0 = PFL only, 1.0 = master tap only when `master_cue`).
+    pub fn set_cue_mix(&mut self, mix: f32) -> Result<()> {
+        if !(0.0..=1.0).contains(&mix) {
+            return Err(anyhow::anyhow!("Cue mix must be between 0.0 and 1.0"));
+        }
+        self.cue_mix = mix;
+        Ok(())
+    }
+
+    /// Whether the cue bus includes a pre-fader master tap.
+    pub fn master_cue(&self) -> bool {
+        self.master_cue
+    }
+
+    /// Enable or disable master tap on the cue bus.
+    pub fn set_master_cue(&mut self, enabled: bool) {
+        self.master_cue = enabled;
     }
 
     /// Crossfader position (0.0 = deck A, 1.0 = deck B).
@@ -243,7 +277,7 @@ impl Mixer {
 
     /// Route mixed audio to output buses and apply volume + clamp.
     fn route_to_buses(
-        &self,
+        &mut self,
         frames: u32,
         decks: &[Deck],
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
@@ -258,17 +292,26 @@ impl Mixer {
             let bus_name = bus_id.as_str();
             match bus_name {
                 "cue" => {
-                    output_buffer.fill(0.0);
+                    self.pfl_scratch.resize(required_size, 0.0);
+                    self.pfl_scratch.fill(0.0);
                     for deck in decks {
                         if deck.headphone_cue() && deck.state() == &DeckState::Playing {
                             let pre_fader = deck.pre_fader_buffer();
                             for (i, &sample) in pre_fader.iter().enumerate() {
-                                if i < output_buffer.len() {
-                                    output_buffer[i] += sample;
+                                if i < self.pfl_scratch.len() {
+                                    self.pfl_scratch[i] += sample;
                                 }
                             }
                         }
                     }
+                    output_buffer.fill(0.0);
+                    HeadphoneMonitor::render(
+                        &self.pfl_scratch,
+                        &self.mix_buffer,
+                        self.cue_mix,
+                        self.master_cue,
+                        output_buffer,
+                    );
                 }
                 _ => {
                     for (i, &sample) in self.mix_buffer.iter().enumerate() {
@@ -359,6 +402,79 @@ mod tests {
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
         assert!(cue_max < 1e-6, "cue should be silent without headphone cue");
+    }
+
+    #[test]
+    fn cue_mix_and_master_cue_defaults() {
+        let mixer = Mixer::new();
+        assert_eq!(mixer.cue_mix(), 0.0);
+        assert!(!mixer.master_cue());
+    }
+
+    #[test]
+    fn set_cue_mix_rejects_out_of_range() {
+        let mut mixer = Mixer::new();
+        assert!(mixer.set_cue_mix(-0.1).is_err());
+        assert!(mixer.set_cue_mix(1.1).is_err());
+        mixer.set_cue_mix(0.5).unwrap();
+        assert_eq!(mixer.cue_mix(), 0.5);
+    }
+
+    #[test]
+    fn master_cue_on_mix_one_hears_master_without_pfl() {
+        let mut mixer = Mixer::new();
+        mixer.set_master_cue(true);
+        mixer.set_cue_mix(1.0).unwrap();
+        mixer.set_master_volume(0.25).unwrap(); // room quieter; cue tap must ignore this
+        mixer.set_cue_volume(1.0).unwrap();
+
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
+        load_test_tone(&mut decks[0]);
+        decks[0].play().unwrap();
+        // no headphone_cue
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+
+        let cue_max = output_buses[&BusId::new("cue")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        let master_max = output_buses[&BusId::new("master")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(cue_max > 0.1, "cue should carry master tap, got {}", cue_max);
+        assert!(
+            cue_max > master_max + 0.05,
+            "cue tap must be pre master_volume (cue {}, master {})",
+            cue_max,
+            master_max
+        );
+    }
+
+    #[test]
+    fn master_cue_off_mix_one_stays_silent_without_pfl() {
+        let mut mixer = Mixer::new();
+        mixer.set_master_cue(false);
+        mixer.set_cue_mix(1.0).unwrap();
+
+        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
+        load_test_tone(&mut decks[0]);
+        decks[0].play().unwrap();
+
+        let mut output_buses = HashMap::new();
+        output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+        output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
+        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+
+        let cue_max = output_buses[&BusId::new("cue")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(cue_max < 1e-6, "no master bleed when Master Cue off, got {}", cue_max);
     }
 
     #[test]
