@@ -540,6 +540,9 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
     sync_mode: deck.sync_mode,
     is_master: deck.is_master,
     pad_mode: deck.pad_mode,
+    loudness_lufs: deck.loudness_lufs,
+    auto_gain_db: deck.auto_gain_db,
+    gain_trim_db: deck.gain_trim_db,
   };
 }
 

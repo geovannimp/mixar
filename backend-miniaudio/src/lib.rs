@@ -78,7 +78,11 @@ mod tests {
     fn test_miniaudio_default_device() {
         let backend = MiniaudioBackend::new().unwrap();
         let devices = backend.list_output_devices().unwrap();
-        let device = devices.iter().find(|d| d.is_default).or(devices.first()).unwrap();
+        let device = devices
+            .iter()
+            .find(|d| d.is_default)
+            .or(devices.first())
+            .unwrap();
         assert!(!device.name.is_empty());
         assert_eq!(device.id.as_str(), "miniaudio-0");
         assert!(device.is_default);

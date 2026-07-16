@@ -2,12 +2,17 @@
 
 mod config;
 mod error;
+mod loudness;
 mod merge;
 mod result;
 mod traits;
 
 pub use config::{AnalysisConfig, AnalysisDurationMode, AnalysisTargets};
 pub use error::{AnalyzerError, Result};
+pub use loudness::{
+    auto_gain_db, loudness_lufs_from_replaygain_track_gain_db, AUTO_GAIN_CLAMP_DB,
+    REPLAYGAIN_REFERENCE_LUFS,
+};
 pub use merge::{merge_track_metadata, TagMetadata};
 pub use result::{
     AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, TrackAnalysis,
@@ -27,6 +32,7 @@ mod tests {
             }),
             key: None,
             beat_grid: None,
+            loudness_lufs: None,
             metadata: AnalysisRunMetadata {
                 backend: "test".into(),
                 backend_version: "0".into(),

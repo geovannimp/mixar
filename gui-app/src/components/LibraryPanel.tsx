@@ -95,6 +95,8 @@ export function LibraryPanel() {
       analysis_duration: "fast",
       scan_folder_tree: true,
       library_table_columns: DEFAULT_LIBRARY_TABLE_COLUMNS,
+      volume_normalizer_enabled: true,
+      target_lufs: -18,
     },
   );
 

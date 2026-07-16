@@ -24,6 +24,8 @@ export const DEFAULT_DECK_A: DeckStatus = {
   active_loop: null,
   filter_db: 0,
   gain_trim_db: 0,
+  loudness_lufs: null,
+  auto_gain_db: 0,
   sync_mode: "off",
   is_master: true,
   pad_mode: "hot_cue",

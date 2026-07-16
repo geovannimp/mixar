@@ -12,6 +12,7 @@ analyzer-core = { path = "../analyzer-core" }
 analyzer-stratum = { path = "../analyzer-stratum" }
 codec = { path = "../codec" }
 anyhow.workspace = true
+ebur128 = "0.1"
 
 [dev-dependencies]
 hound = "3.5"

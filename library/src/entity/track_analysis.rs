@@ -18,6 +18,7 @@ pub struct Model {
     pub grid_stability: Option<f64>,
     pub sample_rate: i32,
     pub duration_analyzed_secs: f64,
+    pub loudness_lufs: Option<f64>,
     pub beat_grid_json: Option<String>,
     #[sea_orm(
         belongs_to,

@@ -1,4 +1,3 @@
-use audio_core::LoadedAudio;
 use crate::backend::create_backend;
 use crate::callback::ConsumerCallback;
 use crate::config::{DeviceConfig, EngineConfig};
@@ -8,11 +7,12 @@ use crate::producer::{
 use crate::routing::DeviceStreamPlan;
 use crate::transport::TransportEvent;
 use anyhow::Result;
+use audio_core::LoadedAudio;
 use audio_core::{
     AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
-use engine_dsp::DspEngine;
 use engine_dsp::DeckEqGains;
+use engine_dsp::DspEngine;
 use rtrb::Producer;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
@@ -94,9 +94,11 @@ impl Engine {
             }
         };
 
-        if let Err(e) =
-            start_device_streams(&mut streams, self.config.buffer_size, pacing_callback_frames_atomic)
-        {
+        if let Err(e) = start_device_streams(
+            &mut streams,
+            self.config.buffer_size,
+            pacing_callback_frames_atomic,
+        ) {
             self.abort_start(Some(producer_thread))?;
             return Err(e);
         }
@@ -323,14 +325,24 @@ impl Engine {
     }
 
     /// Load a shared decoded track into a deck.
-    pub fn load_track(&mut self, deck_id: usize, audio: Arc<LoadedAudio>) -> Result<()> {
+    ///
+    /// `auto_gain_db` is the offline loudness-normalization offset applied at load
+    /// (typically computed from library loudness + app settings). Pass `0.0` when
+    /// unused. Settings changes do not retouch already-loaded decks; re-apply by
+    /// loading again (or a future analysis-refresh path).
+    pub fn load_track(
+        &mut self,
+        deck_id: usize,
+        audio: Arc<LoadedAudio>,
+        auto_gain_db: f32,
+    ) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.load(audio)?;
+            deck.load(audio, auto_gain_db)?;
             log::info!("Track loaded into deck {}", deck_id);
             Ok(())
         } else {
@@ -815,7 +827,7 @@ mod tests {
 
         assert!(engine.play(0).is_err());
         assert!(engine.pause(0).is_err());
-        assert!(engine.load_track(0, empty_audio()).is_err());
+        assert!(engine.load_track(0, empty_audio(), 0.0).is_err());
 
         engine.start().unwrap();
 
@@ -823,14 +835,10 @@ mod tests {
         assert!(engine.pause(0).is_ok());
         let missing = FileAudioSource::from_path("test.mp3").load();
         assert!(missing.is_err());
-        assert!(
-            missing
-                .unwrap_err()
-                .to_string()
-                .contains("not found")
-        );
+        assert!(missing.unwrap_err().to_string().contains("not found"));
 
         assert!(engine.play(2).is_err());
+        assert!(engine.load_track(2, empty_audio(), 0.0).is_err());
 
         engine.stop().unwrap();
     }
@@ -879,11 +887,7 @@ mod tests {
         config.backend = "null".into();
         let mut engine = Engine::new(config).unwrap();
         engine
-            .set_bus_device(
-                BusId::new("master"),
-                DeviceId::new("null-device"),
-                [3, 4],
-            )
+            .set_bus_device(BusId::new("master"), DeviceId::new("null-device"), [3, 4])
             .unwrap();
         let bus = engine.get_bus_config(&BusId::new("master")).unwrap();
         assert_eq!(bus.channels.left, 3);

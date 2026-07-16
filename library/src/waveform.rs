@@ -4,7 +4,7 @@ use std::path::Path;
 
 use audio_core::{
     compute_overview_envelope, peaks_to_rgb_bytes, rgb_bytes_to_peaks, AudioSource, SpectralPeak,
-    WaveformAnalysisConfig, WaveformAmplitudeMode, WaveformChannelMode, OVERVIEW_SAMPLE_COUNT,
+    WaveformAmplitudeMode, WaveformAnalysisConfig, WaveformChannelMode, OVERVIEW_SAMPLE_COUNT,
     WAVEFORM_SCHEMA_VERSION,
 };
 use sea_orm::sea_query::OnConflict;
@@ -145,15 +145,16 @@ pub(crate) fn get_track_waveform_row(
 
     let channel_mode = parse_channel_mode(&row.channel_mode);
     let raw = zstd_decompress(&row.overview_bytes)?;
-    let peaks = rgb_bytes_to_peaks(&raw, row.overview_count as usize, channel_mode).ok_or_else(
-        || LibraryError::Backend {
-            backend: "waveform",
-            message: format!(
-                "corrupt waveform blob for track {} (count={})",
-                row.track_id, row.overview_count
-            ),
-        },
-    )?;
+    let peaks =
+        rgb_bytes_to_peaks(&raw, row.overview_count as usize, channel_mode).ok_or_else(|| {
+            LibraryError::Backend {
+                backend: "waveform",
+                message: format!(
+                    "corrupt waveform blob for track {} (count={})",
+                    row.track_id, row.overview_count
+                ),
+            }
+        })?;
 
     Ok(Some(TrackWaveformOverview {
         peaks,
@@ -212,11 +213,7 @@ pub(crate) fn get_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<Option<
     }))
 }
 
-pub(crate) fn generate_and_store_overview(
-    db: &Db,
-    track_id: &TrackId,
-    path: &Path,
-) -> Result<()> {
+pub(crate) fn generate_and_store_overview(db: &Db, track_id: &TrackId, path: &Path) -> Result<()> {
     let peaks = generate_overview_from_path(path)?;
     debug_assert_eq!(peaks.len(), OVERVIEW_SAMPLE_COUNT);
     upsert_track_waveform(db, track_id, &peaks, &waveform_config())

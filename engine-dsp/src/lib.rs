@@ -7,8 +7,8 @@
 //! BPM, key, and beat grid come from library track metadata (offline analysis),
 //! not from live buffer analysis in this crate.
 
-use audio_core::{BusId, Sample};
 use anyhow::Result;
+use audio_core::{BusId, Sample};
 use std::collections::HashMap;
 
 pub mod deck;

@@ -6,6 +6,7 @@ pub struct TrackAnalysis {
     pub bpm: Option<BpmAnalysis>,
     pub key: Option<KeyAnalysis>,
     pub beat_grid: Option<BeatGridAnalysis>,
+    pub loudness_lufs: Option<f64>,
     pub metadata: AnalysisRunMetadata,
 }
 

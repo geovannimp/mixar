@@ -3,12 +3,12 @@
 //! A deck represents a single audio playback unit with controls for
 //! play/pause, volume, pitch, and other DJ-style features.
 
-use anyhow::Result;
-use audio_core::{LoadedAudio, Sample};
 use crate::eq::{DeckEqGains, ThreeBandEq};
 use crate::filter::{db_to_linear, DjFilter};
 use crate::level_meter::LevelPeaks;
 use crate::transport::DeckTransportEvent;
+use anyhow::Result;
+use audio_core::{LoadedAudio, Sample};
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -45,6 +45,8 @@ pub struct Deck {
     filter: DjFilter,
     /// Pre-fader gain trim in decibels.
     gain_trim_db: f32,
+    /// Automatic loudness normalization gain in decibels.
+    auto_gain_db: f32,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -112,6 +114,7 @@ impl Deck {
             eq: ThreeBandEq::new(sample_rate),
             filter: DjFilter::new(sample_rate),
             gain_trim_db: 0.0,
+            auto_gain_db: 0.0,
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -238,6 +241,10 @@ impl Deck {
 
     pub fn gain_trim_db(&self) -> f32 {
         self.gain_trim_db
+    }
+
+    pub fn auto_gain_db(&self) -> f32 {
+        self.auto_gain_db
     }
 
     /// Pre-fader peak levels from the last process cycle.
@@ -436,12 +443,15 @@ impl Deck {
     }
 
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
-    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
+    ///
+    /// `auto_gain_db` is the offline loudness-normalization offset for this load (pass `0.0` when unused).
+    pub fn load(&mut self, audio: Arc<LoadedAudio>, auto_gain_db: f32) -> Result<()> {
         self.position = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
         self.cue_point_secs = Some(0.0);
         self.cue_hold_return = None;
+        self.auto_gain_db = crate::eq::clamp_gain_db(auto_gain_db);
         self.loaded = Some(audio);
         self.create_resampler()?;
 
@@ -538,7 +548,7 @@ impl Deck {
         }
 
         // Apply gain trim, channel EQ, filter, then volume.
-        let trim = db_to_linear(self.gain_trim_db);
+        let trim = db_to_linear(self.auto_gain_db + self.gain_trim_db);
         for sample in &mut self.buffer {
             *sample *= trim;
         }
@@ -580,8 +590,7 @@ impl Deck {
                 if self.position_frac >= loop_out {
                     let span = loop_out - loop_in;
                     if span > 0.0 {
-                        self.position_frac =
-                            loop_in + ((self.position_frac - loop_out) % span);
+                        self.position_frac = loop_in + ((self.position_frac - loop_out) % span);
                     }
                 }
             }
@@ -715,10 +724,7 @@ fn interpolate_stereo(samples: &[Sample], pos: f64) -> (Sample, Sample) {
     let r0 = samples[i0 + 1];
     let l1 = samples[i0 + 2];
     let r1 = samples[i0 + 3];
-    (
-        l0 + (l1 - l0) * frac,
-        r0 + (r1 - r0) * frac,
-    )
+    (l0 + (l1 - l0) * frac, r0 + (r1 - r0) * frac)
 }
 
 #[cfg(test)]
@@ -735,13 +741,22 @@ mod tests {
     }
 
     fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {
+        load_test_samples_with_auto_gain(deck, samples, sample_rate, 0.0);
+    }
+
+    fn load_test_samples_with_auto_gain(
+        deck: &mut Deck,
+        samples: Vec<Sample>,
+        sample_rate: u32,
+        auto_gain_db: f32,
+    ) {
         let audio = LoadedAudio {
             samples,
             sample_rate,
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(Arc::new(audio)).unwrap();
+        deck.load(Arc::new(audio), auto_gain_db).unwrap();
     }
 
     #[test]
@@ -1004,8 +1019,8 @@ mod tests {
 
         let mut deck_a = new_deck(CHUNK);
         let mut deck_b = new_deck(CHUNK);
-        deck_a.load(Arc::clone(&audio)).unwrap();
-        deck_b.load(Arc::clone(&audio)).unwrap();
+        deck_a.load(Arc::clone(&audio), 0.0).unwrap();
+        deck_b.load(Arc::clone(&audio), 0.0).unwrap();
 
         assert!(Arc::ptr_eq(
             deck_a.loaded_audio().unwrap(),
@@ -1028,6 +1043,50 @@ mod tests {
             paused.iter().all(|&s| s == 0.0),
             "paused deck must output silence, got stale samples: max={}",
             paused.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
+        );
+    }
+
+    #[test]
+    fn auto_gain_defaults_zero_and_adds_to_trim() {
+        let frames = 64u32;
+        let mut samples = Vec::with_capacity(frames as usize * 2);
+        for _ in 0..frames {
+            samples.push(0.25);
+            samples.push(-0.25);
+        }
+
+        let mut deck_baseline = Deck::new(0, 48000, 512, "medium");
+        assert_eq!(deck_baseline.auto_gain_db(), 0.0);
+        load_test_samples(&mut deck_baseline, samples.clone(), ENGINE_RATE);
+        deck_baseline.set_volume(1.0).unwrap();
+        deck_baseline.set_gain_trim_db(0.0).unwrap();
+        deck_baseline.play().unwrap();
+        deck_baseline.process(frames).unwrap();
+        let peak_baseline = deck_baseline
+            .pre_fader_buffer()
+            .iter()
+            .copied()
+            .map(f32::abs)
+            .fold(0.0_f32, f32::max);
+
+        let mut deck_boosted = Deck::new(1, 48000, 512, "medium");
+        load_test_samples_with_auto_gain(&mut deck_boosted, samples, ENGINE_RATE, 6.0);
+        deck_boosted.set_volume(1.0).unwrap();
+        deck_boosted.set_gain_trim_db(0.0).unwrap();
+        assert_eq!(deck_boosted.auto_gain_db(), 6.0);
+        deck_boosted.play().unwrap();
+        deck_boosted.process(frames).unwrap();
+        let peak_boosted = deck_boosted
+            .pre_fader_buffer()
+            .iter()
+            .copied()
+            .map(f32::abs)
+            .fold(0.0_f32, f32::max);
+
+        let ratio = peak_boosted / peak_baseline;
+        assert!(
+            (ratio - 2.0).abs() < 0.15,
+            "+6 dB auto gain should roughly double peak (ratio {ratio:.3})"
         );
     }
 

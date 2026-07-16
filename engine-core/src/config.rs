@@ -1,5 +1,5 @@
-use anyhow::Result;
 use analyzer_core::AnalysisDurationMode;
+use anyhow::Result;
 use audio_core::BusConfig;
 use std::path::Path;
 

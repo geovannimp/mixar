@@ -75,6 +75,8 @@ export interface DeckStatus {
   active_loop: DeckActiveLoop | null;
   filter_db: number;
   gain_trim_db: number;
+  loudness_lufs: number | null;
+  auto_gain_db: number;
   sync_mode: SyncMode;
   is_master: boolean;
   pad_mode: PadMode;
@@ -135,6 +137,8 @@ export interface AppSettings {
   analysis_duration: AnalysisMode;
   scan_folder_tree: boolean;
   library_table_columns: LibraryTableColumn[];
+  volume_normalizer_enabled: boolean;
+  target_lufs: number;
 }
 
 export type LibraryTableColumn =

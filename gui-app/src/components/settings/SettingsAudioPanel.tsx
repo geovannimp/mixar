@@ -3,6 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
+  MAX_TARGET_LUFS,
+  MIN_TARGET_LUFS,
+} from "@/lib/busSettings";
+import {
   RESAMPLER_QUALITY_STEPS,
   resamplerQualityFromIndex,
   resamplerQualityIndex,
@@ -284,6 +288,49 @@ export function SettingsAudioPanel({
             ))}
           </div>
           <FieldDescription>Higher quality uses more CPU.</FieldDescription>
+        </Field>
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Normalization"
+          description="Keep analyzed tracks near a consistent perceived loudness."
+        />
+
+        <SettingsToggle
+          label="Enable volume normalizer"
+          checked={draft.volume_normalizer_enabled}
+          onCheckedChange={(volume_normalizer_enabled) =>
+            onChange({ ...draft, volume_normalizer_enabled })
+          }
+        />
+
+        <Field>
+          <Slider
+            aria-label="Target loudness"
+            disabled={!draft.volume_normalizer_enabled}
+            value={draft.target_lufs}
+            min={MIN_TARGET_LUFS}
+            max={MAX_TARGET_LUFS}
+            step={1}
+            onValueChange={(value) => {
+              const target_lufs = Array.isArray(value) ? value[0] : value;
+              if (target_lufs == null) {
+                return;
+              }
+              onChange({ ...draft, target_lufs });
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <FieldLabel className="font-medium text-sm">
+                Target loudness
+              </FieldLabel>
+              <span className="text-sm">{draft.target_lufs} LUFS</span>
+            </div>
+          </Slider>
+          <FieldDescription>
+            Lower values leave more headroom; −18 LUFS is recommended.
+          </FieldDescription>
         </Field>
       </section>
 

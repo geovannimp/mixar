@@ -37,9 +37,7 @@ mod tests {
 
     #[test]
     fn recognizes_paths() {
-        assert!(is_supported_audio_path(Path::new(
-            "/music/track.opus"
-        )));
+        assert!(is_supported_audio_path(Path::new("/music/track.opus")));
         assert!(!is_supported_audio_path(Path::new("/music/readme.txt")));
     }
 }

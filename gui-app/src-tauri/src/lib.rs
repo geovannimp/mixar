@@ -83,6 +83,8 @@ pub(crate) struct DeckInfo {
     active_loop: Option<LoopRegionStatus>,
     filter_db: f32,
     gain_trim_db: f32,
+    loudness_lufs: Option<f64>,
+    auto_gain_db: f32,
     sync_mode: SyncMode,
     pad_mode: PadMode,
     loop_roll_restore: Option<LoopRegionStatus>,
@@ -109,6 +111,8 @@ impl Default for DeckInfo {
             active_loop: None,
             filter_db: 0.0,
             gain_trim_db: 0.0,
+            loudness_lufs: None,
+            auto_gain_db: 0.0,
             sync_mode: SyncMode::Off,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
@@ -129,6 +133,8 @@ pub(crate) struct AppState {
     pub revision: u64,
     pub audio_cache: AudioCache,
     pub library_table_columns: Vec<String>,
+    pub volume_normalizer_enabled: bool,
+    pub target_lufs: f32,
     pub notifier: Option<EngineNotifier>,
 }
 
@@ -171,6 +177,18 @@ struct AppSettings {
     scan_folder_tree: bool,
     #[serde(default = "default_library_table_columns")]
     library_table_columns: Vec<String>,
+    #[serde(default = "default_volume_normalizer_enabled")]
+    volume_normalizer_enabled: bool,
+    #[serde(default = "default_target_lufs")]
+    target_lufs: f32,
+}
+
+fn default_volume_normalizer_enabled() -> bool {
+    true
+}
+
+fn default_target_lufs() -> f32 {
+    -18.0
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -280,6 +298,8 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         analysis_duration: config.analysis_duration,
         scan_folder_tree: state.library.config().scan_folder_tree,
         library_table_columns: state.library_table_columns.clone(),
+        volume_normalizer_enabled: state.volume_normalizer_enabled,
+        target_lufs: state.target_lufs,
     }
 }
 
@@ -304,6 +324,15 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     } else {
         settings.library_table_columns
     };
+    state.volume_normalizer_enabled = settings.volume_normalizer_enabled;
+    state.target_lufs = settings.target_lufs;
+}
+
+fn deck_auto_gain_db(enabled: bool, target_lufs: f32, loudness_lufs: Option<f64>) -> f32 {
+    match (enabled, loudness_lufs) {
+        (true, Some(loudness_lufs)) => analyzer_core::auto_gain_db(target_lufs, loudness_lufs),
+        _ => 0.0,
+    }
 }
 
 fn default_engine_config() -> EngineConfig {
@@ -342,6 +371,8 @@ pub(crate) struct DeckStatus {
     active_loop: Option<LoopRegionStatus>,
     filter_db: f32,
     gain_trim_db: f32,
+    loudness_lufs: Option<f64>,
+    auto_gain_db: f32,
     sync_mode: SyncMode,
     is_master: bool,
     pad_mode: PadMode,
@@ -599,14 +630,18 @@ async fn save_settings(
     let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
+    state.engine = Some(engine);
     for (deck_id, audio) in reloaded_tracks {
-        engine
-            .load_track(deck_id, audio)
-            .map_err(|e| e.to_string())?;
+        // Preserve auto gain from the original load; settings changes apply on next track load.
+        let auto_gain_db = state.decks[deck_id].auto_gain_db;
+        with_engine(&mut state, |engine| {
+            engine
+                .load_track(deck_id, audio, auto_gain_db)
+                .map_err(|e| e.to_string())
+        })?;
         // A fresh engine load starts paused; reflect that in deck state.
         state.decks[deck_id].playing = false;
     }
-    state.engine = Some(engine);
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
 
@@ -763,11 +798,16 @@ async fn load_path_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (track_id, cache_key, title, artist, bpm, key) = {
+    let (track_id, cache_key, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
             .import_file_path(Path::new(&path))
+            .map_err(|e| e.to_string())?;
+        let track_id = source.id().as_str().to_string();
+        let loudness_lufs = state
+            .library
+            .track_loudness_lufs(&TrackId::new(track_id.clone()))
             .map_err(|e| e.to_string())?;
 
         let file_path = source
@@ -779,12 +819,13 @@ async fn load_path_to_deck(
 
         let metadata = source.metadata();
         (
-            source.id().as_str().to_string(),
+            track_id,
             file_path,
             metadata.title.clone(),
             metadata.artist.clone(),
             metadata.bpm,
             metadata.key.clone(),
+            loudness_lufs,
         )
     };
 
@@ -799,9 +840,14 @@ async fn load_path_to_deck(
     let audio = get_or_decode(&state, cache_key.clone(), cache_key).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
+    let auto_gain_db = deck_auto_gain_db(
+        state.volume_normalizer_enabled,
+        state.target_lufs,
+        loudness_lufs,
+    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio)
+            .load_track(deck_id, audio, auto_gain_db)
             .map_err(|e| e.to_string())
     })?;
 
@@ -815,6 +861,8 @@ async fn load_path_to_deck(
         deck.artist = artist;
         deck.bpm = bpm;
         deck.key = key;
+        deck.loudness_lufs = loudness_lufs;
+        deck.auto_gain_db = auto_gain_db;
     }
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
@@ -838,9 +886,14 @@ async fn load_track(
     let audio = get_or_decode(&state, cache_key, path.clone()).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
+    let auto_gain_db = deck_auto_gain_db(
+        state.volume_normalizer_enabled,
+        state.target_lufs,
+        None,
+    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio)
+            .load_track(deck_id, audio, auto_gain_db)
             .map_err(|e| e.to_string())
     })?;
 
@@ -850,6 +903,8 @@ async fn load_track(
         deck.track_id = None;
         deck.playing = false;
         deck.speed = 1.0;
+        deck.loudness_lufs = None;
+        deck.auto_gain_db = auto_gain_db;
         apply_path_metadata(deck, &path);
     }
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
@@ -868,13 +923,18 @@ async fn load_library_track_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (path, cache_key, title, artist, bpm, key) = {
+    let (path, cache_key, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
+        let track_id = TrackId::new(track_id.clone());
         let source = state
             .library
-            .get_track(&TrackId::new(track_id.clone()))
+            .get_track(&track_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
+        let loudness_lufs = state
+            .library
+            .track_loudness_lufs(&track_id)
+            .map_err(|e| e.to_string())?;
 
         let path = source
             .file()
@@ -891,6 +951,7 @@ async fn load_library_track_to_deck(
             metadata.artist.clone(),
             metadata.bpm,
             metadata.key.clone(),
+            loudness_lufs,
         )
     };
 
@@ -905,9 +966,14 @@ async fn load_library_track_to_deck(
     let audio = get_or_decode(&state, cache_key, path.clone()).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
+    let auto_gain_db = deck_auto_gain_db(
+        state.volume_normalizer_enabled,
+        state.target_lufs,
+        loudness_lufs,
+    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio)
+            .load_track(deck_id, audio, auto_gain_db)
             .map_err(|e| e.to_string())
     })?;
 
@@ -921,6 +987,8 @@ async fn load_library_track_to_deck(
         deck.artist = artist;
         deck.bpm = bpm;
         deck.key = key;
+        deck.loudness_lufs = loudness_lufs;
+        deck.auto_gain_db = auto_gain_db;
     }
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
@@ -1340,6 +1408,8 @@ pub fn run() {
                 revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
+                volume_normalizer_enabled: default_volume_normalizer_enabled(),
+                target_lufs: default_target_lufs(),
                 notifier: None,
             })));
             Ok(())
@@ -1402,4 +1472,44 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{deck_auto_gain_db, AppSettings};
+
+    #[test]
+    fn legacy_settings_default_volume_normalizer_values() {
+        let settings: AppSettings = serde_json::from_value(serde_json::json!({
+            "backend": "cpal",
+            "sample_rate": 48_000,
+            "buffer_size": 512,
+            "low_latency": false,
+            "resampler_quality": "medium",
+            "master_bus": {
+                "device_id": "default",
+                "left_channel": 1,
+                "right_channel": 2
+            },
+            "preview_enabled": false,
+            "preview_bus": {
+                "device_id": "default",
+                "left_channel": 3,
+                "right_channel": 4
+            },
+            "analysis_duration": "fast",
+            "scan_folder_tree": true
+        }))
+        .expect("legacy settings should deserialize");
+
+        assert!(settings.volume_normalizer_enabled);
+        assert_eq!(settings.target_lufs, -18.0);
+    }
+
+    #[test]
+    fn deck_auto_gain_uses_loudness_only_when_enabled() {
+        assert_eq!(deck_auto_gain_db(true, -18.0, Some(-24.0)), 6.0);
+        assert_eq!(deck_auto_gain_db(false, -18.0, Some(-24.0)), 0.0);
+        assert_eq!(deck_auto_gain_db(true, -18.0, None), 0.0);
+    }
 }

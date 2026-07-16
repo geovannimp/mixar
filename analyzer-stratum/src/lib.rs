@@ -62,6 +62,7 @@ impl AudioAnalyzer for StratumAnalyzer {
             bpm: None,
             key: None,
             beat_grid: None,
+            loudness_lufs: None,
             metadata: AnalysisRunMetadata {
                 backend: self.name().to_string(),
                 backend_version: env!("CARGO_PKG_VERSION").to_string(),

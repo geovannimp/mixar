@@ -377,13 +377,16 @@ mod tests {
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(Arc::new(audio)).unwrap();
+        deck.load(Arc::new(audio), 0.0).unwrap();
     }
 
     #[test]
     fn test_mixer_processing() {
         let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
+        let mut decks = vec![
+            Deck::new(0, 48000, 512, "medium"),
+            Deck::new(1, 48000, 512, "medium"),
+        ];
         load_test_tone(&mut decks[0]);
         decks[0].play().unwrap();
 
@@ -397,10 +400,7 @@ mod tests {
         let master_audio = &output_buses[&BusId::new("master")];
         let cue_audio = &output_buses[&BusId::new("cue")];
         assert!(master_audio.iter().any(|&s| s != 0.0));
-        let cue_max = cue_audio
-            .iter()
-            .map(|&s| s.abs())
-            .fold(0.0_f32, f32::max);
+        let cue_max = cue_audio.iter().map(|&s| s.abs()).fold(0.0_f32, f32::max);
         assert!(cue_max < 1e-6, "cue should be silent without headphone cue");
     }
 
@@ -446,7 +446,11 @@ mod tests {
             .iter()
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
-        assert!(cue_max > 0.1, "cue should carry master tap, got {}", cue_max);
+        assert!(
+            cue_max > 0.1,
+            "cue should carry master tap, got {}",
+            cue_max
+        );
         assert!(
             cue_max > master_max + 0.05,
             "cue tap must be pre master_volume (cue {}, master {})",
@@ -474,7 +478,11 @@ mod tests {
             .iter()
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
-        assert!(cue_max < 1e-6, "no master bleed when Master Cue off, got {}", cue_max);
+        assert!(
+            cue_max < 1e-6,
+            "no master bleed when Master Cue off, got {}",
+            cue_max
+        );
     }
 
     #[test]
@@ -523,7 +531,11 @@ mod tests {
             .map(|&s| s.abs())
             .fold(0.0_f32, f32::max);
         assert!(master_max < 1e-6);
-        assert!(cue_max > 0.1, "cued pre-fader should reach cue bus, got {}", cue_max);
+        assert!(
+            cue_max > 0.1,
+            "cued pre-fader should reach cue bus, got {}",
+            cue_max
+        );
     }
 
     #[test]
@@ -555,7 +567,10 @@ mod tests {
     #[test]
     fn test_mixer_multiple_decks() {
         let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
+        let mut decks = vec![
+            Deck::new(0, 48000, 512, "medium"),
+            Deck::new(1, 48000, 512, "medium"),
+        ];
         load_test_tone(&mut decks[0]);
         load_test_tone(&mut decks[1]);
         decks[0].play().unwrap();
@@ -589,7 +604,10 @@ mod tests {
         let mut mixer = Mixer::new();
         mixer.set_crossfader(0.0).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium"), Deck::new(1, 48000, 512, "medium")];
+        let mut decks = vec![
+            Deck::new(0, 48000, 512, "medium"),
+            Deck::new(1, 48000, 512, "medium"),
+        ];
         load_test_tone(&mut decks[0]);
         load_test_tone(&mut decks[1]);
         decks[0].play().unwrap();

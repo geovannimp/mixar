@@ -355,6 +355,14 @@ impl<'a> Store<'a> {
             .map_err(db::db_err)
     }
 
+    #[allow(dead_code)]
+    pub fn track_analysis_loudness(&self, track_id: &TrackId) -> Result<Option<f64>> {
+        Ok(TrackAnalysisEntity::find_by_id(track_id.as_str())
+            .one(&*self.db.conn()?.as_connection())
+            .map_err(db::db_err)?
+            .and_then(|analysis| analysis.loudness_lufs))
+    }
+
     pub fn playlist_track_ids_by_track_id(
         &self,
         playlist_id: &CollectionId,
