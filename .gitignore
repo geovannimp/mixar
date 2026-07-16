@@ -103,6 +103,9 @@ test_data/
 local/
 dev/
 
+# betterhook binary installed by hooks-install build.rs
+/tools/
+
 # Brainstorm / agent session artifacts
 .superpowers/
 

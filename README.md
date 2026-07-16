@@ -130,9 +130,17 @@ Integration tests that open real devices may fail without audio hardware; prefer
 
 ## Development
 
+### Git hooks
+
+The first local `cargo build` installs [betterhook](https://crates.io/crates/betterhook-cli) into `tools/` and wires a pre-commit hook that runs `rustfmt` on staged `*.rs` files and restages fixes (`stage_fixed`). CI skips this bootstrap (`CI` is set) and still enforces `cargo fmt -- --check`.
+
+- Skip the fmt job for one commit: `BETTERHOOK_SKIP=cargo-fmt git commit ...`
+- Skip bootstrap entirely: `BETTERHOOK_BOOTSTRAP=0`
+- Emergency only: `git commit --no-verify`
+
 ### Code Style
 
-- `cargo fmt`
+- `cargo fmt` (also enforced by the pre-commit hook)
 - `cargo clippy`
 - Standard Rust naming conventions
 
@@ -173,7 +181,7 @@ GPL-3.0
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Run `cargo fmt` and `cargo clippy`
+5. Run `cargo build` once so git hooks install; then `cargo fmt` / `cargo clippy` as needed
 6. Submit a pull request
 
 ## Technical Details

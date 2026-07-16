@@ -15,6 +15,7 @@ members = [
     "analyzer-stratum",
     "analyzer",
     "app-example",
+    "hooks-install",
 ]
 exclude = [
     "gui-app/src-tauri"
