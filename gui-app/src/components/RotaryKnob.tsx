@@ -13,6 +13,8 @@ interface RotaryKnobProps {
   accentClass?: string;
   ringClass?: string;
   className?: string;
+  /** Visual size of the dial; default fits mixer strips, `sm` fits the title bar. */
+  size?: "md" | "sm";
   formatValue?: (value: number) => string;
   onValueChange: (value: number) => void;
 }
@@ -33,11 +35,21 @@ export function RotaryKnob({
   accentClass,
   ringClass,
   className,
+  size = "md",
   formatValue,
   onValueChange,
 }: RotaryKnobProps) {
   const dragRef = useRef<{ startY: number; startValue: number } | null>(null);
   const angle = valueToAngle(value, min, max);
+  const dialSizeClass = size === "sm" ? "size-6" : "size-8";
+  const labelClass =
+    size === "sm"
+      ? "text-[7px] font-semibold uppercase tracking-wide"
+      : "text-[8px] font-semibold uppercase tracking-wide";
+  const valueClass =
+    size === "sm"
+      ? "min-w-[3ch] text-center text-[7px] tabular-nums text-zinc-500"
+      : "min-w-[3ch] text-center text-[8px] tabular-nums text-zinc-500";
 
   const updateFromPointer = useCallback(
     (clientY: number) => {
@@ -107,12 +119,7 @@ export function RotaryKnob({
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>
-      <span
-        className={cn(
-          "text-[8px] font-semibold uppercase tracking-wide",
-          accentClass ?? "text-zinc-500",
-        )}
-      >
+      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>
         {label}
       </span>
       <button
@@ -124,7 +131,8 @@ export function RotaryKnob({
         aria-valuenow={value}
         role="slider"
         className={cn(
-          "relative size-8 touch-none rounded-full border-2 bg-zinc-900/90 shadow-inner outline-none select-none",
+          "relative touch-none rounded-full border-2 bg-zinc-900/90 shadow-inner outline-none select-none",
+          dialSizeClass,
           "transition-[box-shadow,scale] hover:bg-zinc-800/90",
           "focus-visible:ring-2 focus-visible:ring-ring/40",
           "disabled:cursor-not-allowed disabled:opacity-45",
@@ -151,9 +159,7 @@ export function RotaryKnob({
           className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-500"
         />
       </button>
-      <span className="min-w-[3ch] text-center text-[8px] tabular-nums text-zinc-500">
-        {displayValue}
-      </span>
+      <span className={valueClass}>{displayValue}</span>
     </div>
   );
 }

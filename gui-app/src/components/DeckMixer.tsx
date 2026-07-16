@@ -1,7 +1,6 @@
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { useSettings } from "../hooks/useSettings";
 import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "../lib/ui";
 import {
@@ -14,10 +13,8 @@ import {
 import {
   engineActions,
   useCrossfader,
-  useCueMix,
   useDeckMixerChannel,
   useLevelMeterMode,
-  useMasterCue,
 } from "../hooks/useEngine";
 import { getDefaultDeck } from "../stores/defaultDeck";
 import { LevelMeter } from "./LevelMeter";
@@ -286,63 +283,9 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
   );
 }
 
-interface HeadphoneMonitorProps {
-  cueMix: number;
-  masterCue: boolean;
-  disabled?: boolean;
-  onCueMixChange: (mix: number) => void;
-  onMasterCueChange: (enabled: boolean) => void;
-}
-
-function HeadphoneMonitor({
-  cueMix,
-  masterCue,
-  disabled,
-  onCueMixChange,
-  onMasterCueChange,
-}: HeadphoneMonitorProps) {
-  return (
-    <div className="flex shrink-0 items-center justify-center gap-3 border-t border-white/6 pt-2">
-      <button
-        type="button"
-        disabled={disabled}
-        aria-pressed={masterCue}
-        aria-label="Master cue"
-        title="Master cue"
-        className={cn(
-          buttonIcon,
-          "h-6 px-2 text-[9px] font-semibold uppercase tracking-wide",
-          masterCue
-            ? "border-amber-500/40 bg-amber-500/20 text-amber-300"
-            : "border-white/10 text-zinc-500",
-        )}
-        onClick={() => onMasterCueChange(!masterCue)}
-      >
-        Master Cue
-      </button>
-      <RotaryKnob
-        label="Cue/Mst"
-        value={cueMix}
-        min={0}
-        max={1}
-        step={0.01}
-        disabled={disabled}
-        ariaLabel="Cue master mix"
-        accentClass="text-zinc-500"
-        ringClass="border-amber-500/40"
-        formatValue={(value) => `${Math.round(value * 100)}%`}
-        onValueChange={onCueMixChange}
-      />
-    </div>
-  );
-}
-
 interface DeckMixerProps {
   decks: DeckStatus[];
   crossfader: number;
-  cueMix: number;
-  masterCue: boolean;
-  previewEnabled: boolean;
   levelMeterMode: LevelMeterMode;
   onVolumeChange: (deckId: number, volume: number) => void;
   onEqChange: (deckId: number, eq: DeckEq) => void;
@@ -350,17 +293,12 @@ interface DeckMixerProps {
   onGainChange: (deckId: number, gainDb: number) => void;
   onCueChange: (deckId: number, enabled: boolean) => void;
   onCrossfaderChange: (position: number) => void;
-  onCueMixChange: (mix: number) => void;
-  onMasterCueChange: (enabled: boolean) => void;
   onLevelMeterModeChange: (mode: LevelMeterMode) => void;
 }
 
 function DeckMixerView({
   decks,
   crossfader,
-  cueMix,
-  masterCue,
-  previewEnabled,
   levelMeterMode,
   onVolumeChange,
   onEqChange,
@@ -368,8 +306,6 @@ function DeckMixerView({
   onGainChange,
   onCueChange,
   onCrossfaderChange,
-  onCueMixChange,
-  onMasterCueChange,
   onLevelMeterModeChange,
 }: DeckMixerProps) {
   const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
@@ -474,13 +410,6 @@ function DeckMixerView({
           position={crossfader}
           onPositionChange={onCrossfaderChange}
         />
-        <HeadphoneMonitor
-          cueMix={cueMix}
-          masterCue={masterCue}
-          disabled={!previewEnabled}
-          onCueMixChange={onCueMixChange}
-          onMasterCueChange={onMasterCueChange}
-        />
       </div>
     </div>
   );
@@ -488,19 +417,13 @@ function DeckMixerView({
 
 export function DeckMixer() {
   const crossfader = useCrossfader();
-  const cueMix = useCueMix();
-  const masterCue = useMasterCue();
   const levelMeterMode = useLevelMeterMode();
   const deck0 = useDeckMixerChannel(0);
   const deck1 = useDeckMixerChannel(1);
-  const { settings } = useSettings();
-  const previewEnabled = settings?.preview_enabled ?? false;
   const {
     setDeckVolume,
     setDeckEq,
     setCrossfader,
-    setCueMix,
-    setMasterCue,
     setDeckFilter,
     setDeckGainTrim,
     setDeckHeadphoneCue,
@@ -532,9 +455,6 @@ export function DeckMixer() {
     <DeckMixerView
       decks={decks}
       crossfader={crossfader}
-      cueMix={cueMix}
-      masterCue={masterCue}
-      previewEnabled={previewEnabled}
       levelMeterMode={levelMeterMode}
       onVolumeChange={setDeckVolume}
       onEqChange={setDeckEq}
@@ -542,8 +462,6 @@ export function DeckMixer() {
       onGainChange={setDeckGainTrim}
       onCueChange={setDeckHeadphoneCue}
       onCrossfaderChange={setCrossfader}
-      onCueMixChange={setCueMix}
-      onMasterCueChange={setMasterCue}
       onLevelMeterModeChange={setLevelMeterMode}
     />
   );
