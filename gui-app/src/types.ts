@@ -135,6 +135,8 @@ export interface AppSettings {
   analysis_duration: AnalysisMode;
   scan_folder_tree: boolean;
   library_table_columns: LibraryTableColumn[];
+  volume_normalizer_enabled: boolean;
+  target_lufs: number;
 }
 
 export type LibraryTableColumn =

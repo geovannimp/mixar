@@ -129,6 +129,8 @@ pub(crate) struct AppState {
     pub revision: u64,
     pub audio_cache: AudioCache,
     pub library_table_columns: Vec<String>,
+    pub volume_normalizer_enabled: bool,
+    pub target_lufs: f32,
     pub notifier: Option<EngineNotifier>,
 }
 
@@ -171,6 +173,18 @@ struct AppSettings {
     scan_folder_tree: bool,
     #[serde(default = "default_library_table_columns")]
     library_table_columns: Vec<String>,
+    #[serde(default = "default_volume_normalizer_enabled")]
+    volume_normalizer_enabled: bool,
+    #[serde(default = "default_target_lufs")]
+    target_lufs: f32,
+}
+
+fn default_volume_normalizer_enabled() -> bool {
+    true
+}
+
+fn default_target_lufs() -> f32 {
+    -18.0
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -280,6 +294,8 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         analysis_duration: config.analysis_duration,
         scan_folder_tree: state.library.config().scan_folder_tree,
         library_table_columns: state.library_table_columns.clone(),
+        volume_normalizer_enabled: state.volume_normalizer_enabled,
+        target_lufs: state.target_lufs,
     }
 }
 
@@ -304,6 +320,8 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     } else {
         settings.library_table_columns
     };
+    state.volume_normalizer_enabled = settings.volume_normalizer_enabled;
+    state.target_lufs = settings.target_lufs;
 }
 
 fn default_engine_config() -> EngineConfig {
@@ -1340,6 +1358,8 @@ pub fn run() {
                 revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
+                volume_normalizer_enabled: default_volume_normalizer_enabled(),
+                target_lufs: default_target_lufs(),
                 notifier: None,
             })));
             Ok(())
@@ -1402,4 +1422,37 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AppSettings;
+
+    #[test]
+    fn legacy_settings_default_volume_normalizer_values() {
+        let settings: AppSettings = serde_json::from_value(serde_json::json!({
+            "backend": "cpal",
+            "sample_rate": 48_000,
+            "buffer_size": 512,
+            "low_latency": false,
+            "resampler_quality": "medium",
+            "master_bus": {
+                "device_id": "default",
+                "left_channel": 1,
+                "right_channel": 2
+            },
+            "preview_enabled": false,
+            "preview_bus": {
+                "device_id": "default",
+                "left_channel": 3,
+                "right_channel": 4
+            },
+            "analysis_duration": "fast",
+            "scan_folder_tree": true
+        }))
+        .expect("legacy settings should deserialize");
+
+        assert!(settings.volume_normalizer_enabled);
+        assert_eq!(settings.target_lufs, -18.0);
+    }
 }
