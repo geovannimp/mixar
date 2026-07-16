@@ -1,13 +1,19 @@
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   RESAMPLER_QUALITY_STEPS,
   resamplerQualityFromIndex,
   resamplerQualityIndex,
   resamplerQualityLabel,
 } from "@/lib/resamplerQuality";
-import type { AppSettings, AudioDeviceSummary, BusRouteSettings } from "@/types";
+import type {
+  AppSettings,
+  AudioDeviceSummary,
+  BusChannelMode,
+  BusRouteSettings,
+} from "@/types";
 import { DeviceSelect } from "./DeviceSelect";
 import { SettingsField, SettingsSectionHeader } from "./SettingsField";
 import { SettingsSelect } from "./SettingsSelect";
@@ -19,6 +25,11 @@ const BACKEND_OPTIONS = BACKENDS.map((backend) => ({
   value: backend,
   label: backend,
 }));
+
+const CHANNEL_MODE_OPTIONS: { value: BusChannelMode; label: string }[] = [
+  { value: "stereo", label: "Stereo pair" },
+  { value: "mono", label: "Mono (fold L+R)" },
+];
 
 const RESAMPLER_QUALITY_MIN = 0;
 const RESAMPLER_QUALITY_MAX = RESAMPLER_QUALITY_STEPS.length - 1;
@@ -44,6 +55,110 @@ function updateBusRoute(
   patch: Partial<BusRouteSettings>,
 ): BusRouteSettings {
   return { ...route, ...patch };
+}
+
+function busMode(route: BusRouteSettings): BusChannelMode {
+  return route.mode === "mono" ? "mono" : "stereo";
+}
+
+interface BusChannelFieldsProps {
+  route: BusRouteSettings;
+  /** Channel used when switching into mono mode. */
+  defaultMonoChannel: number;
+  onChange: (next: BusRouteSettings) => void;
+}
+
+function BusChannelFields({
+  route,
+  defaultMonoChannel,
+  onChange,
+}: BusChannelFieldsProps) {
+  const mode = busMode(route);
+
+  return (
+    <>
+      <SettingsField label="Channel mode">
+        <SettingsSelect
+          aria-label="Channel mode"
+          value={mode}
+          options={CHANNEL_MODE_OPTIONS}
+          onValueChange={(selected) => {
+            if (selected === "mono") {
+              onChange(
+                updateBusRoute(route, {
+                  mode: "mono",
+                  left_channel: defaultMonoChannel,
+                  right_channel: defaultMonoChannel,
+                }),
+              );
+              return;
+            }
+            onChange(
+              updateBusRoute(route, {
+                mode: "stereo",
+                right_channel:
+                  route.right_channel === route.left_channel
+                    ? route.left_channel + 1
+                    : route.right_channel,
+              }),
+            );
+          }}
+        />
+      </SettingsField>
+      {mode === "mono" ? (
+        <SettingsField label="Mono channel">
+          <Input
+            type="number"
+            min={1}
+            value={route.left_channel}
+            onChange={(event) => {
+              const channel = Number(event.target.value) || 1;
+              onChange(
+                updateBusRoute(route, {
+                  left_channel: channel,
+                  right_channel: channel,
+                  mode: "mono",
+                }),
+              );
+            }}
+          />
+        </SettingsField>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <SettingsField label="Left channel">
+            <Input
+              type="number"
+              min={1}
+              value={route.left_channel}
+              onChange={(event) =>
+                onChange(
+                  updateBusRoute(route, {
+                    left_channel: Number(event.target.value) || 1,
+                    mode: "stereo",
+                  }),
+                )
+              }
+            />
+          </SettingsField>
+          <SettingsField label="Right channel">
+            <Input
+              type="number"
+              min={1}
+              value={route.right_channel}
+              onChange={(event) =>
+                onChange(
+                  updateBusRoute(route, {
+                    right_channel: Number(event.target.value) || 2,
+                    mode: "stereo",
+                  }),
+                )
+              }
+            />
+          </SettingsField>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function SettingsAudioPanel({
@@ -175,7 +290,7 @@ export function SettingsAudioPanel({
       <section className="space-y-4 border-t border-white/8 pt-6">
         <SettingsSectionHeader
           title="Buses"
-          description="Route master and optional preview output to devices."
+          description="Route master and optional preview output to devices. Mono mode folds stereo to one device channel."
         />
 
         <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
@@ -190,106 +305,57 @@ export function SettingsAudioPanel({
             onChange={(deviceId) =>
               onChange({
                 ...draft,
-                master_bus: updateBusRoute(draft.master_bus, { device_id: deviceId }),
+                master_bus: updateBusRoute(draft.master_bus, {
+                  device_id: deviceId,
+                }),
               })
             }
           />
-          <div className="grid grid-cols-2 gap-3">
-            <SettingsField label="Left channel">
-              <Input
-                type="number"
-                min={1}
-                value={draft.master_bus.left_channel}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    master_bus: updateBusRoute(draft.master_bus, {
-                      left_channel: Number(event.target.value) || 1,
-                    }),
-                  })
-                }
-              />
-            </SettingsField>
-            <SettingsField label="Right channel">
-              <Input
-                type="number"
-                min={1}
-                value={draft.master_bus.right_channel}
-                onChange={(event) =>
-                  onChange({
-                    ...draft,
-                    master_bus: updateBusRoute(draft.master_bus, {
-                      right_channel: Number(event.target.value) || 2,
-                    }),
-                  })
-                }
-              />
-            </SettingsField>
-          </div>
+          <BusChannelFields
+            route={draft.master_bus}
+            defaultMonoChannel={1}
+            onChange={(master_bus) => onChange({ ...draft, master_bus })}
+          />
         </div>
 
-        <SettingsToggle
-          label="Enable preview bus"
-          checked={draft.preview_enabled}
-          onCheckedChange={(preview_enabled) =>
-            onChange({ ...draft, preview_enabled })
-          }
-        />
-
-        {draft.preview_enabled && (
-          <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+        <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Preview
             </p>
-            <DeviceSelect
-              label="Output device"
-              hint="Often headphones or a separate interface output."
-              value={draft.preview_bus.device_id}
-              devices={devices}
-              loading={devicesLoading}
-              onChange={(deviceId) =>
-                onChange({
-                  ...draft,
-                  preview_bus: updateBusRoute(draft.preview_bus, {
-                    device_id: deviceId,
-                  }),
-                })
+            <Switch
+              checked={draft.preview_enabled}
+              aria-label="Enable preview bus"
+              onCheckedChange={(preview_enabled) =>
+                onChange({ ...draft, preview_enabled })
               }
             />
-            <div className="grid grid-cols-2 gap-3">
-              <SettingsField label="Left channel">
-                <Input
-                  type="number"
-                  min={1}
-                  value={draft.preview_bus.left_channel}
-                  onChange={(event) =>
-                    onChange({
-                      ...draft,
-                      preview_bus: updateBusRoute(draft.preview_bus, {
-                        left_channel: Number(event.target.value) || 1,
-                      }),
-                    })
-                  }
-                />
-              </SettingsField>
-              <SettingsField label="Right channel">
-                <Input
-                  type="number"
-                  min={1}
-                  value={draft.preview_bus.right_channel}
-                  onChange={(event) =>
-                    onChange({
-                      ...draft,
-                      preview_bus: updateBusRoute(draft.preview_bus, {
-                        right_channel: Number(event.target.value) || 2,
-                      }),
-                    })
-                  }
-                />
-              </SettingsField>
-            </div>
           </div>
-        )}
+          {draft.preview_enabled ? (
+            <div className="space-y-4">
+              <DeviceSelect
+                label="Output device"
+                hint="Often headphones or a separate interface output."
+                value={draft.preview_bus.device_id}
+                devices={devices}
+                loading={devicesLoading}
+                onChange={(deviceId) =>
+                  onChange({
+                    ...draft,
+                    preview_bus: updateBusRoute(draft.preview_bus, {
+                      device_id: deviceId,
+                    }),
+                  })
+                }
+              />
+              <BusChannelFields
+                route={draft.preview_bus}
+                defaultMonoChannel={2}
+                onChange={(preview_bus) => onChange({ ...draft, preview_bus })}
+              />
+            </div>
+          ) : null}
+        </div>
       </section>
     </div>
   );

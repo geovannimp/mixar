@@ -1,4 +1,4 @@
-use audio_core::{BusConfig, BusId, ChannelMapping, DeviceId};
+use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
 use resampler::normalize_resampler_quality;
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
@@ -134,10 +134,25 @@ const MASTER_BUS_ID: &str = "master";
 const PREVIEW_BUS_ID: &str = "cue";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum BusChannelMode {
+    Stereo,
+    Mono,
+}
+
+impl Default for BusChannelMode {
+    fn default() -> Self {
+        Self::Stereo
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct BusRouteSettings {
     device_id: String,
     left_channel: u16,
     right_channel: u16,
+    #[serde(default)]
+    mode: BusChannelMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -178,6 +193,7 @@ fn default_master_bus_route() -> BusRouteSettings {
         device_id: "default".to_string(),
         left_channel: 1,
         right_channel: 2,
+        mode: BusChannelMode::Stereo,
     }
 }
 
@@ -186,6 +202,7 @@ fn default_preview_bus_route() -> BusRouteSettings {
         device_id: "default".to_string(),
         left_channel: 3,
         right_channel: 4,
+        mode: BusChannelMode::Stereo,
     }
 }
 
@@ -194,6 +211,19 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
         device_id: bus.device.as_str().to_string(),
         left_channel: bus.channels.left,
         right_channel: bus.channels.right,
+        mode: match bus.channels.mode {
+            ChannelMode::Mono => BusChannelMode::Mono,
+            ChannelMode::Stereo => BusChannelMode::Stereo,
+        },
+    }
+}
+
+fn channel_mapping_from_route(route: &BusRouteSettings) -> ChannelMapping {
+    match route.mode {
+        BusChannelMode::Mono => ChannelMapping::mono(route.left_channel),
+        BusChannelMode::Stereo => {
+            ChannelMapping::stereo(route.left_channel, route.right_channel)
+        }
     }
 }
 
@@ -202,7 +232,7 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
         BusId::new(id),
         name.to_string(),
         DeviceId::new(route.device_id.clone()),
-        ChannelMapping::new(route.left_channel, route.right_channel),
+        channel_mapping_from_route(route),
     )
 }
 

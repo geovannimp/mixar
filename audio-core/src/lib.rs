@@ -229,24 +229,86 @@ impl From<&str> for BusId {
     }
 }
 
+/// Whether a bus maps to a stereo pair or a single mono device channel.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChannelMode {
+    /// Map bus L/R to two distinct 1-based device channels.
+    #[default]
+    Stereo,
+    /// Fold bus L/R to mono on a single 1-based device channel (`left`).
+    Mono,
+}
+
 /// Channel mapping for a bus
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ChannelMapping {
-    /// Left channel index (1-based)
+    /// Left channel index (1-based). For [`ChannelMode::Mono`], the mono output channel.
     pub left: u16,
-    /// Right channel index (1-based)
+    /// Right channel index (1-based). Ignored for [`ChannelMode::Mono`] (kept for serde compat).
     pub right: u16,
+    /// Stereo pair vs mono fold. Defaults to stereo for older configs without this field.
+    #[serde(default)]
+    pub mode: ChannelMode,
 }
 
 impl ChannelMapping {
-    /// Create a new channel mapping
+    /// Create a stereo channel mapping (legacy helper name).
     pub fn new(left: u16, right: u16) -> Self {
-        Self { left, right }
+        Self::stereo(left, right)
     }
 
-    /// Convert to 0-based indices
+    /// Stereo mapping onto two distinct 1-based device channels.
+    pub fn stereo(left: u16, right: u16) -> Self {
+        Self {
+            left,
+            right,
+            mode: ChannelMode::Stereo,
+        }
+    }
+
+    /// Mono mapping: stereo bus is folded onto one 1-based device channel.
+    pub fn mono(channel: u16) -> Self {
+        Self {
+            left: channel,
+            right: channel,
+            mode: ChannelMode::Mono,
+        }
+    }
+
+    /// Whether this mapping is mono.
+    pub fn is_mono(&self) -> bool {
+        matches!(self.mode, ChannelMode::Mono)
+    }
+
+    /// Convert stereo L/R to 0-based indices. For mono, both values are the same channel.
     pub fn to_zero_based(&self) -> (usize, usize) {
-        ((self.left - 1) as usize, (self.right - 1) as usize)
+        match self.mode {
+            ChannelMode::Mono => {
+                let ch = (self.left.saturating_sub(1)) as usize;
+                (ch, ch)
+            }
+            ChannelMode::Stereo => ((self.left - 1) as usize, (self.right - 1) as usize),
+        }
+    }
+
+    /// 0-based device channels occupied by this mapping.
+    pub fn occupied_zero_based(&self) -> Vec<usize> {
+        match self.mode {
+            ChannelMode::Mono => vec![(self.left.saturating_sub(1)) as usize],
+            ChannelMode::Stereo => {
+                let (l, r) = self.to_zero_based();
+                vec![l, r]
+            }
+        }
+    }
+
+    /// Highest 1-based channel index used.
+    pub fn highest_channel(&self) -> u16 {
+        match self.mode {
+            ChannelMode::Mono => self.left,
+            ChannelMode::Stereo => self.left.max(self.right),
+        }
     }
 }
 
@@ -292,6 +354,23 @@ mod tests {
         assert_eq!(params.channels, 2);
         assert_eq!(params.frames_per_buffer, 512);
         assert!(!params.low_latency);
+    }
+
+    #[test]
+    fn channel_mapping_mono_occupies_one_channel() {
+        let mapping = ChannelMapping::mono(3);
+        assert!(mapping.is_mono());
+        assert_eq!(mapping.mode, ChannelMode::Mono);
+        assert_eq!(mapping.occupied_zero_based(), vec![2]);
+        assert_eq!(mapping.highest_channel(), 3);
+        assert_eq!(mapping.to_zero_based(), (2, 2));
+    }
+
+    #[test]
+    fn channel_mapping_new_is_stereo() {
+        let mapping = ChannelMapping::new(1, 2);
+        assert_eq!(mapping.mode, ChannelMode::Stereo);
+        assert_eq!(mapping.occupied_zero_based(), vec![0, 1]);
     }
 
     #[test]

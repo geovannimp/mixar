@@ -274,7 +274,7 @@ New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changi
 
 ### 5.3 Channel Mapping
 
-Bus is always a stereo pair (2 channels). Each bus maps to a specific device and two device channels (config supports explicit indexes). Multi-bus device routing, including `set_bus_device`, is implemented.
+Bus audio in DSP is stereo. Each bus maps to a device as either a **stereo pair** or a **mono** channel (1-based indexes; mono folds L+R × 0.5 onto one channel). Multi-bus device routing, including `set_bus_device` / `set_bus_channel_mapping`, is implemented.
 
 **Example:** DDJ-400 mapping where master uses channels 3–4 and cue uses 1–2.
 
