@@ -17,6 +17,9 @@ pub fn loudness_lufs_from_replaygain_track_gain_db(track_gain_db: f64) -> f64 {
 ///
 /// Result is clamped to ± [`AUTO_GAIN_CLAMP_DB`].
 pub fn auto_gain_db(target_lufs: f32, loudness_lufs: f64) -> f32 {
+    if !loudness_lufs.is_finite() {
+        return 0.0;
+    }
     (target_lufs - loudness_lufs as f32).clamp(-AUTO_GAIN_CLAMP_DB, AUTO_GAIN_CLAMP_DB)
 }
 
@@ -37,5 +40,12 @@ mod tests {
         assert!((auto_gain_db(-18.0, -24.0) - 6.0).abs() < 1e-5);
         assert!((auto_gain_db(-18.0, 0.0) - (-12.0)).abs() < 1e-5); // clamp
         assert!((auto_gain_db(-18.0, -40.0) - 12.0).abs() < 1e-5); // clamp
+    }
+
+    #[test]
+    fn auto_gain_ignores_non_finite_loudness() {
+        assert_eq!(auto_gain_db(-18.0, f64::NAN), 0.0);
+        assert_eq!(auto_gain_db(-18.0, f64::INFINITY), 0.0);
+        assert_eq!(auto_gain_db(-18.0, f64::NEG_INFINITY), 0.0);
     }
 }

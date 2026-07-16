@@ -8,9 +8,13 @@ pub fn integrated_lufs_mono(samples: &[f32], sample_rate: u32) -> Result<f64, An
     meter
         .add_frames_f32(samples)
         .map_err(|error| AnalyzerError::Analysis(error.to_string()))?;
-    meter
+    let value = meter
         .loudness_global()
-        .map_err(|error| AnalyzerError::Analysis(error.to_string()))
+        .map_err(|error| AnalyzerError::Analysis(error.to_string()))?;
+    if !value.is_finite() {
+        return Err(AnalyzerError::Analysis("non-finite loudness".into()));
+    }
+    Ok(value)
 }
 
 #[cfg(test)]
@@ -36,5 +40,12 @@ mod tests {
         assert!(quiet.is_finite());
         assert!(loud.is_finite());
         assert!(loud > quiet, "expected {loud} LUFS to exceed {quiet} LUFS");
+    }
+
+    #[test]
+    fn integrated_lufs_rejects_silence() {
+        let result = integrated_lufs_mono(&vec![0.0; 48_000 * 3], 48_000);
+
+        assert!(matches!(result, Err(AnalyzerError::Analysis(message)) if message == "non-finite loudness"));
     }
 }
