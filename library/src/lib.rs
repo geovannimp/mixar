@@ -170,6 +170,11 @@ impl LibraryManager {
         waveform::get_track_beat_grid(&self.db, id)
     }
 
+    /// Read the stored integrated loudness for a track, if it has been analyzed.
+    pub fn track_loudness_lufs(&self, id: &TrackId) -> Result<Option<f64>> {
+        self.store().track_analysis_loudness(id)
+    }
+
     fn track_id_for(path: &Path) -> TrackId {
         TrackId::new(path.to_string_lossy())
     }
@@ -1034,11 +1039,7 @@ mod tests {
 
         let count = lib.store().count_track_analysis(track.id()).unwrap();
         assert_eq!(count, 1);
-        assert!(lib
-            .store()
-            .track_analysis_loudness(track.id())
-            .unwrap()
-            .is_some());
+        assert!(lib.track_loudness_lufs(track.id()).unwrap().is_some());
     }
 
     #[test]

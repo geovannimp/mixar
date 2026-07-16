@@ -83,6 +83,8 @@ pub(crate) struct DeckInfo {
     active_loop: Option<LoopRegionStatus>,
     filter_db: f32,
     gain_trim_db: f32,
+    loudness_lufs: Option<f64>,
+    auto_gain_db: f32,
     sync_mode: SyncMode,
     pad_mode: PadMode,
     loop_roll_restore: Option<LoopRegionStatus>,
@@ -109,6 +111,8 @@ impl Default for DeckInfo {
             active_loop: None,
             filter_db: 0.0,
             gain_trim_db: 0.0,
+            loudness_lufs: None,
+            auto_gain_db: 0.0,
             sync_mode: SyncMode::Off,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
@@ -322,6 +326,28 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     };
     state.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     state.target_lufs = settings.target_lufs;
+}
+
+fn deck_auto_gain_db(enabled: bool, target_lufs: f32, loudness_lufs: Option<f64>) -> f32 {
+    match (enabled, loudness_lufs) {
+        (true, Some(loudness_lufs)) => analyzer_core::auto_gain_db(target_lufs, loudness_lufs),
+        _ => 0.0,
+    }
+}
+
+fn apply_deck_auto_gain(state: &mut AppState, deck_id: usize) -> Result<(), String> {
+    let auto_gain_db = deck_auto_gain_db(
+        state.volume_normalizer_enabled,
+        state.target_lufs,
+        state.decks[deck_id].loudness_lufs,
+    );
+    state.decks[deck_id].auto_gain_db = auto_gain_db;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_auto_gain_db(deck_id, auto_gain_db)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 fn default_engine_config() -> EngineConfig {
@@ -599,6 +625,11 @@ async fn save_settings(
         }
 
         apply_settings(&mut state, settings);
+        for deck_id in 0..NUM_DECKS {
+            if state.decks[deck_id].track.is_some() {
+                apply_deck_auto_gain(&mut state, deck_id)?;
+            }
+        }
         (was_running, deck_tracks)
     };
 
@@ -617,14 +648,17 @@ async fn save_settings(
     let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
+    state.engine = Some(engine);
     for (deck_id, audio) in reloaded_tracks {
-        engine
-            .load_track(deck_id, audio)
-            .map_err(|e| e.to_string())?;
+        with_engine(&mut state, |engine| {
+            engine
+                .load_track(deck_id, audio)
+                .map_err(|e| e.to_string())
+        })?;
         // A fresh engine load starts paused; reflect that in deck state.
         state.decks[deck_id].playing = false;
+        apply_deck_auto_gain(&mut state, deck_id)?;
     }
-    state.engine = Some(engine);
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
 
@@ -833,7 +867,9 @@ async fn load_path_to_deck(
         deck.artist = artist;
         deck.bpm = bpm;
         deck.key = key;
+        deck.loudness_lufs = None;
     }
+    apply_deck_auto_gain(&mut state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
@@ -868,8 +904,10 @@ async fn load_track(
         deck.track_id = None;
         deck.playing = false;
         deck.speed = 1.0;
+        deck.loudness_lufs = None;
         apply_path_metadata(deck, &path);
     }
+    apply_deck_auto_gain(&mut state, deck_id)?;
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
     Ok(publish_deck(&app, &mut state, deck_id))
@@ -886,13 +924,18 @@ async fn load_library_track_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (path, cache_key, title, artist, bpm, key) = {
+    let (path, cache_key, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
+        let track_id = TrackId::new(track_id.clone());
         let source = state
             .library
-            .get_track(&TrackId::new(track_id.clone()))
+            .get_track(&track_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
+        let loudness_lufs = state
+            .library
+            .track_loudness_lufs(&track_id)
+            .map_err(|e| e.to_string())?;
 
         let path = source
             .file()
@@ -909,6 +952,7 @@ async fn load_library_track_to_deck(
             metadata.artist.clone(),
             metadata.bpm,
             metadata.key.clone(),
+            loudness_lufs,
         )
     };
 
@@ -939,7 +983,9 @@ async fn load_library_track_to_deck(
         deck.artist = artist;
         deck.bpm = bpm;
         deck.key = key;
+        deck.loudness_lufs = loudness_lufs;
     }
+    apply_deck_auto_gain(&mut state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
@@ -1426,7 +1472,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::AppSettings;
+    use super::{deck_auto_gain_db, AppSettings};
 
     #[test]
     fn legacy_settings_default_volume_normalizer_values() {
@@ -1454,5 +1500,12 @@ mod tests {
 
         assert!(settings.volume_normalizer_enabled);
         assert_eq!(settings.target_lufs, -18.0);
+    }
+
+    #[test]
+    fn deck_auto_gain_uses_loudness_only_when_enabled() {
+        assert_eq!(deck_auto_gain_db(true, -18.0, Some(-24.0)), 6.0);
+        assert_eq!(deck_auto_gain_db(false, -18.0, Some(-24.0)), 0.0);
+        assert_eq!(deck_auto_gain_db(true, -18.0, None), 0.0);
     }
 }
