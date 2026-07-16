@@ -19,11 +19,7 @@ pub struct FileAudioSource {
 impl FileAudioSource {
     /// Create a library file source.
     pub fn new(id: TrackId, path: PathBuf, metadata: TrackMetadata) -> Self {
-        Self {
-            id,
-            metadata,
-            path,
-        }
+        Self { id, metadata, path }
     }
 
     /// Ad-hoc source from a path (id derived from path, empty metadata).

@@ -117,7 +117,13 @@ impl Biquad {
         let b1 = 1.0 - cos_w0;
         let b2 = (1.0 - cos_w0) * 0.5;
         let a0 = 1.0 + alpha;
-        Self::from_raw(b0 / a0, b1 / a0, b2 / a0, -2.0 * cos_w0 / a0, (1.0 - alpha) / a0)
+        Self::from_raw(
+            b0 / a0,
+            b1 / a0,
+            b2 / a0,
+            -2.0 * cos_w0 / a0,
+            (1.0 - alpha) / a0,
+        )
     }
 
     fn high_pass(sample_rate: f32, freq: f32) -> Self {
@@ -130,7 +136,13 @@ impl Biquad {
         let b1 = -(1.0 + cos_w0);
         let b2 = (1.0 + cos_w0) * 0.5;
         let a0 = 1.0 + alpha;
-        Self::from_raw(b0 / a0, b1 / a0, b2 / a0, -2.0 * cos_w0 / a0, (1.0 - alpha) / a0)
+        Self::from_raw(
+            b0 / a0,
+            b1 / a0,
+            b2 / a0,
+            -2.0 * cos_w0 / a0,
+            (1.0 - alpha) / a0,
+        )
     }
 
     fn from_raw(b0: f32, b1: f32, b2: f32, a1: f32, a2: f32) -> Self {

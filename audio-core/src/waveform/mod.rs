@@ -93,11 +93,14 @@ pub fn compute_spectral_window(
     let channels = usize::from(audio.channels.max(1));
     let frame_count = audio.samples.len() / channels;
     if frame_count == 0 || end_secs <= start_secs {
-        return vec![SpectralPeak {
-            low: 0.0,
-            mid: 0.0,
-            high: 0.0,
-        }; buckets.max(1)];
+        return vec![
+            SpectralPeak {
+                low: 0.0,
+                mid: 0.0,
+                high: 0.0,
+            };
+            buckets.max(1)
+        ];
     }
 
     let sample_rate = f64::from(audio.sample_rate);
@@ -130,11 +133,14 @@ pub fn compute_spectral_envelope_frames(
     let frame_count = end_frame.saturating_sub(start_frame);
 
     if frame_count == 0 || channels == 0 {
-        return vec![SpectralPeak {
-            low: 0.0,
-            mid: 0.0,
-            high: 0.0,
-        }; buckets];
+        return vec![
+            SpectralPeak {
+                low: 0.0,
+                mid: 0.0,
+                high: 0.0,
+            };
+            buckets
+        ];
     }
 
     let frames_per_bucket = frame_count.div_ceil(buckets);
@@ -257,7 +263,9 @@ mod tests {
         let audio = mono_audio(vec![], 48_000);
         let peaks = compute_spectral_envelope(&audio, 32, &WaveformAnalysisConfig::default());
         assert_eq!(peaks.len(), 32);
-        assert!(peaks.iter().all(|p| p.low == 0.0 && p.mid == 0.0 && p.high == 0.0));
+        assert!(peaks
+            .iter()
+            .all(|p| p.low == 0.0 && p.mid == 0.0 && p.high == 0.0));
     }
 
     #[test]

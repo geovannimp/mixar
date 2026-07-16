@@ -102,10 +102,7 @@ pub(crate) fn validate_channel_mapping(mapping: &ChannelMapping) -> Result<Chann
 }
 
 /// Resolve `"default"` (or unknown aliases) to the backend default device id.
-pub(crate) fn resolve_device_id(
-    device_id: &DeviceId,
-    devices: &[DeviceInfo],
-) -> Result<DeviceId> {
+pub(crate) fn resolve_device_id(device_id: &DeviceId, devices: &[DeviceInfo]) -> Result<DeviceId> {
     if device_id.as_str() != DEFAULT_DEVICE_ID {
         if devices.iter().any(|d| d.id == *device_id) {
             return Ok(device_id.clone());
@@ -158,7 +155,8 @@ pub(crate) fn ensure_no_channel_conflicts(
         if overlaps {
             return Err(anyhow::anyhow!(
                 "Channel mapping {:?} for bus '{}' overlaps bus '{}' on device '{}'",
-                mapping.occupied_zero_based()
+                mapping
+                    .occupied_zero_based()
                     .iter()
                     .map(|c| c + 1)
                     .collect::<Vec<_>>(),
@@ -364,9 +362,10 @@ mod tests {
         assert_eq!(plans.len(), 1);
         assert_eq!(plans[0].channels, 4);
         assert_eq!(plans[0].routes.len(), 2);
-        assert!(plans[0].routes.iter().any(|r| {
-            r.bus_id.as_str() == "master" && r.left == 2 && r.right == Some(3)
-        }));
+        assert!(plans[0]
+            .routes
+            .iter()
+            .any(|r| { r.bus_id.as_str() == "master" && r.left == 2 && r.right == Some(3) }));
     }
 
     #[test]

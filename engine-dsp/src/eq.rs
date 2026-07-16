@@ -139,8 +139,12 @@ impl ThreeBandEq {
 
     pub fn set_mid_db(&mut self, gain_db: f32) -> Result<()> {
         self.gains.mid_db = clamp_gain_db(gain_db);
-        self.mid
-            .set_coeffs(peaking_coeffs(self.sample_rate, MID_CENTER_HZ, MID_Q, self.gains.mid_db));
+        self.mid.set_coeffs(peaking_coeffs(
+            self.sample_rate,
+            MID_CENTER_HZ,
+            MID_Q,
+            self.gains.mid_db,
+        ));
         Ok(())
     }
 
@@ -173,8 +177,12 @@ impl ThreeBandEq {
             LOW_SHELF_HZ,
             self.gains.low_db,
         ));
-        self.mid
-            .set_coeffs(peaking_coeffs(self.sample_rate, MID_CENTER_HZ, MID_Q, self.gains.mid_db));
+        self.mid.set_coeffs(peaking_coeffs(
+            self.sample_rate,
+            MID_CENTER_HZ,
+            MID_Q,
+            self.gains.mid_db,
+        ));
         self.high.set_coeffs(high_shelf_coeffs(
             self.sample_rate,
             HIGH_SHELF_HZ,

@@ -7,9 +7,7 @@
 use anyhow::Result;
 use audio_core::Sample;
 use audioadapter_buffers::direct::InterleavedSlice;
-use rubato::{
-    Fft, FixedSync, Indexing, Resampler as RubatoResamplerTrait,
-};
+use rubato::{Fft, FixedSync, Indexing, Resampler as RubatoResamplerTrait};
 
 /// Resampler trait
 pub trait Resampler: Send {
@@ -270,7 +268,8 @@ mod tests {
 
     #[test]
     fn test_resampler_creation() {
-        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium");
+        let resampler =
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium");
         assert!(resampler.is_ok());
     }
 
@@ -318,12 +317,17 @@ mod tests {
 
     #[test]
     fn test_output_mode_512_frames() {
-        let resampler = RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
+        let resampler =
+            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
         assert_eq!(resampler.output_frames_next(), 512);
         let need_in = resampler.input_frames_next();
         assert!(need_in > 0);
         // FFT blocks align to rate-ratio multiples (147 in / 160 out for 44100→48000).
-        assert_eq!(need_in % 147, 0, "input chunk should align to FFT block size");
+        assert_eq!(
+            need_in % 147,
+            0,
+            "input chunk should align to FFT block size"
+        );
     }
 
     #[test]

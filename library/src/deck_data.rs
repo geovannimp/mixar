@@ -1,8 +1,8 @@
 //! Hot cue and loop persistence for deck performance data.
 
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{EntityTrait, QueryFilter, Set};
 use sea_orm::ColumnTrait;
+use sea_orm::{EntityTrait, QueryFilter, Set};
 
 use library_core::{LibraryError, Result, TrackId};
 

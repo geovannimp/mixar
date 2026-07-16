@@ -73,7 +73,9 @@ mod tests {
             None,
         );
         let err = source.load().unwrap_err();
-        assert!(err.to_string().contains("streaming playback not implemented"));
+        assert!(err
+            .to_string()
+            .contains("streaming playback not implemented"));
     }
 
     #[test]

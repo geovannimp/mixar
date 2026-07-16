@@ -148,7 +148,11 @@ impl CpalBackend {
     }
 
     fn max_output_channels(configs: &[SupportedStreamConfigRange]) -> u16 {
-        configs.iter().map(|config| config.channels()).max().unwrap_or(0)
+        configs
+            .iter()
+            .map(|config| config.channels())
+            .max()
+            .unwrap_or(0)
     }
 
     fn pick_config_range(
@@ -214,9 +218,7 @@ impl CpalBackend {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            anyhow::anyhow!("No output device available")
-        }))
+        Err(last_error.unwrap_or_else(|| anyhow::anyhow!("No output device available")))
     }
 }
 
@@ -240,7 +242,9 @@ impl AudioBackend for CpalBackend {
                 Err(_) => continue,
             };
             let device_name = Self::device_name(&device);
-            let is_default = default_id.as_ref().is_some_and(|d| d.as_str() == id.as_str());
+            let is_default = default_id
+                .as_ref()
+                .is_some_and(|d| d.as_str() == id.as_str());
 
             let supported_configs: Vec<_> = match device.supported_output_configs() {
                 Ok(configs) => configs.collect(),
@@ -417,10 +421,7 @@ mod tests {
     use super::*;
     use cpal::SampleFormat;
 
-    fn test_config_range(
-        sample_rate: u32,
-        channels: u16,
-    ) -> SupportedStreamConfigRange {
+    fn test_config_range(sample_rate: u32, channels: u16) -> SupportedStreamConfigRange {
         SupportedStreamConfigRange::new(
             channels,
             sample_rate,

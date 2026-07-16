@@ -49,11 +49,7 @@ pub trait WritableLibrary: Library {
     fn sync_collection(&mut self, collection_id: Option<&CollectionId>) -> Result<ScanReport>;
 
     /// Update collection fields (name, sortable, …).
-    fn update_collection(
-        &mut self,
-        id: &CollectionId,
-        update: &UpdateCollection,
-    ) -> Result<()>;
+    fn update_collection(&mut self, id: &CollectionId, update: &UpdateCollection) -> Result<()>;
 
     /// Delete a collection (folder or playlist). Tracks in the pool are kept.
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()>;
