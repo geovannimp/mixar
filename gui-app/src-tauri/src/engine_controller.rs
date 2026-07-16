@@ -33,6 +33,8 @@ pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         active_loop: deck.active_loop.clone(),
         filter_db: deck.filter_db,
         gain_trim_db: deck.gain_trim_db,
+        loudness_lufs: deck.loudness_lufs,
+        auto_gain_db: deck.auto_gain_db,
         sync_mode: deck.sync_mode,
         is_master: id == state.master_deck,
         pad_mode: deck.pad_mode,

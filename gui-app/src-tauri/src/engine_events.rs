@@ -132,6 +132,8 @@ mod tests {
                     active_loop: None,
                     filter_db: 0.0,
                     gain_trim_db: 0.0,
+                    loudness_lufs: None,
+                    auto_gain_db: 0.0,
                     sync_mode: SyncMode::Off,
                     is_master: true,
                     pad_mode: crate::deck_sync::PadMode::HotCue,

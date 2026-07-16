@@ -386,6 +386,8 @@ pub(crate) struct DeckStatus {
     active_loop: Option<LoopRegionStatus>,
     filter_db: f32,
     gain_trim_db: f32,
+    loudness_lufs: Option<f64>,
+    auto_gain_db: f32,
     sync_mode: SyncMode,
     is_master: bool,
     pad_mode: PadMode,

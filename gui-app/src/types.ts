@@ -75,6 +75,8 @@ export interface DeckStatus {
   active_loop: DeckActiveLoop | null;
   filter_db: number;
   gain_trim_db: number;
+  loudness_lufs: number | null;
+  auto_gain_db: number;
   sync_mode: SyncMode;
   is_master: boolean;
   pad_mode: PadMode;

@@ -27,6 +27,7 @@ import { DeckLoopPanel } from "./DeckLoopPanel";
 import { DeckOverviewPreview } from "./DeckOverviewPreview";
 import { DeckTempoPanel } from "./DeckTempoPanel";
 import { DeckTrackInfo } from "./DeckTrackInfo";
+import { DeckInfoPopover } from "./DeckInfoPopover";
 import { DeckCircularButton, JogPlatter } from "./DeckTransport";
 
 interface DeckPanelProps {
@@ -415,11 +416,18 @@ export function DeckPanel({
       }}
     >
       <div className="flex shrink-0 items-center justify-between gap-2">
-        <h2
-          className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}
-        >
-          {accent.label}
-        </h2>
+        <div className="flex min-w-0 items-center gap-1">
+          <h2
+            className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}
+          >
+            {accent.label}
+          </h2>
+          <DeckInfoPopover
+            deck={deckForInfo}
+            disabled={!hasTrack}
+            accentClass={accent.text}
+          />
+        </div>
         <div className="flex shrink-0 items-center gap-1">
           <DeckButton
             type="button"
