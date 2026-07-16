@@ -109,6 +109,8 @@ mod tests {
                 backend: "cpal".to_string(),
                 sample_rate: 48_000,
                 crossfader: 0.5,
+                cue_mix: 0.0,
+                master_cue: false,
                 decks: vec![DeckStatus {
                     id: 0,
                     track: None,
@@ -133,6 +135,7 @@ mod tests {
                     sync_mode: SyncMode::Off,
                     is_master: true,
                     pad_mode: crate::deck_sync::PadMode::HotCue,
+                    headphone_cue: false,
                 }],
             },
         };
