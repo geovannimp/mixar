@@ -203,23 +203,32 @@ export function SettingsAudioPanel({
                 buffer_size: snapBufferSize(next),
               });
             }}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Buffer size (frames)</FieldLabel>
-            <SliderValue>{draft.buffer_size}</SliderValue>
-          </div>
-          <FieldDescription>
-            Smaller buffers reduce latency and raise CPU / drop risk.
-          </FieldDescription>
+          >
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <FieldLabel className="font-medium text-sm">
+                Buffer size (frames)
+              </FieldLabel>
+              <SliderValue />
+            </div>
+          </Slider>
         </Field>
 
         <SettingsToggle
-          label="Low latency"
+          label="Low latency mode"
           checked={draft.low_latency}
-          onCheckedChange={(low_latency) => onChange({ ...draft, low_latency })}
+          onCheckedChange={(low_latency) =>
+            onChange({ ...draft, low_latency })
+          }
+        />
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Resample"
+          description="Converts each track to what your audio device expects."
         />
 
-        <Field>
+        <Field className="gap-1.5">
           <Slider
             aria-label="Resampler quality"
             value={resamplerQualityIndex(draft.resampler_quality)}
@@ -236,12 +245,30 @@ export function SettingsAudioPanel({
                 resampler_quality: resamplerQualityFromIndex(next),
               });
             }}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <FieldLabel>Resampler quality</FieldLabel>
-            <SliderValue>
-              {resamplerQualityLabel(draft.resampler_quality)}
-            </SliderValue>
+          >
+            <div className="mb-2 flex items-center justify-between gap-1">
+              <FieldLabel className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Resampler quality
+              </FieldLabel>
+              <span className="text-sm">
+                {resamplerQualityLabel(draft.resampler_quality)}
+              </span>
+            </div>
+          </Slider>
+          <div
+            aria-label="Resampler quality levels"
+            className="mt-1 flex w-full items-center justify-between gap-1 px-2.5 font-medium text-muted-foreground text-xs"
+            role="group"
+          >
+            {RESAMPLER_QUALITY_STEPS.map((step) => (
+              <span
+                className="flex w-0 flex-col items-center justify-center gap-2"
+                key={step.value}
+              >
+                <span className="h-1 w-px bg-muted-foreground/72" />
+                <span>{step.label}</span>
+              </span>
+            ))}
           </div>
           <FieldDescription>Higher quality uses more CPU.</FieldDescription>
         </Field>
