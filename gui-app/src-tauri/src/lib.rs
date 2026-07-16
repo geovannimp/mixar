@@ -375,14 +375,6 @@ pub(crate) fn clamp_eq_db(value: f32) -> f32 {
     value.clamp(-24.0, 24.0)
 }
 
-fn deck_eq_gains(eq: &DeckEq) -> (f32, f32, f32) {
-    (
-        clamp_eq_db(eq.low),
-        clamp_eq_db(eq.mid),
-        clamp_eq_db(eq.high),
-    )
-}
-
 fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
     let Some(engine) = state.engine.as_ref() else {
         return (None, None);
@@ -475,52 +467,6 @@ where
     f(engine)
 }
 
-/// Re-applies per-deck mixer state (volume, EQ, speed, filter, gain trim,
-/// headphone cue) and the crossfader onto a freshly (re)started engine.
-/// Shared by `start_engine` and `save_settings` so the two code paths can't drift.
-fn rehydrate_engine_mixer(state: &mut AppState) -> Result<(), String> {
-    for deck_id in 0..NUM_DECKS {
-        let deck = &state.decks[deck_id];
-        let volume = deck.volume;
-        let (low, mid, high) = deck_eq_gains(&deck.eq);
-        let speed = deck.speed;
-        let filter_db = deck.filter_db;
-        let gain_trim_db = deck.gain_trim_db;
-        let headphone_cue = deck.headphone_cue;
-
-        let engine = state
-            .engine
-            .as_mut()
-            .ok_or_else(|| "Engine is not running.".to_string())?;
-        engine
-            .set_deck_volume(deck_id, volume)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_eq_bands(deck_id, low, mid, high)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_speed(deck_id, speed)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_filter_db(deck_id, filter_db)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_gain_trim_db(deck_id, gain_trim_db)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_headphone_cue(deck_id, headphone_cue)
-            .map_err(|e| e.to_string())?;
-    }
-
-    let crossfader = state.crossfader;
-    let engine = state
-        .engine
-        .as_mut()
-        .ok_or_else(|| "Engine is not running.".to_string())?;
-    engine.set_crossfader(crossfader).map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 #[tauri::command]
 fn start_engine(
     app: AppHandle,
@@ -536,7 +482,6 @@ fn start_engine(
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
     state.engine = Some(engine);
-    rehydrate_engine_mixer(&mut state)?;
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
@@ -573,7 +518,7 @@ fn get_settings(state: State<'_, SharedAppState>) -> Result<AppSettings, String>
 
 /// Applies new settings. If the engine is running, it is stopped, the new
 /// config is applied, and the engine is restarted with the same decks/tracks
-/// and mixer state rehydrated — the caller never has to stop the engine first.
+/// reloaded — the caller never has to stop the engine first.
 #[tauri::command]
 async fn save_settings(
     app: AppHandle,
@@ -628,7 +573,6 @@ async fn save_settings(
         state.decks[deck_id].playing = false;
     }
     state.engine = Some(engine);
-    rehydrate_engine_mixer(&mut state)?;
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
 
