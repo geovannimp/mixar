@@ -1,16 +1,19 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB, snapEqDb } from "@/lib/eq";
+import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
 
 interface RotaryKnobProps {
   label: string;
   value: number;
   min?: number;
   max?: number;
+  step?: number;
   disabled?: boolean;
+  ariaLabel?: string;
   accentClass?: string;
   ringClass?: string;
   className?: string;
+  formatValue?: (value: number) => string;
   onValueChange: (value: number) => void;
 }
 
@@ -24,10 +27,13 @@ export function RotaryKnob({
   value,
   min = EQ_MIN_DB,
   max = EQ_MAX_DB,
+  step = 1,
   disabled,
+  ariaLabel,
   accentClass,
   ringClass,
   className,
+  formatValue,
   onValueChange,
 }: RotaryKnobProps) {
   const dragRef = useRef<{ startY: number; startValue: number } | null>(null);
@@ -41,10 +47,11 @@ export function RotaryKnob({
       }
       const deltaY = drag.startY - clientY;
       const range = max - min;
-      const next = snapEqDb(drag.startValue + (deltaY / 72) * range);
+      const raw = drag.startValue + (deltaY / 72) * range;
+      const next = Math.min(max, Math.max(min, Math.round(raw / step) * step));
       onValueChange(next);
     },
-    [max, min, onValueChange],
+    [max, min, onValueChange, step],
   );
 
   const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
@@ -76,11 +83,11 @@ export function RotaryKnob({
     }
     if (event.key === "ArrowUp" || event.key === "ArrowRight") {
       event.preventDefault();
-      onValueChange(snapEqDb(value + 1));
+      onValueChange(Math.min(max, value + step));
     }
     if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
       event.preventDefault();
-      onValueChange(snapEqDb(value - 1));
+      onValueChange(Math.max(min, value - step));
     }
     if (event.key === "Home") {
       event.preventDefault();
@@ -92,7 +99,11 @@ export function RotaryKnob({
     }
   };
 
-  const displayValue = value > 0 ? `+${value}` : `${value}`;
+  const displayValue = formatValue
+    ? formatValue(value)
+    : value > 0
+      ? `+${value}`
+      : `${value}`;
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>
@@ -107,7 +118,7 @@ export function RotaryKnob({
       <button
         type="button"
         disabled={disabled}
-        aria-label={`${label} EQ`}
+        aria-label={ariaLabel ?? `${label} EQ`}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
