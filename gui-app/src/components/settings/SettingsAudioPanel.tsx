@@ -1,6 +1,7 @@
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   RESAMPLER_QUALITY_STEPS,
   resamplerQualityFromIndex,
@@ -317,41 +318,44 @@ export function SettingsAudioPanel({
           />
         </div>
 
-        <SettingsToggle
-          label="Enable preview bus"
-          checked={draft.preview_enabled}
-          onCheckedChange={(preview_enabled) =>
-            onChange({ ...draft, preview_enabled })
-          }
-        />
-
-        {draft.preview_enabled && (
-          <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+        <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
+          <div className="flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               Preview
             </p>
-            <DeviceSelect
-              label="Output device"
-              hint="Often headphones or a separate interface output."
-              value={draft.preview_bus.device_id}
-              devices={devices}
-              loading={devicesLoading}
-              onChange={(deviceId) =>
-                onChange({
-                  ...draft,
-                  preview_bus: updateBusRoute(draft.preview_bus, {
-                    device_id: deviceId,
-                  }),
-                })
+            <Switch
+              checked={draft.preview_enabled}
+              aria-label="Enable preview bus"
+              onCheckedChange={(preview_enabled) =>
+                onChange({ ...draft, preview_enabled })
               }
             />
-            <BusChannelFields
-              route={draft.preview_bus}
-              defaultMonoChannel={2}
-              onChange={(preview_bus) => onChange({ ...draft, preview_bus })}
-            />
           </div>
-        )}
+          {draft.preview_enabled ? (
+            <div className="space-y-4">
+              <DeviceSelect
+                label="Output device"
+                hint="Often headphones or a separate interface output."
+                value={draft.preview_bus.device_id}
+                devices={devices}
+                loading={devicesLoading}
+                onChange={(deviceId) =>
+                  onChange({
+                    ...draft,
+                    preview_bus: updateBusRoute(draft.preview_bus, {
+                      device_id: deviceId,
+                    }),
+                  })
+                }
+              />
+              <BusChannelFields
+                route={draft.preview_bus}
+                defaultMonoChannel={2}
+                onChange={(preview_bus) => onChange({ ...draft, preview_bus })}
+              />
+            </div>
+          ) : null}
+        </div>
       </section>
     </div>
   );
