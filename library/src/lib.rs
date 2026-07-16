@@ -28,6 +28,8 @@ mod waveform;
 
 #[cfg(feature = "analysis")]
 use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
+#[cfg(feature = "analysis")]
+use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 
 use std::path::{Path, PathBuf};
 
@@ -516,8 +518,10 @@ impl LibraryManager {
         config.max_duration_secs = options
             .analysis_duration
             .resolve_max_duration_secs(tag_metadata.duration_secs);
-        let analysis =
-            analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
+        let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
+        let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
+        analysis.loudness_lufs =
+            preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
 
         let tag_side = TagMetadata {
             bpm: tag_metadata.bpm,
@@ -549,6 +553,13 @@ impl LibraryManager {
     ) -> Result<LibrarySource> {
         self.refresh_file_source(path)
     }
+}
+
+#[cfg(feature = "analysis")]
+fn preferred_loudness_lufs(measured_lufs: Option<f64>, replaygain_db: Option<f64>) -> Option<f64> {
+    replaygain_db
+        .map(loudness_lufs_from_replaygain_track_gain_db)
+        .or(measured_lufs)
 }
 
 impl Library for LibraryManager {
@@ -1003,6 +1014,14 @@ mod tests {
 
     #[test]
     #[cfg(feature = "analysis")]
+    fn replaygain_loudness_replaces_measured_loudness() {
+        let loudness = preferred_loudness_lufs(Some(-12.0), Some(3.2));
+        assert_eq!(loudness, Some(-21.2));
+        assert_eq!(preferred_loudness_lufs(Some(-12.0), None), Some(-12.0));
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
     fn analyze_track_persists_track_analysis() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("song.wav");
@@ -1015,6 +1034,11 @@ mod tests {
 
         let count = lib.store().count_track_analysis(track.id()).unwrap();
         assert_eq!(count, 1);
+        assert!(lib
+            .store()
+            .track_analysis_loudness(track.id())
+            .unwrap()
+            .is_some());
     }
 
     #[test]

@@ -22,10 +22,11 @@ sea-orm-sync = { version = "2.0.0-rc.42", features = [
 ] }
 rusqlite = { version = "0.38", features = ["bundled"] }
 analyzer = { path = "../analyzer", optional = true }
+analyzer-core = { path = "../analyzer-core", optional = true }
 
 [features]
 default = ["analysis"]
-analysis = ["dep:analyzer"]
+analysis = ["dep:analyzer", "dep:analyzer-core"]
 
 [dev-dependencies]
 tempfile = "3.0"

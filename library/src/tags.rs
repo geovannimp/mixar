@@ -6,7 +6,7 @@ use std::time::Duration;
 use library_core::TrackMetadata;
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
-use lofty::tag::Accessor;
+use lofty::tag::{Accessor, ItemKey};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
@@ -54,6 +54,31 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     }
 
     Ok(metadata)
+}
+
+/// Read the ReplayGain track gain tag, in decibels, when present and valid.
+pub(crate) fn read_replaygain_track_gain_db(
+    path: &Path,
+) -> library_core::Result<Option<f64>> {
+    let tagged = Probe::open(path)
+        .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
+        .read()
+        .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
+    let value = tagged
+        .primary_tag()
+        .or_else(|| tagged.first_tag())
+        .and_then(|tag| tag.get_string(&ItemKey::ReplayGainTrackGain));
+    Ok(value.and_then(parse_replaygain_track_gain_db))
+}
+
+fn parse_replaygain_track_gain_db(raw: &str) -> Option<f64> {
+    let normalized = raw.trim().replace('−', "-");
+    let value = normalized
+        .strip_suffix("dB")
+        .or_else(|| normalized.strip_suffix("db"))
+        .unwrap_or(&normalized)
+        .trim();
+    value.parse().ok()
 }
 
 /// Convert Camelot/Open Key codes to musical notation; pass through other values.
@@ -136,6 +161,14 @@ mod tests {
         assert_eq!(camelot_to_musical(1, true), Some("Am".into()));
         assert_eq!(normalize_key_notation("8A"), "C#");
         assert_eq!(normalize_key_notation("F#m"), "F#m");
+    }
+
+    #[test]
+    fn parses_replaygain_track_gain_values() {
+        assert_eq!(parse_replaygain_track_gain_db("+3.20 dB"), Some(3.2));
+        assert_eq!(parse_replaygain_track_gain_db("-1.5 dB"), Some(-1.5));
+        assert_eq!(parse_replaygain_track_gain_db("−1.5 dB"), Some(-1.5));
+        assert_eq!(parse_replaygain_track_gain_db("not a gain"), None);
     }
 
     #[test]

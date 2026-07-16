@@ -1762,6 +1762,7 @@ name = "library"
 version = "0.1.0"
 dependencies = [
  "analyzer",
+ "analyzer-core",
  "audio-core 0.1.0",
  "library-core",
  "lofty",
