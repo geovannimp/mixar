@@ -342,8 +342,7 @@ impl Engine {
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.load(audio)?;
-            deck.set_auto_gain_db(auto_gain_db)?;
+            deck.load(audio, auto_gain_db)?;
             log::info!("Track loaded into deck {}", deck_id);
             Ok(())
         } else {

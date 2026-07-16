@@ -3,12 +3,12 @@
 //! A deck represents a single audio playback unit with controls for
 //! play/pause, volume, pitch, and other DJ-style features.
 
-use anyhow::Result;
-use audio_core::{LoadedAudio, Sample};
 use crate::eq::{DeckEqGains, ThreeBandEq};
 use crate::filter::{db_to_linear, DjFilter};
 use crate::level_meter::LevelPeaks;
 use crate::transport::DeckTransportEvent;
+use anyhow::Result;
+use audio_core::{LoadedAudio, Sample};
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -243,12 +243,6 @@ impl Deck {
         self.gain_trim_db
     }
 
-    /// Set automatic loudness normalization gain in decibels.
-    pub fn set_auto_gain_db(&mut self, gain_db: f32) -> Result<()> {
-        self.auto_gain_db = crate::eq::clamp_gain_db(gain_db);
-        Ok(())
-    }
-
     pub fn auto_gain_db(&self) -> f32 {
         self.auto_gain_db
     }
@@ -449,12 +443,15 @@ impl Deck {
     }
 
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
-    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
+    ///
+    /// `auto_gain_db` is the offline loudness-normalization offset for this load (pass `0.0` when unused).
+    pub fn load(&mut self, audio: Arc<LoadedAudio>, auto_gain_db: f32) -> Result<()> {
         self.position = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
         self.cue_point_secs = Some(0.0);
         self.cue_hold_return = None;
+        self.auto_gain_db = crate::eq::clamp_gain_db(auto_gain_db);
         self.loaded = Some(audio);
         self.create_resampler()?;
 
@@ -593,8 +590,7 @@ impl Deck {
                 if self.position_frac >= loop_out {
                     let span = loop_out - loop_in;
                     if span > 0.0 {
-                        self.position_frac =
-                            loop_in + ((self.position_frac - loop_out) % span);
+                        self.position_frac = loop_in + ((self.position_frac - loop_out) % span);
                     }
                 }
             }
@@ -728,10 +724,7 @@ fn interpolate_stereo(samples: &[Sample], pos: f64) -> (Sample, Sample) {
     let r0 = samples[i0 + 1];
     let l1 = samples[i0 + 2];
     let r1 = samples[i0 + 3];
-    (
-        l0 + (l1 - l0) * frac,
-        r0 + (r1 - r0) * frac,
-    )
+    (l0 + (l1 - l0) * frac, r0 + (r1 - r0) * frac)
 }
 
 #[cfg(test)]
@@ -748,13 +741,22 @@ mod tests {
     }
 
     fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {
+        load_test_samples_with_auto_gain(deck, samples, sample_rate, 0.0);
+    }
+
+    fn load_test_samples_with_auto_gain(
+        deck: &mut Deck,
+        samples: Vec<Sample>,
+        sample_rate: u32,
+        auto_gain_db: f32,
+    ) {
         let audio = LoadedAudio {
             samples,
             sample_rate,
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(Arc::new(audio)).unwrap();
+        deck.load(Arc::new(audio), auto_gain_db).unwrap();
     }
 
     #[test]
@@ -1017,8 +1019,8 @@ mod tests {
 
         let mut deck_a = new_deck(CHUNK);
         let mut deck_b = new_deck(CHUNK);
-        deck_a.load(Arc::clone(&audio)).unwrap();
-        deck_b.load(Arc::clone(&audio)).unwrap();
+        deck_a.load(Arc::clone(&audio), 0.0).unwrap();
+        deck_b.load(Arc::clone(&audio), 0.0).unwrap();
 
         assert!(Arc::ptr_eq(
             deck_a.loaded_audio().unwrap(),
@@ -1068,10 +1070,9 @@ mod tests {
             .fold(0.0_f32, f32::max);
 
         let mut deck_boosted = Deck::new(1, 48000, 512, "medium");
-        load_test_samples(&mut deck_boosted, samples, ENGINE_RATE);
+        load_test_samples_with_auto_gain(&mut deck_boosted, samples, ENGINE_RATE, 6.0);
         deck_boosted.set_volume(1.0).unwrap();
         deck_boosted.set_gain_trim_db(0.0).unwrap();
-        deck_boosted.set_auto_gain_db(6.0).unwrap();
         assert_eq!(deck_boosted.auto_gain_db(), 6.0);
         deck_boosted.play().unwrap();
         deck_boosted.process(frames).unwrap();
