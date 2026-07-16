@@ -63,10 +63,10 @@ Normalizer off or no loudness
 
 ### Engine / Tauri
 
-- `Engine::set_deck_auto_gain_db(deck_id, db)`.
-- On track load: if settings.normalizer enabled and loudness known → set auto; else 0.
+- `Engine::load_track(deck_id, audio, auto_gain_db)` applies auto gain at load time.
+- On track load: if settings.normalizer enabled and loudness known → compute auto; else 0.
 - Settings: `volume_normalizer_enabled`, `target_lufs` (−18 default).
-- On settings save: recompute auto for decks that have a loaded track with known loudness.
+- Settings save does **not** recompute auto for already-loaded decks; new settings apply on the next load. (Future: refresh when analysis completes for a loaded track — see #70.)
 - UI: Settings toggle + target control; trim knob unchanged (still `gain_trim_db` only). Optional later: show effective/auto readout — not required for MVP.
 
 ## Behavior matrix
@@ -84,7 +84,7 @@ Normalizer off or no loudness
 | Analyzer / library | Tag import path; LUFS on fixture; upsert `loudness_lufs` |
 | DSP | `auto + trim` linear gain; defaults; setters |
 | Apply math | Unit test `auto_gain_db(target, measured)` clamp |
-| Integration / GUI | Load with normalizer on/off; settings change updates loaded decks |
+| Integration / GUI | Load with normalizer on/off; settings change applies on next load |
 
 ## Acceptance
 

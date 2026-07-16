@@ -29,6 +29,7 @@ fn test_engine_with_null_backend() -> Result<()> {
     engine.load_track(
         0,
         Arc::new(FileAudioSource::from_path("test.mp3").load()?),
+        0.0,
     )?;
     engine.play(0)?;
     engine.pause(0)?;
@@ -111,6 +112,7 @@ fn test_engine_deck_operations() -> Result<()> {
         .load_track(
             0,
             Arc::new(FileAudioSource::from_path("test.mp3").load()?),
+            0.0,
         )
         .is_ok());
 

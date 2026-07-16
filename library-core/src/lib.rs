@@ -4,7 +4,7 @@
 //! lives in `library`; third-party adapters live in `library-adapters`.
 //!
 //! [`LibrarySource`] implements [`AudioSource`] so library entries load directly
-//! into the engine: `engine.load_track(0, Arc::new(source.load()?))?`.
+//! into the engine: `engine.load_track(0, Arc::new(source.load()?), 0.0)?`.
 
 mod audio_extensions;
 mod audio_source;
@@ -22,9 +22,9 @@ pub use error::{LibraryError, Result};
 pub use source::{FileAudioSource, LibrarySource, StreamAudioSource, StreamProvider};
 pub use traits::{Library, WritableLibrary};
 pub use types::{
-    Collection, CollectionConfig, CollectionConfigUpdate, CollectionId, CollectionTrack,
-    CollectionType, LibraryConfig, NewCollection, ScanReport, TrackId, TrackMetadata,
-    UpdateCollection, AnalyzeTrackOptions,
+    AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionId,
+    CollectionTrack, CollectionType, LibraryConfig, NewCollection, ScanReport, TrackId,
+    TrackMetadata, UpdateCollection,
 };
 
 #[cfg(test)]
