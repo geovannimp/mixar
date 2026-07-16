@@ -815,11 +815,16 @@ async fn load_path_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (track_id, cache_key, title, artist, bpm, key) = {
+    let (track_id, cache_key, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
             .import_file_path(Path::new(&path))
+            .map_err(|e| e.to_string())?;
+        let track_id = source.id().as_str().to_string();
+        let loudness_lufs = state
+            .library
+            .track_loudness_lufs(&TrackId::new(track_id.clone()))
             .map_err(|e| e.to_string())?;
 
         let file_path = source
@@ -831,12 +836,13 @@ async fn load_path_to_deck(
 
         let metadata = source.metadata();
         (
-            source.id().as_str().to_string(),
+            track_id,
             file_path,
             metadata.title.clone(),
             metadata.artist.clone(),
             metadata.bpm,
             metadata.key.clone(),
+            loudness_lufs,
         )
     };
 
@@ -867,7 +873,7 @@ async fn load_path_to_deck(
         deck.artist = artist;
         deck.bpm = bpm;
         deck.key = key;
-        deck.loudness_lufs = None;
+        deck.loudness_lufs = loudness_lufs;
     }
     apply_deck_auto_gain(&mut state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
