@@ -611,6 +611,41 @@ impl Engine {
         dsp.mixer_mut().set_crossfader(position)
     }
 
+    /// Set cue blend (0.0 = PFL only, 1.0 = master tap only when `master_cue`).
+    pub fn set_cue_mix(&mut self, mix: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_cue_mix(mix)
+    }
+
+    /// Current cue blend when the engine is running.
+    pub fn cue_mix(&self) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().cue_mix())
+    }
+
+    /// Enable or disable master tap on the cue bus.
+    pub fn set_master_cue(&mut self, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_master_cue(enabled);
+        Ok(())
+    }
+
+    /// Whether master tap is enabled on the cue bus when the engine is running.
+    pub fn master_cue(&self) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().master_cue())
+    }
+
     /// Playback position and duration for a deck (seconds), when the engine is running.
     pub fn deck_playback_secs(&self, deck_id: usize) -> Option<(f64, f64)> {
         let dsp_engine = self.dsp_engine.as_ref()?;
