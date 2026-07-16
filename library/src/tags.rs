@@ -64,11 +64,14 @@ pub(crate) fn read_replaygain_track_gain_db(
         .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
         .read()
         .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
-    let value = tagged
-        .primary_tag()
-        .or_else(|| tagged.first_tag())
-        .and_then(|tag| tag.get_string(&ItemKey::ReplayGainTrackGain));
-    Ok(value.and_then(parse_replaygain_track_gain_db))
+    Ok(replaygain_track_gain_db(&tagged))
+}
+
+fn replaygain_track_gain_db(tagged: &impl TaggedFileExt) -> Option<f64> {
+    tagged.tags().iter().find_map(|tag| {
+        tag.get_string(&ItemKey::ReplayGainTrackGain)
+            .and_then(parse_replaygain_track_gain_db)
+    })
 }
 
 fn parse_replaygain_track_gain_db(raw: &str) -> Option<f64> {
@@ -155,6 +158,10 @@ mod tests {
     use super::*;
     use std::io::Write;
 
+    use lofty::file::{FileType, TaggedFile};
+    use lofty::properties::FileProperties;
+    use lofty::tag::{Tag, TagType};
+
     #[test]
     fn normalize_camelot_key_to_musical() {
         assert_eq!(camelot_to_musical(8, false), Some("C#".into()));
@@ -169,6 +176,21 @@ mod tests {
         assert_eq!(parse_replaygain_track_gain_db("-1.5 dB"), Some(-1.5));
         assert_eq!(parse_replaygain_track_gain_db("−1.5 dB"), Some(-1.5));
         assert_eq!(parse_replaygain_track_gain_db("not a gain"), None);
+    }
+
+    #[test]
+    fn reads_first_valid_replaygain_from_secondary_tag() {
+        let mut primary = Tag::new(TagType::Id3v2);
+        assert!(primary.insert_text(ItemKey::ReplayGainTrackGain, "not a gain".to_string()));
+        let mut secondary = Tag::new(TagType::Ape);
+        assert!(secondary.insert_text(ItemKey::ReplayGainTrackGain, "+3.20 dB".to_string()));
+        let tagged = TaggedFile::new(
+            FileType::Mpeg,
+            FileProperties::default(),
+            vec![primary, secondary],
+        );
+
+        assert_eq!(replaygain_track_gain_db(&tagged), Some(3.2));
     }
 
     #[test]
