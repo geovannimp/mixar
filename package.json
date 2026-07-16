@@ -1,0 +1,16 @@
+{
+  "name": "rust-dj-engine",
+  "private": true,
+  "workspaces": [
+    "gui-app"
+  ],
+  "scripts": {
+    "prepare": "lefthook install",
+    "dev:gui": "npm run dev -w gui-app",
+    "build:gui": "npm run build -w gui-app",
+    "tauri": "npm run tauri -w gui-app"
+  },
+  "devDependencies": {
+    "lefthook": "2.1.10"
+  }
+}

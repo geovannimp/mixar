@@ -108,3 +108,6 @@ dev/
 
 # Local git worktrees
 .worktrees/
+
+# Local tool installs (leftover betterhook, etc.)
+/tools/
