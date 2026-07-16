@@ -86,6 +86,7 @@ pub(crate) struct DeckInfo {
     sync_mode: SyncMode,
     pad_mode: PadMode,
     loop_roll_restore: Option<LoopRegionStatus>,
+    headphone_cue: bool,
 }
 
 impl Default for DeckInfo {
@@ -111,6 +112,7 @@ impl Default for DeckInfo {
             sync_mode: SyncMode::Off,
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
+            headphone_cue: false,
         }
     }
 }
@@ -311,6 +313,7 @@ pub(crate) struct DeckStatus {
     sync_mode: SyncMode,
     is_master: bool,
     pad_mode: PadMode,
+    headphone_cue: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -372,14 +375,6 @@ pub(crate) fn clamp_eq_db(value: f32) -> f32 {
     value.clamp(-24.0, 24.0)
 }
 
-fn deck_eq_gains(eq: &DeckEq) -> (f32, f32, f32) {
-    (
-        clamp_eq_db(eq.low),
-        clamp_eq_db(eq.mid),
-        clamp_eq_db(eq.high),
-    )
-}
-
 fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
     let Some(engine) = state.engine.as_ref() else {
         return (None, None);
@@ -406,6 +401,7 @@ fn clear_deck_info(deck: &mut DeckInfo) {
         filter_db: deck.filter_db,
         gain_trim_db: deck.gain_trim_db,
         pad_mode: deck.pad_mode,
+        headphone_cue: deck.headphone_cue,
         ..DeckInfo::default()
     };
 }
@@ -485,27 +481,6 @@ fn start_engine(
     let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
-    for (deck_id, deck) in state.decks.iter().enumerate() {
-        engine
-            .set_deck_volume(deck_id, deck.volume)
-            .map_err(|e| e.to_string())?;
-        let (low, mid, high) = deck_eq_gains(&deck.eq);
-        engine
-            .set_deck_eq_bands(deck_id, low, mid, high)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_speed(deck_id, deck.speed)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_filter_db(deck_id, deck.filter_db)
-            .map_err(|e| e.to_string())?;
-        engine
-            .set_deck_gain_trim_db(deck_id, deck.gain_trim_db)
-            .map_err(|e| e.to_string())?;
-    }
-    engine
-        .set_crossfader(state.crossfader)
-        .map_err(|e| e.to_string())?;
     state.engine = Some(engine);
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
@@ -541,16 +516,66 @@ fn get_settings(state: State<'_, SharedAppState>) -> Result<AppSettings, String>
     Ok(settings_from_state(&state))
 }
 
+/// Applies new settings. If the engine is running, it is stopped, the new
+/// config is applied, and the engine is restarted with the same decks/tracks
+/// reloaded — the caller never has to stop the engine first.
 #[tauri::command]
-fn save_settings(
+async fn save_settings(
+    app: AppHandle,
     settings: AppSettings,
-    state: State<'_, SharedAppState>,
+    shared: State<'_, SharedAppState>,
 ) -> Result<AppSettings, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.engine.is_some() {
-        return Err("Stop the engine before changing settings.".to_string());
+    let shared_state = shared.inner().clone();
+
+    let (was_running, deck_tracks) = {
+        let mut state = shared.lock().map_err(|e| e.to_string())?;
+        let was_running = state.engine.is_some();
+        let deck_tracks: Vec<(usize, String)> = state
+            .decks
+            .iter()
+            .enumerate()
+            .filter_map(|(deck_id, deck)| deck.track.clone().map(|path| (deck_id, path)))
+            .collect();
+
+        if was_running {
+            state.notifier = None;
+            if let Some(mut engine) = state.engine.take() {
+                engine.stop().map_err(|e| e.to_string())?;
+            }
+            // Do NOT clear_deck_info here — keep deck/track/hot-cue UI state intact
+            // across the restart; only the engine (and its loaded audio) is torn down.
+        }
+
+        apply_settings(&mut state, settings);
+        (was_running, deck_tracks)
+    };
+
+    if !was_running {
+        let state = shared.lock().map_err(|e| e.to_string())?;
+        return Ok(settings_from_state(&state));
     }
-    apply_settings(&mut state, settings);
+
+    let mut reloaded_tracks = Vec::with_capacity(deck_tracks.len());
+    for (deck_id, path) in deck_tracks {
+        let audio = get_or_decode(&shared, path.clone(), path).await?;
+        reloaded_tracks.push((deck_id, audio));
+    }
+
+    let mut state = shared.lock().map_err(|e| e.to_string())?;
+    let config = state.engine_config.clone();
+    let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
+    engine.start().map_err(|e| e.to_string())?;
+    for (deck_id, audio) in reloaded_tracks {
+        engine
+            .load_track(deck_id, audio)
+            .map_err(|e| e.to_string())?;
+        // A fresh engine load starts paused; reflect that in deck state.
+        state.decks[deck_id].playing = false;
+    }
+    state.engine = Some(engine);
+    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
+    let _ = publish_status(&app, &mut state);
+
     Ok(settings_from_state(&state))
 }
 
@@ -963,6 +988,27 @@ fn set_deck_eq(
 }
 
 #[tauri::command]
+fn set_deck_headphone_cue(
+    app: AppHandle,
+    deck_id: usize,
+    enabled: bool,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].headphone_cue = enabled;
+    if let Some(engine) = state.engine.as_mut() {
+        engine
+            .set_deck_headphone_cue(deck_id, enabled)
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(publish_deck(&app, &mut state, deck_id))
+}
+
+#[tauri::command]
 fn set_crossfader(
     app: AppHandle,
     crossfader: f32,
@@ -1252,6 +1298,7 @@ pub fn run() {
             set_deck_volume,
             set_deck_eq,
             set_deck_speed,
+            set_deck_headphone_cue,
             set_crossfader,
             seek_deck,
             unload_deck,

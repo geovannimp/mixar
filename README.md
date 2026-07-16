@@ -92,7 +92,6 @@ Working pieces:
 
 Still open / partial:
 
-- Full bus/device channel mapping (`set_bus_device` stub)
 - Library manager and tag storage (Sprint 3 placeholder)
 - WASM build of `engine-dsp`
 

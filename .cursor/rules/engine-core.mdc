@@ -14,7 +14,8 @@ Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.m
   - `config.rs` — `EngineConfig`, `DeviceConfig`, `AdvancedConfig`, `AudioConfig` (TOML load/save)
   - `engine.rs` — `Engine` public API (`new`, `start`/`stop`, `load_track`, `play`/`pause`, bus/device helpers)
   - `backend.rs` — `create_backend`, `AudioBackend` factory, `AudioBackendTrait` re-export
-  - `producer.rs` — ring buffer setup, `MasterStreamSetup`, producer thread loop
+  - `producer.rs` — ring buffer setup, producer thread loop
+  - `routing.rs` — bus/device validation, channel mapping, stream setup
   - `callback.rs` — `ConsumerCallback` (ring-buffer consumer for the audio device callback)
 - **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, &impl AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path in `load_track`; callers pass an `AudioSource`.
 - **Audio loading:** `AudioSource` / `LoadedAudio` are re-exported from `audio-core`. Concrete loaders (`FileAudioSource`, `LibrarySource`, …) live in `library-core`. Ad-hoc path loads use `library_core::FileAudioSource::from_path`. This crate does not define audio source types.

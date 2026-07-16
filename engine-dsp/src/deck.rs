@@ -69,6 +69,10 @@ pub struct Deck {
     pending_transport: Vec<DeckTransportEvent>,
     /// Pre-fader peak levels from the last process cycle.
     level_peaks: LevelPeaks,
+    /// Whether this deck is routed to the headphone cue bus.
+    headphone_cue: bool,
+    /// Last process buffer after trim/EQ/filter, before volume.
+    pre_fader_buffer: Vec<Sample>,
 }
 
 impl fmt::Debug for Deck {
@@ -120,6 +124,8 @@ impl Deck {
             cue_hold_return: None,
             pending_transport: Vec::new(),
             level_peaks: LevelPeaks::default(),
+            headphone_cue: false,
+            pre_fader_buffer: Vec::new(),
         }
     }
 
@@ -237,6 +243,18 @@ impl Deck {
     /// Pre-fader peak levels from the last process cycle.
     pub fn level_peaks(&self) -> LevelPeaks {
         self.level_peaks
+    }
+
+    pub fn set_headphone_cue(&mut self, enabled: bool) {
+        self.headphone_cue = enabled;
+    }
+
+    pub fn headphone_cue(&self) -> bool {
+        self.headphone_cue
+    }
+
+    pub fn pre_fader_buffer(&self) -> &[Sample] {
+        &self.pre_fader_buffer
     }
 
     /// Start playback
@@ -527,6 +545,8 @@ impl Deck {
         self.eq.process_buffer(&mut self.buffer);
         self.filter.process_buffer(&mut self.buffer);
         self.level_peaks = LevelPeaks::from_buffer(&self.buffer);
+        self.pre_fader_buffer.resize(self.buffer.len(), 0.0);
+        self.pre_fader_buffer.copy_from_slice(&self.buffer);
         for sample in &mut self.buffer {
             *sample *= self.volume;
         }
@@ -804,6 +824,38 @@ mod tests {
         load_test_samples(&mut deck, vec![0.5f32; CHUNK as usize * 2], ENGINE_RATE);
         let audio = deck.process(CHUNK).unwrap();
         assert!(audio.iter().any(|&s| s != 0.0));
+    }
+
+    #[test]
+    fn headphone_cue_defaults_false_and_toggles() {
+        let mut deck = Deck::new(0, 48000, 512, "medium");
+        assert!(!deck.headphone_cue());
+        deck.set_headphone_cue(true);
+        assert!(deck.headphone_cue());
+    }
+
+    #[test]
+    fn pre_fader_buffer_ignores_volume() {
+        let frames = 64u32;
+        let mut deck = new_deck(frames);
+        let mut samples = Vec::with_capacity(frames as usize * 2);
+        for _ in 0..frames {
+            samples.push(0.5);
+            samples.push(-0.25);
+        }
+        load_test_samples(&mut deck, samples, ENGINE_RATE);
+        deck.set_volume(0.0).unwrap();
+        deck.play().unwrap();
+
+        deck.process(frames).unwrap();
+        let pre = deck.pre_fader_buffer();
+        assert!(!pre.is_empty());
+        let peak = pre.iter().copied().map(f32::abs).fold(0.0_f32, f32::max);
+        assert!(
+            peak > 0.4,
+            "pre-fader should stay audible when volume is 0, got {}",
+            peak
+        );
     }
 
     #[test]

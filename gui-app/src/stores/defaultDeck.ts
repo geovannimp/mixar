@@ -27,6 +27,7 @@ export const DEFAULT_DECK_A: DeckStatus = {
   sync_mode: "off",
   is_master: true,
   pad_mode: "hot_cue",
+  headphone_cue: false,
   levels: ZERO_DECK_LEVELS,
 };
 

@@ -78,6 +78,7 @@ export interface DeckStatus {
   sync_mode: SyncMode;
   is_master: boolean;
   pad_mode: PadMode;
+  headphone_cue: boolean;
   levels: DeckLevels;
 }
 

@@ -3,17 +3,18 @@ use crate::backend::create_backend;
 use crate::callback::ConsumerCallback;
 use crate::config::{DeviceConfig, EngineConfig};
 use crate::producer::{
-    create_ring_buffer, producer_thread_loop, MasterStreamSetup,
+    create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceStreamSetup,
 };
+use crate::routing::DeviceStreamPlan;
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::{
-    AudioStream, BusConfig, BusId, DeviceId, DeviceInfo, Sample, StreamParams,
+    AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
 use engine_dsp::DspEngine;
 use engine_dsp::DeckEqGains;
-use rtrb::Consumer;
-use std::sync::atomic::AtomicU64;
+use rtrb::Producer;
+use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -23,7 +24,8 @@ pub struct Engine {
     config: EngineConfig,
     dsp_engine: Option<Arc<Mutex<DspEngine>>>,
     backend: Box<dyn audio_core::AudioBackend>,
-    stream: Option<Box<dyn AudioStream>>,
+    /// One opened stream per resolved device plan (spec §5.3: buses sharing a device share a stream).
+    streams: Vec<Box<dyn AudioStream>>,
     producer_thread: Option<JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
@@ -38,7 +40,7 @@ impl Engine {
             config,
             dsp_engine: None,
             backend,
-            stream: None,
+            streams: Vec::new(),
             producer_thread: None,
             running: Arc::new(Mutex::new(false)),
             transport_events: Arc::new(Mutex::new(Vec::new())),
@@ -47,22 +49,43 @@ impl Engine {
 
     /// Start the engine
     pub fn start(&mut self) -> Result<()> {
-        if self.stream.is_some() {
+        if !self.streams.is_empty() {
             return Err(anyhow::anyhow!("Engine is already running"));
         }
 
         log::info!("Starting engine with backend: {}", self.backend.name());
         *self.running.lock().unwrap() = true;
 
-        let (producer, consumer, ring_buffer_capacity) =
-            create_ring_buffer(self.config.buffer_size);
+        let device_streams = match self.open_device_streams() {
+            Ok(setups) => setups,
+            Err(e) => {
+                *self.running.lock().unwrap() = false;
+                return Err(e);
+            }
+        };
 
-        let master_stream = self.start_master_stream(consumer)?;
+        // Index 0 is the pacing ("master clock") device: `resolve_device_stream_plans` sorts a
+        // master-hosting plan first when one exists, so the producer paces off its callback.
+        let pacing_callback_count = Arc::clone(&device_streams[0].callback_count);
+        let pacing_callback_frames_atomic = device_streams[0].callback_frames_atomic.clone();
+        let pacing_sample_rate = device_streams[0].sample_rate;
+        let pacing_buffer_size = device_streams[0].buffer_size;
+        let pacing_ring_buffer_capacity = device_streams[0].ring_buffer_capacity;
+
+        let mut streams = Vec::with_capacity(device_streams.len());
+        let mut device_producers = Vec::with_capacity(device_streams.len());
+        for setup in device_streams {
+            streams.push(setup.stream);
+            device_producers.push((setup.plan, setup.producer));
+        }
 
         let producer_thread = match self.start_dsp_producer(
-            producer,
-            ring_buffer_capacity,
-            &master_stream,
+            device_producers,
+            pacing_sample_rate,
+            pacing_buffer_size,
+            pacing_ring_buffer_capacity,
+            pacing_callback_frames_atomic.clone(),
+            pacing_callback_count,
         ) {
             Ok(thread) => thread,
             Err(e) => {
@@ -71,119 +94,133 @@ impl Engine {
             }
         };
 
-        let stream = match master_stream.start_playback(self.config.buffer_size) {
-            Ok(stream) => stream,
-            Err(e) => {
-                self.abort_start(Some(producer_thread))?;
-                return Err(e);
-            }
-        };
+        if let Err(e) =
+            start_device_streams(&mut streams, self.config.buffer_size, pacing_callback_frames_atomic)
+        {
+            self.abort_start(Some(producer_thread))?;
+            return Err(e);
+        }
 
-        self.stream = Some(stream);
+        let stream_count = streams.len();
+        self.streams = streams;
         self.producer_thread = Some(producer_thread);
 
-        log::info!("Engine started successfully with producer/consumer model");
+        log::info!(
+            "Engine started successfully with producer/consumer model ({} device stream(s))",
+            stream_count
+        );
         Ok(())
     }
 
-    /// Open the master output stream and verify device parameters match config.
-    fn start_master_stream(
-        &mut self,
-        consumer: Consumer<Sample>,
-    ) -> Result<MasterStreamSetup> {
+    /// Resolve bus/device plans and open one output stream + ring per device, verifying each
+    /// device's negotiated sample rate and buffer size match config.
+    fn open_device_streams(&mut self) -> Result<Vec<DeviceStreamSetup>> {
         let devices = self.backend.list_output_devices()?;
-        let device = devices
-            .iter()
-            .find(|d| d.is_default)
-            .or_else(|| devices.first())
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("No output device available"))?;
+        let plans = crate::routing::resolve_device_stream_plans(&self.config.buses, &devices)?;
 
-        let params = StreamParams::new(
-            self.config.sample_rate,
-            2,
-            self.config.buffer_size,
-            self.config.low_latency,
-        );
+        let mut device_streams = Vec::with_capacity(plans.len());
+        for plan in plans {
+            let (producer, consumer, ring_buffer_capacity) =
+                create_device_ring_buffer(self.config.buffer_size, plan.channels);
 
-        let callback_count = Arc::new(AtomicU64::new(0));
-        let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
+            let callback_count = Arc::new(AtomicU64::new(0));
+            let callback = Box::new(ConsumerCallback::new(consumer, Arc::clone(&callback_count)));
+            let params = StreamParams::new(
+                self.config.sample_rate,
+                plan.channels,
+                self.config.buffer_size,
+                self.config.low_latency,
+            );
 
-        let stream = self
-            .backend
-            .open_output_stream(&device.id, &params, callback)?;
+            let stream = self
+                .backend
+                .open_output_stream(&plan.device, &params, callback)?;
 
-        let buffer_size = stream
-            .actual_buffer_size()
-            .unwrap_or(self.config.buffer_size) as usize;
-        let sample_rate = stream
-            .actual_sample_rate()
-            .unwrap_or(self.config.sample_rate);
+            let buffer_size = stream
+                .actual_buffer_size()
+                .unwrap_or(self.config.buffer_size) as usize;
+            let sample_rate = stream
+                .actual_sample_rate()
+                .unwrap_or(self.config.sample_rate);
 
-        log::info!(
-            "Audio stream opened: {} Hz, {} frames/buffer (config: {} Hz, {} frames)",
-            sample_rate,
-            buffer_size,
-            self.config.sample_rate,
-            self.config.buffer_size
-        );
-
-        if buffer_size != self.config.buffer_size as usize {
-            return Err(anyhow::anyhow!(
-                "Device buffer size {} frames does not match configured {} frames",
-                buffer_size,
-                self.config.buffer_size
-            ));
-        }
-        if sample_rate != self.config.sample_rate {
-            return Err(anyhow::anyhow!(
-                "Device sample rate {} Hz does not match configured {} Hz",
+            log::info!(
+                "Audio stream opened on device '{}': {} Hz, {} frames/buffer, {} channel(s) (config: {} Hz, {} frames)",
+                plan.device.as_str(),
                 sample_rate,
-                self.config.sample_rate
-            ));
+                buffer_size,
+                plan.channels,
+                self.config.sample_rate,
+                self.config.buffer_size
+            );
+
+            if buffer_size != self.config.buffer_size as usize {
+                return Err(anyhow::anyhow!(
+                    "Device '{}' buffer size {} frames does not match configured {} frames",
+                    plan.device.as_str(),
+                    buffer_size,
+                    self.config.buffer_size
+                ));
+            }
+            if sample_rate != self.config.sample_rate {
+                return Err(anyhow::anyhow!(
+                    "Device '{}' sample rate {} Hz does not match configured {} Hz",
+                    plan.device.as_str(),
+                    sample_rate,
+                    self.config.sample_rate
+                ));
+            }
+
+            let callback_frames_atomic = stream.callback_frames_atomic();
+
+            device_streams.push(DeviceStreamSetup {
+                plan,
+                stream,
+                producer,
+                callback_count,
+                callback_frames_atomic,
+                sample_rate,
+                buffer_size,
+                ring_buffer_capacity,
+            });
         }
 
-        let callback_frames_atomic = stream.callback_frames_atomic();
+        if device_streams.is_empty() {
+            return Err(anyhow::anyhow!("No output device stream plans resolved"));
+        }
 
-        Ok(MasterStreamSetup {
-            stream,
-            callback_count,
-            callback_frames_atomic,
-            sample_rate,
-            buffer_size,
-        })
+        Ok(device_streams)
     }
 
-    /// Create the DSP engine and start the producer thread (before master stream playback).
+    /// Create the DSP engine and start the producer thread (before any stream starts playback).
+    #[allow(clippy::too_many_arguments)]
     fn start_dsp_producer(
         &mut self,
-        producer: rtrb::Producer<Sample>,
+        device_producers: Vec<(DeviceStreamPlan, Producer<Sample>)>,
+        sample_rate: u32,
+        buffer_size: usize,
         ring_buffer_capacity: usize,
-        master_stream: &MasterStreamSetup,
+        callback_frames_atomic: Option<Arc<AtomicU32>>,
+        callback_count: Arc<AtomicU64>,
     ) -> Result<JoinHandle<()>> {
         let dsp_engine = Arc::new(Mutex::new(DspEngine::new(
-            master_stream.sample_rate,
-            master_stream.buffer_size as u32,
+            sample_rate,
+            buffer_size as u32,
             2,
             &self.config.resampler_quality(),
         )));
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
-        let callback_frames_for_producer = master_stream.callback_frames_atomic.clone();
-        let sample_rate = master_stream.sample_rate;
-        let buffer_size = master_stream.buffer_size;
-        let callback_count = Arc::clone(&master_stream.callback_count);
         let running = self.running.clone();
         let transport_events = Arc::clone(&self.transport_events);
         let producer_thread = thread::spawn(move || {
             producer_thread_loop(
                 dsp_engine,
-                producer,
+                device_producers,
                 running,
                 sample_rate,
                 buffer_size,
                 ring_buffer_capacity,
-                callback_frames_for_producer,
+                callback_frames_atomic,
                 callback_count,
                 transport_events,
             );
@@ -192,7 +229,7 @@ impl Engine {
         const PRODUCER_WARMUP_MS: u64 = 200;
         thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
         log::info!(
-            "Producer warmup done ({} ms), starting stream",
+            "Producer warmup done ({} ms), starting stream(s)",
             PRODUCER_WARMUP_MS
         );
 
@@ -222,8 +259,10 @@ impl Engine {
                 .map_err(|_| anyhow::anyhow!("Failed to join producer thread"))?;
         }
 
-        if let Some(_stream) = self.stream.take() {
-            log::info!("Audio stream stopped");
+        let stream_count = self.streams.len();
+        self.streams.clear();
+        if stream_count > 0 {
+            log::info!("Audio stream(s) stopped ({})", stream_count);
         }
 
         self.dsp_engine = None;
@@ -346,6 +385,20 @@ impl Engine {
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
         }
+    }
+
+    /// Set whether a deck is routed to the headphone cue bus.
+    pub fn set_deck_headphone_cue(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_headphone_cue(enabled);
+        Ok(())
     }
 
     /// Set a deck's three-band EQ gains in decibels.
@@ -589,10 +642,38 @@ impl Engine {
         self.config.buses.iter().find(|bus| &bus.id == bus_id)
     }
 
+    fn validate_bus_device_mapping(
+        &self,
+        bus_id: &BusId,
+        device: &DeviceId,
+        mapping: &ChannelMapping,
+    ) -> Result<DeviceId> {
+        let devices = self.backend.list_output_devices()?;
+        let resolved = crate::routing::resolve_device_id(device, &devices)?;
+        let info = devices
+            .iter()
+            .find(|d| d.id == resolved)
+            .ok_or_else(|| anyhow::anyhow!("Output device not found: {}", resolved.as_str()))?;
+        crate::routing::ensure_channels_in_range(mapping, info.max_channels, &resolved)?;
+        crate::routing::ensure_no_channel_conflicts(
+            &self.config.buses,
+            bus_id,
+            &resolved,
+            mapping,
+        )?;
+        Ok(resolved)
+    }
+
     /// Update bus configuration
     pub fn update_bus_config(&mut self, bus_id: &BusId, new_config: BusConfig) -> Result<()> {
+        let mapping =
+            crate::routing::validate_channel_pair([new_config.channels.left, new_config.channels.right])?;
+        let resolved = self.validate_bus_device_mapping(bus_id, &new_config.device, &mapping)?;
+
         if let Some(bus) = self.config.buses.iter_mut().find(|bus| &bus.id == bus_id) {
-            *bus = new_config;
+            bus.name = new_config.name;
+            bus.device = resolved;
+            bus.channels = mapping;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Bus not found: {}", bus_id.as_str()))
@@ -636,14 +717,25 @@ impl Engine {
         device: DeviceId,
         channels: [u16; 2],
     ) -> Result<()> {
-        log::info!(
-            "Setting bus {} to device {} channels {:?}",
-            bus.as_str(),
-            device.as_str(),
-            channels
-        );
+        let mapping = crate::routing::validate_channel_pair(channels)?;
+        let resolved = self.validate_bus_device_mapping(&bus, &device, &mapping)?;
 
-        // TODO: Implement bus device mapping in Sprint 2
+        if let Some(existing) = self.config.buses.iter_mut().find(|b| b.id == bus) {
+            existing.device = resolved;
+            existing.channels = mapping;
+        } else {
+            let name = match bus.as_str() {
+                "master" => "Master".to_string(),
+                "cue" => "Preview".to_string(),
+                other => other.to_string(),
+            };
+            self.config.buses.push(BusConfig::new(
+                bus,
+                name,
+                resolved,
+                mapping,
+            ));
+        }
         Ok(())
     }
 }
@@ -737,6 +829,49 @@ mod tests {
             ChannelMapping::new(1, 2),
         );
         assert!(engine.update_bus_config(&master_bus_id, new_config).is_ok());
+    }
+
+    #[test]
+    fn set_bus_device_updates_master_config() {
+        let mut config = EngineConfig::default();
+        config.backend = "null".into();
+        let mut engine = Engine::new(config).unwrap();
+        engine
+            .set_bus_device(
+                BusId::new("master"),
+                DeviceId::new("null-device"),
+                [3, 4],
+            )
+            .unwrap();
+        let bus = engine.get_bus_config(&BusId::new("master")).unwrap();
+        assert_eq!(bus.channels.left, 3);
+        assert_eq!(bus.channels.right, 4);
+        assert_eq!(bus.device.as_str(), "null-device");
+    }
+
+    #[test]
+    fn set_bus_device_rejects_overlap_on_same_device() {
+        let mut config = EngineConfig::default();
+        config.backend = "null".into();
+        config.buses = vec![
+            BusConfig::new(
+                BusId::new("master"),
+                "Master".into(),
+                DeviceId::new("null-device"),
+                ChannelMapping::new(1, 2),
+            ),
+            BusConfig::new(
+                BusId::new("cue"),
+                "Preview".into(),
+                DeviceId::new("null-device"),
+                ChannelMapping::new(3, 4),
+            ),
+        ];
+        let mut engine = Engine::new(config).unwrap();
+        let err = engine
+            .set_bus_device(BusId::new("cue"), DeviceId::new("null-device"), [2, 3])
+            .unwrap_err();
+        assert!(err.to_string().contains("overlaps"));
     }
 
     #[test]

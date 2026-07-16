@@ -36,6 +36,7 @@ pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         sync_mode: deck.sync_mode,
         is_master: id == state.master_deck,
         pad_mode: deck.pad_mode,
+        headphone_cue: deck.headphone_cue,
     }
 }
 

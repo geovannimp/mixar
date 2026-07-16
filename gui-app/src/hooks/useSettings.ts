@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { toastManager } from "@/components/ui/toast";
 import type { AppSettings } from "../types";
 
 export function useSettings() {
@@ -30,7 +31,13 @@ export function useSettings() {
         setSettings(updated);
         setSaved(true);
       } catch (err) {
-        setError(String(err));
+        const message = String(err);
+        setError(message);
+        toastManager.add({
+          id: "settings-restart-error",
+          title: `Engine restart failed: ${message}`,
+          type: "error",
+        });
       } finally {
         setBusy(false);
       }

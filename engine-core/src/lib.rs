@@ -8,6 +8,7 @@ mod callback;
 mod config;
 mod engine;
 mod producer;
+mod routing;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;

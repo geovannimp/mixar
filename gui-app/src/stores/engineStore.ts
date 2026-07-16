@@ -88,6 +88,7 @@ interface EngineStoreState {
   setDeckPadMode: (deckId: number, mode: PadMode) => Promise<void>;
   setDeckFilter: (deckId: number, filterDb: number) => Promise<void>;
   setDeckGainTrim: (deckId: number, gainDb: number) => Promise<void>;
+  setDeckHeadphoneCue: (deckId: number, enabled: boolean) => Promise<void>;
   beginLoopRoll: (deckId: number, beats: number) => Promise<void>;
   endLoopRoll: (deckId: number) => Promise<void>;
 }
@@ -433,6 +434,14 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     }
   },
 
+  setDeckHeadphoneCue: async (deckId, enabled) => {
+    try {
+      await invoke("set_deck_headphone_cue", { deckId, enabled });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
   beginLoopRoll: async (deckId, beats) => {
     try {
       await invoke("begin_loop_roll", { deckId, beats });
@@ -463,6 +472,7 @@ function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
     eq: deck.eq,
     filter_db: deck.filter_db,
     gain_trim_db: deck.gain_trim_db,
+    headphone_cue: deck.headphone_cue,
     levels: deck.levels,
   };
 }
@@ -649,6 +659,8 @@ export const engineActions = {
     useEngineStore.getState().setDeckFilter(deckId, filterDb),
   setDeckGainTrim: (deckId: number, gainDb: number) =>
     useEngineStore.getState().setDeckGainTrim(deckId, gainDb),
+  setDeckHeadphoneCue: (deckId: number, enabled: boolean) =>
+    useEngineStore.getState().setDeckHeadphoneCue(deckId, enabled),
   beginLoopRoll: (deckId: number, beats: number) =>
     useEngineStore.getState().beginLoopRoll(deckId, beats),
   endLoopRoll: (deckId: number) =>
