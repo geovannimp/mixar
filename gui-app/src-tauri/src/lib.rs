@@ -123,6 +123,8 @@ pub(crate) struct AppState {
     pub engine_config: EngineConfig,
     pub decks: [DeckInfo; NUM_DECKS],
     pub crossfader: f32,
+    pub cue_mix: f32,
+    pub master_cue: bool,
     pub master_deck: usize,
     pub revision: u64,
     pub audio_cache: AudioCache,
@@ -369,6 +371,8 @@ struct EngineStatus {
     backend: String,
     sample_rate: u32,
     crossfader: f32,
+    cue_mix: f32,
+    master_cue: bool,
     decks: Vec<DeckStatus>,
 }
 
@@ -1059,6 +1063,38 @@ fn set_crossfader(
 }
 
 #[tauri::command]
+fn set_cue_mix(
+    app: AppHandle,
+    cue_mix: f32,
+    state: State<'_, SharedAppState>,
+) -> Result<EngineStatus, String> {
+    if !(0.0..=1.0).contains(&cue_mix) {
+        return Err("Cue mix must be between 0.0 and 1.0".to_string());
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.cue_mix = cue_mix;
+    if let Some(engine) = state.engine.as_mut() {
+        engine.set_cue_mix(cue_mix).map_err(|e| e.to_string())?;
+    }
+    Ok(publish_status(&app, &mut state))
+}
+
+#[tauri::command]
+fn set_master_cue(
+    app: AppHandle,
+    enabled: bool,
+    state: State<'_, SharedAppState>,
+) -> Result<EngineStatus, String> {
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.master_cue = enabled;
+    if let Some(engine) = state.engine.as_mut() {
+        engine.set_master_cue(enabled).map_err(|e| e.to_string())?;
+    }
+    Ok(publish_status(&app, &mut state))
+}
+
+#[tauri::command]
 fn set_deck_speed(
     app: AppHandle,
     deck_id: usize,
@@ -1298,6 +1334,8 @@ pub fn run() {
                 engine_config: default_engine_config(),
                 decks: Default::default(),
                 crossfader: 0.5,
+                cue_mix: 0.0,
+                master_cue: false,
                 master_deck: 0,
                 revision: 0,
                 audio_cache: AudioCache::new(),
@@ -1330,6 +1368,8 @@ pub fn run() {
             set_deck_speed,
             set_deck_headphone_cue,
             set_crossfader,
+            set_cue_mix,
+            set_master_cue,
             seek_deck,
             unload_deck,
             set_deck_cue_point,

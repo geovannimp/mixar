@@ -97,6 +97,8 @@ export interface EngineStatus {
   backend: string;
   sample_rate: number;
   crossfader: number;
+  cue_mix: number;
+  master_cue: boolean;
   master_deck?: number;
   decks: DeckStatus[];
 }
