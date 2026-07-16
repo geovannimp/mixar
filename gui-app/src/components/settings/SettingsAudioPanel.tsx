@@ -62,10 +62,16 @@ function busMode(route: BusRouteSettings): BusChannelMode {
 
 interface BusChannelFieldsProps {
   route: BusRouteSettings;
+  /** Channel used when switching into mono mode. */
+  defaultMonoChannel: number;
   onChange: (next: BusRouteSettings) => void;
 }
 
-function BusChannelFields({ route, onChange }: BusChannelFieldsProps) {
+function BusChannelFields({
+  route,
+  defaultMonoChannel,
+  onChange,
+}: BusChannelFieldsProps) {
   const mode = busMode(route);
 
   return (
@@ -76,17 +82,23 @@ function BusChannelFields({ route, onChange }: BusChannelFieldsProps) {
           value={mode}
           options={CHANNEL_MODE_OPTIONS}
           onValueChange={(selected) => {
+            if (selected === "mono") {
+              onChange(
+                updateBusRoute(route, {
+                  mode: "mono",
+                  left_channel: defaultMonoChannel,
+                  right_channel: defaultMonoChannel,
+                }),
+              );
+              return;
+            }
             onChange(
               updateBusRoute(route, {
-                mode: selected,
-                ...(selected === "mono"
-                  ? { right_channel: route.left_channel }
-                  : {
-                      right_channel:
-                        route.right_channel === route.left_channel
-                          ? route.left_channel + 1
-                          : route.right_channel,
-                    }),
+                mode: "stereo",
+                right_channel:
+                  route.right_channel === route.left_channel
+                    ? route.left_channel + 1
+                    : route.right_channel,
               }),
             );
           }}
@@ -300,6 +312,7 @@ export function SettingsAudioPanel({
           />
           <BusChannelFields
             route={draft.master_bus}
+            defaultMonoChannel={1}
             onChange={(master_bus) => onChange({ ...draft, master_bus })}
           />
         </div>
@@ -334,6 +347,7 @@ export function SettingsAudioPanel({
             />
             <BusChannelFields
               route={draft.preview_bus}
+              defaultMonoChannel={2}
               onChange={(preview_bus) => onChange({ ...draft, preview_bus })}
             />
           </div>
