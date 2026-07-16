@@ -55,6 +55,8 @@ pub fn engine_status(state: &AppState) -> EngineStatus {
         backend: "cpal".to_string(),
         sample_rate: 48_000,
         crossfader: state.crossfader,
+        cue_mix: state.cue_mix,
+        master_cue: state.master_cue,
         decks: deck_statuses(state),
     }
 }

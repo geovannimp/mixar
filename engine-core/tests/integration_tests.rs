@@ -259,6 +259,10 @@ fn starts_with_master_and_cue_buses_on_null() {
     ];
     let mut engine = Engine::new(config).unwrap();
     assert!(engine.start().is_ok());
+    engine.set_master_cue(true).expect("master cue");
+    engine.set_cue_mix(1.0).expect("cue mix");
+    assert_eq!(engine.master_cue(), Some(true));
+    assert_eq!(engine.cue_mix(), Some(1.0));
     engine.stop().unwrap();
 }
 

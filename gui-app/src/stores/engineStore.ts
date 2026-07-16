@@ -65,6 +65,8 @@ interface EngineStoreState {
   setDeckEq: (deckId: number, eq: DeckEq) => Promise<void>;
   setDeckSpeed: (deckId: number, speed: number) => Promise<void>;
   setCrossfader: (position: number) => Promise<void>;
+  setCueMix: (mix: number) => Promise<void>;
+  setMasterCue: (enabled: boolean) => Promise<void>;
   seekDeck: (deckId: number, positionSecs: number) => Promise<void>;
   unloadDeck: (deckId: number) => Promise<void>;
   setDeckCuePoint: (deckId: number) => Promise<void>;
@@ -243,6 +245,22 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   setCrossfader: async (position) => {
     try {
       await invoke("set_crossfader", { crossfader: position });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setCueMix: async (mix) => {
+    try {
+      await invoke("set_cue_mix", { cueMix: mix });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setMasterCue: async (enabled) => {
+    try {
+      await invoke("set_master_cue", { enabled });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -614,6 +632,9 @@ export const engineActions = {
     useEngineStore.getState().setDeckSpeed(deckId, speed),
   setCrossfader: (position: number) =>
     useEngineStore.getState().setCrossfader(position),
+  setCueMix: (mix: number) => useEngineStore.getState().setCueMix(mix),
+  setMasterCue: (enabled: boolean) =>
+    useEngineStore.getState().setMasterCue(enabled),
   seekDeck: (deckId: number, positionSecs: number) =>
     useEngineStore.getState().seekDeck(deckId, positionSecs),
   unloadDeck: (deckId: number) => useEngineStore.getState().unloadDeck(deckId),
@@ -687,6 +708,14 @@ export function useEngineHeaderInfo() {
 
 export function useCrossfader(): number {
   return useEngineStore((state) => state.status?.crossfader ?? 0.5);
+}
+
+export function useCueMix(): number {
+  return useEngineStore((state) => state.status?.cue_mix ?? 0);
+}
+
+export function useMasterCue(): boolean {
+  return useEngineStore((state) => state.status?.master_cue ?? false);
 }
 
 export function useLevelMeterMode(): LevelMeterMode {

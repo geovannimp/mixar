@@ -7,6 +7,8 @@ export {
   useDeckBusy,
   useEngineHeaderInfo,
   useCrossfader,
+  useCueMix,
+  useMasterCue,
   useLevelMeterMode,
   useDeckHasTrack,
   useAnyDeckHasTrack,

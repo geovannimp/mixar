@@ -1,16 +1,21 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB, snapEqDb } from "@/lib/eq";
+import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
 
 interface RotaryKnobProps {
   label: string;
   value: number;
   min?: number;
   max?: number;
+  step?: number;
   disabled?: boolean;
+  ariaLabel?: string;
   accentClass?: string;
   ringClass?: string;
   className?: string;
+  /** Visual size of the dial; default fits mixer strips, `sm` fits the title bar. */
+  size?: "md" | "sm";
+  formatValue?: (value: number) => string;
   onValueChange: (value: number) => void;
 }
 
@@ -24,14 +29,27 @@ export function RotaryKnob({
   value,
   min = EQ_MIN_DB,
   max = EQ_MAX_DB,
+  step = 1,
   disabled,
+  ariaLabel,
   accentClass,
   ringClass,
   className,
+  size = "md",
+  formatValue,
   onValueChange,
 }: RotaryKnobProps) {
   const dragRef = useRef<{ startY: number; startValue: number } | null>(null);
   const angle = valueToAngle(value, min, max);
+  const dialSizeClass = size === "sm" ? "size-6" : "size-8";
+  const labelClass =
+    size === "sm"
+      ? "text-[7px] font-semibold uppercase tracking-wide"
+      : "text-[8px] font-semibold uppercase tracking-wide";
+  const valueClass =
+    size === "sm"
+      ? "min-w-[3ch] text-center text-[7px] tabular-nums text-zinc-500"
+      : "min-w-[3ch] text-center text-[8px] tabular-nums text-zinc-500";
 
   const updateFromPointer = useCallback(
     (clientY: number) => {
@@ -41,10 +59,11 @@ export function RotaryKnob({
       }
       const deltaY = drag.startY - clientY;
       const range = max - min;
-      const next = snapEqDb(drag.startValue + (deltaY / 72) * range);
+      const raw = drag.startValue + (deltaY / 72) * range;
+      const next = Math.min(max, Math.max(min, Math.round(raw / step) * step));
       onValueChange(next);
     },
-    [max, min, onValueChange],
+    [max, min, onValueChange, step],
   );
 
   const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
@@ -76,11 +95,11 @@ export function RotaryKnob({
     }
     if (event.key === "ArrowUp" || event.key === "ArrowRight") {
       event.preventDefault();
-      onValueChange(snapEqDb(value + 1));
+      onValueChange(Math.min(max, value + step));
     }
     if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
       event.preventDefault();
-      onValueChange(snapEqDb(value - 1));
+      onValueChange(Math.max(min, value - step));
     }
     if (event.key === "Home") {
       event.preventDefault();
@@ -92,28 +111,28 @@ export function RotaryKnob({
     }
   };
 
-  const displayValue = value > 0 ? `+${value}` : `${value}`;
+  const displayValue = formatValue
+    ? formatValue(value)
+    : value > 0
+      ? `+${value}`
+      : `${value}`;
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>
-      <span
-        className={cn(
-          "text-[8px] font-semibold uppercase tracking-wide",
-          accentClass ?? "text-zinc-500",
-        )}
-      >
+      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>
         {label}
       </span>
       <button
         type="button"
         disabled={disabled}
-        aria-label={`${label} EQ`}
+        aria-label={ariaLabel ?? `${label} EQ`}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
         role="slider"
         className={cn(
-          "relative size-8 touch-none rounded-full border-2 bg-zinc-900/90 shadow-inner outline-none select-none",
+          "relative touch-none rounded-full border-2 bg-zinc-900/90 shadow-inner outline-none select-none",
+          dialSizeClass,
           "transition-[box-shadow,scale] hover:bg-zinc-800/90",
           "focus-visible:ring-2 focus-visible:ring-ring/40",
           "disabled:cursor-not-allowed disabled:opacity-45",
@@ -140,9 +159,7 @@ export function RotaryKnob({
           className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-500"
         />
       </button>
-      <span className="min-w-[3ch] text-center text-[8px] tabular-nums text-zinc-500">
-        {displayValue}
-      </span>
+      <span className={valueClass}>{displayValue}</span>
     </div>
   );
 }
