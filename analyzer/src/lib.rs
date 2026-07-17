@@ -8,9 +8,8 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 pub use analyzer_core::{
-    merge_track_metadata, AnalysisConfig, AnalysisRunMetadata, AnalysisTargets,
-    AnalyzerError, AudioAnalyzer, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, Result,
-    TagMetadata, TrackAnalysis,
+    merge_track_metadata, AnalysisConfig, AnalysisRunMetadata, AnalysisTargets, AnalyzerError,
+    AudioAnalyzer, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, Result, TagMetadata, TrackAnalysis,
 };
 pub use analyzer_stratum::{musical_key_from_stratum, StratumAnalyzer};
 pub use loudness::integrated_lufs_mono;
@@ -39,8 +38,8 @@ pub fn analyze_pcm(
 
 /// Decode a file and run analysis with the default backend.
 pub fn analyze_file(path: &Path, config: &AnalysisConfig) -> Result<TrackAnalysis> {
-    let decoded = decode::decode_mono(path, config)
-        .map_err(|e| AnalyzerError::Decode(e.to_string()))?;
+    let decoded =
+        decode::decode_mono(path, config).map_err(|e| AnalyzerError::Decode(e.to_string()))?;
     analyze_pcm(&decoded.samples, decoded.sample_rate, config)
 }
 
@@ -66,8 +65,8 @@ pub fn analyze_file_with<A: AudioAnalyzer>(
     path: &Path,
     config: &AnalysisConfig,
 ) -> Result<TrackAnalysis> {
-    let decoded = decode::decode_mono(path, config)
-        .map_err(|e| AnalyzerError::Decode(e.to_string()))?;
+    let decoded =
+        decode::decode_mono(path, config).map_err(|e| AnalyzerError::Decode(e.to_string()))?;
     analyze_pcm_with(analyzer, &decoded.samples, decoded.sample_rate, config)
 }
 
@@ -85,9 +84,8 @@ mod tests {
         let mut writer = hound::WavWriter::create(path, spec).unwrap();
         for i in 0..44100 {
             let t = i as f32 / 44100.0;
-            let sample = (0.3
-                * (2.0 * std::f32::consts::PI * 440.0 * t).sin()
-                * i16::MAX as f32) as i16;
+            let sample =
+                (0.3 * (2.0 * std::f32::consts::PI * 440.0 * t).sin() * i16::MAX as f32) as i16;
             writer.write_sample(sample).unwrap();
         }
         writer.finalize().unwrap();

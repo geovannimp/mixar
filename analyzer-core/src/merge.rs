@@ -18,16 +18,14 @@ pub fn merge_track_metadata(
     let mut out = tags.clone();
 
     if let Some(bpm) = &analysis.bpm {
-        let use_analysis =
-            force || out.bpm.is_none() || bpm.confidence >= min_bpm_confidence;
+        let use_analysis = force || out.bpm.is_none() || bpm.confidence >= min_bpm_confidence;
         if use_analysis {
             out.bpm = Some(bpm.bpm);
         }
     }
 
     if let Some(key) = &analysis.key {
-        let use_analysis =
-            force || out.key.is_none() || key.confidence >= min_key_confidence;
+        let use_analysis = force || out.key.is_none() || key.confidence >= min_key_confidence;
         if use_analysis {
             out.key = Some(key.musical.clone());
         }

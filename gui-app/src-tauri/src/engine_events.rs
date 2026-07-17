@@ -46,23 +46,11 @@ pub fn emit_event(app: &AppHandle, event: EngineEvent) {
 }
 
 pub fn emit_status(app: &AppHandle, revision: u64, status: EngineStatus) {
-    emit_event(
-        app,
-        EngineEvent::Status {
-            revision,
-            status,
-        },
-    );
+    emit_event(app, EngineEvent::Status { revision, status });
 }
 
 pub fn emit_deck_updated(app: &AppHandle, revision: u64, deck: DeckStatus) {
-    emit_event(
-        app,
-        EngineEvent::DeckUpdated {
-            revision,
-            deck,
-        },
-    );
+    emit_event(app, EngineEvent::DeckUpdated { revision, deck });
 }
 
 pub fn emit_position(app: &AppHandle, deck_id: usize, position_secs: f64) {

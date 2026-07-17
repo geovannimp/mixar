@@ -77,9 +77,6 @@ pub(crate) fn analyzer_error(err: AnalyzerError) -> LibraryError {
             message,
         },
         AnalyzerError::Unsupported(message) => LibraryError::Unsupported(message),
-        AnalyzerError::Backend { backend, message } => LibraryError::Backend {
-            backend,
-            message,
-        },
+        AnalyzerError::Backend { backend, message } => LibraryError::Backend { backend, message },
     }
 }

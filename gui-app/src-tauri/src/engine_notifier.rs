@@ -132,14 +132,7 @@ fn notifier_loop(app: AppHandle, shared_state: SharedAppState, stop: Arc<AtomicB
 
         for (deck_id, peak_l, peak_r) in levels {
             let (peak_hold_l, peak_hold_r) = peak_hold.update(deck_id, peak_l, peak_r);
-            emit_levels(
-                &app,
-                deck_id,
-                peak_l,
-                peak_r,
-                peak_hold_l,
-                peak_hold_r,
-            );
+            emit_levels(&app, deck_id, peak_l, peak_r, peak_hold_l, peak_hold_r);
         }
 
         for deck_id in track_ended_decks {

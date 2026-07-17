@@ -4,6 +4,12 @@ Audio files in this directory are used by `app-example` and for local developmen
 
 When adding a sample, include attribution below if the track is not your own work.
 
+## Fixtures
+
+| File | Notes |
+|------|-------|
+| `fixtures/short-tone.wav` | Synthetic 0.25 s stereo 440 Hz sine at 48 kHz; used by engine integration tests (CI-friendly). |
+
 ## Index
 
 | File | Title | Artist | Source |

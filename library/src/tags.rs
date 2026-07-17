@@ -57,9 +57,7 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
 }
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.
-pub(crate) fn read_replaygain_track_gain_db(
-    path: &Path,
-) -> library_core::Result<Option<f64>> {
+pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result<Option<f64>> {
     let tagged = Probe::open(path)
         .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
         .read()
@@ -198,7 +196,10 @@ mod tests {
         let err = read_tags(Path::new("/no/such/file.mp3")).unwrap_err();
         assert!(matches!(
             err,
-            library_core::LibraryError::Backend { backend: "library", .. }
+            library_core::LibraryError::Backend {
+                backend: "library",
+                ..
+            }
         ));
     }
 
@@ -212,7 +213,10 @@ mod tests {
         let err = read_tags(&path).unwrap_err();
         assert!(matches!(
             err,
-            library_core::LibraryError::Backend { backend: "library", .. }
+            library_core::LibraryError::Backend {
+                backend: "library",
+                ..
+            }
         ));
     }
 }

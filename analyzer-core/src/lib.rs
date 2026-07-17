@@ -14,9 +14,7 @@ pub use loudness::{
     REPLAYGAIN_REFERENCE_LUFS,
 };
 pub use merge::{merge_track_metadata, TagMetadata};
-pub use result::{
-    AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, TrackAnalysis,
-};
+pub use result::{AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, TrackAnalysis};
 pub use traits::{backend_err, AudioAnalyzer};
 
 #[cfg(test)]

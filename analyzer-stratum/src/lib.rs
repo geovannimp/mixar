@@ -3,8 +3,8 @@
 mod mapper;
 
 use analyzer_core::{
-    backend_err, AnalysisConfig, AnalysisRunMetadata, AudioAnalyzer, BeatGridAnalysis,
-    BpmAnalysis, KeyAnalysis, Result, TrackAnalysis,
+    backend_err, AnalysisConfig, AnalysisRunMetadata, AudioAnalyzer, BeatGridAnalysis, BpmAnalysis,
+    KeyAnalysis, Result, TrackAnalysis,
 };
 use stratum_dsp::{analyze_audio, AnalysisConfig as StratumConfig};
 

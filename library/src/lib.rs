@@ -41,7 +41,10 @@ pub use library_core::{
     TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
-pub use deck_data::{delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord, LoopRecord};
+pub use deck_data::{
+    delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
+    LoopRecord,
+};
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
@@ -196,8 +199,7 @@ impl LibraryManager {
         let path = normalize_path(path)?;
         let id = Self::track_id_for(&path);
         let now = now_stamp();
-        self.store()
-            .upsert_file_track(&id, &path, metadata, &now)?;
+        self.store().upsert_file_track(&id, &path, metadata, &now)?;
         Ok(LibrarySource::File(FileAudioSource::new(
             id,
             path,
@@ -341,11 +343,8 @@ impl LibraryManager {
             })
             .unwrap_or_else(|| path.display().to_string());
 
-        self.store().insert_folder_collection(
-            &id,
-            &name,
-            &path.to_string_lossy(),
-        )?;
+        self.store()
+            .insert_folder_collection(&id, &name, &path.to_string_lossy())?;
 
         Ok(Collection {
             id,
@@ -361,10 +360,13 @@ impl LibraryManager {
                 message: "playlist collection requires Playlist config".into(),
             });
         };
-        let name = collection.name.as_deref().ok_or_else(|| LibraryError::Backend {
-            backend: "library",
-            message: "playlist collection requires a name".into(),
-        })?;
+        let name = collection
+            .name
+            .as_deref()
+            .ok_or_else(|| LibraryError::Backend {
+                backend: "library",
+                message: "playlist collection requires a name".into(),
+            })?;
 
         let id = Self::new_playlist_id();
         self.store()
@@ -405,7 +407,10 @@ impl LibraryManager {
             }
 
             let normalized_ref = normalized.to_string_lossy().into_owned();
-            if let Some(source) = self.store().find_file_track_by_source_ref(&normalized_ref)? {
+            if let Some(source) = self
+                .store()
+                .find_file_track_by_source_ref(&normalized_ref)?
+            {
                 return Ok(Some(source));
             }
         }
@@ -657,11 +662,7 @@ impl WritableLibrary for LibraryManager {
         Ok(report)
     }
 
-    fn update_collection(
-        &mut self,
-        id: &CollectionId,
-        update: &UpdateCollection,
-    ) -> Result<()> {
+    fn update_collection(&mut self, id: &CollectionId, update: &UpdateCollection) -> Result<()> {
         if update.name.is_none() && update.config.is_none() {
             return Ok(());
         }
@@ -756,9 +757,7 @@ impl WritableLibrary for LibraryManager {
         }
 
         let existing = self.playlist_track_ids(collection_id)?;
-        if existing.len() != track_ids.len()
-            || track_ids.iter().any(|id| !existing.contains(id))
-        {
+        if existing.len() != track_ids.len() || track_ids.iter().any(|id| !existing.contains(id)) {
             return Err(LibraryError::Backend {
                 backend: "library",
                 message: "update_collection_track must include exactly the playlist membership"
@@ -869,10 +868,7 @@ mod tests {
 
         assert_eq!(track.metadata().title.as_deref(), Some("track"));
         let fetched = lib.get_track(track.id()).unwrap().unwrap();
-        assert_eq!(
-            fetched.file().unwrap().path(),
-            track.file().unwrap().path()
-        );
+        assert_eq!(fetched.file().unwrap().path(), track.file().unwrap().path());
     }
 
     #[test]
@@ -898,7 +894,9 @@ mod tests {
         std::fs::write(dir.path().join("readme.txt"), b"nope").unwrap();
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let folder = lib.add_collection(&NewCollection::folder_named(dir.path(), "Music")).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+            .unwrap();
         assert_eq!(folder.collection_type(), CollectionType::Folder);
         assert_eq!(folder.name, "Music");
 
@@ -921,7 +919,9 @@ mod tests {
         let ta = lib.import_path(&a).unwrap();
         let tb = lib.import_path(&b).unwrap();
 
-        let pl = lib.add_collection(&NewCollection::playlist("Warmup", true)).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Warmup", true))
+            .unwrap();
         lib.add_collection_track(&pl.id, ta.id(), None).unwrap();
         lib.add_collection_track(&pl.id, tb.id(), None).unwrap();
 
@@ -948,7 +948,9 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
-        let pl = lib.add_collection(&NewCollection::playlist("Crate", false)).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Crate", false))
+            .unwrap();
         lib.add_collection_track(&pl.id, track.id(), None).unwrap();
 
         let err = lib
@@ -968,7 +970,9 @@ mod tests {
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let ta = lib.import_path(&a).unwrap();
         let tb = lib.import_path(&b).unwrap();
-        let pl = lib.add_collection(&NewCollection::playlist("Set", false)).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Set", false))
+            .unwrap();
         lib.add_collection_track(&pl.id, ta.id(), None).unwrap();
         lib.add_collection_track(&pl.id, tb.id(), None).unwrap();
 
@@ -995,7 +999,9 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
-        let pl = lib.add_collection(&NewCollection::playlist("Temp", true)).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Temp", true))
+            .unwrap();
         lib.add_collection_track(&pl.id, track.id(), None).unwrap();
         lib.delete_collection(&pl.id).unwrap();
 
@@ -1009,9 +1015,13 @@ mod tests {
         write_minimal_wav(&dir.path().join("t.wav"));
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let folder = lib.add_collection(&NewCollection::folder(dir.path())).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0].id().clone();
+        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0]
+            .id()
+            .clone();
 
         lib.delete_collection(&folder.id).unwrap();
         assert!(lib.get_track(&track_id).unwrap().is_some());
@@ -1051,7 +1061,10 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
-        assert!(lib.get_track_waveform_overview(track.id()).unwrap().is_none());
+        assert!(lib
+            .get_track_waveform_overview(track.id())
+            .unwrap()
+            .is_none());
 
         lib.analyze_track(track.id(), AnalyzeTrackOptions::default())
             .unwrap();
@@ -1064,7 +1077,10 @@ mod tests {
         assert_eq!(overview.peaks.len(), audio_core::OVERVIEW_SAMPLE_COUNT);
 
         lib.ensure_track_waveform(track.id()).unwrap();
-        assert!(lib.get_track_waveform_overview(track.id()).unwrap().is_some());
+        assert!(lib
+            .get_track_waveform_overview(track.id())
+            .unwrap()
+            .is_some());
     }
 
     #[test]
@@ -1129,11 +1145,17 @@ mod tests {
         write_minimal_wav(&dir.path().join("keep.wav"));
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let folder = lib.add_collection(&NewCollection::folder(dir.path())).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0].id().clone();
+        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0]
+            .id()
+            .clone();
 
-        let pl = lib.add_collection(&NewCollection::playlist("Also", true)).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Also", true))
+            .unwrap();
         lib.add_collection_track(&pl.id, &track_id, None).unwrap();
         lib.remove_collection_track(&pl.id, &track_id).unwrap();
 
@@ -1178,9 +1200,12 @@ mod tests {
             let mut lib = LibraryManager::open(&db, LibraryConfig::default()).unwrap();
             let folder = lib.add_collection(&NewCollection::folder(&music)).unwrap();
             lib.sync_collection(Some(&folder.id)).unwrap();
-            let pl = lib.add_collection(&NewCollection::playlist("All", true)).unwrap();
+            let pl = lib
+                .add_collection(&NewCollection::playlist("All", true))
+                .unwrap();
             let tracks = lib.get_collection_tracks(&folder.id).unwrap();
-            lib.add_collection_track(&pl.id, tracks[0].id(), None).unwrap();
+            lib.add_collection_track(&pl.id, tracks[0].id(), None)
+                .unwrap();
         }
 
         let lib = LibraryManager::open(&db, LibraryConfig::default()).unwrap();
