@@ -6,8 +6,8 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::{
-    bump_revision, clear_deck_info, deck_playback_secs, deck_status, with_engine, AppState, DeckInfo,
-    DeckStatus, SharedAppState, NUM_DECKS,
+    bump_revision, clear_deck_info, deck_playback_secs, deck_status, with_engine, AppState,
+    DeckInfo, DeckStatus, SharedAppState, NUM_DECKS,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -254,9 +254,7 @@ pub fn end_deck_cue_hold(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     with_engine(&mut state, |engine| {
-        engine
-            .end_deck_cue_hold(deck_id)
-            .map_err(|e| e.to_string())
+        engine.end_deck_cue_hold(deck_id).map_err(|e| e.to_string())
     })?;
     let transport = transport_snapshot_from_engine(&state, deck_id);
     apply_transport_snapshot(&mut state.decks[deck_id], transport);
@@ -341,8 +339,7 @@ pub fn set_deck_loop_in(
         state.decks[deck_id].bpm,
         state.decks[deck_id].quantize,
     );
-    let out_secs = state
-        .decks[deck_id]
+    let out_secs = state.decks[deck_id]
         .active_loop
         .as_ref()
         .map(|region| region.out_secs)
@@ -378,8 +375,7 @@ pub fn set_deck_loop_out(
         state.decks[deck_id].bpm,
         state.decks[deck_id].quantize,
     );
-    let in_secs = state
-        .decks[deck_id]
+    let in_secs = state.decks[deck_id]
         .active_loop
         .as_ref()
         .map(|region| region.in_secs)
@@ -414,9 +410,7 @@ pub fn exit_deck_loop(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     with_engine(&mut state, |engine| {
-        engine
-            .clear_deck_loop(deck_id)
-            .map_err(|e| e.to_string())
+        engine.clear_deck_loop(deck_id).map_err(|e| e.to_string())
     })?;
     state.decks[deck_id].active_loop = None;
     Ok(publish_deck_transport(&app, &mut state, deck_id))
@@ -485,14 +479,7 @@ pub fn save_hot_cue(
 
     state
         .library
-        .save_track_hot_cue(
-            &TrackId::new(track_id),
-            slot,
-            position,
-            None,
-            None,
-            None,
-        )
+        .save_track_hot_cue(&TrackId::new(track_id), slot, position, None, None, None)
         .map_err(|e| e.to_string())?;
 
     let track_id = state.decks[deck_id].track_id.clone();

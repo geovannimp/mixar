@@ -46,6 +46,8 @@ mod tests {
     fn integrated_lufs_rejects_silence() {
         let result = integrated_lufs_mono(&vec![0.0; 48_000 * 3], 48_000);
 
-        assert!(matches!(result, Err(AnalyzerError::Analysis(message)) if message == "non-finite loudness"));
+        assert!(
+            matches!(result, Err(AnalyzerError::Analysis(message)) if message == "non-finite loudness")
+        );
     }
 }

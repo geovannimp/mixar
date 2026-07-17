@@ -74,7 +74,9 @@ pub fn list_volumes() -> Result<Vec<VolumeInfo>, String> {
     if let Ok(home) = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
         let home_path = PathBuf::from(&home);
         if home_path.is_dir() {
-            let path = canonicalize_if_exists(&home_path).to_string_lossy().into_owned();
+            let path = canonicalize_if_exists(&home_path)
+                .to_string_lossy()
+                .into_owned();
             if seen.insert(path.clone()) {
                 volumes.insert(
                     0,
@@ -97,8 +99,8 @@ fn list_linux_volumes(seen: &mut HashSet<String>) -> Result<Vec<VolumeInfo>, Str
         .map_err(|e| format!("Failed to read /proc/mounts: {e}"))?;
 
     let interesting_fstypes = [
-        "ext4", "ext3", "ext2", "btrfs", "xfs", "vfat", "exfat", "ntfs", "fuseblk", "fuse",
-        "cifs", "nfs", "iso9660", "udf",
+        "ext4", "ext3", "ext2", "btrfs", "xfs", "vfat", "exfat", "ntfs", "fuseblk", "fuse", "cifs",
+        "nfs", "iso9660", "udf",
     ];
 
     let skip_prefixes = [
@@ -210,10 +212,7 @@ fn list_macos_volumes(seen: &mut HashSet<String>) -> Result<Vec<VolumeInfo>, Str
         if !seen.insert(path_str.clone()) {
             continue;
         }
-        let name = entry
-            .file_name()
-            .to_string_lossy()
-            .into_owned();
+        let name = entry.file_name().to_string_lossy().into_owned();
         volumes.push(VolumeInfo {
             name,
             path: path_str,
@@ -261,7 +260,11 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
     let parent = canonical
         .parent()
         .filter(|parent| parent != &canonical)
-        .map(|parent| canonicalize_if_exists(parent).to_string_lossy().into_owned());
+        .map(|parent| {
+            canonicalize_if_exists(parent)
+                .to_string_lossy()
+                .into_owned()
+        });
 
     let mut directories = Vec::new();
     let mut audio_files = Vec::new();

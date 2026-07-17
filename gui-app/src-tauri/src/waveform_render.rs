@@ -126,18 +126,7 @@ pub fn render_scrolling_lane(
         let bar_h = amp * max_amp;
         let (r, g, b) = spectral_rgb(low, mid, high);
         let alpha = 0.65 + amp * 0.35;
-        draw_vertical_bar(
-            &mut rgba,
-            width,
-            height,
-            x,
-            mid_y,
-            bar_h,
-            r,
-            g,
-            b,
-            alpha,
-        );
+        draw_vertical_bar(&mut rgba, width, height, x, mid_y, bar_h, r, g, b, alpha);
     }
 
     rgba
@@ -190,9 +179,13 @@ fn draw_even_bpm_grid(
             break;
         }
         if beat_time >= range_start - 1e-6 && beat_time <= range_end + 1e-6 {
-            let Some(xi) =
-                time_to_x(beat_time as f32, position_secs, pixels_per_sec, center_x, width)
-            else {
+            let Some(xi) = time_to_x(
+                beat_time as f32,
+                position_secs,
+                pixels_per_sec,
+                center_x,
+                width,
+            ) else {
                 beat_index += 1;
                 continue;
             };
@@ -203,14 +196,7 @@ fn draw_even_bpm_grid(
                 draw_bar_markers(rgba, width, height, xi, [255, 70, 70, 230]);
             } else {
                 blend_vertical_line(rgba, width, height, xi, [170, 175, 185, 55]);
-                draw_edge_ticks(
-                    rgba,
-                    width,
-                    height,
-                    xi,
-                    2,
-                    [230, 233, 240, 160],
-                );
+                draw_edge_ticks(rgba, width, height, xi, 2, [230, 233, 240, 160]);
             }
         }
         beat_index += 1;
@@ -228,7 +214,12 @@ fn resolve_even_grid(grid: &BeatGridSnapshot) -> Option<(f64, f64)> {
         if grid.beats.len() < 8 {
             return None;
         }
-        let diffs: Vec<f32> = grid.beats.windows(2).take(32).map(|w| w[1] - w[0]).collect();
+        let diffs: Vec<f32> = grid
+            .beats
+            .windows(2)
+            .take(32)
+            .map(|w| w[1] - w[0])
+            .collect();
         let median = {
             let mut d = diffs;
             d.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -242,12 +233,7 @@ fn resolve_even_grid(grid: &BeatGridSnapshot) -> Option<(f64, f64)> {
     })?;
 
     let beat_period = 60.0 / bpm;
-    let phase = grid
-        .beats
-        .first()
-        .copied()
-        .map(f64::from)
-        .unwrap_or(0.0);
+    let phase = grid.beats.first().copied().map(f64::from).unwrap_or(0.0);
     Some((beat_period, phase))
 }
 
@@ -301,14 +287,7 @@ fn draw_edge_ticks(
     let tick_px = tick_px.max(1);
     for dy in 0..tick_px {
         set_pixel(rgba, width, height, x, dy, color);
-        set_pixel(
-            rgba,
-            width,
-            height,
-            x,
-            height.saturating_sub(1 + dy),
-            color,
-        );
+        set_pixel(rgba, width, height, x, height.saturating_sub(1 + dy), color);
     }
 }
 

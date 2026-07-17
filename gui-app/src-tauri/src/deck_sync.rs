@@ -251,9 +251,7 @@ pub fn beat_jump_deck(
     let target = snap_secs(raw, Some(bpm), state.decks[deck_id].quantize);
 
     with_engine(&mut state, |engine| {
-        engine
-            .seek_deck(deck_id, target)
-            .map_err(|e| e.to_string())
+        engine.seek_deck(deck_id, target).map_err(|e| e.to_string())
     })?;
 
     Ok(publish_deck(&app, &mut state, deck_id))
@@ -401,9 +399,7 @@ pub fn end_loop_roll(
         state.decks[deck_id].active_loop = Some(region);
     } else {
         with_engine(&mut state, |engine| {
-            engine
-                .clear_deck_loop(deck_id)
-                .map_err(|e| e.to_string())
+            engine.clear_deck_loop(deck_id).map_err(|e| e.to_string())
         })?;
         state.decks[deck_id].active_loop = None;
     }

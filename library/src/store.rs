@@ -4,9 +4,7 @@ use std::path::Path;
 
 use library_core::{CollectionId, Result, TrackId, TrackMetadata};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
-use sea_orm::{
-    ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set,
-};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set};
 
 use crate::db::{self, Db};
 use crate::entity::{
