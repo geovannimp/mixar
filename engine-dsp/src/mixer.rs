@@ -1,11 +1,10 @@
 //! Audio mixer for routing and mixing multiple lanes
 //!
-//! Implemented with [dasp_graph](https://docs.rs/dasp_graph/latest/dasp_graph/):
-//! each [`MixerLane`] is a graph node (`Lane → Sum`) that owns its deck + strip.
+//! Each [`MixerLane`] is a graph node that owns its deck + strip. The mixer
+//! renders lanes, applies crossfader gains when summing, then routes buses.
 
 use anyhow::Result;
 use audio_core::{slice as audio_slice, BusId, Frame, Sample, StereoFrame};
-use dasp_graph::node::Sum;
 use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
@@ -16,18 +15,16 @@ use crate::{HeadphoneMonitor, MixerChannel};
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
 const CHUNK_SAMPLES: usize = Buffer::LEN;
 
-/// Node type in the mixer graph.
+/// Node type in the mixer graph (one lane per deck slot).
 #[derive(Debug)]
 pub enum MixerNode {
     Lane(MixerLane),
-    Sum(Sum),
 }
 
 impl Node for MixerNode {
     fn process(&mut self, inputs: &[Input], output: &mut [Buffer]) {
         match self {
             MixerNode::Lane(n) => n.process(inputs, output),
-            MixerNode::Sum(n) => n.process(inputs, output),
         }
     }
 }
@@ -35,7 +32,7 @@ impl Node for MixerNode {
 /// Graph type: directed graph with NodeData<MixerNode>, no edge weight.
 type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
 
-/// Audio mixer: lanes → Sum → buses.
+/// Audio mixer: process lanes, crossfade-sum, then route buses.
 pub struct Mixer {
     master_volume: f32,
     cue_volume: f32,
@@ -43,18 +40,16 @@ pub struct Mixer {
     master_cue: bool,
     /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
     crossfader: f32,
-    /// Internal mix buffer (interleaved stereo) filled from the graph output.
+    /// Internal mix buffer (interleaved stereo) filled from lane outputs.
     mix_buffer: Vec<Sample>,
     /// Reusable scratch for PFL sum before HeadphoneMonitor blend.
     pfl_scratch: Vec<Sample>,
-    /// Graph: lane nodes + sum node.
+    /// Graph: one lane node per slot.
     graph: MixerGraph,
-    /// Processor for running the graph (reused to avoid allocs).
+    /// Processor for running lane nodes (reused to avoid allocs).
     processor: Processor<MixerGraph>,
     /// Node index for each lane.
     lane_node_ids: Vec<petgraph::graph::NodeIndex>,
-    /// Node index for the sum (sink we process to).
-    sum_node_id: petgraph::graph::NodeIndex,
 }
 
 impl std::fmt::Debug for Mixer {
@@ -80,7 +75,7 @@ impl Mixer {
         resampler_quality: &str,
     ) -> Self {
         let buffer_size = buffer_size.max(1);
-        let mut graph = MixerGraph::with_capacity(num_lanes + 1, num_lanes);
+        let mut graph = MixerGraph::with_capacity(num_lanes, 0);
         let mut lane_node_ids = Vec::with_capacity(num_lanes);
 
         for i in 0..num_lanes {
@@ -88,13 +83,8 @@ impl Mixer {
             let lane_id = graph.add_node(NodeData::new2(MixerNode::Lane(lane)));
             lane_node_ids.push(lane_id);
         }
-        let sum_node_id = graph.add_node(NodeData::new2(MixerNode::Sum(Sum)));
 
-        for &lane_id in &lane_node_ids {
-            graph.add_edge(lane_id, sum_node_id, ());
-        }
-
-        let processor = Processor::with_capacity(num_lanes + 1);
+        let processor = Processor::with_capacity(num_lanes.max(1));
 
         Self {
             master_volume: 1.0,
@@ -107,7 +97,6 @@ impl Mixer {
             graph,
             processor,
             lane_node_ids,
-            sum_node_id,
         }
     }
 
@@ -121,7 +110,6 @@ impl Mixer {
         let node_id = *self.lane_node_ids.get(index)?;
         match &self.graph.node_weight(node_id)?.node {
             MixerNode::Lane(lane) => Some(lane),
-            MixerNode::Sum(_) => None,
         }
     }
 
@@ -130,7 +118,6 @@ impl Mixer {
         let node_id = *self.lane_node_ids.get(index)?;
         match &mut self.graph.node_weight_mut(node_id)?.node {
             MixerNode::Lane(lane) => Some(lane),
-            MixerNode::Sum(_) => None,
         }
     }
 
@@ -217,7 +204,7 @@ impl Mixer {
         (angle.cos(), angle.sin())
     }
 
-    /// Process audio from all lanes through the graph and route to output buses.
+    /// Process audio from all lanes, apply crossfader when summing, and route buses.
     pub fn process(
         &mut self,
         frames: u32,
@@ -227,36 +214,39 @@ impl Mixer {
         self.mix_buffer.resize(buffer_size, 0.0);
         self.mix_buffer.fill(0.0);
 
-        let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
         for i in 0..self.lane_node_ids.len() {
-            let gain = match i {
-                0 => gain_a,
-                1 => gain_b,
-                _ => 1.0,
-            };
-            let lane = self
-                .lane_mut(i)
-                .expect("lane node index must identify a lane");
-            lane.channel_mut()
-                .set_crossfader_gain(gain.clamp(0.0, 1.0))?;
-            lane.begin_render(frames)?;
+            self.lane_mut(i)
+                .expect("lane node index must identify a lane")
+                .begin_render(frames)?;
         }
 
+        let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
         let n_samples_per_channel = frames as usize;
         let n_chunks = n_samples_per_channel.div_ceil(CHUNK_SAMPLES);
 
         for chunk in 0..n_chunks {
             let start = chunk * CHUNK_SAMPLES;
             let len = (n_samples_per_channel - start).min(CHUNK_SAMPLES);
-
-            process(&mut self.processor, &mut self.graph, self.sum_node_id);
-
-            let sum_data = self.graph.node_weight(self.sum_node_id).unwrap();
             let out_start = chunk * CHUNK_SAMPLES * 2;
-            for s in 0..len {
-                if sum_data.buffers.len() >= 2 && out_start + s * 2 + 1 < self.mix_buffer.len() {
-                    self.mix_buffer[out_start + s * 2] = sum_data.buffers[0][s];
-                    self.mix_buffer[out_start + s * 2 + 1] = sum_data.buffers[1][s];
+
+            for (i, &lane_id) in self.lane_node_ids.iter().enumerate() {
+                process(&mut self.processor, &mut self.graph, lane_id);
+
+                let gain = match i {
+                    0 => gain_a,
+                    1 => gain_b,
+                    _ => 1.0,
+                };
+                let lane_data = self.graph.node_weight(lane_id).unwrap();
+                if lane_data.buffers.len() < 2 {
+                    continue;
+                }
+                for s in 0..len {
+                    let out = out_start + s * 2;
+                    if out + 1 < self.mix_buffer.len() {
+                        self.mix_buffer[out] += lane_data.buffers[0][s] * gain;
+                        self.mix_buffer[out + 1] += lane_data.buffers[1][s] * gain;
+                    }
                 }
             }
         }
@@ -292,9 +282,6 @@ impl Mixer {
                             .node
                         {
                             MixerNode::Lane(lane) => lane,
-                            MixerNode::Sum(_) => {
-                                unreachable!("lane node index must identify a lane")
-                            }
                         };
                         let channel = lane.channel();
                         if channel.headphone_cue() {

@@ -22,7 +22,6 @@ pub struct MixerChannel {
     headphone_cue: bool,
     level_peaks: LevelPeaks,
     pre_fader_buffer: Vec<Sample>,
-    crossfader_gain: f32,
     active_sample_count: usize,
     processed_sample_count: usize,
 }
@@ -38,7 +37,6 @@ impl MixerChannel {
             headphone_cue: false,
             level_peaks: LevelPeaks::default(),
             pre_fader_buffer: Vec::new(),
-            crossfader_gain: 1.0,
             active_sample_count: 0,
             processed_sample_count: 0,
         }
@@ -119,20 +117,6 @@ impl MixerChannel {
         &self.pre_fader_buffer
     }
 
-    pub fn crossfader_gain(&self) -> f32 {
-        self.crossfader_gain
-    }
-
-    pub fn set_crossfader_gain(&mut self, gain: f32) -> Result<()> {
-        if !(0.0..=1.0).contains(&gain) {
-            return Err(anyhow::anyhow!(
-                "Crossfader gain must be between 0.0 and 1.0"
-            ));
-        }
-        self.crossfader_gain = gain;
-        Ok(())
-    }
-
     /// Reset per-render capture state and prepare storage for interleaved samples.
     pub fn begin_render(&mut self, sample_count: usize) {
         self.pre_fader_buffer.clear();
@@ -201,7 +185,7 @@ impl MixerChannel {
         self.level_peaks.peak_l = self.level_peaks.peak_l.max(chunk_peaks.peak_l);
         self.level_peaks.peak_r = self.level_peaks.peak_r.max(chunk_peaks.peak_r);
 
-        let post_fader_gain = self.volume * self.crossfader_gain;
+        let post_fader_gain = self.volume;
         for frame in 0..chunk_frames {
             left_output[0][frame] = chunk[frame * 2] * post_fader_gain;
             right_output[0][frame] = chunk[frame * 2 + 1] * post_fader_gain;
@@ -292,7 +276,6 @@ mod tests {
         assert_eq!(channel.auto_gain_db(), 0.0);
         assert_eq!(channel.gain_trim_db(), 0.0);
         assert_eq!(channel.volume(), 1.0);
-        assert_eq!(channel.crossfader_gain(), 1.0);
         assert_eq!(channel.eq_gains(), DeckEqGains::default());
         assert_eq!(channel.filter_db(), 0.0);
         assert!(!channel.headphone_cue());
@@ -301,7 +284,6 @@ mod tests {
         assert_eq!(channel.level_peaks().peak_r, 0.0);
 
         assert!(channel.set_volume(1.1).is_err());
-        assert!(channel.set_crossfader_gain(-0.1).is_err());
         channel.set_eq_low_db(6.0).unwrap();
         channel.set_eq_mid_db(-3.0).unwrap();
         channel.set_eq_high_db(2.0).unwrap();

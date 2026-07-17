@@ -21,10 +21,10 @@ MixerLane (deck → dry stash → strip) → Sum → master bus
 `MixerLane` applies this fixed order inside each graph chunk (after a full-callback dry deck render):
 
 ```text
-auto gain + trim → three-band EQ → filter → VU/PFL snapshot → channel fader → crossfader → sum
+auto gain + trim → three-band EQ → filter → VU/PFL snapshot → channel fader
 ```
 
-The crossfader remains after the channel fader and does not affect the PFL tap. A single node owns the complete channel strip; future FX may be added inside the node or motivate splitting it into insert/fader nodes later.
+The mixer then applies crossfader gains when summing lane outputs into the master mix. Crossfader does not affect the PFL tap.
 
 ## Boundaries
 
@@ -44,7 +44,6 @@ Strip DSP owned by `MixerLane`:
 - headphone cue enablement
 - latest pre-fader peaks
 - latest pre-fader stereo buffer
-- current crossfader gain supplied by `Mixer`
 
 ### `MixerLane`
 
@@ -52,7 +51,7 @@ Graph node that owns `Deck` + `MixerChannel`. On `begin_render`, renders a full 
 
 ### `Mixer`
 
-Owns lane nodes in the graph (`Lane → Sum`), sets crossfader gains, runs the graph, sums PFL from enabled lanes, and routes master/cue buses.
+Owns lane nodes, applies crossfader gains when summing lane outputs, sums PFL from enabled lanes, and routes master/cue buses.
 
 ### `DspEngine` and `Engine`
 

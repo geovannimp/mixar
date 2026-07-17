@@ -89,7 +89,7 @@ rust-dj-engine/ (Cargo workspace)
 │  ├─ deck.rs          # playback/transport only
 │  ├─ mixer_lane.rs    # graph node: deck + strip
 │  ├─ mixer_channel.rs # per-lane strip (gain/EQ/filter/VU/fader)
-│  └─ mixer.rs         # Lane → Sum + bus routing
+│  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
 ├─ codec/              # decoder wrapper (symphonia)
 ├─ resampler/          # resampler trait + rubato impl (pluggable)
 ├─ library-core/       # Library traits + Collection/Track types
