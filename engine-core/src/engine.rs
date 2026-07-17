@@ -13,7 +13,9 @@ use audio_core::{
 };
 use engine_dsp::DeckEqGains;
 use engine_dsp::DspEngine;
+use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -29,6 +31,8 @@ pub struct Engine {
     producer_thread: Option<JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
+    /// Decoded PCM cache keyed by track id.
+    decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
 }
 
 impl Engine {
@@ -44,6 +48,7 @@ impl Engine {
             producer_thread: None,
             running: Arc::new(Mutex::new(false)),
             transport_events: Arc::new(Mutex::new(Vec::new())),
+            decode_cache: HashMap::new(),
         })
     }
 
@@ -269,6 +274,7 @@ impl Engine {
 
         self.dsp_engine = None;
         self.transport_events.lock().unwrap().clear();
+        self.decode_cache.clear();
 
         log::info!("Engine stopped");
         Ok(())
@@ -324,29 +330,31 @@ impl Engine {
         snapshot
     }
 
-    /// Load a shared decoded track into a deck.
+    /// Load a track from an [`AudioSource`] into a deck.
     ///
-    /// `auto_gain_db` is the offline loudness-normalization offset applied at load
-    /// (typically computed from library loudness + app settings). Pass `0.0` when
-    /// unused. Settings changes do not retouch already-loaded decks; re-apply by
-    /// loading again (or a future analysis-refresh path).
-    pub fn load_track(
-        &mut self,
-        deck_id: usize,
-        audio: Arc<LoadedAudio>,
-        auto_gain_db: f32,
-    ) -> Result<()> {
+    /// Decodes via [`LoadableAudio`] using an engine-owned PCM cache keyed by track id.
+    /// Channel auto gain is derived from source metadata (ReplayGain preferred, else
+    /// `loudness_lufs`) together with [`Self::set_normalizer_target`].
+    pub fn load_track(&mut self, deck_id: usize, source: AudioSource) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
 
-        // Validate both the deck and its mixer channel exist before mutating either, so an
-        // invalid id never leaves one half of the deck/channel pair partially updated.
         if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
             return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
         }
+
+        let track_id = source.id().clone();
+        let loudness_lufs = loudness_from_metadata(source.metadata());
+        let audio = if let Some(cached) = self.decode_cache.get(&track_id) {
+            Arc::clone(cached)
+        } else {
+            let audio = Arc::new(source.load()?);
+            self.decode_cache.insert(track_id, Arc::clone(&audio));
+            audio
+        };
 
         dsp.deck_mut(deck_id)
             .expect("validated above")
@@ -354,9 +362,27 @@ impl Engine {
         dsp.mixer_mut()
             .channel_mut(deck_id)
             .expect("validated above")
-            .set_auto_gain_db(auto_gain_db)?;
+            .set_loudness_lufs(loudness_lufs);
         log::info!("Track loaded into deck {}", deck_id);
         Ok(())
+    }
+
+    /// Set loudness-normalization target for all mixer channels (`None` = off).
+    pub fn set_normalizer_target(&mut self, target_lufs: Option<f32>) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.mixer_mut().set_normalizer_target(target_lufs);
+        Ok(())
+    }
+
+    /// Cached auto-gain (dB) for a deck's mixer channel, when the engine is running.
+    pub fn deck_auto_gain_db(&self, deck_id: usize) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().channel(deck_id)?.auto_gain_db())
     }
 
     /// Play a deck
@@ -509,9 +535,8 @@ impl Engine {
         }
     }
 
-    /// Unload the track from a deck. Resets the channel's auto gain to 0 dB (so a later
-    /// load starts from a clean normalization baseline) while preserving manual mixer
-    /// controls (volume, EQ, filter, trim, headphone cue).
+    /// Unload the track from a deck. Clears channel loudness (auto gain → 0) while
+    /// preserving manual mixer controls (volume, EQ, filter, trim, headphone cue).
     pub fn unload_deck(&mut self, deck_id: usize) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
@@ -527,7 +552,7 @@ impl Engine {
         dsp.mixer_mut()
             .channel_mut(deck_id)
             .expect("validated above")
-            .set_auto_gain_db(0.0)?;
+            .set_loudness_lufs(None);
         Ok(())
     }
 
@@ -811,20 +836,44 @@ impl Engine {
     }
 }
 
+fn loudness_from_metadata(metadata: &TrackMetadata) -> Option<f64> {
+    if let Some(gain_db) = metadata.replaygain_track_gain_db.filter(|g| g.is_finite()) {
+        return Some(analyzer_core::loudness_lufs_from_replaygain_track_gain_db(
+            gain_db,
+        ));
+    }
+    metadata.loudness_lufs.filter(|l| l.is_finite())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use audio_core::{AudioSource, BusId, ChannelMapping, DeviceId, LoadedAudio};
-    use library_core::FileAudioSource;
+    use audio_core::{BusId, ChannelMapping, DeviceId, LoadableAudio, LoadedAudio};
+    use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
+    use std::path::PathBuf;
     use std::sync::Arc;
 
-    fn empty_audio() -> Arc<LoadedAudio> {
-        Arc::new(LoadedAudio {
-            samples: vec![],
-            sample_rate: 48_000,
-            channels: 2,
-            source_id: "test.wav".to_string(),
-        })
+    fn test_source(loudness_lufs: Option<f64>) -> AudioSource {
+        let mut metadata = TrackMetadata::default();
+        metadata.loudness_lufs = loudness_lufs;
+        AudioSource::File(FileAudioSource::new(
+            TrackId::new("test.wav"),
+            PathBuf::from("/no/such/file.wav"),
+            metadata,
+        ))
+    }
+
+    /// Bypass file decode by inserting PCM into the engine cache before load.
+    fn cache_empty_pcm(engine: &mut Engine, track_id: &str) {
+        engine.decode_cache.insert(
+            TrackId::new(track_id),
+            Arc::new(LoadedAudio {
+                samples: vec![],
+                sample_rate: 48_000,
+                channels: 2,
+                source_id: track_id.to_string(),
+            }),
+        );
     }
 
     fn started_null_engine() -> Engine {
@@ -854,12 +903,16 @@ mod tests {
     }
 
     #[test]
-    fn load_track_sets_channel_auto_gain_not_deck() {
+    fn load_track_sets_channel_loudness_from_metadata() {
         let mut engine = started_null_engine();
+        engine.set_normalizer_target(Some(-18.0)).unwrap();
+        cache_empty_pcm(&mut engine, "test.wav");
 
-        engine.load_track(0, empty_audio(), 6.0).unwrap();
+        engine.load_track(0, test_source(Some(-24.0))).unwrap();
 
+        assert_eq!(with_channel(&engine, 0, |c| c.loudness_lufs()), Some(-24.0));
         assert_eq!(with_channel(&engine, 0, |c| c.auto_gain_db()), 6.0);
+        assert_eq!(engine.deck_auto_gain_db(0), Some(6.0));
 
         engine.stop().unwrap();
     }
@@ -867,12 +920,14 @@ mod tests {
     #[test]
     fn load_track_invalid_deck_id_does_not_partially_mutate_state() {
         let mut engine = started_null_engine();
-        engine.load_track(0, empty_audio(), 3.0).unwrap();
+        engine.set_normalizer_target(Some(-18.0)).unwrap();
+        cache_empty_pcm(&mut engine, "test.wav");
+        engine.load_track(0, test_source(Some(-21.0))).unwrap();
 
-        let err = engine.load_track(2, empty_audio(), 9.0).unwrap_err();
+        let err = engine.load_track(2, test_source(Some(-27.0))).unwrap_err();
         assert!(err.to_string().contains("Invalid deck ID"));
 
-        // The failed load on an invalid id must not disturb the already-loaded channel.
+        assert_eq!(with_channel(&engine, 0, |c| c.loudness_lufs()), Some(-21.0));
         assert_eq!(with_channel(&engine, 0, |c| c.auto_gain_db()), 3.0);
 
         engine.stop().unwrap();
@@ -940,13 +995,25 @@ mod tests {
     fn deck_level_snapshot_reads_peaks_from_mixer_channel_not_deck() {
         let mut engine = started_null_engine();
 
-        let audio = Arc::new(LoadedAudio {
-            samples: vec![0.5f32; 48_000 * 2],
-            sample_rate: 48_000,
-            channels: 2,
-            source_id: "tone.wav".to_string(),
-        });
-        engine.load_track(0, audio, 0.0).unwrap();
+        engine.decode_cache.insert(
+            TrackId::new("tone.wav"),
+            Arc::new(LoadedAudio {
+                samples: vec![0.5f32; 48_000 * 2],
+                sample_rate: 48_000,
+                channels: 2,
+                source_id: "tone.wav".to_string(),
+            }),
+        );
+        engine
+            .load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    TrackId::new("tone.wav"),
+                    PathBuf::from("/no/such/tone.wav"),
+                    TrackMetadata::default(),
+                )),
+            )
+            .unwrap();
         engine.play(0).unwrap();
 
         // The null backend never drains the pre-filled ring buffer, so the background
@@ -984,9 +1051,11 @@ mod tests {
     }
 
     #[test]
-    fn unload_deck_resets_auto_gain_but_preserves_manual_controls() {
+    fn unload_deck_clears_loudness_but_preserves_manual_controls() {
         let mut engine = started_null_engine();
-        engine.load_track(0, empty_audio(), 6.0).unwrap();
+        engine.set_normalizer_target(Some(-18.0)).unwrap();
+        cache_empty_pcm(&mut engine, "test.wav");
+        engine.load_track(0, test_source(Some(-24.0))).unwrap();
         engine.set_deck_volume(0, 0.4).unwrap();
         engine.set_deck_eq_bands(0, 2.0, -1.0, 3.0).unwrap();
         engine.set_deck_filter_db(0, 5.0).unwrap();
@@ -995,6 +1064,11 @@ mod tests {
 
         engine.unload_deck(0).unwrap();
 
+        assert_eq!(
+            with_channel(&engine, 0, |c| c.loudness_lufs()),
+            None,
+            "loudness must clear on unload"
+        );
         assert_eq!(
             with_channel(&engine, 0, |c| c.auto_gain_db()),
             0.0,
@@ -1029,7 +1103,7 @@ mod tests {
 
         assert!(engine.play(0).is_err());
         assert!(engine.pause(0).is_err());
-        assert!(engine.load_track(0, empty_audio(), 0.0).is_err());
+        assert!(engine.load_track(0, test_source(None)).is_err());
 
         engine.start().unwrap();
 
@@ -1040,7 +1114,7 @@ mod tests {
         assert!(missing.unwrap_err().to_string().contains("not found"));
 
         assert!(engine.play(2).is_err());
-        assert!(engine.load_track(2, empty_audio(), 0.0).is_err());
+        assert!(engine.load_track(2, test_source(None)).is_err());
 
         engine.stop().unwrap();
     }

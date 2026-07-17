@@ -8,7 +8,7 @@ alwaysApply: false
 
 Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.md`.
 
-- **Role:** Orchestrates engine lifecycle, config, backend selection, and the producer thread. Loads tracks via `AudioSource` and feeds decoded samples into `engine-dsp` decks.
+- **Role:** Orchestrates engine lifecycle, config, backend selection, and the producer thread. Loads tracks via `library_core::AudioSource` (decode via `LoadableAudio`) and feeds PCM into `engine-dsp` decks.
 - **Module layout:** Keep responsibilities split across files; do not collapse back into a single `lib.rs`.
   - `lib.rs` — module declarations and public re-exports only
   - `config.rs` — `EngineConfig`, `DeviceConfig`, `AdvancedConfig`, `AudioConfig` (TOML load/save)
@@ -17,8 +17,8 @@ Reference: `docs/tech-spec.md` §4.2, §5, §6. Architecture overview: `README.m
   - `producer.rs` — ring buffer setup, producer thread loop
   - `routing.rs` — bus/device validation, channel mapping, stream setup
   - `callback.rs` — `ConsumerCallback` (ring-buffer consumer for the audio device callback)
-- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, &impl AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path in `load_track`; callers pass an `AudioSource`.
-- **Audio loading:** `AudioSource` / `LoadedAudio` are re-exported from `audio-core`. Concrete loaders (`FileAudioSource`, `LibrarySource`, …) live in `library-core`. Ad-hoc path loads use `library_core::FileAudioSource::from_path`. This crate does not define audio source types.
+- **Engine API:** `Engine::new(config)`, `start`/`stop`, `load_track(deck_id, AudioSource)`, `play`/`pause(deck_id)`, `set_bus_device(bus, device, channels)`. Do **not** take a bare path or raw `LoadedAudio` in `load_track`.
+- **Audio loading:** `LoadableAudio` / `LoadedAudio` come from `audio-core`. Concrete sources (`FileAudioSource`, `AudioSource`, …) live in `library-core`. Engine owns a PCM decode cache keyed by `TrackId`. Ad-hoc path loads use `AudioSource::File(FileAudioSource::from_path(...))`.
 - **Config:** TOML via `EngineConfig::from_toml_file` / `to_toml_file`. Fields include `sample_rate`, `buffer_size`, `low_latency`, `backend`, buses/devices, optional advanced/audio sections.
 - **Threading:** Producer thread (engine-controlled) runs DSP and writes interleaved stereo to a lock-free ring buffer. Consumer is the backend audio callback (`ConsumerCallback`). No allocations in the callback path.
 - **Ring buffer:** Preallocate; buffer at least N × frames_per_buffer (current multiplier is higher than the minimum N ≥ 8) to tolerate producer jitter.
