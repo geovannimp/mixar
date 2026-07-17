@@ -131,6 +131,15 @@ impl Mixer {
         self.lane_mut(index).map(|lane| lane.channel_mut())
     }
 
+    /// Set loudness-normalization target for all channels (`None` = off).
+    pub fn set_normalizer_target(&mut self, target_lufs: Option<f32>) {
+        for index in 0..self.lane_node_ids.len() {
+            if let Some(channel) = self.channel_mut(index) {
+                channel.set_target_lufs(target_lufs);
+            }
+        }
+    }
+
     /// Get the master volume
     pub fn master_volume(&self) -> f32 {
         self.master_volume

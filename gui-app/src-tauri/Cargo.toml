@@ -23,7 +23,6 @@ anyhow = "1"
 log = "0.4"
 env_logger = "0.10"
 audio-core = { path = "../../audio-core" }
-analyzer-core = { path = "../../analyzer-core" }
 engine-core = { path = "../../engine-core", features = ["backend-cpal"] }
 library-core = { path = "../../library-core" }
 library = { path = "../../library", features = ["analysis"] }

@@ -14,7 +14,7 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub use audio_source::{AudioSource, LoadedAudio};
+pub use audio_source::{LoadableAudio, LoadedAudio};
 pub use waveform::{
     compute_overview_envelope, compute_peak_envelope, compute_spectral_envelope,
     compute_spectral_window, peaks_to_rgb_bytes, rgb_bytes_to_peaks, waveform_buckets_for_duration,

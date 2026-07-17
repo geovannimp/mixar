@@ -10,7 +10,7 @@
 
 ## Goals
 
-1. Rename enum `LibrarySource` → **`AudioSource`**.
+1. Rename enum `AudioSource` → **`AudioSource`**.
 2. Rename trait `audio_core::AudioSource` → **`LoadableAudio`** (`load() -> LoadedAudio`).
 3. **`Engine::load_track(deck_id, source: AudioSource)`** only — engine decodes via `LoadableAudio`.
 4. **Engine-owned PCM decode cache** keyed by `TrackId`.
@@ -29,7 +29,7 @@
 
 | Old | New |
 |-----|-----|
-| `library_core::LibrarySource` | `library_core::AudioSource` |
+| `library_core::AudioSource` | `library_core::AudioSource` |
 | `audio_core::AudioSource` (trait) | `audio_core::LoadableAudio` |
 | `LoadedAudio` | unchanged (PCM buffer only; no loudness field) |
 
@@ -67,7 +67,7 @@ else `None` (auto gain 0).
 
 ### library-core
 
-- Rename `LibrarySource` → `AudioSource`.
+- Rename `AudioSource` → `AudioSource`.
 - Add `replaygain_track_gain_db` and `loudness_lufs` to `TrackMetadata`.
 - Implement `LoadableAudio` for `FileAudioSource` / `StreamAudioSource` / `AudioSource`.
 

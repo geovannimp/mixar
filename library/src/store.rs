@@ -45,6 +45,7 @@ impl<'a> Store<'a> {
             sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
+            replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
         };
@@ -66,6 +67,7 @@ impl<'a> Store<'a> {
                         tracks::Column::SampleRate,
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
+                        tracks::Column::ReplaygainTrackGainDb,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -99,6 +101,7 @@ impl<'a> Store<'a> {
             sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
+            replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
         };
@@ -120,6 +123,7 @@ impl<'a> Store<'a> {
                         tracks::Column::SampleRate,
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
+                        tracks::Column::ReplaygainTrackGainDb,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -129,7 +133,7 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
-    pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::LibrarySource>> {
+    pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::AudioSource>> {
         let row = TrackEntity::find_by_id(id.as_str())
             .one(&*self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
@@ -139,7 +143,7 @@ impl<'a> Store<'a> {
     pub fn find_file_track_by_source_ref(
         &self,
         source_ref: &str,
-    ) -> Result<Option<library_core::LibrarySource>> {
+    ) -> Result<Option<library_core::AudioSource>> {
         let row = TrackEntity::find()
             .filter(tracks::Column::SourceType.eq("file"))
             .filter(tracks::Column::SourceRef.eq(source_ref))
@@ -152,7 +156,7 @@ impl<'a> Store<'a> {
         &self,
         root: &str,
         prefix: &str,
-    ) -> Result<Vec<library_core::LibrarySource>> {
+    ) -> Result<Vec<library_core::AudioSource>> {
         let rows = TrackEntity::find()
             .filter(tracks::Column::SourceType.eq("file"))
             .filter(

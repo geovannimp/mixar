@@ -27,7 +27,7 @@ pub use filter::{db_to_linear, DjFilter};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
-pub use mixer_channel::MixerChannel;
+pub use mixer_channel::{MixerChannel, AUTO_GAIN_CLAMP_DB};
 pub use mixer_lane::MixerLane;
 pub use transport::DeckTransportEvent;
 

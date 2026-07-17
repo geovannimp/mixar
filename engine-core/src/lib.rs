@@ -12,8 +12,9 @@ mod routing;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;
-pub use audio_core::{AudioSource, DeviceInfo, LoadedAudio};
+pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
 pub use config::{AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig};
 pub use engine::Engine;
+pub use library_core::{AudioSource, FileAudioSource, TrackId};
 pub use transport::TransportEvent;

@@ -4,11 +4,9 @@
 //! different backends, configuration, and audio processing features.
 
 use anyhow::Result;
-use engine_core::{AudioBackend, AudioSource, Engine, EngineConfig};
-use library_core::FileAudioSource;
+use engine_core::{AudioBackend, AudioSource, Engine, EngineConfig, FileAudioSource};
 use log::info;
 use std::path::Path;
-use std::sync::Arc;
 
 fn main() -> Result<()> {
     // Disable sqlx query logs; SeaORM logs statements with bound parameters via
@@ -54,8 +52,10 @@ fn main() -> Result<()> {
 
     let sample_path =
         "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav";
-    let audio = Arc::new(FileAudioSource::from_path(sample_path).load()?);
-    engine.load_track(0, audio, 0.0)?;
+    engine.load_track(
+        0,
+        AudioSource::File(FileAudioSource::from_path(sample_path)),
+    )?;
     info!("Sample track loaded: {}", sample_path);
 
     // Play the track

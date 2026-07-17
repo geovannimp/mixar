@@ -1,25 +1,24 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
-use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
-use resampler::normalize_resampler_quality;
-use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
-use library_core::{
-    AnalyzeTrackOptions, CollectionId, Library, LibrarySource, SUPPORTED_AUDIO_EXTENSIONS,
-    TrackId,
-};
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use deck_performance::{
-    begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold, exit_deck_loop,
-    apply_deck_performance, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
-    seek_deck, set_deck_auto_loop,
-    set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize, trigger_hot_cue,
-    unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+    apply_deck_performance, begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold,
+    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop, seek_deck,
+    set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
+    trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sync::{
     beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
     set_deck_gain_trim, set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
 };
+use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
+use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
+use library_core::{
+    AnalyzeTrackOptions, AudioSource, CollectionId, FileAudioSource, Library, TrackId,
+    SUPPORTED_AUDIO_EXTENSIONS,
+};
+use resampler::normalize_resampler_quality;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
@@ -31,12 +30,10 @@ mod engine_notifier;
 mod fs_browser;
 mod waveform_render;
 
-use audio_cache::{
-    get_or_compute_detail, get_or_compute_overview, get_or_decode, AudioCache,
-};
+use audio_cache::{get_or_compute_detail, get_or_compute_overview, AudioCache};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
 use engine_controller::{engine_status, publish_deck, publish_status};
 use engine_notifier::EngineNotifier;
@@ -241,9 +238,7 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
 fn channel_mapping_from_route(route: &BusRouteSettings) -> ChannelMapping {
     match route.mode {
         BusChannelMode::Mono => ChannelMapping::mono(route.left_channel),
-        BusChannelMode::Stereo => {
-            ChannelMapping::stereo(route.left_channel, route.right_channel)
-        }
+        BusChannelMode::Stereo => ChannelMapping::stereo(route.left_channel, route.right_channel),
     }
 }
 
@@ -259,11 +254,7 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
 fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
     let mut buses = vec![bus_config(MASTER_BUS_ID, "Master", &settings.master_bus)];
     if settings.preview_enabled {
-        buses.push(bus_config(
-            PREVIEW_BUS_ID,
-            "Preview",
-            &settings.preview_bus,
-        ));
+        buses.push(bus_config(PREVIEW_BUS_ID, "Preview", &settings.preview_bus));
     }
     buses
 }
@@ -328,11 +319,27 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     state.target_lufs = settings.target_lufs;
 }
 
-fn deck_auto_gain_db(enabled: bool, target_lufs: f32, loudness_lufs: Option<f64>) -> f32 {
-    match (enabled, loudness_lufs) {
-        (true, Some(loudness_lufs)) => analyzer_core::auto_gain_db(target_lufs, loudness_lufs),
-        _ => 0.0,
-    }
+fn normalizer_target_lufs(enabled: bool, target_lufs: f32) -> Option<f32> {
+    enabled.then_some(target_lufs)
+}
+
+fn apply_normalizer_target(state: &mut AppState) -> Result<(), String> {
+    let target = normalizer_target_lufs(state.volume_normalizer_enabled, state.target_lufs);
+    with_engine(state, |engine| {
+        engine
+            .set_normalizer_target(target)
+            .map_err(|e| e.to_string())
+    })
+}
+
+fn sync_deck_auto_gain_from_engine(state: &mut AppState, deck_id: usize) -> Result<(), String> {
+    let auto_gain_db = with_engine(state, |engine| {
+        engine
+            .deck_auto_gain_db(deck_id)
+            .ok_or_else(|| format!("Invalid deck ID: {deck_id}"))
+    })?;
+    state.decks[deck_id].auto_gain_db = auto_gain_db;
+    Ok(())
 }
 
 fn default_engine_config() -> EngineConfig {
@@ -471,7 +478,7 @@ fn clear_deck_info(deck: &mut DeckInfo) {
     };
 }
 
-fn track_display_name(source: &LibrarySource) -> String {
+fn track_display_name(source: &AudioSource) -> String {
     let metadata = source.metadata();
     match (&metadata.artist, &metadata.title) {
         (Some(artist), Some(title)) => format!("{artist} — {title}"),
@@ -484,7 +491,7 @@ fn track_display_name(source: &LibrarySource) -> String {
     }
 }
 
-fn track_summary(source: &LibrarySource) -> Option<TrackSummary> {
+fn track_summary(source: &AudioSource) -> Option<TrackSummary> {
     let file = source.file()?;
     let metadata = source.metadata();
     Some(TrackSummary {
@@ -533,10 +540,7 @@ where
 }
 
 #[tauri::command]
-fn start_engine(
-    app: AppHandle,
-    shared: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
+fn start_engine(app: AppHandle, shared: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let shared_state = shared.inner().clone();
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     if state.engine.is_some() {
@@ -547,16 +551,14 @@ fn start_engine(
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
     state.engine = Some(engine);
+    apply_normalizer_target(&mut state)?;
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
 }
 
 #[tauri::command]
-fn stop_engine(
-    app: AppHandle,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
+fn stop_engine(app: AppHandle, state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.notifier = None;
     if let Some(mut engine) = state.engine.take() {
@@ -620,26 +622,32 @@ async fn save_settings(
         return Ok(settings_from_state(&state));
     }
 
-    let mut reloaded_tracks = Vec::with_capacity(deck_tracks.len());
-    for (deck_id, path) in deck_tracks {
-        let audio = get_or_decode(&shared, path.clone(), path).await?;
-        reloaded_tracks.push((deck_id, audio));
-    }
-
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     let config = state.engine_config.clone();
     let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
     engine.start().map_err(|e| e.to_string())?;
     state.engine = Some(engine);
-    for (deck_id, audio) in reloaded_tracks {
-        // Preserve auto gain from the original load; settings changes apply on next track load.
-        let auto_gain_db = state.decks[deck_id].auto_gain_db;
+    apply_normalizer_target(&mut state)?;
+
+    for (deck_id, path) in deck_tracks {
+        let track_id = state.decks[deck_id].track_id.clone();
+        let loudness_lufs = state.decks[deck_id].loudness_lufs;
+        let mut source = if let Some(track_id) = track_id.as_ref() {
+            state
+                .library
+                .get_track(&TrackId::new(track_id.clone()))
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| "Track not found in library.".to_string())?
+        } else {
+            AudioSource::File(FileAudioSource::from_path(&path))
+        };
+        source.metadata_mut().loudness_lufs = loudness_lufs;
         with_engine(&mut state, |engine| {
             engine
-                .load_track(deck_id, audio, auto_gain_db)
+                .load_track(deck_id, source)
                 .map_err(|e| e.to_string())
         })?;
-        // A fresh engine load starts paused; reflect that in deck state.
+        sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
         state.decks[deck_id].playing = false;
     }
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
@@ -678,7 +686,10 @@ fn list_output_devices(backend: String) -> Result<Vec<DeviceSummary>, String> {
 #[tauri::command]
 fn list_collections(state: State<'_, SharedAppState>) -> Result<Vec<CollectionSummary>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let collections = state.library.list_collections().map_err(|e| e.to_string())?;
+    let collections = state
+        .library
+        .list_collections()
+        .map_err(|e| e.to_string())?;
     collections
         .into_iter()
         .map(|collection| collection_summary(&state.library, collection))
@@ -798,63 +809,51 @@ async fn load_path_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (track_id, cache_key, title, artist, bpm, key, loudness_lufs) = {
+    let (mut source, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
             .import_file_path(Path::new(&path))
             .map_err(|e| e.to_string())?;
-        let track_id = source.id().as_str().to_string();
+        let track_id = source.id().clone();
         let loudness_lufs = state
             .library
-            .track_loudness_lufs(&TrackId::new(track_id.clone()))
+            .track_loudness_lufs(&track_id)
             .map_err(|e| e.to_string())?;
-
-        let file_path = source
-            .file()
-            .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
-            .path()
-            .to_string_lossy()
-            .into_owned();
-
-        let metadata = source.metadata();
+        let metadata = source.metadata().clone();
         (
-            track_id,
-            file_path,
-            metadata.title.clone(),
-            metadata.artist.clone(),
+            source,
+            metadata.title,
+            metadata.artist,
             metadata.bpm,
-            metadata.key.clone(),
+            metadata.key,
             loudness_lufs,
         )
     };
 
     {
+        let track_id = source.id().as_str().to_string();
         let state = state.lock().map_err(|e| e.to_string())?;
         state
             .library
-            .ensure_track_waveform(&TrackId::new(track_id.clone()))
+            .ensure_track_waveform(&TrackId::new(track_id))
             .map_err(|e| e.to_string())?;
     }
 
-    let audio = get_or_decode(&state, cache_key.clone(), cache_key).await?;
+    source.metadata_mut().loudness_lufs = loudness_lufs;
+    let track_id = source.id().as_str().to_string();
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let auto_gain_db = deck_auto_gain_db(
-        state.volume_normalizer_enabled,
-        state.target_lufs,
-        loudness_lufs,
-    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio, auto_gain_db)
+            .load_track(deck_id, source)
             .map_err(|e| e.to_string())
     })?;
 
     {
         let deck = &mut state.decks[deck_id];
         deck.track = Some(path);
-        deck.track_id = Some(track_id.clone());
+        deck.track_id = Some(track_id);
         deck.playing = false;
         deck.speed = 1.0;
         deck.title = title;
@@ -862,8 +861,8 @@ async fn load_path_to_deck(
         deck.bpm = bpm;
         deck.key = key;
         deck.loudness_lufs = loudness_lufs;
-        deck.auto_gain_db = auto_gain_db;
     }
+    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
@@ -882,18 +881,12 @@ async fn load_track(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let cache_key = path.clone();
-    let audio = get_or_decode(&state, cache_key, path.clone()).await?;
+    let source = AudioSource::File(FileAudioSource::from_path(&path));
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let auto_gain_db = deck_auto_gain_db(
-        state.volume_normalizer_enabled,
-        state.target_lufs,
-        None,
-    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio, auto_gain_db)
+            .load_track(deck_id, source)
             .map_err(|e| e.to_string())
     })?;
 
@@ -904,9 +897,9 @@ async fn load_track(
         deck.playing = false;
         deck.speed = 1.0;
         deck.loudness_lufs = None;
-        deck.auto_gain_db = auto_gain_db;
         apply_path_metadata(deck, &path);
     }
+    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
     Ok(publish_deck(&app, &mut state, deck_id))
@@ -923,7 +916,7 @@ async fn load_library_track_to_deck(
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (path, cache_key, title, artist, bpm, key, loudness_lufs) = {
+    let (mut source, path, title, artist, bpm, key, loudness_lufs) = {
         let state = state.lock().map_err(|e| e.to_string())?;
         let track_id = TrackId::new(track_id.clone());
         let source = state
@@ -943,14 +936,14 @@ async fn load_library_track_to_deck(
             .to_string_lossy()
             .into_owned();
 
-        let metadata = source.metadata();
+        let metadata = source.metadata().clone();
         (
-            path.clone(),
+            source,
             path,
-            metadata.title.clone(),
-            metadata.artist.clone(),
+            metadata.title,
+            metadata.artist,
             metadata.bpm,
-            metadata.key.clone(),
+            metadata.key,
             loudness_lufs,
         )
     };
@@ -963,17 +956,12 @@ async fn load_library_track_to_deck(
             .map_err(|e| e.to_string())?;
     }
 
-    let audio = get_or_decode(&state, cache_key, path.clone()).await?;
+    source.metadata_mut().loudness_lufs = loudness_lufs;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let auto_gain_db = deck_auto_gain_db(
-        state.volume_normalizer_enabled,
-        state.target_lufs,
-        loudness_lufs,
-    );
     with_engine(&mut state, |engine| {
         engine
-            .load_track(deck_id, audio, auto_gain_db)
+            .load_track(deck_id, source)
             .map_err(|e| e.to_string())
     })?;
 
@@ -988,8 +976,8 @@ async fn load_library_track_to_deck(
         deck.bpm = bpm;
         deck.key = key;
         deck.loudness_lufs = loudness_lufs;
-        deck.auto_gain_db = auto_gain_db;
     }
+    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
@@ -1393,8 +1381,9 @@ pub fn run() {
                 .map_err(|err| format!("app data dir unavailable: {err}"))?;
             std::fs::create_dir_all(&app_data).map_err(|err| err.to_string())?;
 
-            let library = LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
-                .map_err(|err| err.to_string())?;
+            let library =
+                LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
+                    .map_err(|err| err.to_string())?;
 
             app.manage(Arc::new(Mutex::new(AppState {
                 library,
@@ -1476,7 +1465,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{deck_auto_gain_db, AppSettings};
+    use super::AppSettings;
 
     #[test]
     fn legacy_settings_default_volume_normalizer_values() {
@@ -1504,12 +1493,5 @@ mod tests {
 
         assert!(settings.volume_normalizer_enabled);
         assert_eq!(settings.target_lufs, -18.0);
-    }
-
-    #[test]
-    fn deck_auto_gain_uses_loudness_only_when_enabled() {
-        assert_eq!(deck_auto_gain_db(true, -18.0, Some(-24.0)), 6.0);
-        assert_eq!(deck_auto_gain_db(false, -18.0, Some(-24.0)), 0.0);
-        assert_eq!(deck_auto_gain_db(true, -18.0, None), 0.0);
     }
 }

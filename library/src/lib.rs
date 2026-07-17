@@ -36,7 +36,7 @@ use std::path::{Path, PathBuf};
 pub use library_core::{
     is_supported_audio_extension, is_supported_audio_path, AnalyzeTrackOptions, AudioSource,
     Collection, CollectionConfig, CollectionConfigUpdate, CollectionId, CollectionTrack,
-    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LibrarySource,
+    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio,
     LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId,
     TrackMetadata, UpdateCollection, WritableLibrary,
 };
@@ -195,12 +195,12 @@ impl LibraryManager {
         CollectionId::new(format!("playlist:{nanos}"))
     }
 
-    fn upsert_file_source(&self, path: &Path, metadata: &TrackMetadata) -> Result<LibrarySource> {
+    fn upsert_file_source(&self, path: &Path, metadata: &TrackMetadata) -> Result<AudioSource> {
         let path = normalize_path(path)?;
         let id = Self::track_id_for(&path);
         let now = now_stamp();
         self.store().upsert_file_track(&id, &path, metadata, &now)?;
-        Ok(LibrarySource::File(FileAudioSource::new(
+        Ok(AudioSource::File(FileAudioSource::new(
             id,
             path,
             metadata.clone(),
@@ -213,13 +213,13 @@ impl LibraryManager {
         uri: &str,
         metadata: &TrackMetadata,
         provider: Option<StreamProvider>,
-    ) -> Result<LibrarySource> {
+    ) -> Result<AudioSource> {
         let id = Self::stream_id_for(uri, provider);
         let now = now_stamp();
         let provider_str = provider.map(|p| p.as_str());
         self.store()
             .upsert_stream_track(&id, uri, metadata, provider_str, &now)?;
-        Ok(LibrarySource::Stream(StreamAudioSource::new(
+        Ok(AudioSource::Stream(StreamAudioSource::new(
             id,
             uri,
             metadata.clone(),
@@ -383,23 +383,23 @@ impl LibraryManager {
         self.store().playlist_track_ids(playlist_id)
     }
 
-    fn file_sources_under(&self, root: &Path) -> Result<Vec<LibrarySource>> {
+    fn file_sources_under(&self, root: &Path) -> Result<Vec<AudioSource>> {
         let root_str = root.to_string_lossy().into_owned();
         let prefix = format!("{}/%", escape_like(&root_str));
         self.store().find_file_sources_under(&root_str, &prefix)
     }
 
-    pub(crate) fn import_path(&self, path: &Path) -> Result<LibrarySource> {
+    pub(crate) fn import_path(&self, path: &Path) -> Result<AudioSource> {
         self.refresh_file_source(path)
     }
 
     /// Import or refresh a file track at `path` and return the library source.
-    pub fn import_file_path(&self, path: &Path) -> Result<LibrarySource> {
+    pub fn import_file_path(&self, path: &Path) -> Result<AudioSource> {
         self.refresh_file_source(path)
     }
 
     /// Look up an indexed file track for `path`, if it exists in the library DB.
-    pub fn lookup_file_track_at_path(&self, path: &Path) -> Result<Option<LibrarySource>> {
+    pub fn lookup_file_track_at_path(&self, path: &Path) -> Result<Option<AudioSource>> {
         if let Ok(normalized) = normalize_path(path) {
             let id = Self::track_id_for(&normalized);
             if let Some(source) = self.get_track(&id)? {
@@ -427,7 +427,7 @@ impl LibraryManager {
     pub fn lookup_file_tracks_at_paths(
         &self,
         paths: &[PathBuf],
-    ) -> Result<Vec<(String, LibrarySource)>> {
+    ) -> Result<Vec<(String, AudioSource)>> {
         let mut results = Vec::new();
         let mut seen = std::collections::HashSet::new();
 
@@ -453,7 +453,7 @@ impl LibraryManager {
         uri: &str,
         metadata: &TrackMetadata,
         provider: Option<StreamProvider>,
-    ) -> Result<LibrarySource> {
+    ) -> Result<AudioSource> {
         if uri.is_empty() {
             return Err(LibraryError::Backend {
                 backend: "library",
@@ -497,7 +497,7 @@ impl LibraryManager {
         Ok(())
     }
 
-    fn refresh_file_source(&self, path: &Path) -> Result<LibrarySource> {
+    fn refresh_file_source(&self, path: &Path) -> Result<AudioSource> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path));
@@ -514,7 +514,7 @@ impl LibraryManager {
         &self,
         path: &Path,
         options: AnalyzeTrackOptions,
-    ) -> Result<LibrarySource> {
+    ) -> Result<AudioSource> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path));
@@ -560,7 +560,7 @@ impl LibraryManager {
         &self,
         path: &Path,
         _options: AnalyzeTrackOptions,
-    ) -> Result<LibrarySource> {
+    ) -> Result<AudioSource> {
         self.refresh_file_source(path)
     }
 }
@@ -577,7 +577,7 @@ impl Library for LibraryManager {
         "library"
     }
 
-    fn get_track(&self, id: &TrackId) -> Result<Option<LibrarySource>> {
+    fn get_track(&self, id: &TrackId) -> Result<Option<AudioSource>> {
         self.store().get_track(id)
     }
 
@@ -589,7 +589,7 @@ impl Library for LibraryManager {
         self.store().get_collection(id)
     }
 
-    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<LibrarySource>> {
+    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>> {
         let collection = self.require_collection(collection_id)?;
         match collection.collection_type() {
             CollectionType::Folder => {
@@ -614,17 +614,13 @@ impl Library for LibraryManager {
 }
 
 impl WritableLibrary for LibraryManager {
-    fn analyze_track(
-        &mut self,
-        id: &TrackId,
-        options: AnalyzeTrackOptions,
-    ) -> Result<LibrarySource> {
+    fn analyze_track(&mut self, id: &TrackId, options: AnalyzeTrackOptions) -> Result<AudioSource> {
         let source = self
             .get_track(id)?
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
         match source {
-            LibrarySource::File(file) => self.analyze_file_source(file.path(), options),
-            LibrarySource::Stream(_) => Err(LibraryError::Unsupported(
+            AudioSource::File(file) => self.analyze_file_source(file.path(), options),
+            AudioSource::Stream(_) => Err(LibraryError::Unsupported(
                 "stream track analysis not implemented",
             )),
         }
@@ -1175,7 +1171,7 @@ mod tests {
             )
             .unwrap();
 
-        let LibrarySource::Stream(stream) = &source else {
+        let AudioSource::Stream(stream) = &source else {
             panic!("expected stream source");
         };
         assert_eq!(stream.uri(), "https://example.com/track.mp3");

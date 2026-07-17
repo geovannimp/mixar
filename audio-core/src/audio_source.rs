@@ -11,13 +11,13 @@ pub struct LoadedAudio {
     pub source_id: String,
 }
 
-/// Interface for loading audio from any origin.
-pub trait AudioSource {
+/// Interface for decoding audio from any origin into [`LoadedAudio`].
+pub trait LoadableAudio {
     /// Load and decode audio from this source.
     fn load(&self) -> Result<LoadedAudio>;
 }
 
-impl AudioSource for LoadedAudio {
+impl LoadableAudio for LoadedAudio {
     fn load(&self) -> Result<LoadedAudio> {
         Ok(self.clone())
     }

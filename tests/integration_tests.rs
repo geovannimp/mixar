@@ -3,11 +3,9 @@
 //! These tests verify that the different components work together correctly.
 
 use anyhow::Result;
-use audio_core::AudioSource;
 use engine_core::{AnalysisDurationMode, Engine, EngineConfig};
-use library_core::FileAudioSource;
+use library_core::{AudioSource, FileAudioSource};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("samples/fixtures/short-tone.wav")
@@ -33,8 +31,7 @@ fn test_engine_with_null_backend() -> Result<()> {
     // Test basic operations
     engine.load_track(
         0,
-        Arc::new(FileAudioSource::from_path(short_tone_fixture()).load()?),
-        0.0,
+        AudioSource::File(FileAudioSource::from_path(short_tone_fixture())),
     )?;
     engine.play(0)?;
     engine.pause(0)?;
@@ -116,8 +113,7 @@ fn test_engine_deck_operations() -> Result<()> {
     assert!(engine
         .load_track(
             0,
-            Arc::new(FileAudioSource::from_path(short_tone_fixture()).load()?),
-            0.0,
+            AudioSource::File(FileAudioSource::from_path(short_tone_fixture())),
         )
         .is_ok());
 

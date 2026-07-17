@@ -1,11 +1,11 @@
-//! [`AudioSource`] implementations for library sources.
+//! [`LoadableAudio`] implementations for library sources.
 
-use audio_core::{AudioSource, LoadedAudio};
+use audio_core::{LoadableAudio, LoadedAudio};
 use codec::AudioDecoder;
 
-use crate::source::{FileAudioSource, LibrarySource, StreamAudioSource};
+use crate::source::{AudioSource, FileAudioSource, StreamAudioSource};
 
-impl AudioSource for FileAudioSource {
+impl LoadableAudio for FileAudioSource {
     fn load(&self) -> anyhow::Result<LoadedAudio> {
         if !self.path().exists() {
             return Err(anyhow::anyhow!(
@@ -29,7 +29,7 @@ impl AudioSource for FileAudioSource {
     }
 }
 
-impl AudioSource for StreamAudioSource {
+impl LoadableAudio for StreamAudioSource {
     fn load(&self) -> anyhow::Result<LoadedAudio> {
         Err(anyhow::anyhow!(
             "streaming playback not implemented: {}",
@@ -38,7 +38,7 @@ impl AudioSource for StreamAudioSource {
     }
 }
 
-impl AudioSource for LibrarySource {
+impl LoadableAudio for AudioSource {
     fn load(&self) -> anyhow::Result<LoadedAudio> {
         match self {
             Self::File(s) => s.load(),
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn library_source_delegates_to_file() {
-        let source = LibrarySource::File(FileAudioSource::new(
+        let source = AudioSource::File(FileAudioSource::new(
             TrackId::new("missing"),
             PathBuf::from("/no/such/file.wav"),
             TrackMetadata::default(),

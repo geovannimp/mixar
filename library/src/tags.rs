@@ -46,6 +46,8 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
             .map(|s| normalize_key_notation(&s));
     }
 
+    metadata.replaygain_track_gain_db = replaygain_track_gain_db(&tagged);
+
     if metadata.title.is_none() {
         metadata.title = path
             .file_stem()
