@@ -17,6 +17,8 @@ pub mod filter;
 pub mod headphone_monitor;
 pub mod level_meter;
 pub mod mixer;
+pub mod mixer_channel;
+pub mod mixer_lane;
 pub mod transport;
 
 pub use deck::{Deck, DeckState};
@@ -25,14 +27,14 @@ pub use filter::{db_to_linear, DjFilter};
 pub use headphone_monitor::HeadphoneMonitor;
 pub use level_meter::{measure_stereo_peaks, LevelPeaks};
 pub use mixer::Mixer;
+pub use mixer_channel::MixerChannel;
+pub use mixer_lane::MixerLane;
 pub use transport::DeckTransportEvent;
 
 /// DSP engine that manages all audio processing components
 #[derive(Debug)]
 pub struct DspEngine {
-    /// Audio decks for playback
-    decks: Vec<Deck>,
-    /// Audio mixer for routing and mixing
+    /// Mixer owns lanes (decks) and channel graph nodes.
     mixer: Mixer,
     /// Immutable engine output sample rate (from config)
     sample_rate: u32,
@@ -49,32 +51,26 @@ impl DspEngine {
         resampler_quality: &str,
     ) -> Self {
         let buffer_size = buffer_size.max(1);
-        let mut decks = Vec::with_capacity(num_decks);
-        for i in 0..num_decks {
-            decks.push(Deck::new(i, sample_rate, buffer_size, resampler_quality));
-        }
-
         Self {
-            decks,
-            mixer: Mixer::new(),
+            mixer: Mixer::new(sample_rate, buffer_size, num_decks, resampler_quality),
             sample_rate,
             buffer_size,
         }
     }
 
-    /// Get the number of decks
+    /// Get the number of decks / lanes
     pub fn num_decks(&self) -> usize {
-        self.decks.len()
+        self.mixer.num_lanes()
     }
 
     /// Get a reference to a deck by index
     pub fn deck(&self, index: usize) -> Option<&Deck> {
-        self.decks.get(index)
+        self.mixer.lane(index).map(|lane| lane.deck())
     }
 
     /// Get a mutable reference to a deck by index
     pub fn deck_mut(&mut self, index: usize) -> Option<&mut Deck> {
-        self.decks.get_mut(index)
+        self.mixer.lane_mut(index).map(|lane| lane.deck_mut())
     }
 
     /// Get a reference to the mixer
@@ -87,20 +83,23 @@ impl DspEngine {
         &mut self.mixer
     }
 
-    /// Process audio for all decks and mix to output buses.
+    /// Process audio for all lanes and mix to output buses.
     pub fn process(
         &mut self,
         frames: u32,
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
-        self.mixer.process(&mut self.decks, frames, output_buses)
+        self.mixer.process(frames, output_buses)
     }
 
     /// Drain transport events from all decks after a process cycle.
     pub fn drain_transport_events(&mut self) -> Vec<(usize, DeckTransportEvent)> {
         let mut events = Vec::new();
-        for (deck_id, deck) in self.decks.iter_mut().enumerate() {
-            for event in deck.drain_transport_events() {
+        for deck_id in 0..self.mixer.num_lanes() {
+            let Some(lane) = self.mixer.lane_mut(deck_id) else {
+                continue;
+            };
+            for event in lane.deck_mut().drain_transport_events() {
                 events.push((deck_id, event));
             }
         }

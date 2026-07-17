@@ -8,10 +8,10 @@ alwaysApply: false
 
 Reference: `docs/tech-spec.md` §3, §12. Architecture overview: `README.md`.
 
-- **Role:** Pure DSP only: deck, mixer graph (minimal). No I/O or system calls.
+- **Role:** Pure DSP only: deck playback, mixer channel graph, bus routing. No I/O or system calls.
 - **Constraint:** This crate must remain **pure Rust with zero I/O dependencies**. No `std::fs`, no network, no backend or codec imports that pull in I/O. Suitable for future WASM compilation.
-- **Module layout:** `lib.rs` (`DspEngine`), `deck.rs`, `mixer.rs`. Keep DSP components in their own files.
-- **Components:** Decks (playback state, gain, per-deck/cue/master routing, in-deck resampling at playback), mixer (bus mixing, channel mapping). BPM/key/beat grid come from library track metadata, not live analysis here. Use types from `audio-core` (e.g. `Sample`, `BusId`) as needed.
-- **Track data:** Decks receive already-decoded samples via `load_audio_samples` (called from `engine-core` after an `AudioSource` loads). Do not decode or open files here.
+- **Module layout:** `lib.rs` (`DspEngine`), `deck.rs`, `mixer.rs`, `mixer_channel.rs`, `mixer_lane.rs`. Keep DSP components in their own files.
+- **Components:** `MixerLane` is a graph node owning playback `Deck` + strip `MixerChannel`. Graph is `Lane → Sum`. Strip applies auto gain + trim, EQ, filter, VU/PFL, channel fader, and crossfader gain. BPM/key/beat grid come from library track metadata, not live analysis here. Use types from `audio-core` (e.g. `Sample`, `BusId`) as needed.
+- **Track data:** Decks receive already-decoded samples via `Deck::load` (called from `engine-core` after an `AudioSource` loads). Do not decode or open files here.
 - **Design:** Keep each crate small with a single responsibility. Unit tests for DSP with golden data where appropriate; benchmarks (criterion) for mixer and critical paths.
 - **WASM:** Design so engine-dsp can be compiled to WASM (e.g. with wasm-pack/wasm-bindgen) for WebAudio integration; avoid dependencies that block WASM.
