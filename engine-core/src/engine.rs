@@ -303,7 +303,7 @@ impl Engine {
         snapshot
     }
 
-    /// Snapshot pre-fader stereo peaks for all decks.
+    /// Snapshot pre-fader stereo peaks for all decks (read from their mixer channels).
     pub fn deck_level_snapshot(&self) -> Vec<(usize, f32, f32)> {
         let Some(dsp_engine) = self.dsp_engine.as_ref() else {
             return Vec::new();
@@ -315,10 +315,10 @@ impl Engine {
 
         let mut snapshot = Vec::with_capacity(dsp.num_decks());
         for deck_id in 0..dsp.num_decks() {
-            let Some(deck) = dsp.deck(deck_id) else {
+            let Some(channel) = dsp.mixer().channel(deck_id) else {
                 continue;
             };
-            let peaks = deck.level_peaks();
+            let peaks = channel.level_peaks();
             snapshot.push((deck_id, peaks.peak_l, peaks.peak_r));
         }
         snapshot
@@ -341,13 +341,22 @@ impl Engine {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.load(audio, auto_gain_db)?;
-            log::info!("Track loaded into deck {}", deck_id);
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+
+        // Validate both the deck and its mixer channel exist before mutating either, so an
+        // invalid id never leaves one half of the deck/channel pair partially updated.
+        if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
         }
+
+        dsp.deck_mut(deck_id)
+            .expect("validated above")
+            .load(audio)?;
+        dsp.mixer_mut()
+            .channel_mut(deck_id)
+            .expect("validated above")
+            .set_auto_gain_db(auto_gain_db)?;
+        log::info!("Track loaded into deck {}", deck_id);
+        Ok(())
     }
 
     /// Play a deck
@@ -384,44 +393,45 @@ impl Engine {
         }
     }
 
-    /// Set a deck's volume (0.0..=1.0).
+    /// Set a deck's volume (0.0..=1.0), routed through its mixer channel.
     pub fn set_deck_volume(&mut self, deck_id: usize, volume: f32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_volume(volume)?;
+        if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
+            channel.set_volume(volume)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
         }
     }
 
-    /// Set whether a deck is routed to the headphone cue bus.
+    /// Set whether a deck is routed to the headphone cue bus, via its mixer channel.
     pub fn set_deck_headphone_cue(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        let deck = dsp
-            .deck_mut(deck_id)
+        let channel = dsp
+            .mixer_mut()
+            .channel_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        deck.set_headphone_cue(enabled);
+        channel.set_headphone_cue(enabled);
         Ok(())
     }
 
-    /// Set a deck's three-band EQ gains in decibels.
+    /// Set a deck's three-band EQ gains in decibels, via its mixer channel.
     pub fn set_deck_eq(&mut self, deck_id: usize, gains: DeckEqGains) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_eq_gains(gains)?;
+        if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
+            channel.set_eq_gains(gains)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -454,30 +464,30 @@ impl Engine {
         }
     }
 
-    /// Set DJ filter position for a deck (negative = LP, positive = HP).
+    /// Set DJ filter position for a deck (negative = LP, positive = HP), via its mixer channel.
     pub fn set_deck_filter_db(&mut self, deck_id: usize, filter_db: f32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_filter_db(filter_db)?;
+        if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
+            channel.set_filter_db(filter_db)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
         }
     }
 
-    /// Set pre-fader gain trim for a deck in decibels.
+    /// Set pre-fader gain trim for a deck in decibels, via its mixer channel.
     pub fn set_deck_gain_trim_db(&mut self, deck_id: usize, gain_db: f32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_gain_trim_db(gain_db)?;
+        if let Some(channel) = dsp.mixer_mut().channel_mut(deck_id) {
+            channel.set_gain_trim_db(gain_db)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -499,19 +509,26 @@ impl Engine {
         }
     }
 
-    /// Unload the track from a deck.
+    /// Unload the track from a deck. Resets the channel's auto gain to 0 dB (so a later
+    /// load starts from a clean normalization baseline) while preserving manual mixer
+    /// controls (volume, EQ, filter, trim, headphone cue).
     pub fn unload_deck(&mut self, deck_id: usize) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
-        if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.unload()?;
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+
+        if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
         }
+
+        dsp.deck_mut(deck_id).expect("validated above").unload()?;
+        dsp.mixer_mut()
+            .channel_mut(deck_id)
+            .expect("validated above")
+            .set_auto_gain_db(0.0)?;
+        Ok(())
     }
 
     /// Set the temporary cue point in seconds.
@@ -808,6 +825,191 @@ mod tests {
             channels: 2,
             source_id: "test.wav".to_string(),
         })
+    }
+
+    fn started_null_engine() -> Engine {
+        let config = EngineConfig {
+            backend: "null".to_string(),
+            ..Default::default()
+        };
+        let mut engine = Engine::new(config).unwrap();
+        engine.start().unwrap();
+        engine
+    }
+
+    /// Inspect the mixer channel that backs `deck_id`, bypassing the public API so delegation
+    /// tests observe mixer-owned state directly instead of trusting the same setter/getter pair.
+    fn with_channel<T>(
+        engine: &Engine,
+        deck_id: usize,
+        f: impl FnOnce(&engine_dsp::MixerChannel) -> T,
+    ) -> T {
+        let dsp_engine = engine.dsp_engine.as_ref().expect("engine running");
+        let dsp = dsp_engine.lock().unwrap();
+        let channel = dsp
+            .mixer()
+            .channel(deck_id)
+            .expect("mixer channel must exist for a valid deck id");
+        f(channel)
+    }
+
+    #[test]
+    fn load_track_sets_channel_auto_gain_not_deck() {
+        let mut engine = started_null_engine();
+
+        engine.load_track(0, empty_audio(), 6.0).unwrap();
+
+        assert_eq!(with_channel(&engine, 0, |c| c.auto_gain_db()), 6.0);
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn load_track_invalid_deck_id_does_not_partially_mutate_state() {
+        let mut engine = started_null_engine();
+        engine.load_track(0, empty_audio(), 3.0).unwrap();
+
+        let err = engine.load_track(2, empty_audio(), 9.0).unwrap_err();
+        assert!(err.to_string().contains("Invalid deck ID"));
+
+        // The failed load on an invalid id must not disturb the already-loaded channel.
+        assert_eq!(with_channel(&engine, 0, |c| c.auto_gain_db()), 3.0);
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_volume_delegates_to_mixer_channel() {
+        let mut engine = started_null_engine();
+
+        engine.set_deck_volume(0, 0.25).unwrap();
+
+        assert_eq!(with_channel(&engine, 0, |c| c.volume()), 0.25);
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_headphone_cue_delegates_to_mixer_channel() {
+        let mut engine = started_null_engine();
+
+        engine.set_deck_headphone_cue(0, true).unwrap();
+
+        assert!(with_channel(&engine, 0, |c| c.headphone_cue()));
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_eq_delegates_to_mixer_channel() {
+        let mut engine = started_null_engine();
+
+        engine.set_deck_eq_bands(0, 4.0, -2.0, 1.0).unwrap();
+
+        assert_eq!(
+            with_channel(&engine, 0, |c| c.eq_gains()),
+            DeckEqGains::clamped(4.0, -2.0, 1.0)
+        );
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_filter_delegates_to_mixer_channel() {
+        let mut engine = started_null_engine();
+
+        engine.set_deck_filter_db(0, 5.0).unwrap();
+
+        assert_eq!(with_channel(&engine, 0, |c| c.filter_db()), 5.0);
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_gain_trim_delegates_to_mixer_channel() {
+        let mut engine = started_null_engine();
+
+        engine.set_deck_gain_trim_db(0, 1.5).unwrap();
+
+        assert_eq!(with_channel(&engine, 0, |c| c.gain_trim_db()), 1.5);
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn deck_level_snapshot_reads_peaks_from_mixer_channel_not_deck() {
+        let mut engine = started_null_engine();
+
+        let audio = Arc::new(LoadedAudio {
+            samples: vec![0.5f32; 48_000 * 2],
+            sample_rate: 48_000,
+            channels: 2,
+            source_id: "tone.wav".to_string(),
+        });
+        engine.load_track(0, audio, 0.0).unwrap();
+        engine.play(0).unwrap();
+
+        // The null backend never drains the pre-filled ring buffer, so the background
+        // producer thread never calls `DspEngine::process`; drive one render cycle directly
+        // through the same lock the producer thread uses.
+        {
+            let dsp_engine = engine.dsp_engine.as_ref().unwrap();
+            let mut dsp = dsp_engine.lock().unwrap();
+            let mut output_buses = std::collections::HashMap::new();
+            output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
+            dsp.process(512, &mut output_buses).unwrap();
+        }
+
+        let snapshot_peak = engine
+            .deck_level_snapshot()
+            .into_iter()
+            .find(|(deck_id, _, _)| *deck_id == 0)
+            .map(|(_, peak_l, _)| peak_l);
+
+        assert!(
+            snapshot_peak.unwrap_or(0.0) > 0.0,
+            "level snapshot should report a non-zero pre-fader peak once a channel processes audio"
+        );
+
+        // A constant-amplitude tone yields the same peak on every render cycle, so this
+        // comparison is robust to how many cycles the producer thread ran in the background.
+        let channel_peak = with_channel(&engine, 0, |c| c.level_peaks().peak_l);
+        assert_eq!(
+            snapshot_peak,
+            Some(channel_peak),
+            "deck_level_snapshot must mirror mixer channel peaks, not deck-owned state"
+        );
+
+        engine.stop().unwrap();
+    }
+
+    #[test]
+    fn unload_deck_resets_auto_gain_but_preserves_manual_controls() {
+        let mut engine = started_null_engine();
+        engine.load_track(0, empty_audio(), 6.0).unwrap();
+        engine.set_deck_volume(0, 0.4).unwrap();
+        engine.set_deck_eq_bands(0, 2.0, -1.0, 3.0).unwrap();
+        engine.set_deck_filter_db(0, 5.0).unwrap();
+        engine.set_deck_gain_trim_db(0, 1.5).unwrap();
+        engine.set_deck_headphone_cue(0, true).unwrap();
+
+        engine.unload_deck(0).unwrap();
+
+        assert_eq!(
+            with_channel(&engine, 0, |c| c.auto_gain_db()),
+            0.0,
+            "auto gain must reset on unload"
+        );
+        assert_eq!(with_channel(&engine, 0, |c| c.volume()), 0.4);
+        assert_eq!(with_channel(&engine, 0, |c| c.filter_db()), 5.0);
+        assert_eq!(with_channel(&engine, 0, |c| c.gain_trim_db()), 1.5);
+        assert!(with_channel(&engine, 0, |c| c.headphone_cue()));
+        assert_eq!(
+            with_channel(&engine, 0, |c| c.eq_gains()),
+            DeckEqGains::clamped(2.0, -1.0, 3.0)
+        );
+
+        engine.stop().unwrap();
     }
 
     #[test]

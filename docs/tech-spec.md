@@ -84,10 +84,12 @@ rust-dj-engine/ (Cargo workspace)
 │  ├─ producer.rs      # ring buffer, MasterStreamSetup, producer thread loop
 │  ├─ callback.rs      # ConsumerCallback (ring-buffer consumer)
 │  └─ audio_source/    # FileAudioSource; re-exports AudioSource / LoadedAudio
-├─ engine-dsp/         # pure DSP: deck, mixer (no I/O)
+├─ engine-dsp/         # pure DSP: deck, mixer channel graph (no I/O)
 │  ├─ lib.rs           # DspEngine
-│  ├─ deck.rs
-│  └─ mixer.rs
+│  ├─ deck.rs          # playback/transport only
+│  ├─ mixer_lane.rs    # graph node: deck + strip
+│  ├─ mixer_channel.rs # per-lane strip (gain/EQ/filter/VU/fader)
+│  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
 ├─ codec/              # decoder wrapper (symphonia)
 ├─ resampler/          # resampler trait + rubato impl (pluggable)
 ├─ library-core/       # Library traits + Collection/Track types
@@ -106,8 +108,8 @@ rust-dj-engine/ (Cargo workspace)
 AudioSource (e.g. FileAudioSource)
         │ load() → LoadedAudio
         ▼
-   Engine::load_track → Deck (engine-dsp)
-        │  (samples at native rate; deck resamples at playback)
+   Engine::load_track → Deck (dry playback) + MixerChannel (auto gain)
+        │  (deck resamples at playback; channel applies gain/EQ/filter/fader)
         ▼
 Producer thread ──► ring buffer ──► audio callback (backend)
    (DspEngine::process)              (ConsumerCallback)

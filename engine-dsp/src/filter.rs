@@ -2,7 +2,7 @@
 
 use audio_core::Sample;
 
-use crate::eq::{clamp_gain_db, EQ_MAX_DB, EQ_MIN_DB};
+use crate::eq::{clamp_gain_db, EQ_MAX_DB};
 
 const LP_CUTOFF_HZ: f32 = 180.0;
 const HP_CUTOFF_HZ: f32 = 1_800.0;
@@ -184,6 +184,7 @@ pub fn db_to_linear(db: f32) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::eq::EQ_MIN_DB;
 
     #[test]
     fn bypass_is_identity() {

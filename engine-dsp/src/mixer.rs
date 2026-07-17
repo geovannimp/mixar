@@ -1,43 +1,30 @@
-//! Audio mixer for routing and mixing multiple decks
+//! Audio mixer for routing and mixing multiple lanes
 //!
-//! Implemented with [dasp_graph](https://docs.rs/dasp_graph/latest/dasp_graph/): deck sources
-//! feed into a Sum node; output is read from the sum and routed to buses with volume and clamp.
+//! Each [`MixerLane`] is a graph node that owns its deck + strip. The mixer
+//! renders lanes, applies crossfader gains when summing, then routes buses.
 
 use anyhow::Result;
 use audio_core::{slice as audio_slice, BusId, Frame, Sample, StereoFrame};
-use dasp_graph::node::Sum;
 use dasp_graph::{process, Buffer, Input, Node, NodeData, Processor};
 use petgraph::graph::DiGraph;
 use std::collections::HashMap;
 
-use crate::deck::{Deck, DeckState};
-use crate::HeadphoneMonitor;
+use crate::mixer_lane::MixerLane;
+use crate::{HeadphoneMonitor, MixerChannel};
 
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
 const CHUNK_SAMPLES: usize = Buffer::LEN;
 
-/// Source node that outputs pre-filled buffers (filled by the mixer before each process).
-#[derive(Clone, Debug, Default)]
-pub struct DeckSourceNode;
-
-impl Node for DeckSourceNode {
-    fn process(&mut self, _inputs: &[Input], _output: &mut [Buffer]) {
-        // Buffers are filled by the mixer from deck output before process() is called.
-    }
-}
-
-/// Node type in the mixer graph: either a deck source or the sum.
-#[derive(Clone, Debug)]
+/// Node type in the mixer graph (one lane per deck slot).
+#[derive(Debug)]
 pub enum MixerNode {
-    DeckSource(DeckSourceNode),
-    Sum(Sum),
+    Lane(MixerLane),
 }
 
 impl Node for MixerNode {
     fn process(&mut self, inputs: &[Input], output: &mut [Buffer]) {
         match self {
-            MixerNode::DeckSource(n) => n.process(inputs, output),
-            MixerNode::Sum(n) => n.process(inputs, output),
+            MixerNode::Lane(n) => n.process(inputs, output),
         }
     }
 }
@@ -45,7 +32,7 @@ impl Node for MixerNode {
 /// Graph type: directed graph with NodeData<MixerNode>, no edge weight.
 type MixerGraph = DiGraph<NodeData<MixerNode>, (), u32>;
 
-/// Audio mixer implemented as a dasp_graph (deck sources -> Sum -> buses).
+/// Audio mixer: process lanes, crossfade-sum, then route buses.
 pub struct Mixer {
     master_volume: f32,
     cue_volume: f32,
@@ -53,18 +40,16 @@ pub struct Mixer {
     master_cue: bool,
     /// Crossfader position: 0.0 = deck A, 1.0 = deck B.
     crossfader: f32,
-    /// Internal mix buffer (interleaved stereo) filled from the graph output.
+    /// Internal mix buffer (interleaved stereo) filled from lane outputs.
     mix_buffer: Vec<Sample>,
     /// Reusable scratch for PFL sum before HeadphoneMonitor blend.
     pfl_scratch: Vec<Sample>,
-    /// Graph: deck source nodes + sum node.
+    /// Graph: one lane node per slot.
     graph: MixerGraph,
-    /// Processor for running the graph (reused to avoid allocs).
+    /// Processor for running lane nodes (reused to avoid allocs).
     processor: Processor<MixerGraph>,
-    /// Node index for each deck source (graph node id).
-    deck_node_ids: Vec<petgraph::graph::NodeIndex>,
-    /// Node index for the sum (sink we process to).
-    sum_node_id: petgraph::graph::NodeIndex,
+    /// Node index for each lane.
+    lane_node_ids: Vec<petgraph::graph::NodeIndex>,
 }
 
 impl std::fmt::Debug for Mixer {
@@ -75,30 +60,31 @@ impl std::fmt::Debug for Mixer {
             .field("cue_mix", &self.cue_mix)
             .field("master_cue", &self.master_cue)
             .field("crossfader", &self.crossfader)
+            .field("lane_count", &self.lane_node_ids.len())
             .field("mix_buffer_len", &self.mix_buffer.len())
-            .field("deck_node_count", &self.deck_node_ids.len())
             .finish()
     }
 }
 
 impl Mixer {
-    /// Create a new mixer with a fixed number of deck slots (sources in the graph).
-    pub fn new() -> Self {
-        let max_decks = 2;
-        let mut graph = MixerGraph::with_capacity(max_decks + 1, max_decks + 1);
-        let mut deck_node_ids = Vec::with_capacity(max_decks);
+    /// Create a mixer with one lane graph node per slot.
+    pub fn new(
+        sample_rate: u32,
+        buffer_size: u32,
+        num_lanes: usize,
+        resampler_quality: &str,
+    ) -> Self {
+        let buffer_size = buffer_size.max(1);
+        let mut graph = MixerGraph::with_capacity(num_lanes, 0);
+        let mut lane_node_ids = Vec::with_capacity(num_lanes);
 
-        for _ in 0..max_decks {
-            let id = graph.add_node(NodeData::new2(MixerNode::DeckSource(DeckSourceNode)));
-            deck_node_ids.push(id);
+        for i in 0..num_lanes {
+            let lane = MixerLane::new(i, sample_rate, buffer_size, resampler_quality);
+            let lane_id = graph.add_node(NodeData::new2(MixerNode::Lane(lane)));
+            lane_node_ids.push(lane_id);
         }
-        let sum_node_id = graph.add_node(NodeData::new2(MixerNode::Sum(Sum)));
 
-        for &deck_id in &deck_node_ids {
-            graph.add_edge(deck_id, sum_node_id, ());
-        }
-
-        let processor = Processor::with_capacity(max_decks + 1);
+        let processor = Processor::with_capacity(num_lanes.max(1));
 
         Self {
             master_volume: 1.0,
@@ -110,9 +96,39 @@ impl Mixer {
             pfl_scratch: Vec::new(),
             graph,
             processor,
-            deck_node_ids,
-            sum_node_id,
+            lane_node_ids,
         }
+    }
+
+    /// Number of lanes (deck + channel pairs).
+    pub fn num_lanes(&self) -> usize {
+        self.lane_node_ids.len()
+    }
+
+    /// Get a mixer lane by index.
+    pub fn lane(&self, index: usize) -> Option<&MixerLane> {
+        let node_id = *self.lane_node_ids.get(index)?;
+        match &self.graph.node_weight(node_id)?.node {
+            MixerNode::Lane(lane) => Some(lane),
+        }
+    }
+
+    /// Get a mutable mixer lane by index.
+    pub fn lane_mut(&mut self, index: usize) -> Option<&mut MixerLane> {
+        let node_id = *self.lane_node_ids.get(index)?;
+        match &mut self.graph.node_weight_mut(node_id)?.node {
+            MixerNode::Lane(lane) => Some(lane),
+        }
+    }
+
+    /// Get a mixer channel by index (strip owned by the lane).
+    pub fn channel(&self, index: usize) -> Option<&MixerChannel> {
+        self.lane(index).map(|lane| lane.channel())
+    }
+
+    /// Get a mutable mixer channel by index.
+    pub fn channel_mut(&mut self, index: usize) -> Option<&mut MixerChannel> {
+        self.lane_mut(index).map(|lane| lane.channel_mut())
     }
 
     /// Get the master volume
@@ -188,10 +204,9 @@ impl Mixer {
         (angle.cos(), angle.sin())
     }
 
-    /// Process audio from all decks through the graph and route to output buses.
+    /// Process audio from all lanes, apply crossfader when summing, and route buses.
     pub fn process(
         &mut self,
-        decks: &mut [Deck],
         frames: u32,
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
@@ -199,79 +214,44 @@ impl Mixer {
         self.mix_buffer.resize(buffer_size, 0.0);
         self.mix_buffer.fill(0.0);
 
-        // Collect deck outputs (interleaved stereo) so we can chunk without re-calling process.
-        let mut deck_buffers: Vec<Vec<Sample>> = Vec::with_capacity(decks.len());
-        for deck in decks.iter_mut() {
-            let out = deck.process(frames)?;
-            deck_buffers.push(out.to_vec());
+        for i in 0..self.lane_node_ids.len() {
+            self.lane_mut(i)
+                .expect("lane node index must identify a lane")
+                .begin_render(frames)?;
         }
 
         let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
-        for (i, deck_buf) in deck_buffers.iter_mut().enumerate() {
-            let gain = match i {
-                0 => gain_a,
-                1 => gain_b,
-                _ => 1.0,
-            };
-            if gain != 1.0 {
-                for sample in deck_buf.iter_mut() {
-                    *sample *= gain;
-                }
-            }
-        }
-
         let n_samples_per_channel = frames as usize;
         let n_chunks = n_samples_per_channel.div_ceil(CHUNK_SAMPLES);
 
         for chunk in 0..n_chunks {
             let start = chunk * CHUNK_SAMPLES;
             let len = (n_samples_per_channel - start).min(CHUNK_SAMPLES);
-
-            // Fill each deck source node's buffers from deck output for this chunk.
-            for (i, deck_buf) in deck_buffers.iter().enumerate() {
-                if i >= self.deck_node_ids.len() {
-                    break;
-                }
-                let node_id = self.deck_node_ids[i];
-                let node_data = self.graph.node_weight_mut(node_id).unwrap();
-                let buffers = &mut node_data.buffers;
-                if buffers.len() >= 2 {
-                    let (ch0, ch1) = buffers.split_at_mut(1);
-                    let left = &mut ch0[0];
-                    let right = &mut ch1[0];
-                    for (s, (l, r)) in left[..len]
-                        .iter_mut()
-                        .zip(right[..len].iter_mut())
-                        .enumerate()
-                    {
-                        let interleaved_idx = (start + s) * 2;
-                        if interleaved_idx + 1 < deck_buf.len() {
-                            *l = deck_buf[interleaved_idx];
-                            *r = deck_buf[interleaved_idx + 1];
-                        }
-                    }
-                    if len < CHUNK_SAMPLES {
-                        left[len..CHUNK_SAMPLES].fill(0.0);
-                        right[len..CHUNK_SAMPLES].fill(0.0);
-                    }
-                }
-            }
-
-            // Run the graph: sources -> Sum.
-            process(&mut self.processor, &mut self.graph, self.sum_node_id);
-
-            // Copy sum output into mix_buffer for this chunk.
-            let sum_data = self.graph.node_weight(self.sum_node_id).unwrap();
             let out_start = chunk * CHUNK_SAMPLES * 2;
-            for s in 0..len {
-                if sum_data.buffers.len() >= 2 && out_start + s * 2 + 1 < self.mix_buffer.len() {
-                    self.mix_buffer[out_start + s * 2] = sum_data.buffers[0][s];
-                    self.mix_buffer[out_start + s * 2 + 1] = sum_data.buffers[1][s];
+
+            for (i, &lane_id) in self.lane_node_ids.iter().enumerate() {
+                process(&mut self.processor, &mut self.graph, lane_id);
+
+                let gain = match i {
+                    0 => gain_a,
+                    1 => gain_b,
+                    _ => 1.0,
+                };
+                let lane_data = self.graph.node_weight(lane_id).unwrap();
+                if lane_data.buffers.len() < 2 {
+                    continue;
+                }
+                for s in 0..len {
+                    let out = out_start + s * 2;
+                    if out + 1 < self.mix_buffer.len() {
+                        self.mix_buffer[out] += lane_data.buffers[0][s] * gain;
+                        self.mix_buffer[out + 1] += lane_data.buffers[1][s] * gain;
+                    }
                 }
             }
         }
 
-        self.route_to_buses(frames, decks, output_buses)?;
+        self.route_to_buses(frames, output_buses)?;
         Ok(())
     }
 
@@ -279,7 +259,6 @@ impl Mixer {
     fn route_to_buses(
         &mut self,
         frames: u32,
-        decks: &[Deck],
         output_buses: &mut HashMap<BusId, Vec<Sample>>,
     ) -> Result<()> {
         let required_size = frames as usize * 2;
@@ -294,12 +273,22 @@ impl Mixer {
                 "cue" => {
                     self.pfl_scratch.resize(required_size, 0.0);
                     self.pfl_scratch.fill(0.0);
-                    for deck in decks {
-                        if deck.headphone_cue() && deck.state() == &DeckState::Playing {
-                            let pre_fader = deck.pre_fader_buffer();
+                    let graph = &self.graph;
+                    let pfl_scratch = &mut self.pfl_scratch;
+                    for &node_id in &self.lane_node_ids {
+                        let lane = match &graph
+                            .node_weight(node_id)
+                            .expect("lane node index must be valid")
+                            .node
+                        {
+                            MixerNode::Lane(lane) => lane,
+                        };
+                        let channel = lane.channel();
+                        if channel.headphone_cue() {
+                            let pre_fader = channel.pre_fader_buffer();
                             for (i, &sample) in pre_fader.iter().enumerate() {
-                                if i < self.pfl_scratch.len() {
-                                    self.pfl_scratch[i] += sample;
+                                if i < pfl_scratch.len() {
+                                    pfl_scratch[i] += sample;
                                 }
                             }
                         }
@@ -351,16 +340,41 @@ mod tests {
     use audio_core::LoadedAudio;
     use std::sync::Arc;
 
+    fn new_mixer(num_lanes: usize) -> Mixer {
+        Mixer::new(48_000, 512, num_lanes, "medium")
+    }
+
+    fn load_test_tone(mixer: &mut Mixer, lane: usize) {
+        let audio = LoadedAudio {
+            samples: vec![0.8f32; 4096 * 2],
+            sample_rate: 48000,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        };
+        mixer
+            .lane_mut(lane)
+            .unwrap()
+            .deck_mut()
+            .load(Arc::new(audio))
+            .unwrap();
+    }
+
     #[test]
     fn test_mixer_creation() {
-        let mixer = Mixer::new();
+        let mixer = new_mixer(2);
         assert_eq!(mixer.master_volume(), 1.0);
         assert_eq!(mixer.cue_volume(), 1.0);
+        assert_eq!(mixer.num_lanes(), 2);
+        assert!(mixer.lane(0).is_some());
+        assert!(mixer.channel(0).is_some());
+        assert!(mixer.channel(1).is_some());
+        assert!(mixer.channel(2).is_none());
+        assert!(mixer.lane(2).is_none());
     }
 
     #[test]
     fn test_mixer_volume_controls() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(2);
         mixer.set_master_volume(0.5).unwrap();
         assert_eq!(mixer.master_volume(), 0.5);
         mixer.set_cue_volume(0.7).unwrap();
@@ -369,32 +383,17 @@ mod tests {
         assert!(mixer.set_master_volume(1.1).is_err());
     }
 
-    fn load_test_tone(deck: &mut Deck) {
-        // Longer than one mixer callback so multi-pass tests don't hit track-end.
-        let audio = LoadedAudio {
-            samples: vec![0.8f32; 4096 * 2],
-            sample_rate: 48000,
-            channels: 2,
-            source_id: "test.wav".to_string(),
-        };
-        deck.load(Arc::new(audio), 0.0).unwrap();
-    }
-
     #[test]
     fn test_mixer_processing() {
-        let mut mixer = Mixer::new();
-        let mut decks = vec![
-            Deck::new(0, 48000, 512, "medium"),
-            Deck::new(1, 48000, 512, "medium"),
-        ];
-        load_test_tone(&mut decks[0]);
-        decks[0].play().unwrap();
+        let mut mixer = new_mixer(2);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
 
-        let result = mixer.process(&mut decks, 512, &mut output_buses);
+        let result = mixer.process(512, &mut output_buses);
         assert!(result.is_ok());
 
         let master_audio = &output_buses[&BusId::new("master")];
@@ -406,14 +405,14 @@ mod tests {
 
     #[test]
     fn cue_mix_and_master_cue_defaults() {
-        let mixer = Mixer::new();
+        let mixer = new_mixer(2);
         assert_eq!(mixer.cue_mix(), 0.0);
         assert!(!mixer.master_cue());
     }
 
     #[test]
     fn set_cue_mix_rejects_out_of_range() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(2);
         assert!(mixer.set_cue_mix(-0.1).is_err());
         assert!(mixer.set_cue_mix(1.1).is_err());
         mixer.set_cue_mix(0.5).unwrap();
@@ -422,21 +421,19 @@ mod tests {
 
     #[test]
     fn master_cue_on_mix_one_hears_master_without_pfl() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(1);
         mixer.set_master_cue(true);
         mixer.set_cue_mix(1.0).unwrap();
-        mixer.set_master_volume(0.25).unwrap(); // room quieter; cue tap must ignore this
+        mixer.set_master_volume(0.25).unwrap();
         mixer.set_cue_volume(1.0).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
-        load_test_tone(&mut decks[0]);
-        decks[0].play().unwrap();
-        // no headphone_cue
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let cue_max = output_buses[&BusId::new("cue")]
             .iter()
@@ -461,18 +458,17 @@ mod tests {
 
     #[test]
     fn master_cue_off_mix_one_stays_silent_without_pfl() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(1);
         mixer.set_master_cue(false);
         mixer.set_cue_mix(1.0).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
-        load_test_tone(&mut decks[0]);
-        decks[0].play().unwrap();
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let cue_max = output_buses[&BusId::new("cue")]
             .iter()
@@ -487,16 +483,14 @@ mod tests {
 
     #[test]
     fn cue_bus_silent_when_no_headphone_cue() {
-        let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
-        load_test_tone(&mut decks[0]);
-        decks[0].play().unwrap();
-        // headphone_cue stays false
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let cue_max = output_buses[&BusId::new("cue")]
             .iter()
@@ -510,17 +504,16 @@ mod tests {
 
     #[test]
     fn cue_bus_sums_pre_fader_when_cued() {
-        let mut mixer = Mixer::new();
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
-        load_test_tone(&mut decks[0]);
-        decks[0].set_volume(0.0).unwrap(); // master silent
-        decks[0].set_headphone_cue(true);
-        decks[0].play().unwrap();
+        let mut mixer = new_mixer(1);
+        load_test_tone(&mut mixer, 0);
+        mixer.channel_mut(0).unwrap().set_volume(0.0).unwrap();
+        mixer.channel_mut(0).unwrap().set_headphone_cue(true);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let master_max = output_buses[&BusId::new("master")]
             .iter()
@@ -540,20 +533,19 @@ mod tests {
 
     #[test]
     fn test_mixer_volume_application() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(1);
         mixer.set_master_volume(0.5).unwrap();
         mixer.set_cue_volume(0.3).unwrap();
 
-        let mut decks = vec![Deck::new(0, 48000, 512, "medium")];
-        load_test_tone(&mut decks[0]);
-        decks[0].set_headphone_cue(true);
-        decks[0].play().unwrap();
+        load_test_tone(&mut mixer, 0);
+        mixer.channel_mut(0).unwrap().set_headphone_cue(true);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
 
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let master_audio = &output_buses[&BusId::new("master")];
         let cue_audio = &output_buses[&BusId::new("cue")];
@@ -566,20 +558,16 @@ mod tests {
 
     #[test]
     fn test_mixer_multiple_decks() {
-        let mut mixer = Mixer::new();
-        let mut decks = vec![
-            Deck::new(0, 48000, 512, "medium"),
-            Deck::new(1, 48000, 512, "medium"),
-        ];
-        load_test_tone(&mut decks[0]);
-        load_test_tone(&mut decks[1]);
-        decks[0].play().unwrap();
-        decks[1].play().unwrap();
+        let mut mixer = new_mixer(2);
+        load_test_tone(&mut mixer, 0);
+        load_test_tone(&mut mixer, 1);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.lane_mut(1).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
 
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
 
         let master_audio = &output_buses[&BusId::new("master")];
         assert!(master_audio.iter().any(|&s| s != 0.0));
@@ -601,35 +589,30 @@ mod tests {
 
     #[test]
     fn test_crossfader_attenuates_deck() {
-        let mut mixer = Mixer::new();
+        let mut mixer = new_mixer(2);
         mixer.set_crossfader(0.0).unwrap();
 
-        let mut decks = vec![
-            Deck::new(0, 48000, 512, "medium"),
-            Deck::new(1, 48000, 512, "medium"),
-        ];
-        load_test_tone(&mut decks[0]);
-        load_test_tone(&mut decks[1]);
-        decks[0].play().unwrap();
-        decks[1].play().unwrap();
+        load_test_tone(&mut mixer, 0);
+        load_test_tone(&mut mixer, 1);
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.lane_mut(1).unwrap().deck_mut().play().unwrap();
 
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
 
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
         let full_a = output_buses[&BusId::new("master")]
             .iter()
             .map(|s| s.abs())
             .fold(0.0_f32, f32::max);
 
-        decks[0].seek(0).unwrap();
-        decks[1].seek(0).unwrap();
-        // Seek does not resume playback after TrackEnded / pause.
-        decks[0].play().unwrap();
-        decks[1].play().unwrap();
+        mixer.lane_mut(0).unwrap().deck_mut().seek(0).unwrap();
+        mixer.lane_mut(1).unwrap().deck_mut().seek(0).unwrap();
+        mixer.lane_mut(0).unwrap().deck_mut().play().unwrap();
+        mixer.lane_mut(1).unwrap().deck_mut().play().unwrap();
         mixer.set_crossfader(1.0).unwrap();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
-        mixer.process(&mut decks, 512, &mut output_buses).unwrap();
+        mixer.process(512, &mut output_buses).unwrap();
         let full_b = output_buses[&BusId::new("master")]
             .iter()
             .map(|s| s.abs())

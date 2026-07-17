@@ -1,11 +1,8 @@
 //! Audio deck implementation for DJ-style playback
 //!
-//! A deck represents a single audio playback unit with controls for
-//! play/pause, volume, pitch, and other DJ-style features.
+//! A deck represents a single audio playback unit with transport and
+//! playback-speed controls.
 
-use crate::eq::{DeckEqGains, ThreeBandEq};
-use crate::filter::{db_to_linear, DjFilter};
-use crate::level_meter::LevelPeaks;
 use crate::transport::DeckTransportEvent;
 use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
@@ -37,16 +34,6 @@ pub struct Deck {
     position_frac: f64,
     /// Playback speed (1.0 = normal speed)
     speed: f32,
-    /// Volume level (0.0 to 1.0)
-    volume: f32,
-    /// Three-band channel EQ
-    eq: ThreeBandEq,
-    /// DJ-style HP/LP filter (mixer FLT knob).
-    filter: DjFilter,
-    /// Pre-fader gain trim in decibels.
-    gain_trim_db: f32,
-    /// Automatic loudness normalization gain in decibels.
-    auto_gain_db: f32,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -69,12 +56,6 @@ pub struct Deck {
     cue_hold_return: Option<(f64, bool)>,
     /// Events to deliver to the engine notifier after processing.
     pending_transport: Vec<DeckTransportEvent>,
-    /// Pre-fader peak levels from the last process cycle.
-    level_peaks: LevelPeaks,
-    /// Whether this deck is routed to the headphone cue bus.
-    headphone_cue: bool,
-    /// Last process buffer after trim/EQ/filter, before volume.
-    pre_fader_buffer: Vec<Sample>,
 }
 
 impl fmt::Debug for Deck {
@@ -84,7 +65,6 @@ impl fmt::Debug for Deck {
             .field("state", &self.state)
             .field("position", &self.position)
             .field("speed", &self.speed)
-            .field("volume", &self.volume)
             .field("sample_rate", &self.sample_rate)
             .field("buffer_size", &self.buffer_size)
             .field("processing", &self.processing)
@@ -110,11 +90,6 @@ impl Deck {
             position: 0,
             position_frac: 0.0,
             speed: 1.0,
-            volume: 1.0,
-            eq: ThreeBandEq::new(sample_rate),
-            filter: DjFilter::new(sample_rate),
-            gain_trim_db: 0.0,
-            auto_gain_db: 0.0,
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -126,9 +101,6 @@ impl Deck {
             cue_point_secs: None,
             cue_hold_return: None,
             pending_transport: Vec::new(),
-            level_peaks: LevelPeaks::default(),
-            headphone_cue: false,
-            pre_fader_buffer: Vec::new(),
         }
     }
 
@@ -193,77 +165,6 @@ impl Deck {
         self.speed
     }
 
-    /// Get the current volume
-    pub fn volume(&self) -> f32 {
-        self.volume
-    }
-
-    /// Get the current EQ gains.
-    pub fn eq_gains(&self) -> DeckEqGains {
-        self.eq.gains()
-    }
-
-    /// Set all EQ band gains at once.
-    pub fn set_eq_gains(&mut self, gains: DeckEqGains) -> Result<()> {
-        self.eq.set_gains(gains)
-    }
-
-    /// Set low-band EQ gain in decibels.
-    pub fn set_eq_low_db(&mut self, gain_db: f32) -> Result<()> {
-        self.eq.set_low_db(gain_db)
-    }
-
-    /// Set mid-band EQ gain in decibels.
-    pub fn set_eq_mid_db(&mut self, gain_db: f32) -> Result<()> {
-        self.eq.set_mid_db(gain_db)
-    }
-
-    /// Set high-band EQ gain in decibels.
-    pub fn set_eq_high_db(&mut self, gain_db: f32) -> Result<()> {
-        self.eq.set_high_db(gain_db)
-    }
-
-    /// Set DJ filter position in decibels (negative = LP, positive = HP).
-    pub fn set_filter_db(&mut self, filter_db: f32) -> Result<()> {
-        self.filter.set_filter_db(filter_db);
-        Ok(())
-    }
-
-    pub fn filter_db(&self) -> f32 {
-        self.filter.filter_db()
-    }
-
-    /// Set pre-fader gain trim in decibels.
-    pub fn set_gain_trim_db(&mut self, gain_db: f32) -> Result<()> {
-        self.gain_trim_db = crate::eq::clamp_gain_db(gain_db);
-        Ok(())
-    }
-
-    pub fn gain_trim_db(&self) -> f32 {
-        self.gain_trim_db
-    }
-
-    pub fn auto_gain_db(&self) -> f32 {
-        self.auto_gain_db
-    }
-
-    /// Pre-fader peak levels from the last process cycle.
-    pub fn level_peaks(&self) -> LevelPeaks {
-        self.level_peaks
-    }
-
-    pub fn set_headphone_cue(&mut self, enabled: bool) {
-        self.headphone_cue = enabled;
-    }
-
-    pub fn headphone_cue(&self) -> bool {
-        self.headphone_cue
-    }
-
-    pub fn pre_fader_buffer(&self) -> &[Sample] {
-        &self.pre_fader_buffer
-    }
-
     /// Start playback
     pub fn play(&mut self) -> Result<()> {
         log::info!(
@@ -297,15 +198,6 @@ impl Deck {
             return Err(anyhow::anyhow!("Speed cannot be negative"));
         }
         self.speed = speed;
-        Ok(())
-    }
-
-    /// Set volume level
-    pub fn set_volume(&mut self, volume: f32) -> Result<()> {
-        if !(0.0..=1.0).contains(&volume) {
-            return Err(anyhow::anyhow!("Volume must be between 0.0 and 1.0"));
-        }
-        self.volume = volume;
         Ok(())
     }
 
@@ -443,15 +335,12 @@ impl Deck {
     }
 
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
-    ///
-    /// `auto_gain_db` is the offline loudness-normalization offset for this load (pass `0.0` when unused).
-    pub fn load(&mut self, audio: Arc<LoadedAudio>, auto_gain_db: f32) -> Result<()> {
+    pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
         self.position = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
         self.cue_point_secs = Some(0.0);
         self.cue_hold_return = None;
-        self.auto_gain_db = crate::eq::clamp_gain_db(auto_gain_db);
         self.loaded = Some(audio);
         self.create_resampler()?;
 
@@ -502,7 +391,6 @@ impl Deck {
             // after playback the buffer may already be the right length with stale audio.
             self.buffer.resize(frames as usize * 2, 0.0);
             self.buffer.fill(0.0);
-            self.level_peaks = LevelPeaks::default();
             return Ok(&self.buffer);
         }
 
@@ -545,20 +433,6 @@ impl Deck {
                 );
             }
             self.buffer.fill(0.0);
-        }
-
-        // Apply gain trim, channel EQ, filter, then volume.
-        let trim = db_to_linear(self.auto_gain_db + self.gain_trim_db);
-        for sample in &mut self.buffer {
-            *sample *= trim;
-        }
-        self.eq.process_buffer(&mut self.buffer);
-        self.filter.process_buffer(&mut self.buffer);
-        self.level_peaks = LevelPeaks::from_buffer(&self.buffer);
-        self.pre_fader_buffer.resize(self.buffer.len(), 0.0);
-        self.pre_fader_buffer.copy_from_slice(&self.buffer);
-        for sample in &mut self.buffer {
-            *sample *= self.volume;
         }
 
         self.check_track_end();
@@ -741,22 +615,13 @@ mod tests {
     }
 
     fn load_test_samples(deck: &mut Deck, samples: Vec<Sample>, sample_rate: u32) {
-        load_test_samples_with_auto_gain(deck, samples, sample_rate, 0.0);
-    }
-
-    fn load_test_samples_with_auto_gain(
-        deck: &mut Deck,
-        samples: Vec<Sample>,
-        sample_rate: u32,
-        auto_gain_db: f32,
-    ) {
         let audio = LoadedAudio {
             samples,
             sample_rate,
             channels: 2,
             source_id: "test.wav".to_string(),
         };
-        deck.load(Arc::new(audio), auto_gain_db).unwrap();
+        deck.load(Arc::new(audio)).unwrap();
     }
 
     #[test]
@@ -766,7 +631,6 @@ mod tests {
         assert_eq!(deck.state(), &DeckState::Stopped);
         assert_eq!(deck.position(), 0);
         assert_eq!(deck.speed(), 1.0);
-        assert_eq!(deck.volume(), 1.0);
     }
 
     #[test]
@@ -800,19 +664,6 @@ mod tests {
     }
 
     #[test]
-    fn test_deck_volume_control() {
-        let mut deck = new_deck(CHUNK);
-
-        // Test valid volume
-        deck.set_volume(0.5).unwrap();
-        assert_eq!(deck.volume(), 0.5);
-
-        // Test invalid volume
-        assert!(deck.set_volume(-0.1).is_err());
-        assert!(deck.set_volume(1.1).is_err());
-    }
-
-    #[test]
     fn test_deck_seek() {
         let mut deck = new_deck(CHUNK);
 
@@ -842,73 +693,15 @@ mod tests {
     }
 
     #[test]
-    fn headphone_cue_defaults_false_and_toggles() {
-        let mut deck = Deck::new(0, 48000, 512, "medium");
-        assert!(!deck.headphone_cue());
-        deck.set_headphone_cue(true);
-        assert!(deck.headphone_cue());
-    }
-
-    #[test]
-    fn pre_fader_buffer_ignores_volume() {
-        let frames = 64u32;
-        let mut deck = new_deck(frames);
-        let mut samples = Vec::with_capacity(frames as usize * 2);
-        for _ in 0..frames {
-            samples.push(0.5);
-            samples.push(-0.25);
-        }
-        load_test_samples(&mut deck, samples, ENGINE_RATE);
-        deck.set_volume(0.0).unwrap();
+    fn process_returns_dry_playback_samples() {
+        let mut deck = new_deck(2);
+        let samples = vec![0.25, -0.5, 0.75, -1.0];
+        load_test_samples(&mut deck, samples.clone(), ENGINE_RATE);
         deck.play().unwrap();
 
-        deck.process(frames).unwrap();
-        let pre = deck.pre_fader_buffer();
-        assert!(!pre.is_empty());
-        let peak = pre.iter().copied().map(f32::abs).fold(0.0_f32, f32::max);
-        assert!(
-            peak > 0.4,
-            "pre-fader should stay audible when volume is 0, got {}",
-            peak
-        );
-    }
+        let output = deck.process(2).unwrap();
 
-    #[test]
-    fn levels_measure_pre_volume() {
-        let frames = 64u32;
-        let mut deck = new_deck(frames);
-        let mut samples = Vec::with_capacity(frames as usize * 2);
-        for _ in 0..frames {
-            samples.push(0.5);
-            samples.push(-0.25);
-        }
-        load_test_samples(&mut deck, samples, ENGINE_RATE);
-        deck.set_volume(0.0).unwrap();
-        deck.play().unwrap();
-
-        deck.process(frames).unwrap();
-        let peaks = deck.level_peaks();
-        assert!(
-            peaks.peak_l > 0.4,
-            "pre-fader peak_l should reflect source level, got {}",
-            peaks.peak_l
-        );
-        assert!(
-            peaks.peak_r > 0.2,
-            "pre-fader peak_r should reflect source level, got {}",
-            peaks.peak_r
-        );
-    }
-
-    #[test]
-    fn test_deck_volume_application() {
-        let mut deck = new_deck(CHUNK);
-        load_test_samples(&mut deck, vec![0.1f32; CHUNK as usize * 2], ENGINE_RATE);
-        deck.set_volume(0.5).unwrap();
-        deck.play().unwrap();
-
-        let audio = deck.process(CHUNK).unwrap();
-        assert!(audio.iter().all(|&s| s.abs() <= 0.05)); // Max amplitude should be 0.1 * 0.5
+        assert_eq!(output, samples);
     }
 
     #[test]
@@ -1019,8 +812,8 @@ mod tests {
 
         let mut deck_a = new_deck(CHUNK);
         let mut deck_b = new_deck(CHUNK);
-        deck_a.load(Arc::clone(&audio), 0.0).unwrap();
-        deck_b.load(Arc::clone(&audio), 0.0).unwrap();
+        deck_a.load(Arc::clone(&audio)).unwrap();
+        deck_b.load(Arc::clone(&audio)).unwrap();
 
         assert!(Arc::ptr_eq(
             deck_a.loaded_audio().unwrap(),
@@ -1043,50 +836,6 @@ mod tests {
             paused.iter().all(|&s| s == 0.0),
             "paused deck must output silence, got stale samples: max={}",
             paused.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
-        );
-    }
-
-    #[test]
-    fn auto_gain_defaults_zero_and_adds_to_trim() {
-        let frames = 64u32;
-        let mut samples = Vec::with_capacity(frames as usize * 2);
-        for _ in 0..frames {
-            samples.push(0.25);
-            samples.push(-0.25);
-        }
-
-        let mut deck_baseline = Deck::new(0, 48000, 512, "medium");
-        assert_eq!(deck_baseline.auto_gain_db(), 0.0);
-        load_test_samples(&mut deck_baseline, samples.clone(), ENGINE_RATE);
-        deck_baseline.set_volume(1.0).unwrap();
-        deck_baseline.set_gain_trim_db(0.0).unwrap();
-        deck_baseline.play().unwrap();
-        deck_baseline.process(frames).unwrap();
-        let peak_baseline = deck_baseline
-            .pre_fader_buffer()
-            .iter()
-            .copied()
-            .map(f32::abs)
-            .fold(0.0_f32, f32::max);
-
-        let mut deck_boosted = Deck::new(1, 48000, 512, "medium");
-        load_test_samples_with_auto_gain(&mut deck_boosted, samples, ENGINE_RATE, 6.0);
-        deck_boosted.set_volume(1.0).unwrap();
-        deck_boosted.set_gain_trim_db(0.0).unwrap();
-        assert_eq!(deck_boosted.auto_gain_db(), 6.0);
-        deck_boosted.play().unwrap();
-        deck_boosted.process(frames).unwrap();
-        let peak_boosted = deck_boosted
-            .pre_fader_buffer()
-            .iter()
-            .copied()
-            .map(f32::abs)
-            .fold(0.0_f32, f32::max);
-
-        let ratio = peak_boosted / peak_baseline;
-        assert!(
-            (ratio - 2.0).abs() < 0.15,
-            "+6 dB auto gain should roughly double peak (ratio {ratio:.3})"
         );
     }
 

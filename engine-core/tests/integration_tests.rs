@@ -26,7 +26,11 @@ fn test_engine_with_null_backend() -> Result<()> {
     engine.start()?;
 
     // Test basic operations
-    engine.load_track(0, Arc::new(FileAudioSource::from_path("test.mp3").load()?), 0.0)?;
+    engine.load_track(
+        0,
+        Arc::new(FileAudioSource::from_path("test.mp3").load()?),
+        0.0,
+    )?;
     engine.play(0)?;
     engine.pause(0)?;
     engine.stop()?;
@@ -105,7 +109,11 @@ fn test_engine_deck_operations() -> Result<()> {
     assert!(engine.play(0).is_ok());
     assert!(engine.pause(0).is_ok());
     assert!(engine
-        .load_track(0, Arc::new(FileAudioSource::from_path("test.mp3").load()?), 0.0)
+        .load_track(
+            0,
+            Arc::new(FileAudioSource::from_path("test.mp3").load()?),
+            0.0
+        )
         .is_ok());
 
     // Test invalid deck
@@ -149,7 +157,11 @@ fn test_producer_consumer_architecture() -> Result<()> {
     // Test that we can perform operations while the engine is running
     engine.play(0)?;
     engine.pause(0)?;
-    engine.load_track(0, Arc::new(FileAudioSource::from_path("test.mp3").load()?), 0.0)?;
+    engine.load_track(
+        0,
+        Arc::new(FileAudioSource::from_path("test.mp3").load()?),
+        0.0,
+    )?;
 
     // Test device operations
     let devices = engine.list_devices()?;
