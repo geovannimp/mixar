@@ -1,0 +1,11 @@
+# https://moonrepo.dev/docs/config/workspace
+$schema: 'https://moonrepo.dev/schemas/workspace.json'
+
+projects:
+  rust: '.'
+  gui-app: 'gui-app'
+
+vcs:
+  client: 'git'
+  provider: 'github'
+  defaultBranch: 'main'

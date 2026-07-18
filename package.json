@@ -11,6 +11,7 @@
     "tauri": "npm run tauri -w gui-app"
   },
   "devDependencies": {
+    "@moonrepo/cli": "^2.4.4",
     "lefthook": "2.1.10"
   }
 }

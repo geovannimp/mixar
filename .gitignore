@@ -111,3 +111,6 @@ dev/
 
 # Local tool installs (leftover betterhook, etc.)
 /tools/
+
+# moon
+.moon/cache
