@@ -25,7 +25,8 @@ const FADER_COLUMN_CLASS = "w-10";
 
 type EqBand = keyof DeckEq;
 
-const EQ_BANDS_LOWER: { id: EqBand; label: string }[] = [
+const EQ_BANDS: { id: EqBand; label: string }[] = [
+  { id: "high", label: "HI" },
   { id: "mid", label: "MID" },
   { id: "low", label: "LOW" },
 ];
@@ -55,63 +56,6 @@ function MixerKnob({ label, value, accent, disabled, min, max, onValueChange }: 
   );
 }
 
-interface MixerTopKnobRowProps {
-  decks: DeckStatus[];
-  accents: readonly [(typeof DECK_ACCENTS)["a"], (typeof DECK_ACCENTS)["b"]];
-  onEqChange: (deckId: number, eq: DeckEq) => void;
-  onGainChange: (deckId: number, gainDb: number) => void;
-}
-
-function MixerTopKnobRow({ decks, accents, onEqChange, onGainChange }: MixerTopKnobRowProps) {
-  const eq0 = decks[0]?.eq ?? DEFAULT_DECK_EQ;
-  const eq1 = decks[1]?.eq ?? DEFAULT_DECK_EQ;
-
-  return (
-    <div className="flex shrink-0 items-start justify-center gap-0.5">
-      <div className={`${EQ_COLUMN_CLASS} shrink-0`}>
-        <MixerKnob
-          label="HI"
-          value={eq0.high}
-          accent={accents[0]}
-          onValueChange={(high) => onEqChange(0, { ...eq0, high })}
-        />
-      </div>
-
-      <div className="flex shrink-0 gap-0.5 px-0.5">
-        <div className={`${FADER_COLUMN_CLASS} shrink-0`}>
-          <MixerKnob
-            label="GAIN"
-            value={decks[0]?.gain_trim_db ?? 0}
-            accent={accents[0]}
-            min={EQ_MIN_DB}
-            max={EQ_MAX_DB}
-            onValueChange={(gainDb) => onGainChange(0, gainDb)}
-          />
-        </div>
-        <div className={`${FADER_COLUMN_CLASS} shrink-0`}>
-          <MixerKnob
-            label="GAIN"
-            value={decks[1]?.gain_trim_db ?? 0}
-            accent={accents[1]}
-            min={EQ_MIN_DB}
-            max={EQ_MAX_DB}
-            onValueChange={(gainDb) => onGainChange(1, gainDb)}
-          />
-        </div>
-      </div>
-
-      <div className={`${EQ_COLUMN_CLASS} shrink-0`}>
-        <MixerKnob
-          label="HI"
-          value={eq1.high}
-          accent={accents[1]}
-          onValueChange={(high) => onEqChange(1, { ...eq1, high })}
-        />
-      </div>
-    </div>
-  );
-}
-
 interface DeckEqColumnProps {
   accent: (typeof DECK_ACCENTS)[DeckAccent];
   eq: DeckEq;
@@ -131,47 +75,51 @@ function DeckEqColumn({
 }: DeckEqColumnProps) {
   return (
     <div className={`flex h-full ${EQ_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
-      <div className="flex w-full shrink-0 flex-col items-center gap-1">
-        {EQ_BANDS_LOWER.map((band) => (
-          <MixerKnob
-            key={band.id}
-            label={band.label}
-            value={eq[band.id]}
-            accent={accent}
-            disabled={disabled}
-            onValueChange={(next) => {
-              onEqChange({ ...eq, [band.id]: next });
-            }}
-          />
-        ))}
+      {EQ_BANDS.map((band) => (
         <MixerKnob
-          label="FLT"
-          value={filterDb}
+          key={band.id}
+          label={band.label}
+          value={eq[band.id]}
           accent={accent}
           disabled={disabled}
-          min={EQ_MIN_DB}
-          max={EQ_MAX_DB}
-          onValueChange={onFilterChange}
+          onValueChange={(next) => {
+            onEqChange({ ...eq, [band.id]: next });
+          }}
         />
-      </div>
+      ))}
+      <MixerKnob
+        label="FLT"
+        value={filterDb}
+        accent={accent}
+        disabled={disabled}
+        min={EQ_MIN_DB}
+        max={EQ_MAX_DB}
+        onValueChange={onFilterChange}
+      />
     </div>
   );
 }
 
 interface DeckVolumeFaderProps {
   channelAccent: DeckAccent;
+  accent: (typeof DECK_ACCENTS)[DeckAccent];
+  gainDb: number;
   volume: number;
   cue: boolean;
   disabled?: boolean;
+  onGainChange: (gainDb: number) => void;
   onVolumeChange: (volume: number) => void;
   onCueChange: (cue: boolean) => void;
 }
 
 function DeckVolumeFader({
   channelAccent,
+  accent,
+  gainDb,
   volume,
   cue,
   disabled,
+  onGainChange,
   onVolumeChange,
   onCueChange,
 }: DeckVolumeFaderProps) {
@@ -179,7 +127,17 @@ function DeckVolumeFader({
 
   return (
     <div className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center border-t border-white/6 py-1 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center">
+      <MixerKnob
+        label="GAIN"
+        value={gainDb}
+        accent={accent}
+        disabled={disabled}
+        min={EQ_MIN_DB}
+        max={EQ_MAX_DB}
+        onValueChange={onGainChange}
+      />
+
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center border-t border-white/6 py-1 **:data-[slot=slider-control]:h-full **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:items-center">
         <Slider
           orientation="vertical"
           thumbAlignment="center"
@@ -191,7 +149,7 @@ function DeckVolumeFader({
           value={percent}
           disabled={disabled}
           aria-label="Volume"
-          className={`h-full ${FADER_COLUMN_CLASS}`}
+          className={cn(FADER_COLUMN_CLASS, "h-full min-h-0 data-[orientation=vertical]:min-h-0")}
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onVolumeChange(next / 100);
@@ -218,6 +176,30 @@ function DeckVolumeFader({
       >
         <Headphones className="size-3.5" aria-hidden />
       </button>
+    </div>
+  );
+}
+
+interface LevelMetersColumnProps {
+  decks: DeckStatus[];
+  levelMeterMode: LevelMeterMode;
+}
+
+/** Spacers match GAIN / % / cue so meters align with the volume slider track. */
+function LevelMetersColumn({ decks, levelMeterMode }: LevelMetersColumnProps) {
+  return (
+    <div className="flex h-full shrink-0 flex-col items-center gap-1">
+      <div className="invisible shrink-0" aria-hidden>
+        <MixerKnob label="GAIN" value={0} accent={DECK_ACCENTS.a} onValueChange={() => undefined} />
+      </div>
+      <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
+        <LevelMeter levels={decks[0]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
+        <LevelMeter levels={decks[1]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
+      </div>
+      <span className="invisible w-full shrink-0 text-center text-[9px] tabular-nums" aria-hidden>
+        100%
+      </span>
+      <div className="invisible size-7 shrink-0" aria-hidden />
     </div>
   );
 }
@@ -249,7 +231,7 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
           value={percent}
           disabled={disabled}
           aria-label="Crossfader"
-          className="min-w-0 flex-1 [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:min-w-0"
+          className="min-h-0 min-w-0 flex-1 **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:min-w-0"
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onPositionChange(next / 100);
@@ -290,7 +272,7 @@ function DeckMixerView({
   const channelAccents = ["a", "b"] as const satisfies readonly DeckAccent[];
 
   return (
-    <div className="flex h-full min-h-0 w-[12.5rem] shrink-0 flex-col gap-2 overflow-hidden border-x border-white/6 bg-zinc-900/50 px-1.5 py-3">
+    <div className="flex h-full w-max shrink-0 flex-col gap-2 border-x border-white/6 bg-zinc-900/50 px-2.5 py-3">
       <div className="flex shrink-0 items-center justify-center gap-1">
         <span className="text-center text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
           Mixer
@@ -313,65 +295,49 @@ function DeckMixerView({
         </button>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <MixerTopKnobRow
-          decks={decks}
-          accents={accents}
-          onEqChange={onEqChange}
-          onGainChange={onGainChange}
+      <div className="flex min-h-0 flex-1 items-stretch justify-center gap-1">
+        <DeckEqColumn
+          accent={accents[0]}
+          eq={decks[0]?.eq ?? DEFAULT_DECK_EQ}
+          filterDb={decks[0]?.filter_db ?? 0}
+          onEqChange={(eq) => onEqChange(0, eq)}
+          onFilterChange={(filterDb) => onFilterChange(0, filterDb)}
         />
 
-        <div className="flex min-h-0 flex-1 items-stretch justify-center gap-0.5">
-          <DeckEqColumn
+        <div className="flex min-h-0 shrink-0 items-stretch gap-1 px-0.5">
+          <DeckVolumeFader
+            channelAccent={channelAccents[0]}
             accent={accents[0]}
-            eq={decks[0]?.eq ?? DEFAULT_DECK_EQ}
-            filterDb={decks[0]?.filter_db ?? 0}
-            onEqChange={(eq) => onEqChange(0, eq)}
-            onFilterChange={(filterDb) => onFilterChange(0, filterDb)}
+            gainDb={decks[0]?.gain_trim_db ?? 0}
+            volume={decks[0]?.volume ?? 1}
+            cue={decks[0]?.headphone_cue ?? false}
+            onGainChange={(gainDb) => onGainChange(0, gainDb)}
+            onVolumeChange={(volume) => onVolumeChange(0, volume)}
+            onCueChange={(cue) => onCueChange(0, cue)}
           />
-
-          <div className="flex min-h-0 shrink-0 items-stretch gap-0.5 px-0.5">
-            <DeckVolumeFader
-              channelAccent={channelAccents[0]}
-              volume={decks[0]?.volume ?? 1}
-              cue={decks[0]?.headphone_cue ?? false}
-              onVolumeChange={(volume) => onVolumeChange(0, volume)}
-              onCueChange={(cue) => onCueChange(0, cue)}
-            />
-            {/* Match DeckVolumeFader: meters only as tall as the slider track. */}
-            <div className="flex h-full shrink-0 flex-col items-center gap-1">
-              <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
-                <LevelMeter levels={decks[0]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
-                <LevelMeter levels={decks[1]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
-              </div>
-              <span
-                className="invisible w-full shrink-0 text-center text-[9px] tabular-nums"
-                aria-hidden
-              >
-                100%
-              </span>
-              <div className="invisible size-7 shrink-0" aria-hidden />
-            </div>
-            <DeckVolumeFader
-              channelAccent={channelAccents[1]}
-              volume={decks[1]?.volume ?? 1}
-              cue={decks[1]?.headphone_cue ?? false}
-              onVolumeChange={(volume) => onVolumeChange(1, volume)}
-              onCueChange={(cue) => onCueChange(1, cue)}
-            />
-          </div>
-
-          <DeckEqColumn
+          <LevelMetersColumn decks={decks} levelMeterMode={levelMeterMode} />
+          <DeckVolumeFader
+            channelAccent={channelAccents[1]}
             accent={accents[1]}
-            eq={decks[1]?.eq ?? DEFAULT_DECK_EQ}
-            filterDb={decks[1]?.filter_db ?? 0}
-            onEqChange={(eq) => onEqChange(1, eq)}
-            onFilterChange={(filterDb) => onFilterChange(1, filterDb)}
+            gainDb={decks[1]?.gain_trim_db ?? 0}
+            volume={decks[1]?.volume ?? 1}
+            cue={decks[1]?.headphone_cue ?? false}
+            onGainChange={(gainDb) => onGainChange(1, gainDb)}
+            onVolumeChange={(volume) => onVolumeChange(1, volume)}
+            onCueChange={(cue) => onCueChange(1, cue)}
           />
         </div>
 
-        <Crossfader position={crossfader} onPositionChange={onCrossfaderChange} />
+        <DeckEqColumn
+          accent={accents[1]}
+          eq={decks[1]?.eq ?? DEFAULT_DECK_EQ}
+          filterDb={decks[1]?.filter_db ?? 0}
+          onEqChange={(eq) => onEqChange(1, eq)}
+          onFilterChange={(filterDb) => onFilterChange(1, filterDb)}
+        />
       </div>
+
+      <Crossfader position={crossfader} onPositionChange={onCrossfaderChange} />
     </div>
   );
 }
