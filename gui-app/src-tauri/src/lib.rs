@@ -1,25 +1,23 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
-use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
-use resampler::normalize_resampler_quality;
-use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
-use library_core::{
-    AnalyzeTrackOptions, CollectionId, Library, LibrarySource, SUPPORTED_AUDIO_EXTENSIONS,
-    TrackId,
-};
-use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use deck_performance::{
-    begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold, exit_deck_loop,
-    apply_deck_performance, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
-    seek_deck, set_deck_auto_loop,
-    set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize, trigger_hot_cue,
-    unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+    apply_deck_performance, begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold,
+    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop, seek_deck,
+    set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
+    trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sync::{
     beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
     set_deck_gain_trim, set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
 };
+use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
+use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
+use library_core::{
+    AnalyzeTrackOptions, CollectionId, Library, LibrarySource, TrackId, SUPPORTED_AUDIO_EXTENSIONS,
+};
+use resampler::normalize_resampler_quality;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
@@ -31,12 +29,10 @@ mod engine_notifier;
 mod fs_browser;
 mod waveform_render;
 
-use audio_cache::{
-    get_or_compute_detail, get_or_compute_overview, get_or_decode, AudioCache,
-};
+use audio_cache::{get_or_compute_detail, get_or_compute_overview, get_or_decode, AudioCache};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
 use engine_controller::{engine_status, publish_deck, publish_status};
 use engine_notifier::EngineNotifier;
@@ -241,9 +237,7 @@ fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
 fn channel_mapping_from_route(route: &BusRouteSettings) -> ChannelMapping {
     match route.mode {
         BusChannelMode::Mono => ChannelMapping::mono(route.left_channel),
-        BusChannelMode::Stereo => {
-            ChannelMapping::stereo(route.left_channel, route.right_channel)
-        }
+        BusChannelMode::Stereo => ChannelMapping::stereo(route.left_channel, route.right_channel),
     }
 }
 
@@ -259,11 +253,7 @@ fn bus_config(id: &str, name: &str, route: &BusRouteSettings) -> BusConfig {
 fn buses_from_settings(settings: &AppSettings) -> Vec<BusConfig> {
     let mut buses = vec![bus_config(MASTER_BUS_ID, "Master", &settings.master_bus)];
     if settings.preview_enabled {
-        buses.push(bus_config(
-            PREVIEW_BUS_ID,
-            "Preview",
-            &settings.preview_bus,
-        ));
+        buses.push(bus_config(PREVIEW_BUS_ID, "Preview", &settings.preview_bus));
     }
     buses
 }
@@ -533,10 +523,7 @@ where
 }
 
 #[tauri::command]
-fn start_engine(
-    app: AppHandle,
-    shared: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
+fn start_engine(app: AppHandle, shared: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let shared_state = shared.inner().clone();
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     if state.engine.is_some() {
@@ -553,10 +540,7 @@ fn start_engine(
 }
 
 #[tauri::command]
-fn stop_engine(
-    app: AppHandle,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
+fn stop_engine(app: AppHandle, state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.notifier = None;
     if let Some(mut engine) = state.engine.take() {
@@ -678,7 +662,10 @@ fn list_output_devices(backend: String) -> Result<Vec<DeviceSummary>, String> {
 #[tauri::command]
 fn list_collections(state: State<'_, SharedAppState>) -> Result<Vec<CollectionSummary>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let collections = state.library.list_collections().map_err(|e| e.to_string())?;
+    let collections = state
+        .library
+        .list_collections()
+        .map_err(|e| e.to_string())?;
     collections
         .into_iter()
         .map(|collection| collection_summary(&state.library, collection))
@@ -886,11 +873,7 @@ async fn load_track(
     let audio = get_or_decode(&state, cache_key, path.clone()).await?;
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    let auto_gain_db = deck_auto_gain_db(
-        state.volume_normalizer_enabled,
-        state.target_lufs,
-        None,
-    );
+    let auto_gain_db = deck_auto_gain_db(state.volume_normalizer_enabled, state.target_lufs, None);
     with_engine(&mut state, |engine| {
         engine
             .load_track(deck_id, audio, auto_gain_db)
@@ -1393,8 +1376,9 @@ pub fn run() {
                 .map_err(|err| format!("app data dir unavailable: {err}"))?;
             std::fs::create_dir_all(&app_data).map_err(|err| err.to_string())?;
 
-            let library = LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
-                .map_err(|err| err.to_string())?;
+            let library =
+                LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
+                    .map_err(|err| err.to_string())?;
 
             app.manage(Arc::new(Mutex::new(AppState {
                 library,

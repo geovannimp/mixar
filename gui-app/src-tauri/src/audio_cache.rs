@@ -1,6 +1,6 @@
 use audio_core::{
-    compute_overview_envelope, compute_spectral_window, waveform_buckets_for_window,
-    SpectralPeak, WaveformAnalysisConfig,
+    compute_overview_envelope, compute_spectral_window, waveform_buckets_for_window, SpectralPeak,
+    WaveformAnalysisConfig,
 };
 use engine_core::{AudioSource, LoadedAudio};
 use library_core::FileAudioSource;
