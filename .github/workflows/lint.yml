@@ -8,16 +8,20 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  LEFTHOOK: '0'
 
 jobs:
-  rust:
-    name: rust
+  lint:
+    name: format + lint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: crates
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -35,29 +39,11 @@ jobs:
           shared-key: lint
           cache-on-failure: true
 
-      - name: Check formatting
-        run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-  npm:
-    name: npm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
       - name: Install npm dependencies
         run: npm ci
 
       - name: Check formatting
-        run: npm run format:check -w gui-app
+        run: npm run format:check
 
       - name: Run lint
-        run: npm run lint -w gui-app
+        run: npm run lint

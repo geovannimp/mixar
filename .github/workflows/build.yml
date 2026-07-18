@@ -8,16 +8,20 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  LEFTHOOK: '0'
 
 jobs:
-  rust:
-    name: rust
+  build:
+    name: build
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: crates
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -34,23 +38,8 @@ jobs:
           shared-key: build
           cache-on-failure: true
 
-      - name: Build
-        run: cargo build --all-targets --all-features
-
-  npm:
-    name: npm
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
       - name: Install npm dependencies
         run: npm ci
 
       - name: Build
-        run: npm run build -w gui-app
+        run: npm run build

@@ -41,7 +41,7 @@ tasks:
 
   test:
     command: 'cargo'
-    args: ['test', '--release', '--verbose']
+    args: ['test', '--verbose']
     inputs:
       - '@group(sources)'
     options:
@@ -49,7 +49,7 @@ tasks:
 
   build:
     command: 'cargo'
-    args: ['build', '--release', '--verbose']
+    args: ['build', '--all-targets', '--all-features']
     inputs:
       - '@group(sources)'
     options:

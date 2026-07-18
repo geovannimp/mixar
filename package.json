@@ -10,6 +10,7 @@
     "lint": "moon run :lint",
     "format:check": "moon run :format-check",
     "build": "moon run :build",
+    "test": "moon run :test",
     "gui:dev": "moon run gui-app:dev",
     "gui:build": "moon run gui-app:build",
     "gui:tauri": "moon run gui-app:tauri"
