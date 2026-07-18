@@ -28,16 +28,12 @@ jobs:
       - name: Install native deps
         uses: ./.github/actions/install-native-deps
 
-      - name: Cache cargo
-        uses: actions/cache@v4
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            crates/target
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('crates/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-lint-
+          workspaces: crates -> target
+          shared-key: lint
+          cache-on-failure: true
 
       - name: Check formatting
         run: cargo fmt -- --check
