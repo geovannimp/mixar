@@ -49,7 +49,7 @@ impl Db {
         })
     }
 
-    pub fn conn(&self) -> Result<std::sync::MutexGuard<'_, SyncConnection>> {
+    pub(crate) fn conn(&self) -> Result<std::sync::MutexGuard<'_, SyncConnection>> {
         self.conn.lock().map_err(|_| LibraryError::Backend {
             backend: "library",
             message: "library database lock poisoned".into(),

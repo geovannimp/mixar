@@ -61,7 +61,7 @@ pub(crate) fn upsert_track_analysis(
                 ])
                 .to_owned(),
         )
-        .exec(&*db.conn()?.as_connection())
+        .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
     Ok(())
 }

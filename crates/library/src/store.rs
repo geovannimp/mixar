@@ -72,7 +72,7 @@ impl<'a> Store<'a> {
                     ])
                     .to_owned(),
             )
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -128,14 +128,14 @@ impl<'a> Store<'a> {
                     ])
                     .to_owned(),
             )
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
 
     pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::AudioSource>> {
         let row = TrackEntity::find_by_id(id.as_str())
-            .one(&*self.db.conn()?.as_connection())
+            .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::track_source).transpose()
     }
@@ -147,7 +147,7 @@ impl<'a> Store<'a> {
         let row = TrackEntity::find()
             .filter(tracks::Column::SourceType.eq("file"))
             .filter(tracks::Column::SourceRef.eq(source_ref))
-            .one(&*self.db.conn()?.as_connection())
+            .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::track_source).transpose()
     }
@@ -168,14 +168,14 @@ impl<'a> Store<'a> {
                     )),
             )
             .order_by_asc(tracks::Column::SourceRef)
-            .all(&*self.db.conn()?.as_connection())
+            .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         rows.into_iter().map(model::track_source).collect()
     }
 
     pub fn delete_track(&self, id: &TrackId) -> Result<()> {
         TrackEntity::delete_by_id(id.as_str())
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -183,7 +183,7 @@ impl<'a> Store<'a> {
     pub fn count_playlist_links(&self, track_id: &TrackId) -> Result<u64> {
         CollectionTrackEntity::find()
             .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
-            .count(&*self.db.conn()?.as_connection())
+            .count(self.db.conn()?.as_connection())
             .map_err(db::db_err)
     }
 
@@ -196,12 +196,12 @@ impl<'a> Store<'a> {
         let active = collections::ActiveModel {
             id: Set(id.as_str().to_string()),
             name: Set(name.to_string()),
-            collection_type: Set(CollectionTypeWire::Folder.as_str().to_string()),
+            collection_type: Set(CollectionTypeWire::Folder.label().to_string()),
             sortable: Set(0),
             fs_path: Set(Some(fs_path.to_string())),
         };
         CollectionEntity::insert(active)
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -215,12 +215,12 @@ impl<'a> Store<'a> {
         let active = collections::ActiveModel {
             id: Set(id.as_str().to_string()),
             name: Set(name.to_string()),
-            collection_type: Set(CollectionTypeWire::Playlist.as_str().to_string()),
+            collection_type: Set(CollectionTypeWire::Playlist.label().to_string()),
             sortable: Set(i32::from(sortable)),
             fs_path: Set(None),
         };
         CollectionEntity::insert(active)
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -228,14 +228,14 @@ impl<'a> Store<'a> {
     pub fn list_collections(&self) -> Result<Vec<library_core::Collection>> {
         let rows = CollectionEntity::find()
             .order_by_asc(collections::Column::Name)
-            .all(&*self.db.conn()?.as_connection())
+            .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         rows.into_iter().map(model::collection).collect()
     }
 
     pub fn get_collection(&self, id: &CollectionId) -> Result<Option<library_core::Collection>> {
         let row = CollectionEntity::find_by_id(id.as_str())
-            .one(&*self.db.conn()?.as_connection())
+            .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::collection).transpose()
     }
@@ -244,7 +244,7 @@ impl<'a> Store<'a> {
         let result = CollectionEntity::update_many()
             .col_expr(collections::Column::Name, Expr::value(name))
             .filter(collections::Column::Id.eq(id.as_str()))
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(result.rows_affected > 0)
     }
@@ -256,14 +256,14 @@ impl<'a> Store<'a> {
                 Expr::value(i32::from(sortable)),
             )
             .filter(collections::Column::Id.eq(id.as_str()))
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
 
     pub fn delete_collection(&self, id: &CollectionId) -> Result<bool> {
         let result = CollectionEntity::delete_by_id(id.as_str())
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(result.rows_affected > 0)
     }
@@ -277,7 +277,7 @@ impl<'a> Store<'a> {
             )
             .order_by_asc(collection_tracks::Column::Position)
             .order_by_asc(collection_tracks::Column::TrackId)
-            .all(&*self.db.conn()?.as_connection())
+            .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(rows
             .into_iter()
@@ -305,7 +305,7 @@ impl<'a> Store<'a> {
                 .update_columns([collection_tracks::Column::Position])
                 .to_owned(),
             )
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -318,7 +318,7 @@ impl<'a> Store<'a> {
         let result = CollectionTrackEntity::delete_many()
             .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
             .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(result.rows_affected > 0)
     }
@@ -330,7 +330,7 @@ impl<'a> Store<'a> {
                 Expr::value(None::<i32>),
             )
             .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -345,7 +345,7 @@ impl<'a> Store<'a> {
             .col_expr(collection_tracks::Column::Position, Expr::value(position))
             .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
             .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
-            .exec(&*self.db.conn()?.as_connection())
+            .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -353,14 +353,14 @@ impl<'a> Store<'a> {
     #[allow(dead_code)]
     pub fn count_track_analysis(&self, track_id: &TrackId) -> Result<u64> {
         TrackAnalysisEntity::find_by_id(track_id.as_str())
-            .count(&*self.db.conn()?.as_connection())
+            .count(self.db.conn()?.as_connection())
             .map_err(db::db_err)
     }
 
     #[allow(dead_code)]
     pub fn track_analysis_loudness(&self, track_id: &TrackId) -> Result<Option<f64>> {
         Ok(TrackAnalysisEntity::find_by_id(track_id.as_str())
-            .one(&*self.db.conn()?.as_connection())
+            .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?
             .and_then(|analysis| analysis.loudness_lufs))
     }
@@ -372,7 +372,7 @@ impl<'a> Store<'a> {
         let rows = CollectionTrackEntity::find()
             .filter(collection_tracks::Column::CollectionId.eq(playlist_id.as_str()))
             .order_by_asc(collection_tracks::Column::TrackId)
-            .all(&*self.db.conn()?.as_connection())
+            .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(rows
             .into_iter()
@@ -387,7 +387,7 @@ enum CollectionTypeWire {
 }
 
 impl CollectionTypeWire {
-    fn as_str(self) -> &'static str {
+    fn label(self) -> &'static str {
         match self {
             Self::Folder => "folder",
             Self::Playlist => "playlist",

@@ -80,7 +80,6 @@ pub fn save_hot_cue(
         color: Set(color),
         label: Set(label),
         updated_at: Set(now_iso()),
-        ..Default::default()
     })
     .on_conflict(
         OnConflict::columns([
@@ -160,7 +159,6 @@ pub fn save_loop(
         label: Set(label),
         color: Set(color),
         updated_at: Set(now_iso()),
-        ..Default::default()
     })
     .on_conflict(
         OnConflict::columns([track_loop::Column::TrackId, track_loop::Column::SlotIndex])

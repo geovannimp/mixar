@@ -126,7 +126,7 @@ pub(crate) fn upsert_track_waveform(
                 ])
                 .to_owned(),
         )
-        .exec(&*db.conn()?.as_connection())
+        .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
     Ok(())
 }
@@ -136,7 +136,7 @@ pub(crate) fn get_track_waveform_row(
     track_id: &TrackId,
 ) -> Result<Option<TrackWaveformOverview>> {
     let row = TrackWaveformEntity::find_by_id(track_id.as_str())
-        .one(&*db.conn()?.as_connection())
+        .one(db.conn()?.as_connection())
         .map_err(db::db_err)?;
 
     let Some(row) = row else {
@@ -166,7 +166,7 @@ pub(crate) fn get_track_waveform_row(
 
 pub(crate) fn has_track_waveform(db: &Db, track_id: &TrackId) -> Result<bool> {
     let count = TrackWaveformEntity::find_by_id(track_id.as_str())
-        .count(&*db.conn()?.as_connection())
+        .count(db.conn()?.as_connection())
         .map_err(db::db_err)?;
     Ok(count > 0)
 }
@@ -189,7 +189,7 @@ struct BeatGridJson {
 
 pub(crate) fn get_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<Option<BeatGridSnapshot>> {
     let row = TrackAnalysisEntity::find_by_id(track_id.as_str())
-        .one(&*db.conn()?.as_connection())
+        .one(db.conn()?.as_connection())
         .map_err(db::db_err)?;
 
     let Some(row) = row else {

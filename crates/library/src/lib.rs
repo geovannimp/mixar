@@ -163,7 +163,7 @@ impl LibraryManager {
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
         let path = source
             .file()
-            .ok_or_else(|| LibraryError::Unsupported("stream tracks have no waveform"))?
+            .ok_or(LibraryError::Unsupported("stream tracks have no waveform"))?
             .path();
         waveform::generate_and_store_overview(&self.db, id, path)
     }
@@ -853,6 +853,38 @@ mod tests {
         file.write_all(&[0u8; 16]).unwrap();
     }
 
+    /// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
+    #[cfg(feature = "analysis")]
+    fn write_analysis_wav(path: &Path) {
+        let sample_rate = 48_000u32;
+        let duration_secs = 3u32;
+        let sample_count = (sample_rate * duration_secs) as usize;
+        let mut pcm = Vec::with_capacity(sample_count * 2);
+        for index in 0..sample_count {
+            let time = index as f32 / sample_rate as f32;
+            let sample =
+                (0.25 * (2.0 * std::f32::consts::PI * 440.0 * time).sin() * i16::MAX as f32) as i16;
+            pcm.extend_from_slice(&sample.to_le_bytes());
+        }
+        let data_size = pcm.len() as u32;
+        let file_size = 36 + data_size;
+        let byte_rate = sample_rate * 2;
+        let mut file = std::fs::File::create(path).unwrap();
+        file.write_all(b"RIFF").unwrap();
+        file.write_all(&file_size.to_le_bytes()).unwrap();
+        file.write_all(b"WAVEfmt ").unwrap();
+        file.write_all(&16u32.to_le_bytes()).unwrap();
+        file.write_all(&1u16.to_le_bytes()).unwrap(); // PCM
+        file.write_all(&1u16.to_le_bytes()).unwrap(); // mono
+        file.write_all(&sample_rate.to_le_bytes()).unwrap();
+        file.write_all(&byte_rate.to_le_bytes()).unwrap();
+        file.write_all(&2u16.to_le_bytes()).unwrap(); // block align
+        file.write_all(&16u16.to_le_bytes()).unwrap(); // bits
+        file.write_all(b"data").unwrap();
+        file.write_all(&data_size.to_le_bytes()).unwrap();
+        file.write_all(&pcm).unwrap();
+    }
+
     #[test]
     fn import_and_get_track_round_trip() {
         let dir = tempfile::tempdir().unwrap();
@@ -1036,7 +1068,7 @@ mod tests {
     fn analyze_track_persists_track_analysis() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("song.wav");
-        write_minimal_wav(&wav);
+        write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
@@ -1053,7 +1085,7 @@ mod tests {
     fn analyze_track_persists_waveform_overview() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("song.wav");
-        write_minimal_wav(&wav);
+        write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
@@ -1083,7 +1115,7 @@ mod tests {
     fn analyze_track_refreshes_from_file() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("song.wav");
-        write_minimal_wav(&wav);
+        write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let track = lib.import_path(&wav).unwrap();
@@ -1117,8 +1149,10 @@ mod tests {
     #[test]
     fn remove_collection_track_drops_orphaned_stream() {
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let mut meta = TrackMetadata::default();
-        meta.title = Some("Remote Track".into());
+        let meta = TrackMetadata {
+            title: Some("Remote Track".into()),
+            ..Default::default()
+        };
         let source = lib
             .import_stream(
                 "https://example.com/track.mp3",
@@ -1161,8 +1195,10 @@ mod tests {
     #[test]
     fn import_stream_round_trip() {
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let mut meta = TrackMetadata::default();
-        meta.title = Some("Remote Track".into());
+        let meta = TrackMetadata {
+            title: Some("Remote Track".into()),
+            ..Default::default()
+        };
         let source = lib
             .import_stream(
                 "https://example.com/track.mp3",

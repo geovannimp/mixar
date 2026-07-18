@@ -21,6 +21,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
+/// Cue point (secs) and optional loop region `(start, end)` for status mirroring.
+type DeckTransportState = (Option<f64>, Option<(f64, f64)>);
+
 /// Main engine struct
 pub struct Engine {
     config: EngineConfig,
@@ -637,10 +640,7 @@ impl Engine {
     }
 
     /// Cue point and loop region for status mirroring.
-    pub fn deck_transport_state(
-        &self,
-        deck_id: usize,
-    ) -> Option<(Option<f64>, Option<(f64, f64)>)> {
+    pub fn deck_transport_state(&self, deck_id: usize) -> Option<DeckTransportState> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let deck = dsp.deck(deck_id)?;
@@ -854,12 +854,13 @@ mod tests {
     use std::sync::Arc;
 
     fn test_source(loudness_lufs: Option<f64>) -> AudioSource {
-        let mut metadata = TrackMetadata::default();
-        metadata.loudness_lufs = loudness_lufs;
         AudioSource::File(FileAudioSource::new(
             TrackId::new("test.wav"),
             PathBuf::from("/no/such/file.wav"),
-            metadata,
+            TrackMetadata {
+                loudness_lufs,
+                ..Default::default()
+            },
         ))
     }
 
@@ -1159,8 +1160,10 @@ mod tests {
 
     #[test]
     fn set_bus_device_updates_master_config() {
-        let mut config = EngineConfig::default();
-        config.backend = "null".into();
+        let config = EngineConfig {
+            backend: "null".into(),
+            ..Default::default()
+        };
         let mut engine = Engine::new(config).unwrap();
         engine
             .set_bus_device(BusId::new("master"), DeviceId::new("null-device"), [3, 4])
@@ -1173,22 +1176,24 @@ mod tests {
 
     #[test]
     fn set_bus_device_rejects_overlap_on_same_device() {
-        let mut config = EngineConfig::default();
-        config.backend = "null".into();
-        config.buses = vec![
-            BusConfig::new(
-                BusId::new("master"),
-                "Master".into(),
-                DeviceId::new("null-device"),
-                ChannelMapping::new(1, 2),
-            ),
-            BusConfig::new(
-                BusId::new("cue"),
-                "Preview".into(),
-                DeviceId::new("null-device"),
-                ChannelMapping::new(3, 4),
-            ),
-        ];
+        let config = EngineConfig {
+            backend: "null".into(),
+            buses: vec![
+                BusConfig::new(
+                    BusId::new("master"),
+                    "Master".into(),
+                    DeviceId::new("null-device"),
+                    ChannelMapping::new(1, 2),
+                ),
+                BusConfig::new(
+                    BusId::new("cue"),
+                    "Preview".into(),
+                    DeviceId::new("null-device"),
+                    ChannelMapping::new(3, 4),
+                ),
+            ],
+            ..Default::default()
+        };
         let mut engine = Engine::new(config).unwrap();
         let err = engine
             .set_bus_device(BusId::new("cue"), DeviceId::new("null-device"), [2, 3])
@@ -1198,8 +1203,10 @@ mod tests {
 
     #[test]
     fn set_bus_channel_mapping_accepts_mono() {
-        let mut config = EngineConfig::default();
-        config.backend = "null".into();
+        let config = EngineConfig {
+            backend: "null".into(),
+            ..Default::default()
+        };
         let mut engine = Engine::new(config).unwrap();
         engine
             .set_bus_channel_mapping(
