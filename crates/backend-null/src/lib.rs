@@ -286,8 +286,8 @@ mod tests {
             .open_output_stream(&device.id, &params, callback)
             .unwrap();
 
-        // Initially not running
-        assert!(stream.actual_buffer_size().is_none());
+        // Negotiated buffer size is available before start; latency is not.
+        assert_eq!(stream.actual_buffer_size(), Some(512));
         assert!(stream.actual_latency().is_none());
 
         // Start the stream
@@ -295,9 +295,9 @@ mod tests {
         assert_eq!(stream.actual_buffer_size(), Some(512));
         assert!(stream.actual_latency().is_some());
 
-        // Stop the stream
+        // Stop the stream — buffer size remains negotiated; latency clears.
         stream.stop().unwrap();
-        assert!(stream.actual_buffer_size().is_none());
+        assert_eq!(stream.actual_buffer_size(), Some(512));
         assert!(stream.actual_latency().is_none());
     }
 

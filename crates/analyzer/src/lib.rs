@@ -97,8 +97,10 @@ mod tests {
         let wav = dir.path().join("tone.wav");
         write_minimal_wav(&wav);
 
-        let mut config = AnalysisConfig::default();
-        config.max_duration_secs = Some(5.0);
+        let config = AnalysisConfig {
+            max_duration_secs: Some(5.0),
+            ..Default::default()
+        };
 
         let result = analyze_file(&wav, &config).expect("analysis should succeed");
         assert!(

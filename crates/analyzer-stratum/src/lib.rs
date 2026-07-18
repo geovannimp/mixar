@@ -11,16 +11,9 @@ use stratum_dsp::{analyze_audio, AnalysisConfig as StratumConfig};
 pub use mapper::musical_key_from_stratum;
 
 /// Offline analyzer using [stratum-dsp](https://docs.rs/stratum-dsp).
+#[derive(Default)]
 pub struct StratumAnalyzer {
     inner: StratumConfig,
-}
-
-impl Default for StratumAnalyzer {
-    fn default() -> Self {
-        Self {
-            inner: StratumConfig::default(),
-        }
-    }
 }
 
 impl StratumAnalyzer {
