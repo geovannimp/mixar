@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup moon base
+      - name: Ensure moon default branch
         uses: ./.github/actions/setup-moon-base
 
       - name: Setup Node
