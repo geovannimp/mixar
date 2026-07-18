@@ -260,6 +260,7 @@ mod tests {
     use petgraph::graph::{DiGraph, NodeIndex};
 
     #[derive(Debug)]
+    #[allow(clippy::large_enum_variant)]
     enum TestNode {
         Source,
         Channel(MixerChannel),
