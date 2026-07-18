@@ -2,7 +2,8 @@
   "name": "rust-dj-engine",
   "private": true,
   "workspaces": [
-    "gui-app"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "prepare": "lefthook install",

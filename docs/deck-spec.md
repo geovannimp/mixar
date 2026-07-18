@@ -130,7 +130,7 @@ From `TrackSummary` / analysis: `title`, `artist`, `bpm`, `key`, `duration_secs`
 | `position_secs` | Engine poll (`get_status`) | Current playhead position (elapsed time) |
 | `duration_secs` | Loaded track metadata | Total track length |
 
-Both are exposed today via Tauri → `DeckStatus` in `gui-app/src/types.ts`. The deck UI does not render them yet (metadata bar is Phase 1). `remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
+Both are exposed today via Tauri → `DeckStatus` in `apps/gui-app/src/types.ts`. The deck UI does not render them yet (metadata bar is Phase 1). `remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
 
 ---
 
@@ -527,7 +527,7 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 6.3 GUI view model
 
-**Today** (`DeckStatus` in `gui-app/src/types.ts`):
+**Today** (`DeckStatus` in `apps/gui-app/src/types.ts`):
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -881,8 +881,8 @@ Make **what we already have** reliable and **look like** professional deck softw
 | Resource | Path |
 |----------|------|
 | Engine deck DSP | `crates/engine-dsp/src/deck.rs` |
-| GUI deck panel | `gui-app/src/components/DeckPanel.tsx` |
-| GUI deck grid | `gui-app/src/components/DeckGrid.tsx` |
+| GUI deck panel | `apps/gui-app/src/components/DeckPanel.tsx` |
+| GUI deck grid | `apps/gui-app/src/components/DeckGrid.tsx` |
 | Waveform spec | `docs/dj-waveform-spec.md` |
 | Analyzer / beat grid | `docs/audio-analyzer-spec.md` |
 

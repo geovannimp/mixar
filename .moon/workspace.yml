@@ -2,8 +2,11 @@
 $schema: 'https://moonrepo.dev/schemas/workspace.json'
 
 projects:
-  rust: '.'
-  gui-app: 'gui-app'
+  sources:
+    rust: '.'
+  globs:
+    - 'apps/*'
+    - 'packages/*'
 
 vcs:
   client: 'git'

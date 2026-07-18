@@ -22,8 +22,8 @@ base64 = "0.22"
 anyhow = "1"
 log = "0.4"
 env_logger = "0.10"
-audio-core = { path = "../../crates/audio-core" }
-engine-core = { path = "../../crates/engine-core", features = ["backend-cpal"] }
-library-core = { path = "../../crates/library-core" }
-library = { path = "../../crates/library", features = ["analysis"] }
-resampler = { path = "../../crates/resampler" }
+audio-core = { path = "../../../crates/audio-core" }
+engine-core = { path = "../../../crates/engine-core", features = ["backend-cpal"] }
+library-core = { path = "../../../crates/library-core" }
+library = { path = "../../../crates/library", features = ["analysis"] }
+resampler = { path = "../../../crates/resampler" }

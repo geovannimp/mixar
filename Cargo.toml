@@ -17,7 +17,7 @@ members = [
     "crates/app-example",
 ]
 exclude = [
-    "gui-app/src-tauri"
+    "apps/gui-app/src-tauri"
 ]
 resolver = "2"
 

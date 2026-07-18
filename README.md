@@ -12,10 +12,13 @@ Cargo + npm workspace layout:
 
 ```
 rust-dj-engine/
-├─ package.json        # npm workspaces root (gui-app + lefthook + @moonrepo/cli)
+├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
 ├─ .moon/              # moon workspace + toolchains
 ├─ moon.yml            # rust (Cargo workspace) moon project
 ├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
+├─ apps/               # npm applications (moon globs: apps/*)
+│  └─ gui-app/         # Tauri + React desktop UI
+├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
 ├─ crates/             # Cargo workspace members
 │  ├─ audio-core/      # Shared types and traits (AudioBackend, AudioSource, Sample, …)
 │  ├─ backend-null/    # Deterministic backend for tests and CI
@@ -31,7 +34,6 @@ rust-dj-engine/
 │  ├─ analyzer-stratum/# stratum-dsp backend
 │  ├─ analyzer/        # decode + analyze_file facade
 │  └─ app-example/     # Minimal example binary
-├─ gui-app/            # Tauri + React desktop UI (npm workspace package; moon.yml)
 └─ samples/            # Sample audio for local demos
 ```
 
@@ -159,13 +161,13 @@ npm run gui:tauri           # moon run gui-app:tauri (pass args after --)
 npx moon ci --base main     # locally mimic affected CI
 ```
 
-#### Adding a new npm workspace package (e.g. `website`, `docs`)
+#### Adding a new npm workspace package (e.g. `apps/website`, `packages/ui`)
 
-1. Add the directory to root `package.json` `workspaces`.
-2. Add `package.json` with `lint`, `format:check`, and `build` scripts.
-3. Add `moon.yml` (`language: typescript`) whose tasks call those scripts; set `runInCI: false` on `dev`.
-4. Register the project in `.moon/workspace.yml` if not covered by a glob.
-5. `npm install` at root; verify `npx moon run <id>:lint` and that `npx moon ci --base main` only runs it when that package changes.
+1. Create the folder under `apps/` (application) or `packages/` (shared library).
+2. Add `package.json` with `lint`, `format:check`, and `build` scripts (and a unique `name`).
+3. Add `moon.yml` (`language: typescript`) whose tasks call those scripts; use `preset: server` (or `runInCI: false`) on `dev`.
+4. Run `npm install` at root — `workspaces` / moon already glob `apps/*` and `packages/*`.
+5. Verify `npx moon run <folder-name>:lint` and that `npx moon ci --base main` only runs it when that package changes.
 
 ### Code Style
 
