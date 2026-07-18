@@ -1,5 +1,5 @@
 # Rust build artifacts
-/target/
+target/
 **/*.rs.bk
 *.pdb
 
@@ -7,7 +7,9 @@
 # Cargo.lock
 
 # IDE and editor files
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .cursor/hooks/state/
 .idea/
 *.swp

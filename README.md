@@ -14,12 +14,12 @@ Cargo + npm workspace layout:
 rust-dj-engine/
 ├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
 ├─ .moon/              # moon workspace + toolchains
-├─ moon.yml            # rust (Cargo workspace) moon project
 ├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
 ├─ apps/               # npm applications (moon globs: apps/*)
 │  └─ gui-app/         # Tauri + React desktop UI
 ├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
-├─ crates/             # Cargo workspace members
+├─ crates/             # Cargo workspace root (Cargo.toml + moon rust project)
+│  ├─ moon.yml
 │  ├─ audio-core/      # Shared types and traits (AudioBackend, AudioSource, Sample, …)
 │  ├─ backend-null/    # Deterministic backend for tests and CI
 │  ├─ backend-miniaudio/
@@ -117,21 +117,21 @@ Still open / partial:
 git clone <repository-url>
 cd rust-dj-engine
 
-cargo build
-cargo test
-cargo run -p app-example
+cargo build --manifest-path crates/Cargo.toml
+cargo test --manifest-path crates/Cargo.toml
+cargo run --manifest-path crates/Cargo.toml -p app-example
 ```
 
-The example loads a file from `samples/` when present. Override backend and settings with a local `config.toml` or by editing `app-example`.
+The example loads a file from `samples/` when present (run from the repo root). Override backend and settings with a local `config.toml` or by editing `app-example`.
 
 ### Running Tests
 
 ```bash
-cargo test
-cargo test -p engine-core --lib
-cargo test -p audio-core
-cargo test -p backend-null
-cargo test -p engine-dsp
+cargo test --manifest-path crates/Cargo.toml
+cargo test --manifest-path crates/Cargo.toml -p engine-core --lib
+cargo test --manifest-path crates/Cargo.toml -p audio-core
+cargo test --manifest-path crates/Cargo.toml -p backend-null
+cargo test --manifest-path crates/Cargo.toml -p engine-dsp
 ```
 
 Integration tests that open real devices may fail without audio hardware; prefer the null backend for CI-style runs.

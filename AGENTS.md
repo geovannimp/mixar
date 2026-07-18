@@ -15,7 +15,7 @@
 
 ## Learned Workspace Facts
 
-- Cargo workspace under `crates/`: `audio-core`, `engine-core`, `engine-dsp`, `backend-cpal`, `backend-null`, `backend-miniaudio`, `library*`, `codec`, `resampler`, `analyzer*`, plus `app-example` CLI. Desktop UI is `apps/gui-app` (Tauri + React; npm workspace under `apps/*` / `packages/*`).
+- Cargo workspace root is `crates/Cargo.toml` (members: `audio-core`, `engine-core`, `engine-dsp`, `backend-cpal`, `backend-null`, `backend-miniaudio`, `library*`, `codec`, `resampler`, `analyzer*`, `app-example`). Run cargo via `cargo --manifest-path crates/Cargo.toml …` (or `cd crates`). Desktop UI is `apps/gui-app` (Tauri + React; npm/moon globs `apps/*` / `packages/*`). rust-analyzer uses `.vscode/settings.json` `linkedProjects` for `crates/Cargo.toml` and `apps/gui-app/src-tauri/Cargo.toml`.
 - Root `npm install` installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`) via the npm workspace root; `prepare` → `lefthook install`. Pre-commit runs `rustfmt` on staged `*.rs` and `oxfmt`/`oxlint --fix` on staged `*.{ts,tsx}` with `stage_fixed`. Skip jobs: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`; disable: `LEFTHOOK=0`; emergency: `git commit --no-verify`. Prefer not bypassing the hook. Frontend tooling expects Node 22 (`.nvmrc`). Affected full-package checks use `npx moon ci` / root scripts `lint`, `format:check`, `build`.
 - Headless audio engine uses a producer thread writing interleaved stereo into a lock-free ring buffer; the backend audio callback consumes it.
 - Default engine config: 48 kHz sample rate, 512-frame buffer size (latency tied to buffer size).

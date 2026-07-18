@@ -71,8 +71,8 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 ## 3 — High-level Architecture
 
 ```
-rust-dj-engine/ (Cargo workspace)
-├─ crates/
+rust-dj-engine/
+├─ crates/                # Cargo workspace root (Cargo.toml)
 │  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
 │  ├─ backend-null/       # deterministic backend for tests and CI
 │  ├─ backend-miniaudio/  # miniaudio implementation
@@ -100,6 +100,7 @@ rust-dj-engine/ (Cargo workspace)
 │  ├─ analyzer-stratum/   # stratum-dsp backend
 │  ├─ analyzer/           # decode + analyze_file facade
 │  └─ app-example/        # minimal example binary
+├─ apps/gui-app/          # Tauri + React UI (separate Cargo package under src-tauri)
 └─ samples/               # sample audio for local demos
 ```
 

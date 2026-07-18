@@ -3,7 +3,7 @@ $schema: 'https://moonrepo.dev/schemas/workspace.json'
 
 projects:
   sources:
-    rust: '.'
+    rust: 'crates'
   globs:
     - 'apps/*'
     - 'packages/*'
