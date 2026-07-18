@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup moon base
+        uses: ./.github/actions/setup-moon-base
 
       - name: Setup Node
         uses: actions/setup-node@v4

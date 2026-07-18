@@ -1,0 +1,18 @@
+name: Setup moon VCS base
+description: Full history checkout companion — set MOON_BASE for GitHub Actions
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch moon base revision
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          git fetch --no-tags origin "${{ github.event.pull_request.base.sha }}"
+          echo "MOON_BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
+        elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+          echo "MOON_BASE=${{ github.event.before }}" >> "$GITHUB_ENV"
+        else
+          git fetch --no-tags origin main
+          echo "MOON_BASE=origin/main" >> "$GITHUB_ENV"
+        fi
