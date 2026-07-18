@@ -1,8 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import {
-  type SmoothPlayhead,
-  useSmoothPlayhead,
-} from "./useSmoothPlayhead";
+import { type SmoothPlayhead, useSmoothPlayhead } from "./useSmoothPlayhead";
 
 export type WaveformScrubMode = "center" | "track";
 
@@ -151,10 +148,6 @@ export function useWaveformDragScrub({
       onPointerUp: handlePointerUp,
       onPointerCancel: handlePointerCancel,
     },
-    cursorClass: enabled
-      ? scrubbing
-        ? "cursor-grabbing"
-        : "cursor-grab"
-      : "",
+    cursorClass: enabled ? (scrubbing ? "cursor-grabbing" : "cursor-grab") : "",
   };
 }

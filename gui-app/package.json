@@ -1,13 +1,17 @@
 {
   "name": "gui-app",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check ."
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -37,6 +41,8 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "oxfmt": "^0.59.0",
+    "oxlint": "^1.74.0",
     "tailwindcss": "^4.3.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.4"

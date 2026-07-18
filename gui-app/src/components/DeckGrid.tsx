@@ -1,10 +1,6 @@
 import { DeckMixer } from "./DeckMixer";
 import { DualDeckWaveform } from "./DualDeckWaveform";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { DeckPanel } from "./DeckPanel";
 
 /** Dual-lane scrolling waveform strip. */
@@ -37,10 +33,7 @@ export function DeckGrid({ focusedDeckId, onFocusDeck }: DeckGridProps) {
           <DualDeckWaveform />
         </ResizablePanel>
 
-        <ResizableHandle
-          withHandle
-          className="bg-white/8 hover:bg-emerald-500/25"
-        />
+        <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
 
         <ResizablePanel
           id="decks"

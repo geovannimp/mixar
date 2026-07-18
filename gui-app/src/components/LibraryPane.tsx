@@ -50,18 +50,11 @@ interface LibraryPaneHeaderProps {
   action?: ReactNode;
 }
 
-function LibraryPaneHeader({
-  title,
-  titleTooltip,
-  inline,
-  action,
-}: LibraryPaneHeaderProps) {
+function LibraryPaneHeader({ title, titleTooltip, inline, action }: LibraryPaneHeaderProps) {
   return (
     <div
       className={
-        inline
-          ? "flex min-h-8 items-center gap-2"
-          : "flex h-6 items-center justify-between gap-2"
+        inline ? "flex min-h-8 items-center gap-2" : "flex h-6 items-center justify-between gap-2"
       }
     >
       <p

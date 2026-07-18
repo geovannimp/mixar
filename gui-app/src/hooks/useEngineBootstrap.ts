@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
-import { ENGINE_EVENT, type EngineEvent } from "../lib/engineEvents";
-import type { EngineStatus } from "../types";
-import { useEngineStore } from "../stores/engineStore";
+import { ENGINE_EVENT, type EngineEvent } from "@/lib/engineEvents";
+import type { EngineStatus } from "@/types";
+import { useEngineStore } from "@/stores/engineStore";
 
 function reportBootstrapError(message: string) {
   console.error(message);

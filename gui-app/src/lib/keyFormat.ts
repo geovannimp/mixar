@@ -1,19 +1,6 @@
-import type { KeyDisplayMode } from "../types";
+import type { KeyDisplayMode } from "@/types";
 
-const MAJOR_KEYS = [
-  "C",
-  "G",
-  "D",
-  "A",
-  "E",
-  "B",
-  "F#",
-  "C#",
-  "G#",
-  "D#",
-  "A#",
-  "F",
-] as const;
+const MAJOR_KEYS = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"] as const;
 
 const MINOR_KEYS = [
   "Am",
@@ -73,10 +60,7 @@ function camelotToMusical(code: string): string | null {
   return MAJOR_KEYS[index] ?? null;
 }
 
-export function formatDeckKey(
-  key: string | null | undefined,
-  mode: KeyDisplayMode,
-): string {
+export function formatDeckKey(key: string | null | undefined, mode: KeyDisplayMode): string {
   if (!key?.trim()) {
     return "—";
   }

@@ -1,4 +1,4 @@
-import type { DeckHotCueMarker, DeckLoopMarker } from "../types";
+import type { DeckHotCueMarker, DeckLoopMarker } from "@/types";
 
 const HOT_CUE_COLORS = [
   "#ef4444",
@@ -47,9 +47,7 @@ export function WaveformCueMarkers({
           <div
             key={`loop-${index}`}
             className={`absolute inset-y-0 border-x ${
-              loop.active
-                ? "border-emerald-400/70 bg-emerald-400/18"
-                : "border-white/20 bg-white/8"
+              loop.active ? "border-emerald-400/70 bg-emerald-400/18" : "border-white/20 bg-white/8"
             }`}
             style={{ left: `${left}%`, width: `${width}%` }}
           />
@@ -59,9 +57,7 @@ export function WaveformCueMarkers({
       {hotCues.map((cue) => {
         const left = toPercent(cue.position_secs, durationSecs);
         const color =
-          cue.color ??
-          HOT_CUE_COLORS[cue.slot % HOT_CUE_COLORS.length] ??
-          HOT_CUE_COLORS[0];
+          cue.color ?? HOT_CUE_COLORS[cue.slot % HOT_CUE_COLORS.length] ?? HOT_CUE_COLORS[0];
 
         return (
           <div

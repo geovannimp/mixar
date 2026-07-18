@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
-import { barCycleRotationDeg, getBarCycleDurationSecs } from "../lib/format";
-import { useSmoothTrackProgress } from "../hooks/useSmoothTrackProgress";
-import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
+import { barCycleRotationDeg, getBarCycleDurationSecs } from "@/lib/format";
+import { useSmoothTrackProgress } from "@/hooks/useSmoothTrackProgress";
+import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 
 interface JogPlatterProps {
   accent: DeckAccent;
@@ -45,8 +45,7 @@ export function JogPlatter({
     trackProgress,
     (progress) => ringCircumference * (1 - progress),
   );
-  const ringStroke =
-    accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
+  const ringStroke = accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
 
   const effectiveBpm = bpm != null && bpm > 0 ? bpm : 120;
 
@@ -90,11 +89,7 @@ export function JogPlatter({
   }, [positionSecs, effectiveBpm, hasTrack, trackerRotate]);
 
   return (
-    <div
-      className="relative size-32 shrink-0 sm:size-36"
-      title="Jog wheel"
-      aria-label="Jog wheel"
-    >
+    <div className="relative size-32 shrink-0 sm:size-36" title="Jog wheel" aria-label="Jog wheel">
       <div
         className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border bg-zinc-950/80 shadow-inner ${accent.ring}`}
       >
@@ -144,11 +139,7 @@ export function JogPlatter({
 
         <div
           className={`relative z-10 size-2 rounded-full sm:size-2.5 ${
-            hasTrack
-              ? accentKey === "a"
-                ? "bg-sky-400"
-                : "bg-rose-400"
-              : "bg-zinc-500"
+            hasTrack ? (accentKey === "a" ? "bg-sky-400" : "bg-rose-400") : "bg-zinc-500"
           }`}
         />
       </div>

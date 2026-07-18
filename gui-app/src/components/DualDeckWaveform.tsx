@@ -1,14 +1,14 @@
 import { memo, useCallback } from "react";
-import { DECK_ACCENTS } from "../lib/ui";
-import { useWaveformDragScrub } from "../hooks/useWaveformDragScrub";
-import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
+import { DECK_ACCENTS } from "@/lib/ui";
+import { useWaveformDragScrub } from "@/hooks/useWaveformDragScrub";
+import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
 import {
   engineActions,
   useDeckHasTrack,
   useDeckWaveform,
   useEngineRunning,
-} from "../hooks/useEngine";
-import { useRenderWaveformLane } from "../hooks/useRenderWaveformLane";
+} from "@/hooks/useEngine";
+import { useRenderWaveformLane } from "@/hooks/useRenderWaveformLane";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
 import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
 

@@ -17,4 +17,4 @@ export {
   useDeckWaveform,
   useDeckControls,
   useDeckOverview,
-} from "../stores/engineStore";
+} from "@/stores/engineStore";

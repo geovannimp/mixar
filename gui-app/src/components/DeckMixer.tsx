@@ -1,22 +1,22 @@
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
-import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "../lib/ui";
+import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
+import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "@/lib/ui";
 import {
   DEFAULT_DECK_EQ,
   ZERO_DECK_LEVELS,
   type DeckEq,
   type DeckStatus,
   type LevelMeterMode,
-} from "../types";
+} from "@/types";
 import {
   engineActions,
   useCrossfader,
   useDeckMixerChannel,
   useLevelMeterMode,
-} from "../hooks/useEngine";
-import { getDefaultDeck } from "../stores/defaultDeck";
+} from "@/hooks/useEngine";
+import { getDefaultDeck } from "@/stores/defaultDeck";
 import { LevelMeter } from "./LevelMeter";
 import { RotaryKnob } from "./RotaryKnob";
 
@@ -40,15 +40,7 @@ interface MixerKnobProps {
   onValueChange: (value: number) => void;
 }
 
-function MixerKnob({
-  label,
-  value,
-  accent,
-  disabled,
-  min,
-  max,
-  onValueChange,
-}: MixerKnobProps) {
+function MixerKnob({ label, value, accent, disabled, min, max, onValueChange }: MixerKnobProps) {
   return (
     <RotaryKnob
       label={label}
@@ -70,12 +62,7 @@ interface MixerTopKnobRowProps {
   onGainChange: (deckId: number, gainDb: number) => void;
 }
 
-function MixerTopKnobRow({
-  decks,
-  accents,
-  onEqChange,
-  onGainChange,
-}: MixerTopKnobRowProps) {
+function MixerTopKnobRow({ decks, accents, onEqChange, onGainChange }: MixerTopKnobRowProps) {
   const eq0 = decks[0]?.eq ?? DEFAULT_DECK_EQ;
   const eq1 = decks[1]?.eq ?? DEFAULT_DECK_EQ;
 
@@ -143,9 +130,7 @@ function DeckEqColumn({
   onFilterChange,
 }: DeckEqColumnProps) {
   return (
-    <div
-      className={`flex h-full ${EQ_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}
-    >
+    <div className={`flex h-full ${EQ_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
       <div className="flex w-full shrink-0 flex-col items-center gap-1">
         {EQ_BANDS_LOWER.map((band) => (
           <MixerKnob
@@ -193,9 +178,7 @@ function DeckVolumeFader({
   const percent = Math.round(volume * 100);
 
   return (
-    <div
-      className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}
-    >
+    <div className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
       <div className="flex min-h-0 w-full flex-1 items-center justify-center border-t border-white/6 py-1 [&_[data-slot=slider-control]]:h-full [&_[data-slot=slider-control]]:min-h-0 [&_[data-slot=slider-control]]:items-center">
         <Slider
           orientation="vertical"
@@ -225,8 +208,7 @@ function DeckVolumeFader({
         className={cn(
           buttonIcon,
           "size-7 shrink-0 border-white/10 text-zinc-400 hover:bg-zinc-800/90",
-          cue &&
-            "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
+          cue && "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
         )}
         disabled={disabled}
         aria-label="Cue"
@@ -255,9 +237,7 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
         Crossfader
       </span>
       <div className="flex items-center gap-1.5 px-0.5">
-        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">
-          A
-        </span>
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">A</span>
         <Slider
           orientation="horizontal"
           thumbAlignment="center"
@@ -275,9 +255,7 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
             onPositionChange(next / 100);
           }}
         />
-        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-rose-300">
-          B
-        </span>
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-rose-300">B</span>
       </div>
     </div>
   );
@@ -328,16 +306,8 @@ function DeckMixerView({
               ? "Level meter mode: mono. Switch to stereo."
               : "Level meter mode: stereo. Switch to mono."
           }
-          title={
-            levelMeterMode === "mono"
-              ? "Mono meters (max L/R)"
-              : "Stereo meters (L/R)"
-          }
-          onClick={() =>
-            onLevelMeterModeChange(
-              levelMeterMode === "mono" ? "stereo" : "mono",
-            )
-          }
+          title={levelMeterMode === "mono" ? "Mono meters (max L/R)" : "Stereo meters (L/R)"}
+          onClick={() => onLevelMeterModeChange(levelMeterMode === "mono" ? "stereo" : "mono")}
         >
           {levelMeterMode === "mono" ? "M" : "S"}
         </button>
@@ -371,14 +341,8 @@ function DeckMixerView({
             {/* Match DeckVolumeFader: meters only as tall as the slider track. */}
             <div className="flex h-full shrink-0 flex-col items-center gap-1">
               <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
-                <LevelMeter
-                  levels={decks[0]?.levels ?? ZERO_DECK_LEVELS}
-                  mode={levelMeterMode}
-                />
-                <LevelMeter
-                  levels={decks[1]?.levels ?? ZERO_DECK_LEVELS}
-                  mode={levelMeterMode}
-                />
+                <LevelMeter levels={decks[0]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
+                <LevelMeter levels={decks[1]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
               </div>
               <span
                 className="invisible w-full shrink-0 text-center text-[9px] tabular-nums"
@@ -406,10 +370,7 @@ function DeckMixerView({
           />
         </div>
 
-        <Crossfader
-          position={crossfader}
-          onPositionChange={onCrossfaderChange}
-        />
+        <Crossfader position={crossfader} onPositionChange={onCrossfaderChange} />
       </div>
     </div>
   );

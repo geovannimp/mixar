@@ -111,17 +111,11 @@ export function RotaryKnob({
     }
   };
 
-  const displayValue = formatValue
-    ? formatValue(value)
-    : value > 0
-      ? `+${value}`
-      : `${value}`;
+  const displayValue = formatValue ? formatValue(value) : value > 0 ? `+${value}` : `${value}`;
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>
-      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>
-        {label}
-      </span>
+      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>{label}</span>
       <button
         type="button"
         disabled={disabled}
@@ -145,10 +139,7 @@ export function RotaryKnob({
         onPointerCancel={handlePointerUp}
         onKeyDown={handleKeyDown}
       >
-        <span
-          aria-hidden
-          className="absolute inset-1 rounded-full border border-white/6"
-        />
+        <span aria-hidden className="absolute inset-1 rounded-full border border-white/6" />
         <span
           aria-hidden
           className="absolute top-1/2 left-1/2 h-[38%] w-0.5 origin-bottom rounded-full bg-zinc-100 shadow-[0_0_5px_rgba(255,255,255,0.3)]"

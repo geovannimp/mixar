@@ -1,4 +1,4 @@
-import type { VolumeInfo } from "../types";
+import type { VolumeInfo } from "@/types";
 
 export function findActiveVolume(
   volumes: VolumeInfo[],
@@ -24,10 +24,7 @@ export function findActiveVolume(
   return null;
 }
 
-export function isAtVolumeRoot(
-  listingPath: string,
-  selectedVolume: VolumeInfo | null,
-): boolean {
+export function isAtVolumeRoot(listingPath: string, selectedVolume: VolumeInfo | null): boolean {
   if (!selectedVolume) {
     return false;
   }
@@ -65,9 +62,7 @@ export function buildPathBreadcrumbs(
   }
 
   const segments = relative.split("/").filter(Boolean);
-  const crumbs: PathBreadcrumb[] = [
-    { label: volumeName, path: volumePath, isCurrent: false },
-  ];
+  const crumbs: PathBreadcrumb[] = [{ label: volumeName, path: volumePath, isCurrent: false }];
 
   for (let index = 0; index < segments.length; index += 1) {
     const segmentPath =

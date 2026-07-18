@@ -48,16 +48,11 @@ export function formatDeckRemainingDisplay(
   return `-${formatDeckTimeTenth(remaining)}`;
 }
 
-export function formatDeckTotalDisplay(
-  durationSecs: number | null | undefined,
-): string {
+export function formatDeckTotalDisplay(durationSecs: number | null | undefined): string {
   return formatDeckTimeTenth(durationSecs);
 }
 
-export function effectiveBpm(
-  bpm: number | null | undefined,
-  speed: number,
-): number | null {
+export function effectiveBpm(bpm: number | null | undefined, speed: number): number | null {
   if (bpm == null || !Number.isFinite(bpm)) return null;
   return bpm * speed;
 }
@@ -78,11 +73,7 @@ export function barCycleProgress(
   if (!Number.isFinite(positionSecs)) {
     return 0;
   }
-  const cycleDurationSecs = barCycleDurationSecs(
-    bpm,
-    beatsPerBar,
-    cycleBars,
-  );
+  const cycleDurationSecs = barCycleDurationSecs(bpm, beatsPerBar, cycleBars);
   if (cycleDurationSecs == null) {
     return 0;
   }
@@ -101,22 +92,14 @@ export function barCycleRotationDeg(
   if (!Number.isFinite(positionSecs)) {
     return 0;
   }
-  const cycleDurationSecs = barCycleDurationSecs(
-    bpm,
-    beatsPerBar,
-    cycleBars,
-  );
+  const cycleDurationSecs = barCycleDurationSecs(bpm, beatsPerBar, cycleBars);
   if (cycleDurationSecs == null) {
     return 0;
   }
   return (positionSecs / cycleDurationSecs) * 360;
 }
 
-function barCycleDurationSecs(
-  bpm: number,
-  beatsPerBar: number,
-  cycleBars: number,
-): number | null {
+function barCycleDurationSecs(bpm: number, beatsPerBar: number, cycleBars: number): number | null {
   if (!Number.isFinite(bpm) || bpm <= 0) {
     return null;
   }
@@ -142,15 +125,14 @@ function clampSpeedToPitchRange(speed: number): number {
 
 /** Map speed to slider 0–100 (center = 50, ±8%). */
 export function speedToPitchSlider(speed: number): number {
-  const pitch = ((clampSpeedToPitchRange(speed) - 1) * 100);
+  const pitch = (clampSpeedToPitchRange(speed) - 1) * 100;
   const clamped = Math.min(PITCH_RANGE_PERCENT, Math.max(-PITCH_RANGE_PERCENT, pitch));
   return Math.round(((clamped + PITCH_RANGE_PERCENT) / (2 * PITCH_RANGE_PERCENT)) * 100);
 }
 
 export function pitchSliderToSpeed(value: number): number {
   const clamped = Math.min(100, Math.max(0, value));
-  const pitch =
-    (clamped / 100) * (2 * PITCH_RANGE_PERCENT) - PITCH_RANGE_PERCENT;
+  const pitch = (clamped / 100) * (2 * PITCH_RANGE_PERCENT) - PITCH_RANGE_PERCENT;
   return clampSpeedToPitchRange(1 + pitch / 100);
 }
 
@@ -182,10 +164,7 @@ export function formatDeckRemaining(
   return formatDeckRemainingDisplay(positionSecs, durationSecs);
 }
 
-export function deckDisplayTitle(deck: {
-  title: string | null;
-  track: string | null;
-}): string {
+export function deckDisplayTitle(deck: { title: string | null; track: string | null }): string {
   if (deck.title?.trim()) {
     return deck.title.trim();
   }

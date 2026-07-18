@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { findActiveVolume } from "../lib/driveVolumes";
-import type { DirectoryListing, VolumeInfo } from "../types";
+import { findActiveVolume } from "@/lib/driveVolumes";
+import type { DirectoryListing, VolumeInfo } from "@/types";
 
 export function useDriveBrowser() {
   const [volumes, setVolumes] = useState<VolumeInfo[]>([]);

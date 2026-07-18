@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { PadMode } from "../types";
+import type { PadMode } from "@/types";
 
 interface UseDeckHotkeysOptions {
   focusedDeckId: number;
@@ -15,12 +15,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
     return false;
   }
   const tag = target.tagName;
-  return (
-    target.isContentEditable ||
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    tag === "SELECT"
-  );
+  return target.isContentEditable || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 }
 
 const LOOP_ROLL_BEATS = [1, 2, 4, 8, 16, 32, 64, 128] as const;
@@ -71,10 +66,7 @@ export function useDeckHotkeys({
             return;
           }
           heldLoopRollSlots.add(slotIndex);
-          onBeginLoopRoll(
-            focusedDeckId,
-            LOOP_ROLL_BEATS[slotIndex] ?? 4,
-          );
+          onBeginLoopRoll(focusedDeckId, LOOP_ROLL_BEATS[slotIndex] ?? 4);
           break;
         }
         default: {
@@ -105,12 +97,5 @@ export function useDeckHotkeys({
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [
-    focusedDeckId,
-    onBeatJump,
-    onBeginLoopRoll,
-    onEndLoopRoll,
-    onTriggerHotCue,
-    padMode,
-  ]);
+  }, [focusedDeckId, onBeatJump, onBeginLoopRoll, onEndLoopRoll, onTriggerHotCue, padMode]);
 }

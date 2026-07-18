@@ -1,4 +1,4 @@
-import type { LibrarySourceTab } from "../types";
+import type { LibrarySourceTab } from "@/types";
 
 interface LibrarySourceTabsProps {
   activeTab: LibrarySourceTab;
@@ -10,10 +10,7 @@ const tabs: { id: LibrarySourceTab; label: string }[] = [
   { id: "drive", label: "Drive" },
 ];
 
-export function LibrarySourceTabs({
-  activeTab,
-  onTabChange,
-}: LibrarySourceTabsProps) {
+export function LibrarySourceTabs({ activeTab, onTabChange }: LibrarySourceTabsProps) {
   return (
     <div
       className="flex shrink-0 gap-1 rounded-md border border-white/8 bg-black/20 p-0.5"

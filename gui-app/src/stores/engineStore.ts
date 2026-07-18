@@ -3,12 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
-import { getSupportedAudioExtensions } from "../lib/audioExtensions";
-import {
-  applyEngineEvent,
-  patchDeckPosition,
-  type EngineEvent,
-} from "../lib/engineEvents";
+import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
+import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
 import {
   ZERO_DECK_LEVELS,
   type DeckEq,
@@ -16,7 +12,7 @@ import {
   type EngineStatus,
   type LevelMeterMode,
   type PadMode,
-} from "../types";
+} from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
 
 const ENGINE_ERROR_TOAST_ID = "engine-error";
@@ -51,10 +47,7 @@ interface EngineStoreState {
   applyEvent: (event: EngineEvent) => void;
   setStatus: (status: EngineStatus | null) => void;
   setLevelMeterMode: (mode: LevelMeterMode) => void;
-  runDeckBlockingAction: (
-    deckId: number,
-    action: () => Promise<void>,
-  ) => Promise<void>;
+  runDeckBlockingAction: (deckId: number, action: () => Promise<void>) => Promise<void>;
   ensureEngineRunning: () => Promise<void>;
   loadLibraryTrackToDeck: (deckId: number, trackId: string) => Promise<void>;
   loadPathToDeck: (deckId: number, path: string) => Promise<void>;
@@ -113,11 +106,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     }
 
     set((current) => {
-      const { status, revision } = applyEngineEvent(
-        current.status,
-        event,
-        current.revision,
-      );
+      const { status, revision } = applyEngineEvent(current.status, event, current.revision);
       return { status, revision };
     });
   },
@@ -559,55 +548,30 @@ function selectDeckOverview(state: EngineStoreState, deckId: number) {
   };
 }
 
-const selectDeckMixerChannel0 = (state: EngineStoreState) =>
-  selectDeckMixerChannel(state, 0);
-const selectDeckMixerChannel1 = (state: EngineStoreState) =>
-  selectDeckMixerChannel(state, 1);
+const selectDeckMixerChannel0 = (state: EngineStoreState) => selectDeckMixerChannel(state, 0);
+const selectDeckMixerChannel1 = (state: EngineStoreState) => selectDeckMixerChannel(state, 1);
 
-const selectDeckTransport0 = (state: EngineStoreState) =>
-  selectDeckTransport(state, 0);
-const selectDeckTransport1 = (state: EngineStoreState) =>
-  selectDeckTransport(state, 1);
+const selectDeckTransport0 = (state: EngineStoreState) => selectDeckTransport(state, 0);
+const selectDeckTransport1 = (state: EngineStoreState) => selectDeckTransport(state, 1);
 
-const selectDeckWaveform0 = (state: EngineStoreState) =>
-  selectDeckWaveform(state, 0);
-const selectDeckWaveform1 = (state: EngineStoreState) =>
-  selectDeckWaveform(state, 1);
+const selectDeckWaveform0 = (state: EngineStoreState) => selectDeckWaveform(state, 0);
+const selectDeckWaveform1 = (state: EngineStoreState) => selectDeckWaveform(state, 1);
 
-const selectDeckControls0 = (state: EngineStoreState) =>
-  selectDeckControls(state, 0);
-const selectDeckControls1 = (state: EngineStoreState) =>
-  selectDeckControls(state, 1);
+const selectDeckControls0 = (state: EngineStoreState) => selectDeckControls(state, 0);
+const selectDeckControls1 = (state: EngineStoreState) => selectDeckControls(state, 1);
 
-const selectDeckOverview0 = (state: EngineStoreState) =>
-  selectDeckOverview(state, 0);
-const selectDeckOverview1 = (state: EngineStoreState) =>
-  selectDeckOverview(state, 1);
+const selectDeckOverview0 = (state: EngineStoreState) => selectDeckOverview(state, 0);
+const selectDeckOverview1 = (state: EngineStoreState) => selectDeckOverview(state, 1);
 
-const DECK_MIXER_CHANNEL_SELECTORS = [
-  selectDeckMixerChannel0,
-  selectDeckMixerChannel1,
-] as const;
+const DECK_MIXER_CHANNEL_SELECTORS = [selectDeckMixerChannel0, selectDeckMixerChannel1] as const;
 
-const DECK_TRANSPORT_SELECTORS = [
-  selectDeckTransport0,
-  selectDeckTransport1,
-] as const;
+const DECK_TRANSPORT_SELECTORS = [selectDeckTransport0, selectDeckTransport1] as const;
 
-const DECK_WAVEFORM_SELECTORS = [
-  selectDeckWaveform0,
-  selectDeckWaveform1,
-] as const;
+const DECK_WAVEFORM_SELECTORS = [selectDeckWaveform0, selectDeckWaveform1] as const;
 
-const DECK_CONTROLS_SELECTORS = [
-  selectDeckControls0,
-  selectDeckControls1,
-] as const;
+const DECK_CONTROLS_SELECTORS = [selectDeckControls0, selectDeckControls1] as const;
 
-const DECK_OVERVIEW_SELECTORS = [
-  selectDeckOverview0,
-  selectDeckOverview1,
-] as const;
+const DECK_OVERVIEW_SELECTORS = [selectDeckOverview0, selectDeckOverview1] as const;
 
 function deckSelector<T>(
   deckId: number,
@@ -618,8 +582,7 @@ function deckSelector<T>(
 
 export const engineActions = {
   ensureEngineRunning: () => useEngineStore.getState().ensureEngineRunning(),
-  setLevelMeterMode: (mode: LevelMeterMode) =>
-    useEngineStore.getState().setLevelMeterMode(mode),
+  setLevelMeterMode: (mode: LevelMeterMode) => useEngineStore.getState().setLevelMeterMode(mode),
   loadLibraryTrackToDeck: (deckId: number, trackId: string) =>
     useEngineStore.getState().loadLibraryTrackToDeck(deckId, trackId),
   loadPathToDeck: (deckId: number, path: string) =>
@@ -629,50 +592,37 @@ export const engineActions = {
   pauseDeck: (deckId: number) => useEngineStore.getState().pauseDeck(deckId),
   setDeckVolume: (deckId: number, volume: number) =>
     useEngineStore.getState().setDeckVolume(deckId, volume),
-  setDeckEq: (deckId: number, eq: DeckEq) =>
-    useEngineStore.getState().setDeckEq(deckId, eq),
+  setDeckEq: (deckId: number, eq: DeckEq) => useEngineStore.getState().setDeckEq(deckId, eq),
   setDeckSpeed: (deckId: number, speed: number) =>
     useEngineStore.getState().setDeckSpeed(deckId, speed),
-  setCrossfader: (position: number) =>
-    useEngineStore.getState().setCrossfader(position),
+  setCrossfader: (position: number) => useEngineStore.getState().setCrossfader(position),
   setCueMix: (mix: number) => useEngineStore.getState().setCueMix(mix),
-  setMasterCue: (enabled: boolean) =>
-    useEngineStore.getState().setMasterCue(enabled),
+  setMasterCue: (enabled: boolean) => useEngineStore.getState().setMasterCue(enabled),
   seekDeck: (deckId: number, positionSecs: number) =>
     useEngineStore.getState().seekDeck(deckId, positionSecs),
   unloadDeck: (deckId: number) => useEngineStore.getState().unloadDeck(deckId),
-  setDeckCuePoint: (deckId: number) =>
-    useEngineStore.getState().setDeckCuePoint(deckId),
-  beginDeckCueHold: (deckId: number) =>
-    useEngineStore.getState().beginDeckCueHold(deckId),
-  endDeckCueHold: (deckId: number) =>
-    useEngineStore.getState().endDeckCueHold(deckId),
+  setDeckCuePoint: (deckId: number) => useEngineStore.getState().setDeckCuePoint(deckId),
+  beginDeckCueHold: (deckId: number) => useEngineStore.getState().beginDeckCueHold(deckId),
+  endDeckCueHold: (deckId: number) => useEngineStore.getState().endDeckCueHold(deckId),
   setDeckQuantize: (deckId: number, enabled: boolean) =>
     useEngineStore.getState().setDeckQuantize(deckId, enabled),
   setDeckAutoLoop: (deckId: number, beats: number) =>
     useEngineStore.getState().setDeckAutoLoop(deckId, beats),
-  setDeckLoopIn: (deckId: number) =>
-    useEngineStore.getState().setDeckLoopIn(deckId),
-  setDeckLoopOut: (deckId: number) =>
-    useEngineStore.getState().setDeckLoopOut(deckId),
-  exitDeckLoop: (deckId: number) =>
-    useEngineStore.getState().exitDeckLoop(deckId),
+  setDeckLoopIn: (deckId: number) => useEngineStore.getState().setDeckLoopIn(deckId),
+  setDeckLoopOut: (deckId: number) => useEngineStore.getState().setDeckLoopOut(deckId),
+  exitDeckLoop: (deckId: number) => useEngineStore.getState().exitDeckLoop(deckId),
   triggerHotCue: (deckId: number, slot: number) =>
     useEngineStore.getState().triggerHotCue(deckId, slot),
-  saveHotCue: (deckId: number, slot: number) =>
-    useEngineStore.getState().saveHotCue(deckId, slot),
+  saveHotCue: (deckId: number, slot: number) => useEngineStore.getState().saveHotCue(deckId, slot),
   deleteHotCue: (deckId: number, slot: number) =>
     useEngineStore.getState().deleteHotCue(deckId, slot),
-  saveLoop: (deckId: number, slot: number) =>
-    useEngineStore.getState().saveLoop(deckId, slot),
+  saveLoop: (deckId: number, slot: number) => useEngineStore.getState().saveLoop(deckId, slot),
   recallSavedLoop: (deckId: number, slot: number) =>
     useEngineStore.getState().recallSavedLoop(deckId, slot),
-  deleteLoop: (deckId: number, slot: number) =>
-    useEngineStore.getState().deleteLoop(deckId, slot),
+  deleteLoop: (deckId: number, slot: number) => useEngineStore.getState().deleteLoop(deckId, slot),
   toggleDeckSync: (deckId: number, beatSync?: boolean) =>
     useEngineStore.getState().toggleDeckSync(deckId, beatSync),
-  setMasterDeck: (deckId: number) =>
-    useEngineStore.getState().setMasterDeck(deckId),
+  setMasterDeck: (deckId: number) => useEngineStore.getState().setMasterDeck(deckId),
   beatJumpDeck: (deckId: number, beats: number) =>
     useEngineStore.getState().beatJumpDeck(deckId, beats),
   cycleDeckPadMode: (deckId: number, direction: number) =>
@@ -687,8 +637,7 @@ export const engineActions = {
     useEngineStore.getState().setDeckHeadphoneCue(deckId, enabled),
   beginLoopRoll: (deckId: number, beats: number) =>
     useEngineStore.getState().beginLoopRoll(deckId, beats),
-  endLoopRoll: (deckId: number) =>
-    useEngineStore.getState().endLoopRoll(deckId),
+  endLoopRoll: (deckId: number) => useEngineStore.getState().endLoopRoll(deckId),
 };
 
 export function useEngineRunning(): boolean {
@@ -696,9 +645,7 @@ export function useEngineRunning(): boolean {
 }
 
 export function useEngineBusy(): boolean {
-  return useEngineStore(
-    (state) => state.starting || state.busyDecks[0] || state.busyDecks[1],
-  );
+  return useEngineStore((state) => state.starting || state.busyDecks[0] || state.busyDecks[1]);
 }
 
 export function useDeckBusy(deckId: number): boolean {
@@ -730,37 +677,25 @@ export function useDeckHasTrack(deckId: number): boolean {
 }
 
 export function useAnyDeckHasTrack(): boolean {
-  return useEngineStore((state) =>
-    Boolean(state.status?.decks.some((deck) => deck.track)),
-  );
+  return useEngineStore((state) => Boolean(state.status?.decks.some((deck) => deck.track)));
 }
 
 export function useDeckMixerChannel(deckId: number) {
-  return useEngineStore(
-    useShallow(deckSelector(deckId, DECK_MIXER_CHANNEL_SELECTORS)),
-  );
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_MIXER_CHANNEL_SELECTORS)));
 }
 
 export function useDeckTransport(deckId: number) {
-  return useEngineStore(
-    useShallow(deckSelector(deckId, DECK_TRANSPORT_SELECTORS)),
-  );
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_TRANSPORT_SELECTORS)));
 }
 
 export function useDeckWaveform(deckId: number) {
-  return useEngineStore(
-    useShallow(deckSelector(deckId, DECK_WAVEFORM_SELECTORS)),
-  );
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_WAVEFORM_SELECTORS)));
 }
 
 export function useDeckControls(deckId: number) {
-  return useEngineStore(
-    useShallow(deckSelector(deckId, DECK_CONTROLS_SELECTORS)),
-  );
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_CONTROLS_SELECTORS)));
 }
 
 export function useDeckOverview(deckId: number) {
-  return useEngineStore(
-    useShallow(deckSelector(deckId, DECK_OVERVIEW_SELECTORS)),
-  );
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_OVERVIEW_SELECTORS)));
 }

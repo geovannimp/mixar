@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buttonIcon } from "../lib/ui";
+import { buttonIcon } from "@/lib/ui";
 
 export interface TrackActionItem {
   label: string;

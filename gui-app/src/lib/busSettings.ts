@@ -1,4 +1,4 @@
-import type { AppSettings, BusChannelMode, BusRouteSettings } from "../types";
+import type { AppSettings, BusChannelMode, BusRouteSettings } from "@/types";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "./libraryTable";
 
 export const DEFAULT_DEVICE_ID = "default";

@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { VolumeInfo } from "../types";
+import type { VolumeInfo } from "@/types";
 
 type VolumeOption = {
   label: string;
@@ -76,12 +76,8 @@ export function DriveVolumeList({
             <span className="flex items-start gap-2">
               <VolumeIcon volume={volume} />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {volume.name}
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                  {volume.path}
-                </span>
+                <span className="block truncate text-sm font-medium">{volume.name}</span>
+                <span className="mt-0.5 block truncate text-xs text-zinc-500">{volume.path}</span>
               </span>
             </span>
           </button>

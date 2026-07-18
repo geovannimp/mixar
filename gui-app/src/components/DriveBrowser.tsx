@@ -1,5 +1,5 @@
-import { splitPathBreadcrumbs } from "../lib/driveVolumes";
-import type { DirectoryListing, VolumeInfo } from "../types";
+import { splitPathBreadcrumbs } from "@/lib/driveVolumes";
+import type { DirectoryListing, VolumeInfo } from "@/types";
 import { DrivePathBreadcrumbs } from "./DrivePathBreadcrumbs";
 import { DriveFolderRow } from "./DriveFolderRow";
 import { DriveVolumeList } from "./DriveSelector";
@@ -30,11 +30,7 @@ export function DriveBrowser({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       {!listing ? (
-        <DriveVolumeList
-          volumes={volumes}
-          busy={busy}
-          onSelectVolume={onSelectVolume}
-        />
+        <DriveVolumeList volumes={volumes} busy={busy} onSelectVolume={onSelectVolume} />
       ) : (
         <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {current && (
@@ -82,15 +78,9 @@ export function DriveBrowser({
                   busy={busy}
                   title={directory.path}
                   indented
-                  label={
-                    <span className="truncate text-sm leading-5">
-                      {directory.name}
-                    </span>
-                  }
+                  label={<span className="truncate text-sm leading-5">{directory.name}</span>}
                   onOpen={() => onOpenDirectory(directory.path)}
-                  onCreateCollection={() =>
-                    onCreateCollectionFromFolder(directory.path)
-                  }
+                  onCreateCollection={() => onCreateCollectionFromFolder(directory.path)}
                 />
               </li>
             ))

@@ -1,9 +1,4 @@
-import {
-  animate,
-  type MotionValue,
-  useAnimationFrame,
-  useMotionValue,
-} from "motion/react";
+import { animate, type MotionValue, useAnimationFrame, useMotionValue } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 
 export interface SmoothPlayhead {
@@ -99,9 +94,7 @@ export function useSmoothPlayhead({
     motionPos.set(next);
 
     const { pos, at } = engineRef.current;
-    const engineEstimate = clamp(
-      pos + ((performance.now() - at) / 1000) * rate,
-    );
+    const engineEstimate = clamp(pos + ((performance.now() - at) / 1000) * rate);
     const error = engineEstimate - motionPos.get();
     if (Math.abs(error) > DRIFT_CORRECT_SECS) {
       motionPos.set(clamp(motionPos.get() + error * 0.25));

@@ -1,15 +1,15 @@
 import { Slider } from "@/components/ui/slider";
 import { DeckButton } from "@/components/ui/deck-button";
-import type { DeckAccent } from "../lib/ui";
-import { DECK_ACCENTS } from "../lib/ui";
+import type { DeckAccent } from "@/lib/ui";
+import { DECK_ACCENTS } from "@/lib/ui";
 import {
   effectiveBpm,
   formatBpm,
   formatPitchOffset,
   pitchSliderToSpeed,
   speedToPitchSlider,
-} from "../lib/format";
-import type { DeckStatus } from "../types";
+} from "@/lib/format";
+import type { DeckStatus } from "@/types";
 
 interface DeckTempoPanelProps {
   accent: DeckAccent;

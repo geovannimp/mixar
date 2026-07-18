@@ -1,17 +1,10 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  acceptsTrackDrag,
-  readTrackDragData,
-  type TrackDragPayload,
-} from "../lib/libraryTable";
+import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "@/lib/libraryTable";
 import { DeckButton } from "@/components/ui/deck-button";
-import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
-import {
-  formatDeckRemainingDisplay,
-  formatDeckTotalDisplay,
-} from "../lib/format";
+import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
+import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "@/lib/format";
 import {
   engineActions,
   useDeckControls,
@@ -19,9 +12,9 @@ import {
   useDeckTransport,
   useDeckBusy,
   useEngineRunning,
-} from "../hooks/useEngine";
-import { getDefaultDeck } from "../stores/defaultDeck";
-import type { DeckStatus } from "../types";
+} from "@/hooks/useEngine";
+import { getDefaultDeck } from "@/stores/defaultDeck";
+import type { DeckStatus } from "@/types";
 import { DeckPadsPanel } from "./DeckPadsPanel";
 import { DeckLoopPanel } from "./DeckLoopPanel";
 import { DeckOverviewPreview } from "./DeckOverviewPreview";
@@ -50,10 +43,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
     <div className="flex shrink-0 flex-col gap-0.5">
       <div className="flex items-baseline justify-between gap-3 font-mono tabular-nums">
         <span className="text-sm font-semibold text-zinc-100 sm:text-base">
-          {formatDeckRemainingDisplay(
-            overview.position_secs,
-            overview.duration_secs,
-          )}
+          {formatDeckRemainingDisplay(overview.position_secs, overview.duration_secs)}
         </span>
         <span className="text-[11px] text-zinc-500 sm:text-xs">
           {formatDeckTotalDisplay(overview.duration_secs)}
@@ -301,12 +291,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
   );
 });
 
-export function DeckPanel({
-  deckId,
-  accentKey,
-  focused = false,
-  onFocus,
-}: DeckPanelProps) {
+export function DeckPanel({ deckId, accentKey, focused = false, onFocus }: DeckPanelProps) {
   const accent = DECK_ACCENTS[accentKey];
   const engineRunning = useEngineRunning();
   const deckBusy = useDeckBusy(deckId);
@@ -417,16 +402,10 @@ export function DeckPanel({
     >
       <div className="flex shrink-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
-          <h2
-            className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}
-          >
+          <h2 className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}>
             {accent.label}
           </h2>
-          <DeckInfoPopover
-            deck={deckForInfo}
-            disabled={!hasTrack}
-            accentClass={accent.text}
-          />
+          <DeckInfoPopover deck={deckForInfo} disabled={!hasTrack} accentClass={accent.text} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <DeckButton
@@ -464,10 +443,7 @@ export function DeckPanel({
       <div className="flex min-h-0 flex-1 gap-2">
         {!isDeckA ? tempoPanel : null}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-          <DeckOverviewSection
-            deckId={deckId}
-            transportDisabled={transportDisabled}
-          />
+          <DeckOverviewSection deckId={deckId} transportDisabled={transportDisabled} />
           <DeckPerformanceSection
             deckId={deckId}
             accentKey={accentKey}

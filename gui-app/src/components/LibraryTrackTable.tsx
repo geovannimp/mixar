@@ -14,7 +14,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { DECK_LABELS } from "../lib/ui";
+import { DECK_LABELS } from "@/lib/ui";
 import {
   columnSortValue,
   formatColumnValue,
@@ -23,14 +23,10 @@ import {
   rowKey,
   rowTitle,
   rowTrackId,
-} from "../lib/libraryTable";
-import {
-  fuzzyFilter,
-  fuzzySort,
-  libraryGlobalFilter,
-} from "../lib/libraryTableFilter";
-import { startTrackDrag } from "../lib/trackDragPreview";
-import type { LibraryTableColumn, LibraryTableRow } from "../types";
+} from "@/lib/libraryTable";
+import { fuzzyFilter, fuzzySort, libraryGlobalFilter } from "@/lib/libraryTableFilter";
+import { startTrackDrag } from "@/lib/trackDragPreview";
+import type { LibraryTableColumn, LibraryTableRow } from "@/types";
 import { TrackActionsMenu } from "./TrackActionsMenu";
 
 const SEARCH_COLUMN_ID = "searchText";
@@ -63,24 +59,19 @@ export function LibraryTrackTable({
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const visibleColumns = useMemo(
-    () =>
-      LIBRARY_TABLE_COLUMNS.filter(
-        (column) => column.required || columns.includes(column.id),
-      ),
+    () => LIBRARY_TABLE_COLUMNS.filter((column) => column.required || columns.includes(column.id)),
     [columns],
   );
 
   const columnDefs = useMemo<ColumnDef<LibraryTableRow>[]>(() => {
-    const dataColumns: ColumnDef<LibraryTableRow>[] = visibleColumns.map(
-      (column) => ({
-        id: column.id,
-        accessorFn: (row) => columnSortValue(row, column.id),
-        header: column.label,
-        cell: ({ row }) => row.original,
-        sortingFn: "alphanumeric",
-        meta: { columnId: column.id },
-      }),
-    );
+    const dataColumns: ColumnDef<LibraryTableRow>[] = visibleColumns.map((column) => ({
+      id: column.id,
+      accessorFn: (row) => columnSortValue(row, column.id),
+      header: column.label,
+      cell: ({ row }) => row.original,
+      sortingFn: "alphanumeric",
+      meta: { columnId: column.id },
+    }));
 
     return [
       {
@@ -126,16 +117,12 @@ export function LibraryTrackTable({
   useEffect(() => {
     if (globalFilter.trim()) {
       setSorting((current) =>
-        current[0]?.id === SEARCH_COLUMN_ID
-          ? current
-          : [{ id: SEARCH_COLUMN_ID, desc: false }],
+        current[0]?.id === SEARCH_COLUMN_ID ? current : [{ id: SEARCH_COLUMN_ID, desc: false }],
       );
       return;
     }
 
-    setSorting((current) =>
-      current[0]?.id === SEARCH_COLUMN_ID ? [] : current,
-    );
+    setSorting((current) => (current[0]?.id === SEARCH_COLUMN_ID ? [] : current));
   }, [globalFilter]);
 
   const dragEnabled = engineRunning && !busy;
@@ -159,79 +146,61 @@ export function LibraryTrackTable({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        ref={tableContainerRef}
-        className="min-h-0 flex-1 overflow-auto"
-      >
-      <table className="w-full min-w-[40rem] border-collapse text-sm">
-        <thead className="sticky top-0 z-10 bg-zinc-900/95 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr
-              key={headerGroup.id}
-              className="flex w-full border-b border-white/8"
-            >
-              {headerGroup.headers.map((header) => {
-                if (header.column.id === SEARCH_COLUMN_ID) {
-                  return null;
-                }
+      <div ref={tableContainerRef} className="min-h-0 flex-1 overflow-auto">
+        <table className="w-full min-w-[40rem] border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-zinc-900/95 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="flex w-full border-b border-white/8">
+                {headerGroup.headers.map((header) => {
+                  if (header.column.id === SEARCH_COLUMN_ID) {
+                    return null;
+                  }
 
-                const columnId = header.column.id as
-                  | LibraryTableColumn
-                  | "actions";
-                const canSort = header.column.getCanSort();
+                  const columnId = header.column.id as LibraryTableColumn | "actions";
+                  const canSort = header.column.getCanSort();
 
-                return (
-                  <th
-                    key={header.id}
-                    className={cn(
-                      "px-2 py-2 font-semibold",
-                      columnCellClass(columnId),
-                      columnId === "actions" && "text-right",
-                    )}
-                    aria-label={
-                      columnId === "actions" ? "Actions" : undefined
-                    }
-                  >
-                    {canSort ? (
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 transition hover:text-zinc-300"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <span>
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                        </span>
-                        <SortIndicator
-                          direction={header.column.getIsSorted()}
-                        />
-                      </button>
-                    ) : columnId === "actions" ? null : (
-                      flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )
-                    )}
-                  </th>
-                );
-              })}
-            </tr>
-          ))}
-        </thead>
-        <LibraryTrackTableBody
-          table={table}
-          tableContainerRef={tableContainerRef}
-          visibleColumns={visibleColumns}
-          dragEnabled={dragEnabled}
-          analyzingTrackId={analyzingTrackId}
-          busy={busy}
-          engineRunning={engineRunning}
-          onLoadToDeck={onLoadToDeck}
-          onAnalyze={onAnalyze}
-        />
-      </table>
+                  return (
+                    <th
+                      key={header.id}
+                      className={cn(
+                        "px-2 py-2 font-semibold",
+                        columnCellClass(columnId),
+                        columnId === "actions" && "text-right",
+                      )}
+                      aria-label={columnId === "actions" ? "Actions" : undefined}
+                    >
+                      {canSort ? (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 transition hover:text-zinc-300"
+                          onClick={header.column.getToggleSortingHandler()}
+                        >
+                          <span>
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </span>
+                          <SortIndicator direction={header.column.getIsSorted()} />
+                        </button>
+                      ) : columnId === "actions" ? null : (
+                        flexRender(header.column.columnDef.header, header.getContext())
+                      )}
+                    </th>
+                  );
+                })}
+              </tr>
+            ))}
+          </thead>
+          <LibraryTrackTableBody
+            table={table}
+            tableContainerRef={tableContainerRef}
+            visibleColumns={visibleColumns}
+            dragEnabled={dragEnabled}
+            analyzingTrackId={analyzingTrackId}
+            busy={busy}
+            engineRunning={engineRunning}
+            onLoadToDeck={onLoadToDeck}
+            onAnalyze={onAnalyze}
+          />
+        </table>
       </div>
     </div>
   );
@@ -270,10 +239,7 @@ function LibraryTrackTableBody({
   });
 
   return (
-    <tbody
-      className="relative block"
-      style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
-    >
+    <tbody className="relative block" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
       {rowVirtualizer.getVirtualItems().map((virtualRow) => {
         const row = rows[virtualRow.index];
         if (!row) {
@@ -423,11 +389,7 @@ function columnCellClass(columnId: LibraryTableColumn | "actions"): string {
   }
 }
 
-function SortIndicator({
-  direction,
-}: {
-  direction: false | "asc" | "desc";
-}) {
+function SortIndicator({ direction }: { direction: false | "asc" | "desc" }) {
   if (!direction) {
     return <ArrowUpDown className="size-3 opacity-40" aria-hidden />;
   }

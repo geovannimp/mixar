@@ -1,6 +1,6 @@
 import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { getAppWindow, isTauriApp } from "../lib/tauriApp";
+import { getAppWindow, isTauriApp } from "@/lib/tauriApp";
 
 type ResizeDirection =
   | "East"
@@ -94,16 +94,15 @@ function WindowResizeHandles() {
     return null;
   }
 
-  const handleMouseDown =
-    (direction: ResizeDirection) => (event: MouseEvent<HTMLDivElement>) => {
-      if (event.buttons !== 1) {
-        return;
-      }
+  const handleMouseDown = (direction: ResizeDirection) => (event: MouseEvent<HTMLDivElement>) => {
+    if (event.buttons !== 1) {
+      return;
+    }
 
-      event.preventDefault();
-      event.stopPropagation();
-      void getAppWindow().startResizeDragging(direction);
-    };
+    event.preventDefault();
+    event.stopPropagation();
+    void getAppWindow().startResizeDragging(direction);
+  };
 
   return (
     <div className="pointer-events-none fixed inset-0 z-200" aria-hidden>
@@ -118,10 +117,7 @@ function WindowResizeHandles() {
   );
 }
 
-export function WindowResizeBorder({
-  children,
-  className,
-}: WindowResizeBorderProps) {
+export function WindowResizeBorder({ children, className }: WindowResizeBorderProps) {
   if (!isTauriApp()) {
     return <div className={className}>{children}</div>;
   }

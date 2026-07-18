@@ -26,8 +26,7 @@ export function SettingsSelect<T extends string>({
   disabled = false,
   onValueChange,
 }: SettingsSelectProps<T>) {
-  const selected =
-    options.find((option) => option.value === value) ?? options[0];
+  const selected = options.find((option) => option.value === value) ?? options[0];
 
   if (!selected) {
     return null;

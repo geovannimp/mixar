@@ -1,22 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
-import { useDriveBrowser } from "../hooks/useDriveBrowser";
-import { useLibrary } from "../hooks/useLibrary";
-import { useLibraryTrackLookup } from "../hooks/useLibraryTrackLookup";
-import { useSettings } from "../hooks/useSettings";
-import {
-  libraryRowFromFile,
-  libraryRowFromTrack,
-} from "../lib/libraryTable";
-import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "../lib/libraryTable";
-import { normalizeAppSettings } from "../lib/busSettings";
-import { buttonIcon } from "../lib/ui";
-import type { LibrarySourceTab, LibraryTableRow } from "../types";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useDriveBrowser } from "@/hooks/useDriveBrowser";
+import { useLibrary } from "@/hooks/useLibrary";
+import { useLibraryTrackLookup } from "@/hooks/useLibraryTrackLookup";
+import { useSettings } from "@/hooks/useSettings";
+import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/libraryTable";
+import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/libraryTable";
+import { normalizeAppSettings } from "@/lib/busSettings";
+import { buttonIcon } from "@/lib/ui";
+import type { LibrarySourceTab, LibraryTableRow } from "@/types";
 import { CollectionList } from "./CollectionList";
 import { DriveBrowser } from "./DriveBrowser";
 import { DriveSelector } from "./DriveSelector";
@@ -24,7 +17,7 @@ import { LibraryPane } from "./LibraryPane";
 import { LibrarySourceTabs } from "./LibrarySourceTabs";
 import { LibraryTrackTable } from "./LibraryTrackTable";
 import { MessageBanner } from "./MessageBanner";
-import { engineActions, useEngineBusy, useEngineRunning } from "../hooks/useEngine";
+import { engineActions, useEngineBusy, useEngineRunning } from "@/hooks/useEngine";
 
 export function LibraryPanel() {
   const engineRunning = useEngineRunning();
@@ -100,8 +93,7 @@ export function LibraryPanel() {
     },
   );
 
-  const leftPaneTitle =
-    sourceTab === "collections" ? "Collections" : "Browse";
+  const leftPaneTitle = sourceTab === "collections" ? "Collections" : "Browse";
 
   const driveFilePaths = useMemo(
     () => (sourceTab === "drive" ? (listing?.audio_files ?? []).map((file) => file.path) : []),
@@ -176,11 +168,7 @@ export function LibraryPanel() {
         </div>
       )}
 
-      <ResizablePanelGroup
-        id="library-split"
-        orientation="horizontal"
-        className="min-h-0 flex-1"
-      >
+      <ResizablePanelGroup id="library-split" orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel
           id="collections"
           defaultSize="32"
@@ -191,12 +179,7 @@ export function LibraryPanel() {
           <aside className="flex h-full min-h-0 flex-col">
             <LibraryPane
               title={leftPaneTitle}
-              tabs={
-                <LibrarySourceTabs
-                  activeTab={sourceTab}
-                  onTabChange={setSourceTab}
-                />
-              }
+              tabs={<LibrarySourceTabs activeTab={sourceTab} onTabChange={setSourceTab} />}
               headerInline={
                 sourceTab === "drive" && listing ? (
                   <DriveSelector
@@ -246,11 +229,7 @@ export function LibraryPanel() {
 
         <ResizableHandle withHandle className="bg-white/6 hover:bg-emerald-500/25" />
 
-        <ResizablePanel
-          id="tracks"
-          minSize="35"
-          className="min-h-0 overflow-hidden"
-        >
+        <ResizablePanel id="tracks" minSize="35" className="min-h-0 overflow-hidden">
           <LibraryPane
             title="Tracks"
             scrollable={false}

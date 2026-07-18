@@ -1,6 +1,6 @@
 import { type MotionValue, useMotionValueEvent } from "motion/react";
 import { useEffect, useState } from "react";
-import type { DeckActiveLoop, DeckHotCueMarker } from "../types";
+import type { DeckActiveLoop, DeckHotCueMarker } from "@/types";
 import { WaveformWindowMarkers } from "./WaveformWindowMarkers";
 
 interface WaveformWindowMarkersMotionProps {

@@ -1,4 +1,4 @@
-import type { DeckActiveLoop, DeckHotCueMarker } from "../types";
+import type { DeckActiveLoop, DeckHotCueMarker } from "@/types";
 
 const HOT_CUE_COLORS = [
   "#ef4444",
@@ -18,11 +18,7 @@ interface WaveformWindowMarkersProps {
   activeLoop?: DeckActiveLoop | null;
 }
 
-function toWindowPercent(
-  secs: number,
-  windowStartSecs: number,
-  windowEndSecs: number,
-): number {
+function toWindowPercent(secs: number, windowStartSecs: number, windowEndSecs: number): number {
   const span = windowEndSecs - windowStartSecs;
   if (span <= 0) {
     return 0;
@@ -69,9 +65,7 @@ export function WaveformWindowMarkers({
           return null;
         }
         const color =
-          cue.color ??
-          HOT_CUE_COLORS[cue.slot % HOT_CUE_COLORS.length] ??
-          HOT_CUE_COLORS[0];
+          cue.color ?? HOT_CUE_COLORS[cue.slot % HOT_CUE_COLORS.length] ?? HOT_CUE_COLORS[0];
 
         return (
           <div

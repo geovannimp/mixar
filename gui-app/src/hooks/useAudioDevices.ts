@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { AudioDeviceSummary } from "../types";
+import type { AudioDeviceSummary } from "@/types";
 
 export function useAudioDevices(backend: string) {
   const [devices, setDevices] = useState<AudioDeviceSummary[]>([]);
