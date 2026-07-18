@@ -2,13 +2,9 @@ import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
-import {
-  deckButtonAccentTone,
-  type DeckButtonAccent,
-} from "@/lib/ui";
+import { deckButtonAccentTone, type DeckButtonAccent } from "@/lib/ui";
 
-const NEUTRAL_TONE =
-  "border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45";
+const NEUTRAL_TONE = "border-white/10 bg-black/30 text-zinc-400 hover:bg-black/45";
 
 const ACTIVE_TONE =
   "border-emerald-500/50 bg-emerald-500/15 text-emerald-200 hover:bg-emerald-500/15";
@@ -19,16 +15,14 @@ const deckButtonVariants = cva(
     variants: {
       size: {
         compact: "rounded px-2.5 py-1 text-xs font-medium",
-        toggle:
-          "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+        toggle: "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
         cell: "h-8 min-w-0 rounded px-0 py-0 text-xs font-semibold sm:h-9",
         cellWide:
           "h-8 w-full rounded px-1 py-0 text-[9px] font-bold uppercase tracking-[0.2em] sm:h-9",
         pad: "min-h-11 flex-col rounded-md px-1 py-1.5 text-center sm:min-h-12",
         icon: "size-7 rounded text-sm font-semibold leading-none",
         sync: "mt-0.5 w-full rounded px-1 py-1 text-[9px] font-bold uppercase tracking-[0.2em]",
-        circular:
-          "size-11 rounded-full border-2 text-sm font-bold shadow-md sm:size-12",
+        circular: "size-11 rounded-full border-2 text-sm font-bold shadow-md sm:size-12",
       },
     },
     defaultVariants: {

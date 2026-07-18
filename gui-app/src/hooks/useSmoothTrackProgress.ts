@@ -1,8 +1,4 @@
-import {
-  type MotionValue,
-  useAnimationFrame,
-  useMotionValue,
-} from "motion/react";
+import { type MotionValue, useAnimationFrame, useMotionValue } from "motion/react";
 import { useCallback, useEffect, useRef } from "react";
 
 interface UseSmoothTrackProgressOptions {
@@ -19,8 +15,7 @@ export function useSmoothTrackProgress({
   playing,
   speed = 1,
 }: UseSmoothTrackProgressOptions): MotionValue<number> {
-  const duration =
-    durationSecs != null && durationSecs > 0 ? durationSecs : 0;
+  const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 0;
 
   const toProgress = useCallback(
     (secs: number) => {
@@ -70,21 +65,14 @@ export function useSmoothTrackProgress({
 
     const dt = deltaMs / 1000;
     const rate = speedRef.current;
-    const next = Math.min(
-      1,
-      motionProgress.get() + (dt / duration) * rate,
-    );
+    const next = Math.min(1, motionProgress.get() + (dt / duration) * rate);
     motionProgress.set(next);
 
     const { pos, at } = engineRef.current;
-    const engineEstimate = toProgress(
-      pos + ((performance.now() - at) / 1000) * rate,
-    );
+    const engineEstimate = toProgress(pos + ((performance.now() - at) / 1000) * rate);
     const error = engineEstimate - motionProgress.get();
     if (Math.abs(error) > 0.02) {
-      motionProgress.set(
-        Math.min(1, Math.max(0, motionProgress.get() + error * 0.25)),
-      );
+      motionProgress.set(Math.min(1, Math.max(0, motionProgress.get() + error * 0.25)));
     }
   });
 

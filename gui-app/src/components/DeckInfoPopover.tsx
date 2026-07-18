@@ -32,13 +32,7 @@ function replayGainEquivalentDb(loudnessLufs: number): string {
   return formatGainDb(-18 - loudnessLufs);
 }
 
-function InfoRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}): ReactElement {
+function InfoRow({ label, value }: { label: string; value: string }): ReactElement {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-zinc-500">{label}</span>
@@ -52,8 +46,7 @@ export function DeckInfoPopover({
   disabled = false,
   accentClass = "text-zinc-400",
 }: DeckInfoPopoverProps): ReactElement {
-  const hasLoudness =
-    deck.loudness_lufs != null && Number.isFinite(deck.loudness_lufs);
+  const hasLoudness = deck.loudness_lufs != null && Number.isFinite(deck.loudness_lufs);
   const totalGainDb = deck.auto_gain_db + deck.gain_trim_db;
 
   return (
@@ -71,11 +64,7 @@ export function DeckInfoPopover({
           <InfoRow label="Loudness" value={formatLufs(deck.loudness_lufs)} />
           <InfoRow
             label="ReplayGain"
-            value={
-              hasLoudness
-                ? replayGainEquivalentDb(deck.loudness_lufs as number)
-                : "—"
-            }
+            value={hasLoudness ? replayGainEquivalentDb(deck.loudness_lufs as number) : "—"}
           />
           <InfoRow label="Auto gain" value={formatGainDb(deck.auto_gain_db)} />
           <InfoRow label="Gain trim" value={formatGainDb(deck.gain_trim_db)} />

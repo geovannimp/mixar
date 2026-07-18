@@ -1,9 +1,4 @@
-import {
-  motion,
-  type MotionValue,
-  useMotionValue,
-  useTransform,
-} from "motion/react";
+import { motion, type MotionValue, useMotionValue, useTransform } from "motion/react";
 import { useEffect, useRef } from "react";
 import type { WaveformTrackCache } from "../lib/waveformTrackCache";
 
@@ -32,17 +27,14 @@ export function RustRenderedLane({
   const pxPerSec = trackCache?.pxPerSec ?? 0;
   const stripWidth = trackCache?.canvas.width ?? 0;
   const stripHeight = trackCache?.height ?? 0;
-  const safeSpeed =
-    Number.isFinite(speed) && speed > 0 ? Math.min(2, Math.max(0.5, speed)) : 1;
+  const safeSpeed = Number.isFinite(speed) && speed > 0 ? Math.min(2, Math.max(0.5, speed)) : 1;
   const displayStripWidth = stripWidth > 0 ? stripWidth / safeSpeed : 0;
 
   const speedMV = useMotionValue(safeSpeed);
   speedMV.set(safeSpeed);
 
   const stripX = useTransform([motionPos, speedMV], ([positionSecs, spd]) => {
-    const rate =
-      pxPerSec /
-      (typeof spd === "number" && spd > 0 ? spd : 1);
+    const rate = pxPerSec / (typeof spd === "number" && spd > 0 ? spd : 1);
     if (rate <= 0 || viewportWidth <= 0) {
       return 0;
     }

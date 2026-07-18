@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Disc3 } from "lucide-react";
-import {
-  deckDisplayTitle,
-  formatOptional,
-} from "../lib/format";
-import {
-  formatDeckKey,
-  getKeyDisplayMode,
-  setKeyDisplayMode,
-} from "../lib/keyFormat";
+import { deckDisplayTitle, formatOptional } from "../lib/format";
+import { formatDeckKey, getKeyDisplayMode, setKeyDisplayMode } from "../lib/keyFormat";
 import { useTrackArtwork } from "../hooks/useTrackArtwork";
 import type { DeckStatus, KeyDisplayMode } from "../types";
 
@@ -23,8 +16,7 @@ export function DeckTrackInfo({ deck }: DeckTrackInfoProps) {
   const displayKey = formatDeckKey(deck.key, keyMode);
 
   const cycleKeyMode = () => {
-    const next: KeyDisplayMode =
-      keyMode === "musical" ? "camelot" : "musical";
+    const next: KeyDisplayMode = keyMode === "musical" ? "camelot" : "musical";
     setKeyDisplayMode(next);
     setKeyMode(next);
   };
@@ -36,11 +28,7 @@ export function DeckTrackInfo({ deck }: DeckTrackInfoProps) {
         aria-hidden={!hasTrack}
       >
         {artwork ? (
-          <img
-            src={artwork}
-            alt=""
-            className="size-full object-cover"
-          />
+          <img src={artwork} alt="" className="size-full object-cover" />
         ) : (
           <Disc3 className="size-5 text-zinc-600" />
         )}

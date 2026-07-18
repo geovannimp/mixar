@@ -1,14 +1,5 @@
-import {
-  formatBpm,
-  formatDuration,
-  formatOptional,
-} from "./format";
-import type {
-  FsEntry,
-  LibraryTableColumn,
-  LibraryTableRow,
-  TrackSummary,
-} from "../types";
+import { formatBpm, formatDuration, formatOptional } from "./format";
+import type { FsEntry, LibraryTableColumn, LibraryTableRow, TrackSummary } from "../types";
 
 export const LIBRARY_TABLE_COLUMNS: {
   id: LibraryTableColumn;
@@ -46,10 +37,7 @@ export function libraryRowFromTrack(track: TrackSummary): LibraryTableRow {
   return { source: "library", track };
 }
 
-export function libraryRowFromFile(
-  file: FsEntry,
-  libraryTrack?: TrackSummary,
-): LibraryTableRow {
+export function libraryRowFromFile(file: FsEntry, libraryTrack?: TrackSummary): LibraryTableRow {
   return libraryTrack
     ? { source: "filesystem", file, libraryTrack }
     : { source: "filesystem", file };
@@ -115,9 +103,7 @@ function filesystemMetadata(row: Extract<LibraryTableRow, { source: "filesystem"
   return row.libraryTrack;
 }
 
-export function parseTrackDragPayload(
-  data: string,
-): TrackDragPayload | null {
+export function parseTrackDragPayload(data: string): TrackDragPayload | null {
   if (!data) {
     return null;
   }
@@ -135,22 +121,15 @@ export function parseTrackDragPayload(
   }
 }
 
-export function writeTrackDragData(
-  dataTransfer: DataTransfer,
-  row: LibraryTableRow,
-): void {
+export function writeTrackDragData(dataTransfer: DataTransfer, row: LibraryTableRow): void {
   const payload = JSON.stringify(rowToDragPayload(row));
   dataTransfer.setData(TRACK_DRAG_MIME, payload);
   dataTransfer.setData("text/plain", payload);
   dataTransfer.effectAllowed = "copy";
 }
 
-export function readTrackDragData(
-  dataTransfer: DataTransfer,
-): TrackDragPayload | null {
-  const raw =
-    dataTransfer.getData(TRACK_DRAG_MIME) ||
-    dataTransfer.getData("text/plain");
+export function readTrackDragData(dataTransfer: DataTransfer): TrackDragPayload | null {
+  const raw = dataTransfer.getData(TRACK_DRAG_MIME) || dataTransfer.getData("text/plain");
   return parseTrackDragPayload(raw);
 }
 
@@ -203,10 +182,12 @@ function compareValues(
     return (left - right) * factor;
   }
 
-  return String(left).localeCompare(String(right), undefined, {
-    sensitivity: "base",
-    numeric: true,
-  }) * factor;
+  return (
+    String(left).localeCompare(String(right), undefined, {
+      sensitivity: "base",
+      numeric: true,
+    }) * factor
+  );
 }
 
 export function columnSortValue(
@@ -264,10 +245,7 @@ export function columnSortValue(
   }
 }
 
-export function formatColumnValue(
-  row: LibraryTableRow,
-  column: LibraryTableColumn,
-): string {
+export function formatColumnValue(row: LibraryTableRow, column: LibraryTableColumn): string {
   if (row.source === "library") {
     const track = row.track;
     switch (column) {
@@ -323,18 +301,10 @@ export function libraryRowSearchText(row: LibraryTableRow): string {
   return [
     rowTitle(row),
     rowPath(row),
-    row.source === "library"
-      ? row.track.artist
-      : row.libraryTrack?.artist ?? null,
-    row.source === "library"
-      ? row.track.album
-      : row.libraryTrack?.album ?? null,
-    row.source === "library"
-      ? row.track.genre
-      : row.libraryTrack?.genre ?? null,
-    row.source === "library"
-      ? row.track.key
-      : row.libraryTrack?.key ?? null,
+    row.source === "library" ? row.track.artist : (row.libraryTrack?.artist ?? null),
+    row.source === "library" ? row.track.album : (row.libraryTrack?.album ?? null),
+    row.source === "library" ? row.track.genre : (row.libraryTrack?.genre ?? null),
+    row.source === "library" ? row.track.key : (row.libraryTrack?.key ?? null),
     row.source === "library"
       ? formatBpm(row.track.bpm)
       : row.libraryTrack
@@ -360,17 +330,11 @@ export function sortLibraryRows(
   direction: SortDirection,
 ): LibraryTableRow[] {
   return [...rows].sort((left, right) =>
-    compareValues(
-      columnSortValue(left, column),
-      columnSortValue(right, column),
-      direction,
-    ),
+    compareValues(columnSortValue(left, column), columnSortValue(right, column), direction),
   );
 }
 
-export function normalizeLibraryTableColumns(
-  columns: LibraryTableColumn[],
-): LibraryTableColumn[] {
+export function normalizeLibraryTableColumns(columns: LibraryTableColumn[]): LibraryTableColumn[] {
   const allowed = new Set(LIBRARY_TABLE_COLUMNS.map((column) => column.id));
   const normalized = columns.filter((column) => allowed.has(column));
   if (!normalized.includes("title")) {

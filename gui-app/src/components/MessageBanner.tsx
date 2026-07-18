@@ -10,9 +10,7 @@ const variantClasses: Record<MessageBannerProps["variant"], string> = {
 
 export function MessageBanner({ message, variant }: MessageBannerProps) {
   return (
-    <div
-      className={`rounded-xl border px-4 py-3 text-sm ${variantClasses[variant]}`}
-    >
+    <div className={`rounded-xl border px-4 py-3 text-sm ${variantClasses[variant]}`}>
       {message}
     </div>
   );

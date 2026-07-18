@@ -11,9 +11,7 @@ export const RESAMPLER_QUALITY_STEPS: {
 
 export const DEFAULT_RESAMPLER_QUALITY: ResamplerQuality = "medium";
 
-export function normalizeResamplerQuality(
-  quality: string | null | undefined,
-): ResamplerQuality {
+export function normalizeResamplerQuality(quality: string | null | undefined): ResamplerQuality {
   if (quality === "low" || quality === "high") {
     return quality;
   }
@@ -28,18 +26,12 @@ export function resamplerQualityIndex(quality: string | null | undefined): numbe
 export function resamplerQualityFromIndex(index: number): ResamplerQuality {
   const step =
     RESAMPLER_QUALITY_STEPS[
-      Math.min(
-        RESAMPLER_QUALITY_STEPS.length - 1,
-        Math.max(0, Math.round(index)),
-      )
+      Math.min(RESAMPLER_QUALITY_STEPS.length - 1, Math.max(0, Math.round(index)))
     ];
   return step.value;
 }
 
 export function resamplerQualityLabel(quality: string | null | undefined): string {
   const normalized = normalizeResamplerQuality(quality);
-  return (
-    RESAMPLER_QUALITY_STEPS.find((step) => step.value === normalized)?.label ??
-    "Medium"
-  );
+  return RESAMPLER_QUALITY_STEPS.find((step) => step.value === normalized)?.label ?? "Medium";
 }

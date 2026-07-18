@@ -46,9 +46,7 @@ export function Slider({
     return [min];
   }, [value, defaultValue, min]);
 
-  const channelFader = channelAccent
-    ? DECK_ACCENTS[channelAccent].fader
-    : NEUTRAL_FADER_TRACK;
+  const channelFader = channelAccent ? DECK_ACCENTS[channelAccent].fader : NEUTRAL_FADER_TRACK;
 
   return (
     <SliderPrimitive.Root

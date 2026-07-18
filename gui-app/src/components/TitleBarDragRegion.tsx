@@ -7,10 +7,7 @@ interface TitleBarDragRegionProps {
   className?: string;
 }
 
-export function TitleBarDragRegion({
-  children,
-  className,
-}: TitleBarDragRegionProps) {
+export function TitleBarDragRegion({ children, className }: TitleBarDragRegionProps) {
   const handleMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (!isTauriApp() || event.buttons !== 1) {
       return;
@@ -26,11 +23,7 @@ export function TitleBarDragRegion({
   };
 
   return (
-    <div
-      data-tauri-drag-region
-      className={cn(className)}
-      onMouseDown={handleMouseDown}
-    >
+    <div data-tauri-drag-region className={cn(className)} onMouseDown={handleMouseDown}>
       {children}
     </div>
   );

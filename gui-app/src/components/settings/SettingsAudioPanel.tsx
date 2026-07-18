@@ -2,22 +2,14 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import {
-  MAX_TARGET_LUFS,
-  MIN_TARGET_LUFS,
-} from "@/lib/busSettings";
+import { MAX_TARGET_LUFS, MIN_TARGET_LUFS } from "@/lib/busSettings";
 import {
   RESAMPLER_QUALITY_STEPS,
   resamplerQualityFromIndex,
   resamplerQualityIndex,
   resamplerQualityLabel,
 } from "@/lib/resamplerQuality";
-import type {
-  AppSettings,
-  AudioDeviceSummary,
-  BusChannelMode,
-  BusRouteSettings,
-} from "@/types";
+import type { AppSettings, AudioDeviceSummary, BusChannelMode, BusRouteSettings } from "@/types";
 import { DeviceSelect } from "./DeviceSelect";
 import { SettingsField, SettingsSectionHeader } from "./SettingsField";
 import { SettingsSelect } from "./SettingsSelect";
@@ -72,11 +64,7 @@ interface BusChannelFieldsProps {
   onChange: (next: BusRouteSettings) => void;
 }
 
-function BusChannelFields({
-  route,
-  defaultMonoChannel,
-  onChange,
-}: BusChannelFieldsProps) {
+function BusChannelFields({ route, defaultMonoChannel, onChange }: BusChannelFieldsProps) {
   const mode = busMode(route);
 
   return (
@@ -174,10 +162,7 @@ export function SettingsAudioPanel({
   return (
     <div className="space-y-8">
       <section className="space-y-5">
-        <SettingsSectionHeader
-          title="Engine"
-          description="Output backend and buffering."
-        />
+        <SettingsSectionHeader title="Engine" description="Output backend and buffering." />
 
         <SettingsField label="Audio backend">
           <SettingsSelect
@@ -222,9 +207,7 @@ export function SettingsAudioPanel({
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-1">
-              <FieldLabel className="font-medium text-sm">
-                Buffer size (frames)
-              </FieldLabel>
+              <FieldLabel className="font-medium text-sm">Buffer size (frames)</FieldLabel>
               <SliderValue />
             </div>
           </Slider>
@@ -233,9 +216,7 @@ export function SettingsAudioPanel({
         <SettingsToggle
           label="Low latency mode"
           checked={draft.low_latency}
-          onCheckedChange={(low_latency) =>
-            onChange({ ...draft, low_latency })
-          }
+          onCheckedChange={(low_latency) => onChange({ ...draft, low_latency })}
         />
       </section>
 
@@ -267,9 +248,7 @@ export function SettingsAudioPanel({
               <FieldLabel className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 Resampler quality
               </FieldLabel>
-              <span className="text-sm">
-                {resamplerQualityLabel(draft.resampler_quality)}
-              </span>
+              <span className="text-sm">{resamplerQualityLabel(draft.resampler_quality)}</span>
             </div>
           </Slider>
           <div
@@ -322,9 +301,7 @@ export function SettingsAudioPanel({
             }}
           >
             <div className="mb-2 flex items-center justify-between gap-1">
-              <FieldLabel className="font-medium text-sm">
-                Target loudness
-              </FieldLabel>
+              <FieldLabel className="font-medium text-sm">Target loudness</FieldLabel>
               <span className="text-sm">{draft.target_lufs} LUFS</span>
             </div>
           </Slider>
@@ -341,9 +318,7 @@ export function SettingsAudioPanel({
         />
 
         <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Master
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Master</p>
           <DeviceSelect
             label="Output device"
             value={draft.master_bus.device_id}
@@ -367,15 +342,11 @@ export function SettingsAudioPanel({
 
         <div className="space-y-4 rounded border border-white/10 bg-black/20 p-4">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Preview
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Preview</p>
             <Switch
               checked={draft.preview_enabled}
               aria-label="Enable preview bus"
-              onCheckedChange={(preview_enabled) =>
-                onChange({ ...draft, preview_enabled })
-              }
+              onCheckedChange={(preview_enabled) => onChange({ ...draft, preview_enabled })}
             />
           </div>
           {draft.preview_enabled ? (

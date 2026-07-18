@@ -27,8 +27,7 @@ export function CollectionList({
     <ul className="flex flex-col gap-0.5">
       {collections.map((collection) => {
         const selected = collection.id === selectedCollectionId;
-        const showBrowse =
-          collection.kind === "folder" && collection.path && onBrowseFolder;
+        const showBrowse = collection.kind === "folder" && collection.path && onBrowseFolder;
 
         return (
           <li key={collection.id}>
@@ -46,15 +45,10 @@ export function CollectionList({
               >
                 <span className="flex items-start gap-2">
                   {collection.kind === "folder" && (
-                    <Folder
-                      className="mt-0.5 size-4 shrink-0 text-zinc-500"
-                      aria-hidden
-                    />
+                    <Folder className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {collection.name}
-                    </span>
+                    <span className="block truncate text-sm font-medium">{collection.name}</span>
                     <span className="mt-0.5 block truncate text-xs text-zinc-500">
                       {collection.track_count} tracks
                     </span>

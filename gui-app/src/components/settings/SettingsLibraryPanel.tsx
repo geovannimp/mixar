@@ -24,9 +24,7 @@ function AnalysisModeOptionLabel({ item }: { item: AnalysisModeOption }) {
   return (
     <span className="flex flex-col text-left">
       <span className="truncate">{item.label}</span>
-      <span className="truncate text-muted-foreground text-xs">
-        {item.description}
-      </span>
+      <span className="truncate text-muted-foreground text-xs">{item.description}</span>
     </span>
   );
 }
@@ -57,9 +55,7 @@ export function SettingsLibraryPanel({ draft, onChange }: SettingsLibraryPanelPr
           itemToStringValue={(item) => item.value}
         >
           <SelectTrigger className="h-auto py-1">
-            <SelectValue>
-              {(item) => <AnalysisModeOptionLabel item={item} />}
-            </SelectValue>
+            <SelectValue>{(item) => <AnalysisModeOptionLabel item={item} />}</SelectValue>
           </SelectTrigger>
           <SelectPopup>
             {ANALYSIS_MODE_OPTIONS.map((item) => (
@@ -74,16 +70,13 @@ export function SettingsLibraryPanel({ draft, onChange }: SettingsLibraryPanelPr
       <SettingsToggle
         label="Scan folder collections recursively"
         checked={draft.scan_folder_tree}
-        onCheckedChange={(scan_folder_tree) =>
-          onChange({ ...draft, scan_folder_tree })
-        }
+        onCheckedChange={(scan_folder_tree) => onChange({ ...draft, scan_folder_tree })}
       />
 
       <SettingsField label="Track table columns">
         <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">
           {LIBRARY_TABLE_COLUMNS.map((column) => {
-            const checked =
-              column.required || draft.library_table_columns.includes(column.id);
+            const checked = column.required || draft.library_table_columns.includes(column.id);
             return (
               <label
                 key={column.id}

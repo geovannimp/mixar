@@ -2,11 +2,7 @@ import { RotaryKnob } from "./RotaryKnob";
 import { buttonIcon } from "../lib/ui";
 import { cn } from "@/lib/utils";
 import { useSettings } from "../hooks/useSettings";
-import {
-  engineActions,
-  useCueMix,
-  useMasterCue,
-} from "../hooks/useEngine";
+import { engineActions, useCueMix, useMasterCue } from "../hooks/useEngine";
 
 /** Compact Master Cue + Cue/Master mix for the app header. */
 export function HeadphoneMonitorControls() {

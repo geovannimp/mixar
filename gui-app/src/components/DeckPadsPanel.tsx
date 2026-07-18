@@ -128,20 +128,14 @@ export function DeckPadsPanel({
                   onPointerUp={() => onEndLoopRoll()}
                   onPointerLeave={() => onEndLoopRoll()}
                 >
-                  <span className="text-sm font-bold leading-none sm:text-base">
-                    {beats}
-                  </span>
-                  <span className="mt-0.5 text-[9px] uppercase opacity-75">
-                    roll
-                  </span>
+                  <span className="text-sm font-bold leading-none sm:text-base">{beats}</span>
+                  <span className="mt-0.5 text-[9px] uppercase opacity-75">roll</span>
                 </DeckButton>
               );
             }
             case "beat_jump": {
               const beats =
-                slot < 4
-                  ? (BEAT_JUMP_FORWARD[slot] ?? 1)
-                  : (BEAT_JUMP_BACK[slot - 4] ?? -1);
+                slot < 4 ? (BEAT_JUMP_FORWARD[slot] ?? 1) : (BEAT_JUMP_BACK[slot - 4] ?? -1);
               const forward = beats > 0;
 
               return (
@@ -156,9 +150,7 @@ export function DeckPadsPanel({
                   <span className="text-sm font-bold leading-none sm:text-base">
                     {forward ? `+${beats}` : beats}
                   </span>
-                  <span className="mt-0.5 text-[9px] uppercase opacity-75">
-                    beat
-                  </span>
+                  <span className="mt-0.5 text-[9px] uppercase opacity-75">beat</span>
                 </DeckButton>
               );
             }

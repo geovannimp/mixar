@@ -7,11 +7,7 @@ interface SettingsToggleProps {
   onCheckedChange: (checked: boolean) => void;
 }
 
-export function SettingsToggle({
-  label,
-  checked,
-  onCheckedChange,
-}: SettingsToggleProps) {
+export function SettingsToggle({ label, checked, onCheckedChange }: SettingsToggleProps) {
   return (
     <Label className="cursor-pointer font-normal text-muted-foreground">
       <Switch checked={checked} onCheckedChange={onCheckedChange} />

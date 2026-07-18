@@ -15,21 +15,10 @@ function holdSegment(hold: number): number | null {
   return Math.min(SEGMENTS - 1, Math.max(0, Math.ceil(hold * SEGMENTS) - 1));
 }
 
-function Ladder({
-  peak,
-  hold,
-  className,
-}: {
-  peak: number;
-  hold: number;
-  className?: string;
-}) {
+function Ladder({ peak, hold, className }: { peak: number; hold: number; className?: string }) {
   const holdIdx = holdSegment(hold);
   return (
-    <div
-      className={cn("flex h-full w-1.5 flex-col-reverse gap-px", className)}
-      aria-hidden
-    >
+    <div className={cn("flex h-full w-1.5 flex-col-reverse gap-px", className)} aria-hidden>
       {Array.from({ length: SEGMENTS }, (_, fromBottom) => {
         const on = segmentOn(peak, fromBottom);
         const isHold = holdIdx === fromBottom;
@@ -39,24 +28,13 @@ function Ladder({
           else if (fromBottom >= YELLOW_FROM) color = "bg-amber-400/45";
           else color = "bg-emerald-500/45";
         }
-        return (
-          <div
-            key={fromBottom}
-            className={cn("min-h-0 flex-1 rounded-[1px]", color)}
-          />
-        );
+        return <div key={fromBottom} className={cn("min-h-0 flex-1 rounded-[1px]", color)} />;
       })}
     </div>
   );
 }
 
-export function LevelMeter({
-  levels,
-  mode,
-}: {
-  levels: DeckLevels;
-  mode: LevelMeterMode;
-}) {
+export function LevelMeter({ levels, mode }: { levels: DeckLevels; mode: LevelMeterMode }) {
   switch (mode) {
     case "mono": {
       const peak = Math.max(levels.peak_l, levels.peak_r);

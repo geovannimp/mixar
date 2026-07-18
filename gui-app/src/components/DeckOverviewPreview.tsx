@@ -48,8 +48,7 @@ export function DeckOverviewPreview({
   });
 
   const playheadLeft = useTransform(playhead.motionPos, (value) => {
-    const percent =
-      duration > 0 ? Math.min(100, Math.max(0, (value / duration) * 100)) : 0;
+    const percent = duration > 0 ? Math.min(100, Math.max(0, (value / duration) * 100)) : 0;
     return `${percent}%`;
   });
 
@@ -137,17 +136,7 @@ export function DeckOverviewPreview({
       strip.height = frame.height;
       strip.getContext("2d")?.putImageData(image, 0, 0);
       ctx.clearRect(0, 0, width, OVERVIEW_HEIGHT);
-      ctx.drawImage(
-        strip,
-        0,
-        0,
-        frame.width,
-        frame.height,
-        0,
-        0,
-        width,
-        OVERVIEW_HEIGHT,
-      );
+      ctx.drawImage(strip, 0, 0, frame.width, frame.height, 0, 0, width, OVERVIEW_HEIGHT);
     } catch {
       ctx.clearRect(0, 0, width, OVERVIEW_HEIGHT);
     }
@@ -167,10 +156,7 @@ export function DeckOverviewPreview({
       {hasTrack ? (
         <>
           <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
-          <WaveformCueMarkers
-            durationSecs={duration}
-            hotCues={hotCues}
-          />
+          <WaveformCueMarkers durationSecs={duration} hotCues={hotCues} />
           <motion.div
             className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.45)]"
             style={{

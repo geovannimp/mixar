@@ -66,9 +66,7 @@ export function SettingsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-white/8 px-4 py-3 sm:px-6">
-        <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-          Settings
-        </h1>
+        <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-400">Settings</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Saving restarts the engine automatically if it&apos;s running.
         </p>

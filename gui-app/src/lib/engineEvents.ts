@@ -1,9 +1,4 @@
-import {
-  ZERO_DECK_LEVELS,
-  type DeckLevels,
-  type DeckStatus,
-  type EngineStatus,
-} from "../types";
+import { ZERO_DECK_LEVELS, type DeckLevels, type DeckStatus, type EngineStatus } from "../types";
 
 export const ENGINE_EVENT = "engine://event";
 
@@ -116,8 +111,6 @@ export function patchDeckLevels(
 ): EngineStatus {
   return {
     ...status,
-    decks: status.decks.map((deck) =>
-      deck.id === deckId ? { ...deck, levels } : deck,
-    ),
+    decks: status.decks.map((deck) => (deck.id === deckId ? { ...deck, levels } : deck)),
   };
 }

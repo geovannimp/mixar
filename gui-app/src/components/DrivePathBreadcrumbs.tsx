@@ -31,11 +31,7 @@ export function DrivePathBreadcrumbs({
           <li key={crumb.path} className="flex min-w-0 items-center gap-0.5">
             {index > 0 && (
               <span
-                className={
-                  embedded
-                    ? "text-sm text-zinc-600"
-                    : "px-0.5 text-xs text-zinc-600"
-                }
+                className={embedded ? "text-sm text-zinc-600" : "px-0.5 text-xs text-zinc-600"}
                 aria-hidden
               >
                 /

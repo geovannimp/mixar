@@ -21,29 +21,26 @@ export function useSettings() {
     });
   }, [refresh]);
 
-  const save = useCallback(
-    async (next: AppSettings) => {
-      setBusy(true);
-      setError(null);
-      setSaved(false);
-      try {
-        const updated = await invoke<AppSettings>("save_settings", { settings: next });
-        setSettings(updated);
-        setSaved(true);
-      } catch (err) {
-        const message = String(err);
-        setError(message);
-        toastManager.add({
-          id: "settings-restart-error",
-          title: `Engine restart failed: ${message}`,
-          type: "error",
-        });
-      } finally {
-        setBusy(false);
-      }
-    },
-    [],
-  );
+  const save = useCallback(async (next: AppSettings) => {
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const updated = await invoke<AppSettings>("save_settings", { settings: next });
+      setSettings(updated);
+      setSaved(true);
+    } catch (err) {
+      const message = String(err);
+      setError(message);
+      toastManager.add({
+        id: "settings-restart-error",
+        title: `Engine restart failed: ${message}`,
+        type: "error",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, []);
 
   return {
     settings,

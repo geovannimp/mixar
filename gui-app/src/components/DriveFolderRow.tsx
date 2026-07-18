@@ -44,11 +44,7 @@ export function DriveFolderRow({
       <div className="min-w-0 flex-1">{label}</div>
     </button>
   ) : (
-    <div
-      className="flex min-w-0 flex-1 items-center gap-2"
-      aria-current="location"
-      title={title}
-    >
+    <div className="flex min-w-0 flex-1 items-center gap-2" aria-current="location" title={title}>
       {folderIcon}
       <div className="min-w-0 flex-1">{label}</div>
     </div>

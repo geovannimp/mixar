@@ -1,9 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DeckEq, WaveformFrame } from "../types";
-import {
-  WaveformTrackCache,
-} from "../lib/waveformTrackCache";
+import { WaveformTrackCache } from "../lib/waveformTrackCache";
 import { waveformVisibleSourceSecs } from "../lib/spectralColor";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
@@ -54,8 +52,7 @@ export function useRenderWaveformLane({
   eqRef.current = eq;
   visibleSourceSecsRef.current = visibleSourceSecs;
 
-  const duration =
-    durationSecs != null && durationSecs > 0 ? durationSecs : null;
+  const duration = durationSecs != null && durationSecs > 0 ? durationSecs : null;
 
   const fetchTile = useCallback(
     async (cache: WaveformTrackCache, tileIndex: number, requestId: number) => {

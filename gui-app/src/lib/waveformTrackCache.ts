@@ -79,14 +79,7 @@ export class WaveformTrackCache {
       ctx.fillRect(0, 0, canvasWidth, height);
     }
 
-    return new WaveformTrackCache(
-      canvas,
-      safeDuration,
-      visibleSecs,
-      tileSecs,
-      pxPerSec,
-      height,
-    );
+    return new WaveformTrackCache(canvas, safeDuration, visibleSecs, tileSecs, pxPerSec, height);
   }
 
   get tileRevision(): number {
@@ -121,21 +114,13 @@ export class WaveformTrackCache {
     this.pendingTiles.delete(index);
   }
 
-  missingTileIndices(
-    viewStart: number,
-    viewEnd: number,
-    prefetchMargin = 1,
-  ): number[] {
+  missingTileIndices(viewStart: number, viewEnd: number, prefetchMargin = 1): number[] {
     const first = Math.floor(viewStart / this.tileSecs) - prefetchMargin;
     const last = Math.floor(viewEnd / this.tileSecs) + prefetchMargin;
     const center = (viewStart + viewEnd) / 2;
 
     const indices: number[] = [];
-    for (
-      let index = Math.max(0, first);
-      index <= Math.min(this.tileCount - 1, last);
-      index += 1
-    ) {
+    for (let index = Math.max(0, first); index <= Math.min(this.tileCount - 1, last); index += 1) {
       if (!this.filledTiles.has(index) && !this.pendingTiles.has(index)) {
         indices.push(index);
       }
@@ -160,9 +145,7 @@ export class WaveformTrackCache {
       const rgba = decodeBase64Rgba(frame.rgba_base64);
       const expected = frame.width * frame.height * 4;
       if (rgba.length !== expected) {
-        console.error(
-          `waveform tile rgba size mismatch: got ${rgba.length}, expected ${expected}`,
-        );
+        console.error(`waveform tile rgba size mismatch: got ${rgba.length}, expected ${expected}`);
         return;
       }
 

@@ -34,11 +34,8 @@ export function DeckLoopPanel({
   const controlsDisabled = disabled || !hasTrack;
   const loopActive = Boolean(deck.active_loop?.active);
   const [loopBeats, setLoopBeats] = useState(4);
-  const loopBeatIndex = AUTO_LOOP_BEATS.indexOf(
-    loopBeats as (typeof AUTO_LOOP_BEATS)[number],
-  );
-  const resolvedLoopBeatIndex =
-    loopBeatIndex >= 0 ? loopBeatIndex : AUTO_LOOP_BEATS.indexOf(4);
+  const loopBeatIndex = AUTO_LOOP_BEATS.indexOf(loopBeats as (typeof AUTO_LOOP_BEATS)[number]);
+  const resolvedLoopBeatIndex = loopBeatIndex >= 0 ? loopBeatIndex : AUTO_LOOP_BEATS.indexOf(4);
   const loopSlot = Math.min(7, resolvedLoopBeatIndex);
   const savedLoop = deck.saved_loops.find((loop) => loop.slot === loopSlot);
 
@@ -51,9 +48,7 @@ export function DeckLoopPanel({
     <div
       className={cn(
         "flex w-22 shrink-0 flex-col overflow-hidden rounded-md border shadow-inner sm:w-24",
-        loopActive
-          ? "border-emerald-500/45 bg-emerald-950/35"
-          : "border-white/10 bg-zinc-950/80",
+        loopActive ? "border-emerald-500/45 bg-emerald-950/35" : "border-white/10 bg-zinc-950/80",
       )}
     >
       <div className="flex shrink-0 flex-col gap-1 p-1.5">
@@ -62,11 +57,7 @@ export function DeckLoopPanel({
           active={loopActive}
           size="cellWide"
           disabled={controlsDisabled}
-          title={
-            loopActive
-              ? "Disable loop — shift+click to save to slot"
-              : "Enable auto loop"
-          }
+          title={loopActive ? "Disable loop — shift+click to save to slot" : "Enable auto loop"}
           onClick={(event) => {
             if (event.shiftKey && loopActive) {
               onSaveLoop(loopSlot);
@@ -125,16 +116,10 @@ export function DeckLoopPanel({
             type="button"
             active={loopActive}
             size="cell"
-            disabled={
-              controlsDisabled ||
-              resolvedLoopBeatIndex >= AUTO_LOOP_BEATS.length - 1
-            }
+            disabled={controlsDisabled || resolvedLoopBeatIndex >= AUTO_LOOP_BEATS.length - 1}
             title="Double loop length"
             onClick={() => {
-              const nextIndex = Math.min(
-                AUTO_LOOP_BEATS.length - 1,
-                resolvedLoopBeatIndex + 1,
-              );
+              const nextIndex = Math.min(AUTO_LOOP_BEATS.length - 1, resolvedLoopBeatIndex + 1);
               const nextBeats = AUTO_LOOP_BEATS[nextIndex] ?? 4;
               setLoopLength(nextBeats);
             }}
