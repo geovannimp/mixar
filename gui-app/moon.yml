@@ -1,7 +1,49 @@
-$schema: 'https://moonrepo.dev/schemas/project.json'
-language: 'typescript'
-layer: 'application'
-id: 'gui-app'
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "typescript"
+layer: "application"
+id: "gui-app"
+
 workspace:
   inheritedTasks:
     include: []
+
+fileGroups:
+  sources:
+    - "src/**/*"
+    - "index.html"
+    - "vite.config.*"
+    - "tsconfig*.json"
+    - "package.json"
+    - ".oxlintrc.json"
+    - ".oxfmtrc.json"
+    - "components.json"
+
+tasks:
+  lint:
+    command: "npm"
+    args: ["run", "lint"]
+    inputs:
+      - "@group(sources)"
+    options:
+      runInCI: true
+
+  format-check:
+    command: "npm"
+    args: ["run", "format:check"]
+    inputs:
+      - "@group(sources)"
+    options:
+      runInCI: true
+
+  build:
+    command: "npm"
+    args: ["run", "build"]
+    inputs:
+      - "@group(sources)"
+    options:
+      runInCI: true
+
+  dev:
+    command: "npm"
+    args: ["run", "dev"]
+    preset: "server"

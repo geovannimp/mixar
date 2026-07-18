@@ -6,8 +6,11 @@
   ],
   "scripts": {
     "prepare": "lefthook install",
+    "lint": "moon run :lint",
+    "format:check": "moon run :format-check",
+    "build": "moon run :build",
     "dev:gui": "npm run dev -w gui-app",
-    "build:gui": "npm run build -w gui-app",
+    "build:gui": "moon run gui-app:build",
     "tauri": "npm run tauri -w gui-app"
   },
   "devDependencies": {
