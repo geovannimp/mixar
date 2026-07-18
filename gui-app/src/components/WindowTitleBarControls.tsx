@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Minus, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAppWindow } from "../lib/tauriApp";
+import { getAppWindow } from "@/lib/tauriApp";
 
 const controlButtonClass =
   "inline-flex h-full w-11 items-center justify-center text-zinc-400 transition hover:bg-white/8 hover:text-zinc-200";

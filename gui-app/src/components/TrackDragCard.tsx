@@ -1,6 +1,6 @@
-import { formatBpm, formatOptional } from "../lib/format";
-import { rowArtist, rowBpmValue, rowMusicalKey, rowTitle } from "../lib/libraryTable";
-import type { LibraryTableRow } from "../types";
+import { formatBpm, formatOptional } from "@/lib/format";
+import { rowArtist, rowBpmValue, rowMusicalKey, rowTitle } from "@/lib/libraryTable";
+import type { LibraryTableRow } from "@/types";
 
 interface TrackDragCardProps {
   row: LibraryTableRow;

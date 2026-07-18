@@ -6,7 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { VolumeInfo } from "../types";
+import type { VolumeInfo } from "@/types";
 
 type VolumeOption = {
   label: string;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toastManager } from "@/components/ui/toast";
-import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "../types";
+import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "@/types";
 
 export function useLibrary() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);

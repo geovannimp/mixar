@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import type { PathBreadcrumb } from "../lib/driveVolumes";
+import type { PathBreadcrumb } from "@/lib/driveVolumes";
 
 interface DrivePathBreadcrumbsProps {
   crumbs: PathBreadcrumb[];

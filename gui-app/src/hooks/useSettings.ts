@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toastManager } from "@/components/ui/toast";
-import type { AppSettings } from "../types";
+import type { AppSettings } from "@/types";
 
 export function useSettings() {
   const [settings, setSettings] = useState<AppSettings | null>(null);

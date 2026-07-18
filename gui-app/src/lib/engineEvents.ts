@@ -1,4 +1,4 @@
-import { ZERO_DECK_LEVELS, type DeckLevels, type DeckStatus, type EngineStatus } from "../types";
+import { ZERO_DECK_LEVELS, type DeckLevels, type DeckStatus, type EngineStatus } from "@/types";
 
 export const ENGINE_EVENT = "engine://event";
 

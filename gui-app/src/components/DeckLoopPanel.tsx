@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { cn } from "@/lib/utils";
-import type { DeckStatus } from "../types";
+import type { DeckStatus } from "@/types";
 
 const AUTO_LOOP_BEATS = [1, 2, 4, 8, 16, 32] as const;
 

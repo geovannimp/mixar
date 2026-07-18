@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
-import { useEngineHeaderInfo } from "../hooks/useEngine";
-import { isTauriApp } from "../lib/tauriApp";
-import { statusPillClass } from "../lib/ui";
+import { useEngineHeaderInfo } from "@/hooks/useEngine";
+import { isTauriApp } from "@/lib/tauriApp";
+import { statusPillClass } from "@/lib/ui";
 import { HeadphoneMonitorControls } from "./HeadphoneMonitorControls";
 import { StatusPill } from "./StatusPill";
 import { TitleBarDragRegion } from "./TitleBarDragRegion";

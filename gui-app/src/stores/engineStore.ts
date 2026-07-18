@@ -3,8 +3,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
-import { getSupportedAudioExtensions } from "../lib/audioExtensions";
-import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "../lib/engineEvents";
+import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
+import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
 import {
   ZERO_DECK_LEVELS,
   type DeckEq,
@@ -12,7 +12,7 @@ import {
   type EngineStatus,
   type LevelMeterMode,
   type PadMode,
-} from "../types";
+} from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
 
 const ENGINE_ERROR_TOAST_ID = "engine-error";

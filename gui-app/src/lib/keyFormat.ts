@@ -1,4 +1,4 @@
-import type { KeyDisplayMode } from "../types";
+import type { KeyDisplayMode } from "@/types";
 
 const MAJOR_KEYS = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"] as const;
 

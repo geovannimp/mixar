@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useDriveBrowser } from "../hooks/useDriveBrowser";
-import { useLibrary } from "../hooks/useLibrary";
-import { useLibraryTrackLookup } from "../hooks/useLibraryTrackLookup";
-import { useSettings } from "../hooks/useSettings";
-import { libraryRowFromFile, libraryRowFromTrack } from "../lib/libraryTable";
-import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "../lib/libraryTable";
-import { normalizeAppSettings } from "../lib/busSettings";
-import { buttonIcon } from "../lib/ui";
-import type { LibrarySourceTab, LibraryTableRow } from "../types";
+import { useDriveBrowser } from "@/hooks/useDriveBrowser";
+import { useLibrary } from "@/hooks/useLibrary";
+import { useLibraryTrackLookup } from "@/hooks/useLibraryTrackLookup";
+import { useSettings } from "@/hooks/useSettings";
+import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/libraryTable";
+import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/libraryTable";
+import { normalizeAppSettings } from "@/lib/busSettings";
+import { buttonIcon } from "@/lib/ui";
+import type { LibrarySourceTab, LibraryTableRow } from "@/types";
 import { CollectionList } from "./CollectionList";
 import { DriveBrowser } from "./DriveBrowser";
 import { DriveSelector } from "./DriveSelector";
@@ -17,7 +17,7 @@ import { LibraryPane } from "./LibraryPane";
 import { LibrarySourceTabs } from "./LibrarySourceTabs";
 import { LibraryTrackTable } from "./LibraryTrackTable";
 import { MessageBanner } from "./MessageBanner";
-import { engineActions, useEngineBusy, useEngineRunning } from "../hooks/useEngine";
+import { engineActions, useEngineBusy, useEngineRunning } from "@/hooks/useEngine";
 
 export function LibraryPanel() {
   const engineRunning = useEngineRunning();

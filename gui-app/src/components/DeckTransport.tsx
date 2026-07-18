@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
-import { barCycleRotationDeg, getBarCycleDurationSecs } from "../lib/format";
-import { useSmoothTrackProgress } from "../hooks/useSmoothTrackProgress";
-import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
+import { barCycleRotationDeg, getBarCycleDurationSecs } from "@/lib/format";
+import { useSmoothTrackProgress } from "@/hooks/useSmoothTrackProgress";
+import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 
 interface JogPlatterProps {
   accent: DeckAccent;

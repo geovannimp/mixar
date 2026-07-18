@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { DeckLevels, LevelMeterMode } from "../types";
+import type { DeckLevels, LevelMeterMode } from "@/types";
 
 const SEGMENTS = 12;
 const YELLOW_FROM = 8;

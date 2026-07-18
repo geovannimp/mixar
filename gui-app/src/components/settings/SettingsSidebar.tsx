@@ -1,4 +1,4 @@
-import type { SettingsSection } from "../../types";
+import type { SettingsSection } from "@/types";
 
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: "audio", label: "Audio" },

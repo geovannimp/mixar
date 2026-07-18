@@ -1,4 +1,4 @@
-import type { DeckHotCueMarker, DeckLoopMarker } from "../types";
+import type { DeckHotCueMarker, DeckLoopMarker } from "@/types";
 
 const HOT_CUE_COLORS = [
   "#ef4444",

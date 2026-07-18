@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { getAppWindow, isTauriApp } from "../lib/tauriApp";
+import { getAppWindow, isTauriApp } from "@/lib/tauriApp";
 
 interface TitleBarDragRegionProps {
   children?: ReactNode;

@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { TrackDragCard } from "../components/TrackDragCard";
-import type { LibraryTableRow } from "../types";
+import { TrackDragCard } from "@/components/TrackDragCard";
+import type { LibraryTableRow } from "@/types";
 import { writeTrackDragData } from "./libraryTable";
 
 export function startTrackDrag(dataTransfer: DataTransfer, row: LibraryTableRow): void {

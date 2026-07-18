@@ -1,5 +1,5 @@
-import { splitPathBreadcrumbs } from "../lib/driveVolumes";
-import type { DirectoryListing, VolumeInfo } from "../types";
+import { splitPathBreadcrumbs } from "@/lib/driveVolumes";
+import type { DirectoryListing, VolumeInfo } from "@/types";
 import { DrivePathBreadcrumbs } from "./DrivePathBreadcrumbs";
 import { DriveFolderRow } from "./DriveFolderRow";
 import { DriveVolumeList } from "./DriveSelector";

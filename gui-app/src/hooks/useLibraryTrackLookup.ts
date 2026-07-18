@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ResolvedLibraryTrack, TrackSummary } from "../types";
+import type { ResolvedLibraryTrack, TrackSummary } from "@/types";
 
 export function useLibraryTrackLookup(paths: string[]) {
   const [resolvedByPath, setResolvedByPath] = useState<Record<string, TrackSummary>>({});

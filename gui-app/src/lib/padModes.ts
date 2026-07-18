@@ -1,4 +1,4 @@
-import type { PadMode } from "../types";
+import type { PadMode } from "@/types";
 
 export const PAD_MODES: readonly PadMode[] = ["hot_cue", "loop_roll", "beat_jump"] as const;
 

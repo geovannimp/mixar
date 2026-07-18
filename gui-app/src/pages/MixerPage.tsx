@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { DeckGrid } from "../components/DeckGrid";
-import { LibraryPanel } from "../components/LibraryPanel";
-import { useDeckHotkeys } from "../hooks/useDeckHotkeys";
-import { engineActions, useDeckControls } from "../hooks/useEngine";
+import { DeckGrid } from "@/components/DeckGrid";
+import { LibraryPanel } from "@/components/LibraryPanel";
+import { useDeckHotkeys } from "@/hooks/useDeckHotkeys";
+import { engineActions, useDeckControls } from "@/hooks/useEngine";
 
 export function MixerPage() {
   const [focusedDeckId, setFocusedDeckId] = useState(0);

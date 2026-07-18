@@ -1,10 +1,10 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "../lib/libraryTable";
+import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "@/lib/libraryTable";
 import { DeckButton } from "@/components/ui/deck-button";
-import { type DeckAccent, DECK_ACCENTS } from "../lib/ui";
-import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "../lib/format";
+import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
+import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "@/lib/format";
 import {
   engineActions,
   useDeckControls,
@@ -12,9 +12,9 @@ import {
   useDeckTransport,
   useDeckBusy,
   useEngineRunning,
-} from "../hooks/useEngine";
-import { getDefaultDeck } from "../stores/defaultDeck";
-import type { DeckStatus } from "../types";
+} from "@/hooks/useEngine";
+import { getDefaultDeck } from "@/stores/defaultDeck";
+import type { DeckStatus } from "@/types";
 import { DeckPadsPanel } from "./DeckPadsPanel";
 import { DeckLoopPanel } from "./DeckLoopPanel";
 import { DeckOverviewPreview } from "./DeckOverviewPreview";

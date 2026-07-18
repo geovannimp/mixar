@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { PadMode } from "../types";
+import type { PadMode } from "@/types";
 
 interface UseDeckHotkeysOptions {
   focusedDeckId: number;

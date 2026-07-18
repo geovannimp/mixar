@@ -1,4 +1,4 @@
-import type { LibrarySourceTab } from "../types";
+import type { LibrarySourceTab } from "@/types";
 
 interface LibrarySourceTabsProps {
   activeTab: LibrarySourceTab;

@@ -1,5 +1,5 @@
 import { formatBpm, formatDuration, formatOptional } from "./format";
-import type { FsEntry, LibraryTableColumn, LibraryTableRow, TrackSummary } from "../types";
+import type { FsEntry, LibraryTableColumn, LibraryTableRow, TrackSummary } from "@/types";
 
 export const LIBRARY_TABLE_COLUMNS: {
   id: LibraryTableColumn;

@@ -1,4 +1,4 @@
-import { statusPillClass } from "../lib/ui";
+import { statusPillClass } from "@/lib/ui";
 
 interface StatusPillProps {
   active: boolean;

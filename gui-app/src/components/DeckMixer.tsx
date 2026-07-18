@@ -1,22 +1,22 @@
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB } from "../lib/eq";
-import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "../lib/ui";
+import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
+import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "@/lib/ui";
 import {
   DEFAULT_DECK_EQ,
   ZERO_DECK_LEVELS,
   type DeckEq,
   type DeckStatus,
   type LevelMeterMode,
-} from "../types";
+} from "@/types";
 import {
   engineActions,
   useCrossfader,
   useDeckMixerChannel,
   useLevelMeterMode,
-} from "../hooks/useEngine";
-import { getDefaultDeck } from "../stores/defaultDeck";
+} from "@/hooks/useEngine";
+import { getDefaultDeck } from "@/stores/defaultDeck";
 import { LevelMeter } from "./LevelMeter";
 import { RotaryKnob } from "./RotaryKnob";
 

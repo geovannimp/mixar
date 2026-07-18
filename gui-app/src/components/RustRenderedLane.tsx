@@ -1,6 +1,6 @@
 import { motion, type MotionValue, useMotionValue, useTransform } from "motion/react";
 import { useEffect, useRef } from "react";
-import type { WaveformTrackCache } from "../lib/waveformTrackCache";
+import type { WaveformTrackCache } from "@/lib/waveformTrackCache";
 
 interface RustRenderedLaneProps {
   trackCache: WaveformTrackCache | null;

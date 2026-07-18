@@ -1,8 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { DeckEq, WaveformFrame } from "../types";
-import { WaveformTrackCache } from "../lib/waveformTrackCache";
-import { waveformVisibleSourceSecs } from "../lib/spectralColor";
+import type { DeckEq, WaveformFrame } from "@/types";
+import { WaveformTrackCache } from "@/lib/waveformTrackCache";
+import { waveformVisibleSourceSecs } from "@/lib/spectralColor";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
 

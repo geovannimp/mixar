@@ -1,15 +1,15 @@
 import { DeckButton } from "@/components/ui/deck-button";
 import { cn } from "@/lib/utils";
-import { formatDeckTimeTenth } from "../lib/format";
+import { formatDeckTimeTenth } from "@/lib/format";
 import {
   BEAT_JUMP_BACK,
   BEAT_JUMP_FORWARD,
   LOOP_ROLL_BEATS,
   PAD_MODES,
   PAD_MODE_SHORT_LABELS,
-} from "../lib/padModes";
-import { hotCueAccentForSlot } from "../lib/ui";
-import type { DeckStatus, PadMode } from "../types";
+} from "@/lib/padModes";
+import { hotCueAccentForSlot } from "@/lib/ui";
+import type { DeckStatus, PadMode } from "@/types";
 
 interface DeckPadsPanelProps {
   deck: DeckStatus;

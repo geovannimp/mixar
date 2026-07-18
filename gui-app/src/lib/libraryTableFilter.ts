@@ -1,6 +1,6 @@
 import { compareItems, rankItem, type RankingInfo } from "@tanstack/match-sorter-utils";
 import { sortingFns, type FilterFn, type SortingFn } from "@tanstack/react-table";
-import type { LibraryTableRow } from "../types";
+import type { LibraryTableRow } from "@/types";
 import { libraryRowSearchText } from "./libraryTable";
 
 declare module "@tanstack/react-table" {

@@ -1,4 +1,4 @@
-import type { WaveformFrame } from "../types";
+import type { WaveformFrame } from "@/types";
 import { WAVEFORM_VISIBLE_SECS } from "./spectralColor";
 
 const MIN_TILES = 1;

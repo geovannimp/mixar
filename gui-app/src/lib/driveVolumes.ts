@@ -1,4 +1,4 @@
-import type { VolumeInfo } from "../types";
+import type { VolumeInfo } from "@/types";
 
 export function findActiveVolume(
   volumes: VolumeInfo[],

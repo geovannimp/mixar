@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion, useTransform } from "motion/react";
-import { useWaveformClickSeek } from "../hooks/useWaveformClickSeek";
-import { useSmoothPlayhead } from "../hooks/useSmoothPlayhead";
-import type { DeckHotCueMarker, WaveformFrame } from "../types";
+import { useWaveformClickSeek } from "@/hooks/useWaveformClickSeek";
+import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
+import type { DeckHotCueMarker, WaveformFrame } from "@/types";
 import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
 const OVERVIEW_HEIGHT = 48;

@@ -1,6 +1,6 @@
 import { Folder, FolderOpen } from "lucide-react";
-import { buttonIcon } from "../lib/ui";
-import type { CollectionSummary } from "../types";
+import { buttonIcon } from "@/lib/ui";
+import type { CollectionSummary } from "@/types";
 
 interface CollectionListProps {
   collections: CollectionSummary[];

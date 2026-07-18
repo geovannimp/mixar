@@ -14,7 +14,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
-import { DECK_LABELS } from "../lib/ui";
+import { DECK_LABELS } from "@/lib/ui";
 import {
   columnSortValue,
   formatColumnValue,
@@ -23,10 +23,10 @@ import {
   rowKey,
   rowTitle,
   rowTrackId,
-} from "../lib/libraryTable";
-import { fuzzyFilter, fuzzySort, libraryGlobalFilter } from "../lib/libraryTableFilter";
-import { startTrackDrag } from "../lib/trackDragPreview";
-import type { LibraryTableColumn, LibraryTableRow } from "../types";
+} from "@/lib/libraryTable";
+import { fuzzyFilter, fuzzySort, libraryGlobalFilter } from "@/lib/libraryTableFilter";
+import { startTrackDrag } from "@/lib/trackDragPreview";
+import type { LibraryTableColumn, LibraryTableRow } from "@/types";
 import { TrackActionsMenu } from "./TrackActionsMenu";
 
 const SEARCH_COLUMN_ID = "searchText";

@@ -7,8 +7,8 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { buttonIcon } from "../lib/ui";
-import type { DeckStatus } from "../types";
+import { buttonIcon } from "@/lib/ui";
+import type { DeckStatus } from "@/types";
 
 interface DeckInfoPopoverProps {
   deck: DeckStatus;
