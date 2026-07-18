@@ -19,6 +19,7 @@ Add linting and formatting for `gui-app` (TypeScript + React) and wire it into t
 | CI | Extend existing `lint` job (Node setup + npm ci + format check + lint) |
 | Typecheck in hook/CI lint | Out of scope (`tsc` stays on build path) |
 | Future monorepo runner | Deferred; keep tooling local to `gui-app` so a later orchestrator can call workspace scripts |
+| Node version | Pin Node 22 via root `.nvmrc` (and CI `node-version-file`) for stable oxfmt worker teardown |
 
 Out of scope: ESLint/Prettier, CSS/JSON formatting beyond what Oxfmt touches by default for TS/TSX, full `tsc` in the lint job, a dedicated `frontend-lint` CI job.
 
