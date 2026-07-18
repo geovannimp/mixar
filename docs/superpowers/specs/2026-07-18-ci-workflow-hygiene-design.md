@@ -28,7 +28,7 @@ Replace monolithic `.github/workflows/ci.yml` with:
 | File | Purpose | Triggers | Blocks PRs? |
 |------|---------|----------|-------------|
 | `lint.yml` | stable `cargo fmt --check` + `clippy -D warnings` | PR + push to `main`/`develop` | Yes |
-| `test.yml` | stable `cargo test --release` | PR + push to `main`/`develop` | Yes |
+| `test.yml` | stable `cargo test` (debug) | PR + push to `main`/`develop` | Yes |
 | `audit.yml` | hybrid `cargo audit` | PR + push to `main`/`develop` | Yes |
 | `rust-beta-audit.yml` | beta fmt/clippy/test | daily cron on `main` + `workflow_dispatch` | No |
 

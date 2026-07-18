@@ -31,8 +31,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates -> target
-          shared-key: test-release
+          shared-key: test
           cache-on-failure: true
 
       - name: Run tests
-        run: cargo test --release --verbose
+        run: cargo test --verbose
