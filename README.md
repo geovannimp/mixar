@@ -152,7 +152,9 @@ npm install                 # root — hooks + gui-app + moon
 npm run lint                # moon run :lint
 npm run format:check        # moon run :format-check
 npm run build               # moon run :build
-npx moon run gui-app:dev    # or: npm run dev:gui
+npm run gui:dev             # moon run gui-app:dev
+npm run gui:build           # moon run gui-app:build
+npm run gui:tauri           # moon run gui-app:tauri (pass args after --)
 npx moon ci --base main     # locally mimic affected CI
 ```
 

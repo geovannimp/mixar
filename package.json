@@ -9,9 +9,9 @@
     "lint": "moon run :lint",
     "format:check": "moon run :format-check",
     "build": "moon run :build",
-    "dev:gui": "npm run dev -w gui-app",
-    "build:gui": "moon run gui-app:build",
-    "tauri": "npm run tauri -w gui-app"
+    "gui:dev": "moon run gui-app:dev",
+    "gui:build": "moon run gui-app:build",
+    "gui:tauri": "moon run gui-app:tauri"
   },
   "devDependencies": {
     "@moonrepo/cli": "^2.4.4",

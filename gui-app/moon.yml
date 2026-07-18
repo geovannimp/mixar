@@ -47,3 +47,8 @@ tasks:
     command: "npm"
     args: ["run", "dev"]
     preset: "server"
+
+  tauri:
+    command: "npm"
+    args: ["run", "tauri"]
+    preset: "server"
