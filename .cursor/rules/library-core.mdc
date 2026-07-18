@@ -1,6 +1,6 @@
 ---
 description: Rules for library-core — library traits and shared types
-globs: library-core/**/*.rs
+globs: crates/library-core/**/*.rs
 alwaysApply: false
 ---
 

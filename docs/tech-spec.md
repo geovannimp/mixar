@@ -72,34 +72,35 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 
 ```
 rust-dj-engine/ (Cargo workspace)
-├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
-├─ backend-null/       # deterministic backend for tests and CI
-├─ backend-miniaudio/  # miniaudio implementation
-├─ backend-cpal/       # CPAL implementation (native PipeWire on Linux when available)
-├─ engine-core/        # engine lifecycle, config, producer thread, track loading
-│  ├─ lib.rs           # module declarations and public re-exports
-│  ├─ config.rs        # EngineConfig and related types
-│  ├─ engine.rs        # Engine public API
-│  ├─ backend.rs       # backend factory (AudioBackend::list_names / new)
-│  ├─ producer.rs      # ring buffer, MasterStreamSetup, producer thread loop
-│  ├─ callback.rs      # ConsumerCallback (ring-buffer consumer)
-│  └─ audio_source/    # FileAudioSource; re-exports AudioSource / LoadedAudio
-├─ engine-dsp/         # pure DSP: deck, mixer channel graph (no I/O)
-│  ├─ lib.rs           # DspEngine
-│  ├─ deck.rs          # playback/transport only
-│  ├─ mixer_lane.rs    # graph node: deck + strip
-│  ├─ mixer_channel.rs # per-lane strip (gain/EQ/filter/VU/fader)
-│  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
-├─ codec/              # decoder wrapper (symphonia)
-├─ resampler/          # resampler trait + rubato impl (pluggable)
-├─ library-core/       # Library traits + Collection/Track types
-├─ library/            # library manager (canonical writable store)
-├─ library-adapters/   # third-party formats (Rekordbox, Serato, …)
-├─ analyzer-core/       # offline analysis traits and types
-├─ analyzer-stratum/    # stratum-dsp backend
-├─ analyzer/            # decode + analyze_file facade
-├─ app-example/        # minimal example binary
-└─ samples/            # sample audio for local demos
+├─ crates/
+│  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
+│  ├─ backend-null/       # deterministic backend for tests and CI
+│  ├─ backend-miniaudio/  # miniaudio implementation
+│  ├─ backend-cpal/       # CPAL implementation (native PipeWire on Linux when available)
+│  ├─ engine-core/        # engine lifecycle, config, producer thread, track loading
+│  │  ├─ lib.rs           # module declarations and public re-exports
+│  │  ├─ config.rs        # EngineConfig and related types
+│  │  ├─ engine.rs        # Engine public API
+│  │  ├─ backend.rs       # backend factory (AudioBackend::list_names / new)
+│  │  ├─ producer.rs      # ring buffer, MasterStreamSetup, producer thread loop
+│  │  ├─ callback.rs      # ConsumerCallback (ring-buffer consumer)
+│  │  └─ audio_source/    # FileAudioSource; re-exports AudioSource / LoadedAudio
+│  ├─ engine-dsp/         # pure DSP: deck, mixer channel graph (no I/O)
+│  │  ├─ lib.rs           # DspEngine
+│  │  ├─ deck.rs          # playback/transport only
+│  │  ├─ mixer_lane.rs    # graph node: deck + strip
+│  │  ├─ mixer_channel.rs # per-lane strip (gain/EQ/filter/VU/fader)
+│  │  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
+│  ├─ codec/              # decoder wrapper (symphonia)
+│  ├─ resampler/          # resampler trait + rubato impl (pluggable)
+│  ├─ library-core/       # Library traits + Collection/Track types
+│  ├─ library/            # library manager (canonical writable store)
+│  ├─ library-adapters/   # third-party formats (Rekordbox, Serato, …)
+│  ├─ analyzer-core/      # offline analysis traits and types
+│  ├─ analyzer-stratum/   # stratum-dsp backend
+│  ├─ analyzer/           # decode + analyze_file facade
+│  └─ app-example/        # minimal example binary
+└─ samples/               # sample audio for local demos
 ```
 
 ### Data flow

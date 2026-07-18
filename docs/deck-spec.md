@@ -880,7 +880,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 
 | Resource | Path |
 |----------|------|
-| Engine deck DSP | `engine-dsp/src/deck.rs` |
+| Engine deck DSP | `crates/engine-dsp/src/deck.rs` |
 | GUI deck panel | `gui-app/src/components/DeckPanel.tsx` |
 | GUI deck grid | `gui-app/src/components/DeckGrid.tsx` |
 | Waveform spec | `docs/dj-waveform-spec.md` |

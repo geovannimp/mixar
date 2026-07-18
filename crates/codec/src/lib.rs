@@ -351,7 +351,7 @@ mod tests {
     fn test_opus_sample_if_present() {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../samples/Palawan by SKIRK  Vlog Music [xXRDR-ycIeo].opus"
+            "/../../samples/Palawan by SKIRK  Vlog Music [xXRDR-ycIeo].opus"
         );
         if !std::path::Path::new(path).exists() {
             return;

@@ -1,6 +1,6 @@
 ---
 description: Rules for app-example — minimal example binary
-globs: app-example/**/*.rs
+globs: crates/app-example/**/*.rs
 alwaysApply: false
 ---
 

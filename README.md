@@ -16,20 +16,21 @@ rust-dj-engine/
 ├─ .moon/              # moon workspace + toolchains
 ├─ moon.yml            # rust (Cargo workspace) moon project
 ├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
-├─ audio-core/         # Shared types and traits (AudioBackend, AudioSource, Sample, …)
-├─ backend-null/       # Deterministic backend for tests and CI
-├─ backend-miniaudio/  # Miniaudio backend
-├─ backend-cpal/       # CPAL backend (native PipeWire on Linux when available)
-├─ engine-core/        # Engine lifecycle, config, producer thread, track loading
-├─ engine-dsp/         # Pure DSP: decks, mixer (no I/O)
-├─ codec/              # Decoder wrapper (symphonia)
-├─ resampler/          # Resampler trait + rubato implementation
-├─ library/            # Library manager (collections, tags, analysis)
-├─ library-core/       # Library traits and shared types
-├─ analyzer-core/      # Offline analysis traits and types
-├─ analyzer-stratum/   # stratum-dsp backend
-├─ analyzer/           # decode + analyze_file facade
-├─ app-example/        # Minimal example binary
+├─ crates/             # Cargo workspace members
+│  ├─ audio-core/      # Shared types and traits (AudioBackend, AudioSource, Sample, …)
+│  ├─ backend-null/    # Deterministic backend for tests and CI
+│  ├─ backend-miniaudio/
+│  ├─ backend-cpal/    # CPAL (native PipeWire on Linux when available)
+│  ├─ engine-core/     # Engine lifecycle, config, producer thread, track loading
+│  ├─ engine-dsp/      # Pure DSP: decks, mixer (no I/O)
+│  ├─ codec/           # Decoder wrapper (symphonia)
+│  ├─ resampler/       # Resampler trait + rubato implementation
+│  ├─ library/         # Library manager (collections, tags, analysis)
+│  ├─ library-core/    # Library traits and shared types
+│  ├─ analyzer-core/   # Offline analysis traits and types
+│  ├─ analyzer-stratum/# stratum-dsp backend
+│  ├─ analyzer/        # decode + analyze_file facade
+│  └─ app-example/     # Minimal example binary
 ├─ gui-app/            # Tauri + React desktop UI (npm workspace package; moon.yml)
 └─ samples/            # Sample audio for local demos
 ```

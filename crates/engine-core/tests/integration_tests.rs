@@ -9,7 +9,7 @@ use library_core::{AudioSource, FileAudioSource};
 use std::path::{Path, PathBuf};
 
 fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../samples/fixtures/short-tone.wav")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
 }
 
 #[test]

@@ -1,6 +1,6 @@
 ---
 description: Rules for codec — decoder wrapper (symphonia)
-globs: codec/**/*.rs
+globs: crates/codec/**/*.rs
 alwaysApply: false
 ---
 

@@ -1,6 +1,6 @@
 ---
 description: Rules for resampler — resampler trait and rubato impl
-globs: resampler/**/*.rs
+globs: crates/resampler/**/*.rs
 alwaysApply: false
 ---
 

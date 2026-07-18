@@ -1,6 +1,6 @@
 ---
 description: Rules for library — library manager
-globs: library/**/*.rs
+globs: crates/library/**/*.rs
 alwaysApply: false
 ---
 

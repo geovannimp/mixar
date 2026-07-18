@@ -1,6 +1,6 @@
 ---
 description: Rules for backend-null — deterministic backend for tests and CI
-globs: backend-null/**/*.rs
+globs: crates/backend-null/**/*.rs
 alwaysApply: false
 ---
 

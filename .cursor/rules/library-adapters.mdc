@@ -1,6 +1,6 @@
 ---
 description: Rules for library-adapters — third-party DJ library formats
-globs: library-adapters/**/*.rs
+globs: crates/library-adapters/**/*.rs
 alwaysApply: false
 ---
 

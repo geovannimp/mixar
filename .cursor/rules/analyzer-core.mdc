@@ -1,6 +1,6 @@
 ---
 description: Rules for analyzer-core — analysis traits and shared types
-globs: analyzer-core/**/*.rs
+globs: crates/analyzer-core/**/*.rs
 alwaysApply: false
 ---
 

@@ -12,21 +12,7 @@ env:
 
 fileGroups:
   sources:
-    - 'audio-core/**/*'
-    - 'backend-null/**/*'
-    - 'backend-miniaudio/**/*'
-    - 'backend-cpal/**/*'
-    - 'engine-core/**/*'
-    - 'engine-dsp/**/*'
-    - 'codec/**/*'
-    - 'resampler/**/*'
-    - 'library-core/**/*'
-    - 'library/**/*'
-    - 'library-adapters/**/*'
-    - 'analyzer-core/**/*'
-    - 'analyzer-stratum/**/*'
-    - 'analyzer/**/*'
-    - 'app-example/**/*'
+    - 'crates/**/*'
     - 'tests/**/*'
     - 'Cargo.toml'
     - 'Cargo.lock'
