@@ -3,8 +3,8 @@
 //! Backends implement [`Library`] and [`WritableLibrary`]. The canonical manager
 //! lives in `library`; third-party adapters live in `library-adapters`.
 //!
-//! [`LibrarySource`] implements [`AudioSource`] so library entries load directly
-//! into the engine: `engine.load_track(0, Arc::new(source.load()?), 0.0)?`.
+//! [`AudioSource`] implements [`LoadableAudio`] so library entries load directly
+//! into the engine: `engine.load_track(0, AudioSource::File(FileAudioSource::from_path(...)))?`.
 
 mod audio_extensions;
 mod audio_source;
@@ -14,12 +14,12 @@ mod traits;
 mod types;
 
 pub use analyzer_core::AnalysisDurationMode;
-pub use audio_core::{AudioSource, LoadedAudio};
+pub use audio_core::{LoadableAudio, LoadedAudio};
 pub use audio_extensions::{
     is_supported_audio_extension, is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
 };
 pub use error::{LibraryError, Result};
-pub use source::{FileAudioSource, LibrarySource, StreamAudioSource, StreamProvider};
+pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider};
 pub use traits::{Library, WritableLibrary};
 pub use types::{
     AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionId,

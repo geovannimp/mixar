@@ -388,7 +388,7 @@ fn analyze_track(
     &mut self,
     id: &TrackId,
     options: AnalyzeTrackOptions,
-) -> Result<LibrarySource>;
+) -> Result<AudioSource>;
 ```
 
 ```rust
@@ -401,14 +401,14 @@ pub struct AnalyzeTrackOptions {
 
 **Steps:**
 
-1. Resolve `LibrarySource::File` (streams return `Unsupported` — unchanged).
+1. Resolve `AudioSource::File` (streams return `Unsupported` — unchanged).
 2. Read tags via `tags::read_tags` → baseline `TrackMetadata`.
 3. Run `analyzer::analyze_file(path, &library_analysis_config)`.
 4. **Merge policy** (via `merge_analyzed_metadata`):
    - **`force: false` (default):** keep tag BPM/key when present; use analysis only for missing fields (respecting confidence thresholds once implemented).
    - **`force: true`:** always use analysis BPM/key (musical notation) over tag values; beat grid always taken from analysis when `BEAT_GRID` target enabled.
 5. Upsert `tracks` row (`key` column = musical string only) + `track_analysis` / beat grid storage (§11).
-6. Return updated `LibrarySource`.
+6. Return updated `AudioSource`.
 
 ### 9.4 Key notation policy (library)
 

@@ -103,14 +103,14 @@ impl StreamAudioSource {
 /// A track in the library pool — file or stream.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "source_type", rename_all = "snake_case")]
-pub enum LibrarySource {
+pub enum AudioSource {
     /// Local file on disk.
     File(FileAudioSource),
     /// Remote or service-backed audio.
     Stream(StreamAudioSource),
 }
 
-impl LibrarySource {
+impl AudioSource {
     /// Stable identifier within the library.
     pub fn id(&self) -> &TrackId {
         match self {
@@ -124,6 +124,14 @@ impl LibrarySource {
         match self {
             Self::File(s) => &s.metadata,
             Self::Stream(s) => &s.metadata,
+        }
+    }
+
+    /// Mutable metadata (e.g. stamp analysis loudness before engine load).
+    pub fn metadata_mut(&mut self) -> &mut TrackMetadata {
+        match self {
+            Self::File(s) => &mut s.metadata,
+            Self::Stream(s) => &mut s.metadata,
         }
     }
 

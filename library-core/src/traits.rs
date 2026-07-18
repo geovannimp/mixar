@@ -1,7 +1,7 @@
 //! Library capability traits.
 
 use crate::error::Result;
-use crate::source::LibrarySource;
+use crate::source::AudioSource;
 use crate::types::{
     AnalyzeTrackOptions, Collection, CollectionId, NewCollection, ScanReport, TrackId,
     UpdateCollection,
@@ -13,7 +13,7 @@ pub trait Library: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Fetch a single source by id.
-    fn get_track(&self, id: &TrackId) -> Result<Option<LibrarySource>>;
+    fn get_track(&self, id: &TrackId) -> Result<Option<AudioSource>>;
 
     /// List all collections (folders and playlists), ordered by name.
     fn list_collections(&self) -> Result<Vec<Collection>>;
@@ -23,7 +23,7 @@ pub trait Library: Send + Sync {
 
     /// Sources in a collection. Folders use path-prefix on file sources;
     /// playlists use M2M membership.
-    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<LibrarySource>>;
+    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>>;
 }
 
 /// Mutable library manager operations.
@@ -33,11 +33,7 @@ pub trait WritableLibrary: Library {
     /// When [`AnalyzeTrackOptions::force`] is false, file tags are kept for BPM/key
     /// when present; analysis fills missing fields only. When `force` is true,
     /// analysis results override tag values.
-    fn analyze_track(
-        &mut self,
-        id: &TrackId,
-        options: AnalyzeTrackOptions,
-    ) -> Result<LibrarySource>;
+    fn analyze_track(&mut self, id: &TrackId, options: AnalyzeTrackOptions) -> Result<AudioSource>;
 
     /// Add a collection (folder or playlist).
     fn add_collection(&mut self, collection: &NewCollection) -> Result<Collection>;

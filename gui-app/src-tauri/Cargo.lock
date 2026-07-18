@@ -1606,6 +1606,7 @@ dependencies = [
  "backend-miniaudio",
  "backend-null",
  "engine-dsp",
+ "library-core",
  "log",
  "resampler",
  "rtrb",
@@ -2208,7 +2209,6 @@ dependencies = [
 name = "gui-app"
 version = "0.1.0"
 dependencies = [
- "analyzer-core",
  "anyhow",
  "audio-core 0.1.0",
  "base64 0.22.1",

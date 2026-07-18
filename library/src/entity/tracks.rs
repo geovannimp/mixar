@@ -23,6 +23,7 @@ pub struct Model {
     pub sample_rate: Option<i32>,
     pub channels: Option<i32>,
     pub bitrate_kbps: Option<i32>,
+    pub replaygain_track_gain_db: Option<f64>,
     pub added_at: String,
     pub updated_at: String,
 }

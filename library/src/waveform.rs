@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use audio_core::{
-    compute_overview_envelope, peaks_to_rgb_bytes, rgb_bytes_to_peaks, AudioSource, SpectralPeak,
+    compute_overview_envelope, peaks_to_rgb_bytes, rgb_bytes_to_peaks, LoadableAudio, SpectralPeak,
     WaveformAmplitudeMode, WaveformAnalysisConfig, WaveformChannelMode, OVERVIEW_SAMPLE_COUNT,
     WAVEFORM_SCHEMA_VERSION,
 };

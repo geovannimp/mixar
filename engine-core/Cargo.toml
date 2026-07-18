@@ -15,6 +15,7 @@ backend-cpal = ["dep:backend-cpal"]
 audio-core = { path = "../audio-core" }
 analyzer-core = { path = "../analyzer-core" }
 engine-dsp = { path = "../engine-dsp" }
+library-core = { path = "../library-core" }
 resampler = { path = "../resampler" }
 backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }

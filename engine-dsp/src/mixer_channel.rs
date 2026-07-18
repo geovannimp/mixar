@@ -8,14 +8,24 @@ use crate::eq::{clamp_gain_db, DeckEqGains, ThreeBandEq};
 use crate::filter::{db_to_linear, DjFilter};
 use crate::level_meter::LevelPeaks;
 
+/// Maximum auto-gain applied when normalizing (± dB).
+pub const AUTO_GAIN_CLAMP_DB: f32 = 12.0;
+
 /// Per-lane mixer strip state and DSP.
 ///
 /// Owned by [`crate::MixerLane`]. Implements [`Node`] for focused strip tests;
 /// the live mixer feeds dry deck PCM via [`Self::process_dry_chunk`].
+///
+/// Auto gain is derived from `target_lufs` + `loudness_lufs` and cached in `auto_gain_db`.
 #[derive(Debug)]
 pub struct MixerChannel {
     gain_trim_db: f32,
+    /// Cached loudness-normalization gain (dB).
     auto_gain_db: f32,
+    /// Offline measured / tagged loudness for the loaded track.
+    loudness_lufs: Option<f64>,
+    /// Normalizer target LUFS; `None` means normalizer off for this channel.
+    target_lufs: Option<f32>,
     eq: ThreeBandEq,
     filter: DjFilter,
     volume: f32,
@@ -31,6 +41,8 @@ impl MixerChannel {
         Self {
             gain_trim_db: 0.0,
             auto_gain_db: 0.0,
+            loudness_lufs: None,
+            target_lufs: None,
             eq: ThreeBandEq::new(sample_rate),
             filter: DjFilter::new(sample_rate),
             volume: 1.0,
@@ -96,9 +108,33 @@ impl MixerChannel {
         self.auto_gain_db
     }
 
-    pub fn set_auto_gain_db(&mut self, gain_db: f32) -> Result<()> {
-        self.auto_gain_db = clamp_gain_db(gain_db);
-        Ok(())
+    pub fn loudness_lufs(&self) -> Option<f64> {
+        self.loudness_lufs
+    }
+
+    pub fn target_lufs(&self) -> Option<f32> {
+        self.target_lufs
+    }
+
+    /// Set measured / tagged loudness and recompute cached auto gain.
+    pub fn set_loudness_lufs(&mut self, loudness_lufs: Option<f64>) {
+        self.loudness_lufs = loudness_lufs.filter(|l| l.is_finite());
+        self.recompute_auto_gain();
+    }
+
+    /// Set normalizer target (`None` = off) and recompute cached auto gain.
+    pub fn set_target_lufs(&mut self, target_lufs: Option<f32>) {
+        self.target_lufs = target_lufs.filter(|t| t.is_finite());
+        self.recompute_auto_gain();
+    }
+
+    fn recompute_auto_gain(&mut self) {
+        self.auto_gain_db = match (self.target_lufs, self.loudness_lufs) {
+            (Some(target), Some(loudness)) => {
+                (target - loudness as f32).clamp(-AUTO_GAIN_CLAMP_DB, AUTO_GAIN_CLAMP_DB)
+            }
+            _ => 0.0,
+        };
     }
 
     pub fn headphone_cue(&self) -> bool {
@@ -274,6 +310,8 @@ mod tests {
         let mut channel = MixerChannel::new(48_000);
 
         assert_eq!(channel.auto_gain_db(), 0.0);
+        assert_eq!(channel.loudness_lufs(), None);
+        assert_eq!(channel.target_lufs(), None);
         assert_eq!(channel.gain_trim_db(), 0.0);
         assert_eq!(channel.volume(), 1.0);
         assert_eq!(channel.eq_gains(), DeckEqGains::default());
@@ -289,7 +327,8 @@ mod tests {
         channel.set_eq_high_db(2.0).unwrap();
         channel.set_filter_db(4.0).unwrap();
         channel.set_gain_trim_db(3.0).unwrap();
-        channel.set_auto_gain_db(6.0).unwrap();
+        channel.set_target_lufs(Some(-18.0));
+        channel.set_loudness_lufs(Some(-24.0));
         channel.set_headphone_cue(true);
 
         assert_eq!(channel.eq_gains(), DeckEqGains::clamped(6.0, -3.0, 2.0));
@@ -308,7 +347,8 @@ mod tests {
         let baseline_peak = channel(&graph, channel_id).level_peaks().peak_l;
 
         let mut boosted = MixerChannel::new(48_000);
-        boosted.set_auto_gain_db(6.0).unwrap();
+        boosted.set_target_lufs(Some(-18.0));
+        boosted.set_loudness_lufs(Some(-24.0));
         boosted.begin_render(Buffer::LEN * 2);
         let (mut graph, _, channel_id, mut processor) = test_graph(boosted, 0.25, -0.25);
         process(&mut processor, &mut graph, channel_id);

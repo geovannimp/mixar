@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 
 use library_core::{
-    Collection, CollectionConfig, CollectionId, CollectionType, FileAudioSource, LibraryError,
-    LibrarySource, Result, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
+    AudioSource, Collection, CollectionConfig, CollectionId, CollectionType, FileAudioSource,
+    LibraryError, Result, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
 };
 
 use crate::entity::{collections, tracks};
@@ -21,15 +21,17 @@ pub fn track_metadata(model: &tracks::Model) -> TrackMetadata {
         sample_rate: model.sample_rate.map(|v| v as u32),
         channels: model.channels.map(|v| v as u16),
         bitrate_kbps: model.bitrate_kbps.map(|v| v as u32),
+        replaygain_track_gain_db: model.replaygain_track_gain_db,
+        loudness_lufs: None,
     }
 }
 
-pub fn track_source(model: tracks::Model) -> Result<LibrarySource> {
+pub fn track_source(model: tracks::Model) -> Result<AudioSource> {
     let metadata = track_metadata(&model);
     let id = TrackId::new(model.id);
 
     match model.source_type.as_str() {
-        "file" => Ok(LibrarySource::File(FileAudioSource::new(
+        "file" => Ok(AudioSource::File(FileAudioSource::new(
             id,
             PathBuf::from(model.source_ref),
             metadata,
@@ -44,7 +46,7 @@ pub fn track_source(model: tracks::Model) -> Result<LibrarySource> {
                     backend: "library",
                     message: format!("unknown stream provider: {provider_raw:?}"),
                 })?;
-            Ok(LibrarySource::Stream(StreamAudioSource::new(
+            Ok(AudioSource::Stream(StreamAudioSource::new(
                 id,
                 model.source_ref,
                 metadata,

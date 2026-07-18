@@ -10,7 +10,7 @@ Reference: `docs/tech-spec.md` §7 (Codec). Architecture overview: `README.md`.
 
 - **Role:** Decode common audio formats (MP3, AAC, FLAC, WAV, Ogg Vorbis) via a single streaming API. Wrap symphonia; do not expose symphonia types in the public API.
 - **API:** Expose a streaming decoder that presents something like `read_frames(&mut self, buf: &mut [f32]) -> Result<frames_read>`. Output is interleaved f32 (matching `audio_core::Sample`). Report sample rate and channel count from the decoded stream. Support loading an entire file into memory when needed by loaders (e.g. `load_entire_file`).
-- **Consumers:** Used by `AudioSource` implementations in `library-core` (`FileAudioSource`, `LibrarySource`). Do not call codec from `engine-dsp`.
+- **Consumers:** Used by `AudioSource` implementations in `library-core` (`FileAudioSource`, `AudioSource`). Do not call codec from `engine-dsp`.
 - **Formats:** Rely on symphonia for format detection and decoding. Use file extension or content-based probing as appropriate; document supported formats.
 - **Testing:** Unit tests for decoding known files; fuzz tests for file parsing where applicable. Benchmarks for the decode pipeline.
 - **Metadata:** Reading tags/metadata may live here or in the library crate; coordinate with library for tag reading (symphonia or lofty) so codec focuses on sample output.
