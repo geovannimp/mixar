@@ -16,7 +16,7 @@ Make GitHub Actions green and trustworthy: install native deps, enforce stable l
 | Beta | Daily cron on `main`, warning-only (`continue-on-error`), file `rust-beta-audit.yml` |
 | Nightly | Dropped |
 | Docs / Pages | Disabled for now |
-| Audit | Hybrid: fail on vulnerabilities; allow warnings via `crates/audit.toml` with rationale |
+| Audit | Hybrid: fail on vulnerabilities; warnings are informational; add `crates/audit.toml` only when ignores are needed |
 | Compile runner | Direct `cargo` in `crates/` (not a single `moon ci` Actions job) |
 | Cache | `actions/cache@v4` |
 | System deps | `pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev` before any compile |
@@ -48,9 +48,9 @@ Add further packages only if a clean CI build still fails on a missing `.pc`.
 ## Audit policy
 
 1. Prefer clearing vulns by bumping deps (`bytes` ≥ 1.11.1, `crossbeam-epoch` ≥ 0.9.20 when present).
-2. `crates/audit.toml` allows **warnings** (unmaintained / unsound / yanked) with a short comment per advisory ID.
-3. Ignore **vulnerabilities** in `audit.toml` only when a bump is not feasible; document rationale next to each ignore.
-4. `audit.yml` fails the job when unresolved vulnerabilities remain.
+2. Warnings (unmaintained / unsound / yanked) are informational and do not fail CI (`cargo audit` default).
+3. Add `crates/audit.toml` only when a vulnerability ignore is required; document rationale next to each ID.
+4. `audit.yml` fails the job when unresolved vulnerabilities remain. Policy note lives on the workflow.
 
 ## Out of scope
 
@@ -64,5 +64,5 @@ Add further packages only if a clean CI build still fails on a missing `.pc`.
 - Fresh PR against `main` gets green lint, test, and audit without local-only hacks
 - Native deps installed before compile jobs
 - `cargo fmt --check` and clippy pass on a clean tree
-- Audit policy documented (this spec + `crates/audit.toml`)
+- Audit policy documented (this spec + `audit.yml` comment)
 - No duplicate fmt/clippy across a beta/nightly matrix; beta is daily warning-only only

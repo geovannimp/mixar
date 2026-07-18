@@ -1,5 +1,9 @@
 name: Audit
 
+# Hybrid policy (#74): fail on vulnerabilities; warnings (unmaintained /
+# unsound / yanked) are informational. Prefer bumping deps; add
+# crates/audit.toml with ignore entries only when a bump is not feasible.
+
 on:
   push:
     branches: [main, develop]
