@@ -1,0 +1,13 @@
+# Hybrid cargo-audit policy (#74):
+# - CI fails on unresolved vulnerabilities (prefer dependency bumps).
+# - Warnings (unmaintained / unsound / yanked) are informational and do not
+#   fail the job. Known current warnings in this lockfile:
+#   - RUSTSEC-2024-0436 paste (unmaintained)
+#   - RUSTSEC-2026-0173 proc-macro-error2 (unmaintained)
+#   - RUSTSEC-2026-0190 anyhow (unsound downcast_mut)
+#   - num-bigint 0.4.7 (yanked; transitive)
+# - Ignore vulnerability IDs below only when a bump is not feasible; add a
+#   comment with rationale above each entry.
+
+[advisories]
+ignore = []

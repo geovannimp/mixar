@@ -1,0 +1,10 @@
+name: Install native audio deps
+description: Install ALSA and PipeWire development packages for CPAL builds on Ubuntu
+runs:
+  using: composite
+  steps:
+    - name: Install pkg-config, ALSA, PipeWire
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y pkg-config libasound2-dev libpipewire-0.3-dev
