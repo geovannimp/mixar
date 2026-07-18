@@ -8,82 +8,18 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Prefer PATH toolchains installed by Actions over moon downloading via proto
+  MOON_TOOLCHAIN_FORCE_GLOBALS: 'true'
 
 jobs:
-  test:
-    name: Test
+  ci:
+    name: moon ci
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust: [stable, beta, nightly]
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.rust }}
-          components: rustfmt, clippy
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.rust }}-
-
-      - name: Check formatting
-        run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test --release --verbose
-
-      - name: Run tests with null backend
-        run: cargo test --package backend-null --release --verbose
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-build-
-
-      - name: Build in release mode
-        run: cargo build --release --verbose
-
-      - name: Build in debug mode
-        run: cargo build --verbose
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -91,22 +27,16 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-lint-${{ hashFiles('**/Cargo.lock') }}
+            crates/target
+          key: ${{ runner.os }}-cargo-moon-${{ hashFiles('crates/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-lint-
-
-      - name: Check formatting
-        run: cargo fmt -- --check
-
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+            ${{ runner.os }}-cargo-moon-
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -117,16 +47,69 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Check frontend formatting
-        run: npm run format:check -w gui-app
+      - name: Run moon ci (affected)
+        run: npx moon ci
 
-      - name: Run frontend lint
-        run: npm run lint -w gui-app
+  rust-matrix:
+    name: Rust matrix (${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crates
+    strategy:
+      matrix:
+        rust: [beta, nightly]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect Rust changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          # On push (no PR base), compare against the default branch so the
+          # matrix still skips correctly for frontend-only pushes.
+          base: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          filters: |
+            rust:
+              - 'crates/**'
+
+      - name: Install Rust
+        if: steps.filter.outputs.rust == 'true'
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        if: steps.filter.outputs.rust == 'true'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            crates/target
+          key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('crates/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.rust }}-
+
+      - name: Check formatting
+        if: steps.filter.outputs.rust == 'true'
+        run: cargo fmt -- --check
+
+      - name: Run clippy
+        if: steps.filter.outputs.rust == 'true'
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        if: steps.filter.outputs.rust == 'true'
+        run: cargo test --release --verbose
 
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: crates
     steps:
       - uses: actions/checkout@v4
 
@@ -144,7 +127,9 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: crates
     steps:
       - uses: actions/checkout@v4
 
@@ -159,8 +144,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
+            crates/target
+          key: ${{ runner.os }}-cargo-docs-${{ hashFiles('crates/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-docs-
 
@@ -172,4 +157,4 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./target/doc
+          publish_dir: ./crates/target/doc

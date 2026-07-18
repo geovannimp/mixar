@@ -12,23 +12,28 @@ Cargo + npm workspace layout:
 
 ```
 rust-dj-engine/
-├─ package.json        # npm workspaces root (gui-app + lefthook)
-├─ lefthook.yml        # pre-commit rustfmt + stage_fixed
-├─ audio-core/         # Shared types and traits (AudioBackend, AudioSource, Sample, …)
-├─ backend-null/       # Deterministic backend for tests and CI
-├─ backend-miniaudio/  # Miniaudio backend
-├─ backend-cpal/       # CPAL backend (native PipeWire on Linux when available)
-├─ engine-core/        # Engine lifecycle, config, producer thread, track loading
-├─ engine-dsp/         # Pure DSP: decks, mixer (no I/O)
-├─ codec/              # Decoder wrapper (symphonia)
-├─ resampler/          # Resampler trait + rubato implementation
-├─ library/            # Library manager (collections, tags, analysis)
-├─ library-core/       # Library traits and shared types
-├─ analyzer-core/      # Offline analysis traits and types
-├─ analyzer-stratum/   # stratum-dsp backend
-├─ analyzer/           # decode + analyze_file facade
-├─ app-example/        # Minimal example binary
-├─ gui-app/            # Tauri + React desktop UI (npm workspace package)
+├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
+├─ .moon/              # moon workspace + toolchains
+├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
+├─ apps/               # npm applications (moon globs: apps/*)
+│  └─ gui-app/         # Tauri + React desktop UI
+├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
+├─ crates/             # Cargo workspace root (Cargo.toml + moon rust project)
+│  ├─ moon.yml
+│  ├─ audio-core/      # Shared types and traits (AudioBackend, AudioSource, Sample, …)
+│  ├─ backend-null/    # Deterministic backend for tests and CI
+│  ├─ backend-miniaudio/
+│  ├─ backend-cpal/    # CPAL (native PipeWire on Linux when available)
+│  ├─ engine-core/     # Engine lifecycle, config, producer thread, track loading
+│  ├─ engine-dsp/      # Pure DSP: decks, mixer (no I/O)
+│  ├─ codec/           # Decoder wrapper (symphonia)
+│  ├─ resampler/       # Resampler trait + rubato implementation
+│  ├─ library/         # Library manager (collections, tags, analysis)
+│  ├─ library-core/    # Library traits and shared types
+│  ├─ analyzer-core/   # Offline analysis traits and types
+│  ├─ analyzer-stratum/# stratum-dsp backend
+│  ├─ analyzer/        # decode + analyze_file facade
+│  └─ app-example/     # Minimal example binary
 └─ samples/            # Sample audio for local demos
 ```
 
@@ -112,21 +117,21 @@ Still open / partial:
 git clone <repository-url>
 cd rust-dj-engine
 
-cargo build
-cargo test
-cargo run -p app-example
+cargo build --manifest-path crates/Cargo.toml
+cargo test --manifest-path crates/Cargo.toml
+cargo run --manifest-path crates/Cargo.toml -p app-example
 ```
 
-The example loads a file from `samples/` when present. Override backend and settings with a local `config.toml` or by editing `app-example`.
+The example loads a file from `samples/` when present (run from the repo root). Override backend and settings with a local `config.toml` or by editing `app-example`.
 
 ### Running Tests
 
 ```bash
-cargo test
-cargo test -p engine-core --lib
-cargo test -p audio-core
-cargo test -p backend-null
-cargo test -p engine-dsp
+cargo test --manifest-path crates/Cargo.toml
+cargo test --manifest-path crates/Cargo.toml -p engine-core --lib
+cargo test --manifest-path crates/Cargo.toml -p audio-core
+cargo test --manifest-path crates/Cargo.toml -p backend-null
+cargo test --manifest-path crates/Cargo.toml -p engine-dsp
 ```
 
 Integration tests that open real devices may fail without audio hardware; prefer the null backend for CI-style runs.
@@ -135,18 +140,34 @@ Integration tests that open real devices may fail without audio hardware; prefer
 
 ### Git hooks
 
-Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) (npm workspace + `prepare`) and wires a pre-commit hook that runs `rustfmt` on staged `*.rs` files and restages fixes (`stage_fixed`). CI still enforces `cargo fmt -- --check`.
+Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`), wires pre-commit hooks, and enables the task graph.
 
-- Skip the fmt job for one commit: `LEFTHOOK_EXCLUDE=cargo-fmt git commit ...`
-- Disable all lefthook hooks: `LEFTHOOK=0 git commit ...`
+Pre-commit still runs `rustfmt` / `oxfmt` / `oxlint --fix` on **staged** files only (`stage_fixed`). CI uses `moon ci` for affected full-package checks.
+
+- Skip a lefthook job: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`
+- Disable lefthook: `LEFTHOOK=0 git commit ...`
 - Emergency only: `git commit --no-verify`
 
-GUI app (npm workspace package `gui-app`):
+### moon task runner
 
 ```bash
-npm install          # root — hooks + gui-app deps
-npm run dev:gui      # or: npm run tauri -w gui-app -- dev
+npm install                 # root — hooks + gui-app + moon
+npm run lint                # moon run :lint
+npm run format:check        # moon run :format-check
+npm run build               # moon run :build
+npm run gui:dev             # moon run gui-app:dev
+npm run gui:build           # moon run gui-app:build
+npm run gui:tauri           # moon run gui-app:tauri (pass args after --)
+npx moon ci --base main     # locally mimic affected CI
 ```
+
+#### Adding a new npm workspace package (e.g. `apps/website`, `packages/ui`)
+
+1. Create the folder under `apps/` (application) or `packages/` (shared library).
+2. Add `package.json` with `lint`, `format:check`, and `build` scripts (and a unique `name`).
+3. Add `moon.yml` (`language: typescript`) whose tasks call those scripts; use `preset: server` (or `runInCI: false`) on `dev`.
+4. Run `npm install` at root — `workspaces` / moon already glob `apps/*` and `packages/*`.
+5. Verify `npx moon run <folder-name>:lint` and that `npx moon ci --base main` only runs it when that package changes.
 
 ### Code Style
 
@@ -162,7 +183,7 @@ npm run dev:gui      # or: npm run tauri -w gui-app -- dev
 
 ### CI/CD
 
-GitHub Actions includes format checking, Clippy, tests, security auditing, and docs generation.
+GitHub Actions primary gate is `moon ci` (affected lint, format-check, build, and rust test). A secondary Rust beta/nightly matrix runs on Rust path changes. Separate jobs cover security audit and docs generation.
 
 ## Roadmap
 

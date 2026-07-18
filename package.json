@@ -2,15 +2,20 @@
   "name": "rust-dj-engine",
   "private": true,
   "workspaces": [
-    "gui-app"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "prepare": "lefthook install",
-    "dev:gui": "npm run dev -w gui-app",
-    "build:gui": "npm run build -w gui-app",
-    "tauri": "npm run tauri -w gui-app"
+    "lint": "moon run :lint",
+    "format:check": "moon run :format-check",
+    "build": "moon run :build",
+    "gui:dev": "moon run gui-app:dev",
+    "gui:build": "moon run gui-app:build",
+    "gui:tauri": "moon run gui-app:tauri"
   },
   "devDependencies": {
+    "@moonrepo/cli": "^2.4.4",
     "lefthook": "2.1.10"
   }
 }

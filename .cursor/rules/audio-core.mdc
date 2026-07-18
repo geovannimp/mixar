@@ -1,6 +1,6 @@
 ---
 description: Rules for audio-core — shared types and backend trait boundary
-globs: audio-core/**/*.rs
+globs: crates/audio-core/**/*.rs
 alwaysApply: false
 ---
 

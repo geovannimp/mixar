@@ -1356,6 +1356,7 @@ fn get_supported_audio_extensions() -> Vec<&'static str> {
 #[tauri::command]
 fn sample_track_path() -> Option<String> {
     let candidates = [
+        "../../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
         "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
         "../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
         "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",

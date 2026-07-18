@@ -23,9 +23,8 @@ pub enum MixerNode {
 
 impl Node for MixerNode {
     fn process(&mut self, inputs: &[Input], output: &mut [Buffer]) {
-        match self {
-            MixerNode::Lane(n) => n.process(inputs, output),
-        }
+        let MixerNode::Lane(n) = self;
+        n.process(inputs, output);
     }
 }
 
@@ -285,13 +284,10 @@ impl Mixer {
                     let graph = &self.graph;
                     let pfl_scratch = &mut self.pfl_scratch;
                     for &node_id in &self.lane_node_ids {
-                        let lane = match &graph
+                        let MixerNode::Lane(lane) = &graph
                             .node_weight(node_id)
                             .expect("lane node index must be valid")
-                            .node
-                        {
-                            MixerNode::Lane(lane) => lane,
-                        };
+                            .node;
                         let channel = lane.channel();
                         if channel.headphone_cue() {
                             let pre_fader = channel.pre_fader_buffer();

@@ -1,6 +1,6 @@
 ---
 description: Rules for engine-core — lifecycle, config, producer thread, Engine API
-globs: engine-core/**/*.rs
+globs: crates/engine-core/**/*.rs
 alwaysApply: false
 ---
 

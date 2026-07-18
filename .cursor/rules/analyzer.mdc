@@ -1,6 +1,6 @@
 ---
 description: Rules for analyzer — offline file analysis facade
-globs: analyzer/**/*.rs
+globs: crates/analyzer/**/*.rs
 alwaysApply: false
 ---
 

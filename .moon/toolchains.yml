@@ -1,0 +1,12 @@
+# https://moonrepo.dev/docs/config/toolchain
+$schema: 'https://moonrepo.dev/schemas/toolchains.json'
+
+rust: {}
+
+javascript: {}
+
+node:
+  version: '22.0.0'
+  packageManager: 'npm'
+
+npm: {}

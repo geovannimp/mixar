@@ -1,6 +1,6 @@
 ---
 description: Rules for engine-dsp — pure DSP (deck, mixer, analyzers)
-globs: engine-dsp/**/*.rs
+globs: crates/engine-dsp/**/*.rs
 alwaysApply: false
 ---
 

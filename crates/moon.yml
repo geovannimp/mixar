@@ -1,0 +1,56 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+language: 'rust'
+layer: 'application'
+id: 'rust'
+
+workspace:
+  inheritedTasks:
+    include: []
+
+env:
+  CARGO_TERM_COLOR: 'always'
+
+fileGroups:
+  sources:
+    - '**/*'
+    - 'Cargo.toml'
+    - 'Cargo.lock'
+
+tasks:
+  format-check:
+    command: 'cargo'
+    args: ['fmt', '--', '--check']
+    inputs:
+      - '@group(sources)'
+    options:
+      runInCI: true
+
+  lint:
+    command: 'cargo'
+    args:
+      - 'clippy'
+      - '--all-targets'
+      - '--all-features'
+      - '--'
+      - '-D'
+      - 'warnings'
+    inputs:
+      - '@group(sources)'
+    options:
+      runInCI: true
+
+  test:
+    command: 'cargo'
+    args: ['test', '--release', '--verbose']
+    inputs:
+      - '@group(sources)'
+    options:
+      runInCI: true
+
+  build:
+    command: 'cargo'
+    args: ['build', '--release', '--verbose']
+    inputs:
+      - '@group(sources)'
+    options:
+      runInCI: true

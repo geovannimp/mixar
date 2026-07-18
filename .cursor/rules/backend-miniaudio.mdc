@@ -1,6 +1,6 @@
 ---
 description: Rules for backend-miniaudio — miniaudio cross-platform backend
-globs: backend-miniaudio/**/*.rs
+globs: crates/backend-miniaudio/**/*.rs
 alwaysApply: false
 ---
 

@@ -1,6 +1,6 @@
 ---
 description: Rules for backend-cpal — CPAL-based cross-platform backend
-globs: backend-cpal/**/*.rs
+globs: crates/backend-cpal/**/*.rs
 alwaysApply: false
 ---
 
