@@ -15,7 +15,7 @@
 
 ## Learned Workspace Facts
 
-- Root `npm install` installs [lefthook](https://lefthook.dev) via npm workspaces (`gui-app` package) and `prepare` → `lefthook install`; pre-commit runs `rustfmt` on staged `*.rs` and `oxfmt`/`oxlint --fix` on staged `*.{ts,tsx}` with `stage_fixed`. Skip jobs: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`; disable: `LEFTHOOK=0`; emergency: `git commit --no-verify`. Prefer not bypassing the hook. Frontend tooling expects Node 22 (`.nvmrc`).
+- Root `npm install` installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`) via the npm workspace root; `prepare` → `lefthook install`. Pre-commit runs `rustfmt` on staged `*.rs` and `oxfmt`/`oxlint --fix` on staged `*.{ts,tsx}` with `stage_fixed`. Skip jobs: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`; disable: `LEFTHOOK=0`; emergency: `git commit --no-verify`. Prefer not bypassing the hook. Frontend tooling expects Node 22 (`.nvmrc`). Affected full-package checks use `npx moon ci` / root scripts `lint`, `format:check`, `build`.
 - Cargo workspace: `audio-core`, `engine-core`, `engine-dsp`, `backend-cpal`, `backend-null`, `backend-miniaudio`, `library*`, `codec`, `resampler`, `analyzer*`, plus `app-example` CLI and `gui-app` (Tauri + React; npm workspace).
 - Headless audio engine uses a producer thread writing interleaved stereo into a lock-free ring buffer; the backend audio callback consumes it.
 - Default engine config: 48 kHz sample rate, 512-frame buffer size (latency tied to buffer size).

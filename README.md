@@ -12,8 +12,10 @@ Cargo + npm workspace layout:
 
 ```
 rust-dj-engine/
-├─ package.json        # npm workspaces root (gui-app + lefthook)
-├─ lefthook.yml        # pre-commit rustfmt + stage_fixed
+├─ package.json        # npm workspaces root (gui-app + lefthook + @moonrepo/cli)
+├─ .moon/              # moon workspace + toolchains
+├─ moon.yml            # rust (Cargo workspace) moon project
+├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
 ├─ audio-core/         # Shared types and traits (AudioBackend, AudioSource, Sample, …)
 ├─ backend-null/       # Deterministic backend for tests and CI
 ├─ backend-miniaudio/  # Miniaudio backend
@@ -28,7 +30,7 @@ rust-dj-engine/
 ├─ analyzer-stratum/   # stratum-dsp backend
 ├─ analyzer/           # decode + analyze_file facade
 ├─ app-example/        # Minimal example binary
-├─ gui-app/            # Tauri + React desktop UI (npm workspace package)
+├─ gui-app/            # Tauri + React desktop UI (npm workspace package; moon.yml)
 └─ samples/            # Sample audio for local demos
 ```
 
@@ -135,18 +137,32 @@ Integration tests that open real devices may fail without audio hardware; prefer
 
 ### Git hooks
 
-Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) (npm workspace + `prepare`) and wires a pre-commit hook that runs `rustfmt` on staged `*.rs` files and restages fixes (`stage_fixed`). CI still enforces `cargo fmt -- --check`.
+Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`), wires pre-commit hooks, and enables the task graph.
 
-- Skip the fmt job for one commit: `LEFTHOOK_EXCLUDE=cargo-fmt git commit ...`
-- Disable all lefthook hooks: `LEFTHOOK=0 git commit ...`
+Pre-commit still runs `rustfmt` / `oxfmt` / `oxlint --fix` on **staged** files only (`stage_fixed`). CI uses `moon ci` for affected full-package checks.
+
+- Skip a lefthook job: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`
+- Disable lefthook: `LEFTHOOK=0 git commit ...`
 - Emergency only: `git commit --no-verify`
 
-GUI app (npm workspace package `gui-app`):
+### moon task runner
 
 ```bash
-npm install          # root — hooks + gui-app deps
-npm run dev:gui      # or: npm run tauri -w gui-app -- dev
+npm install                 # root — hooks + gui-app + moon
+npm run lint                # moon run :lint
+npm run format:check        # moon run :format-check
+npm run build               # moon run :build
+npx moon run gui-app:dev    # or: npm run dev:gui
+npx moon ci --base main     # locally mimic affected CI
 ```
+
+#### Adding a new npm workspace package (e.g. `website`, `docs`)
+
+1. Add the directory to root `package.json` `workspaces`.
+2. Add `package.json` with `lint`, `format:check`, and `build` scripts.
+3. Add `moon.yml` (`language: typescript`) whose tasks call those scripts; set `runInCI: false` on `dev`.
+4. Register the project in `.moon/workspace.yml` if not covered by a glob.
+5. `npm install` at root; verify `npx moon run <id>:lint` and that `npx moon ci --base main` only runs it when that package changes.
 
 ### Code Style
 
@@ -162,7 +178,7 @@ npm run dev:gui      # or: npm run tauri -w gui-app -- dev
 
 ### CI/CD
 
-GitHub Actions includes format checking, Clippy, tests, security auditing, and docs generation.
+GitHub Actions primary gate is `moon ci` (affected lint, format-check, build, and rust test). A secondary Rust beta/nightly matrix runs on Rust path changes. Separate jobs cover security audit and docs generation.
 
 ## Roadmap
 
