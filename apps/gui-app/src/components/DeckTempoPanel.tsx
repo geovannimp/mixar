@@ -86,10 +86,13 @@ export function DeckTempoPanel({
           orientation="vertical"
           thumbAlignment="center"
           showIndicator={false}
+          showMarkers
+          centerNotch
           thumbVariant="fader"
           channelAccent={accent}
           min={0}
           max={100}
+          step={0.05}
           value={sliderValue}
           disabled={disabled || syncActive}
           aria-label="Tempo"

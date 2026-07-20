@@ -127,7 +127,9 @@ function clampSpeedToPitchRange(speed: number): number {
 export function speedToPitchSlider(speed: number): number {
   const pitch = (clampSpeedToPitchRange(speed) - 1) * 100;
   const clamped = Math.min(PITCH_RANGE_PERCENT, Math.max(-PITCH_RANGE_PERCENT, pitch));
-  return Math.round(((clamped + PITCH_RANGE_PERCENT) / (2 * PITCH_RANGE_PERCENT)) * 100);
+  const raw = ((clamped + PITCH_RANGE_PERCENT) / (2 * PITCH_RANGE_PERCENT)) * 100;
+  // Keep sub-step precision so the fader does not quantize to 0.16% pitch jumps.
+  return Math.round(raw * 100) / 100;
 }
 
 export function pitchSliderToSpeed(value: number): number {

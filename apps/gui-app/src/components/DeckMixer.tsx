@@ -144,6 +144,7 @@ function DeckVolumeFader({
           thumbVariant="fader"
           channelAccent={channelAccent}
           showIndicator
+          showMarkers
           min={0}
           max={100}
           value={percent}
@@ -211,27 +212,30 @@ interface CrossfaderProps {
 }
 
 function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
-  const percent = Math.round(position * 100);
+  const percent = Math.round(position * 10000) / 100;
 
   return (
     <div className="flex w-full shrink-0 flex-col gap-1 border-t border-white/6 pt-2">
       <span className="text-center text-[8px] font-semibold uppercase tracking-widest text-zinc-600">
         Crossfader
       </span>
-      <div className="flex items-center gap-1.5 px-0.5">
+      <div className="flex items-center gap-1.5 overflow-visible px-0.5">
         <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">A</span>
         <Slider
           orientation="horizontal"
           thumbAlignment="center"
           showIndicator={false}
+          showMarkers
+          centerNotch
           thumbVariant="fader"
           crossfaderTrack
           min={0}
           max={100}
+          step={0.05}
           value={percent}
           disabled={disabled}
           aria-label="Crossfader"
-          className="min-h-0 min-w-0 flex-1 **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:min-w-0"
+          className="min-h-0 min-w-0 flex-1 overflow-visible **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:min-w-0"
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onPositionChange(next / 100);

@@ -15,6 +15,7 @@ export const DECK_ACCENTS: Record<
     fader: {
       trackBg: string;
       indicator: string;
+      grip: string;
     };
   }
 > = {
@@ -29,6 +30,7 @@ export const DECK_ACCENTS: Record<
     fader: {
       trackBg: "before:bg-sky-500/8",
       indicator: "bg-sky-400/55",
+      grip: "after:bg-sky-400",
     },
   },
   b: {
@@ -42,6 +44,7 @@ export const DECK_ACCENTS: Record<
     fader: {
       trackBg: "before:bg-rose-500/8",
       indicator: "bg-rose-400/55",
+      grip: "after:bg-rose-400",
     },
   },
 };
@@ -76,13 +79,13 @@ export function deckButtonAccentTone(accent: DeckButtonAccent): string {
 export const FADER_KNOB = {
   thumb:
     "border-zinc-400/65 bg-linear-to-b from-zinc-300/98 to-zinc-400/98 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_1px_2px_rgba(0,0,0,0.18)]",
-  grip: "after:bg-zinc-500/50",
   focusRing: "has-focus-visible:ring-zinc-400/20",
 } as const;
 
 export const NEUTRAL_FADER_TRACK = {
   trackBg: "before:bg-zinc-500/12",
   indicator: "bg-zinc-400/50",
+  grip: "after:bg-zinc-500/50",
 } as const;
 
 export const CROSSFADER_TRACK =
