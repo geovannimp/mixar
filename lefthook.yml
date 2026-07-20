@@ -1,20 +1,12 @@
 # Git hooks via lefthook (https://lefthook.dev).
 # Installed by `npm install` at the repo root (`prepare` → `lefthook install`).
-# Skip a job: LEFTHOOK_EXCLUDE=cargo-fmt,oxfmt,oxlint git commit ...
+# Skip a job: LEFTHOOK_EXCLUDE=lint,format git commit ...
 # Disable all hooks: LEFTHOOK=0 git commit ...
 # Emergency bypass: git commit --no-verify
 
 pre-commit:
   commands:
-    cargo-fmt:
-      glob: "*.rs"
-      run: rustfmt --edition 2021 {staged_files}
-      stage_fixed: true
-    oxfmt:
-      glob: "*.{ts,tsx}"
-      run: npx oxfmt {staged_files}
-      stage_fixed: true
-    oxlint:
-      glob: "*.{ts,tsx}"
-      run: npx oxlint --fix {staged_files}
-      stage_fixed: true
+    lint:
+      run: npm run lint
+    format:
+      run: npm run format:check

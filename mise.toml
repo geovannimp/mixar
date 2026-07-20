@@ -1,0 +1,4 @@
+# Let mise read the standard pins (.node-version, rust-toolchain.toml).
+# Idiomatic version files are off by default in recent mise.
+[settings]
+idiomatic_version_file_enable_tools = ["node", "rust"]

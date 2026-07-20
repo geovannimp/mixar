@@ -22,16 +22,8 @@ jobs:
       - name: Setup moon affected
         uses: ./.github/actions/setup-moon-base
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+      - name: Setup toolchains
+        uses: ./.github/actions/setup-toolchains
 
       - name: Install native deps
         uses: ./.github/actions/install-native-deps

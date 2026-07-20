@@ -1,6 +1,9 @@
 {
   "name": "rust-dj-engine",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"

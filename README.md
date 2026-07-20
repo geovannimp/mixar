@@ -13,8 +13,11 @@ Cargo + npm workspace layout:
 ```
 rust-dj-engine/
 ├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
+├─ .node-version       # Node major pin (22); also package.json engines
+├─ rust-toolchain.toml # Rust stable + rustfmt/clippy (rustup / mise / CI)
+├─ mise.toml           # enables mise to read the pins above
 ├─ .moon/              # moon workspace + toolchains
-├─ lefthook.yml        # pre-commit rustfmt + oxfmt/oxlint (staged files)
+├─ lefthook.yml        # pre-commit: npm run lint + format:check
 ├─ apps/               # npm applications (moon globs: apps/*)
 │  └─ gui-app/         # Tauri + React desktop UI
 ├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
@@ -56,13 +59,13 @@ Producer thread ──► ring buffer ──► audio callback (backend)
 
 ### engine-core modules
 
-| Module | Responsibility |
-|--------|----------------|
-| `config` | `EngineConfig` and related TOML types |
-| `engine` | `Engine` public API (`start` / `stop` / `load_track` / `play` / `pause`) |
-| `backend` | Backend factory (`AudioBackend::list_names` / `new`) |
-| `producer` | Ring buffer setup and producer thread loop |
-| `callback` | `ConsumerCallback` (ring-buffer consumer for the audio device) |
+| Module         | Responsibility                                                                |
+| -------------- | ----------------------------------------------------------------------------- |
+| `config`       | `EngineConfig` and related TOML types                                         |
+| `engine`       | `Engine` public API (`start` / `stop` / `load_track` / `play` / `pause`)      |
+| `backend`      | Backend factory (`AudioBackend::list_names` / `new`)                          |
+| `producer`     | Ring buffer setup and producer thread loop                                    |
+| `callback`     | `ConsumerCallback` (ring-buffer consumer for the audio device)                |
 | `audio_source` | `FileAudioSource`; re-exports `AudioSource` / `LoadedAudio` from `audio-core` |
 
 ### Audio loading
@@ -107,16 +110,23 @@ Still open / partial:
 
 ### Prerequisites
 
-- Rust 1.70+ (stable, beta, or nightly)
+- **Node** 22+ (see `.node-version` / `package.json` `engines`)
+- **Rust** stable with `rustfmt` and `clippy` (see `rust-toolchain.toml`)
 - Linux x86_64 (primary development platform)
 - For real audio output: a working sound device (CPAL/miniaudio). Use `backend = "null"` for headless tests.
 
-### Building
+Any toolchain manager works (rustup + nvm/fnm/asdf, etc.). **Recommended:** [mise](https://mise.jdx.dev) — it reads `.node-version` and `rust-toolchain.toml` (via `mise.toml` settings). Follow [Getting Started](https://mise.jdx.dev/getting-started.html) and [IDE Integration](https://mise.jdx.dev/ide-integration.html).
 
 ```bash
 git clone <repository-url>
 cd rust-dj-engine
+mise install
+npm install
+```
 
+### Building
+
+```bash
 cargo build --manifest-path crates/Cargo.toml
 cargo test --manifest-path crates/Cargo.toml
 cargo run --manifest-path crates/Cargo.toml -p app-example
@@ -142,9 +152,9 @@ Integration tests that open real devices may fail without audio hardware; prefer
 
 Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`), wires pre-commit hooks, and enables the task graph.
 
-Pre-commit still runs `rustfmt` / `oxfmt` / `oxlint --fix` on **staged** files only (`stage_fixed`). CI uses `moon ci` for affected full-package checks.
+Pre-commit runs `npm run lint` and `npm run format:check` (moon). CI uses `moon ci` for affected full-package checks.
 
-- Skip a lefthook job: `LEFTHOOK_EXCLUDE=cargo-fmt` / `oxfmt` / `oxlint`
+- Skip a lefthook job: `LEFTHOOK_EXCLUDE=lint,format`
 - Disable lefthook: `LEFTHOOK=0 git commit ...`
 - Emergency only: `git commit --no-verify`
 
