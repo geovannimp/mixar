@@ -25,6 +25,23 @@ tasks:
     options:
       runInCI: true
 
+  # Pre-commit only (lefthook → moon --affected --status staged).
+  # Inputs are .rs-only so this task is skipped when no Rust sources are staged
+  # (avoids rustfmt hanging on empty stdin).
+  format-files:
+    command: 'rustfmt'
+    args: ['--edition', '2021']
+    inputs:
+      - '**/*.rs'
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: 'args'
+        filter:
+          - '**/*.rs'
+        passDotWhenNoResults: false
+
   lint:
     command: 'cargo'
     args:

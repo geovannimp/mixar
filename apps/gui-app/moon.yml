@@ -35,6 +35,36 @@ tasks:
     options:
       runInCI: true
 
+  # Pre-commit only (lefthook → moon --affected --status staged). New apps
+  # should define the same task ids; CI keeps using lint / format-check above.
+  format-files:
+    command: "npm"
+    args: ["run", "format", "--"]
+    inputs:
+      - "**/*.{ts,tsx}"
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: "args"
+        filter:
+          - "**/*.{ts,tsx}"
+        passDotWhenNoResults: false
+
+  lint-files:
+    command: "npm"
+    args: ["run", "lint:fix", "--"]
+    inputs:
+      - "**/*.{ts,tsx}"
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: "args"
+        filter:
+          - "**/*.{ts,tsx}"
+        passDotWhenNoResults: false
+
   build:
     command: "npm"
     args: ["run", "build"]
@@ -45,7 +75,7 @@ tasks:
 
   dev:
     command: "npm"
-    args: ["run", "dev"]
+    args: ["run", "tauri:dev"]
     preset: "server"
 
   tauri:

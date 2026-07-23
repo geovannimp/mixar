@@ -11,10 +11,12 @@
   "scripts": {
     "prepare": "lefthook install",
     "lint": "moon run :lint",
+    "lint:staged": "moon run :lint-files --affected --status staged",
     "format:check": "moon run :format-check",
+    "format:staged": "moon run :format-files --affected --status staged",
     "build": "moon run :build",
     "test": "moon run :test",
-    "gui:dev": "moon run gui-app:dev",
+    "dev": "moon run :dev",
     "gui:build": "moon run gui-app:build",
     "gui:tauri": "moon run gui-app:tauri"
   },
