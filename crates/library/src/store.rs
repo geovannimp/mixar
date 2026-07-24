@@ -46,6 +46,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
         };
@@ -102,6 +103,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
         };

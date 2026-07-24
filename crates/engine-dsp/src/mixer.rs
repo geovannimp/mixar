@@ -10,6 +10,7 @@ use petgraph::graph::DiGraph;
 use std::collections::HashMap;
 
 use crate::mixer_lane::MixerLane;
+use crate::sampler::SamplerStripRoute;
 use crate::{HeadphoneMonitor, MixerChannel};
 
 /// Fixed buffer length used by dasp_graph (samples per channel per process call).
@@ -49,6 +50,8 @@ pub struct Mixer {
     processor: Processor<MixerGraph>,
     /// Node index for each lane.
     lane_node_ids: Vec<petgraph::graph::NodeIndex>,
+    resampler_quality: String,
+    sample_rate: u32,
 }
 
 impl std::fmt::Debug for Mixer {
@@ -72,13 +75,20 @@ impl Mixer {
         buffer_size: u32,
         num_lanes: usize,
         resampler_quality: &str,
+        sampler_strip_route: SamplerStripRoute,
     ) -> Self {
         let buffer_size = buffer_size.max(1);
         let mut graph = MixerGraph::with_capacity(num_lanes, 0);
         let mut lane_node_ids = Vec::with_capacity(num_lanes);
 
         for i in 0..num_lanes {
-            let lane = MixerLane::new(i, sample_rate, buffer_size, resampler_quality);
+            let lane = MixerLane::new(
+                i,
+                sample_rate,
+                buffer_size,
+                resampler_quality,
+                sampler_strip_route,
+            );
             let lane_id = graph.add_node(NodeData::new2(MixerNode::Lane(lane)));
             lane_node_ids.push(lane_id);
         }
@@ -96,7 +106,17 @@ impl Mixer {
             graph,
             processor,
             lane_node_ids,
+            resampler_quality: resampler_quality.to_string(),
+            sample_rate,
         }
+    }
+
+    pub fn resampler_quality(&self) -> &str {
+        &self.resampler_quality
+    }
+
+    pub fn sample_rate(&self) -> u32 {
+        self.sample_rate
     }
 
     /// Number of lanes (deck + channel pairs).
@@ -130,11 +150,14 @@ impl Mixer {
         self.lane_mut(index).map(|lane| lane.channel_mut())
     }
 
-    /// Set loudness-normalization target for all channels (`None` = off).
+    /// Set loudness-normalization target for all channels and lane samplers (`None` = off).
     pub fn set_normalizer_target(&mut self, target_lufs: Option<f32>) {
         for index in 0..self.lane_node_ids.len() {
             if let Some(channel) = self.channel_mut(index) {
                 channel.set_target_lufs(target_lufs);
+            }
+            if let Some(lane) = self.lane_mut(index) {
+                lane.sampler_mut().set_target_lufs(target_lufs);
             }
         }
     }
@@ -225,16 +248,19 @@ impl Mixer {
         for i in 0..self.lane_node_ids.len() {
             self.lane_mut(i)
                 .expect("lane node index must identify a lane")
-                .begin_render(frames)?;
+                .channel_mut()
+                .clear_capture();
         }
 
         let (gain_a, gain_b) = Self::crossfader_gains(self.crossfader);
         let n_samples_per_channel = frames as usize;
-        let n_chunks = n_samples_per_channel.div_ceil(CHUNK_SAMPLES);
+        anyhow::ensure!(
+            n_samples_per_channel > 0 && n_samples_per_channel.is_multiple_of(CHUNK_SAMPLES),
+            "mixer frames ({n_samples_per_channel}) must be a positive multiple of {CHUNK_SAMPLES}"
+        );
+        let n_chunks = n_samples_per_channel / CHUNK_SAMPLES;
 
         for chunk in 0..n_chunks {
-            let start = chunk * CHUNK_SAMPLES;
-            let len = (n_samples_per_channel - start).min(CHUNK_SAMPLES);
             let out_start = chunk * CHUNK_SAMPLES * 2;
 
             for (i, &lane_id) in self.lane_node_ids.iter().enumerate() {
@@ -249,7 +275,7 @@ impl Mixer {
                 if lane_data.buffers.len() < 2 {
                     continue;
                 }
-                for s in 0..len {
+                for s in 0..CHUNK_SAMPLES {
                     let out = out_start + s * 2;
                     if out + 1 < self.mix_buffer.len() {
                         self.mix_buffer[out] += lane_data.buffers[0][s] * gain;
@@ -346,7 +372,13 @@ mod tests {
     use std::sync::Arc;
 
     fn new_mixer(num_lanes: usize) -> Mixer {
-        Mixer::new(48_000, 512, num_lanes, "medium")
+        Mixer::new(
+            48_000,
+            512,
+            num_lanes,
+            "medium",
+            SamplerStripRoute::BeforeStrip,
+        )
     }
 
     fn load_test_tone(mixer: &mut Mixer, lane: usize) {

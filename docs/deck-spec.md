@@ -283,7 +283,7 @@ The **8 numbered buttons** (slots 1–8) on each deck are **controller pads**, n
 | **Hot Cue** | Jump (or hotcue-loop) to stored point | `track_hot_cue` per slot | **P1 (default)** |
 | **Loop Roll** | Temporary quantized loop while held | — | P2 |
 | **Beat Jump** | Jump forward/back N beats | — | P2 |
-| **Sampler** | Trigger one-shot from library | Sampler bank (future) | P3 |
+| **Sampler** | Trigger one-shot from library / bank | Named 8-slot banks in `library.db` | P3 |
 | **Stems** | Mute/solo/isolate stem (Vocal, Instru, Bass, Kick, HiHat, …) | Per-session | P3 |
 | **Stems FX** | Stem-aware effect on pad | — | P4 |
 | **Slicer** | Rhythmic slice/repeat | — | P4 |
@@ -381,7 +381,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 |----|---------|-------------|----------|
 | S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (Virtual DJ Stems mode) | P3 |
 | S2 | **Stem isolation gain** | Per-stem level 0–100% | P3 |
-| S3 | **Sampler pads** | Trigger one-shots from library | P3 |
+| S3 | **Sampler pads** | Trigger one-shots from persisted named banks (8 slots); see `docs/superpowers/specs/2026-07-22-sampler-banks-design.md` | P3 |
 | S4 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
 | S5 | **Loop roll pad mode** | Beat-quantized temporary loop per pad | P2 |
 | S6 | **Beat jump pad mode** | ±N beats per pad | P2 |

@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
 use crate::deck_performance::{snap_secs, LoopRegionStatus};
-use crate::engine_controller::publish_deck;
+use crate::deck_sampler::ensure_deck_bank_loaded;
+use crate::engine_controller::{publish_deck, publish_status};
 use crate::{
     clamp_eq_db, deck_playback_secs, with_engine, AppState, DeckStatus, SharedAppState, NUM_DECKS,
 };
@@ -29,6 +30,7 @@ pub enum PadMode {
     HotCue,
     LoopRoll,
     BeatJump,
+    Sampler,
 }
 
 impl Default for PadMode {
@@ -42,15 +44,17 @@ impl PadMode {
         match self {
             PadMode::HotCue => PadMode::LoopRoll,
             PadMode::LoopRoll => PadMode::BeatJump,
-            PadMode::BeatJump => PadMode::HotCue,
+            PadMode::BeatJump => PadMode::Sampler,
+            PadMode::Sampler => PadMode::HotCue,
         }
     }
 
     pub fn prev(self) -> Self {
         match self {
-            PadMode::HotCue => PadMode::BeatJump,
+            PadMode::HotCue => PadMode::Sampler,
             PadMode::LoopRoll => PadMode::HotCue,
             PadMode::BeatJump => PadMode::LoopRoll,
+            PadMode::Sampler => PadMode::BeatJump,
         }
     }
 }
@@ -270,6 +274,10 @@ pub fn set_deck_pad_mode(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.decks[deck_id].pad_mode = mode;
+    if mode == PadMode::Sampler {
+        let _ = ensure_deck_bank_loaded(&mut state, deck_id);
+        publish_status(&app, &mut state);
+    }
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -290,6 +298,10 @@ pub fn cycle_deck_pad_mode(
     } else {
         state.decks[deck_id].pad_mode.next()
     };
+    if state.decks[deck_id].pad_mode == PadMode::Sampler {
+        let _ = ensure_deck_bank_loaded(&mut state, deck_id);
+        publish_status(&app, &mut state);
+    }
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 

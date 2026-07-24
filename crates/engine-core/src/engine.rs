@@ -41,6 +41,7 @@ pub struct Engine {
 impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig) -> Result<Self> {
+        config.validate()?;
         let backend = create_backend(&config.backend)?;
 
         Ok(Self {
@@ -217,6 +218,7 @@ impl Engine {
             buffer_size as u32,
             2,
             &self.config.resampler_quality(),
+            self.config.sampler_strip_route(),
         )));
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
@@ -557,6 +559,132 @@ impl Engine {
             .expect("validated above")
             .set_loudness_lufs(None);
         Ok(())
+    }
+
+    fn decode_source(&mut self, source: &AudioSource) -> Result<Arc<LoadedAudio>> {
+        let track_id = source.id().clone();
+        if let Some(cached) = self.decode_cache.get(&track_id) {
+            return Ok(Arc::clone(cached));
+        }
+        let audio = Arc::new(source.load()?);
+        self.decode_cache.insert(track_id, Arc::clone(&audio));
+        Ok(audio)
+    }
+
+    /// Assign a decoded sample to a sampler pad slot on a deck.
+    pub fn assign_sampler_slot(
+        &mut self,
+        deck_id: usize,
+        slot: usize,
+        source: AudioSource,
+        label: String,
+        loudness_lufs: Option<f64>,
+    ) -> Result<()> {
+        let audio = self.decode_source(&source)?;
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let sample_rate = dsp.sample_rate();
+        let quality = dsp.mixer().resampler_quality().to_string();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .assign_slot(slot, audio, label, sample_rate, &quality, loudness_lufs)
+    }
+
+    /// Clear a sampler pad slot on a deck.
+    pub fn clear_sampler_slot(&mut self, deck_id: usize, slot: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .clear_slot(slot)
+    }
+
+    /// Clear all sampler slots on a deck (e.g. before loading a bank).
+    pub fn clear_all_sampler_slots(&mut self, deck_id: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .clear_all_slots();
+        Ok(())
+    }
+
+    /// Set effective sampler play mode for a deck.
+    pub fn set_sampler_play_mode(
+        &mut self,
+        deck_id: usize,
+        mode: engine_dsp::SamplerPlayMode,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .set_play_mode(mode);
+        Ok(())
+    }
+
+    /// Trigger a sample from a pad slot on a deck.
+    pub fn trigger_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .trigger(slot)
+    }
+
+    /// End hold/loop for a sampler pad slot on a deck.
+    pub fn end_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .end(slot)
+    }
+
+    /// Whether a sampler slot has assigned audio on a deck.
+    pub fn sampler_slot_assigned(&self, deck_id: usize, slot: usize) -> bool {
+        let Some(dsp_engine) = self.dsp_engine.as_ref() else {
+            return false;
+        };
+        let Ok(dsp) = dsp_engine.lock() else {
+            return false;
+        };
+        dsp.sampler(deck_id).is_some_and(|s| s.slot_assigned(slot))
+    }
+
+    /// Recompute auto-gain for a loaded sampler slot after normalizer settings change.
+    pub fn set_sampler_slot_auto_gain(
+        &mut self,
+        deck_id: usize,
+        slot: usize,
+        auto_gain_db: f32,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        dsp.sampler_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
+            .set_slot_auto_gain_db(slot, auto_gain_db)
     }
 
     /// Set the temporary cue point in seconds.

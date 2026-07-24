@@ -90,6 +90,9 @@ export function LibraryPanel() {
       library_table_columns: DEFAULT_LIBRARY_TABLE_COLUMNS,
       volume_normalizer_enabled: true,
       target_lufs: -18,
+      sampler_play_mode: "oneshot",
+      sampler_strip_route: "before",
+      deck_default_sampler_bank_id: [null, null],
     },
   );
 

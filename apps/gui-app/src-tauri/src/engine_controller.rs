@@ -3,6 +3,7 @@
 use tauri::AppHandle;
 
 use crate::engine_events::{emit_deck_updated, emit_status};
+use crate::deck_sampler::SamplerStatus;
 use crate::{deck_playback_secs, AppState, DeckInfo, DeckStatus, EngineStatus};
 
 pub fn bump_revision(state: &mut AppState) -> u64 {
@@ -39,6 +40,7 @@ pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         is_master: id == state.master_deck,
         pad_mode: deck.pad_mode,
         headphone_cue: deck.headphone_cue,
+        active_sampler_bank_id: deck.active_sampler_bank_id.clone(),
     }
 }
 
@@ -60,6 +62,7 @@ pub fn engine_status(state: &AppState) -> EngineStatus {
         cue_mix: state.cue_mix,
         master_cue: state.master_cue,
         decks: deck_statuses(state),
+        sampler: SamplerStatus::from_state(state),
     }
 }
 

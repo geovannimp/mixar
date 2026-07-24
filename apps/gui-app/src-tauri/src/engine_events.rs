@@ -126,7 +126,19 @@ mod tests {
                     is_master: true,
                     pad_mode: crate::deck_sync::PadMode::HotCue,
                     headphone_cue: false,
+                    active_sampler_bank_id: None,
                 }],
+                sampler: crate::deck_sampler::SamplerStatus {
+                    banks: vec![],
+                    active_bank_id: None,
+                    active_bank_name: None,
+                    bank_play_mode: None,
+                    deck_slots: vec![vec![crate::deck_sampler::SamplerSlotInfo::default(); 8]; 2],
+                    effective_play_modes: vec![
+                        crate::deck_sampler::SamplerPlayModeSetting::Oneshot;
+                        crate::NUM_DECKS
+                    ],
+                },
             },
         };
         let json = serde_json::to_value(&event).expect("serialize");

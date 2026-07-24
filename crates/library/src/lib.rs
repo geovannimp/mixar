@@ -22,6 +22,7 @@ mod db;
 mod deck_data;
 mod entity;
 mod model;
+mod sampler_data;
 mod store;
 mod tags;
 mod waveform;
@@ -44,6 +45,12 @@ pub use library_core::{
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
+};
+pub use sampler_data::{
+    assign_slot as assign_sampler_slot, clear_slot as clear_sampler_slot, create_bank, delete_bank,
+    get_bank, get_track_last_sampler_bank_id, list_banks, list_slots as list_sampler_slots,
+    set_track_last_sampler_bank_id, update_bank, SamplerBankRecord, SamplerPlayMode,
+    SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
@@ -143,6 +150,68 @@ impl LibraryManager {
 
     pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
         deck_data::delete_loop(&self.db, id, slot_index)
+    }
+
+    pub fn list_sampler_banks(&self) -> Result<Vec<SamplerBankRecord>> {
+        sampler_data::list_banks(&self.db)
+    }
+
+    pub fn get_sampler_bank(&self, bank_id: &str) -> Result<Option<SamplerBankRecord>> {
+        sampler_data::get_bank(&self.db, bank_id)
+    }
+
+    pub fn create_sampler_bank(
+        &self,
+        name: &str,
+        play_mode: Option<SamplerPlayMode>,
+    ) -> Result<SamplerBankRecord> {
+        sampler_data::create_bank(&self.db, name, play_mode)
+    }
+
+    pub fn update_sampler_bank(
+        &self,
+        bank_id: &str,
+        name: &str,
+        play_mode: Option<SamplerPlayMode>,
+    ) -> Result<()> {
+        sampler_data::update_bank(&self.db, bank_id, name, play_mode)
+    }
+
+    pub fn delete_sampler_bank(&self, bank_id: &str) -> Result<()> {
+        sampler_data::delete_bank(&self.db, bank_id)
+    }
+
+    pub fn list_sampler_bank_slots(&self, bank_id: &str) -> Result<Vec<SamplerSlotRecord>> {
+        sampler_data::list_slots(&self.db, bank_id)
+    }
+
+    pub fn assign_sampler_bank_slot(
+        &self,
+        bank_id: &str,
+        slot_index: u8,
+        track_id: Option<String>,
+        path: Option<String>,
+        label: Option<String>,
+    ) -> Result<()> {
+        sampler_data::assign_slot(&self.db, bank_id, slot_index, track_id, path, label)
+    }
+
+    pub fn clear_sampler_bank_slot(&self, bank_id: &str, slot_index: u8) -> Result<()> {
+        sampler_data::clear_slot(&self.db, bank_id, slot_index)
+    }
+
+    /// Bank last used with this track (set when a sampler pad is triggered while the track is loaded).
+    pub fn get_track_last_sampler_bank_id(&self, id: &TrackId) -> Result<Option<String>> {
+        sampler_data::get_track_last_sampler_bank_id(&self.db, id)
+    }
+
+    /// Remember which sampler bank was active when a pad was triggered for this track.
+    pub fn set_track_last_sampler_bank_id(
+        &self,
+        id: &TrackId,
+        bank_id: Option<&str>,
+    ) -> Result<()> {
+        sampler_data::set_track_last_sampler_bank_id(&self.db, id, bank_id)
     }
 
     /// Load the stored L0 waveform overview for a track, if present.

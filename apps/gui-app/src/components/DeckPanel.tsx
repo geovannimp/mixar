@@ -12,6 +12,9 @@ import {
   useDeckTransport,
   useDeckBusy,
   useEngineRunning,
+  useSamplerSlots,
+  useSamplerBanks,
+  useSamplerEffectivePlayMode,
 } from "@/hooks/useEngine";
 import { getDefaultDeck } from "@/stores/defaultDeck";
 import type { DeckStatus } from "@/types";
@@ -26,8 +29,6 @@ import { DeckCircularButton, JogPlatter } from "./DeckTransport";
 interface DeckPanelProps {
   deckId: number;
   accentKey: DeckAccent;
-  focused?: boolean;
-  onFocus?: () => void;
 }
 
 const DeckOverviewSection = memo(function DeckOverviewSection({
@@ -77,6 +78,9 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
 }) {
   const controls = useDeckControls(deckId);
   const transport = useDeckTransport(deckId);
+  const samplerSlots = useSamplerSlots(deckId);
+  const samplerBanks = useSamplerBanks();
+  const effectivePlayMode = useSamplerEffectivePlayMode(deckId);
   const cueHeldRef = useRef(false);
   const cueWasHoldRef = useRef(false);
   const isDeckA = accentKey === "a";
@@ -90,6 +94,9 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
   const hotCuePanel = (
     <DeckPadsPanel
       deck={deck}
+      samplerSlots={samplerSlots}
+      samplerBanks={samplerBanks}
+      effectivePlayMode={effectivePlayMode}
       disabled={transportDisabled}
       onSetPadMode={(mode) => {
         void engineActions.setDeckPadMode(deckId, mode);
@@ -111,6 +118,27 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       }}
       onBeatJump={(beats) => {
         void engineActions.beatJumpDeck(deckId, beats);
+      }}
+      onTriggerSampler={(slot) => {
+        void engineActions.triggerSamplerPad(deckId, slot);
+      }}
+      onEndSampler={(slot) => {
+        void engineActions.endSamplerPad(deckId, slot);
+      }}
+      onClearSamplerSlot={(slot) => {
+        void engineActions.clearSamplerSlot(slot, deckId);
+      }}
+      onAssignSamplerFromTrack={(slot, trackId) => {
+        void engineActions.assignSamplerFromTrack(slot, trackId, deckId);
+      }}
+      onAssignSamplerFromPath={(slot, path) => {
+        void engineActions.assignSamplerFromPath(slot, path, deckId);
+      }}
+      onSelectSamplerBank={(bankId) => {
+        void engineActions.setDeckSamplerBank(deckId, bankId);
+      }}
+      onSaveSamplerBank={(bankId, name, playMode) => {
+        void engineActions.updateSamplerBank(bankId, name, playMode);
       }}
     />
   );
@@ -291,7 +319,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
   );
 });
 
-export function DeckPanel({ deckId, accentKey, focused = false, onFocus }: DeckPanelProps) {
+export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
   const accent = DECK_ACCENTS[accentKey];
   const engineRunning = useEngineRunning();
   const deckBusy = useDeckBusy(deckId);
@@ -375,8 +403,7 @@ export function DeckPanel({ deckId, accentKey, focused = false, onFocus }: DeckP
     <section
       className={`flex h-full min-h-0 min-w-0 flex-col gap-1 p-2 transition-shadow sm:gap-1.5 sm:p-2.5 ${accent.bg} ${
         dragOver ? "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]" : ""
-      } ${focused ? "ring-1 ring-inset ring-white/20" : ""}`}
-      onPointerDown={() => onFocus?.()}
+      }`}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={(event) => {

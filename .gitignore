@@ -40,6 +40,9 @@ coverage/
 # nyc test coverage
 .nyc_output
 
+# TypeScript incremental build info
+*.tsbuildinfo
+
 # Dependency directories
 node_modules/
 
@@ -113,6 +116,10 @@ dev/
 
 # Local tool installs (leftover betterhook, etc.)
 /tools/
+
+# Local npm / temp caches (disk-quota workarounds)
+.tmp/
+.npm-cache/
 
 # moon
 .moon/cache
