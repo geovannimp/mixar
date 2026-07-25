@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
 import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
+import { cyclePadMode } from "@/lib/padModes";
 import {
   ZERO_DECK_LEVELS,
   type DeckEq,
@@ -18,7 +19,6 @@ import {
   type SamplerStatus,
 } from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
-
 const ENGINE_ERROR_TOAST_ID = "engine-error";
 
 const EMPTY_SAMPLER_SLOTS: SamplerSlotInfo[] = Array.from({ length: 8 }, () => ({
@@ -444,11 +444,8 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   cycleDeckPadMode: async (deckId, direction) => {
-    try {
-      await invoke("cycle_deck_pad_mode", { deckId, direction });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    const current = getDeck(get().status, deckId).pad_mode;
+    await get().setDeckPadMode(deckId, cyclePadMode(current, direction));
   },
 
   setDeckPadMode: async (deckId, mode) => {

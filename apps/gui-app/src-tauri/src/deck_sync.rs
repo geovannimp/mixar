@@ -10,53 +10,23 @@ use crate::{
     clamp_eq_db, deck_playback_secs, with_engine, AppState, DeckStatus, SharedAppState, NUM_DECKS,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SyncMode {
+    #[default]
     Off,
     Tempo,
     Beat,
 }
 
-impl Default for SyncMode {
-    fn default() -> Self {
-        Self::Off
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PadMode {
+    #[default]
     HotCue,
     LoopRoll,
     BeatJump,
     Sampler,
-}
-
-impl Default for PadMode {
-    fn default() -> Self {
-        Self::HotCue
-    }
-}
-
-impl PadMode {
-    pub fn next(self) -> Self {
-        match self {
-            PadMode::HotCue => PadMode::LoopRoll,
-            PadMode::LoopRoll => PadMode::BeatJump,
-            PadMode::BeatJump => PadMode::Sampler,
-            PadMode::Sampler => PadMode::HotCue,
-        }
-    }
-
-    pub fn prev(self) -> Self {
-        match self {
-            PadMode::HotCue => PadMode::Sampler,
-            PadMode::LoopRoll => PadMode::HotCue,
-            PadMode::BeatJump => PadMode::LoopRoll,
-            PadMode::Sampler => PadMode::BeatJump,
-        }
-    }
 }
 
 pub(crate) fn apply_tempo_sync_for_state(
@@ -275,30 +245,6 @@ pub fn set_deck_pad_mode(
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.decks[deck_id].pad_mode = mode;
     if mode == PadMode::Sampler {
-        let _ = ensure_deck_bank_loaded(&mut state, deck_id);
-        publish_status(&app, &mut state);
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-pub fn cycle_deck_pad_mode(
-    app: AppHandle,
-    deck_id: usize,
-    direction: i32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].pad_mode = if direction < 0 {
-        state.decks[deck_id].pad_mode.prev()
-    } else {
-        state.decks[deck_id].pad_mode.next()
-    };
-    if state.decks[deck_id].pad_mode == PadMode::Sampler {
         let _ = ensure_deck_bank_loaded(&mut state, deck_id);
         publish_status(&app, &mut state);
     }

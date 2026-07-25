@@ -7,6 +7,14 @@ export const PAD_MODES: readonly PadMode[] = [
   "sampler",
 ] as const;
 
+export function cyclePadMode(mode: PadMode, direction: number): PadMode {
+  const index = PAD_MODES.indexOf(mode);
+  const current = index >= 0 ? index : 0;
+  const len = PAD_MODES.length;
+  const next = direction < 0 ? (current + len - 1) % len : (current + 1) % len;
+  return PAD_MODES[next] ?? "hot_cue";
+}
+
 export const PAD_MODE_LABELS: Record<PadMode, string> = {
   hot_cue: "Hot Cue",
   loop_roll: "Loop Roll",

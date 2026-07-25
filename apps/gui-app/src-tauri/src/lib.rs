@@ -14,8 +14,8 @@ use deck_sampler::{
     SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{
-    beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
-    set_deck_gain_trim, set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_filter, set_deck_gain_trim,
+    set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
 };
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
@@ -1520,7 +1520,6 @@ pub fn run() {
             toggle_deck_sync,
             beat_jump_deck,
             set_deck_pad_mode,
-            cycle_deck_pad_mode,
             set_deck_filter,
             set_deck_gain_trim,
             begin_loop_roll,
