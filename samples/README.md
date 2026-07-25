@@ -10,6 +10,12 @@ When adding a sample, include attribution below if the track is not your own wor
 |------|-------|
 | `fixtures/short-tone.wav` | Synthetic 0.25 s stereo 440 Hz sine at 48 kHz; used by engine integration tests (CI-friendly). |
 
+## Oneshots
+
+| File | Notes |
+|------|-------|
+| `oneshots/39_Katana_2_FX_Raven.wav` | FX one-shot from [Katana Loop Kit](https://slooply.com/sample-pack/katana) by Double Bang Music (Slooply). |
+
 ## Index
 
 | File | Title | Artist | Source |
@@ -34,3 +40,11 @@ See the track page for the specific license terms.
 > Licensed under Creative Commons Attribution
 
 See the track page for the specific license terms.
+
+### 39_Katana_2_FX_Raven — Double Bang Music
+
+> One-shot from "Katana Loop Kit" by Double Bang Music  
+> Source: [https://slooply.com/sample-pack/katana](https://slooply.com/sample-pack/katana)  
+> Royalty-free for commercial tracks, remixes, and DJ sets (per pack listing)
+
+See the pack page for the specific license terms.

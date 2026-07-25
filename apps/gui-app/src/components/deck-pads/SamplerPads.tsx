@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings } from "lucide-react";
 import { PadGridContainer } from "@/components/deck-pads/PadGridContainer";
 import { SamplerBankConfigDialog } from "@/components/SamplerBankConfigDialog";
 import { DeckButton } from "@/components/ui/deck-button";
+import { DEFAULT_SAMPLER_PLAY_MODE } from "@/lib/busSettings";
 import { formatDeckTimeTenth } from "@/lib/format";
 import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "@/lib/libraryTable";
 import { hotCueAccentForSlot } from "@/lib/ui";
+import { cn } from "@/lib/utils";
 import type { SamplerBankInfo, SamplerPlayMode, SamplerSlotInfo } from "@/types";
 
 interface SamplerPadsProps {
@@ -40,6 +42,17 @@ export function SamplerPads({
   onSaveBank,
 }: SamplerPadsProps) {
   const [bankConfigOpen, setBankConfigOpen] = useState(false);
+  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
+
+  useEffect(() => {
+    const resetDragState = () => setDragOverSlot(null);
+    window.addEventListener("dragend", resetDragState);
+    window.addEventListener("drop", resetDragState);
+    return () => {
+      window.removeEventListener("dragend", resetDragState);
+      window.removeEventListener("drop", resetDragState);
+    };
+  }, []);
 
   const activeBankIndex = banks.findIndex((bank) => bank.id === activeBankId);
   const activeBank = activeBankIndex >= 0 ? banks[activeBankIndex] : undefined;
@@ -82,16 +95,18 @@ export function SamplerPads({
             {activeBank?.name ?? "No bank"}
           </span>
           <div className="flex min-w-0 items-center justify-start">
-            <span
-              className="shrink-0 rounded border border-white/12 bg-white/8 px-1 py-px text-[8px] font-bold uppercase tracking-[0.08em] text-zinc-300"
-              title={
-                activeBank?.play_mode
-                  ? `Play mode: ${activeBank.play_mode}`
-                  : `Play mode: ${effectivePlayMode} (from settings)`
-              }
-            >
-              {effectivePlayMode}
-            </span>
+            {effectivePlayMode !== DEFAULT_SAMPLER_PLAY_MODE ? (
+              <span
+                className="shrink-0 rounded border border-white/12 bg-white/8 px-1 py-px text-[8px] font-bold uppercase tracking-[0.08em] text-zinc-300"
+                title={
+                  activeBank?.play_mode
+                    ? `Play mode: ${activeBank.play_mode}`
+                    : `Play mode: ${effectivePlayMode} (from settings)`
+                }
+              >
+                {effectivePlayMode}
+              </span>
+            ) : null}
           </div>
         </div>
         <button
@@ -135,6 +150,9 @@ export function SamplerPads({
               size="pad"
               accent={filled ? hotCueAccentForSlot(slot) : undefined}
               disabled={disabled}
+              className={cn(
+                dragOverSlot === slot && "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]",
+              )}
               title={
                 filled
                   ? holdLike
@@ -166,15 +184,34 @@ export function SamplerPads({
                   onEnd(slot);
                 }
               }}
+              onDragEnter={(event) => {
+                if (disabled || !acceptsTrackDrag(event.dataTransfer)) {
+                  return;
+                }
+                event.preventDefault();
+                setDragOverSlot(slot);
+              }}
+              onDragLeave={(event) => {
+                const related = event.relatedTarget;
+                if (related instanceof Node && event.currentTarget.contains(related)) {
+                  return;
+                }
+                setDragOverSlot((current) => (current === slot ? null : current));
+              }}
               onDragOver={(event) => {
-                if (!acceptsTrackDrag(event.dataTransfer)) {
+                if (disabled || !acceptsTrackDrag(event.dataTransfer)) {
                   return;
                 }
                 event.preventDefault();
                 event.dataTransfer.dropEffect = "copy";
+                if (dragOverSlot !== slot) {
+                  setDragOverSlot(slot);
+                }
               }}
               onDrop={(event) => {
                 event.preventDefault();
+                event.stopPropagation();
+                setDragOverSlot(null);
                 const payload = readTrackDragData(event.dataTransfer);
                 if (!payload) {
                   return;
@@ -182,11 +219,11 @@ export function SamplerPads({
                 assignDragPayload(slot, payload);
               }}
             >
-              <span className="line-clamp-2 text-[11px] font-bold leading-tight sm:text-xs">
+              <span className="w-full min-w-0 truncate text-[11px] font-bold leading-tight sm:text-xs">
                 {filled && label ? label : slot + 1}
               </span>
               {filled && sample?.duration_secs != null ? (
-                <span className="mt-0.5 text-[9px] tabular-nums opacity-75">
+                <span className="mt-0.5 max-w-full truncate text-[9px] tabular-nums opacity-75">
                   {formatDeckTimeTenth(sample.duration_secs)}
                 </span>
               ) : (
