@@ -14,6 +14,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+fn id_ends_with_segment(id: &str, segment: &str) -> bool {
+    id == segment || id.ends_with(&format!(":{segment}")) || id.ends_with(&format!("/{segment}"))
+}
+
 fn create_host() -> Result<Host> {
     #[cfg(all(
         feature = "pipewire",
@@ -64,6 +68,23 @@ impl CpalBackend {
             .ok()
             .map(|d| d.name().to_string())
             .unwrap_or_else(|| "Unknown Device".to_string())
+    }
+
+    /// PipeWire virtual default sink — redundant with `output_default`.
+    fn is_pipewire_sink_default(id: &str, name: &str) -> bool {
+        name.eq_ignore_ascii_case("sink_default") || id_ends_with_segment(id, "sink_default")
+    }
+
+    /// PipeWire node for this (or another) client's playback stream, not a real sink.
+    fn is_unnamed_stream_output(id: &str, name: &str) -> bool {
+        name.eq_ignore_ascii_case("unknown")
+            || name.eq_ignore_ascii_case("Unknown Device")
+            || id_ends_with_segment(id, "gui-app")
+    }
+
+    /// Whether this device should appear in `list_output_devices`.
+    fn should_list_output_device(id: &str, name: &str) -> bool {
+        !Self::is_pipewire_sink_default(id, name) && !Self::is_unnamed_stream_output(id, name)
     }
 
     /// Find device by stable id (from DeviceId).
@@ -242,6 +263,9 @@ impl AudioBackend for CpalBackend {
                 Err(_) => continue,
             };
             let device_name = Self::device_name(&device);
+            if !Self::should_list_output_device(id.as_str(), &device_name) {
+                continue;
+            }
             let is_default = default_id
                 .as_ref()
                 .is_some_and(|d| d.as_str() == id.as_str());
@@ -464,6 +488,30 @@ mod tests {
     }
 
     #[test]
+    fn filters_pipewire_sink_default_and_unknown_streams() {
+        assert!(!CpalBackend::should_list_output_device(
+            "cpal:pipewire:sink_default",
+            "sink_default"
+        ));
+        assert!(!CpalBackend::should_list_output_device(
+            "cpal:pipewire:gui-app",
+            "unknown"
+        ));
+        assert!(!CpalBackend::should_list_output_device(
+            "cpal:pipewire:gui-app",
+            "Unknown Device"
+        ));
+        assert!(CpalBackend::should_list_output_device(
+            "cpal:pipewire:output_default",
+            "output_default"
+        ));
+        assert!(CpalBackend::should_list_output_device(
+            "cpal:pipewire:alsa_output.usb-HD-II",
+            "HD-II"
+        ));
+    }
+
+    #[test]
     fn test_cpal_backend_creation() {
         let backend = CpalBackend::new();
         assert!(backend.is_ok());
@@ -485,6 +533,14 @@ mod tests {
         if !devices.is_empty() {
             let host = create_host().unwrap();
             for device in &devices {
+                assert!(
+                    !device.name.eq_ignore_ascii_case("sink_default"),
+                    "sink_default must not be listed"
+                );
+                assert!(
+                    !device.name.eq_ignore_ascii_case("unknown"),
+                    "unnamed stream outputs must not be listed"
+                );
                 assert!(
                     device.id.as_str().starts_with("cpal:"),
                     "Device ID should start with 'cpal:': {}",

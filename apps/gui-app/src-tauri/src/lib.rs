@@ -663,6 +663,8 @@ fn list_output_devices(backend: String) -> Result<Vec<DeviceSummary>, String> {
         .list_output_devices()
         .map_err(|e| e.to_string())?;
 
+    // "System default" (id `default`) resolves to the backend default device, which on
+    // PipeWire is `output_default`. Hide that virtual entry so it isn't listed twice.
     let mut summaries: Vec<DeviceSummary> = vec![DeviceSummary {
         id: "default".to_string(),
         name: "System default".to_string(),
@@ -673,14 +675,24 @@ fn list_output_devices(backend: String) -> Result<Vec<DeviceSummary>, String> {
         if device.id.as_str() == "default" {
             continue;
         }
+        if is_pipewire_output_default(device.id.as_str(), &device.name) {
+            continue;
+        }
         summaries.push(DeviceSummary {
             id: device.id.as_str().to_string(),
             name: device.name,
-            is_default: device.is_default,
+            is_default: false,
         });
     }
 
     Ok(summaries)
+}
+
+fn is_pipewire_output_default(id: &str, name: &str) -> bool {
+    name.eq_ignore_ascii_case("output_default")
+        || id.ends_with(":output_default")
+        || id.ends_with("/output_default")
+        || id == "output_default"
 }
 
 #[tauri::command]

@@ -9,7 +9,7 @@ description = "Core engine orchestration for rust-dj-engine"
 
 [features]
 default = ["backend-cpal"]
-backend-cpal = ["dep:backend-cpal"]
+backend-cpal = ["dep:backend-cpal", "backend-cpal/pipewire"]
 
 [dependencies]
 audio-core = { path = "../audio-core" }
