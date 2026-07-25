@@ -14,7 +14,8 @@ pub const AUTO_GAIN_CLAMP_DB: f32 = 12.0;
 /// Per-lane mixer strip state and DSP.
 ///
 /// Owned by [`crate::MixerLane`]. Implements [`Node`] for focused strip tests;
-/// the live mixer feeds dry deck PCM via [`Self::process_dry_chunk`].
+/// the live mixer feeds dry deck PCM via [`Self::process_dry_chunk`] (one chunk at a time).
+/// Callback frame budgeting lives on the lane, not here.
 ///
 /// Auto gain is derived from `target_lufs` + `loudness_lufs` and cached in `auto_gain_db`.
 #[derive(Debug)]
@@ -32,8 +33,6 @@ pub struct MixerChannel {
     headphone_cue: bool,
     level_peaks: LevelPeaks,
     pre_fader_buffer: Vec<Sample>,
-    active_sample_count: usize,
-    processed_sample_count: usize,
 }
 
 impl MixerChannel {
@@ -49,8 +48,6 @@ impl MixerChannel {
             headphone_cue: false,
             level_peaks: LevelPeaks::default(),
             pre_fader_buffer: Vec::new(),
-            active_sample_count: 0,
-            processed_sample_count: 0,
         }
     }
 
@@ -153,20 +150,19 @@ impl MixerChannel {
         &self.pre_fader_buffer
     }
 
-    /// Reset per-render capture state and prepare storage for interleaved samples.
-    pub fn begin_render(&mut self, sample_count: usize) {
+    /// Clear PFL / peak capture (call once at the start of each mixer callback).
+    pub fn clear_capture(&mut self) {
         self.pre_fader_buffer.clear();
-        self.pre_fader_buffer.reserve(sample_count);
         self.level_peaks = LevelPeaks::default();
-        self.active_sample_count = sample_count;
-        self.processed_sample_count = 0;
     }
 
-    /// Process the next graph chunk from interleaved dry PCM into stereo outputs.
-    pub fn process_dry_chunk(&mut self, dry: &[Sample], output: &mut [Buffer]) {
-        let dry_base = self.processed_sample_count;
-        self.process_with_stereo_input(output, |frame| {
-            let idx = dry_base + frame * 2;
+    /// Process `frames` of interleaved dry PCM through the strip into stereo outputs.
+    ///
+    /// `dry` is chunk-relative (index `0` is the first sample of this chunk).
+    /// `frames` is capped at [`Buffer::LEN`]; trailing buffer frames are silenced.
+    pub fn process_dry_chunk(&mut self, frames: usize, dry: &[Sample], output: &mut [Buffer]) {
+        self.process_with_stereo_input(output, frames, |frame| {
+            let idx = frame * 2;
             if idx + 1 < dry.len() {
                 (dry[idx], dry[idx + 1])
             } else {
@@ -178,6 +174,7 @@ impl MixerChannel {
     fn process_with_stereo_input(
         &mut self,
         output: &mut [Buffer],
+        frames: usize,
         mut input_at: impl FnMut(usize) -> (f32, f32),
     ) {
         for buffer in output.iter_mut().skip(2) {
@@ -191,16 +188,13 @@ impl MixerChannel {
         }
 
         let (left_output, right_output) = output.split_at_mut(1);
-        let remaining_samples = self
-            .active_sample_count
-            .saturating_sub(self.processed_sample_count);
-        if remaining_samples == 0 {
+        let chunk_frames = frames.min(Buffer::LEN);
+        if chunk_frames == 0 {
             left_output[0].silence();
             right_output[0].silence();
             return;
         }
 
-        let chunk_frames = (remaining_samples / 2).min(Buffer::LEN);
         let chunk_samples = chunk_frames * 2;
         let chunk_start = self.pre_fader_buffer.len();
         self.pre_fader_buffer
@@ -230,14 +224,12 @@ impl MixerChannel {
             left_output[0][frame] = 0.0;
             right_output[0][frame] = 0.0;
         }
-
-        self.processed_sample_count += chunk_samples;
     }
 }
 
 impl Node for MixerChannel {
     fn process(&mut self, inputs: &[Input], output: &mut [Buffer]) {
-        self.process_with_stereo_input(output, |frame| {
+        self.process_with_stereo_input(output, Buffer::LEN, |frame| {
             let mut left = 0.0;
             let mut right = 0.0;
             for input in inputs {
@@ -299,13 +291,6 @@ mod tests {
         }
     }
 
-    fn channel_mut(graph: &mut TestGraph, channel_id: NodeIndex) -> &mut MixerChannel {
-        match &mut graph.node_weight_mut(channel_id).unwrap().node {
-            TestNode::Channel(channel) => channel,
-            TestNode::Source => panic!("expected channel node"),
-        }
-    }
-
     #[test]
     fn mixer_channel_defaults_and_control_validation() {
         let mut channel = MixerChannel::new(48_000);
@@ -342,7 +327,7 @@ mod tests {
     #[test]
     fn auto_gain_raises_pre_fader_output() {
         let mut baseline = MixerChannel::new(48_000);
-        baseline.begin_render(Buffer::LEN * 2);
+        baseline.clear_capture();
         let (mut graph, _, channel_id, mut processor) = test_graph(baseline, 0.25, -0.25);
         process(&mut processor, &mut graph, channel_id);
         let baseline_peak = channel(&graph, channel_id).level_peaks().peak_l;
@@ -350,7 +335,7 @@ mod tests {
         let mut boosted = MixerChannel::new(48_000);
         boosted.set_target_lufs(Some(-18.0));
         boosted.set_loudness_lufs(Some(-24.0));
-        boosted.begin_render(Buffer::LEN * 2);
+        boosted.clear_capture();
         let (mut graph, _, channel_id, mut processor) = test_graph(boosted, 0.25, -0.25);
         process(&mut processor, &mut graph, channel_id);
         let boosted_peak = channel(&graph, channel_id).level_peaks().peak_l;
@@ -366,7 +351,7 @@ mod tests {
     fn closed_fader_silences_output_but_preserves_pfl_and_peaks() {
         let mut mixer_channel = MixerChannel::new(48_000);
         mixer_channel.set_volume(0.0).unwrap();
-        mixer_channel.begin_render(Buffer::LEN * 2);
+        mixer_channel.clear_capture();
         let (mut graph, _, channel_id, mut processor) = test_graph(mixer_channel, 0.5, -0.25);
 
         process(&mut processor, &mut graph, channel_id);
@@ -385,42 +370,48 @@ mod tests {
         assert!((mixer_channel.level_peaks().peak_r - 0.25).abs() < 1e-6);
     }
 
+    fn interleaved_stereo(frames: usize, left: f32, right: f32) -> Vec<f32> {
+        let mut dry = Vec::with_capacity(frames * 2);
+        for _ in 0..frames {
+            dry.push(left);
+            dry.push(right);
+        }
+        dry
+    }
+
     #[test]
     fn process_limits_active_frames_below_buffer_len() {
         const ACTIVE_FRAMES: usize = 16;
-        let active_samples = ACTIVE_FRAMES * 2;
+        let dry = interleaved_stereo(ACTIVE_FRAMES, 0.5, 0.25);
 
         let mut mixer_channel = MixerChannel::new(48_000);
-        mixer_channel.begin_render(active_samples);
-        let (mut graph, _, channel_id, mut processor) = test_graph(mixer_channel, 0.5, 0.25);
+        mixer_channel.clear_capture();
+        let mut outputs = [Buffer::SILENT, Buffer::SILENT];
+        mixer_channel.process_dry_chunk(ACTIVE_FRAMES, &dry, &mut outputs);
 
-        process(&mut processor, &mut graph, channel_id);
-
-        let mixer_channel = channel(&graph, channel_id);
         assert_eq!(
             mixer_channel.pre_fader_buffer().len(),
-            active_samples,
+            ACTIVE_FRAMES * 2,
             "PFL should contain only active interleaved samples"
         );
 
-        let data = graph.node_weight(channel_id).unwrap();
         for frame in 0..ACTIVE_FRAMES {
             assert!(
-                (data.buffers[0][frame] - 0.5).abs() < 1e-6,
+                (outputs[0][frame] - 0.5).abs() < 1e-6,
                 "active left frame {frame} should be processed"
             );
             assert!(
-                (data.buffers[1][frame] - 0.25).abs() < 1e-6,
+                (outputs[1][frame] - 0.25).abs() < 1e-6,
                 "active right frame {frame} should be processed"
             );
         }
         for frame in ACTIVE_FRAMES..Buffer::LEN {
             assert_eq!(
-                data.buffers[0][frame], 0.0,
+                outputs[0][frame], 0.0,
                 "inactive left frame {frame} should be silent"
             );
             assert_eq!(
-                data.buffers[1][frame], 0.0,
+                outputs[1][frame], 0.0,
                 "inactive right frame {frame} should be silent"
             );
         }
@@ -429,59 +420,51 @@ mod tests {
     #[test]
     fn process_limits_final_partial_chunk_across_multiple_calls() {
         const ACTIVE_FRAMES: usize = Buffer::LEN + 16;
-        let active_samples = ACTIVE_FRAMES * 2;
+        let first = interleaved_stereo(Buffer::LEN, 0.5, 0.25);
+        let second = interleaved_stereo(16, 0.2, 0.1);
 
         let mut mixer_channel = MixerChannel::new(48_000);
-        mixer_channel.begin_render(active_samples);
-        let (mut graph, source_id, channel_id, mut processor) =
-            test_graph(mixer_channel, 0.5, 0.25);
+        mixer_channel.clear_capture();
+        let mut outputs = [Buffer::SILENT, Buffer::SILENT];
+        mixer_channel.process_dry_chunk(Buffer::LEN, &first, &mut outputs);
+        mixer_channel.process_dry_chunk(16, &second, &mut outputs);
 
-        process(&mut processor, &mut graph, channel_id);
-        graph.node_weight_mut(source_id).unwrap().buffers[0].fill(0.2);
-        graph.node_weight_mut(source_id).unwrap().buffers[1].fill(0.1);
-        process(&mut processor, &mut graph, channel_id);
-
-        let mixer_channel = channel(&graph, channel_id);
         assert_eq!(
             mixer_channel.pre_fader_buffer().len(),
-            active_samples,
+            ACTIVE_FRAMES * 2,
             "PFL should stop at the active sample count"
         );
         assert!((mixer_channel.level_peaks().peak_l - 0.5).abs() < 1e-6);
         assert!((mixer_channel.level_peaks().peak_r - 0.25).abs() < 1e-6);
 
-        let data = graph.node_weight(channel_id).unwrap();
         for frame in 16..Buffer::LEN {
             assert_eq!(
-                data.buffers[0][frame], 0.0,
+                outputs[0][frame], 0.0,
                 "final chunk inactive left frame {frame} should be silent"
             );
             assert_eq!(
-                data.buffers[1][frame], 0.0,
+                outputs[1][frame], 0.0,
                 "final chunk inactive right frame {frame} should be silent"
             );
         }
     }
 
     #[test]
-    fn begin_render_resets_capture_and_process_appends_each_chunk() {
+    fn clear_capture_resets_and_process_appends_each_chunk() {
+        let first = interleaved_stereo(Buffer::LEN, 0.5, 0.25);
+        let second = interleaved_stereo(Buffer::LEN, 0.2, 0.1);
+
         let mut mixer_channel = MixerChannel::new(48_000);
-        mixer_channel.begin_render(Buffer::LEN * 4);
-        let (mut graph, source_id, channel_id, mut processor) =
-            test_graph(mixer_channel, 0.5, 0.25);
+        mixer_channel.clear_capture();
+        let mut outputs = [Buffer::SILENT, Buffer::SILENT];
+        mixer_channel.process_dry_chunk(Buffer::LEN, &first, &mut outputs);
+        mixer_channel.process_dry_chunk(Buffer::LEN, &second, &mut outputs);
 
-        process(&mut processor, &mut graph, channel_id);
-        graph.node_weight_mut(source_id).unwrap().buffers[0].fill(0.2);
-        graph.node_weight_mut(source_id).unwrap().buffers[1].fill(0.1);
-        process(&mut processor, &mut graph, channel_id);
-
-        let mixer_channel = channel(&graph, channel_id);
         assert_eq!(mixer_channel.pre_fader_buffer().len(), Buffer::LEN * 4);
         assert!((mixer_channel.level_peaks().peak_l - 0.5).abs() < 1e-6);
         assert!((mixer_channel.level_peaks().peak_r - 0.25).abs() < 1e-6);
 
-        channel_mut(&mut graph, channel_id).begin_render(Buffer::LEN * 2);
-        let mixer_channel = channel(&graph, channel_id);
+        mixer_channel.clear_capture();
         assert!(mixer_channel.pre_fader_buffer().is_empty());
         assert_eq!(mixer_channel.level_peaks().peak_l, 0.0);
         assert_eq!(mixer_channel.level_peaks().peak_r, 0.0);

@@ -1,9 +1,17 @@
-import type { AppSettings, BusChannelMode, BusRouteSettings } from "@/types";
+import type {
+  AppSettings,
+  BusChannelMode,
+  BusRouteSettings,
+  SamplerPlayMode,
+  SamplerStripRoute,
+} from "@/types";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "./libraryTable";
 
 export const DEFAULT_DEVICE_ID = "default";
 export const DEFAULT_VOLUME_NORMALIZER_ENABLED = true;
 export const DEFAULT_TARGET_LUFS = -18;
+export const DEFAULT_SAMPLER_PLAY_MODE: SamplerPlayMode = "oneshot";
+export const DEFAULT_SAMPLER_STRIP_ROUTE: SamplerStripRoute = "before";
 export const MIN_TARGET_LUFS = -24;
 export const MAX_TARGET_LUFS = -9;
 
@@ -31,10 +39,25 @@ function normalizeBusRoute(route: BusRouteSettings): BusRouteSettings {
   };
 }
 
+function normalizeSamplerPlayMode(mode: SamplerPlayMode | undefined): SamplerPlayMode {
+  if (mode === "hold" || mode === "loop" || mode === "oneshot") {
+    return mode;
+  }
+  return DEFAULT_SAMPLER_PLAY_MODE;
+}
+
+function normalizeSamplerStripRoute(route: SamplerStripRoute | undefined): SamplerStripRoute {
+  if (route === "after") {
+    return "after";
+  }
+  return DEFAULT_SAMPLER_STRIP_ROUTE;
+}
+
 export function normalizeAppSettings(settings: AppSettings): AppSettings {
   const targetLufs = Number.isFinite(settings.target_lufs)
     ? settings.target_lufs
     : DEFAULT_TARGET_LUFS;
+  const defaults = settings.deck_default_sampler_bank_id ?? [null, null];
 
   return {
     ...settings,
@@ -46,5 +69,8 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     volume_normalizer_enabled:
       settings.volume_normalizer_enabled ?? DEFAULT_VOLUME_NORMALIZER_ENABLED,
     target_lufs: Math.min(MAX_TARGET_LUFS, Math.max(MIN_TARGET_LUFS, targetLufs)),
+    sampler_play_mode: normalizeSamplerPlayMode(settings.sampler_play_mode),
+    sampler_strip_route: normalizeSamplerStripRoute(settings.sampler_strip_route),
+    deck_default_sampler_bank_id: [defaults[0] ?? null, defaults[1] ?? null],
   };
 }

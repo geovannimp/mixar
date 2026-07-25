@@ -30,6 +30,7 @@ export const DEFAULT_DECK_A: DeckStatus = {
   is_master: true,
   pad_mode: "hot_cue",
   headphone_cue: false,
+  active_sampler_bank_id: null,
   levels: ZERO_DECK_LEVELS,
 };
 

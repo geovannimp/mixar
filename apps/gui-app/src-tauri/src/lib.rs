@@ -5,11 +5,22 @@ use deck_performance::{
     set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
     trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
-use deck_sync::{
-    beat_jump_deck, begin_loop_roll, cycle_deck_pad_mode, end_loop_roll, set_deck_filter,
-    set_deck_gain_trim, set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+use deck_sampler::{
+    apply_effective_play_mode, assign_sampler_slot, assign_sampler_slot_from_track,
+    clear_sampler_slot, create_sampler_bank, delete_sampler_bank, empty_deck_sampler_slots,
+    end_sampler_pad, ensure_sampler_ready, get_sampler_status, list_sampler_banks,
+    reapply_sampler_gains, select_bank_for_track_load, set_deck_sampler_bank,
+    trigger_sampler_pad, update_sampler_bank, SamplerBankInfo, SamplerPlayModeSetting,
+    SamplerSlotInfo, SamplerStatus,
 };
-use engine_core::{create_backend, AnalysisDurationMode, AudioConfig, Engine, EngineConfig};
+use deck_sync::{
+    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_filter, set_deck_gain_trim,
+    set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+};
+use engine_core::{
+    create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
+    SamplerStripRouteSetting,
+};
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
 use library_core::{
     AnalyzeTrackOptions, AudioSource, CollectionId, FileAudioSource, Library, TrackId,
@@ -23,6 +34,7 @@ use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
 mod deck_performance;
+mod deck_sampler;
 mod deck_sync;
 mod engine_controller;
 mod engine_events;
@@ -86,6 +98,7 @@ pub(crate) struct DeckInfo {
     pad_mode: PadMode,
     loop_roll_restore: Option<LoopRegionStatus>,
     headphone_cue: bool,
+    active_sampler_bank_id: Option<String>,
 }
 
 impl Default for DeckInfo {
@@ -114,6 +127,7 @@ impl Default for DeckInfo {
             pad_mode: PadMode::HotCue,
             loop_roll_restore: None,
             headphone_cue: false,
+            active_sampler_bank_id: None,
         }
     }
 }
@@ -132,7 +146,14 @@ pub(crate) struct AppState {
     pub library_table_columns: Vec<String>,
     pub volume_normalizer_enabled: bool,
     pub target_lufs: f32,
+    pub sampler_play_mode: SamplerPlayModeSetting,
+    pub sampler_strip_route: SamplerStripRouteSetting,
+    pub deck_default_sampler_bank_id: [Option<String>; NUM_DECKS],
     pub notifier: Option<EngineNotifier>,
+    pub sampler_slots: [[SamplerSlotInfo; deck_sampler::SAMPLER_SLOT_COUNT]; NUM_DECKS],
+    pub loaded_sampler_bank_id: [Option<String>; NUM_DECKS],
+    /// Unsaved bank created with "+" — persisted on first rename / play-mode / sample assign.
+    pub draft_sampler_bank: Option<SamplerBankInfo>,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -160,6 +181,10 @@ struct BusRouteSettings {
     mode: BusChannelMode,
 }
 
+fn default_sampler_strip_route() -> SamplerStripRouteSetting {
+    SamplerStripRouteSetting::Before
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct AppSettings {
     backend: String,
@@ -178,6 +203,12 @@ struct AppSettings {
     volume_normalizer_enabled: bool,
     #[serde(default = "default_target_lufs")]
     target_lufs: f32,
+    #[serde(default)]
+    sampler_play_mode: SamplerPlayModeSetting,
+    #[serde(default = "default_sampler_strip_route")]
+    sampler_strip_route: SamplerStripRouteSetting,
+    #[serde(default = "default_deck_sampler_banks")]
+    deck_default_sampler_bank_id: [Option<String>; NUM_DECKS],
 }
 
 fn default_volume_normalizer_enabled() -> bool {
@@ -186,6 +217,10 @@ fn default_volume_normalizer_enabled() -> bool {
 
 fn default_target_lufs() -> f32 {
     -18.0
+}
+
+fn default_deck_sampler_banks() -> [Option<String>; NUM_DECKS] {
+    std::array::from_fn(|_| None)
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -291,10 +326,14 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         library_table_columns: state.library_table_columns.clone(),
         volume_normalizer_enabled: state.volume_normalizer_enabled,
         target_lufs: state.target_lufs,
+        sampler_play_mode: state.sampler_play_mode,
+        sampler_strip_route: state.sampler_strip_route,
+        deck_default_sampler_bank_id: state.deck_default_sampler_bank_id.clone(),
     }
 }
 
-fn apply_settings(state: &mut AppState, settings: AppSettings) {
+fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), String> {
+    validate_buffer_size(settings.buffer_size).map_err(|e| e.to_string())?;
     let config = &mut state.engine_config;
     config.buses = buses_from_settings(&settings);
     config.backend = settings.backend;
@@ -305,6 +344,7 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
 
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),
+        sampler_strip_route: Some(settings.sampler_strip_route),
     });
 
     state.library.set_config(LibraryConfig {
@@ -317,6 +357,10 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) {
     };
     state.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     state.target_lufs = settings.target_lufs;
+    state.sampler_play_mode = settings.sampler_play_mode;
+    state.sampler_strip_route = settings.sampler_strip_route;
+    state.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
+    Ok(())
 }
 
 fn normalizer_target_lufs(enabled: bool, target_lufs: f32) -> Option<f32> {
@@ -347,6 +391,7 @@ fn default_engine_config() -> EngineConfig {
     config.backend = "cpal".to_string();
     config.audio = Some(AudioConfig {
         resampler_quality: Some("medium".to_string()),
+        sampler_strip_route: Some(SamplerStripRouteSetting::Before),
     });
     config.buses = vec![bus_config(
         MASTER_BUS_ID,
@@ -384,6 +429,7 @@ pub(crate) struct DeckStatus {
     is_master: bool,
     pad_mode: PadMode,
     headphone_cue: bool,
+    active_sampler_bank_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -412,6 +458,7 @@ struct EngineStatus {
     cue_mix: f32,
     master_cue: bool,
     decks: Vec<DeckStatus>,
+    sampler: SamplerStatus,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -474,6 +521,7 @@ fn clear_deck_info(deck: &mut DeckInfo) {
         gain_trim_db: deck.gain_trim_db,
         pad_mode: deck.pad_mode,
         headphone_cue: deck.headphone_cue,
+        active_sampler_bank_id: deck.active_sampler_bank_id.clone(),
         ..DeckInfo::default()
     };
 }
@@ -552,6 +600,7 @@ fn start_engine(app: AppHandle, shared: State<'_, SharedAppState>) -> Result<Eng
     engine.start().map_err(|e| e.to_string())?;
     state.engine = Some(engine);
     apply_normalizer_target(&mut state)?;
+    ensure_sampler_ready(&mut state)?;
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
@@ -567,6 +616,9 @@ fn stop_engine(app: AppHandle, state: State<'_, SharedAppState>) -> Result<Engin
     for deck in &mut state.decks {
         clear_deck_info(deck);
     }
+    state.sampler_slots = empty_deck_sampler_slots();
+    state.loaded_sampler_bank_id = std::array::from_fn(|_| None);
+    state.draft_sampler_bank = None;
     state.audio_cache.prune();
     Ok(publish_status(&app, &mut state))
 }
@@ -613,7 +665,7 @@ async fn save_settings(
             // across the restart; only the engine (and its loaded audio) is torn down.
         }
 
-        apply_settings(&mut state, settings);
+        apply_settings(&mut state, settings)?;
         (was_running, deck_tracks)
     };
 
@@ -649,6 +701,12 @@ async fn save_settings(
         })?;
         sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
         state.decks[deck_id].playing = false;
+    }
+    state.loaded_sampler_bank_id = std::array::from_fn(|_| None);
+    let _ = ensure_sampler_ready(&mut state);
+    let _ = reapply_sampler_gains(&mut state);
+    for deck_id in 0..NUM_DECKS {
+        let _ = apply_effective_play_mode(&mut state, deck_id);
     }
     state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
@@ -865,7 +923,7 @@ async fn load_path_to_deck(
     {
         let deck = &mut state.decks[deck_id];
         deck.track = Some(path);
-        deck.track_id = Some(track_id);
+        deck.track_id = Some(track_id.clone());
         deck.playing = false;
         deck.speed = 1.0;
         deck.title = title;
@@ -879,6 +937,7 @@ async fn load_path_to_deck(
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
+    let _ = select_bank_for_track_load(&mut state, deck_id, Some(track_id.as_str()));
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -914,6 +973,7 @@ async fn load_track(
     sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
+    let _ = select_bank_for_track_load(&mut state, deck_id, None);
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -994,6 +1054,7 @@ async fn load_library_track_to_deck(
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
+    let _ = select_bank_for_track_load(&mut state, deck_id, Some(track_id.as_str()));
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
@@ -1412,7 +1473,13 @@ pub fn run() {
                 library_table_columns: default_library_table_columns(),
                 volume_normalizer_enabled: default_volume_normalizer_enabled(),
                 target_lufs: default_target_lufs(),
+                sampler_play_mode: SamplerPlayModeSetting::default(),
+                sampler_strip_route: default_sampler_strip_route(),
+                deck_default_sampler_bank_id: default_deck_sampler_banks(),
                 notifier: None,
+                sampler_slots: empty_deck_sampler_slots(),
+                loaded_sampler_bank_id: std::array::from_fn(|_| None),
+                draft_sampler_bank: None,
             })));
             Ok(())
         })
@@ -1465,11 +1532,21 @@ pub fn run() {
             toggle_deck_sync,
             beat_jump_deck,
             set_deck_pad_mode,
-            cycle_deck_pad_mode,
             set_deck_filter,
             set_deck_gain_trim,
             begin_loop_roll,
             end_loop_roll,
+            list_sampler_banks,
+            create_sampler_bank,
+            update_sampler_bank,
+            delete_sampler_bank,
+            set_deck_sampler_bank,
+            assign_sampler_slot,
+            assign_sampler_slot_from_track,
+            clear_sampler_slot,
+            trigger_sampler_pad,
+            end_sampler_pad,
+            get_sampler_status,
             get_track_artwork,
         ])
         .run(tauri::generate_context!())

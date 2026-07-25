@@ -24,8 +24,17 @@ pub struct Model {
     pub channels: Option<i32>,
     pub bitrate_kbps: Option<i32>,
     pub replaygain_track_gain_db: Option<f64>,
+    pub last_sampler_bank_id: Option<String>,
     pub added_at: String,
     pub updated_at: String,
+    #[sea_orm(
+        belongs_to,
+        from = "last_sampler_bank_id",
+        to = "id",
+        on_delete = "SetNull",
+        on_update = "Cascade"
+    )]
+    pub last_sampler_bank: HasOne<super::sampler_bank::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

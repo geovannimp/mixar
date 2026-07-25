@@ -19,7 +19,7 @@ const deckButtonVariants = cva(
         cell: "h-8 min-w-0 rounded px-0 py-0 text-xs font-semibold sm:h-9",
         cellWide:
           "h-8 w-full rounded px-1 py-0 text-[9px] font-bold uppercase tracking-[0.2em] sm:h-9",
-        pad: "min-h-11 flex-col rounded-md px-1 py-1.5 text-center sm:min-h-12",
+        pad: "min-h-11 w-full min-w-0 flex-col overflow-hidden rounded-md px-1 py-1.5 text-center sm:min-h-12",
         icon: "size-7 rounded text-sm font-semibold leading-none",
         sync: "mt-0.5 w-full rounded px-1 py-1 text-[9px] font-bold uppercase tracking-[0.2em]",
         circular: "size-11 rounded-full border-2 text-sm font-bold shadow-md sm:size-12",

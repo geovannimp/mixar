@@ -1,34 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { DeckGrid } from "@/components/DeckGrid";
 import { DualDeckWaveform } from "@/components/DualDeckWaveform";
 import { LibraryPanel } from "@/components/LibraryPanel";
-import { useDeckHotkeys } from "@/hooks/useDeckHotkeys";
-import { engineActions, useDeckControls } from "@/hooks/useEngine";
+import { engineActions } from "@/hooks/useEngine";
 
 const WAVEFORM_MIN_HEIGHT = "70px";
 const WAVEFORM_DEFAULT_HEIGHT = "112px";
 const WAVEFORM_MAX_HEIGHT = "400px";
-const DECK_ROW_HEIGHT = "410px";
+const DECK_ROW_HEIGHT = "438px";
 
 export function MixerPage() {
-  const [focusedDeckId, setFocusedDeckId] = useState(0);
-  const focusedDeck = useDeckControls(focusedDeckId);
-  const { ensureEngineRunning, triggerHotCue, beatJumpDeck, beginLoopRoll, endLoopRoll } =
-    engineActions;
+  const { ensureEngineRunning } = engineActions;
 
   useEffect(() => {
     void ensureEngineRunning();
   }, [ensureEngineRunning]);
-
-  useDeckHotkeys({
-    focusedDeckId,
-    padMode: focusedDeck.pad_mode,
-    onTriggerHotCue: triggerHotCue,
-    onBeatJump: beatJumpDeck,
-    onBeginLoopRoll: beginLoopRoll,
-    onEndLoopRoll: endLoopRoll,
-  });
 
   return (
     <div className="flex min-h-0 flex-1 select-none flex-col">
@@ -53,7 +40,7 @@ export function MixerPage() {
           disabled
           className="min-h-0 overflow-hidden"
         >
-          <DeckGrid focusedDeckId={focusedDeckId} onFocusDeck={setFocusedDeckId} />
+          <DeckGrid />
         </ResizablePanel>
 
         <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />

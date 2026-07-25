@@ -51,8 +51,10 @@ export const ZERO_DECK_LEVELS: DeckLevels = {
 };
 
 export type SyncMode = "off" | "tempo" | "beat";
-export type PadMode = "hot_cue" | "loop_roll" | "beat_jump";
+export type PadMode = "hot_cue" | "loop_roll" | "beat_jump" | "sampler";
 export type KeyDisplayMode = "musical" | "camelot";
+export type SamplerPlayMode = "oneshot" | "hold" | "loop";
+export type SamplerStripRoute = "before" | "after";
 
 export interface DeckStatus {
   id: number;
@@ -81,6 +83,7 @@ export interface DeckStatus {
   is_master: boolean;
   pad_mode: PadMode;
   headphone_cue: boolean;
+  active_sampler_bank_id: string | null;
   levels: DeckLevels;
 }
 
@@ -94,6 +97,29 @@ export interface WaveformFrame {
   visible_secs: number;
 }
 
+export interface SamplerSlotInfo {
+  label: string | null;
+  track_id: string | null;
+  path: string | null;
+  duration_secs: number | null;
+}
+
+export interface SamplerBankInfo {
+  id: string;
+  name: string;
+  play_mode: SamplerPlayMode | null;
+  sort_index: number;
+}
+
+export interface SamplerStatus {
+  banks: SamplerBankInfo[];
+  active_bank_id: string | null;
+  active_bank_name: string | null;
+  bank_play_mode: SamplerPlayMode | null;
+  deck_slots: SamplerSlotInfo[][];
+  effective_play_modes: SamplerPlayMode[];
+}
+
 export interface EngineStatus {
   running: boolean;
   backend: string;
@@ -103,6 +129,7 @@ export interface EngineStatus {
   master_cue: boolean;
   master_deck?: number;
   decks: DeckStatus[];
+  sampler: SamplerStatus;
 }
 
 export type BusChannelMode = "stereo" | "mono";
@@ -139,6 +166,9 @@ export interface AppSettings {
   library_table_columns: LibraryTableColumn[];
   volume_normalizer_enabled: boolean;
   target_lufs: number;
+  sampler_play_mode: SamplerPlayMode;
+  sampler_strip_route: SamplerStripRoute;
+  deck_default_sampler_bank_id: [string | null, string | null];
 }
 
 export type LibraryTableColumn =

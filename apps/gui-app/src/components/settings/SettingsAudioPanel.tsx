@@ -1,3 +1,5 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useMemo, useState } from "react";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
@@ -9,7 +11,15 @@ import {
   resamplerQualityIndex,
   resamplerQualityLabel,
 } from "@/lib/resamplerQuality";
-import type { AppSettings, AudioDeviceSummary, BusChannelMode, BusRouteSettings } from "@/types";
+import type {
+  AppSettings,
+  AudioDeviceSummary,
+  BusChannelMode,
+  BusRouteSettings,
+  SamplerBankInfo,
+  SamplerPlayMode,
+  SamplerStripRoute,
+} from "@/types";
 import { DeviceSelect } from "./DeviceSelect";
 import { SettingsField, SettingsSectionHeader } from "./SettingsField";
 import { SettingsSelect } from "./SettingsSelect";
@@ -25,6 +35,17 @@ const BACKEND_OPTIONS = BACKENDS.map((backend) => ({
 const CHANNEL_MODE_OPTIONS: { value: BusChannelMode; label: string }[] = [
   { value: "stereo", label: "Stereo pair" },
   { value: "mono", label: "Mono (fold L+R)" },
+];
+
+const SAMPLER_PLAY_MODE_OPTIONS: { value: SamplerPlayMode; label: string }[] = [
+  { value: "oneshot", label: "Oneshot" },
+  { value: "hold", label: "Hold" },
+  { value: "loop", label: "Loop" },
+];
+
+const SAMPLER_STRIP_ROUTE_OPTIONS: { value: SamplerStripRoute; label: string }[] = [
+  { value: "before", label: "Before channel strip" },
+  { value: "after", label: "After channel strip" },
 ];
 
 const RESAMPLER_QUALITY_MIN = 0;
@@ -159,6 +180,34 @@ export function SettingsAudioPanel({
   devicesLoading,
   onChange,
 }: SettingsAudioPanelProps) {
+  const [banks, setBanks] = useState<SamplerBankInfo[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void invoke<SamplerBankInfo[]>("list_sampler_banks")
+      .then((next) => {
+        if (!cancelled) {
+          setBanks(next);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBanks([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const bankOptions = useMemo(
+    () => [
+      { value: "", label: "None" },
+      ...banks.map((bank) => ({ value: bank.id, label: bank.name })),
+    ],
+    [banks],
+  );
+
   return (
     <div className="space-y-8">
       <section className="space-y-5">
@@ -211,6 +260,9 @@ export function SettingsAudioPanel({
               <SliderValue />
             </div>
           </Slider>
+          <FieldDescription>
+            Must be a multiple of {BUFFER_SIZE_STEP} frames (mixer graph chunk size).
+          </FieldDescription>
         </Field>
 
         <SettingsToggle
@@ -309,6 +361,70 @@ export function SettingsAudioPanel({
             Lower values leave more headroom; −18 LUFS is recommended.
           </FieldDescription>
         </Field>
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Sampler"
+          description="Default play mode for banks set to inherit, and default bank per deck."
+        />
+
+        <SettingsField label="Default play mode">
+          <SettingsSelect
+            aria-label="Sampler play mode"
+            value={draft.sampler_play_mode}
+            options={SAMPLER_PLAY_MODE_OPTIONS}
+            onValueChange={(sampler_play_mode) => onChange({ ...draft, sampler_play_mode })}
+          />
+          <FieldDescription>Used by banks whose play mode is Default (inherit).</FieldDescription>
+        </SettingsField>
+
+        <SettingsField label="Channel strip routing">
+          <SettingsSelect
+            aria-label="Sampler channel strip routing"
+            value={draft.sampler_strip_route ?? "before"}
+            options={SAMPLER_STRIP_ROUTE_OPTIONS}
+            onValueChange={(sampler_strip_route) => onChange({ ...draft, sampler_strip_route })}
+          />
+          <FieldDescription>
+            Before runs pads through this deck&apos;s EQ, filter, and fader. After bypasses the
+            strip. Takes effect the next time the engine starts.
+          </FieldDescription>
+        </SettingsField>
+
+        <SettingsField label="Deck A default bank">
+          <SettingsSelect
+            aria-label="Deck A default sampler bank"
+            value={draft.deck_default_sampler_bank_id[0] ?? ""}
+            options={bankOptions}
+            onValueChange={(bankId) =>
+              onChange({
+                ...draft,
+                deck_default_sampler_bank_id: [
+                  bankId || null,
+                  draft.deck_default_sampler_bank_id[1],
+                ],
+              })
+            }
+          />
+        </SettingsField>
+
+        <SettingsField label="Deck B default bank">
+          <SettingsSelect
+            aria-label="Deck B default sampler bank"
+            value={draft.deck_default_sampler_bank_id[1] ?? ""}
+            options={bankOptions}
+            onValueChange={(bankId) =>
+              onChange({
+                ...draft,
+                deck_default_sampler_bank_id: [
+                  draft.deck_default_sampler_bank_id[0],
+                  bankId || null,
+                ],
+              })
+            }
+          />
+        </SettingsField>
       </section>
 
       <section className="space-y-4 border-t border-white/8 pt-6">

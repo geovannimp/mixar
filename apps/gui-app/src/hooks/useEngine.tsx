@@ -17,4 +17,7 @@ export {
   useDeckWaveform,
   useDeckControls,
   useDeckOverview,
+  useSamplerSlots,
+  useSamplerBanks,
+  useSamplerEffectivePlayMode,
 } from "@/stores/engineStore";

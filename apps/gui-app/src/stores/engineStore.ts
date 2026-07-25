@@ -5,6 +5,7 @@ import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
 import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
+import { cyclePadMode } from "@/lib/padModes";
 import {
   ZERO_DECK_LEVELS,
   type DeckEq,
@@ -12,10 +13,31 @@ import {
   type EngineStatus,
   type LevelMeterMode,
   type PadMode,
+  type SamplerBankInfo,
+  type SamplerPlayMode,
+  type SamplerSlotInfo,
+  type SamplerStatus,
 } from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
-
 const ENGINE_ERROR_TOAST_ID = "engine-error";
+
+const EMPTY_SAMPLER_SLOTS: SamplerSlotInfo[] = Array.from({ length: 8 }, () => ({
+  label: null,
+  track_id: null,
+  path: null,
+  duration_secs: null,
+}));
+
+const EMPTY_SAMPLER_BANKS: SamplerBankInfo[] = [];
+
+const DEFAULT_SAMPLER_STATUS: SamplerStatus = {
+  banks: EMPTY_SAMPLER_BANKS,
+  active_bank_id: null,
+  active_bank_name: null,
+  bank_play_mode: null,
+  deck_slots: [EMPTY_SAMPLER_SLOTS, EMPTY_SAMPLER_SLOTS],
+  effective_play_modes: ["oneshot", "oneshot"],
+};
 
 function reportEngineError(message: string) {
   toastManager.add({
@@ -86,6 +108,18 @@ interface EngineStoreState {
   setDeckHeadphoneCue: (deckId: number, enabled: boolean) => Promise<void>;
   beginLoopRoll: (deckId: number, beats: number) => Promise<void>;
   endLoopRoll: (deckId: number) => Promise<void>;
+  triggerSamplerPad: (deckId: number, slot: number) => Promise<void>;
+  endSamplerPad: (deckId: number, slot: number) => Promise<void>;
+  assignSamplerFromTrack: (slot: number, trackId: string, deckId?: number) => Promise<void>;
+  assignSamplerFromPath: (slot: number, path: string, deckId?: number) => Promise<void>;
+  clearSamplerSlot: (slot: number, deckId?: number) => Promise<void>;
+  setDeckSamplerBank: (deckId: number, bankId: string) => Promise<void>;
+  updateSamplerBank: (
+    bankId: string,
+    name: string,
+    playMode: SamplerPlayMode | null,
+  ) => Promise<void>;
+  createSamplerBank: (deckId?: number, name?: string) => Promise<void>;
 }
 
 export const useEngineStore = create<EngineStoreState>((set, get) => ({
@@ -410,11 +444,8 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   cycleDeckPadMode: async (deckId, direction) => {
-    try {
-      await invoke("cycle_deck_pad_mode", { deckId, direction });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    const current = getDeck(get().status, deckId).pad_mode;
+    await get().setDeckPadMode(deckId, cyclePadMode(current, direction));
   },
 
   setDeckPadMode: async (deckId, mode) => {
@@ -460,6 +491,74 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   endLoopRoll: async (deckId) => {
     try {
       await invoke("end_loop_roll", { deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  triggerSamplerPad: async (deckId, slot) => {
+    try {
+      await invoke("trigger_sampler_pad", { deckId, slot });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  endSamplerPad: async (deckId, slot) => {
+    try {
+      await invoke("end_sampler_pad", { deckId, slot });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  assignSamplerFromTrack: async (slot, trackId, deckId = 0) => {
+    try {
+      await invoke("assign_sampler_slot_from_track", { slot, trackId, deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  assignSamplerFromPath: async (slot, path, deckId = 0) => {
+    try {
+      await invoke("assign_sampler_slot", { slot, path, deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  clearSamplerSlot: async (slot, deckId = 0) => {
+    try {
+      await invoke("clear_sampler_slot", { slot, deckId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  setDeckSamplerBank: async (deckId, bankId) => {
+    try {
+      await invoke("set_deck_sampler_bank", { deckId, bankId });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  updateSamplerBank: async (bankId, name, playMode) => {
+    try {
+      await invoke("update_sampler_bank", { bankId, name, playMode });
+    } catch (err) {
+      reportEngineError(String(err));
+    }
+  },
+
+  createSamplerBank: async (deckId = 0, name) => {
+    try {
+      await invoke("create_sampler_bank", {
+        name: name?.trim() || null,
+        playMode: null,
+        deckId,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -532,6 +631,7 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
     loudness_lufs: deck.loudness_lufs,
     auto_gain_db: deck.auto_gain_db,
     gain_trim_db: deck.gain_trim_db,
+    active_sampler_bank_id: deck.active_sampler_bank_id,
   };
 }
 
@@ -638,6 +738,22 @@ export const engineActions = {
   beginLoopRoll: (deckId: number, beats: number) =>
     useEngineStore.getState().beginLoopRoll(deckId, beats),
   endLoopRoll: (deckId: number) => useEngineStore.getState().endLoopRoll(deckId),
+  triggerSamplerPad: (deckId: number, slot: number) =>
+    useEngineStore.getState().triggerSamplerPad(deckId, slot),
+  endSamplerPad: (deckId: number, slot: number) =>
+    useEngineStore.getState().endSamplerPad(deckId, slot),
+  assignSamplerFromTrack: (slot: number, trackId: string, deckId?: number) =>
+    useEngineStore.getState().assignSamplerFromTrack(slot, trackId, deckId),
+  assignSamplerFromPath: (slot: number, path: string, deckId?: number) =>
+    useEngineStore.getState().assignSamplerFromPath(slot, path, deckId),
+  clearSamplerSlot: (slot: number, deckId?: number) =>
+    useEngineStore.getState().clearSamplerSlot(slot, deckId),
+  setDeckSamplerBank: (deckId: number, bankId: string) =>
+    useEngineStore.getState().setDeckSamplerBank(deckId, bankId),
+  updateSamplerBank: (bankId: string, name: string, playMode: SamplerPlayMode | null) =>
+    useEngineStore.getState().updateSamplerBank(bankId, name, playMode),
+  createSamplerBank: (deckId?: number, name?: string) =>
+    useEngineStore.getState().createSamplerBank(deckId, name),
 };
 
 export function useEngineRunning(): boolean {
@@ -698,4 +814,24 @@ export function useDeckControls(deckId: number) {
 
 export function useDeckOverview(deckId: number) {
   return useEngineStore(useShallow(deckSelector(deckId, DECK_OVERVIEW_SELECTORS)));
+}
+
+export function useSamplerSlots(deckId: number): SamplerSlotInfo[] {
+  return useEngineStore(
+    (state) => state.status?.sampler?.deck_slots[deckId] ?? EMPTY_SAMPLER_SLOTS,
+  );
+}
+
+export function useSamplerStatus(): SamplerStatus {
+  return useEngineStore((state) => state.status?.sampler ?? DEFAULT_SAMPLER_STATUS);
+}
+
+export function useSamplerBanks(): SamplerBankInfo[] {
+  return useEngineStore((state) => state.status?.sampler?.banks ?? EMPTY_SAMPLER_BANKS);
+}
+
+export function useSamplerEffectivePlayMode(deckId: number): SamplerPlayMode {
+  return useEngineStore(
+    (state) => state.status?.sampler?.effective_play_modes[deckId] ?? "oneshot",
+  );
 }

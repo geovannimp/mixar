@@ -14,7 +14,11 @@ mod transport;
 pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
-pub use config::{AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig};
+pub use config::{
+    validate_buffer_size, AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig,
+    SamplerStripRouteSetting, BUFFER_SIZE_MULTIPLE,
+};
 pub use engine::Engine;
+pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
 pub use transport::TransportEvent;
