@@ -1,25 +1,8 @@
 /** Postcard wire codec matching `crates/engine-api` (serde + postcard layout). */
 
-export type Origin = "engine" | "mixer" | { deck: number };
+import { z } from "zod";
 
-export type Kind =
-  | "play"
-  | "pause"
-  | "seek"
-  | "set_volume"
-  | "set_eq"
-  | "set_speed"
-  | "set_crossfader"
-  | "set_cue_mix"
-  | "set_master_cue"
-  | "updated"
-  | "position"
-  | "levels"
-  | "status"
-  | "error"
-  | "notice";
-
-const KINDS: Kind[] = [
+export const KindSchema = z.enum([
   "play",
   "pause",
   "seek",
@@ -35,73 +18,96 @@ const KINDS: Kind[] = [
   "status",
   "error",
   "notice",
-];
+]);
+export type Kind = z.infer<typeof KindSchema>;
 
-export interface DeckEq {
-  low: number;
-  mid: number;
-  high: number;
-}
+const KINDS: Kind[] = KindSchema.options;
 
-export interface DeckSnapshot {
-  id: number;
-  playing: boolean;
-  volume: number;
-  speed: number;
-  eq: DeckEq;
-  position_secs: number | null;
-  duration_secs: number | null;
-}
+export const OriginSchema = z.union([
+  z.literal("engine"),
+  z.literal("mixer"),
+  z.object({ deck: z.number().int().nonnegative() }),
+]);
+export type Origin = z.infer<typeof OriginSchema>;
 
-export interface EngineStatusPayload {
-  running: boolean;
-  sample_rate: number;
-  crossfader: number;
-  cue_mix: number;
-  master_cue: boolean;
-  decks: DeckSnapshot[];
-}
+export const DeckEqSchema = z.object({
+  low: z.number(),
+  mid: z.number(),
+  high: z.number(),
+});
+export type DeckEq = z.infer<typeof DeckEqSchema>;
 
-export type CmdBody =
-  | { type: "empty" }
-  | { type: "seek"; position_secs: number }
-  | { type: "set_volume"; volume: number }
-  | { type: "set_eq"; low: number; mid: number; high: number }
-  | { type: "set_speed"; speed: number }
-  | { type: "set_crossfader"; position: number }
-  | { type: "set_cue_mix"; mix: number }
-  | { type: "set_master_cue"; enabled: boolean };
+export const DeckSnapshotSchema = z.object({
+  id: z.number().int().nonnegative(),
+  playing: z.boolean(),
+  volume: z.number(),
+  speed: z.number(),
+  eq: DeckEqSchema,
+  position_secs: z.number().nullable(),
+  duration_secs: z.number().nullable(),
+});
+export type DeckSnapshot = z.infer<typeof DeckSnapshotSchema>;
 
-export type EvtBody =
-  | { type: "empty" }
-  | {
-      type: "deck_updated";
-      id: number;
-      playing: boolean;
-      volume: number;
-      speed: number;
-      eq: DeckEq;
-      position_secs: number | null;
-      duration_secs: number | null;
-    }
-  | { type: "position"; position_secs: number }
-  | {
-      type: "levels";
-      peak_l: number;
-      peak_r: number;
-      peak_hold_l: number;
-      peak_hold_r: number;
-    }
-  | { type: "engine_status"; status: EngineStatusPayload }
-  | { type: "error"; message: string }
-  | { type: "notice"; message: string };
+export const EngineStatusPayloadSchema = z.object({
+  running: z.boolean(),
+  sample_rate: z.number().int().nonnegative(),
+  crossfader: z.number(),
+  cue_mix: z.number(),
+  master_cue: z.boolean(),
+  decks: z.array(DeckSnapshotSchema),
+});
+export type EngineStatusPayload = z.infer<typeof EngineStatusPayloadSchema>;
 
-export interface WireMessage {
-  origin: Origin;
-  kind: Kind;
-  revision: number;
-  body: Uint8Array;
-}
+export const CmdBodySchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("empty") }),
+  z.object({ type: z.literal("seek"), position_secs: z.number() }),
+  z.object({ type: z.literal("set_volume"), volume: z.number() }),
+  z.object({
+    type: z.literal("set_eq"),
+    low: z.number(),
+    mid: z.number(),
+    high: z.number(),
+  }),
+  z.object({ type: z.literal("set_speed"), speed: z.number() }),
+  z.object({ type: z.literal("set_crossfader"), position: z.number() }),
+  z.object({ type: z.literal("set_cue_mix"), mix: z.number() }),
+  z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
+]);
+export type CmdBody = z.infer<typeof CmdBodySchema>;
+
+export const EvtBodySchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("empty") }),
+  z.object({
+    type: z.literal("deck_updated"),
+    id: z.number().int().nonnegative(),
+    playing: z.boolean(),
+    volume: z.number(),
+    speed: z.number(),
+    eq: DeckEqSchema,
+    position_secs: z.number().nullable(),
+    duration_secs: z.number().nullable(),
+  }),
+  z.object({ type: z.literal("position"), position_secs: z.number() }),
+  z.object({
+    type: z.literal("levels"),
+    peak_l: z.number(),
+    peak_r: z.number(),
+    peak_hold_l: z.number(),
+    peak_hold_r: z.number(),
+  }),
+  z.object({ type: z.literal("engine_status"), status: EngineStatusPayloadSchema }),
+  z.object({ type: z.literal("error"), message: z.string() }),
+  z.object({ type: z.literal("notice"), message: z.string() }),
+]);
+export type EvtBody = z.infer<typeof EvtBodySchema>;
+
+export const WireMessageSchema = z.object({
+  origin: OriginSchema,
+  kind: KindSchema,
+  revision: z.number().int().nonnegative(),
+  body: z.instanceof(Uint8Array),
+});
+export type WireMessage = z.infer<typeof WireMessageSchema>;
 
 type Cursor = { pos: number };
 
@@ -362,15 +368,16 @@ export function decodeWire(bytes: Uint8Array): WireMessage {
   if (cursor.pos !== bytes.length) {
     throw new Error(`trailing bytes: ${bytes.length - cursor.pos}`);
   }
-  return { origin, kind, revision, body };
+  return WireMessageSchema.parse({ origin, kind, revision, body });
 }
 
 export function encodeWire(message: WireMessage): Uint8Array {
+  const valid = WireMessageSchema.parse(message);
   const out: number[] = [];
-  writeOrigin(message.origin, out);
-  writeKind(message.kind, out);
-  writeVarintU64(message.revision, out);
-  writeBytes(message.body, out);
+  writeOrigin(valid.origin, out);
+  writeKind(valid.kind, out);
+  writeVarintU64(valid.revision, out);
+  writeBytes(valid.body, out);
   return Uint8Array.from(out);
 }
 
@@ -407,47 +414,48 @@ export function decodeCmdBody(bytes: Uint8Array): CmdBody {
   if (cursor.pos !== bytes.length) {
     throw new Error(`trailing cmd body bytes: ${bytes.length - cursor.pos}`);
   }
-  return body;
+  return CmdBodySchema.parse(body);
 }
 
 export function encodeCmdBody(body: CmdBody): Uint8Array {
+  const valid = CmdBodySchema.parse(body);
   const out: number[] = [];
-  switch (body.type) {
+  switch (valid.type) {
     case "empty":
       writeEnumTag(0, out);
       break;
     case "seek":
       writeEnumTag(1, out);
-      writeF64Le(body.position_secs, out);
+      writeF64Le(valid.position_secs, out);
       break;
     case "set_volume":
       writeEnumTag(2, out);
-      writeF32Le(body.volume, out);
+      writeF32Le(valid.volume, out);
       break;
     case "set_eq":
       writeEnumTag(3, out);
-      writeF32Le(body.low, out);
-      writeF32Le(body.mid, out);
-      writeF32Le(body.high, out);
+      writeF32Le(valid.low, out);
+      writeF32Le(valid.mid, out);
+      writeF32Le(valid.high, out);
       break;
     case "set_speed":
       writeEnumTag(4, out);
-      writeF32Le(body.speed, out);
+      writeF32Le(valid.speed, out);
       break;
     case "set_crossfader":
       writeEnumTag(5, out);
-      writeF32Le(body.position, out);
+      writeF32Le(valid.position, out);
       break;
     case "set_cue_mix":
       writeEnumTag(6, out);
-      writeF32Le(body.mix, out);
+      writeF32Le(valid.mix, out);
       break;
     case "set_master_cue":
       writeEnumTag(7, out);
-      writeBool(body.enabled, out);
+      writeBool(valid.enabled, out);
       break;
     default: {
-      const _exhaustive: never = body;
+      const _exhaustive: never = valid;
       throw new Error(`unknown CmdBody: ${(_exhaustive as CmdBody).type}`);
     }
   }
@@ -505,55 +513,56 @@ export function decodeEvtBody(bytes: Uint8Array): EvtBody {
   if (cursor.pos !== bytes.length) {
     throw new Error(`trailing evt body bytes: ${bytes.length - cursor.pos}`);
   }
-  return body;
+  return EvtBodySchema.parse(body);
 }
 
 export function encodeEvtBody(body: EvtBody): Uint8Array {
+  const valid = EvtBodySchema.parse(body);
   const out: number[] = [];
-  switch (body.type) {
+  switch (valid.type) {
     case "empty":
       writeEnumTag(0, out);
       break;
     case "deck_updated":
       writeEnumTag(1, out);
-      writeVarintU16(body.id, out);
-      writeBool(body.playing, out);
-      writeF32Le(body.volume, out);
-      writeF32Le(body.speed, out);
-      writeDeckEq(body.eq, out);
-      writeOptionF64(body.position_secs, out);
-      writeOptionF64(body.duration_secs, out);
+      writeVarintU16(valid.id, out);
+      writeBool(valid.playing, out);
+      writeF32Le(valid.volume, out);
+      writeF32Le(valid.speed, out);
+      writeDeckEq(valid.eq, out);
+      writeOptionF64(valid.position_secs, out);
+      writeOptionF64(valid.duration_secs, out);
       break;
     case "position":
       writeEnumTag(2, out);
-      writeF64Le(body.position_secs, out);
+      writeF64Le(valid.position_secs, out);
       break;
     case "levels":
       writeEnumTag(3, out);
-      writeF32Le(body.peak_l, out);
-      writeF32Le(body.peak_r, out);
-      writeF32Le(body.peak_hold_l, out);
-      writeF32Le(body.peak_hold_r, out);
+      writeF32Le(valid.peak_l, out);
+      writeF32Le(valid.peak_r, out);
+      writeF32Le(valid.peak_hold_l, out);
+      writeF32Le(valid.peak_hold_r, out);
       break;
     case "engine_status":
       writeEnumTag(4, out);
-      writeBool(body.status.running, out);
-      writeVarintU32(body.status.sample_rate, out);
-      writeF32Le(body.status.crossfader, out);
-      writeF32Le(body.status.cue_mix, out);
-      writeBool(body.status.master_cue, out);
-      writeDeckSnapshotVec(body.status.decks, out);
+      writeBool(valid.status.running, out);
+      writeVarintU32(valid.status.sample_rate, out);
+      writeF32Le(valid.status.crossfader, out);
+      writeF32Le(valid.status.cue_mix, out);
+      writeBool(valid.status.master_cue, out);
+      writeDeckSnapshotVec(valid.status.decks, out);
       break;
     case "error":
       writeEnumTag(5, out);
-      writeString(body.message, out);
+      writeString(valid.message, out);
       break;
     case "notice":
       writeEnumTag(6, out);
-      writeString(body.message, out);
+      writeString(valid.message, out);
       break;
     default: {
-      const _exhaustive: never = body;
+      const _exhaustive: never = valid;
       throw new Error(`unknown EvtBody: ${(_exhaustive as EvtBody).type}`);
     }
   }
