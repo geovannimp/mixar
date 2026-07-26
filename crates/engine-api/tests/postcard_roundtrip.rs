@@ -1,4 +1,7 @@
-use engine_api::{decode_wire, encode_cmd_body, encode_wire, CmdBody, Kind, Origin, WireMessage};
+use engine_api::{
+    decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
+    CmdBody, EvtBody, Kind, Origin, WireMessage,
+};
 
 #[test]
 fn play_cmd_round_trips() {
@@ -11,6 +14,23 @@ fn play_cmd_round_trips() {
     };
     let bytes = encode_wire(&msg).unwrap();
     let decoded = decode_wire(&bytes).unwrap();
-    assert_eq!(decoded.origin, Origin::Deck(1));
-    assert_eq!(decoded.kind, Kind::Play);
+    assert_eq!(decoded, msg);
+}
+
+#[test]
+fn cmd_body_empty_round_trips() {
+    let body = CmdBody::Empty;
+    let bytes = encode_cmd_body(&body).unwrap();
+    let decoded = decode_cmd_body(&bytes).unwrap();
+    assert_eq!(decoded, body);
+}
+
+#[test]
+fn evt_body_error_round_trips() {
+    let body = EvtBody::Error {
+        message: "x".into(),
+    };
+    let bytes = encode_evt_body(&body).unwrap();
+    let decoded = decode_evt_body(&bytes).unwrap();
+    assert_eq!(decoded, body);
 }
