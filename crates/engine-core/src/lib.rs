@@ -7,6 +7,7 @@ mod backend;
 mod bus;
 mod callback;
 mod config;
+mod control;
 mod engine;
 mod producer;
 mod routing;

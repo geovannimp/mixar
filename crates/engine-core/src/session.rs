@@ -2,14 +2,14 @@
 
 use crate::bus::{new_buses, EngineBus};
 use crate::config::EngineConfig;
+use crate::control::control_thread_loop;
 use crate::engine::Engine;
 use anyhow::Result;
-use engine_api::{encode_evt_body, EvtBody, Kind, Origin};
-use omnibus::{Event, Filter};
+use engine_api::{Kind, Origin};
+use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
 /// Owns the engine, cmd/evt omnibus buses, revision counter, and control thread.
 pub struct EngineSession {
@@ -22,7 +22,7 @@ pub struct EngineSession {
 }
 
 impl EngineSession {
-    /// Create a session with fresh buses and a control thread (handlers filled in Task 3).
+    /// Create a session with fresh buses and a control thread.
     pub fn new(config: EngineConfig) -> Result<Self> {
         let (cmd_bus, evt_bus) = new_buses();
         let engine = Arc::new(Mutex::new(Some(Engine::new(config)?)));
@@ -31,10 +31,19 @@ impl EngineSession {
 
         let cmd = cmd_bus.clone();
         let evt = evt_bus.clone();
+        let engine_handle = Arc::clone(&engine);
+        let revision_handle = Arc::clone(&revision);
         let shutdown_flag = Arc::clone(&shutdown);
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
         let control_thread = thread::spawn(move || {
-            control_thread_loop(cmd, evt, shutdown_flag, ready_tx);
+            control_thread_loop(
+                cmd,
+                evt,
+                engine_handle,
+                revision_handle,
+                shutdown_flag,
+                ready_tx,
+            );
         });
         ready_rx
             .recv()
@@ -60,7 +69,7 @@ impl EngineSession {
         self.evt_bus.clone()
     }
 
-    /// Monotonic revision bumped when discrete engine state changes (Task 3).
+    /// Monotonic revision bumped when discrete engine state changes.
     pub fn revision(&self) -> u64 {
         self.revision.load(Ordering::Relaxed)
     }
@@ -91,37 +100,5 @@ impl Drop for EngineSession {
         if let Some(handle) = self.control_thread.take() {
             let _ = handle.join();
         }
-    }
-}
-
-/// Task 2 stub: echo `Kind::Error` for every cmd until Task 3 adds real handlers.
-fn control_thread_loop(
-    cmd_bus: EngineBus,
-    evt_bus: EngineBus,
-    shutdown: Arc<AtomicBool>,
-    ready: std::sync::mpsc::Sender<Result<()>>,
-) {
-    let rx = match cmd_bus.subscribe(Filter::Any, Filter::Any) {
-        Ok(rx) => rx,
-        Err(e) => {
-            let _ = ready.send(Err(e.into()));
-            return;
-        }
-    };
-    let _ = ready.send(Ok(()));
-    while !shutdown.load(Ordering::Relaxed) {
-        let event = match rx.recv_timeout(Duration::from_millis(100)) {
-            Ok(Some(event)) => event,
-            Ok(None) => continue,
-            Err(_) => break,
-        };
-        let origin = event.origin().clone();
-        let body = match encode_evt_body(&EvtBody::Error {
-            message: "no handler".into(),
-        }) {
-            Ok(body) => body,
-            Err(_) => continue,
-        };
-        let _ = evt_bus.publish(Event::new(origin, Kind::Error, Arc::from(body)));
     }
 }

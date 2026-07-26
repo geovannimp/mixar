@@ -1,0 +1,344 @@
+//! Control thread: cmd dispatch and high-rate evt egress.
+
+use crate::bus::EngineBus;
+use crate::engine::Engine;
+use crate::transport::TransportEvent;
+use anyhow::{anyhow, Result};
+use engine_api::{decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EvtBody, Kind, Origin};
+use omnibus::Event;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+const TICK_INTERVAL: Duration = Duration::from_millis(33);
+const PEAK_HOLD_DECAY_PER_TICK: f32 = 0.04;
+
+enum CmdOutcome {
+    DeckUpdated(usize),
+    EngineStatus,
+}
+
+struct PeakHoldState {
+    hold_l: Vec<f32>,
+    hold_r: Vec<f32>,
+}
+
+impl PeakHoldState {
+    fn new() -> Self {
+        Self {
+            hold_l: vec![0.0; 2],
+            hold_r: vec![0.0; 2],
+        }
+    }
+
+    fn ensure_capacity(&mut self, deck_id: usize) {
+        let need = deck_id + 1;
+        if self.hold_l.len() < need {
+            self.hold_l.resize(need, 0.0);
+            self.hold_r.resize(need, 0.0);
+        }
+    }
+
+    fn update(&mut self, deck_id: usize, peak_l: f32, peak_r: f32) -> (f32, f32) {
+        self.ensure_capacity(deck_id);
+        Self::ballistics(&mut self.hold_l[deck_id], peak_l);
+        Self::ballistics(&mut self.hold_r[deck_id], peak_r);
+        (self.hold_l[deck_id], self.hold_r[deck_id])
+    }
+
+    fn ballistics(hold: &mut f32, peak: f32) {
+        if peak >= *hold {
+            *hold = peak;
+        } else {
+            *hold = (*hold - PEAK_HOLD_DECAY_PER_TICK).max(0.0);
+        }
+    }
+}
+
+pub fn control_thread_loop(
+    cmd_bus: EngineBus,
+    evt_bus: EngineBus,
+    engine: Arc<Mutex<Option<Engine>>>,
+    revision: Arc<AtomicU64>,
+    shutdown: Arc<AtomicBool>,
+    ready: std::sync::mpsc::Sender<Result<()>>,
+) {
+    let rx = match cmd_bus.subscribe(omnibus::Filter::Any, omnibus::Filter::Any) {
+        Ok(rx) => rx,
+        Err(e) => {
+            let _ = ready.send(Err(e.into()));
+            return;
+        }
+    };
+    let _ = ready.send(Ok(()));
+    let mut peak_hold = PeakHoldState::new();
+
+    while !shutdown.load(Ordering::Relaxed) {
+        match rx.recv_timeout(TICK_INTERVAL) {
+            Ok(Some(event)) => handle_cmd_event(&event, &engine, &evt_bus, &revision),
+            Ok(None) => {}
+            Err(_) => break,
+        }
+        tick(&engine, &evt_bus, &revision, &mut peak_hold);
+    }
+}
+
+fn with_engine_mut<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
+where
+    F: FnOnce(&mut Engine) -> Result<R>,
+{
+    let mut guard = engine.lock().unwrap();
+    let eng = guard
+        .as_mut()
+        .ok_or_else(|| anyhow!("engine not available"))?;
+    f(eng)
+}
+
+fn with_engine_ref<F, R>(engine: &Arc<Mutex<Option<Engine>>>, f: F) -> Result<R>
+where
+    F: FnOnce(&Engine) -> Result<R>,
+{
+    let guard = engine.lock().unwrap();
+    let eng = guard
+        .as_ref()
+        .ok_or_else(|| anyhow!("engine not available"))?;
+    f(eng)
+}
+
+fn bump_revision(revision: &AtomicU64) {
+    revision.fetch_add(1, Ordering::Relaxed);
+}
+
+fn publish_evt(evt_bus: &EngineBus, origin: Origin, kind: Kind, body: EvtBody) {
+    if let Ok(bytes) = encode_evt_body(&body) {
+        let _ = evt_bus.publish(Event::new(origin, kind, Arc::from(bytes)));
+    }
+}
+
+fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>) {
+    publish_evt(
+        evt_bus,
+        origin,
+        Kind::Error,
+        EvtBody::Error {
+            message: message.into(),
+        },
+    );
+}
+
+fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
+    EvtBody::DeckUpdated {
+        id: snap.id,
+        playing: snap.playing,
+        volume: snap.volume,
+        speed: snap.speed,
+        eq: snap.eq,
+        position_secs: snap.position_secs,
+        duration_secs: snap.duration_secs,
+    }
+}
+
+fn publish_deck_updated(
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+    engine: &Engine,
+    deck_id: usize,
+) -> Result<()> {
+    let snap = engine
+        .deck_snapshot(deck_id)
+        .ok_or_else(|| anyhow!("deck snapshot unavailable"))?;
+    bump_revision(revision);
+    publish_evt(
+        evt_bus,
+        Origin::Deck(deck_id as u16),
+        Kind::Updated,
+        deck_snapshot_to_evt(snap),
+    );
+    Ok(())
+}
+
+fn handle_cmd_event(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+) {
+    let origin = event.origin().clone();
+    let kind = event.kind().clone();
+    let payload = event.payload();
+
+    let result = match origin.clone() {
+        Origin::Deck(deck_id) => dispatch_deck_cmd(deck_id as usize, kind, payload, engine),
+        Origin::Mixer => dispatch_mixer_cmd(kind, payload, engine),
+        Origin::Engine => Err(anyhow!("unsupported origin on cmd bus")),
+    };
+
+    match result {
+        Ok(CmdOutcome::DeckUpdated(deck_id)) => {
+            let _ = with_engine_ref(engine, |eng| {
+                publish_deck_updated(evt_bus, revision, eng, deck_id)
+            });
+        }
+        Ok(CmdOutcome::EngineStatus) => {
+            let _ = with_engine_ref(engine, |eng| {
+                if let Some(status) = eng.engine_status_snapshot() {
+                    bump_revision(revision);
+                    publish_evt(
+                        evt_bus,
+                        Origin::Mixer,
+                        Kind::Status,
+                        EvtBody::EngineStatus(status),
+                    );
+                }
+                Ok(())
+            });
+        }
+        Err(e) => publish_error(evt_bus, origin, e.to_string()),
+    }
+}
+
+fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
+    let body = decode_cmd_body(payload).map_err(|e| anyhow!("invalid cmd body: {e}"))?;
+    match (&kind, &body) {
+        (Kind::Play | Kind::Pause, CmdBody::Empty) => Ok(body),
+        (Kind::Seek, CmdBody::Seek { .. })
+        | (Kind::SetVolume, CmdBody::SetVolume { .. })
+        | (Kind::SetEq, CmdBody::SetEq { .. })
+        | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
+        | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
+        | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
+        | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
+        _ => Err(anyhow!("cmd body does not match kind {kind:?}")),
+    }
+}
+
+fn dispatch_deck_cmd(
+    deck_id: usize,
+    kind: Kind,
+    payload: &[u8],
+    engine: &Arc<Mutex<Option<Engine>>>,
+) -> Result<CmdOutcome> {
+    with_engine_mut(engine, |eng| match kind {
+        Kind::Play => {
+            if !eng.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+                return Err(anyhow!("No track loaded"));
+            }
+            eng.play(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::Pause => {
+            eng.pause(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::Seek => {
+            let CmdBody::Seek { position_secs } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.seek_deck(deck_id, position_secs)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetVolume => {
+            let CmdBody::SetVolume { volume } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_volume(deck_id, volume)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetEq => {
+            let CmdBody::SetEq { low, mid, high } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_eq_bands(deck_id, low, mid, high)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetSpeed => {
+            let CmdBody::SetSpeed { speed } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_speed(deck_id, speed)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        _ => Err(anyhow!("unsupported kind on cmd bus")),
+    })
+}
+
+fn dispatch_mixer_cmd(
+    kind: Kind,
+    payload: &[u8],
+    engine: &Arc<Mutex<Option<Engine>>>,
+) -> Result<CmdOutcome> {
+    with_engine_mut(engine, |eng| match kind {
+        Kind::SetCrossfader => {
+            let CmdBody::SetCrossfader { position } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_crossfader(position)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::SetCueMix => {
+            let CmdBody::SetCueMix { mix } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_cue_mix(mix)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::SetMasterCue => {
+            let CmdBody::SetMasterCue { enabled } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_master_cue(enabled)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
+        _ => Err(anyhow!("unsupported kind on cmd bus")),
+    })
+}
+
+fn tick(
+    engine: &Arc<Mutex<Option<Engine>>>,
+    evt_bus: &EngineBus,
+    revision: &AtomicU64,
+    peak_hold: &mut PeakHoldState,
+) {
+    let mut guard = match engine.lock() {
+        Ok(guard) => guard,
+        Err(_) => return,
+    };
+    let eng = match guard.as_mut() {
+        Some(engine) => engine,
+        None => return,
+    };
+
+    let transport_events = eng.drain_transport_events();
+    for TransportEvent::TrackEnded { deck_id } in transport_events {
+        let _ = publish_deck_updated(evt_bus, revision, eng, deck_id);
+    }
+
+    let playback = eng.deck_playback_snapshot();
+    for (deck_id, position, _duration) in playback {
+        if eng.deck_is_playing(deck_id) == Some(true) {
+            publish_evt(
+                evt_bus,
+                Origin::Deck(deck_id as u16),
+                Kind::Position,
+                EvtBody::Position {
+                    position_secs: position,
+                },
+            );
+        }
+    }
+
+    for (deck_id, peak_l, peak_r) in eng.deck_level_snapshot() {
+        let (peak_hold_l, peak_hold_r) = peak_hold.update(deck_id, peak_l, peak_r);
+        publish_evt(
+            evt_bus,
+            Origin::Deck(deck_id as u16),
+            Kind::Levels,
+            EvtBody::Levels {
+                peak_l,
+                peak_r,
+                peak_hold_l,
+                peak_hold_r,
+            },
+        );
+    }
+}
