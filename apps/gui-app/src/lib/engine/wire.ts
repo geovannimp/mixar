@@ -572,3 +572,63 @@ export function hexToBytes(hex: string): Uint8Array {
   }
   return out;
 }
+
+type DeckCmdKind = "play" | "pause" | "seek" | "set_volume" | "set_eq" | "set_speed";
+type MixerCmdKind = "set_crossfader" | "set_cue_mix" | "set_master_cue";
+
+export function encodeWireCmd(origin: Origin, kind: Kind, body: CmdBody, revision = 0): Uint8Array {
+  return encodeWire({
+    origin,
+    kind,
+    revision,
+    body: encodeCmdBody(body),
+  });
+}
+
+export function encodeDeckCmd(
+  deckId: number,
+  kind: DeckCmdKind,
+  body: CmdBody = { type: "empty" },
+): Uint8Array {
+  return encodeWireCmd({ deck: deckId }, kind, body);
+}
+
+export function encodePlay(deckId: number): Uint8Array {
+  return encodeDeckCmd(deckId, "play");
+}
+
+export function encodePause(deckId: number): Uint8Array {
+  return encodeDeckCmd(deckId, "pause");
+}
+
+export function encodeSeek(deckId: number, positionSecs: number): Uint8Array {
+  return encodeDeckCmd(deckId, "seek", { type: "seek", position_secs: positionSecs });
+}
+
+export function encodeSetVolume(deckId: number, volume: number): Uint8Array {
+  return encodeDeckCmd(deckId, "set_volume", { type: "set_volume", volume });
+}
+
+export function encodeSetEq(deckId: number, low: number, mid: number, high: number): Uint8Array {
+  return encodeDeckCmd(deckId, "set_eq", { type: "set_eq", low, mid, high });
+}
+
+export function encodeSetSpeed(deckId: number, speed: number): Uint8Array {
+  return encodeDeckCmd(deckId, "set_speed", { type: "set_speed", speed });
+}
+
+export function encodeMixerCmd(kind: MixerCmdKind, body: CmdBody): Uint8Array {
+  return encodeWireCmd("mixer", kind, body);
+}
+
+export function encodeSetCrossfader(position: number): Uint8Array {
+  return encodeMixerCmd("set_crossfader", { type: "set_crossfader", position });
+}
+
+export function encodeSetCueMix(mix: number): Uint8Array {
+  return encodeMixerCmd("set_cue_mix", { type: "set_cue_mix", mix });
+}
+
+export function encodeSetMasterCue(enabled: boolean): Uint8Array {
+  return encodeMixerCmd("set_master_cue", { type: "set_master_cue", enabled });
+}

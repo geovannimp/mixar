@@ -4,6 +4,19 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
 import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
+import { applyBusEvent } from "@/lib/engine/applyBusEvent";
+import { getEngineTransport } from "@/lib/engine/transport";
+import {
+  encodePause,
+  encodePlay,
+  encodeSeek,
+  encodeSetCrossfader,
+  encodeSetCueMix,
+  encodeSetEq,
+  encodeSetMasterCue,
+  encodeSetSpeed,
+  encodeSetVolume,
+} from "@/lib/engine/wire";
 import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
@@ -20,6 +33,7 @@ import {
 } from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
 const ENGINE_ERROR_TOAST_ID = "engine-error";
+const engineTransport = getEngineTransport();
 
 const EMPTY_SAMPLER_SLOTS: SamplerSlotInfo[] = Array.from({ length: 8 }, () => ({
   label: null,
@@ -67,6 +81,7 @@ interface EngineStoreState {
   starting: boolean;
   levelMeterMode: LevelMeterMode;
   applyEvent: (event: EngineEvent) => void;
+  applyBusBytes: (bytes: Uint8Array) => void;
   setStatus: (status: EngineStatus | null) => void;
   setLevelMeterMode: (mode: LevelMeterMode) => void;
   runDeckBlockingAction: (deckId: number, action: () => Promise<void>) => Promise<void>;
@@ -142,6 +157,19 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     set((current) => {
       const { status, revision } = applyEngineEvent(current.status, event, current.revision);
       return { status, revision };
+    });
+  },
+
+  applyBusBytes: (bytes) => {
+    set((current) => {
+      const patch = applyBusEvent(current.status, current.revision, bytes);
+      if (patch.error) {
+        reportEngineError(patch.error);
+      }
+      if (patch.notice) {
+        toastManager.add({ title: patch.notice, type: "info" });
+      }
+      return { status: patch.status, revision: patch.revision };
     });
   },
 
@@ -222,7 +250,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   playDeck: async (deckId) => {
     try {
-      await invoke("play_deck", { deckId });
+      await engineTransport.publish(encodePlay(deckId));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -230,7 +258,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   pauseDeck: async (deckId) => {
     try {
-      await invoke("pause_deck", { deckId });
+      await engineTransport.publish(encodePause(deckId));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -238,7 +266,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckVolume: async (deckId, volume) => {
     try {
-      await invoke("set_deck_volume", { deckId, volume });
+      await engineTransport.publish(encodeSetVolume(deckId, volume));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -246,12 +274,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckEq: async (deckId, eq) => {
     try {
-      await invoke("set_deck_eq", {
-        deckId,
-        low: eq.low,
-        mid: eq.mid,
-        high: eq.high,
-      });
+      await engineTransport.publish(encodeSetEq(deckId, eq.low, eq.mid, eq.high));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -259,7 +282,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckSpeed: async (deckId, speed) => {
     try {
-      await invoke("set_deck_speed", { deckId, speed });
+      await engineTransport.publish(encodeSetSpeed(deckId, speed));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -267,7 +290,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setCrossfader: async (position) => {
     try {
-      await invoke("set_crossfader", { crossfader: position });
+      await engineTransport.publish(encodeSetCrossfader(position));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -275,7 +298,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setCueMix: async (mix) => {
     try {
-      await invoke("set_cue_mix", { cueMix: mix });
+      await engineTransport.publish(encodeSetCueMix(mix));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -283,7 +306,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setMasterCue: async (enabled) => {
     try {
-      await invoke("set_master_cue", { enabled });
+      await engineTransport.publish(encodeSetMasterCue(enabled));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -295,7 +318,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       set({ status: patchDeckPosition(status, deckId, positionSecs) });
     }
     try {
-      await invoke("seek_deck", { deckId, positionSecs });
+      await engineTransport.publish(encodeSeek(deckId, positionSecs));
     } catch (err) {
       reportEngineError(String(err));
     }

@@ -12,3 +12,10 @@ export function createEngineTransport(options?: { backend?: "tauri" | "memory" }
   }
   return createTauriEngineTransport();
 }
+
+let sharedTransport: EngineTransport | null = null;
+
+export function getEngineTransport(): EngineTransport {
+  sharedTransport ??= createEngineTransport();
+  return sharedTransport;
+}
