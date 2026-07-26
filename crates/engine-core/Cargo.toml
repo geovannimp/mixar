@@ -12,6 +12,8 @@ default = ["backend-cpal"]
 backend-cpal = ["dep:backend-cpal", "backend-cpal/pipewire"]
 
 [dependencies]
+engine-api = { path = "../engine-api" }
+omnibus = "0.1"
 audio-core = { path = "../audio-core" }
 analyzer-core = { path = "../analyzer-core" }
 engine-dsp = { path = "../engine-dsp" }

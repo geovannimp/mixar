@@ -1127,9 +1127,11 @@ dependencies = [
  "backend-cpal",
  "backend-miniaudio",
  "backend-null",
+ "engine-api",
  "engine-dsp",
  "library-core",
  "log",
+ "omnibus",
  "resampler",
  "rtrb",
  "serde",
@@ -2320,6 +2322,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d36b1d6964c3ac92b7aea701057e02b6b91143d70d83b20abf75a231a3c0216"
 dependencies = [
  "byteorder",
+]
+
+[[package]]
+name = "omnibus"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88d436e65910b0adff4b12de09e16597cb29bb895d3fd1f5c9dc405dfde92f49"
+dependencies = [
+ "thiserror 2.0.18",
 ]
 
 [[package]]

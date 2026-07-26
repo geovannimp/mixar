@@ -4,11 +4,13 @@
 //! and provides the main Engine API.
 
 mod backend;
+mod bus;
 mod callback;
 mod config;
 mod engine;
 mod producer;
 mod routing;
+mod session;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;
@@ -21,4 +23,5 @@ pub use config::{
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
+pub use session::EngineSession;
 pub use transport::TransportEvent;
