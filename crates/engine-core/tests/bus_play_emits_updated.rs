@@ -95,3 +95,26 @@ fn play_with_track_loaded_publishes_updated_playing() {
     assert!(playing);
     assert!(session.revision() > 0);
 }
+
+#[test]
+fn set_crossfader_publishes_status() {
+    let session = EngineSession::new(null_config()).expect("session");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+    session.with_engine(|engine| engine.start()).expect("start");
+    let body = encode_cmd_body(&CmdBody::SetCrossfader { position: 0.75 }).unwrap();
+    session
+        .publish_cmd(Origin::Mixer, Kind::SetCrossfader, body)
+        .expect("publish");
+    let event = recv_evt_kind(&evt, Kind::Status);
+    assert_eq!(*event.origin(), Origin::Mixer);
+    assert_eq!(*event.kind(), Kind::Status);
+    let EvtBody::EngineStatus(status) = decode_evt_body(event.payload()).expect("decode evt body")
+    else {
+        panic!("expected EngineStatus body");
+    };
+    assert!((status.crossfader - 0.75).abs() < f32::EPSILON);
+    assert!(session.revision() > 0);
+}

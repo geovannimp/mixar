@@ -175,9 +175,11 @@ fn handle_cmd_event(
 
     match result {
         Ok(CmdOutcome::DeckUpdated(deck_id)) => {
-            let _ = with_engine_ref(engine, |eng| {
+            if let Err(e) = with_engine_ref(engine, |eng| {
                 publish_deck_updated(evt_bus, revision, eng, deck_id)
-            });
+            }) {
+                publish_error(evt_bus, origin, e.to_string());
+            }
         }
         Ok(CmdOutcome::EngineStatus) => {
             let _ = with_engine_ref(engine, |eng| {

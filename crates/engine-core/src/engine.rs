@@ -851,26 +851,7 @@ impl Engine {
     pub fn deck_snapshot(&self, deck_id: usize) -> Option<DeckSnapshot> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
-        let deck = dsp.deck(deck_id)?;
-        let channel = dsp.mixer().channel(deck_id)?;
-        let eq = channel.eq_gains();
-        let (position_secs, duration_secs) = match deck.duration_seconds() {
-            Some(duration) => (Some(deck.position_seconds().unwrap_or(0.0)), Some(duration)),
-            None => (None, None),
-        };
-        Some(DeckSnapshot {
-            id: deck_id as u16,
-            playing: matches!(deck.state(), DeckState::Playing),
-            volume: channel.volume(),
-            speed: deck.speed(),
-            eq: DeckEq {
-                low: eq.low_db,
-                mid: eq.mid_db,
-                high: eq.high_db,
-            },
-            position_secs,
-            duration_secs,
-        })
+        deck_snapshot_from_dsp(&dsp, deck_id)
     }
 
     /// Full engine snapshot for bus `Status` events.
@@ -879,7 +860,7 @@ impl Engine {
         let dsp = dsp_engine.lock().ok()?;
         let mut decks = Vec::with_capacity(dsp.num_decks());
         for deck_id in 0..dsp.num_decks() {
-            if let Some(snapshot) = self.deck_snapshot(deck_id) {
+            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id) {
                 decks.push(snapshot);
             }
         }
@@ -1017,6 +998,29 @@ impl Engine {
         }
         Ok(())
     }
+}
+
+fn deck_snapshot_from_dsp(dsp: &DspEngine, deck_id: usize) -> Option<DeckSnapshot> {
+    let deck = dsp.deck(deck_id)?;
+    let channel = dsp.mixer().channel(deck_id)?;
+    let eq = channel.eq_gains();
+    let (position_secs, duration_secs) = match deck.duration_seconds() {
+        Some(duration) => (Some(deck.position_seconds().unwrap_or(0.0)), Some(duration)),
+        None => (None, None),
+    };
+    Some(DeckSnapshot {
+        id: deck_id as u16,
+        playing: matches!(deck.state(), DeckState::Playing),
+        volume: channel.volume(),
+        speed: deck.speed(),
+        eq: DeckEq {
+            low: eq.low_db,
+            mid: eq.mid_db,
+            high: eq.high_db,
+        },
+        position_secs,
+        duration_secs,
+    })
 }
 
 fn loudness_from_metadata(metadata: &TrackMetadata) -> Option<f64> {
