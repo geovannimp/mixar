@@ -1,16 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Settings } from "lucide-react";
 import { PadGridContainer } from "@/components/deck-pads/PadGridContainer";
 import { SamplerBankConfigDialog } from "@/components/SamplerBankConfigDialog";
+import { TrackDropZone } from "@/components/TrackDropZone";
 import { DeckButton } from "@/components/ui/deck-button";
 import { DEFAULT_SAMPLER_PLAY_MODE } from "@/lib/busSettings";
 import { formatDeckTimeTenth } from "@/lib/format";
-import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "@/lib/libraryTable";
+import { samplerDropId } from "@/lib/trackDrag";
 import { hotCueAccentForSlot } from "@/lib/ui";
-import { cn } from "@/lib/utils";
 import type { SamplerBankInfo, SamplerPlayMode, SamplerSlotInfo } from "@/types";
 
 interface SamplerPadsProps {
+  deckId: number;
   slots: SamplerSlotInfo[];
   banks: SamplerBankInfo[];
   activeBankId: string | null;
@@ -20,13 +21,12 @@ interface SamplerPadsProps {
   onTrigger: (slot: number) => void;
   onEnd: (slot: number) => void;
   onClear: (slot: number) => void;
-  onAssignFromTrack: (slot: number, trackId: string) => void;
-  onAssignFromPath: (slot: number, path: string) => void;
   onSelectBank: (bankId: string) => void;
   onSaveBank: (bankId: string, name: string, playMode: SamplerPlayMode | null) => void;
 }
 
 export function SamplerPads({
+  deckId,
   slots,
   banks,
   activeBankId,
@@ -36,23 +36,10 @@ export function SamplerPads({
   onTrigger,
   onEnd,
   onClear,
-  onAssignFromTrack,
-  onAssignFromPath,
   onSelectBank,
   onSaveBank,
 }: SamplerPadsProps) {
   const [bankConfigOpen, setBankConfigOpen] = useState(false);
-  const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
-
-  useEffect(() => {
-    const resetDragState = () => setDragOverSlot(null);
-    window.addEventListener("dragend", resetDragState);
-    window.addEventListener("drop", resetDragState);
-    return () => {
-      window.removeEventListener("dragend", resetDragState);
-      window.removeEventListener("drop", resetDragState);
-    };
-  }, []);
 
   const activeBankIndex = banks.findIndex((bank) => bank.id === activeBankId);
   const activeBank = activeBankIndex >= 0 ? banks[activeBankIndex] : undefined;
@@ -67,14 +54,6 @@ export function SamplerPads({
     if (bank) {
       onSelectBank(bank.id);
     }
-  };
-
-  const assignDragPayload = (slot: number, payload: TrackDragPayload) => {
-    if (payload.trackId) {
-      onAssignFromTrack(slot, payload.trackId);
-      return;
-    }
-    onAssignFromPath(slot, payload.path);
   };
 
   return (
@@ -144,92 +123,64 @@ export function SamplerPads({
           const label = sample?.label?.trim();
 
           return (
-            <DeckButton
+            <TrackDropZone
               key={slot}
-              type="button"
-              size="pad"
-              accent={filled ? hotCueAccentForSlot(slot) : undefined}
+              id={samplerDropId(deckId, slot)}
+              data={{ type: "sampler", deckId, slot }}
               disabled={disabled}
-              className={cn(
-                dragOverSlot === slot && "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]",
-              )}
-              title={
-                filled
-                  ? holdLike
-                    ? `Pad ${slot + 1} — hold to play, shift+click clear`
-                    : `Pad ${slot + 1} — click trigger, shift+click clear, drop track to replace`
-                  : `Drop a track to assign sampler pad ${slot + 1}`
-              }
-              onClick={(event) => {
-                if (event.shiftKey && filled) {
-                  onClear(slot);
-                  return;
-                }
-                if (filled && !holdLike) {
-                  onTrigger(slot);
-                }
-              }}
-              onPointerDown={() => {
-                if (filled && holdLike) {
-                  onTrigger(slot);
-                }
-              }}
-              onPointerUp={() => {
-                if (filled && holdLike) {
-                  onEnd(slot);
-                }
-              }}
-              onPointerLeave={() => {
-                if (filled && holdLike) {
-                  onEnd(slot);
-                }
-              }}
-              onDragEnter={(event) => {
-                if (disabled || !acceptsTrackDrag(event.dataTransfer)) {
-                  return;
-                }
-                event.preventDefault();
-                setDragOverSlot(slot);
-              }}
-              onDragLeave={(event) => {
-                const related = event.relatedTarget;
-                if (related instanceof Node && event.currentTarget.contains(related)) {
-                  return;
-                }
-                setDragOverSlot((current) => (current === slot ? null : current));
-              }}
-              onDragOver={(event) => {
-                if (disabled || !acceptsTrackDrag(event.dataTransfer)) {
-                  return;
-                }
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "copy";
-                if (dragOverSlot !== slot) {
-                  setDragOverSlot(slot);
-                }
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setDragOverSlot(null);
-                const payload = readTrackDragData(event.dataTransfer);
-                if (!payload) {
-                  return;
-                }
-                assignDragPayload(slot, payload);
-              }}
+              collisionPriority={10}
+              className="min-w-0"
             >
-              <span className="w-full min-w-0 truncate text-[11px] font-bold leading-tight sm:text-xs">
-                {filled && label ? label : slot + 1}
-              </span>
-              {filled && sample?.duration_secs != null ? (
-                <span className="mt-0.5 max-w-full truncate text-[9px] tabular-nums opacity-75">
-                  {formatDeckTimeTenth(sample.duration_secs)}
+              <DeckButton
+                type="button"
+                size="pad"
+                accent={filled ? hotCueAccentForSlot(slot) : undefined}
+                disabled={disabled}
+                className="w-full"
+                title={
+                  filled
+                    ? holdLike
+                      ? `Pad ${slot + 1} — hold to play, shift+click clear`
+                      : `Pad ${slot + 1} — click trigger, shift+click clear, drop track to replace`
+                    : `Drop a track to assign sampler pad ${slot + 1}`
+                }
+                onClick={(event) => {
+                  if (event.shiftKey && filled) {
+                    onClear(slot);
+                    return;
+                  }
+                  if (filled && !holdLike) {
+                    onTrigger(slot);
+                  }
+                }}
+                onPointerDown={() => {
+                  if (filled && holdLike) {
+                    onTrigger(slot);
+                  }
+                }}
+                onPointerUp={() => {
+                  if (filled && holdLike) {
+                    onEnd(slot);
+                  }
+                }}
+                onPointerLeave={() => {
+                  if (filled && holdLike) {
+                    onEnd(slot);
+                  }
+                }}
+              >
+                <span className="w-full min-w-0 truncate text-[11px] font-bold leading-tight sm:text-xs">
+                  {filled && label ? label : slot + 1}
                 </span>
-              ) : (
-                <span className="mt-0.5 text-[9px] uppercase opacity-75">sample</span>
-              )}
-            </DeckButton>
+                {filled && sample?.duration_secs != null ? (
+                  <span className="mt-0.5 max-w-full truncate text-[9px] tabular-nums opacity-75">
+                    {formatDeckTimeTenth(sample.duration_secs)}
+                  </span>
+                ) : (
+                  <span className="mt-0.5 text-[9px] uppercase opacity-75">sample</span>
+                )}
+              </DeckButton>
+            </TrackDropZone>
           );
         })}
       </PadGridContainer>

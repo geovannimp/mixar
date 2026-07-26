@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@dnd-kit/collision": "^0.5.0",
+    "@dnd-kit/react": "^0.5.0",
     "@fontsource-variable/geist": "^5.2.9",
     "@tanstack/match-sorter-utils": "^8.19.4",
     "@tanstack/react-table": "^8.21.3",
