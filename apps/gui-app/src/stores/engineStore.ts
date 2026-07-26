@@ -14,7 +14,6 @@ import {
   encodeSetCueMix,
   encodeSetEq,
   encodeSetMasterCue,
-  encodeSetSpeed,
   encodeSetVolume,
 } from "@/lib/engine/wire";
 import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
@@ -267,7 +266,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckSpeed: async (deckId, speed) => {
     try {
-      await engineTransport.publish(encodeSetSpeed(deckId, speed));
+      await invoke("set_deck_speed", { deckId, speed });
     } catch (err) {
       reportEngineError(String(err));
     }
