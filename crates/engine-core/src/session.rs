@@ -32,13 +32,13 @@ impl EngineSession {
         let cmd = cmd_bus.clone();
         let evt = evt_bus.clone();
         let shutdown_flag = Arc::clone(&shutdown);
-        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
         let control_thread = thread::spawn(move || {
             control_thread_loop(cmd, evt, shutdown_flag, ready_tx);
         });
         ready_rx
             .recv()
-            .map_err(|_| anyhow::anyhow!("control thread failed to start"))?;
+            .map_err(|_| anyhow::anyhow!("control thread failed to start"))??;
 
         Ok(Self {
             cmd_bus,
@@ -99,13 +99,16 @@ fn control_thread_loop(
     cmd_bus: EngineBus,
     evt_bus: EngineBus,
     shutdown: Arc<AtomicBool>,
-    ready: std::sync::mpsc::Sender<()>,
+    ready: std::sync::mpsc::Sender<Result<()>>,
 ) {
     let rx = match cmd_bus.subscribe(Filter::Any, Filter::Any) {
         Ok(rx) => rx,
-        Err(_) => return,
+        Err(e) => {
+            let _ = ready.send(Err(e.into()));
+            return;
+        }
     };
-    let _ = ready.send(());
+    let _ = ready.send(Ok(()));
     while !shutdown.load(Ordering::Relaxed) {
         let event = match rx.recv_timeout(Duration::from_millis(100)) {
             Ok(Some(event)) => event,
