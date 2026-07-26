@@ -1,7 +1,7 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
     apply_deck_performance, begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold,
-    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop, seek_deck,
+    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
     set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
     trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
@@ -1092,102 +1092,6 @@ async fn load_library_track_to_deck(
 }
 
 #[tauri::command]
-fn play_deck(
-    app: AppHandle,
-    deck_id: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].track.is_none() {
-        return Err("Load a track before playing.".to_string());
-    }
-
-    with_engine(&mut state, |engine| {
-        engine.play(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].playing = true;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn pause_deck(
-    app: AppHandle,
-    deck_id: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
-        engine.pause(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].playing = false;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_deck_volume(
-    app: AppHandle,
-    deck_id: usize,
-    volume: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if !(0.0..=1.0).contains(&volume) {
-        return Err("Volume must be between 0 and 1.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].volume = volume;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_volume(deck_id, volume)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_deck_eq(
-    app: AppHandle,
-    deck_id: usize,
-    low: f32,
-    mid: f32,
-    high: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let eq = DeckEq {
-        low: clamp_eq_db(low),
-        mid: clamp_eq_db(mid),
-        high: clamp_eq_db(high),
-    };
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_eq_bands(deck_id, eq.low, eq.mid, eq.high)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-    state.decks[deck_id].eq = eq;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
 fn set_deck_headphone_cue(
     app: AppHandle,
     deck_id: usize,
@@ -1208,108 +1112,6 @@ fn set_deck_headphone_cue(
         })?;
     }
     Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_crossfader(
-    app: AppHandle,
-    crossfader: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    if !(0.0..=1.0).contains(&crossfader) {
-        return Err("Crossfader must be between 0 and 1.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.crossfader = crossfader;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine.set_crossfader(crossfader).map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn set_cue_mix(
-    app: AppHandle,
-    cue_mix: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    if !(0.0..=1.0).contains(&cue_mix) {
-        return Err("Cue mix must be between 0.0 and 1.0".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.cue_mix = cue_mix;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine.set_cue_mix(cue_mix).map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn set_master_cue(
-    app: AppHandle,
-    enabled: bool,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.master_cue = enabled;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine.set_master_cue(enabled).map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn set_deck_speed(
-    app: AppHandle,
-    deck_id: usize,
-    speed: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if speed <= 0.0 || speed > 2.0 {
-        return Err("Speed must be between 0 and 2.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].speed = speed;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_speed(deck_id, speed)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-
-    let mut synced_slaves = Vec::new();
-    if deck_id == state.master_deck {
-        for slave_id in 0..NUM_DECKS {
-            if slave_id == deck_id {
-                continue;
-            }
-            if state.decks[slave_id].sync_mode == SyncMode::Off {
-                continue;
-            }
-            // Follow master tempo only — do not re-seek phase on every pitch nudge.
-            deck_sync::apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
-            synced_slaves.push(slave_id);
-        }
-    }
-
-    let master_status = publish_deck(&app, &mut state, deck_id);
-    for slave_id in synced_slaves {
-        let _ = publish_deck(&app, &mut state, slave_id);
-    }
-    Ok(master_status)
 }
 
 #[tauri::command]
@@ -1549,16 +1351,7 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            play_deck,
-            pause_deck,
-            set_deck_volume,
-            set_deck_eq,
-            set_deck_speed,
             set_deck_headphone_cue,
-            set_crossfader,
-            set_cue_mix,
-            set_master_cue,
-            seek_deck,
             unload_deck,
             set_deck_cue_point,
             begin_deck_cue_hold,

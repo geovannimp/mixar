@@ -151,35 +151,6 @@ fn publish_deck_transport(app: &AppHandle, state: &mut AppState, deck_id: usize)
 }
 
 #[tauri::command]
-pub fn seek_deck(
-    app: AppHandle,
-    deck_id: usize,
-    position_secs: f64,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].track.is_none() {
-        return Err("Load a track before seeking.".to_string());
-    }
-
-    let snapped = snap_secs(
-        position_secs,
-        state.decks[deck_id].bpm,
-        state.decks[deck_id].quantize,
-    );
-    with_engine(&mut state, |engine| {
-        engine
-            .seek_deck(deck_id, snapped)
-            .map_err(|e| e.to_string())
-    })?;
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
 pub fn unload_deck(
     app: AppHandle,
     deck_id: usize,
