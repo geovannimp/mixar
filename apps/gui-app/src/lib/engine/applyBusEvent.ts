@@ -24,17 +24,18 @@ function deckIdFromOrigin(origin: Origin): number | null {
   return null;
 }
 
-function mergeSlimDeck(existing: DeckStatus | undefined, slim: DeckSnapshot): DeckStatus {
-  const base = existing ?? getDefaultDeck(slim.id);
+/** Merge engine deck snapshot onto UI deck; metadata/levels stay on `base`. */
+function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnapshot): DeckStatus {
+  const base = existing ?? getDefaultDeck(snapshot.id);
   return {
     ...base,
-    id: slim.id,
-    playing: slim.playing,
-    volume: slim.volume,
-    speed: slim.speed,
-    eq: slim.eq,
-    position_secs: slim.position_secs,
-    duration_secs: slim.duration_secs,
+    id: snapshot.id,
+    playing: snapshot.playing,
+    volume: snapshot.volume,
+    speed: snapshot.speed,
+    eq: snapshot.eq,
+    position_secs: snapshot.position_secs,
+    duration_secs: snapshot.duration_secs,
     levels: base.levels ?? ZERO_DECK_LEVELS,
     title: base.title,
     artist: base.artist,
@@ -55,7 +56,9 @@ function mergeEngineStatusPayload(
     cue_mix: payload.cue_mix,
     master_cue: payload.master_cue,
     master_deck: current?.master_deck,
-    decks: payload.decks.map((slim) => mergeSlimDeck(currentById.get(slim.id), slim)),
+    decks: payload.decks.map((snapshot) =>
+      mergeDeckSnapshot(currentById.get(snapshot.id), snapshot),
+    ),
     sampler: current?.sampler ?? DEFAULT_SAMPLER_STATUS,
   };
 }
@@ -93,7 +96,7 @@ export function applyBusEvent(
     if (!current) {
       return { status: null, revision: wire.revision };
     }
-    const slim: DeckSnapshot = {
+    const snapshot: DeckSnapshot = {
       id: body.id,
       playing: body.playing,
       volume: body.volume,
@@ -106,7 +109,7 @@ export function applyBusEvent(
       status: {
         ...current,
         decks: current.decks.map((deck) =>
-          deck.id === body.id ? mergeSlimDeck(deck, slim) : deck,
+          deck.id === body.id ? mergeDeckSnapshot(deck, snapshot) : deck,
         ),
       },
       revision: wire.revision,
