@@ -12,6 +12,7 @@ use std::time::Duration;
 
 const TICK_INTERVAL: Duration = Duration::from_millis(33);
 const PEAK_HOLD_DECAY_PER_TICK: f32 = 0.04;
+const LEVEL_IDLE_EPSILON: f32 = 1e-5;
 
 enum CmdOutcome {
     DeckUpdated(usize),
@@ -330,6 +331,10 @@ fn tick(
     }
 
     for (deck_id, peak_l, peak_r) in eng.deck_level_snapshot() {
+        let playing = eng.deck_is_playing(deck_id) == Some(true);
+        if !playing && peak_l.abs() < LEVEL_IDLE_EPSILON && peak_r.abs() < LEVEL_IDLE_EPSILON {
+            continue;
+        }
         let (peak_hold_l, peak_hold_r) = peak_hold.update(deck_id, peak_l, peak_r);
         publish_evt(
             evt_bus,

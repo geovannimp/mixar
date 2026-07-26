@@ -4,7 +4,35 @@ use tauri::AppHandle;
 
 use crate::engine_events::{emit_deck_updated, emit_status};
 use crate::deck_sampler::SamplerStatus;
-use crate::{deck_playback_secs, AppState, DeckInfo, DeckStatus, EngineStatus};
+use crate::{deck_playback_secs, AppState, DeckInfo, DeckStatus, EngineStatus, NUM_DECKS};
+
+/// Overlay engine-owned transport/mix fields onto AppState before publish.
+fn sync_app_state_from_engine(state: &mut AppState) {
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
+    let Ok(Some(engine_status)) = session.with_engine(|eng| Ok(eng.engine_status_snapshot())) else {
+        return;
+    };
+
+    state.crossfader = engine_status.crossfader;
+    state.cue_mix = engine_status.cue_mix;
+    state.master_cue = engine_status.master_cue;
+
+    for snap in engine_status.decks {
+        let id = snap.id as usize;
+        if id >= NUM_DECKS {
+            continue;
+        }
+        let deck = &mut state.decks[id];
+        deck.playing = snap.playing;
+        deck.volume = snap.volume;
+        deck.speed = snap.speed;
+        deck.eq.low = snap.eq.low;
+        deck.eq.mid = snap.eq.mid;
+        deck.eq.high = snap.eq.high;
+    }
+}
 
 pub fn bump_revision(state: &mut AppState) -> u64 {
     state.revision += 1;
@@ -67,6 +95,7 @@ pub fn engine_status(state: &AppState) -> EngineStatus {
 }
 
 pub fn publish_status(app: &AppHandle, state: &mut AppState) -> EngineStatus {
+    sync_app_state_from_engine(state);
     let revision = bump_revision(state);
     let status = engine_status(state);
     emit_status(app, revision, status.clone());
@@ -74,6 +103,7 @@ pub fn publish_status(app: &AppHandle, state: &mut AppState) -> EngineStatus {
 }
 
 pub fn publish_deck(app: &AppHandle, state: &mut AppState, deck_id: usize) -> DeckStatus {
+    sync_app_state_from_engine(state);
     let revision = bump_revision(state);
     let deck = deck_status(state, deck_id, &state.decks[deck_id]);
     emit_deck_updated(app, revision, deck.clone());

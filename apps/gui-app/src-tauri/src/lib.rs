@@ -39,7 +39,6 @@ mod deck_sampler;
 mod deck_sync;
 mod engine_controller;
 mod engine_events;
-mod engine_notifier;
 mod fs_browser;
 mod waveform_render;
 
@@ -50,7 +49,6 @@ use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
 use engine_controller::{engine_status, publish_deck, publish_status};
-use engine_notifier::EngineNotifier;
 
 pub(crate) use engine_controller::{bump_revision, deck_status};
 
@@ -152,7 +150,6 @@ pub(crate) struct AppState {
     pub sampler_play_mode: SamplerPlayModeSetting,
     pub sampler_strip_route: SamplerStripRouteSetting,
     pub deck_default_sampler_bank_id: [Option<String>; NUM_DECKS],
-    pub notifier: Option<EngineNotifier>,
     pub sampler_slots: [[SamplerSlotInfo; deck_sampler::SAMPLER_SLOT_COUNT]; NUM_DECKS],
     pub loaded_sampler_bank_id: [Option<String>; NUM_DECKS],
     /// Unsaved bank created with "+" — persisted on first rename / play-mode / sample assign.
@@ -610,7 +607,6 @@ fn start_engine(
     shared: State<'_, SharedAppState>,
     session_holder: State<'_, SharedSession>,
 ) -> Result<EngineStatus, String> {
-    let shared_state = shared.inner().clone();
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     if state.session.is_some() {
         return Ok(engine_status(&state));
@@ -626,7 +622,6 @@ fn start_engine(
     state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
     apply_normalizer_target(&mut state)?;
     ensure_sampler_ready(&mut state)?;
-    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
 }
@@ -638,7 +633,6 @@ fn stop_engine(
     session_holder: State<'_, SharedSession>,
 ) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.notifier = None;
     stop_session(&mut state)?;
     clear_session(session_holder.inner());
     for deck in &mut state.decks {
@@ -673,7 +667,6 @@ async fn save_settings(
     shared: State<'_, SharedAppState>,
     session_holder: State<'_, SharedSession>,
 ) -> Result<AppSettings, String> {
-    let shared_state = shared.inner().clone();
     let session_holder = session_holder.inner().clone();
 
     let (was_running, deck_tracks) = {
@@ -687,7 +680,6 @@ async fn save_settings(
             .collect();
 
         if was_running {
-            state.notifier = None;
             stop_session(&mut state)?;
             clear_session(&session_holder);
             // Do NOT clear_deck_info here — keep deck/track/hot-cue UI state intact
@@ -741,7 +733,6 @@ async fn save_settings(
     for deck_id in 0..NUM_DECKS {
         let _ = apply_effective_play_mode(&mut state, deck_id);
     }
-    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
 
     Ok(settings_from_state(&state))
@@ -1374,7 +1365,6 @@ pub fn run() {
                 sampler_play_mode: SamplerPlayModeSetting::default(),
                 sampler_strip_route: default_sampler_strip_route(),
                 deck_default_sampler_bank_id: default_deck_sampler_banks(),
-                notifier: None,
                 sampler_slots: empty_deck_sampler_slots(),
                 loaded_sampler_bank_id: std::array::from_fn(|_| None),
                 draft_sampler_bank: None,
