@@ -17,6 +17,7 @@ mod transport;
 pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
+pub use bus::EvtReceiver;
 pub use config::{
     validate_buffer_size, AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig,
     SamplerStripRouteSetting, BUFFER_SIZE_MULTIPLE,

@@ -2337,7 +2337,6 @@ dependencies = [
  "library",
  "library-core",
  "log",
- "omnibus",
  "resampler",
  "serde",
  "serde_json",

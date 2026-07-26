@@ -1,6 +1,6 @@
 //! Engine session: owns `Engine`, omnibus buses, and the control thread.
 
-use crate::bus::{new_buses, EngineBus};
+use crate::bus::{new_buses, subscribe_evt_all, EngineBus, EvtReceiver};
 use crate::config::EngineConfig;
 use crate::control::control_thread_loop;
 use crate::engine::Engine;
@@ -67,6 +67,11 @@ impl EngineSession {
     /// Clone handle to the event egress bus.
     pub fn evt_bus(&self) -> EngineBus {
         self.evt_bus.clone()
+    }
+
+    /// Subscribe to all egress events (host bridge / MIDI). Hides omnibus filters.
+    pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
+        Ok(subscribe_evt_all(&self.evt_bus)?)
     }
 
     /// Monotonic revision bumped when discrete engine state changes.

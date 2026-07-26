@@ -25,7 +25,6 @@ env_logger = "0.10"
 audio-core = { path = "../../../crates/audio-core" }
 engine-api = { path = "../../../crates/engine-api" }
 engine-core = { path = "../../../crates/engine-core", features = ["backend-cpal"] }
-omnibus = "0.1"
 library-core = { path = "../../../crates/library-core" }
 library = { path = "../../../crates/library", features = ["analysis"] }
 resampler = { path = "../../../crates/resampler" }

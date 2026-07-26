@@ -2,7 +2,6 @@
 
 use engine_api::{decode_wire, encode_wire, WireMessage};
 use engine_core::EngineSession;
-use omnibus::Filter;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -22,10 +21,7 @@ impl EvtForwarder {
     pub fn start(app: AppHandle, session: Arc<EngineSession>) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
         let stop_flag = Arc::clone(&stop);
-        let rx = session
-            .evt_bus()
-            .subscribe(Filter::Any, Filter::Any)
-            .expect("evt bus subscribe");
+        let rx = session.subscribe_evt_all().expect("evt bus subscribe");
         let thread = thread::spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
                 match rx.recv_timeout(Duration::from_millis(100)) {
