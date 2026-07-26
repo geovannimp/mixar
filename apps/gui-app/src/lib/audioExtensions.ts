@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauriApp } from "./tauriApp";
 
-const FALLBACK_AUDIO_EXTENSIONS = [
+export const FALLBACK_AUDIO_EXTENSIONS = [
   "mp3",
   "flac",
   "wav",

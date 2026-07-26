@@ -3,6 +3,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { DeckGrid } from "@/components/DeckGrid";
 import { DualDeckWaveform } from "@/components/DualDeckWaveform";
 import { LibraryPanel } from "@/components/LibraryPanel";
+import { TrackDragProvider } from "@/components/TrackDragProvider";
 import { engineActions } from "@/hooks/useEngine";
 
 const WAVEFORM_MIN_HEIGHT = "70px";
@@ -32,26 +33,37 @@ export function MixerPage() {
 
         <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
 
-        <ResizablePanel
-          id="decks"
-          defaultSize={DECK_ROW_HEIGHT}
-          minSize={DECK_ROW_HEIGHT}
-          maxSize={DECK_ROW_HEIGHT}
-          disabled
-          className="min-h-0 overflow-hidden"
-        >
-          <DeckGrid />
-        </ResizablePanel>
+        {/* Keep waveforms outside TrackDragProvider so drag state updates don't re-render lanes. */}
+        <ResizablePanel id="decks-and-library" defaultSize="60" minSize="40" className="min-h-0">
+          <TrackDragProvider>
+            <ResizablePanelGroup
+              id="mixer-decks-library"
+              orientation="vertical"
+              className="h-full min-h-0"
+            >
+              <ResizablePanel
+                id="decks"
+                defaultSize={DECK_ROW_HEIGHT}
+                minSize={DECK_ROW_HEIGHT}
+                maxSize={DECK_ROW_HEIGHT}
+                disabled
+                className="min-h-0 overflow-hidden"
+              >
+                <DeckGrid />
+              </ResizablePanel>
 
-        <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
+              <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
 
-        <ResizablePanel
-          id="library"
-          defaultSize="60"
-          minSize="30"
-          className="min-h-0 overflow-hidden"
-        >
-          <LibraryPanel />
+              <ResizablePanel
+                id="library"
+                defaultSize="60"
+                minSize="30"
+                className="min-h-0 overflow-hidden"
+              >
+                <LibraryPanel />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </TrackDragProvider>
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>

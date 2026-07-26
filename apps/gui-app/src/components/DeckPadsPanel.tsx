@@ -29,8 +29,6 @@ interface DeckPadsPanelProps {
   onTriggerSampler: (slot: number) => void;
   onEndSampler: (slot: number) => void;
   onClearSamplerSlot: (slot: number) => void;
-  onAssignSamplerFromTrack: (slot: number, trackId: string) => void;
-  onAssignSamplerFromPath: (slot: number, path: string) => void;
   onSelectSamplerBank: (bankId: string) => void;
   onSaveSamplerBank: (bankId: string, name: string, playMode: SamplerPlayMode | null) => void;
 }
@@ -51,8 +49,6 @@ export function DeckPadsPanel({
   onTriggerSampler,
   onEndSampler,
   onClearSamplerSlot,
-  onAssignSamplerFromTrack,
-  onAssignSamplerFromPath,
   onSelectSamplerBank,
   onSaveSamplerBank,
 }: DeckPadsPanelProps) {
@@ -114,6 +110,7 @@ export function DeckPadsPanel({
         ))
         .with("sampler", () => (
           <SamplerPads
+            deckId={deck.id}
             slots={samplerSlots}
             banks={samplerBanks}
             activeBankId={deck.active_sampler_bank_id}
@@ -123,8 +120,6 @@ export function DeckPadsPanel({
             onTrigger={onTriggerSampler}
             onEnd={onEndSampler}
             onClear={onClearSamplerSlot}
-            onAssignFromTrack={onAssignSamplerFromTrack}
-            onAssignFromPath={onAssignSamplerFromPath}
             onSelectBank={onSelectSamplerBank}
             onSaveBank={onSaveSamplerBank}
           />

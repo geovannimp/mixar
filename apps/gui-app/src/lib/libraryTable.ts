@@ -24,8 +24,6 @@ export const DEFAULT_LIBRARY_TABLE_COLUMNS: LibraryTableColumn[] = [
   "duration",
 ];
 
-export const TRACK_DRAG_MIME = "application/x-rust-dj-track";
-
 export interface TrackDragPayload {
   source: "library" | "filesystem";
   trackId: string | null;
@@ -119,26 +117,6 @@ export function parseTrackDragPayload(data: string): TrackDragPayload | null {
   } catch {
     return null;
   }
-}
-
-export function writeTrackDragData(dataTransfer: DataTransfer, row: LibraryTableRow): void {
-  const payload = JSON.stringify(rowToDragPayload(row));
-  dataTransfer.setData(TRACK_DRAG_MIME, payload);
-  dataTransfer.setData("text/plain", payload);
-  dataTransfer.effectAllowed = "copy";
-}
-
-export function readTrackDragData(dataTransfer: DataTransfer): TrackDragPayload | null {
-  const raw = dataTransfer.getData(TRACK_DRAG_MIME) || dataTransfer.getData("text/plain");
-  return parseTrackDragPayload(raw);
-}
-
-export function acceptsTrackDrag(dataTransfer: DataTransfer): boolean {
-  const types = Array.from(dataTransfer.types);
-  if (types.length === 0) {
-    return true;
-  }
-  return types.includes(TRACK_DRAG_MIME) || types.includes("text/plain");
 }
 
 type SortDirection = "asc" | "desc";

@@ -1,7 +1,6 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { acceptsTrackDrag, readTrackDragData, type TrackDragPayload } from "@/lib/libraryTable";
 import { DeckButton } from "@/components/ui/deck-button";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "@/lib/format";
@@ -25,6 +24,8 @@ import { DeckTempoPanel } from "./DeckTempoPanel";
 import { DeckTrackInfo } from "./DeckTrackInfo";
 import { DeckInfoPopover } from "./DeckInfoPopover";
 import { DeckCircularButton, JogPlatter } from "./DeckTransport";
+import { TrackDropZone } from "./TrackDropZone";
+import { deckDropId } from "@/lib/trackDrag";
 
 interface DeckPanelProps {
   deckId: number;
@@ -127,12 +128,6 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       }}
       onClearSamplerSlot={(slot) => {
         void engineActions.clearSamplerSlot(slot, deckId);
-      }}
-      onAssignSamplerFromTrack={(slot, trackId) => {
-        void engineActions.assignSamplerFromTrack(slot, trackId, deckId);
-      }}
-      onAssignSamplerFromPath={(slot, path) => {
-        void engineActions.assignSamplerFromPath(slot, path, deckId);
       }}
       onSelectSamplerBank={(bankId) => {
         void engineActions.setDeckSamplerBank(deckId, bankId);
@@ -324,8 +319,6 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
   const engineRunning = useEngineRunning();
   const deckBusy = useDeckBusy(deckId);
   const controls = useDeckControls(deckId);
-  const [dragOver, setDragOver] = useState(false);
-  const dragDepthRef = useRef(0);
 
   const loadDisabled = deckBusy || !engineRunning;
   const hasTrack = Boolean(controls.track);
@@ -336,50 +329,6 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
   const deckForInfo: DeckStatus = {
     ...getDefaultDeck(deckId),
     ...controls,
-  };
-
-  useEffect(() => {
-    const resetDragState = () => {
-      dragDepthRef.current = 0;
-      setDragOver(false);
-    };
-
-    window.addEventListener("dragend", resetDragState);
-    window.addEventListener("drop", resetDragState);
-    return () => {
-      window.removeEventListener("dragend", resetDragState);
-      window.removeEventListener("drop", resetDragState);
-    };
-  }, []);
-
-  const handleDragEnter = (event: React.DragEvent<HTMLElement>) => {
-    if (!dropEnabled || !acceptsTrackDrag(event.dataTransfer)) {
-      return;
-    }
-    event.preventDefault();
-    dragDepthRef.current += 1;
-    if (dragDepthRef.current === 1) {
-      setDragOver(true);
-    }
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLElement>) => {
-    if (!dropEnabled) {
-      return;
-    }
-    event.preventDefault();
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setDragOver(false);
-    }
-  };
-
-  const handleDropTrack = (payload: TrackDragPayload) => {
-    if (payload.source === "library" && payload.trackId) {
-      void engineActions.loadLibraryTrackToDeck(deckId, payload.trackId);
-      return;
-    }
-    void engineActions.loadPathToDeck(deckId, payload.path);
   };
 
   const tempoPanel = (
@@ -400,32 +349,15 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
   );
 
   return (
-    <section
-      className={`flex h-full min-h-0 min-w-0 flex-col gap-1 p-2 transition-shadow sm:gap-1.5 sm:p-2.5 ${accent.bg} ${
-        dragOver ? "shadow-[inset_0_0_0_2px_rgba(52,211,153,0.55)]" : ""
-      }`}
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={(event) => {
-        if (!dropEnabled || !acceptsTrackDrag(event.dataTransfer)) {
-          return;
-        }
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
-      }}
-      onDrop={(event) => {
-        dragDepthRef.current = 0;
-        setDragOver(false);
-        if (!dropEnabled) {
-          return;
-        }
-        event.preventDefault();
-        const payload = readTrackDragData(event.dataTransfer);
-        if (!payload) {
-          return;
-        }
-        handleDropTrack(payload);
-      }}
+    <TrackDropZone
+      id={deckDropId(deckId)}
+      data={{ type: "deck", deckId }}
+      disabled={!dropEnabled}
+      collisionPriority={0}
+      className={cn(
+        "flex h-full min-h-0 min-w-0 flex-col gap-1 p-2 transition-shadow sm:gap-1.5 sm:p-2.5",
+        accent.bg,
+      )}
     >
       <div className="flex shrink-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
@@ -479,6 +411,6 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
         </div>
         {isDeckA ? tempoPanel : null}
       </div>
-    </section>
+    </TrackDropZone>
   );
 }

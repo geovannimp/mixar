@@ -15,7 +15,8 @@
         "title": "Rust DJ",
         "width": 900,
         "height": 640,
-        "decorations": false
+        "decorations": false,
+        "dragDropEnabled": true
       }
     ],
     "security": {

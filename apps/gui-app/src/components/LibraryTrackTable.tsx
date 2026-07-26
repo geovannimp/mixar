@@ -10,6 +10,7 @@ import {
   type Table,
 } from "@tanstack/react-table";
 import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual";
+import { useDraggable } from "@dnd-kit/react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,10 +23,11 @@ import {
   libraryRowSearchText,
   rowKey,
   rowTitle,
+  rowToDragPayload,
   rowTrackId,
 } from "@/lib/libraryTable";
 import { fuzzyFilter, fuzzySort, libraryGlobalFilter } from "@/lib/libraryTableFilter";
-import { startTrackDrag } from "@/lib/trackDragPreview";
+import { TRACK_DRAG_TYPE, trackDragId, type TrackDragData } from "@/lib/trackDrag";
 import type { LibraryTableColumn, LibraryTableRow } from "@/types";
 import { TrackActionsMenu } from "./TrackActionsMenu";
 
@@ -291,13 +293,26 @@ function LibraryTrackTableRow({
   const tableRow = row.original;
   const trackId = rowTrackId(tableRow);
   const isAnalyzing = trackId != null && analyzingTrackId === trackId;
+  const key = rowKey(tableRow);
+  const dragData: TrackDragData = {
+    type: TRACK_DRAG_TYPE,
+    payload: rowToDragPayload(tableRow),
+    row: tableRow,
+  };
+  const { ref, isDragging } = useDraggable({
+    id: trackDragId(key),
+    type: TRACK_DRAG_TYPE,
+    data: dragData,
+    disabled: !dragEnabled || isAnalyzing,
+  });
 
   return (
     <tr
-      draggable={dragEnabled && !isAnalyzing}
+      ref={ref}
       aria-busy={isAnalyzing}
       className={cn(
         "absolute flex w-full border-b border-white/5 transition",
+        isDragging && "opacity-40",
         !isAnalyzing &&
           (dragEnabled
             ? "cursor-grab hover:bg-white/3 active:cursor-grabbing"
@@ -314,13 +329,6 @@ function LibraryTrackTableRow({
             ? "Drag to a deck"
             : "Start the engine to drag tracks"
       }
-      onDragStart={(event) => {
-        if (!dragEnabled || isAnalyzing) {
-          event.preventDefault();
-          return;
-        }
-        startTrackDrag(event.dataTransfer, tableRow);
-      }}
     >
       {visibleColumns.map((column) => (
         <td
