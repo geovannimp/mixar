@@ -110,7 +110,12 @@ pub fn transport_snapshot_from_engine(
     state: &AppState,
     deck_id: usize,
 ) -> Option<(Option<f64>, Option<(f64, f64)>)> {
-    state.engine.as_ref()?.deck_transport_state(deck_id)
+    state
+        .session
+        .as_ref()?
+        .with_engine(|engine| Ok(engine.deck_transport_state(deck_id)))
+        .ok()
+        .flatten()
 }
 
 pub fn apply_transport_snapshot(
@@ -185,8 +190,10 @@ pub fn unload_deck(
     }
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    if let Some(engine) = state.engine.as_mut() {
-        engine.unload_deck(deck_id).map_err(|e| e.to_string())?;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine.unload_deck(deck_id).map_err(|e| e.to_string())
+        })?;
     }
     clear_deck_info(&mut state.decks[deck_id]);
     Ok(publish_deck_transport(&app, &mut state, deck_id))
@@ -259,9 +266,14 @@ pub fn end_deck_cue_hold(
     let transport = transport_snapshot_from_engine(&state, deck_id);
     apply_transport_snapshot(&mut state.decks[deck_id], transport);
     state.decks[deck_id].playing = state
-        .engine
+        .session
         .as_ref()
-        .and_then(|engine| engine.deck_is_playing(deck_id))
+        .and_then(|session| {
+            session
+                .with_engine(|engine| Ok(engine.deck_is_playing(deck_id)))
+                .ok()
+                .flatten()
+        })
         .unwrap_or(false);
     Ok(publish_deck_transport(&app, &mut state, deck_id))
 }

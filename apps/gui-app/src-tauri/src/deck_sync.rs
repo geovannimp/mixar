@@ -265,10 +265,12 @@ pub fn set_deck_filter(
     let mut state = state.lock().map_err(|e| e.to_string())?;
     let clamped = clamp_eq_db(filter_db);
     state.decks[deck_id].filter_db = clamped;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_filter_db(deck_id, clamped)
-            .map_err(|e| e.to_string())?;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine
+                .set_deck_filter_db(deck_id, clamped)
+                .map_err(|e| e.to_string())
+        })?;
     }
     Ok(publish_deck(&app, &mut state, deck_id))
 }
@@ -287,10 +289,12 @@ pub fn set_deck_gain_trim(
     let mut state = state.lock().map_err(|e| e.to_string())?;
     let clamped = clamp_eq_db(gain_db);
     state.decks[deck_id].gain_trim_db = clamped;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_gain_trim_db(deck_id, clamped)
-            .map_err(|e| e.to_string())?;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine
+                .set_deck_gain_trim_db(deck_id, clamped)
+                .map_err(|e| e.to_string())
+        })?;
     }
     Ok(publish_deck(&app, &mut state, deck_id))
 }

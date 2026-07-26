@@ -93,18 +93,19 @@ fn notifier_loop(app: AppHandle, shared_state: SharedAppState, stop: Arc<AtomicB
                 }
             };
 
-            if state.engine.is_some() {
-                let transport_events = {
-                    let engine = state.engine.as_mut().unwrap();
-                    engine.drain_transport_events()
-                };
-                let (snapshot, level_snapshot) = {
-                    let engine = state.engine.as_mut().unwrap();
-                    (
-                        engine.deck_playback_snapshot(),
-                        engine.deck_level_snapshot(),
-                    )
-                };
+            if state.session.is_some() {
+                let session = state.session.as_ref().unwrap();
+                let transport_events = session
+                    .with_engine(|engine| Ok(engine.drain_transport_events()))
+                    .unwrap_or_default();
+                let (snapshot, level_snapshot) = session
+                    .with_engine(|engine| {
+                        Ok((
+                            engine.deck_playback_snapshot(),
+                            engine.deck_level_snapshot(),
+                        ))
+                    })
+                    .unwrap_or((Vec::new(), Vec::new()));
                 levels = level_snapshot;
 
                 for event in transport_events {

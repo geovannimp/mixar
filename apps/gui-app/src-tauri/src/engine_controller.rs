@@ -55,7 +55,7 @@ fn deck_statuses(state: &AppState) -> Vec<DeckStatus> {
 
 pub fn engine_status(state: &AppState) -> EngineStatus {
     EngineStatus {
-        running: state.engine.is_some(),
+        running: state.session.is_some(),
         backend: "cpal".to_string(),
         sample_rate: 48_000,
         crossfader: state.crossfader,
