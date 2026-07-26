@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "engine-api",
     "audio-core",
     "backend-null",
     "backend-miniaudio",
