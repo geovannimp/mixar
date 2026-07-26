@@ -32,26 +32,9 @@ import {
   type SamplerStatus,
 } from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
+import { DEFAULT_SAMPLER_STATUS, EMPTY_SAMPLER_BANKS, EMPTY_SAMPLER_SLOTS } from "./defaultSampler";
 const ENGINE_ERROR_TOAST_ID = "engine-error";
 const engineTransport = getEngineTransport();
-
-const EMPTY_SAMPLER_SLOTS: SamplerSlotInfo[] = Array.from({ length: 8 }, () => ({
-  label: null,
-  track_id: null,
-  path: null,
-  duration_secs: null,
-}));
-
-const EMPTY_SAMPLER_BANKS: SamplerBankInfo[] = [];
-
-const DEFAULT_SAMPLER_STATUS: SamplerStatus = {
-  banks: EMPTY_SAMPLER_BANKS,
-  active_bank_id: null,
-  active_bank_name: null,
-  bank_play_mode: null,
-  deck_slots: [EMPTY_SAMPLER_SLOTS, EMPTY_SAMPLER_SLOTS],
-  effective_play_modes: ["oneshot", "oneshot"],
-};
 
 function reportEngineError(message: string) {
   toastManager.add({
@@ -78,6 +61,7 @@ interface EngineStoreState {
   status: EngineStatus | null;
   busyDecks: [boolean, boolean];
   revision: number;
+  busRevision: number;
   starting: boolean;
   levelMeterMode: LevelMeterMode;
   applyEvent: (event: EngineEvent) => void;
@@ -141,6 +125,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   status: null,
   busyDecks: [false, false],
   revision: 0,
+  busRevision: 0,
   starting: false,
   levelMeterMode: "mono",
 
@@ -162,14 +147,14 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   applyBusBytes: (bytes) => {
     set((current) => {
-      const patch = applyBusEvent(current.status, current.revision, bytes);
+      const patch = applyBusEvent(current.status, current.busRevision, bytes);
       if (patch.error) {
         reportEngineError(patch.error);
       }
       if (patch.notice) {
         toastManager.add({ title: patch.notice, type: "info" });
       }
-      return { status: patch.status, revision: patch.revision };
+      return { status: patch.status, busRevision: patch.revision };
     });
   },
 
