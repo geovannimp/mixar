@@ -1,3 +1,4 @@
+import { match } from "ts-pattern";
 import { getDefaultDeck } from "@/stores/defaultDeck";
 import { DEFAULT_SAMPLER_STATUS } from "@/stores/defaultSampler";
 import { ZERO_DECK_LEVELS, type DeckStatus, type EngineStatus } from "@/types";
@@ -71,77 +72,75 @@ export function applyBusEvent(
   const wire = decodeWire(bytes);
   const body = decodeEvtBody(wire.body);
 
-  if (body.type === "error") {
-    return { status: current, revision: lastRevision, error: body.message };
-  }
-
-  if (body.type === "notice") {
-    return { status: current, revision: lastRevision, notice: body.message };
-  }
-
-  if (wire.kind === "status" && body.type === "engine_status") {
-    if (wire.revision < lastRevision) {
-      return { status: current, revision: lastRevision };
-    }
-    return {
-      status: mergeEngineStatusPayload(current, body.status),
-      revision: wire.revision,
-    };
-  }
-
-  if (wire.kind === "updated" && body.type === "deck_updated") {
-    if (wire.revision < lastRevision) {
-      return { status: current, revision: lastRevision };
-    }
-    if (!current) {
-      return { status: null, revision: wire.revision };
-    }
-    const snapshot: DeckSnapshot = {
-      id: body.id,
-      playing: body.playing,
-      volume: body.volume,
-      speed: body.speed,
-      eq: body.eq,
-      position_secs: body.position_secs,
-      duration_secs: body.duration_secs,
-    };
-    return {
-      status: {
-        ...current,
-        decks: current.decks.map((deck) =>
-          deck.id === body.id ? mergeDeckSnapshot(deck, snapshot) : deck,
-        ),
-      },
-      revision: wire.revision,
-    };
-  }
-
-  if (wire.kind === "position" && body.type === "position") {
-    const deckId = deckIdFromOrigin(wire.origin);
-    if (!current || deckId === null) {
-      return { status: current, revision: lastRevision };
-    }
-    return {
-      status: patchDeckPosition(current, deckId, body.position_secs),
+  return match(body)
+    .with({ type: "error" }, ({ message }) => ({
+      status: current,
       revision: lastRevision,
-    };
-  }
-
-  if (wire.kind === "levels" && body.type === "levels") {
-    const deckId = deckIdFromOrigin(wire.origin);
-    if (!current || deckId === null) {
-      return { status: current, revision: lastRevision };
-    }
-    return {
-      status: patchDeckLevels(current, deckId, {
-        peak_l: body.peak_l,
-        peak_r: body.peak_r,
-        peak_hold_l: body.peak_hold_l,
-        peak_hold_r: body.peak_hold_r,
-      }),
+      error: message,
+    }))
+    .with({ type: "notice" }, ({ message }) => ({
+      status: current,
       revision: lastRevision,
-    };
-  }
-
-  return { status: current, revision: lastRevision };
+      notice: message,
+    }))
+    .with({ type: "engine_status" }, ({ status }) => {
+      if (wire.kind !== "status" || wire.revision < lastRevision) {
+        return { status: current, revision: lastRevision };
+      }
+      return {
+        status: mergeEngineStatusPayload(current, status),
+        revision: wire.revision,
+      };
+    })
+    .with({ type: "deck_updated" }, (deck) => {
+      if (wire.kind !== "updated" || wire.revision < lastRevision) {
+        return { status: current, revision: lastRevision };
+      }
+      if (!current) {
+        return { status: null, revision: wire.revision };
+      }
+      const snapshot: DeckSnapshot = {
+        id: deck.id,
+        playing: deck.playing,
+        volume: deck.volume,
+        speed: deck.speed,
+        eq: deck.eq,
+        position_secs: deck.position_secs,
+        duration_secs: deck.duration_secs,
+      };
+      return {
+        status: {
+          ...current,
+          decks: current.decks.map((d) => (d.id === deck.id ? mergeDeckSnapshot(d, snapshot) : d)),
+        },
+        revision: wire.revision,
+      };
+    })
+    .with({ type: "position" }, ({ position_secs }) => {
+      const deckId = deckIdFromOrigin(wire.origin);
+      if (wire.kind !== "position" || !current || deckId === null) {
+        return { status: current, revision: lastRevision };
+      }
+      return {
+        status: patchDeckPosition(current, deckId, position_secs),
+        revision: lastRevision,
+      };
+    })
+    .with({ type: "levels" }, (levels) => {
+      const deckId = deckIdFromOrigin(wire.origin);
+      if (wire.kind !== "levels" || !current || deckId === null) {
+        return { status: current, revision: lastRevision };
+      }
+      return {
+        status: patchDeckLevels(current, deckId, {
+          peak_l: levels.peak_l,
+          peak_r: levels.peak_r,
+          peak_hold_l: levels.peak_hold_l,
+          peak_hold_r: levels.peak_hold_r,
+        }),
+        revision: lastRevision,
+      };
+    })
+    .with({ type: "empty" }, () => ({ status: current, revision: lastRevision }))
+    .exhaustive();
 }
