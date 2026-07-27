@@ -14,8 +14,8 @@ use deck_sampler::{
     SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{
-    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_filter, set_deck_gain_trim,
-    set_deck_pad_mode, set_master_deck, toggle_deck_sync, PadMode, SyncMode,
+    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_pad_mode, set_master_deck,
+    toggle_deck_sync, PadMode, SyncMode,
 };
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
@@ -488,10 +488,6 @@ struct TrackSummary {
 struct AddFolderCollectionResult {
     collection: CollectionSummary,
     scan: library_core::ScanReport,
-}
-
-pub(crate) fn clamp_eq_db(value: f32) -> f32 {
-    value.clamp(-24.0, 24.0)
 }
 
 fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
@@ -1130,29 +1126,6 @@ fn set_deck_speed(
 }
 
 #[tauri::command]
-fn set_deck_headphone_cue(
-    app: AppHandle,
-    deck_id: usize,
-    enabled: bool,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].headphone_cue = enabled;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_headphone_cue(deck_id, enabled)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
 async fn render_waveform_lane(
     track_id: Option<String>,
     path: Option<String>,
@@ -1389,7 +1362,6 @@ pub fn run() {
             load_path_to_deck,
             load_library_track_to_deck,
             set_deck_speed,
-            set_deck_headphone_cue,
             unload_deck,
             set_deck_cue_point,
             begin_deck_cue_hold,
@@ -1412,8 +1384,6 @@ pub fn run() {
             toggle_deck_sync,
             beat_jump_deck,
             set_deck_pad_mode,
-            set_deck_filter,
-            set_deck_gain_trim,
             begin_loop_roll,
             end_loop_roll,
             list_sampler_banks,

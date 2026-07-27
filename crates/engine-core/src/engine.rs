@@ -1018,6 +1018,9 @@ fn deck_snapshot_from_dsp(dsp: &DspEngine, deck_id: usize) -> Option<DeckSnapsho
             mid: eq.mid_db,
             high: eq.high_db,
         },
+        filter_db: channel.filter_db(),
+        gain_trim_db: channel.gain_trim_db(),
+        headphone_cue: channel.headphone_cue(),
         position_secs,
         duration_secs,
     })

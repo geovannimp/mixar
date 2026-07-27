@@ -6,16 +6,7 @@ import { toastManager } from "@/components/ui/toast";
 import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyBusEvent } from "@/lib/engine/applyBusEvent";
 import { getEngineTransport } from "@/lib/engine/transport";
-import {
-  encodePause,
-  encodePlay,
-  encodeSeek,
-  encodeSetCrossfader,
-  encodeSetCueMix,
-  encodeSetEq,
-  encodeSetMasterCue,
-  encodeSetVolume,
-} from "@/lib/engine/wire";
+import { getDeckOrigin } from "@/lib/engine/wire";
 import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
@@ -239,7 +230,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   playDeck: async (deckId) => {
     try {
-      await engineTransport.publish(encodePlay(deckId));
+      await engineTransport.publish(getDeckOrigin(deckId), "play");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -247,7 +238,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   pauseDeck: async (deckId) => {
     try {
-      await engineTransport.publish(encodePause(deckId));
+      await engineTransport.publish(getDeckOrigin(deckId), "pause");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -255,7 +246,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckVolume: async (deckId, volume) => {
     try {
-      await engineTransport.publish(encodeSetVolume(deckId, volume));
+      await engineTransport.publish(getDeckOrigin(deckId), "set_volume", {
+        type: "set_volume",
+        volume,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -263,7 +257,12 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckEq: async (deckId, eq) => {
     try {
-      await engineTransport.publish(encodeSetEq(deckId, eq.low, eq.mid, eq.high));
+      await engineTransport.publish(getDeckOrigin(deckId), "set_eq", {
+        type: "set_eq",
+        low: eq.low,
+        mid: eq.mid,
+        high: eq.high,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -279,7 +278,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setCrossfader: async (position) => {
     try {
-      await engineTransport.publish(encodeSetCrossfader(position));
+      await engineTransport.publish("mixer", "set_crossfader", {
+        type: "set_crossfader",
+        position,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -287,7 +289,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setCueMix: async (mix) => {
     try {
-      await engineTransport.publish(encodeSetCueMix(mix));
+      await engineTransport.publish("mixer", "set_cue_mix", { type: "set_cue_mix", mix });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -295,7 +297,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setMasterCue: async (enabled) => {
     try {
-      await engineTransport.publish(encodeSetMasterCue(enabled));
+      await engineTransport.publish("mixer", "set_master_cue", {
+        type: "set_master_cue",
+        enabled,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -307,7 +312,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       set({ status: patchDeckPosition(status, deckId, positionSecs) });
     }
     try {
-      await engineTransport.publish(encodeSeek(deckId, positionSecs));
+      await engineTransport.publish(getDeckOrigin(deckId), "seek", {
+        type: "seek",
+        position_secs: positionSecs,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -470,7 +478,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckFilter: async (deckId, filterDb) => {
     try {
-      await invoke("set_deck_filter", { deckId, filterDb });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_filter", {
+        type: "set_filter",
+        filter_db: filterDb,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -478,7 +489,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckGainTrim: async (deckId, gainDb) => {
     try {
-      await invoke("set_deck_gain_trim", { deckId, gainDb });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_gain_trim", {
+        type: "set_gain_trim",
+        gain_db: gainDb,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -486,7 +500,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckHeadphoneCue: async (deckId, enabled) => {
     try {
-      await invoke("set_deck_headphone_cue", { deckId, enabled });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_headphone_cue", {
+        type: "set_headphone_cue",
+        enabled,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
