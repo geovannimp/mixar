@@ -6,6 +6,7 @@
 use crate::transport::DeckTransportEvent;
 use anyhow::Result;
 use audio_core::{LoadedAudio, Sample};
+use dasp_graph::Buffer;
 use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -309,19 +310,21 @@ impl Deck {
             return Ok(());
         }
 
+        // Mixer processes dasp_graph Buffer::LEN chunks, not the device buffer size.
+        // Rubato FixedSync::Output must match that quantum or it returns (0,0) forever.
         self.resampler = Some(resampler::create_resampler(
             source_rate,
             self.sample_rate,
             2,
-            self.buffer_size as usize,
+            Buffer::LEN,
             Some(&self.resampler_quality),
         )?);
         log::info!(
-            "Deck {} realtime resampler: {} Hz -> {} Hz (buffer_size={}, quality={})",
+            "Deck {} realtime resampler: {} Hz -> {} Hz (chunk_frames={}, quality={})",
             self.id,
             source_rate,
             self.sample_rate,
-            self.buffer_size,
+            Buffer::LEN,
             self.resampler_quality
         );
         Ok(())
@@ -499,6 +502,9 @@ impl Deck {
             return self.copy_source_passthrough(frames, audio_samples, start_pos);
         }
 
+        if let Some(resampler) = self.resampler.as_mut() {
+            resampler.set_output_chunk_frames(frames);
+        }
         self.resample_into_buffer(frames, audio_samples, start_pos)
     }
 
@@ -770,6 +776,37 @@ mod tests {
         assert!(
             (ratio - 1.0).abs() < 0.02,
             "480-frame callbacks must not over-consume source (ratio {ratio:.3})"
+        );
+    }
+
+    #[test]
+    fn test_deck_resample_advances_when_process_uses_graph_chunk() {
+        // Engine device buffer is often 512; mixer always asks for Buffer::LEN (64).
+        // Rubato FixedSync::Output sized to 512 returns (0,0) into a 64-frame out buf.
+        let mut deck = new_deck(CHUNK);
+        let frames = 44100usize;
+        let mut samples = vec![0.0f32; frames * 2];
+        for i in 0..frames {
+            let s = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / 44100.0).sin() * 0.5;
+            samples[i * 2] = s;
+            samples[i * 2 + 1] = s;
+        }
+        load_test_samples(&mut deck, samples, 44100);
+        deck.play().unwrap();
+
+        let mut heard = false;
+        for _ in 0..8 {
+            let audio = deck.process(Buffer::LEN).unwrap();
+            heard |= audio.iter().any(|&s| s.abs() > 0.01);
+        }
+        assert!(
+            heard,
+            "graph-sized process must produce audio after 44.1→48k resample"
+        );
+        assert!(
+            deck.position() > 0,
+            "source position must advance (got {})",
+            deck.position()
         );
     }
 
