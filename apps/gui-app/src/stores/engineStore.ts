@@ -37,10 +37,13 @@ function reportEngineError(message: string) {
 async function publishCmd(
   origin: Origin,
   kind: CmdKind,
-  fields?: Record<string, unknown>,
+  fields: Record<string, unknown> = {},
 ): Promise<void> {
   try {
-    await engineTransport.publish(origin, kind, fields);
+    await engineTransport.publish(origin, kind, {
+      ...fields,
+      action_timestamp_ms: Date.now(),
+    });
   } catch (err) {
     reportEngineError(String(err));
   }
@@ -57,10 +60,6 @@ function getDeck(status: EngineStatus | null, deckId: number): DeckStatus {
     ...deck,
     levels: deck.levels ?? ZERO_DECK_LEVELS,
   };
-}
-
-function deckPositionSecs(status: EngineStatus | null, deckId: number): number {
-  return getDeck(status, deckId).position_secs ?? 0;
 }
 
 interface EngineStoreState {
@@ -297,9 +296,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setDeckCuePoint: async (deckId) => {
-    await publishCmd(getDeckOrigin(deckId), "set_cue_point", {
-      position_secs: deckPositionSecs(get().status, deckId),
-    });
+    await publishCmd(getDeckOrigin(deckId), "set_cue_point");
   },
 
   beginDeckCueHold: async (deckId) => {
@@ -315,22 +312,15 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setDeckAutoLoop: async (deckId, beats) => {
-    await publishCmd(getDeckOrigin(deckId), "set_auto_loop", {
-      beats,
-      position_secs: deckPositionSecs(get().status, deckId),
-    });
+    await publishCmd(getDeckOrigin(deckId), "set_auto_loop", { beats });
   },
 
   setDeckLoopIn: async (deckId) => {
-    await publishCmd(getDeckOrigin(deckId), "loop_in", {
-      position_secs: deckPositionSecs(get().status, deckId),
-    });
+    await publishCmd(getDeckOrigin(deckId), "loop_in");
   },
 
   setDeckLoopOut: async (deckId) => {
-    await publishCmd(getDeckOrigin(deckId), "loop_out", {
-      position_secs: deckPositionSecs(get().status, deckId),
-    });
+    await publishCmd(getDeckOrigin(deckId), "loop_out");
   },
 
   exitDeckLoop: async (deckId) => {
@@ -396,10 +386,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   beatJumpDeck: async (deckId, beats) => {
-    await publishCmd(getDeckOrigin(deckId), "beat_jump", {
-      beats,
-      position_secs: deckPositionSecs(get().status, deckId),
-    });
+    await publishCmd(getDeckOrigin(deckId), "beat_jump", { beats });
   },
 
   cycleDeckPadMode: async (deckId, direction) => {

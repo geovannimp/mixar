@@ -4,12 +4,15 @@ use crate::{CmdBody, EvtBody, Kind, Origin};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// Host-facing bus frame: origin, kind, revision, and nested body bytes.
+/// Host-facing bus frame: origin, kind, revision, optional client timestamp, nested body.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireMessage {
     pub origin: Origin,
     pub kind: Kind,
     pub revision: u64,
+    /// Wall-clock ms when the client action was taken (`Date.now()`); 0 for engine-originated evt.
+    #[serde(default)]
+    pub action_timestamp_ms: u64,
     #[serde(with = "serde_bytes")]
     pub body: Vec<u8>,
 }

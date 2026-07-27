@@ -60,6 +60,7 @@ impl EvtForwarder {
                         origin: ev.origin().clone(),
                         kind: ev.kind().clone(),
                         revision: session.revision(),
+                        action_timestamp_ms: 0,
                         body: ev.payload().as_ref().to_vec(),
                     }) else {
                         continue;

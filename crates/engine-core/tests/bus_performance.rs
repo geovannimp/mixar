@@ -68,11 +68,7 @@ fn set_auto_loop_publishes_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop {
-                beats: 4,
-                position_secs: 0.0,
-            })
-            .unwrap(),
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4 }).unwrap(),
         )
         .expect("auto loop");
 
@@ -113,10 +109,7 @@ fn set_quantize_and_cue_point_roundtrip() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetCuePoint,
-            encode_cmd_body(&CmdBody::SetCuePoint {
-                position_secs: 0.25,
-            })
-            .unwrap(),
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
         )
         .expect("cue");
     let cue = recv_evt_kind(&evt, Kind::Updated);
@@ -131,7 +124,7 @@ fn set_quantize_and_cue_point_roundtrip() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::LoopIn,
-            encode_cmd_body(&CmdBody::LoopIn { position_secs: 0.0 }).unwrap(),
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
         )
         .expect("loop in");
     let loop_in = recv_evt_kind(&evt, Kind::Updated);
@@ -146,11 +139,7 @@ fn set_quantize_and_cue_point_roundtrip() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeatJump,
-            encode_cmd_body(&CmdBody::BeatJump {
-                beats: 1,
-                position_secs: 0.0,
-            })
-            .unwrap(),
+            encode_cmd_body(&CmdBody::BeatJump { beats: 1 }).unwrap(),
         )
         .expect("jump");
     let _ = recv_evt_kind(&evt, Kind::Updated);
