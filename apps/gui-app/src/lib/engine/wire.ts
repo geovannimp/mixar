@@ -187,7 +187,7 @@ export function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-type DeckCmdKind =
+export type DeckCmdKind =
   | "play"
   | "pause"
   | "seek"
@@ -197,7 +197,7 @@ type DeckCmdKind =
   | "set_filter"
   | "set_gain_trim"
   | "set_headphone_cue";
-type MixerCmdKind = "set_crossfader" | "set_cue_mix" | "set_master_cue";
+export type MixerCmdKind = "set_crossfader" | "set_cue_mix" | "set_master_cue";
 
 export function encodeWireCmd(origin: Origin, kind: Kind, body: CmdBody, revision = 0): Uint8Array {
   return encodeWire({
@@ -208,12 +208,16 @@ export function encodeWireCmd(origin: Origin, kind: Kind, body: CmdBody, revisio
   });
 }
 
+export function getDeckOrigin(deckId: number): Origin {
+  return { deck: deckId };
+}
+
 export function encodeDeckCmd(
   deckId: number,
   kind: DeckCmdKind,
   body: CmdBody = { type: "empty" },
 ): Uint8Array {
-  return encodeWireCmd({ deck: deckId }, kind, body);
+  return encodeWireCmd(getDeckOrigin(deckId), kind, body);
 }
 
 export function encodePlay(deckId: number): Uint8Array {

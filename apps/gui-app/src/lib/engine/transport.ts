@@ -1,20 +1,11 @@
 import { createMemoryEngineTransport } from "@/lib/engine/memoryTransport";
 import { createTauriEngineTransport } from "@/lib/engine/tauriTransport";
 import { createWasmEngineTransport } from "@/lib/engine/wasmTransport";
+import type { CmdBody, Kind, Origin } from "@/lib/engine/wire";
 
 /** Host-agnostic engine command surface; wire encoding is transport-specific. */
 export interface EngineTransport {
-  play(deckId: number): Promise<void>;
-  pause(deckId: number): Promise<void>;
-  seek(deckId: number, positionSecs: number): Promise<void>;
-  setVolume(deckId: number, volume: number): Promise<void>;
-  setEq(deckId: number, low: number, mid: number, high: number): Promise<void>;
-  setFilter(deckId: number, filterDb: number): Promise<void>;
-  setGainTrim(deckId: number, gainDb: number): Promise<void>;
-  setHeadphoneCue(deckId: number, enabled: boolean): Promise<void>;
-  setCrossfader(position: number): Promise<void>;
-  setCueMix(mix: number): Promise<void>;
-  setMasterCue(enabled: boolean): Promise<void>;
+  publish(origin: Origin, kind: Kind, body?: CmdBody): Promise<void>;
   subscribe(handler: (message: Uint8Array) => void): () => void;
 }
 
