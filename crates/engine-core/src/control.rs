@@ -139,6 +139,9 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         gain_trim_db: snap.gain_trim_db,
         headphone_cue: snap.headphone_cue,
         sync_mode: snap.sync_mode,
+        cue_point_secs: snap.cue_point_secs,
+        quantize: snap.quantize,
+        active_loop: snap.active_loop,
         position_secs: snap.position_secs,
         duration_secs: snap.duration_secs,
     }
@@ -217,7 +220,19 @@ fn handle_cmd_event(
 fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
     let body = decode_cmd_body(payload).map_err(|e| anyhow!("invalid cmd body: {e}"))?;
     match (&kind, &body) {
-        (Kind::Play | Kind::Pause | Kind::SetMasterDeck, CmdBody::Empty) => Ok(body),
+        (
+            Kind::Play
+            | Kind::Pause
+            | Kind::SetMasterDeck
+            | Kind::Unload
+            | Kind::SetCuePoint
+            | Kind::BeginCueHold
+            | Kind::EndCueHold
+            | Kind::LoopIn
+            | Kind::LoopOut
+            | Kind::ExitLoop,
+            CmdBody::Empty,
+        ) => Ok(body),
         (Kind::Seek, CmdBody::Seek { .. })
         | (Kind::SetVolume, CmdBody::SetVolume { .. })
         | (Kind::SetEq, CmdBody::SetEq { .. })
@@ -226,6 +241,9 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
         | (Kind::ToggleSync, CmdBody::ToggleSync { .. })
+        | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
+        | (Kind::SetAutoLoop, CmdBody::SetAutoLoop { .. })
+        | (Kind::BeatJump, CmdBody::BeatJump { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -312,6 +330,62 @@ fn dispatch_deck_cmd(
             let _updated = eng.set_master_deck(deck_id)?;
             // master_deck + slave speeds/sync live on EngineStatus decks.
             Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::Unload => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.unload_deck(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetCuePoint => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.set_deck_cue_point_at_playhead(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::BeginCueHold => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.begin_deck_cue_hold(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::EndCueHold => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.end_deck_cue_hold(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetQuantize => {
+            let CmdBody::SetQuantize { enabled } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_quantize(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetAutoLoop => {
+            let CmdBody::SetAutoLoop { beats } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_auto_loop(deck_id, beats)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::LoopIn => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.set_deck_loop_in_at_playhead(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::LoopOut => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.set_deck_loop_out_at_playhead(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::ExitLoop => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.clear_deck_loop(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::BeatJump => {
+            let CmdBody::BeatJump { beats } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.beat_jump_deck(deck_id, beats)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
     })

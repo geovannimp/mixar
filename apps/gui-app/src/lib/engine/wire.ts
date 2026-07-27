@@ -18,6 +18,16 @@ export const KindSchema = z.enum([
   "set_master_cue",
   "toggle_sync",
   "set_master_deck",
+  "unload",
+  "set_cue_point",
+  "begin_cue_hold",
+  "end_cue_hold",
+  "set_quantize",
+  "set_auto_loop",
+  "loop_in",
+  "loop_out",
+  "exit_loop",
+  "beat_jump",
   "updated",
   "position",
   "levels",
@@ -44,6 +54,13 @@ export type DeckEq = z.infer<typeof DeckEqSchema>;
 export const SyncModeSchema = z.enum(["off", "tempo", "beat"]);
 export type SyncMode = z.infer<typeof SyncModeSchema>;
 
+export const LoopRegionSchema = z.object({
+  in_secs: z.number(),
+  out_secs: z.number(),
+  active: z.boolean(),
+});
+export type LoopRegion = z.infer<typeof LoopRegionSchema>;
+
 export const DeckSnapshotSchema = z.object({
   id: z.number().int().nonnegative(),
   playing: z.boolean(),
@@ -54,6 +71,9 @@ export const DeckSnapshotSchema = z.object({
   gain_trim_db: z.number(),
   headphone_cue: z.boolean(),
   sync_mode: SyncModeSchema,
+  cue_point_secs: z.number().nullable(),
+  quantize: z.boolean(),
+  active_loop: LoopRegionSchema.nullable(),
   position_secs: z.number().nullable(),
   duration_secs: z.number().nullable(),
 });
@@ -88,6 +108,9 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_cue_mix"), mix: z.number() }),
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
+  z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
+  z.object({ type: z.literal("set_auto_loop"), beats: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("beat_jump"), beats: z.number().int() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -104,6 +127,9 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     gain_trim_db: z.number(),
     headphone_cue: z.boolean(),
     sync_mode: SyncModeSchema,
+    cue_point_secs: z.number().nullable(),
+    quantize: z.boolean(),
+    active_loop: LoopRegionSchema.nullable(),
     position_secs: z.number().nullable(),
     duration_secs: z.number().nullable(),
   }),
@@ -220,7 +246,17 @@ export type CmdKind =
   | "set_cue_mix"
   | "set_master_cue"
   | "toggle_sync"
-  | "set_master_deck";
+  | "set_master_deck"
+  | "unload"
+  | "set_cue_point"
+  | "begin_cue_hold"
+  | "end_cue_hold"
+  | "set_quantize"
+  | "set_auto_loop"
+  | "loop_in"
+  | "loop_out"
+  | "exit_loop"
+  | "beat_jump";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

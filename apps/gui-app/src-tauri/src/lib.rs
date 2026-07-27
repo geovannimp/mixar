@@ -1,9 +1,7 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
-    apply_deck_performance, begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold,
-    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
-    set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
-    trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+    apply_deck_performance, delete_hot_cue, delete_loop, fetch_deck_performance, recall_saved_loop,
+    save_hot_cue, save_loop, trigger_hot_cue, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sampler::{
     apply_effective_play_mode, assign_sampler_slot, assign_sampler_slot_from_track,
@@ -14,7 +12,7 @@ use deck_sampler::{
     SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{
-    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_pad_mode, PadMode, SyncMode,
+    begin_loop_roll, end_loop_roll, set_deck_pad_mode, PadMode, SyncMode,
 };
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
@@ -510,7 +508,7 @@ fn apply_path_metadata(deck: &mut DeckInfo, path: &str) {
     deck.key = None;
 }
 
-fn clear_deck_info(deck: &mut DeckInfo) {
+pub(crate) fn clear_deck_info(deck: &mut DeckInfo) {
     *deck = DeckInfo {
         volume: deck.volume,
         eq: deck.eq.clone(),
@@ -1313,15 +1311,6 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            unload_deck,
-            set_deck_cue_point,
-            begin_deck_cue_hold,
-            end_deck_cue_hold,
-            set_deck_quantize,
-            set_deck_auto_loop,
-            set_deck_loop_in,
-            set_deck_loop_out,
-            exit_deck_loop,
             trigger_hot_cue,
             save_hot_cue,
             delete_hot_cue,
@@ -1331,7 +1320,6 @@ pub fn run() {
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
-            beat_jump_deck,
             set_deck_pad_mode,
             begin_loop_roll,
             end_loop_roll,

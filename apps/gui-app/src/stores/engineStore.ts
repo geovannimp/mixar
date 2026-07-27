@@ -316,13 +316,17 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   unloadDeck: async (deckId) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("unload_deck", { deckId });
+      try {
+        await engineTransport.publish(getDeckOrigin(deckId), "unload");
+      } catch (err) {
+        reportEngineError(String(err));
+      }
     });
   },
 
   setDeckCuePoint: async (deckId) => {
     try {
-      await invoke("set_deck_cue_point", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_cue_point");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -330,7 +334,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   beginDeckCueHold: async (deckId) => {
     try {
-      await invoke("begin_deck_cue_hold", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "begin_cue_hold");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -338,7 +342,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   endDeckCueHold: async (deckId) => {
     try {
-      await invoke("end_deck_cue_hold", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "end_cue_hold");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -346,7 +350,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckQuantize: async (deckId, enabled) => {
     try {
-      await invoke("set_deck_quantize", { deckId, enabled });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_quantize", { enabled });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -354,7 +358,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckAutoLoop: async (deckId, beats) => {
     try {
-      await invoke("set_deck_auto_loop", { deckId, beats });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_auto_loop", { beats });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -362,7 +366,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckLoopIn: async (deckId) => {
     try {
-      await invoke("set_deck_loop_in", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "loop_in");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -370,7 +374,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckLoopOut: async (deckId) => {
     try {
-      await invoke("set_deck_loop_out", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "loop_out");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -378,7 +382,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   exitDeckLoop: async (deckId) => {
     try {
-      await invoke("exit_deck_loop", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "exit_loop");
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -452,7 +456,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   beatJumpDeck: async (deckId, beats) => {
     try {
-      await invoke("beat_jump_deck", { deckId, beats });
+      await engineTransport.publish(getDeckOrigin(deckId), "beat_jump", { beats });
     } catch (err) {
       reportEngineError(String(err));
     }

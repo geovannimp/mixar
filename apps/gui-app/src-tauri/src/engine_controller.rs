@@ -41,6 +41,13 @@ fn sync_app_state_from_engine(state: &mut AppState) {
             engine_api::SyncMode::Tempo => SyncMode::Tempo,
             engine_api::SyncMode::Beat => SyncMode::Beat,
         };
+        deck.cue_point_secs = snap.cue_point_secs;
+        deck.quantize = snap.quantize;
+        deck.active_loop = snap.active_loop.map(|region| crate::deck_performance::LoopRegionStatus {
+            in_secs: region.in_secs,
+            out_secs: region.out_secs,
+            active: region.active,
+        });
     }
 }
 

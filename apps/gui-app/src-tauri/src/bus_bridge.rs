@@ -103,12 +103,28 @@ pub fn clear_session(holder: &SharedSession) {
 }
 
 #[tauri::command]
-pub fn engine_publish(session: State<'_, SharedSession>, payload: Vec<u8>) -> Result<(), String> {
+pub fn engine_publish(
+    session: State<'_, SharedSession>,
+    app_state: State<'_, crate::SharedAppState>,
+    payload: Vec<u8>,
+) -> Result<(), String> {
+    let msg = decode_wire(&payload).map_err(|e| e.to_string())?;
+    // ponytail: AppState still owns track metadata until load migrates; clear on Unload so
+    // leftover library invokes don't see a ghost track.
+    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::Unload)) {
+        let Origin::Deck(deck_id) = msg.origin else {
+            unreachable!()
+        };
+        let deck_id = deck_id as usize;
+        if deck_id < crate::NUM_DECKS {
+            let mut state = app_state.lock().map_err(|e| e.to_string())?;
+            crate::clear_deck_info(&mut state.decks[deck_id]);
+        }
+    }
     let guard = session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_ref()
         .ok_or_else(|| "Engine session not running.".to_string())?;
-    let msg = decode_wire(&payload).map_err(|e| e.to_string())?;
     session
         .publish_cmd(msg.origin, msg.kind, msg.body)
         .map_err(|e| e.to_string())

@@ -18,6 +18,14 @@ pub enum SyncMode {
     Beat,
 }
 
+/// Active loop region on a deck.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct LoopRegion {
+    pub in_secs: f64,
+    pub out_secs: f64,
+    pub active: bool,
+}
+
 /// Slim deck snapshot for status patches and full snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
@@ -30,6 +38,9 @@ pub struct DeckSnapshot {
     pub gain_trim_db: f32,
     pub headphone_cue: bool,
     pub sync_mode: SyncMode,
+    pub cue_point_secs: Option<f64>,
+    pub quantize: bool,
+    pub active_loop: Option<LoopRegion>,
     pub position_secs: Option<f64>,
     pub duration_secs: Option<f64>,
 }
@@ -62,6 +73,9 @@ pub enum CmdBody {
     SetCueMix { mix: f32 },
     SetMasterCue { enabled: bool },
     ToggleSync { beat_sync: bool },
+    SetQuantize { enabled: bool },
+    SetAutoLoop { beats: u32 },
+    BeatJump { beats: i32 },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
@@ -79,6 +93,9 @@ pub enum EvtBody {
         gain_trim_db: f32,
         headphone_cue: bool,
         sync_mode: SyncMode,
+        cue_point_secs: Option<f64>,
+        quantize: bool,
+        active_loop: Option<LoopRegion>,
         position_secs: Option<f64>,
         duration_secs: Option<f64>,
     },
