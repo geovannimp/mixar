@@ -38,6 +38,8 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     filter_db: snapshot.filter_db,
     gain_trim_db: snapshot.gain_trim_db,
     headphone_cue: snapshot.headphone_cue,
+    sync_mode: snapshot.sync_mode,
+    is_master: base.is_master,
     position_secs: snapshot.position_secs ?? base.position_secs,
     duration_secs: snapshot.duration_secs ?? base.duration_secs,
     levels: base.levels ?? ZERO_DECK_LEVELS,
@@ -52,6 +54,7 @@ function mergeEngineStatusPayload(
   payload: EngineStatusPayload,
 ): EngineStatus {
   const currentById = new Map(current?.decks.map((deck) => [deck.id, deck]));
+  const masterDeck = payload.master_deck;
   return {
     running: payload.running,
     backend: current?.backend ?? "",
@@ -59,10 +62,11 @@ function mergeEngineStatusPayload(
     crossfader: payload.crossfader,
     cue_mix: payload.cue_mix,
     master_cue: payload.master_cue,
-    master_deck: current?.master_deck,
-    decks: payload.decks.map((snapshot) =>
-      mergeDeckSnapshot(currentById.get(snapshot.id), snapshot),
-    ),
+    master_deck: masterDeck,
+    decks: payload.decks.map((snapshot) => {
+      const merged = mergeDeckSnapshot(currentById.get(snapshot.id), snapshot);
+      return { ...merged, is_master: merged.id === masterDeck };
+    }),
     sampler: current?.sampler ?? DEFAULT_SAMPLER_STATUS,
   };
 }
@@ -111,13 +115,23 @@ export function applyBusEvent(
         filter_db: deck.filter_db,
         gain_trim_db: deck.gain_trim_db,
         headphone_cue: deck.headphone_cue,
+        sync_mode: deck.sync_mode,
         position_secs: deck.position_secs,
         duration_secs: deck.duration_secs,
       };
       return {
         status: {
           ...current,
-          decks: current.decks.map((d) => (d.id === deck.id ? mergeDeckSnapshot(d, snapshot) : d)),
+          decks: current.decks.map((d) => {
+            if (d.id !== deck.id) {
+              return d;
+            }
+            const merged = mergeDeckSnapshot(d, snapshot);
+            return {
+              ...merged,
+              is_master: merged.id === (current.master_deck ?? 0),
+            };
+          }),
         },
         revision: wire.revision,
       };

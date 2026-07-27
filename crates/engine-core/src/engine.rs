@@ -5,13 +5,14 @@ use crate::producer::{
     create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceStreamSetup,
 };
 use crate::routing::DeviceStreamPlan;
+use crate::sync::{beat_align_target, target_sync_speed, DeckControlState};
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::LoadedAudio;
 use audio_core::{
     AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
-use engine_api::{DeckEq, DeckSnapshot, EngineStatus};
+use engine_api::{DeckEq, DeckSnapshot, EngineStatus, SyncMode};
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
@@ -22,6 +23,8 @@ use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+
+const NUM_DECKS: usize = 2;
 
 /// Cue point (secs) and optional loop region `(start, end)` for status mirroring.
 type DeckTransportState = (Option<f64>, Option<(f64, f64)>);
@@ -38,6 +41,8 @@ pub struct Engine {
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
     /// Decoded PCM cache keyed by track id.
     decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
+    master_deck: usize,
+    deck_control: Vec<DeckControlState>,
 }
 
 impl Engine {
@@ -55,6 +60,13 @@ impl Engine {
             running: Arc::new(Mutex::new(false)),
             transport_events: Arc::new(Mutex::new(Vec::new())),
             decode_cache: HashMap::new(),
+            master_deck: 0,
+            deck_control: (0..NUM_DECKS)
+                .map(|_| DeckControlState {
+                    quantize: true,
+                    ..Default::default()
+                })
+                .collect(),
         })
     }
 
@@ -355,6 +367,7 @@ impl Engine {
 
         let track_id = source.id().clone();
         let loudness_lufs = loudness_from_metadata(source.metadata());
+        let bpm = source.metadata().bpm;
         let audio = if let Some(cached) = self.decode_cache.get(&track_id) {
             Arc::clone(cached)
         } else {
@@ -370,6 +383,9 @@ impl Engine {
             .channel_mut(deck_id)
             .expect("validated above")
             .set_loudness_lufs(loudness_lufs);
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.reset_for_load(bpm);
+        }
         log::info!("Track loaded into deck {}", deck_id);
         Ok(())
     }
@@ -483,7 +499,31 @@ impl Engine {
     }
 
     /// Set playback speed for a deck (1.0 = normal tempo).
-    pub fn set_deck_speed(&mut self, deck_id: usize, speed: f32) -> Result<()> {
+    ///
+    /// When the deck is master, synced slaves follow tempo (not beat phase).
+    /// Returns every deck whose speed changed (master first).
+    pub fn set_deck_speed(&mut self, deck_id: usize, speed: f32) -> Result<Vec<usize>> {
+        if !(0.0..=2.0).contains(&speed) || speed <= 0.0 {
+            return Err(anyhow::anyhow!("Speed must be between 0 and 2."));
+        }
+        self.set_deck_speed_raw(deck_id, speed)?;
+        let mut updated = vec![deck_id];
+        if deck_id == self.master_deck {
+            for slave_id in 0..self.deck_control.len() {
+                if slave_id == deck_id {
+                    continue;
+                }
+                if self.deck_control[slave_id].sync_mode == SyncMode::Off {
+                    continue;
+                }
+                self.apply_tempo_sync(slave_id, deck_id)?;
+                updated.push(slave_id);
+            }
+        }
+        Ok(updated)
+    }
+
+    fn set_deck_speed_raw(&mut self, deck_id: usize, speed: f32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
@@ -495,6 +535,129 @@ impl Engine {
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
         }
+    }
+
+    fn apply_tempo_sync(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
+        if slave_id == master_id {
+            return Err(anyhow::anyhow!("Cannot sync a deck to itself."));
+        }
+        let slave_bpm = self
+            .deck_control
+            .get(slave_id)
+            .and_then(|d| d.bpm)
+            .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for sync."))?;
+        let master_bpm = self
+            .deck_control
+            .get(master_id)
+            .and_then(|d| d.bpm)
+            .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for sync."))?;
+        let master_speed = {
+            let dsp = self
+                .dsp_engine
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?
+                .lock()
+                .unwrap();
+            dsp.deck(master_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?
+                .speed()
+        };
+        let target = target_sync_speed(master_bpm, master_speed, slave_bpm);
+        self.set_deck_speed_raw(slave_id, target)
+    }
+
+    fn align_beat_phase(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
+        let master_bpm = self
+            .deck_control
+            .get(master_id)
+            .and_then(|d| d.bpm)
+            .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for beat sync."))?;
+        let (slave_bpm, quantize) = {
+            let control = self
+                .deck_control
+                .get(slave_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid slave deck ID: {slave_id}"))?;
+            let bpm = control
+                .bpm
+                .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for beat sync."))?;
+            (bpm, control.quantize)
+        };
+        let (master_pos, _) = self.deck_playback_secs(master_id).unwrap_or((0.0, 0.0));
+        let (slave_pos, duration) = self.deck_playback_secs(slave_id).unwrap_or((0.0, 0.0));
+        let target = beat_align_target(
+            master_pos, slave_pos, duration, master_bpm, slave_bpm, quantize,
+        );
+        self.seek_deck(slave_id, target)
+    }
+
+    /// Toggle sync for a slave deck (`beat_sync` chooses beat vs tempo when enabling).
+    pub fn toggle_deck_sync(&mut self, deck_id: usize, beat_sync: bool) -> Result<Vec<usize>> {
+        if deck_id >= self.deck_control.len() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {deck_id}"));
+        }
+        if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+            return Err(anyhow::anyhow!("Load a track before enabling sync."));
+        }
+        let master_id = self.master_deck;
+        if deck_id == master_id {
+            return Err(anyhow::anyhow!(
+                "Master deck cannot sync to itself. Choose the other deck."
+            ));
+        }
+
+        let next_mode = if self.deck_control[deck_id].sync_mode == SyncMode::Off {
+            if beat_sync {
+                SyncMode::Beat
+            } else {
+                SyncMode::Tempo
+            }
+        } else {
+            SyncMode::Off
+        };
+        self.deck_control[deck_id].sync_mode = next_mode;
+
+        let updated = vec![deck_id];
+        if next_mode != SyncMode::Off {
+            self.apply_tempo_sync(deck_id, master_id)?;
+            if next_mode == SyncMode::Beat {
+                self.align_beat_phase(deck_id, master_id)?;
+            }
+        }
+        Ok(updated)
+    }
+
+    /// Designate the master deck and re-apply sync to all active slaves.
+    pub fn set_master_deck(&mut self, deck_id: usize) -> Result<Vec<usize>> {
+        if deck_id >= self.deck_control.len() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {deck_id}"));
+        }
+        self.master_deck = deck_id;
+        let mut updated = Vec::with_capacity(self.deck_control.len());
+        for id in 0..self.deck_control.len() {
+            updated.push(id);
+        }
+        for slave_id in 0..self.deck_control.len() {
+            if slave_id == deck_id {
+                continue;
+            }
+            let mode = self.deck_control[slave_id].sync_mode;
+            if mode == SyncMode::Off {
+                continue;
+            }
+            self.apply_tempo_sync(slave_id, deck_id)?;
+            if mode == SyncMode::Beat {
+                self.align_beat_phase(slave_id, deck_id)?;
+            }
+        }
+        Ok(updated)
+    }
+
+    pub fn master_deck(&self) -> usize {
+        self.master_deck
+    }
+
+    pub fn deck_sync_mode(&self, deck_id: usize) -> Option<SyncMode> {
+        self.deck_control.get(deck_id).map(|d| d.sync_mode)
     }
 
     /// Set DJ filter position for a deck (negative = LP, positive = HP), via its mixer channel.
@@ -560,6 +723,19 @@ impl Engine {
             .channel_mut(deck_id)
             .expect("validated above")
             .set_loudness_lufs(None);
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.reset_for_load(None);
+        }
+        Ok(())
+    }
+
+    /// Mirror UI quantize into engine control state (beat-sync snap).
+    pub fn set_deck_quantize(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        control.quantize = enabled;
         Ok(())
     }
 
@@ -851,7 +1027,8 @@ impl Engine {
     pub fn deck_snapshot(&self, deck_id: usize) -> Option<DeckSnapshot> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
-        deck_snapshot_from_dsp(&dsp, deck_id)
+        let sync_mode = self.deck_control.get(deck_id)?.sync_mode;
+        deck_snapshot_from_dsp(&dsp, deck_id, sync_mode)
     }
 
     /// Full engine snapshot for bus `Status` events.
@@ -860,7 +1037,12 @@ impl Engine {
         let dsp = dsp_engine.lock().ok()?;
         let mut decks = Vec::with_capacity(dsp.num_decks());
         for deck_id in 0..dsp.num_decks() {
-            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id) {
+            let sync_mode = self
+                .deck_control
+                .get(deck_id)
+                .map(|d| d.sync_mode)
+                .unwrap_or_default();
+            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id, sync_mode) {
                 decks.push(snapshot);
             }
         }
@@ -870,6 +1052,7 @@ impl Engine {
             crossfader: dsp.mixer().crossfader(),
             cue_mix: dsp.mixer().cue_mix(),
             master_cue: dsp.mixer().master_cue(),
+            master_deck: self.master_deck as u16,
             decks,
         })
     }
@@ -1000,7 +1183,11 @@ impl Engine {
     }
 }
 
-fn deck_snapshot_from_dsp(dsp: &DspEngine, deck_id: usize) -> Option<DeckSnapshot> {
+fn deck_snapshot_from_dsp(
+    dsp: &DspEngine,
+    deck_id: usize,
+    sync_mode: SyncMode,
+) -> Option<DeckSnapshot> {
     let deck = dsp.deck(deck_id)?;
     let channel = dsp.mixer().channel(deck_id)?;
     let eq = channel.eq_gains();
@@ -1021,6 +1208,7 @@ fn deck_snapshot_from_dsp(dsp: &DspEngine, deck_id: usize) -> Option<DeckSnapsho
         filter_db: channel.filter_db(),
         gain_trim_db: channel.gain_trim_db(),
         headphone_cue: channel.headphone_cue(),
+        sync_mode,
         position_secs,
         duration_secs,
     })

@@ -12,6 +12,7 @@ mod engine;
 mod producer;
 mod routing;
 mod session;
+mod sync;
 mod transport;
 
 pub use analyzer_core::AnalysisDurationMode;
