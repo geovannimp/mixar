@@ -24,4 +24,5 @@
 - Device optimization in `backend-cpal` prefers 2-channel config with lowest min sample rate and smallest buffer size when opening streams.
 - `docs/deck-spec.md` defines target deck UI, features, data model, and phased roadmap.
 - Engine emits events to the UI for state sync with external control sources (e.g. MIDI); GUI subscribes and renders.
+- Engine event bus: `engine-core` owns omnibus cmd/evt buses; hosts bridge postcard bytes only; frontend uses `EngineTransport` (not direct Tauri invoke/listen for engine traffic). See `docs/superpowers/specs/2026-07-26-engine-event-bus-design.md`.
 - Hot cues and loops persist in dedicated `track_hot_cue` / `track_loop` tables in `library.db` (same pattern as waveforms).

@@ -11,7 +11,9 @@ use audio_core::LoadedAudio;
 use audio_core::{
     AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
+use engine_api::{DeckEq, DeckSnapshot, EngineStatus};
 use engine_dsp::DeckEqGains;
+use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
@@ -838,6 +840,40 @@ impl Engine {
         Some((position, duration))
     }
 
+    /// Whether a deck has loaded audio when the engine is running.
+    pub fn deck_has_audio_loaded(&self, deck_id: usize) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.deck(deck_id)?.has_audio_loaded())
+    }
+
+    /// Slim deck snapshot for bus `Updated` events.
+    pub fn deck_snapshot(&self, deck_id: usize) -> Option<DeckSnapshot> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        deck_snapshot_from_dsp(&dsp, deck_id)
+    }
+
+    /// Full engine snapshot for bus `Status` events.
+    pub fn engine_status_snapshot(&self) -> Option<EngineStatus> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let mut decks = Vec::with_capacity(dsp.num_decks());
+        for deck_id in 0..dsp.num_decks() {
+            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id) {
+                decks.push(snapshot);
+            }
+        }
+        Some(EngineStatus {
+            running: true,
+            sample_rate: self.config.sample_rate,
+            crossfader: dsp.mixer().crossfader(),
+            cue_mix: dsp.mixer().cue_mix(),
+            master_cue: dsp.mixer().master_cue(),
+            decks,
+        })
+    }
+
     /// List available audio devices for the engine's current backend
     pub fn list_devices(&self) -> Result<Vec<DeviceInfo>> {
         self.backend.list_output_devices()
@@ -962,6 +998,29 @@ impl Engine {
         }
         Ok(())
     }
+}
+
+fn deck_snapshot_from_dsp(dsp: &DspEngine, deck_id: usize) -> Option<DeckSnapshot> {
+    let deck = dsp.deck(deck_id)?;
+    let channel = dsp.mixer().channel(deck_id)?;
+    let eq = channel.eq_gains();
+    let (position_secs, duration_secs) = match deck.duration_seconds() {
+        Some(duration) => (Some(deck.position_seconds().unwrap_or(0.0)), Some(duration)),
+        None => (None, None),
+    };
+    Some(DeckSnapshot {
+        id: deck_id as u16,
+        playing: matches!(deck.state(), DeckState::Playing),
+        volume: channel.volume(),
+        speed: deck.speed(),
+        eq: DeckEq {
+            low: eq.low_db,
+            mid: eq.mid_db,
+            high: eq.high_db,
+        },
+        position_secs,
+        duration_secs,
+    })
 }
 
 fn loudness_from_metadata(metadata: &TrackMetadata) -> Option<f64> {

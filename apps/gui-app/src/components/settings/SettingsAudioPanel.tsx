@@ -376,7 +376,9 @@ export function SettingsAudioPanel({
             options={SAMPLER_PLAY_MODE_OPTIONS}
             onValueChange={(sampler_play_mode) => onChange({ ...draft, sampler_play_mode })}
           />
-          <FieldDescription>Used by banks whose play mode is Default (inherit).</FieldDescription>
+          <p className="text-muted-foreground text-xs">
+            Used by banks whose play mode is Default (inherit).
+          </p>
         </SettingsField>
 
         <SettingsField label="Channel strip routing">
@@ -386,10 +388,10 @@ export function SettingsAudioPanel({
             options={SAMPLER_STRIP_ROUTE_OPTIONS}
             onValueChange={(sampler_strip_route) => onChange({ ...draft, sampler_strip_route })}
           />
-          <FieldDescription>
+          <p className="text-muted-foreground text-xs">
             Before runs pads through this deck&apos;s EQ, filter, and fader. After bypasses the
             strip. Takes effect the next time the engine starts.
-          </FieldDescription>
+          </p>
         </SettingsField>
 
         <SettingsField label="Deck A default bank">

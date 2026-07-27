@@ -1072,6 +1072,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "engine-api"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "rmp-serde",
+ "serde",
+ "serde_bytes",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "engine-core"
 version = "0.1.0"
 dependencies = [
@@ -1081,9 +1092,11 @@ dependencies = [
  "backend-cpal",
  "backend-miniaudio",
  "backend-null",
+ "engine-api",
  "engine-dsp",
  "library-core",
  "log",
+ "omnibus",
  "resampler",
  "rtrb",
  "serde",
@@ -1354,6 +1367,12 @@ name = "hermit-abi"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
+
+[[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hmac-sha256"
@@ -2239,6 +2258,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "omnibus"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88d436e65910b0adff4b12de09e16597cb29bb895d3fd1f5c9dc405dfde92f49"
+dependencies = [
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2732,6 +2760,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rmp"
+version = "0.8.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ba8be72d372b2c9b35542551678538b562e7cf86c3315773cae48dfbfe7790c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "rmp-serde"
+version = "1.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72f81bee8c8ef9b577d1681a70ebbc962c232461e397b22c208c43c04b67a155"
+dependencies = [
+ "rmp",
+ "serde",
+]
+
+[[package]]
 name = "rsqlite-vfs"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3063,6 +3110,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde_bytes"
+version = "0.11.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d440709e79d88e51ac01c4b72fc6cb7314017bb7da9eeff678aa94c10e3ea8"
+dependencies = [
+ "serde",
+ "serde_core",
 ]
 
 [[package]]

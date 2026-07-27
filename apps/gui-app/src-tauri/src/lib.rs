@@ -1,7 +1,7 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
     apply_deck_performance, begin_deck_cue_hold, delete_hot_cue, delete_loop, end_deck_cue_hold,
-    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop, seek_deck,
+    exit_deck_loop, fetch_deck_performance, recall_saved_loop, save_hot_cue, save_loop,
     set_deck_auto_loop, set_deck_cue_point, set_deck_loop_in, set_deck_loop_out, set_deck_quantize,
     trigger_hot_cue, unload_deck, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
@@ -19,7 +19,7 @@ use deck_sync::{
 };
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
-    SamplerStripRouteSetting,
+    EngineSession, SamplerStripRouteSetting,
 };
 use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
 use library_core::{
@@ -33,12 +33,12 @@ use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
+mod bus_bridge;
 mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
 mod engine_controller;
 mod engine_events;
-mod engine_notifier;
 mod fs_browser;
 mod waveform_render;
 
@@ -47,8 +47,8 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
+use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
 use engine_controller::{engine_status, publish_deck, publish_status};
-use engine_notifier::EngineNotifier;
 
 pub(crate) use engine_controller::{bump_revision, deck_status};
 
@@ -134,7 +134,8 @@ impl Default for DeckInfo {
 
 pub(crate) struct AppState {
     pub library: LibraryManager,
-    pub engine: Option<Engine>,
+    pub session: Option<Arc<EngineSession>>,
+    pub evt_forwarder: Option<EvtForwarder>,
     pub engine_config: EngineConfig,
     pub decks: [DeckInfo; NUM_DECKS],
     pub crossfader: f32,
@@ -149,7 +150,6 @@ pub(crate) struct AppState {
     pub sampler_play_mode: SamplerPlayModeSetting,
     pub sampler_strip_route: SamplerStripRouteSetting,
     pub deck_default_sampler_bank_id: [Option<String>; NUM_DECKS],
-    pub notifier: Option<EngineNotifier>,
     pub sampler_slots: [[SamplerSlotInfo; deck_sampler::SAMPLER_SLOT_COUNT]; NUM_DECKS],
     pub loaded_sampler_bank_id: [Option<String>; NUM_DECKS],
     /// Unsaved bank created with "+" — persisted on first rename / play-mode / sample assign.
@@ -495,13 +495,15 @@ pub(crate) fn clamp_eq_db(value: f32) -> f32 {
 }
 
 fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
-    let Some(engine) = state.engine.as_ref() else {
+    let Some(session) = state.session.as_ref() else {
         return (None, None);
     };
-    match engine.deck_playback_secs(deck_id) {
-        Some((position, duration)) => (Some(position), Some(duration)),
-        None => (None, None),
-    }
+    session
+        .with_engine(|engine| match engine.deck_playback_secs(deck_id) {
+            Some((position, duration)) => Ok((Some(position), Some(duration))),
+            None => Ok((None, None)),
+        })
+        .unwrap_or((None, None))
 }
 
 fn apply_path_metadata(deck: &mut DeckInfo, path: &str) {
@@ -580,39 +582,59 @@ fn with_engine<F, T>(state: &mut AppState, f: F) -> Result<T, String>
 where
     F: FnOnce(&mut Engine) -> Result<T, String>,
 {
-    let engine = state
-        .engine
-        .as_mut()
+    let session = state
+        .session
+        .as_ref()
         .ok_or_else(|| "Engine is not running. Start it first.".to_string())?;
-    f(engine)
+    session
+        .with_engine(|engine| f(engine).map_err(|e| anyhow::anyhow!(e)))
+        .map_err(|e| e.to_string())
+}
+
+fn stop_session(state: &mut AppState) -> Result<(), String> {
+    state.evt_forwarder = None;
+    if let Some(session) = state.session.take() {
+        session
+            .with_engine(|engine| engine.stop().map_err(|e| anyhow::anyhow!(e)))
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-fn start_engine(app: AppHandle, shared: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
-    let shared_state = shared.inner().clone();
+fn start_engine(
+    app: AppHandle,
+    shared: State<'_, SharedAppState>,
+    session_holder: State<'_, SharedSession>,
+) -> Result<EngineStatus, String> {
     let mut state = shared.lock().map_err(|e| e.to_string())?;
-    if state.engine.is_some() {
+    if state.session.is_some() {
         return Ok(engine_status(&state));
     }
 
     let config = state.engine_config.clone();
-    let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
-    engine.start().map_err(|e| e.to_string())?;
-    state.engine = Some(engine);
+    let session = Arc::new(EngineSession::new(config).map_err(|e| e.to_string())?);
+    session
+        .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
+        .map_err(|e| e.to_string())?;
+    state.session = Some(Arc::clone(&session));
+    install_session(session_holder.inner(), Arc::clone(&session));
+    state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
     apply_normalizer_target(&mut state)?;
     ensure_sampler_ready(&mut state)?;
-    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
 
     Ok(publish_status(&app, &mut state))
 }
 
 #[tauri::command]
-fn stop_engine(app: AppHandle, state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
+fn stop_engine(
+    app: AppHandle,
+    state: State<'_, SharedAppState>,
+    session_holder: State<'_, SharedSession>,
+) -> Result<EngineStatus, String> {
     let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.notifier = None;
-    if let Some(mut engine) = state.engine.take() {
-        engine.stop().map_err(|e| e.to_string())?;
-    }
+    stop_session(&mut state)?;
+    clear_session(session_holder.inner());
     for deck in &mut state.decks {
         clear_deck_info(deck);
     }
@@ -643,12 +665,13 @@ async fn save_settings(
     app: AppHandle,
     settings: AppSettings,
     shared: State<'_, SharedAppState>,
+    session_holder: State<'_, SharedSession>,
 ) -> Result<AppSettings, String> {
-    let shared_state = shared.inner().clone();
+    let session_holder = session_holder.inner().clone();
 
     let (was_running, deck_tracks) = {
         let mut state = shared.lock().map_err(|e| e.to_string())?;
-        let was_running = state.engine.is_some();
+        let was_running = state.session.is_some();
         let deck_tracks: Vec<(usize, String)> = state
             .decks
             .iter()
@@ -657,10 +680,8 @@ async fn save_settings(
             .collect();
 
         if was_running {
-            state.notifier = None;
-            if let Some(mut engine) = state.engine.take() {
-                engine.stop().map_err(|e| e.to_string())?;
-            }
+            stop_session(&mut state)?;
+            clear_session(&session_holder);
             // Do NOT clear_deck_info here — keep deck/track/hot-cue UI state intact
             // across the restart; only the engine (and its loaded audio) is torn down.
         }
@@ -676,9 +697,13 @@ async fn save_settings(
 
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     let config = state.engine_config.clone();
-    let mut engine = Engine::new(config).map_err(|e| e.to_string())?;
-    engine.start().map_err(|e| e.to_string())?;
-    state.engine = Some(engine);
+    let session = Arc::new(EngineSession::new(config).map_err(|e| e.to_string())?);
+    session
+        .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
+        .map_err(|e| e.to_string())?;
+    state.session = Some(Arc::clone(&session));
+    install_session(&session_holder, Arc::clone(&session));
+    state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
     apply_normalizer_target(&mut state)?;
 
     for (deck_id, path) in deck_tracks {
@@ -708,7 +733,6 @@ async fn save_settings(
     for deck_id in 0..NUM_DECKS {
         let _ = apply_effective_play_mode(&mut state, deck_id);
     }
-    state.notifier = Some(EngineNotifier::start(app.clone(), shared_state));
     let _ = publish_status(&app, &mut state);
 
     Ok(settings_from_state(&state))
@@ -1058,171 +1082,7 @@ async fn load_library_track_to_deck(
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
-#[tauri::command]
-fn play_deck(
-    app: AppHandle,
-    deck_id: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].track.is_none() {
-        return Err("Load a track before playing.".to_string());
-    }
-
-    with_engine(&mut state, |engine| {
-        engine.play(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].playing = true;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn pause_deck(
-    app: AppHandle,
-    deck_id: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
-        engine.pause(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].playing = false;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_deck_volume(
-    app: AppHandle,
-    deck_id: usize,
-    volume: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if !(0.0..=1.0).contains(&volume) {
-        return Err("Volume must be between 0 and 1.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].volume = volume;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_volume(deck_id, volume)
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_deck_eq(
-    app: AppHandle,
-    deck_id: usize,
-    low: f32,
-    mid: f32,
-    high: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let eq = DeckEq {
-        low: clamp_eq_db(low),
-        mid: clamp_eq_db(mid),
-        high: clamp_eq_db(high),
-    };
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_eq_bands(deck_id, eq.low, eq.mid, eq.high)
-            .map_err(|e| e.to_string())?;
-    }
-    state.decks[deck_id].eq = eq;
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_deck_headphone_cue(
-    app: AppHandle,
-    deck_id: usize,
-    enabled: bool,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].headphone_cue = enabled;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_headphone_cue(deck_id, enabled)
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-fn set_crossfader(
-    app: AppHandle,
-    crossfader: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    if !(0.0..=1.0).contains(&crossfader) {
-        return Err("Crossfader must be between 0 and 1.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.crossfader = crossfader;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_crossfader(crossfader)
-            .map_err(|e| e.to_string())?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn set_cue_mix(
-    app: AppHandle,
-    cue_mix: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    if !(0.0..=1.0).contains(&cue_mix) {
-        return Err("Cue mix must be between 0.0 and 1.0".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.cue_mix = cue_mix;
-    if let Some(engine) = state.engine.as_mut() {
-        engine.set_cue_mix(cue_mix).map_err(|e| e.to_string())?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn set_master_cue(
-    app: AppHandle,
-    enabled: bool,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.master_cue = enabled;
-    if let Some(engine) = state.engine.as_mut() {
-        engine.set_master_cue(enabled).map_err(|e| e.to_string())?;
-    }
-    Ok(publish_status(&app, &mut state))
-}
-
+// ponytail: tempo sync still Tauri-side until sync state moves to engine-core; UI uses invoke for set_speed
 #[tauri::command]
 fn set_deck_speed(
     app: AppHandle,
@@ -1239,10 +1099,12 @@ fn set_deck_speed(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.decks[deck_id].speed = speed;
-    if let Some(engine) = state.engine.as_mut() {
-        engine
-            .set_deck_speed(deck_id, speed)
-            .map_err(|e| e.to_string())?;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine
+                .set_deck_speed(deck_id, speed)
+                .map_err(|e| e.to_string())
+        })?;
     }
 
     let mut synced_slaves = Vec::new();
@@ -1265,6 +1127,29 @@ fn set_deck_speed(
         let _ = publish_deck(&app, &mut state, slave_id);
     }
     Ok(master_status)
+}
+
+#[tauri::command]
+fn set_deck_headphone_cue(
+    app: AppHandle,
+    deck_id: usize,
+    enabled: bool,
+    state: State<'_, SharedAppState>,
+) -> Result<DeckStatus, String> {
+    if deck_id >= NUM_DECKS {
+        return Err(format!("Invalid deck ID: {deck_id}"));
+    }
+
+    let mut state = state.lock().map_err(|e| e.to_string())?;
+    state.decks[deck_id].headphone_cue = enabled;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine
+                .set_deck_headphone_cue(deck_id, enabled)
+                .map_err(|e| e.to_string())
+        })?;
+    }
+    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]
@@ -1459,9 +1344,13 @@ pub fn run() {
                 LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
                     .map_err(|err| err.to_string())?;
 
+            let shared_session = bus_bridge::new_shared_session();
+            app.manage(shared_session);
+
             app.manage(Arc::new(Mutex::new(AppState {
                 library,
-                engine: None,
+                session: None,
+                evt_forwarder: None,
                 engine_config: default_engine_config(),
                 decks: Default::default(),
                 crossfader: 0.5,
@@ -1476,7 +1365,6 @@ pub fn run() {
                 sampler_play_mode: SamplerPlayModeSetting::default(),
                 sampler_strip_route: default_sampler_strip_route(),
                 deck_default_sampler_bank_id: default_deck_sampler_banks(),
-                notifier: None,
                 sampler_slots: empty_deck_sampler_slots(),
                 loaded_sampler_bank_id: std::array::from_fn(|_| None),
                 draft_sampler_bank: None,
@@ -1500,16 +1388,8 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            play_deck,
-            pause_deck,
-            set_deck_volume,
-            set_deck_eq,
             set_deck_speed,
             set_deck_headphone_cue,
-            set_crossfader,
-            set_cue_mix,
-            set_master_cue,
-            seek_deck,
             unload_deck,
             set_deck_cue_point,
             begin_deck_cue_hold,
@@ -1548,6 +1428,7 @@ pub fn run() {
             end_sampler_pad,
             get_sampler_status,
             get_track_artwork,
+            bus_bridge::engine_publish,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

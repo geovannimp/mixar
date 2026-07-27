@@ -4,6 +4,9 @@ import { WAVEFORM_VISIBLE_SECS } from "./spectralColor";
 const MIN_TILES = 1;
 const MAX_TILES = 48;
 
+/** Common browser/GPU 2D canvas width ceiling (Chrome often caps at 16384). */
+export const MAX_WAVEFORM_CANVAS_WIDTH = 16384;
+
 function decodeBase64Rgba(base64: string): Uint8ClampedArray {
   const binary = atob(base64);
   const bytes = new Uint8ClampedArray(binary.length);
@@ -26,6 +29,22 @@ export function computeTileSecs(
     Math.max(MIN_TILES, Math.ceil(durationSecs / visibleSecs)),
   );
   return durationSecs / targetTiles;
+}
+
+/**
+ * Horizontal resolution for the full-track strip. Long tracks reduce px/sec so the
+ * strip stays under {@link MAX_WAVEFORM_CANVAS_WIDTH} (oversized canvases break scrub/playhead).
+ */
+export function computePxPerSec(
+  viewportWidth: number,
+  durationSecs: number,
+  visibleSecs: number,
+  maxCanvasWidth: number = MAX_WAVEFORM_CANVAS_WIDTH,
+): number {
+  const safeDuration = Math.max(durationSecs, visibleSecs, 1e-6);
+  const ideal = Math.max(viewportWidth, 1) / Math.max(visibleSecs, 1e-6);
+  const capped = maxCanvasWidth / safeDuration;
+  return Math.min(ideal, capped);
 }
 
 /** Full-track strip filled incrementally; never re-fetches completed tiles. */
@@ -67,7 +86,7 @@ export class WaveformTrackCache {
   ): WaveformTrackCache {
     const safeDuration = Math.max(durationSecs, visibleSecs);
     const tileSecs = computeTileSecs(safeDuration, visibleSecs);
-    const pxPerSec = viewportWidth / visibleSecs;
+    const pxPerSec = computePxPerSec(viewportWidth, safeDuration, visibleSecs);
     const canvasWidth = Math.max(1, Math.ceil(safeDuration * pxPerSec));
 
     const canvas = document.createElement("canvas");
