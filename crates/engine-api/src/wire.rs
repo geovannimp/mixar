@@ -1,4 +1,4 @@
-//! Postcard encode/decode for wire messages and nested cmd/evt bodies.
+//! MessagePack encode/decode for wire messages and nested cmd/evt bodies.
 
 use crate::{CmdBody, EvtBody, Kind, Origin};
 use serde::{Deserialize, Serialize};
@@ -10,41 +10,42 @@ pub struct WireMessage {
     pub origin: Origin,
     pub kind: Kind,
     pub revision: u64,
+    #[serde(with = "serde_bytes")]
     pub body: Vec<u8>,
 }
 
 #[derive(Debug, Error)]
 pub enum EncodeError {
-    #[error("postcard encode failed: {0}")]
-    Postcard(#[from] postcard::Error),
+    #[error("messagepack encode failed: {0}")]
+    Msgpack(#[from] rmp_serde::encode::Error),
 }
 
 #[derive(Debug, Error)]
 pub enum DecodeError {
-    #[error("postcard decode failed: {0}")]
-    Postcard(#[from] postcard::Error),
+    #[error("messagepack decode failed: {0}")]
+    Msgpack(#[from] rmp_serde::decode::Error),
 }
 
 pub fn encode_wire(msg: &WireMessage) -> Result<Vec<u8>, EncodeError> {
-    Ok(postcard::to_allocvec(msg)?)
+    Ok(rmp_serde::to_vec_named(msg)?)
 }
 
 pub fn decode_wire(bytes: &[u8]) -> Result<WireMessage, DecodeError> {
-    Ok(postcard::from_bytes(bytes)?)
+    Ok(rmp_serde::from_slice(bytes)?)
 }
 
 pub fn encode_cmd_body(body: &CmdBody) -> Result<Vec<u8>, EncodeError> {
-    Ok(postcard::to_allocvec(body)?)
+    Ok(rmp_serde::to_vec_named(body)?)
 }
 
 pub fn decode_cmd_body(bytes: &[u8]) -> Result<CmdBody, DecodeError> {
-    Ok(postcard::from_bytes(bytes)?)
+    Ok(rmp_serde::from_slice(bytes)?)
 }
 
 pub fn encode_evt_body(body: &EvtBody) -> Result<Vec<u8>, EncodeError> {
-    Ok(postcard::to_allocvec(body)?)
+    Ok(rmp_serde::to_vec_named(body)?)
 }
 
 pub fn decode_evt_body(bytes: &[u8]) -> Result<EvtBody, DecodeError> {
-    Ok(postcard::from_bytes(bytes)?)
+    Ok(rmp_serde::from_slice(bytes)?)
 }

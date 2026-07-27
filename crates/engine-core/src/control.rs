@@ -190,7 +190,7 @@ fn handle_cmd_event(
                         evt_bus,
                         Origin::Mixer,
                         Kind::Status,
-                        EvtBody::EngineStatus(status),
+                        EvtBody::EngineStatus { status },
                     );
                 }
                 Ok(())

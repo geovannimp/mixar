@@ -18,9 +18,9 @@ Replace per-action Tauri invokes and Tauri-owned engine status mirroring with an
 | Publish semantics | Fire-and-forget; failures via `evt` Error/Notice |
 | Multi-consumer egress | UI + future MIDI both subscribe to evt bus |
 | Bus crate | [`omnibus`](https://docs.rs/omnibus/latest/omnibus/) `0.1` (wasm32-ok; `Filter::Any` ≈ wildcards) |
-| Wire codec | Postcard (binary) end-to-end |
+| Wire codec | MessagePack (named maps) end-to-end — see `2026-07-26-engine-msgpack-wire-design.md` |
 | Control path | Dedicated control thread drains cmd bus; audio never calls the bus |
-| Shared schema | New `engine-api` crate (origin/kind + postcard encode/decode) |
+| Shared schema | New `engine-api` crate (origin/kind + MessagePack encode/decode) |
 | Frontend host swap | `EngineTransport` service wraps publish/subscribe |
 | Migration | Incremental (approach 1) on top of `engine-api` (approach 3) |
 
@@ -35,7 +35,7 @@ Out of scope: library/fs/settings commands; implementing MIDI; shipping WASM hos
 └─────────────┘  EngineTransport.subscribe   └──────┬───────┘
                                                     │
                          engine-api                 │
-                         Origin / Kind / postcard   │
+                         Origin / Kind / msgpack    │
                                                     ▼
                                              ┌─────────────┐
                                              │ engine-core │
@@ -53,7 +53,7 @@ Out of scope: library/fs/settings commands; implementing MIDI; shipping WASM hos
 
 | Crate | Owns |
 |-------|------|
-| `engine-api` | `Origin`, `Kind` (shared enum; cmd vs evt separated by which bus is used), command/event payload types, postcard encode/decode helpers, filter helpers. No Tauri, no audio I/O. |
+| `engine-api` | `Origin`, `Kind` (shared enum; cmd vs evt separated by which bus is used), command/event payload types, MessagePack encode/decode helpers, filter helpers. No Tauri, no audio I/O. |
 | `engine-core` | Omnibus **cmd** + **evt** buses, control thread, module subscribers that call into `Engine` / DSP state, publishes evt messages. |
 | `apps/gui-app` (Tauri) | `engine_publish` invoke + evt→webview forwarder only (for migrated domains). |
 | Frontend | `EngineTransport` + Zustand; no direct `invoke`/`listen` for engine traffic. |
@@ -74,7 +74,7 @@ Subscriptions:
 - Host bridge / UI: `evt.subscribe(Filter::Any, Filter::Any)` (one consumer multiplexes into Zustand).
 - Future MIDI: narrow filters, e.g. `Is(Deck(1))` + specific kinds.
 
-**Two buses** so hosts never observe commands. In-process payloads may be `Arc<T>`; the host bridge postcard-encodes at the boundary.
+**Two buses** so hosts never observe commands. In-process payloads may be `Arc<T>`; the host bridge MessagePack-encodes at the boundary.
 
 ### Control thread
 

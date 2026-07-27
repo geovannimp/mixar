@@ -622,7 +622,7 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Implementation direction:** The engineering target for this section is [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, **postcard** wire codec, and a frontend **`EngineTransport`** host bridge (Tauri now; WASM later). The subsections below remain the product-level contract.
+**Implementation direction:** The engineering target for this section is [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, **MessagePack** wire codec, and a frontend **`EngineTransport`** host bridge (Tauri now; WASM later). The subsections below remain the product-level contract.
 
 ### 9.1 Problem
 

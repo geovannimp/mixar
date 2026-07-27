@@ -1,4 +1,4 @@
-//! Tauri bridge for engine cmd/evt omnibus (postcard wire bytes).
+//! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
 use engine_api::{decode_wire, encode_wire, WireMessage};
 use engine_core::EngineSession;

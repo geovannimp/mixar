@@ -33,6 +33,7 @@ pub struct EngineStatus {
 
 /// Command bus payload nested inside [`crate::WireMessage::body`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum CmdBody {
     Empty,
     Seek { position_secs: f64 },
@@ -46,6 +47,7 @@ pub enum CmdBody {
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum EvtBody {
     Empty,
     DeckUpdated {
@@ -66,7 +68,9 @@ pub enum EvtBody {
         peak_hold_l: f32,
         peak_hold_r: f32,
     },
-    EngineStatus(EngineStatus),
+    EngineStatus {
+        status: EngineStatus,
+    },
     Error {
         message: String,
     },

@@ -1,10 +1,12 @@
+//! MessagePack roundtrip for wire messages and nested bodies.
+
 use engine_api::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
     CmdBody, EvtBody, Kind, Origin, WireMessage,
 };
 
 #[test]
-fn play_cmd_round_trips() {
+fn wire_play_deck1_roundtrips() {
     let body = encode_cmd_body(&CmdBody::Empty).unwrap();
     let msg = WireMessage {
         origin: Origin::Deck(1),
@@ -15,22 +17,30 @@ fn play_cmd_round_trips() {
     let bytes = encode_wire(&msg).unwrap();
     let decoded = decode_wire(&bytes).unwrap();
     assert_eq!(decoded, msg);
+    assert_eq!(decode_cmd_body(&decoded.body).unwrap(), CmdBody::Empty);
 }
 
 #[test]
-fn cmd_body_empty_round_trips() {
-    let body = CmdBody::Empty;
-    let bytes = encode_cmd_body(&body).unwrap();
-    let decoded = decode_cmd_body(&bytes).unwrap();
-    assert_eq!(decoded, body);
-}
+fn cmd_and_evt_bodies_roundtrip() {
+    let cmd = CmdBody::Empty;
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&cmd).unwrap()).unwrap(),
+        cmd
+    );
 
-#[test]
-fn evt_body_error_round_trips() {
-    let body = EvtBody::Error {
-        message: "x".into(),
+    let evt = EvtBody::Error {
+        message: "boom".into(),
     };
-    let bytes = encode_evt_body(&body).unwrap();
-    let decoded = decode_evt_body(&bytes).unwrap();
-    assert_eq!(decoded, body);
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&evt).unwrap()).unwrap(),
+        evt
+    );
+
+    let seek = CmdBody::Seek {
+        position_secs: 12.5,
+    };
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&seek).unwrap()).unwrap(),
+        seek
+    );
 }

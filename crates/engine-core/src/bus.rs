@@ -4,7 +4,7 @@ use engine_api::{Kind, Origin};
 use omnibus::Filter;
 use std::sync::Arc;
 
-/// Shared omnibus type for cmd and evt buses (payload = nested postcard body bytes).
+/// Shared omnibus type for cmd and evt buses (payload = nested MessagePack body bytes).
 pub type EngineBus = omnibus::Bus<Origin, Kind, Arc<[u8]>>;
 
 /// Host-facing evt subscription (all origins/kinds). Keeps omnibus types out of Tauri.

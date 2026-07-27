@@ -111,7 +111,8 @@ fn set_crossfader_publishes_status() {
     let event = recv_evt_kind(&evt, Kind::Status);
     assert_eq!(*event.origin(), Origin::Mixer);
     assert_eq!(*event.kind(), Kind::Status);
-    let EvtBody::EngineStatus(status) = decode_evt_body(event.payload()).expect("decode evt body")
+    let EvtBody::EngineStatus { status } =
+        decode_evt_body(event.payload()).expect("decode evt body")
     else {
         panic!("expected EngineStatus body");
     };
