@@ -11,8 +11,13 @@ export function createTauriEngineTransport(): EngineTransport {
         payload: Array.from(message),
       }),
     subscribe: (handler) => {
-      const unlistenPromise = listen<number[]>(ENGINE_BUS_EVENT, (event) => {
-        handler(Uint8Array.from(event.payload));
+      const unlistenPromise = listen<number[] | Uint8Array>(ENGINE_BUS_EVENT, (event) => {
+        const payload = event.payload;
+        const bytes = payload instanceof Uint8Array ? payload : Uint8Array.from(payload ?? []);
+        if (bytes.length === 0) {
+          return;
+        }
+        handler(bytes);
       });
       return () => {
         void unlistenPromise.then((unlisten) => unlisten());

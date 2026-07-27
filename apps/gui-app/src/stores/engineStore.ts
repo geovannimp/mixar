@@ -146,14 +146,19 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   applyBusBytes: (bytes) => {
     set((current) => {
-      const patch = applyBusEvent(current.status, current.busRevision, bytes);
-      if (patch.error) {
-        reportEngineError(patch.error);
+      try {
+        const patch = applyBusEvent(current.status, current.busRevision, bytes);
+        if (patch.error) {
+          reportEngineError(patch.error);
+        }
+        if (patch.notice) {
+          toastManager.add({ title: patch.notice, type: "info" });
+        }
+        return { status: patch.status, busRevision: patch.revision };
+      } catch (err) {
+        console.error("engine bus event decode failed", err);
+        return current;
       }
-      if (patch.notice) {
-        toastManager.add({ title: patch.notice, type: "info" });
-      }
-      return { status: patch.status, busRevision: patch.revision };
     });
   },
 

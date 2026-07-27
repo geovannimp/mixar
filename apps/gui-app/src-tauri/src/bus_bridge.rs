@@ -1,7 +1,8 @@
 //! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
-use engine_api::{decode_wire, encode_wire, WireMessage};
-use engine_core::EngineSession;
+use engine_api::{decode_wire, encode_wire, Kind, Origin, WireMessage};
+use engine_core::{EngineSession, Evt};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -17,6 +18,10 @@ pub struct EvtForwarder {
     thread: Option<JoinHandle<()>>,
 }
 
+fn is_high_rate(kind: &Kind) -> bool {
+    matches!(kind, Kind::Position | Kind::Levels)
+}
+
 impl EvtForwarder {
     pub fn start(app: AppHandle, session: Arc<EngineSession>) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
@@ -24,23 +29,44 @@ impl EvtForwarder {
         let rx = session.subscribe_evt_all().expect("evt bus subscribe");
         let thread = thread::spawn(move || {
             while !stop_flag.load(Ordering::Relaxed) {
-                match rx.recv_timeout(Duration::from_millis(100)) {
-                    Ok(Some(ev)) => {
-                        let wire = encode_wire(&WireMessage {
-                            origin: ev.origin().clone(),
-                            kind: ev.kind().clone(),
-                            revision: session.revision(),
-                            body: ev.payload().as_ref().to_vec(),
-                        })
-                        .ok();
-                        if let Some(data) = wire {
-                            if let Err(err) = app.emit(ENGINE_BUS_EVENT, data) {
-                                log::warn!("failed to emit {ENGINE_BUS_EVENT}: {err}");
-                            }
-                        }
-                    }
-                    Ok(None) => {}
+                let first = match rx.recv_timeout(Duration::from_millis(100)) {
+                    Ok(Some(ev)) => ev,
+                    Ok(None) => continue,
                     Err(_) => break,
+                };
+
+                // Drain the queue: keep every discrete evt, coalesce high-rate by origin+kind.
+                // Prevents Position/Levels from starving Pause/Updated when emit is slow.
+                let mut discrete: Vec<Arc<Evt>> = Vec::new();
+                let mut high_rate: HashMap<(Origin, Kind), Arc<Evt>> = HashMap::new();
+                let mut push = |ev: Arc<Evt>| {
+                    if is_high_rate(ev.kind()) {
+                        high_rate.insert((ev.origin().clone(), ev.kind().clone()), ev);
+                    } else {
+                        discrete.push(ev);
+                    }
+                };
+                push(first);
+                loop {
+                    match rx.recv() {
+                        Ok(Some(ev)) => push(ev),
+                        Ok(None) => break,
+                        Err(_) => return,
+                    }
+                }
+
+                for ev in discrete.into_iter().chain(high_rate.into_values()) {
+                    let Ok(data) = encode_wire(&WireMessage {
+                        origin: ev.origin().clone(),
+                        kind: ev.kind().clone(),
+                        revision: session.revision(),
+                        body: ev.payload().as_ref().to_vec(),
+                    }) else {
+                        continue;
+                    };
+                    if let Err(err) = app.emit(ENGINE_BUS_EVENT, data) {
+                        log::warn!("failed to emit {ENGINE_BUS_EVENT}: {err}");
+                    }
                 }
             }
         });
