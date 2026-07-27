@@ -47,6 +47,11 @@ const WaveformLane = memo(function WaveformLane({
     isScrubbing: playhead.isScrubbing,
   });
   const seekEnabled = hasTrack && engineRunning;
+  const safeSpeed =
+    Number.isFinite(deck.speed) && deck.speed > 0 ? Math.min(2, Math.max(0.5, deck.speed)) : 1;
+  // Match RustRenderedLane: viewport seconds = width * speed / pxPerSec (long tracks cap px/sec).
+  const viewSpanSecs =
+    trackCache && size.width > 0 ? (size.width * safeSpeed) / trackCache.pxPerSec : visibleSecs;
 
   const handleSeek = useCallback(
     (secs: number) => {
@@ -58,7 +63,7 @@ const WaveformLane = memo(function WaveformLane({
   const { scrubbing, getPosition, handlers, cursorClass } = useWaveformDragScrub({
     enabled: seekEnabled,
     mode: "center",
-    spanSecs: visibleSecs,
+    spanSecs: viewSpanSecs,
     positionSecs,
     playing: deck.playing,
     speed: deck.speed,
@@ -92,7 +97,7 @@ const WaveformLane = memo(function WaveformLane({
       />
       <WaveformWindowMarkersMotion
         motionPos={playhead.motionPos}
-        visibleSecs={visibleSecs}
+        visibleSecs={viewSpanSecs}
         hotCues={deck.hot_cues}
         activeLoop={deck.active_loop}
       />
