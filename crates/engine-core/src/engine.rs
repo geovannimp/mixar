@@ -945,37 +945,43 @@ impl Engine {
         }
     }
 
-    /// Set cue point to the snapped playhead.
-    pub fn set_deck_cue_point_at_playhead(&mut self, deck_id: usize) -> Result<()> {
+    /// Set cue point from a click-time playhead position (snapped when quantize is on).
+    pub fn set_deck_cue_point_at(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
             return Err(anyhow::anyhow!("Load a track before setting cue."));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let target = snap_secs(position, bpm, quantize);
+        let target = snap_secs(position_secs, bpm, quantize);
         self.set_deck_cue_point(deck_id, target)
     }
 
-    /// Auto-loop `beats` from the snapped playhead.
-    pub fn set_deck_auto_loop(&mut self, deck_id: usize, beats: u32) -> Result<()> {
+    /// Auto-loop `beats` from a click-time playhead position.
+    pub fn set_deck_auto_loop(
+        &mut self,
+        deck_id: usize,
+        beats: u32,
+        position_secs: f64,
+    ) -> Result<()> {
         if beats == 0 {
             return Err(anyhow::anyhow!("Loop length must be at least 1 beat."));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
-        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let duration = self
+            .deck_playback_secs(deck_id)
+            .map(|(_, duration)| duration)
+            .unwrap_or(0.0);
         let beat_len = 60.0 / bpm;
-        let in_secs = snap_secs(position, Some(bpm), quantize);
+        let in_secs = snap_secs(position_secs, Some(bpm), quantize);
         let out_secs =
             (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len));
         self.set_deck_loop_region(deck_id, in_secs, out_secs)
     }
 
-    /// Move loop-in to the snapped playhead (keeps existing out, or default 4 beats).
-    pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
+    /// Move loop-in to a click-time playhead position (keeps existing out, or default 4 beats).
+    pub fn set_deck_loop_in_at(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let in_secs = snap_secs(position, bpm, quantize);
+        let in_secs = snap_secs(position_secs, bpm, quantize);
         let default_out = in_secs + 60.0 / bpm.unwrap_or(120.0) * 4.0;
         let out_secs = self
             .deck_transport_state(deck_id)
@@ -984,11 +990,10 @@ impl Engine {
         self.set_deck_loop_region(deck_id, in_secs, out_secs.max(in_secs + 0.01))
     }
 
-    /// Move loop-out to the snapped playhead (keeps existing in, or 0).
-    pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
+    /// Move loop-out to a click-time playhead position (keeps existing in, or 0).
+    pub fn set_deck_loop_out_at(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let out_secs = snap_secs(position, bpm, quantize);
+        let out_secs = snap_secs(position_secs, bpm, quantize);
         let in_secs = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region.map(|(inn, _)| inn))
@@ -999,16 +1004,19 @@ impl Engine {
         self.set_deck_loop_region(deck_id, in_secs, out_secs)
     }
 
-    /// Jump playhead by `beats` (negative = backward), optionally snapped.
-    pub fn beat_jump_deck(&mut self, deck_id: usize, beats: i32) -> Result<()> {
+    /// Jump playhead by `beats` from a click-time position (negative = backward).
+    pub fn beat_jump_deck(&mut self, deck_id: usize, beats: i32, position_secs: f64) -> Result<()> {
         if beats == 0 {
             return Err(anyhow::anyhow!("Beat jump requires a non-zero beat count."));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for beat jump."))?;
-        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let duration = self
+            .deck_playback_secs(deck_id)
+            .map(|(_, duration)| duration)
+            .unwrap_or(0.0);
         let beat_len = 60.0 / bpm;
-        let raw = (position + beat_len * f64::from(beats)).clamp(0.0, duration);
+        let raw = (position_secs + beat_len * f64::from(beats)).clamp(0.0, duration);
         let target = snap_secs(raw, Some(bpm), quantize);
         self.seek_deck(deck_id, target)
     }

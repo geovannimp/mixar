@@ -109,8 +109,19 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
   z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
-  z.object({ type: z.literal("set_auto_loop"), beats: z.number().int().nonnegative() }),
-  z.object({ type: z.literal("beat_jump"), beats: z.number().int() }),
+  z.object({ type: z.literal("set_cue_point"), position_secs: z.number() }),
+  z.object({
+    type: z.literal("set_auto_loop"),
+    beats: z.number().int().nonnegative(),
+    position_secs: z.number(),
+  }),
+  z.object({ type: z.literal("loop_in"), position_secs: z.number() }),
+  z.object({ type: z.literal("loop_out"), position_secs: z.number() }),
+  z.object({
+    type: z.literal("beat_jump"),
+    beats: z.number().int(),
+    position_secs: z.number(),
+  }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 

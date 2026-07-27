@@ -62,20 +62,62 @@ pub struct EngineStatus {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CmdBody {
     Empty,
-    Seek { position_secs: f64 },
-    SetVolume { volume: f32 },
-    SetEq { low: f32, mid: f32, high: f32 },
-    SetSpeed { speed: f32 },
-    SetFilter { filter_db: f32 },
-    SetGainTrim { gain_db: f32 },
-    SetHeadphoneCue { enabled: bool },
-    SetCrossfader { position: f32 },
-    SetCueMix { mix: f32 },
-    SetMasterCue { enabled: bool },
-    ToggleSync { beat_sync: bool },
-    SetQuantize { enabled: bool },
-    SetAutoLoop { beats: u32 },
-    BeatJump { beats: i32 },
+    Seek {
+        position_secs: f64,
+    },
+    SetVolume {
+        volume: f32,
+    },
+    SetEq {
+        low: f32,
+        mid: f32,
+        high: f32,
+    },
+    SetSpeed {
+        speed: f32,
+    },
+    SetFilter {
+        filter_db: f32,
+    },
+    SetGainTrim {
+        gain_db: f32,
+    },
+    SetHeadphoneCue {
+        enabled: bool,
+    },
+    SetCrossfader {
+        position: f32,
+    },
+    SetCueMix {
+        mix: f32,
+    },
+    SetMasterCue {
+        enabled: bool,
+    },
+    ToggleSync {
+        beat_sync: bool,
+    },
+    SetQuantize {
+        enabled: bool,
+    },
+    /// Cue/loop/jump ops carry click-time playhead to avoid bus latency drift.
+    SetCuePoint {
+        position_secs: f64,
+    },
+    SetAutoLoop {
+        beats: u32,
+        position_secs: f64,
+    },
+    LoopIn {
+        position_secs: f64,
+    },
+    LoopOut {
+        position_secs: f64,
+    },
+    BeatJump {
+        beats: i32,
+        position_secs: f64,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
