@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import goldenHex from "@/lib/engine/golden/play_deck1.hex?raw";
 import {
   bytesToHex,
+  cmdBodyForKind,
   decodeCmdBody,
   decodeWire,
   encodeCmdBody,
@@ -30,5 +31,13 @@ describe("wire codec", () => {
     };
 
     expect(bytesToHex(encodeWire(message))).toBe(goldenHex.trim());
+  });
+
+  it("cmdBodyForKind uses empty when fields are omitted", () => {
+    expect(cmdBodyForKind("play")).toEqual({ type: "empty" });
+    expect(cmdBodyForKind("set_crossfader", { position: 0.5 })).toEqual({
+      type: "set_crossfader",
+      position: 0.5,
+    });
   });
 });

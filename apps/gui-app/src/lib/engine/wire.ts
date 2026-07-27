@@ -116,11 +116,11 @@ export const WireMessageSchema = z.object({
   origin: OriginSchema,
   kind: KindSchema,
   revision: z.number().int().nonnegative(),
-  body: z.instanceof(Uint8Array),
+  body: z.custom<Uint8Array>((val): val is Uint8Array => val instanceof Uint8Array),
 });
 export type WireMessage = z.infer<typeof WireMessageSchema>;
 
-const BytesSchema = z.instanceof(Uint8Array);
+const BytesSchema = z.custom<Uint8Array>((val): val is Uint8Array => val instanceof Uint8Array);
 
 function asUint8Array(value: Uint8Array): Uint8Array {
   return value instanceof Uint8Array ? value : new Uint8Array(value);
@@ -194,6 +194,29 @@ export function encodeWireCmd(origin: Origin, kind: Kind, body: CmdBody, revisio
     revision,
     body: encodeCmdBody(body),
   });
+}
+
+/** Cmd kinds accepted by `EngineTransport.publish` (subset of wire `Kind`). */
+export type CmdKind =
+  | "play"
+  | "pause"
+  | "seek"
+  | "set_volume"
+  | "set_eq"
+  | "set_speed"
+  | "set_filter"
+  | "set_gain_trim"
+  | "set_headphone_cue"
+  | "set_crossfader"
+  | "set_cue_mix"
+  | "set_master_cue";
+
+/** Nested CmdBody: no fields → empty; otherwise tag with `kind`. */
+export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {
+  if (Object.keys(fields).length === 0) {
+    return { type: "empty" };
+  }
+  return CmdBodySchema.parse({ type: kind, ...fields });
 }
 
 export function getDeckOrigin(deckId: number): Origin {

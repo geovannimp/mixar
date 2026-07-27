@@ -1,15 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { EngineTransport } from "@/lib/engine/transport";
-import { encodeWireCmd, type CmdBody } from "@/lib/engine/wire";
+import { cmdBodyForKind, encodeWireCmd } from "@/lib/engine/wire";
 
 export const ENGINE_BUS_EVENT = "engine://bus";
 
 export function createTauriEngineTransport(): EngineTransport {
   return {
-    publish: (origin, kind, body: CmdBody = { type: "empty" }) =>
+    publish: (origin, kind, fields) =>
       invoke("engine_publish", {
-        payload: Array.from(encodeWireCmd(origin, kind, body)),
+        payload: Array.from(encodeWireCmd(origin, kind, cmdBodyForKind(kind, fields))),
       }),
     subscribe: (handler) => {
       const unlistenPromise = listen<number[] | Uint8Array>(ENGINE_BUS_EVENT, (event) => {

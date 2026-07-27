@@ -1,11 +1,12 @@
 import { createMemoryEngineTransport } from "@/lib/engine/memoryTransport";
 import { createTauriEngineTransport } from "@/lib/engine/tauriTransport";
 import { createWasmEngineTransport } from "@/lib/engine/wasmTransport";
-import type { CmdBody, Kind, Origin } from "@/lib/engine/wire";
+import type { CmdKind, Origin } from "@/lib/engine/wire";
 
 /** Host-agnostic engine command surface; wire encoding is transport-specific. */
 export interface EngineTransport {
-  publish(origin: Origin, kind: Kind, body?: CmdBody): Promise<void>;
+  /** `fields` are CmdBody payload fields only — body `type` is derived from `kind`. */
+  publish(origin: Origin, kind: CmdKind, fields?: Record<string, unknown>): Promise<void>;
   subscribe(handler: (message: Uint8Array) => void): () => void;
 }
 
