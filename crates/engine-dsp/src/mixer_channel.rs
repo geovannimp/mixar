@@ -395,25 +395,29 @@ mod tests {
             "PFL should contain only active interleaved samples"
         );
 
-        for frame in 0..ACTIVE_FRAMES {
+        for (frame, (&left, &right)) in outputs[0]
+            .iter()
+            .zip(outputs[1].iter())
+            .enumerate()
+            .take(ACTIVE_FRAMES)
+        {
             assert!(
-                (outputs[0][frame] - 0.5).abs() < 1e-6,
+                (left - 0.5).abs() < 1e-6,
                 "active left frame {frame} should be processed"
             );
             assert!(
-                (outputs[1][frame] - 0.25).abs() < 1e-6,
+                (right - 0.25).abs() < 1e-6,
                 "active right frame {frame} should be processed"
             );
         }
-        for frame in ACTIVE_FRAMES..Buffer::LEN {
-            assert_eq!(
-                outputs[0][frame], 0.0,
-                "inactive left frame {frame} should be silent"
-            );
-            assert_eq!(
-                outputs[1][frame], 0.0,
-                "inactive right frame {frame} should be silent"
-            );
+        for (frame, (&left, &right)) in outputs[0]
+            .iter()
+            .zip(outputs[1].iter())
+            .enumerate()
+            .skip(ACTIVE_FRAMES)
+        {
+            assert_eq!(left, 0.0, "inactive left frame {frame} should be silent");
+            assert_eq!(right, 0.0, "inactive right frame {frame} should be silent");
         }
     }
 
@@ -437,13 +441,18 @@ mod tests {
         assert!((mixer_channel.level_peaks().peak_l - 0.5).abs() < 1e-6);
         assert!((mixer_channel.level_peaks().peak_r - 0.25).abs() < 1e-6);
 
-        for frame in 16..Buffer::LEN {
+        for (frame, (&left, &right)) in outputs[0]
+            .iter()
+            .zip(outputs[1].iter())
+            .enumerate()
+            .skip(16)
+        {
             assert_eq!(
-                outputs[0][frame], 0.0,
+                left, 0.0,
                 "final chunk inactive left frame {frame} should be silent"
             );
             assert_eq!(
-                outputs[1][frame], 0.0,
+                right, 0.0,
                 "final chunk inactive right frame {frame} should be silent"
             );
         }

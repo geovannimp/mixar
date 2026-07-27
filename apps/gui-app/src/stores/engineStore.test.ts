@@ -23,6 +23,7 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
     origin: { deck: deckId },
     kind: "updated",
     revision,
+    action_timestamp_ms: 0,
     body: encodeEvtBody({
       type: "deck_updated",
       id: deckId,
@@ -33,6 +34,10 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
       filter_db: 0,
       gain_trim_db: 0,
       headphone_cue: false,
+      sync_mode: "off",
+      cue_point_secs: null,
+      quantize: true,
+      active_loop: null,
       position_secs: 0,
       duration_secs: 120,
     }),
