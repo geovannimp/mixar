@@ -31,6 +31,9 @@ fn sync_app_state_from_engine(state: &mut AppState) {
         deck.eq.low = snap.eq.low;
         deck.eq.mid = snap.eq.mid;
         deck.eq.high = snap.eq.high;
+        deck.filter_db = snap.filter_db;
+        deck.gain_trim_db = snap.gain_trim_db;
+        deck.headphone_cue = snap.headphone_cue;
     }
 }
 

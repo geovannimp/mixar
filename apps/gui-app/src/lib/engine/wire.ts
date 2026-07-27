@@ -10,6 +10,9 @@ export const KindSchema = z.enum([
   "set_volume",
   "set_eq",
   "set_speed",
+  "set_filter",
+  "set_gain_trim",
+  "set_headphone_cue",
   "set_crossfader",
   "set_cue_mix",
   "set_master_cue",
@@ -42,6 +45,9 @@ export const DeckSnapshotSchema = z.object({
   volume: z.number(),
   speed: z.number(),
   eq: DeckEqSchema,
+  filter_db: z.number(),
+  gain_trim_db: z.number(),
+  headphone_cue: z.boolean(),
   position_secs: z.number().nullable(),
   duration_secs: z.number().nullable(),
 });
@@ -68,6 +74,9 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     high: z.number(),
   }),
   z.object({ type: z.literal("set_speed"), speed: z.number() }),
+  z.object({ type: z.literal("set_filter"), filter_db: z.number() }),
+  z.object({ type: z.literal("set_gain_trim"), gain_db: z.number() }),
+  z.object({ type: z.literal("set_headphone_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("set_crossfader"), position: z.number() }),
   z.object({ type: z.literal("set_cue_mix"), mix: z.number() }),
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
@@ -83,6 +92,9 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     volume: z.number(),
     speed: z.number(),
     eq: DeckEqSchema,
+    filter_db: z.number(),
+    gain_trim_db: z.number(),
+    headphone_cue: z.boolean(),
     position_secs: z.number().nullable(),
     duration_secs: z.number().nullable(),
   }),
@@ -175,7 +187,16 @@ export function hexToBytes(hex: string): Uint8Array {
   return out;
 }
 
-type DeckCmdKind = "play" | "pause" | "seek" | "set_volume" | "set_eq" | "set_speed";
+type DeckCmdKind =
+  | "play"
+  | "pause"
+  | "seek"
+  | "set_volume"
+  | "set_eq"
+  | "set_speed"
+  | "set_filter"
+  | "set_gain_trim"
+  | "set_headphone_cue";
 type MixerCmdKind = "set_crossfader" | "set_cue_mix" | "set_master_cue";
 
 export function encodeWireCmd(origin: Origin, kind: Kind, body: CmdBody, revision = 0): Uint8Array {
@@ -217,6 +238,21 @@ export function encodeSetEq(deckId: number, low: number, mid: number, high: numb
 
 export function encodeSetSpeed(deckId: number, speed: number): Uint8Array {
   return encodeDeckCmd(deckId, "set_speed", { type: "set_speed", speed });
+}
+
+export function encodeSetFilter(deckId: number, filterDb: number): Uint8Array {
+  return encodeDeckCmd(deckId, "set_filter", { type: "set_filter", filter_db: filterDb });
+}
+
+export function encodeSetGainTrim(deckId: number, gainDb: number): Uint8Array {
+  return encodeDeckCmd(deckId, "set_gain_trim", { type: "set_gain_trim", gain_db: gainDb });
+}
+
+export function encodeSetHeadphoneCue(deckId: number, enabled: boolean): Uint8Array {
+  return encodeDeckCmd(deckId, "set_headphone_cue", {
+    type: "set_headphone_cue",
+    enabled,
+  });
 }
 
 export function encodeMixerCmd(kind: MixerCmdKind, body: CmdBody): Uint8Array {

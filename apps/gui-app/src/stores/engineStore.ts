@@ -13,6 +13,9 @@ import {
   encodeSetCrossfader,
   encodeSetCueMix,
   encodeSetEq,
+  encodeSetFilter,
+  encodeSetGainTrim,
+  encodeSetHeadphoneCue,
   encodeSetMasterCue,
   encodeSetVolume,
 } from "@/lib/engine/wire";
@@ -470,7 +473,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckFilter: async (deckId, filterDb) => {
     try {
-      await invoke("set_deck_filter", { deckId, filterDb });
+      await engineTransport.publish(encodeSetFilter(deckId, filterDb));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -478,7 +481,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckGainTrim: async (deckId, gainDb) => {
     try {
-      await invoke("set_deck_gain_trim", { deckId, gainDb });
+      await engineTransport.publish(encodeSetGainTrim(deckId, gainDb));
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -486,7 +489,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckHeadphoneCue: async (deckId, enabled) => {
     try {
-      await invoke("set_deck_headphone_cue", { deckId, enabled });
+      await engineTransport.publish(encodeSetHeadphoneCue(deckId, enabled));
     } catch (err) {
       reportEngineError(String(err));
     }

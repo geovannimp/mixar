@@ -1,4 +1,4 @@
-//! Phase 3 deck commands: sync, beat jump, pad modes, filter, gain trim.
+//! Phase 3 deck commands: sync, beat jump, pad modes, loop roll.
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -6,9 +6,7 @@ use tauri::{AppHandle, State};
 use crate::deck_performance::{snap_secs, LoopRegionStatus};
 use crate::deck_sampler::ensure_deck_bank_loaded;
 use crate::engine_controller::{publish_deck, publish_status};
-use crate::{
-    clamp_eq_db, deck_playback_secs, with_engine, AppState, DeckStatus, SharedAppState, NUM_DECKS,
-};
+use crate::{deck_playback_secs, with_engine, AppState, DeckStatus, SharedAppState, NUM_DECKS};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -247,54 +245,6 @@ pub fn set_deck_pad_mode(
     if mode == PadMode::Sampler {
         let _ = ensure_deck_bank_loaded(&mut state, deck_id);
         publish_status(&app, &mut state);
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-pub fn set_deck_filter(
-    app: AppHandle,
-    deck_id: usize,
-    filter_db: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let clamped = clamp_eq_db(filter_db);
-    state.decks[deck_id].filter_db = clamped;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_filter_db(deck_id, clamped)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-pub fn set_deck_gain_trim(
-    app: AppHandle,
-    deck_id: usize,
-    gain_db: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let clamped = clamp_eq_db(gain_db);
-    state.decks[deck_id].gain_trim_db = clamped;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_gain_trim_db(deck_id, clamped)
-                .map_err(|e| e.to_string())
-        })?;
     }
     Ok(publish_deck(&app, &mut state, deck_id))
 }

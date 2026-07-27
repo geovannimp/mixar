@@ -134,6 +134,9 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         volume: snap.volume,
         speed: snap.speed,
         eq: snap.eq,
+        filter_db: snap.filter_db,
+        gain_trim_db: snap.gain_trim_db,
+        headphone_cue: snap.headphone_cue,
         position_secs: snap.position_secs,
         duration_secs: snap.duration_secs,
     }
@@ -208,6 +211,9 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetVolume, CmdBody::SetVolume { .. })
         | (Kind::SetEq, CmdBody::SetEq { .. })
         | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
+        | (Kind::SetFilter, CmdBody::SetFilter { .. })
+        | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
+        | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -259,6 +265,27 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.set_deck_speed(deck_id, speed)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetFilter => {
+            let CmdBody::SetFilter { filter_db } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_filter_db(deck_id, filter_db)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetGainTrim => {
+            let CmdBody::SetGainTrim { gain_db } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_gain_trim_db(deck_id, gain_db)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetHeadphoneCue => {
+            let CmdBody::SetHeadphoneCue { enabled } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_headphone_cue(deck_id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),

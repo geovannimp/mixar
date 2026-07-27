@@ -54,6 +54,9 @@ describe("applyBusEvent", () => {
       volume: 1,
       speed: 1,
       eq: { low: 0, mid: 0, high: 0 },
+      filter_db: 0,
+      gain_trim_db: 0,
+      headphone_cue: false,
       position_secs: 12.25,
       duration_secs: 180,
     });
@@ -77,10 +80,34 @@ describe("applyBusEvent", () => {
       volume: 1,
       speed: 1,
       eq: { low: 0, mid: 0, high: 0 },
+      filter_db: 0,
+      gain_trim_db: 0,
+      headphone_cue: false,
       position_secs: null,
       duration_secs: 180,
     });
     const patch = applyBusEvent(current, 1, bytes);
     expect(patch.status?.decks[0]?.position_secs).toBe(12.25);
+  });
+
+  it("deck_updated applies channel-strip fields", () => {
+    const current = baseStatus();
+    const bytes = packWire({ deck: 0 }, "updated", 2, {
+      type: "deck_updated",
+      id: 0,
+      playing: false,
+      volume: 1,
+      speed: 1,
+      eq: { low: 0, mid: 0, high: 0 },
+      filter_db: 3.5,
+      gain_trim_db: -1.25,
+      headphone_cue: true,
+      position_secs: null,
+      duration_secs: null,
+    });
+    const patch = applyBusEvent(current, 1, bytes);
+    expect(patch.status?.decks[0]?.filter_db).toBe(3.5);
+    expect(patch.status?.decks[0]?.gain_trim_db).toBe(-1.25);
+    expect(patch.status?.decks[0]?.headphone_cue).toBe(true);
   });
 });
