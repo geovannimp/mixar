@@ -25,9 +25,10 @@ function deckIdFromOrigin(origin: Origin): number | null {
   return null;
 }
 
-/** Merge engine deck snapshot onto UI deck; metadata/levels stay on `base`. */
+/** Merge engine deck snapshot onto UI deck; metadata/levels stay on `base` until unload. */
 function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnapshot): DeckStatus {
   const base = existing ?? getDefaultDeck(snapshot.id);
+  const unloaded = snapshot.duration_secs == null && existing?.duration_secs != null;
   return {
     ...base,
     id: snapshot.id,
@@ -39,13 +40,23 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     gain_trim_db: snapshot.gain_trim_db,
     headphone_cue: snapshot.headphone_cue,
     sync_mode: snapshot.sync_mode,
+    cue_point_secs: snapshot.cue_point_secs,
+    quantize: snapshot.quantize,
+    active_loop: snapshot.active_loop,
     is_master: base.is_master,
-    position_secs: snapshot.position_secs ?? base.position_secs,
-    duration_secs: snapshot.duration_secs ?? base.duration_secs,
+    position_secs: snapshot.position_secs ?? (unloaded ? null : base.position_secs),
+    duration_secs: snapshot.duration_secs,
     levels: base.levels ?? ZERO_DECK_LEVELS,
-    title: base.title,
-    artist: base.artist,
-    hot_cues: base.hot_cues,
+    track: unloaded ? null : base.track,
+    track_id: unloaded ? null : base.track_id,
+    title: unloaded ? null : base.title,
+    artist: unloaded ? null : base.artist,
+    bpm: unloaded ? null : base.bpm,
+    key: unloaded ? null : base.key,
+    hot_cues: unloaded ? [] : base.hot_cues,
+    saved_loops: unloaded ? [] : base.saved_loops,
+    loudness_lufs: unloaded ? null : base.loudness_lufs,
+    auto_gain_db: unloaded ? 0 : base.auto_gain_db,
   };
 }
 
@@ -116,6 +127,9 @@ export function applyBusEvent(
         gain_trim_db: deck.gain_trim_db,
         headphone_cue: deck.headphone_cue,
         sync_mode: deck.sync_mode,
+        cue_point_secs: deck.cue_point_secs,
+        quantize: deck.quantize,
+        active_loop: deck.active_loop,
         position_secs: deck.position_secs,
         duration_secs: deck.duration_secs,
       };

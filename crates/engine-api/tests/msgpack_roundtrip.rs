@@ -12,6 +12,7 @@ fn wire_play_deck1_roundtrips() {
         origin: Origin::Deck(1),
         kind: Kind::Play,
         revision: 0,
+        action_timestamp_ms: 0,
         body,
     };
     let bytes = encode_wire(&msg).unwrap();

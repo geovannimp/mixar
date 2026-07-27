@@ -1,5 +1,5 @@
-//! Phase 3 deck commands: beat jump, pad modes, loop roll.
-//! Tempo/beat sync + master deck live on the engine cmd bus.
+//! Phase 3 deck commands: pad modes, loop roll.
+//! Tempo/beat sync, master deck, and beat jump live on the engine cmd bus.
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -26,38 +26,6 @@ pub enum PadMode {
     LoopRoll,
     BeatJump,
     Sampler,
-}
-
-#[tauri::command]
-pub fn beat_jump_deck(
-    app: AppHandle,
-    deck_id: usize,
-    beats: i32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if beats == 0 {
-        return Err("Beat jump requires a non-zero beat count.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let bpm = state.decks[deck_id]
-        .bpm
-        .ok_or_else(|| "Track BPM is required for beat jump.".to_string())?;
-    let (position_secs, duration_secs) = deck_playback_secs(&state, deck_id);
-    let position = position_secs.unwrap_or(0.0);
-    let duration = duration_secs.unwrap_or(0.0);
-    let beat_len = 60.0 / bpm;
-    let raw = (position + beat_len * f64::from(beats)).clamp(0.0, duration);
-    let target = snap_secs(raw, Some(bpm), state.decks[deck_id].quantize);
-
-    with_engine(&mut state, |engine| {
-        engine.seek_deck(deck_id, target).map_err(|e| e.to_string())
-    })?;
-
-    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]

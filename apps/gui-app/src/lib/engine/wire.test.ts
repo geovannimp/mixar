@@ -18,6 +18,7 @@ describe("wire codec", () => {
     expect(message.origin).toEqual({ deck: 1 });
     expect(message.kind).toBe("play");
     expect(message.revision).toBe(0);
+    expect(message.action_timestamp_ms).toBe(0);
     expect(decodeCmdBody(message.body)).toEqual({ type: "empty" });
   });
 
@@ -27,6 +28,7 @@ describe("wire codec", () => {
       origin: { deck: 1 },
       kind: "play",
       revision: 0,
+      action_timestamp_ms: 0,
       body,
     };
 
@@ -35,6 +37,9 @@ describe("wire codec", () => {
 
   it("cmdBodyForKind uses empty when fields are omitted", () => {
     expect(cmdBodyForKind("play")).toEqual({ type: "empty" });
+    expect(cmdBodyForKind("play", { action_timestamp_ms: 1_700_000_000_000 })).toEqual({
+      type: "empty",
+    });
     expect(cmdBodyForKind("set_crossfader", { position: 0.5 })).toEqual({
       type: "set_crossfader",
       position: 0.5,

@@ -18,6 +18,7 @@ fn play_deck1_golden_bytes_stable() {
         origin: Origin::Deck(1),
         kind: Kind::Play,
         revision: 0,
+        action_timestamp_ms: 0,
         body,
     })
     .unwrap();
