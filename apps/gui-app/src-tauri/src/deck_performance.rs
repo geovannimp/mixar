@@ -262,6 +262,13 @@ pub fn set_deck_quantize(
 
     let mut state = state.lock().map_err(|e| e.to_string())?;
     state.decks[deck_id].quantize = enabled;
+    if state.session.is_some() {
+        with_engine(&mut state, |engine| {
+            engine
+                .set_deck_quantize(deck_id, enabled)
+                .map_err(|e| e.to_string())
+        })?;
+    }
     Ok(publish_deck_transport(&app, &mut state, deck_id))
 }
 

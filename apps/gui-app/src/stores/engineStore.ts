@@ -246,7 +246,9 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckVolume: async (deckId, volume) => {
     try {
-      await engineTransport.publish(getDeckOrigin(deckId), "set_volume", { volume });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_volume", {
+        volume,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -266,7 +268,9 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckSpeed: async (deckId, speed) => {
     try {
-      await invoke("set_deck_speed", { deckId, speed });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_speed", {
+        speed,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -428,9 +432,11 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     }
   },
 
-  toggleDeckSync: async (deckId, beatSync) => {
+  toggleDeckSync: async (deckId, beatSync = false) => {
     try {
-      await invoke("toggle_deck_sync", { deckId, beatSync: beatSync ?? null });
+      await engineTransport.publish(getDeckOrigin(deckId), "toggle_sync", {
+        beat_sync: beatSync,
+      });
     } catch (err) {
       reportEngineError(String(err));
     }
@@ -438,7 +444,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setMasterDeck: async (deckId) => {
     try {
-      await invoke("set_master_deck", { deckId });
+      await engineTransport.publish(getDeckOrigin(deckId), "set_master_deck");
     } catch (err) {
       reportEngineError(String(err));
     }

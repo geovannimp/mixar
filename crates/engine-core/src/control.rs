@@ -16,6 +16,7 @@ const LEVEL_IDLE_EPSILON: f32 = 1e-5;
 
 enum CmdOutcome {
     DeckUpdated(usize),
+    DecksUpdated(Vec<usize>),
     EngineStatus,
 }
 
@@ -137,6 +138,7 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         filter_db: snap.filter_db,
         gain_trim_db: snap.gain_trim_db,
         headphone_cue: snap.headphone_cue,
+        sync_mode: snap.sync_mode,
         position_secs: snap.position_secs,
         duration_secs: snap.duration_secs,
     }
@@ -185,6 +187,15 @@ fn handle_cmd_event(
                 publish_error(evt_bus, origin, e.to_string());
             }
         }
+        Ok(CmdOutcome::DecksUpdated(deck_ids)) => {
+            for deck_id in deck_ids {
+                if let Err(e) = with_engine_ref(engine, |eng| {
+                    publish_deck_updated(evt_bus, revision, eng, deck_id)
+                }) {
+                    publish_error(evt_bus, origin.clone(), e.to_string());
+                }
+            }
+        }
         Ok(CmdOutcome::EngineStatus) => {
             let _ = with_engine_ref(engine, |eng| {
                 if let Some(status) = eng.engine_status_snapshot() {
@@ -206,7 +217,7 @@ fn handle_cmd_event(
 fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
     let body = decode_cmd_body(payload).map_err(|e| anyhow!("invalid cmd body: {e}"))?;
     match (&kind, &body) {
-        (Kind::Play | Kind::Pause, CmdBody::Empty) => Ok(body),
+        (Kind::Play | Kind::Pause | Kind::SetMasterDeck, CmdBody::Empty) => Ok(body),
         (Kind::Seek, CmdBody::Seek { .. })
         | (Kind::SetVolume, CmdBody::SetVolume { .. })
         | (Kind::SetEq, CmdBody::SetEq { .. })
@@ -214,6 +225,7 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
+        | (Kind::ToggleSync, CmdBody::ToggleSync { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -264,8 +276,8 @@ fn dispatch_deck_cmd(
             let CmdBody::SetSpeed { speed } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
-            eng.set_deck_speed(deck_id, speed)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
+            let updated = eng.set_deck_speed(deck_id, speed)?;
+            Ok(CmdOutcome::DecksUpdated(updated))
         }
         Kind::SetFilter => {
             let CmdBody::SetFilter { filter_db } = decode_cmd_body_for(kind, payload)? else {
@@ -287,6 +299,19 @@ fn dispatch_deck_cmd(
             };
             eng.set_deck_headphone_cue(deck_id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::ToggleSync => {
+            let CmdBody::ToggleSync { beat_sync } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            let updated = eng.toggle_deck_sync(deck_id, beat_sync)?;
+            Ok(CmdOutcome::DecksUpdated(updated))
+        }
+        Kind::SetMasterDeck => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            let _updated = eng.set_master_deck(deck_id)?;
+            // master_deck + slave speeds/sync live on EngineStatus decks.
+            Ok(CmdOutcome::EngineStatus)
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
     })

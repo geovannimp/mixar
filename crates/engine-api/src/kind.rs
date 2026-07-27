@@ -16,6 +16,8 @@ pub enum Kind {
     SetCrossfader,
     SetCueMix,
     SetMasterCue,
+    ToggleSync,
+    SetMasterDeck,
     Updated,
     Position,
     Levels,

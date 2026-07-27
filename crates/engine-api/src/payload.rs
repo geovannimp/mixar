@@ -8,6 +8,16 @@ pub struct DeckEq {
     pub high: f32,
 }
 
+/// Deck sync follow mode (slave → master).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncMode {
+    #[default]
+    Off,
+    Tempo,
+    Beat,
+}
+
 /// Slim deck snapshot for status patches and full snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
@@ -19,6 +29,7 @@ pub struct DeckSnapshot {
     pub filter_db: f32,
     pub gain_trim_db: f32,
     pub headphone_cue: bool,
+    pub sync_mode: SyncMode,
     pub position_secs: Option<f64>,
     pub duration_secs: Option<f64>,
 }
@@ -31,6 +42,7 @@ pub struct EngineStatus {
     pub crossfader: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
+    pub master_deck: u16,
     pub decks: Vec<DeckSnapshot>,
 }
 
@@ -49,6 +61,7 @@ pub enum CmdBody {
     SetCrossfader { position: f32 },
     SetCueMix { mix: f32 },
     SetMasterCue { enabled: bool },
+    ToggleSync { beat_sync: bool },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
@@ -65,6 +78,7 @@ pub enum EvtBody {
         filter_db: f32,
         gain_trim_db: f32,
         headphone_cue: bool,
+        sync_mode: SyncMode,
         position_secs: Option<f64>,
         duration_secs: Option<f64>,
     },

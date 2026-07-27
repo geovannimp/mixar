@@ -1,4 +1,5 @@
-//! Phase 3 deck commands: sync, beat jump, pad modes, loop roll.
+//! Phase 3 deck commands: beat jump, pad modes, loop roll.
+//! Tempo/beat sync + master deck live on the engine cmd bus.
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -6,7 +7,7 @@ use tauri::{AppHandle, State};
 use crate::deck_performance::{snap_secs, LoopRegionStatus};
 use crate::deck_sampler::ensure_deck_bank_loaded;
 use crate::engine_controller::{publish_deck, publish_status};
-use crate::{deck_playback_secs, with_engine, AppState, DeckStatus, SharedAppState, NUM_DECKS};
+use crate::{deck_playback_secs, with_engine, DeckStatus, SharedAppState, NUM_DECKS};
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -25,176 +26,6 @@ pub enum PadMode {
     LoopRoll,
     BeatJump,
     Sampler,
-}
-
-pub(crate) fn apply_tempo_sync_for_state(
-    state: &mut AppState,
-    slave_id: usize,
-    master_id: usize,
-) -> Result<(), String> {
-    if slave_id == master_id {
-        return Err("Cannot sync a deck to itself.".to_string());
-    }
-
-    let master = &state.decks[master_id];
-    let slave_bpm = state.decks[slave_id]
-        .bpm
-        .ok_or_else(|| "Slave deck BPM is required for sync.".to_string())?;
-    let master_bpm = master
-        .bpm
-        .ok_or_else(|| "Master deck BPM is required for sync.".to_string())?;
-
-    let master_effective = master_bpm * f64::from(master.speed);
-    let target_speed = (master_effective / slave_bpm) as f32;
-    let target_speed = target_speed.clamp(0.5, 2.0);
-
-    state.decks[slave_id].speed = target_speed;
-    with_engine(state, |engine| {
-        engine
-            .set_deck_speed(slave_id, target_speed)
-            .map_err(|e| e.to_string())
-    })
-}
-
-pub(crate) fn align_beat_phase_for_state(
-    state: &mut AppState,
-    slave_id: usize,
-    master_id: usize,
-) -> Result<(), String> {
-    let master_bpm = state.decks[master_id]
-        .bpm
-        .ok_or_else(|| "Master deck BPM is required for beat sync.".to_string())?;
-    let slave_bpm = state.decks[slave_id]
-        .bpm
-        .ok_or_else(|| "Slave deck BPM is required for beat sync.".to_string())?;
-
-    let (master_pos, _) = deck_playback_secs(state, master_id);
-    let (slave_pos, duration) = deck_playback_secs(state, slave_id);
-    let master_pos = master_pos.unwrap_or(0.0);
-    let slave_pos = slave_pos.unwrap_or(0.0);
-    let duration = duration.unwrap_or(0.0);
-
-    let master_beat = 60.0 / master_bpm;
-    let slave_beat = 60.0 / slave_bpm;
-    let master_phase = master_pos % master_beat;
-
-    let slave_beat_index = (slave_pos / slave_beat).floor();
-    let mut target = slave_beat_index * slave_beat + master_phase;
-    if target + slave_beat * 0.5 < slave_pos {
-        target += slave_beat;
-    }
-
-    let snapped = snap_secs(
-        target.min(duration),
-        Some(slave_bpm),
-        state.decks[slave_id].quantize,
-    );
-
-    with_engine(state, |engine| {
-        engine
-            .seek_deck(slave_id, snapped)
-            .map_err(|e| e.to_string())
-    })
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct EngineStatusLite {
-    pub master_deck: usize,
-    pub decks: Vec<DeckStatus>,
-}
-
-fn publish_mix_state(app: &AppHandle, state: &mut AppState) -> EngineStatusLite {
-    use crate::engine_controller::{bump_revision, deck_status};
-    use crate::engine_events::emit_deck_updated;
-
-    let revision = bump_revision(state);
-    let decks: Vec<DeckStatus> = state
-        .decks
-        .iter()
-        .enumerate()
-        .map(|(id, deck)| deck_status(state, id, deck))
-        .collect();
-
-    for deck in &decks {
-        emit_deck_updated(app, revision, deck.clone());
-    }
-
-    EngineStatusLite {
-        master_deck: state.master_deck,
-        decks,
-    }
-}
-
-#[tauri::command]
-pub fn set_master_deck(
-    app: AppHandle,
-    deck_id: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<EngineStatusLite, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.master_deck = deck_id;
-
-    for slave_id in 0..NUM_DECKS {
-        if slave_id == deck_id {
-            continue;
-        }
-        if state.decks[slave_id].sync_mode != SyncMode::Off {
-            let mode = state.decks[slave_id].sync_mode;
-            apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
-            if mode == SyncMode::Beat {
-                align_beat_phase_for_state(&mut state, slave_id, deck_id)?;
-            }
-        }
-    }
-
-    Ok(publish_mix_state(&app, &mut state))
-}
-
-#[tauri::command]
-pub fn toggle_deck_sync(
-    app: AppHandle,
-    deck_id: usize,
-    beat_sync: Option<bool>,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].track.is_none() {
-        return Err("Load a track before enabling sync.".to_string());
-    }
-
-    let master_id = state.master_deck;
-    if deck_id == master_id {
-        return Err("Master deck cannot sync to itself. Choose the other deck.".to_string());
-    }
-
-    let next_mode = if state.decks[deck_id].sync_mode == SyncMode::Off {
-        if beat_sync.unwrap_or(false) {
-            SyncMode::Beat
-        } else {
-            SyncMode::Tempo
-        }
-    } else {
-        SyncMode::Off
-    };
-
-    state.decks[deck_id].sync_mode = next_mode;
-
-    if next_mode != SyncMode::Off {
-        apply_tempo_sync_for_state(&mut state, deck_id, master_id)?;
-        if next_mode == SyncMode::Beat {
-            align_beat_phase_for_state(&mut state, deck_id, master_id)?;
-        }
-    }
-
-    Ok(publish_deck(&app, &mut state, deck_id))
 }
 
 #[tauri::command]

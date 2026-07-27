@@ -14,8 +14,7 @@ use deck_sampler::{
     SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{
-    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_pad_mode, set_master_deck,
-    toggle_deck_sync, PadMode, SyncMode,
+    beat_jump_deck, begin_loop_roll, end_loop_roll, set_deck_pad_mode, PadMode, SyncMode,
 };
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
@@ -1078,53 +1077,6 @@ async fn load_library_track_to_deck(
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
-// ponytail: tempo sync still Tauri-side until sync state moves to engine-core; UI uses invoke for set_speed
-#[tauri::command]
-fn set_deck_speed(
-    app: AppHandle,
-    deck_id: usize,
-    speed: f32,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if speed <= 0.0 || speed > 2.0 {
-        return Err("Speed must be between 0 and 2.".to_string());
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    state.decks[deck_id].speed = speed;
-    if state.session.is_some() {
-        with_engine(&mut state, |engine| {
-            engine
-                .set_deck_speed(deck_id, speed)
-                .map_err(|e| e.to_string())
-        })?;
-    }
-
-    let mut synced_slaves = Vec::new();
-    if deck_id == state.master_deck {
-        for slave_id in 0..NUM_DECKS {
-            if slave_id == deck_id {
-                continue;
-            }
-            if state.decks[slave_id].sync_mode == SyncMode::Off {
-                continue;
-            }
-            // Follow master tempo only — do not re-seek phase on every pitch nudge.
-            deck_sync::apply_tempo_sync_for_state(&mut state, slave_id, deck_id)?;
-            synced_slaves.push(slave_id);
-        }
-    }
-
-    let master_status = publish_deck(&app, &mut state, deck_id);
-    for slave_id in synced_slaves {
-        let _ = publish_deck(&app, &mut state, slave_id);
-    }
-    Ok(master_status)
-}
-
 #[tauri::command]
 async fn render_waveform_lane(
     track_id: Option<String>,
@@ -1361,7 +1313,6 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            set_deck_speed,
             unload_deck,
             set_deck_cue_point,
             begin_deck_cue_hold,
@@ -1380,8 +1331,6 @@ pub fn run() {
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
-            set_master_deck,
-            toggle_deck_sync,
             beat_jump_deck,
             set_deck_pad_mode,
             begin_loop_roll,

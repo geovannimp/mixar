@@ -16,6 +16,8 @@ export const KindSchema = z.enum([
   "set_crossfader",
   "set_cue_mix",
   "set_master_cue",
+  "toggle_sync",
+  "set_master_deck",
   "updated",
   "position",
   "levels",
@@ -39,6 +41,9 @@ export const DeckEqSchema = z.object({
 });
 export type DeckEq = z.infer<typeof DeckEqSchema>;
 
+export const SyncModeSchema = z.enum(["off", "tempo", "beat"]);
+export type SyncMode = z.infer<typeof SyncModeSchema>;
+
 export const DeckSnapshotSchema = z.object({
   id: z.number().int().nonnegative(),
   playing: z.boolean(),
@@ -48,6 +53,7 @@ export const DeckSnapshotSchema = z.object({
   filter_db: z.number(),
   gain_trim_db: z.number(),
   headphone_cue: z.boolean(),
+  sync_mode: SyncModeSchema,
   position_secs: z.number().nullable(),
   duration_secs: z.number().nullable(),
 });
@@ -59,6 +65,7 @@ export const EngineStatusPayloadSchema = z.object({
   crossfader: z.number(),
   cue_mix: z.number(),
   master_cue: z.boolean(),
+  master_deck: z.number().int().nonnegative(),
   decks: z.array(DeckSnapshotSchema),
 });
 export type EngineStatusPayload = z.infer<typeof EngineStatusPayloadSchema>;
@@ -80,6 +87,7 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_crossfader"), position: z.number() }),
   z.object({ type: z.literal("set_cue_mix"), mix: z.number() }),
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
+  z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -95,6 +103,7 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     filter_db: z.number(),
     gain_trim_db: z.number(),
     headphone_cue: z.boolean(),
+    sync_mode: SyncModeSchema,
     position_secs: z.number().nullable(),
     duration_secs: z.number().nullable(),
   }),
@@ -209,7 +218,9 @@ export type CmdKind =
   | "set_headphone_cue"
   | "set_crossfader"
   | "set_cue_mix"
-  | "set_master_cue";
+  | "set_master_cue"
+  | "toggle_sync"
+  | "set_master_deck";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

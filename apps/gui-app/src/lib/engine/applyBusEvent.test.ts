@@ -57,6 +57,7 @@ describe("applyBusEvent", () => {
       filter_db: 0,
       gain_trim_db: 0,
       headphone_cue: false,
+      sync_mode: "off",
       position_secs: 12.25,
       duration_secs: 180,
     });
@@ -83,6 +84,7 @@ describe("applyBusEvent", () => {
       filter_db: 0,
       gain_trim_db: 0,
       headphone_cue: false,
+      sync_mode: "off",
       position_secs: null,
       duration_secs: 180,
     });
@@ -102,6 +104,7 @@ describe("applyBusEvent", () => {
       filter_db: 3.5,
       gain_trim_db: -1.25,
       headphone_cue: true,
+      sync_mode: "off",
       position_secs: null,
       duration_secs: null,
     });
@@ -109,5 +112,70 @@ describe("applyBusEvent", () => {
     expect(patch.status?.decks[0]?.filter_db).toBe(3.5);
     expect(patch.status?.decks[0]?.gain_trim_db).toBe(-1.25);
     expect(patch.status?.decks[0]?.headphone_cue).toBe(true);
+  });
+
+  it("deck_updated applies sync_mode; status updates master_deck", () => {
+    const current = baseStatus();
+    const updated = packWire({ deck: 1 }, "updated", 2, {
+      type: "deck_updated",
+      id: 1,
+      playing: false,
+      volume: 1,
+      speed: 1.2,
+      eq: { low: 0, mid: 0, high: 0 },
+      filter_db: 0,
+      gain_trim_db: 0,
+      headphone_cue: false,
+      sync_mode: "tempo",
+      position_secs: null,
+      duration_secs: null,
+    });
+    const afterSync = applyBusEvent(current, 1, updated);
+    expect(afterSync.status?.decks[1]?.sync_mode).toBe("tempo");
+    expect(afterSync.status?.decks[1]?.speed).toBe(1.2);
+
+    const statusBytes = packWire("mixer", "status", 3, {
+      type: "engine_status",
+      status: {
+        running: true,
+        sample_rate: 48000,
+        crossfader: 0.5,
+        cue_mix: 0,
+        master_cue: false,
+        master_deck: 1,
+        decks: [
+          {
+            id: 0,
+            playing: false,
+            volume: 1,
+            speed: 1,
+            eq: { low: 0, mid: 0, high: 0 },
+            filter_db: 0,
+            gain_trim_db: 0,
+            headphone_cue: false,
+            sync_mode: "off",
+            position_secs: null,
+            duration_secs: null,
+          },
+          {
+            id: 1,
+            playing: false,
+            volume: 1,
+            speed: 1,
+            eq: { low: 0, mid: 0, high: 0 },
+            filter_db: 0,
+            gain_trim_db: 0,
+            headphone_cue: false,
+            sync_mode: "off",
+            position_secs: null,
+            duration_secs: null,
+          },
+        ],
+      },
+    });
+    const afterMaster = applyBusEvent(afterSync.status, afterSync.revision, statusBytes);
+    expect(afterMaster.status?.master_deck).toBe(1);
+    expect(afterMaster.status?.decks[1]?.is_master).toBe(true);
+    expect(afterMaster.status?.decks[0]?.is_master).toBe(false);
   });
 });

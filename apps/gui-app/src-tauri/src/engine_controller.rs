@@ -2,8 +2,9 @@
 
 use tauri::AppHandle;
 
-use crate::engine_events::{emit_deck_updated, emit_status};
 use crate::deck_sampler::SamplerStatus;
+use crate::deck_sync::SyncMode;
+use crate::engine_events::{emit_deck_updated, emit_status};
 use crate::{deck_playback_secs, AppState, DeckInfo, DeckStatus, EngineStatus, NUM_DECKS};
 
 /// Overlay engine-owned transport/mix fields onto AppState before publish.
@@ -18,6 +19,7 @@ fn sync_app_state_from_engine(state: &mut AppState) {
     state.crossfader = engine_status.crossfader;
     state.cue_mix = engine_status.cue_mix;
     state.master_cue = engine_status.master_cue;
+    state.master_deck = engine_status.master_deck as usize;
 
     for snap in engine_status.decks {
         let id = snap.id as usize;
@@ -34,6 +36,11 @@ fn sync_app_state_from_engine(state: &mut AppState) {
         deck.filter_db = snap.filter_db;
         deck.gain_trim_db = snap.gain_trim_db;
         deck.headphone_cue = snap.headphone_cue;
+        deck.sync_mode = match snap.sync_mode {
+            engine_api::SyncMode::Off => SyncMode::Off,
+            engine_api::SyncMode::Tempo => SyncMode::Tempo,
+            engine_api::SyncMode::Beat => SyncMode::Beat,
+        };
     }
 }
 
