@@ -1,6 +1,7 @@
 //! Sampler banks — persist, assign, and trigger one-shots.
 
 use serde::{Deserialize, Serialize};
+use strum::EnumString;
 use tauri::{AppHandle, State};
 
 use library::{SamplerBankRecord, SamplerPlayMode as LibPlayMode, TrackId};
@@ -13,8 +14,9 @@ use crate::{with_engine, AppState, SharedAppState, NUM_DECKS};
 
 pub const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, EnumString)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SamplerPlayModeSetting {
     #[default]
     Oneshot,

@@ -106,13 +106,12 @@ pub fn clear_session(holder: &SharedSession) {
 fn parse_play_mode(
     play_mode: Option<String>,
 ) -> Result<Option<crate::deck_sampler::SamplerPlayModeSetting>, String> {
-    match play_mode.as_deref() {
-        None => Ok(None),
-        Some("oneshot") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Oneshot)),
-        Some("hold") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Hold)),
-        Some("loop") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Loop)),
-        Some(other) => Err(format!("Invalid sampler play mode: {other}")),
-    }
+    play_mode
+        .map(|s| {
+            s.parse()
+                .map_err(|_| format!("Invalid sampler play mode: {s}"))
+        })
+        .transpose()
 }
 
 #[tauri::command]
