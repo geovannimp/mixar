@@ -4,7 +4,7 @@ use deck_performance::{
     SavedLoopStatus,
 };
 use deck_sampler::{
-    apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready, get_sampler_status,
+    apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready,
     list_sampler_banks, reapply_sampler_gains, select_bank_for_track_load, SamplerBankInfo,
     SamplerPlayModeSetting, SamplerSlotInfo, SamplerStatus,
 };
@@ -494,15 +494,6 @@ fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<
         .unwrap_or((None, None))
 }
 
-fn apply_path_metadata(deck: &mut DeckInfo, path: &str) {
-    deck.title = Path::new(path)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned());
-    deck.artist = None;
-    deck.bpm = None;
-    deck.key = None;
-}
-
 pub(crate) fn clear_deck_info(deck: &mut DeckInfo) {
     *deck = DeckInfo {
         volume: deck.volume,
@@ -611,25 +602,6 @@ fn start_engine(
     apply_normalizer_target(&mut state)?;
     ensure_sampler_ready(&mut state)?;
 
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn stop_engine(
-    app: AppHandle,
-    state: State<'_, SharedAppState>,
-    session_holder: State<'_, SharedSession>,
-) -> Result<EngineStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    stop_session(&mut state)?;
-    clear_session(session_holder.inner());
-    for deck in &mut state.decks {
-        clear_deck_info(deck);
-    }
-    state.sampler_slots = empty_deck_sampler_slots();
-    state.loaded_sampler_bank_id = std::array::from_fn(|_| None);
-    state.draft_sampler_bank = None;
-    state.audio_cache.prune();
     Ok(publish_status(&app, &mut state))
 }
 
@@ -949,42 +921,6 @@ pub(crate) fn load_path_to_deck_inner(
     Ok(publish_deck(app, state, deck_id))
 }
 
-#[tauri::command]
-async fn load_track(
-    app: AppHandle,
-    deck_id: usize,
-    path: String,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let source = AudioSource::File(FileAudioSource::from_path(&path));
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
-        engine
-            .load_track(deck_id, source)
-            .map_err(|e| e.to_string())
-    })?;
-
-    {
-        let deck = &mut state.decks[deck_id];
-        deck.track = Some(path.clone());
-        deck.track_id = None;
-        deck.playing = false;
-        deck.speed = 1.0;
-        deck.loudness_lufs = None;
-        apply_path_metadata(deck, &path);
-    }
-    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
-    let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, None);
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
-    let _ = select_bank_for_track_load(&mut state, deck_id, None);
-    Ok(publish_deck(&app, &mut state, deck_id))
-}
-
 pub(crate) fn load_library_track_to_deck_inner(
     app: &AppHandle,
     state: &mut AppState,
@@ -1219,21 +1155,6 @@ fn get_supported_audio_extensions() -> Vec<&'static str> {
     SUPPORTED_AUDIO_EXTENSIONS.to_vec()
 }
 
-#[tauri::command]
-fn sample_track_path() -> Option<String> {
-    let candidates = [
-        "../../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
-        "../../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
-        "../samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
-        "samples/Z8phyR - Nameless Elegy (Second Mix) (Mastered with Aurora at 57pct).wav",
-    ];
-
-    candidates
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(|path| path.to_string())
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
@@ -1281,7 +1202,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             start_engine,
-            stop_engine,
             get_status,
             get_settings,
             save_settings,
@@ -1293,12 +1213,9 @@ pub fn run() {
             list_fs_volumes,
             browse_fs_directory,
             analyze_library_track,
-            load_track,
             render_waveform_lane,
             get_supported_audio_extensions,
-            sample_track_path,
             list_sampler_banks,
-            get_sampler_status,
             get_track_artwork,
             bus_bridge::engine_publish,
         ])

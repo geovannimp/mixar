@@ -18,27 +18,6 @@ pub enum EngineEvent {
         revision: u64,
         deck: DeckStatus,
     },
-    #[allow(dead_code)]
-    Position {
-        deck_id: usize,
-        position_secs: f64,
-    },
-    #[allow(dead_code)]
-    Levels {
-        deck_id: usize,
-        peak_l: f32,
-        peak_r: f32,
-        peak_hold_l: f32,
-        peak_hold_r: f32,
-    },
-    #[allow(dead_code)]
-    Notice {
-        message: String,
-    },
-    #[allow(dead_code)]
-    Error {
-        message: String,
-    },
 }
 
 pub fn emit_event(app: &AppHandle, event: EngineEvent) {

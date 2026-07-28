@@ -866,9 +866,3 @@ pub(crate) fn clear_sampler_slot_inner(
     publish_status(app, state);
     Ok(SamplerStatus::from_state(state))
 }
-
-#[tauri::command]
-pub fn get_sampler_status(state: State<'_, SharedAppState>) -> Result<SamplerStatus, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(SamplerStatus::from_state(&state))
-}
