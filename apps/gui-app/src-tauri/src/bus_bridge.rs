@@ -3,11 +3,14 @@
 use engine_api::{decode_cmd_body, decode_wire, encode_wire, CmdBody, Kind, Origin, WireMessage};
 use engine_core::{EngineSession, Evt};
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
+
+use crate::deck_sampler::SamplerPlayModeSetting;
 
 pub const ENGINE_BUS_EVENT: &str = "engine://bus";
 
@@ -103,17 +106,6 @@ pub fn clear_session(holder: &SharedSession) {
     *holder.lock().expect("shared session lock") = None;
 }
 
-fn parse_play_mode(
-    play_mode: Option<String>,
-) -> Result<Option<crate::deck_sampler::SamplerPlayModeSetting>, String> {
-    play_mode
-        .map(|s| {
-            s.parse()
-                .map_err(|_| format!("Invalid sampler play mode: {s}"))
-        })
-        .transpose()
-}
-
 #[tauri::command]
 pub fn engine_publish(
     app: AppHandle,
@@ -199,7 +191,11 @@ pub fn engine_publish(
                     &mut state,
                     deck_id,
                     name,
-                    parse_play_mode(play_mode)?,
+                    play_mode
+                        .as_deref()
+                        .map(SamplerPlayModeSetting::from_str)
+                        .transpose()
+                        .map_err(|e| e.to_string())?,
                 )?;
                 return Ok(());
             }
@@ -284,7 +280,11 @@ pub fn engine_publish(
                     &mut state,
                     bank_id,
                     name,
-                    parse_play_mode(play_mode)?,
+                    play_mode
+                        .as_deref()
+                        .map(SamplerPlayModeSetting::from_str)
+                        .transpose()
+                        .map_err(|e| e.to_string())?,
                 )?;
                 return Ok(());
             }
