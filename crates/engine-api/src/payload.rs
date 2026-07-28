@@ -74,30 +74,95 @@ pub struct EngineStatus {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CmdBody {
     Empty,
-    Seek { position_secs: f64 },
-    SetVolume { volume: f32 },
-    SetEq { low: f32, mid: f32, high: f32 },
-    SetSpeed { speed: f32 },
-    SetFilter { filter_db: f32 },
-    SetGainTrim { gain_db: f32 },
-    SetHeadphoneCue { enabled: bool },
-    SetCrossfader { position: f32 },
-    SetCueMix { mix: f32 },
-    SetMasterCue { enabled: bool },
-    ToggleSync { beat_sync: bool },
-    SetQuantize { enabled: bool },
-    SetAutoLoop { beats: u32 },
-    BeatJump { beats: i32 },
-    SetPadMode { mode: PadMode },
-    BeginLoopRoll { beats: u32 },
-    TriggerHotCue { position_secs: f64 },
-    RecallSavedLoop { in_secs: f64, out_secs: f64 },
-    TriggerSampler { slot: u8 },
-    EndSampler { slot: u8 },
-    AssignSampler { slot: u8, path: String },
-    AssignSamplerTrack { slot: u8, track_id: String },
-    ClearSampler { slot: u8 },
-    SetSamplerBank { bank_id: String },
+    Seek {
+        position_secs: f64,
+    },
+    SetVolume {
+        volume: f32,
+    },
+    SetEq {
+        low: f32,
+        mid: f32,
+        high: f32,
+    },
+    SetSpeed {
+        speed: f32,
+    },
+    SetFilter {
+        filter_db: f32,
+    },
+    SetGainTrim {
+        gain_db: f32,
+    },
+    SetHeadphoneCue {
+        enabled: bool,
+    },
+    SetCrossfader {
+        position: f32,
+    },
+    SetCueMix {
+        mix: f32,
+    },
+    SetMasterCue {
+        enabled: bool,
+    },
+    ToggleSync {
+        beat_sync: bool,
+    },
+    SetQuantize {
+        enabled: bool,
+    },
+    SetAutoLoop {
+        beats: u32,
+    },
+    BeatJump {
+        beats: i32,
+    },
+    SetPadMode {
+        mode: PadMode,
+    },
+    BeginLoopRoll {
+        beats: u32,
+    },
+    TriggerHotCue {
+        position_secs: f64,
+    },
+    RecallSavedLoop {
+        in_secs: f64,
+        out_secs: f64,
+    },
+    TriggerSampler {
+        slot: u8,
+    },
+    EndSampler {
+        slot: u8,
+    },
+    AssignSampler {
+        slot: u8,
+        path: String,
+    },
+    AssignSamplerTrack {
+        slot: u8,
+        track_id: String,
+    },
+    ClearSampler {
+        slot: u8,
+    },
+    SetSamplerBank {
+        bank_id: String,
+    },
+    CreateSamplerBank {
+        name: Option<String>,
+        play_mode: Option<String>,
+    },
+    UpdateSamplerBank {
+        bank_id: String,
+        name: String,
+        play_mode: Option<String>,
+    },
+    DeleteSamplerBank {
+        bank_id: String,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].

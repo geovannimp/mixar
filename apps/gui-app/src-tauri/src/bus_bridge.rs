@@ -103,6 +103,18 @@ pub fn clear_session(holder: &SharedSession) {
     *holder.lock().expect("shared session lock") = None;
 }
 
+fn parse_play_mode(
+    play_mode: Option<String>,
+) -> Result<Option<crate::deck_sampler::SamplerPlayModeSetting>, String> {
+    match play_mode.as_deref() {
+        None => Ok(None),
+        Some("oneshot") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Oneshot)),
+        Some("hold") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Hold)),
+        Some("loop") => Ok(Some(crate::deck_sampler::SamplerPlayModeSetting::Loop)),
+        Some(other) => Err(format!("Invalid sampler play mode: {other}")),
+    }
+}
+
 #[tauri::command]
 pub fn engine_publish(
     app: AppHandle,
@@ -174,6 +186,57 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::set_deck_sampler_bank_inner(&app, &mut state, deck_id, bank_id)?;
+                return Ok(());
+            }
+            Kind::CreateSamplerBank => {
+                let CmdBody::CreateSamplerBank { name, play_mode } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("create_sampler_bank body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::create_sampler_bank_inner(
+                    &app,
+                    &mut state,
+                    deck_id,
+                    name,
+                    parse_play_mode(play_mode)?,
+                )?;
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
+
+    if msg.origin == Origin::Mixer {
+        match msg.kind {
+            Kind::UpdateSamplerBank => {
+                let CmdBody::UpdateSamplerBank {
+                    bank_id,
+                    name,
+                    play_mode,
+                } = decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("update_sampler_bank body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::update_sampler_bank_inner(
+                    &app,
+                    &mut state,
+                    bank_id,
+                    name,
+                    parse_play_mode(play_mode)?,
+                )?;
+                return Ok(());
+            }
+            Kind::DeleteSamplerBank => {
+                let CmdBody::DeleteSamplerBank { bank_id } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("delete_sampler_bank body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::delete_sampler_bank_inner(&app, &mut state, bank_id)?;
                 return Ok(());
             }
             _ => {}

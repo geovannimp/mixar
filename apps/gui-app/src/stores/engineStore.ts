@@ -457,23 +457,18 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   updateSamplerBank: async (bankId, name, playMode) => {
-    try {
-      await invoke("update_sampler_bank", { bankId, name, playMode });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd("mixer", "update_sampler_bank", {
+      bank_id: bankId,
+      name,
+      play_mode: playMode,
+    });
   },
 
   createSamplerBank: async (deckId = 0, name) => {
-    try {
-      await invoke("create_sampler_bank", {
-        name: name?.trim() || null,
-        playMode: null,
-        deckId,
-      });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "create_sampler_bank", {
+      name: name?.trim() || null,
+      play_mode: null,
+    });
   },
 }));
 

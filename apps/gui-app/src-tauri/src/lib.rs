@@ -4,10 +4,9 @@ use deck_performance::{
     save_loop, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sampler::{
-    apply_effective_play_mode, create_sampler_bank, delete_sampler_bank, empty_deck_sampler_slots,
-    ensure_sampler_ready, get_sampler_status, list_sampler_banks, reapply_sampler_gains,
-    select_bank_for_track_load, update_sampler_bank, SamplerBankInfo, SamplerPlayModeSetting,
-    SamplerSlotInfo, SamplerStatus,
+    apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready, get_sampler_status,
+    list_sampler_banks, reapply_sampler_gains, select_bank_for_track_load, SamplerBankInfo,
+    SamplerPlayModeSetting, SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{PadMode, SyncMode};
 use engine_core::{
@@ -1315,9 +1314,6 @@ pub fn run() {
             get_supported_audio_extensions,
             sample_track_path,
             list_sampler_banks,
-            create_sampler_bank,
-            update_sampler_bank,
-            delete_sampler_bank,
             get_sampler_status,
             get_track_artwork,
             bus_bridge::engine_publish,

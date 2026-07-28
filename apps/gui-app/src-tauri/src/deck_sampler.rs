@@ -597,43 +597,38 @@ pub fn list_sampler_banks(state: State<'_, SharedAppState>) -> Result<Vec<Sample
         .collect())
 }
 
-#[tauri::command]
-pub fn create_sampler_bank(
-    app: AppHandle,
+pub(crate) fn create_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
+    deck_id: usize,
     name: Option<String>,
     play_mode: Option<SamplerPlayModeSetting>,
-    deck_id: Option<usize>,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerBankInfo, String> {
-    let deck_id = deck_id.unwrap_or(0);
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let draft = start_draft_sampler_bank(&mut state, deck_id, name, play_mode)?;
-    load_bank_into_engine(&mut state, deck_id, &draft.id)?;
-    publish_deck(&app, &mut state, deck_id);
-    publish_status(&app, &mut state);
+    let draft = start_draft_sampler_bank(state, deck_id, name, play_mode)?;
+    load_bank_into_engine(state, deck_id, &draft.id)?;
+    publish_deck(app, state, deck_id);
+    publish_status(app, state);
     Ok(draft)
 }
 
-#[tauri::command]
-pub fn update_sampler_bank(
-    app: AppHandle,
+pub(crate) fn update_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     bank_id: String,
     name: String,
     play_mode: Option<SamplerPlayModeSetting>,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     let name = name.trim().to_string();
     if name.is_empty() {
         return Err("Bank name cannot be empty.".to_string());
     }
 
-    let bank_id = if is_draft_bank_id(&state, &bank_id) {
+    let bank_id = if is_draft_bank_id(state, &bank_id) {
         if let Some(draft) = state.draft_sampler_bank.as_mut() {
             draft.name = name;
             draft.play_mode = play_mode;
         }
-        persist_draft_bank_if_needed(&mut state, &bank_id)?
+        persist_draft_bank_if_needed(state, &bank_id)?
     } else {
         state
             .library
@@ -646,31 +641,29 @@ pub fn update_sampler_bank(
         if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str())
             || state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str())
         {
-            apply_effective_play_mode_for_bank(&mut state, deck_id, &bank_id)?;
+            apply_effective_play_mode_for_bank(state, deck_id, &bank_id)?;
         }
     }
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn delete_sampler_bank(
-    app: AppHandle,
+pub(crate) fn delete_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     bank_id: String,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if is_draft_bank_id(&state, &bank_id) {
-        discard_draft_bank(&mut state);
-        let fallback = fallback_bank_id(&mut state, 0)?;
+    if is_draft_bank_id(state, &bank_id) {
+        discard_draft_bank(state);
+        let fallback = fallback_bank_id(state, 0)?;
         for i in 0..NUM_DECKS {
             if state.decks[i].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
                 state.decks[i].active_sampler_bank_id = Some(fallback.clone());
-                load_bank_into_engine(&mut state, i, &fallback)?;
+                load_bank_into_engine(state, i, &fallback)?;
             }
         }
-        publish_status(&app, &mut state);
-        return Ok(SamplerStatus::from_state(&state));
+        publish_status(app, state);
+        return Ok(SamplerStatus::from_state(state));
     }
 
     state
@@ -678,12 +671,11 @@ pub fn delete_sampler_bank(
         .delete_sampler_bank(&bank_id)
         .map_err(|e| e.to_string())?;
 
-    let fallback = fallback_bank_id(&mut state, 0)?;
+    let fallback = fallback_bank_id(state, 0)?;
 
     for i in 0..NUM_DECKS {
         if state.deck_default_sampler_bank_id[i].as_deref() == Some(bank_id.as_str()) {
-            // Don't store draft ids as deck defaults.
-            state.deck_default_sampler_bank_id[i] = if is_draft_bank_id(&state, &fallback) {
+            state.deck_default_sampler_bank_id[i] = if is_draft_bank_id(state, &fallback) {
                 None
             } else {
                 Some(fallback.clone())
@@ -691,13 +683,13 @@ pub fn delete_sampler_bank(
         }
         if state.decks[i].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
             state.decks[i].active_sampler_bank_id = Some(fallback.clone());
-            load_bank_into_engine(&mut state, i, &fallback)?;
+            load_bank_into_engine(state, i, &fallback)?;
         } else if state.loaded_sampler_bank_id[i].as_deref() == Some(bank_id.as_str()) {
             state.loaded_sampler_bank_id[i] = None;
         }
     }
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn set_deck_sampler_bank_inner(
