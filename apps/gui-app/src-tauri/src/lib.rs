@@ -1,7 +1,7 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
-    apply_deck_performance, delete_hot_cue, delete_loop, fetch_deck_performance, recall_saved_loop,
-    save_hot_cue, save_loop, trigger_hot_cue, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+    apply_deck_performance, delete_hot_cue, delete_loop, fetch_deck_performance, save_hot_cue,
+    save_loop, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sampler::{
     apply_effective_play_mode, assign_sampler_slot, assign_sampler_slot_from_track,
@@ -11,9 +11,7 @@ use deck_sampler::{
     trigger_sampler_pad, update_sampler_bank, SamplerBankInfo, SamplerPlayModeSetting,
     SamplerSlotInfo, SamplerStatus,
 };
-use deck_sync::{
-    begin_loop_roll, end_loop_roll, set_deck_pad_mode, PadMode, SyncMode,
-};
+use deck_sync::{PadMode, SyncMode};
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
     EngineSession, SamplerStripRouteSetting,
@@ -1311,18 +1309,13 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            trigger_hot_cue,
             save_hot_cue,
             delete_hot_cue,
             save_loop,
-            recall_saved_loop,
             delete_loop,
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
-            set_deck_pad_mode,
-            begin_loop_roll,
-            end_loop_roll,
             list_sampler_banks,
             create_sampler_bank,
             update_sampler_bank,

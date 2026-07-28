@@ -38,6 +38,7 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
       cue_point_secs: null,
       quantize: true,
       active_loop: null,
+      pad_mode: "hot_cue",
       position_secs: 0,
       duration_secs: 120,
     }),

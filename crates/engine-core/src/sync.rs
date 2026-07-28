@@ -1,18 +1,21 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
-use engine_api::SyncMode;
+use engine_api::{LoopRegion, PadMode, SyncMode};
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DeckControlState {
     pub sync_mode: SyncMode,
     pub bpm: Option<f64>,
     pub quantize: bool,
+    pub pad_mode: PadMode,
+    pub loop_roll_restore: Option<LoopRegion>,
 }
 
 impl DeckControlState {
     pub fn reset_for_load(&mut self, bpm: Option<f64>) {
         self.bpm = bpm.filter(|b| b.is_finite() && *b > 0.0);
         self.sync_mode = SyncMode::Off;
+        self.loop_roll_restore = None;
     }
 }
 

@@ -26,6 +26,17 @@ pub struct LoopRegion {
     pub active: bool,
 }
 
+/// Controller pad mode for a deck.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PadMode {
+    #[default]
+    HotCue,
+    LoopRoll,
+    BeatJump,
+    Sampler,
+}
+
 /// Slim deck snapshot for status patches and full snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
@@ -41,6 +52,7 @@ pub struct DeckSnapshot {
     pub cue_point_secs: Option<f64>,
     pub quantize: bool,
     pub active_loop: Option<LoopRegion>,
+    pub pad_mode: PadMode,
     pub position_secs: Option<f64>,
     pub duration_secs: Option<f64>,
 }
@@ -76,6 +88,10 @@ pub enum CmdBody {
     SetQuantize { enabled: bool },
     SetAutoLoop { beats: u32 },
     BeatJump { beats: i32 },
+    SetPadMode { mode: PadMode },
+    BeginLoopRoll { beats: u32 },
+    TriggerHotCue { position_secs: f64 },
+    RecallSavedLoop { in_secs: f64, out_secs: f64 },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
@@ -96,6 +112,7 @@ pub enum EvtBody {
         cue_point_secs: Option<f64>,
         quantize: bool,
         active_loop: Option<LoopRegion>,
+        pad_mode: PadMode,
         position_secs: Option<f64>,
         duration_secs: Option<f64>,
     },

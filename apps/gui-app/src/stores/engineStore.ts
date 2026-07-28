@@ -328,11 +328,14 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   triggerHotCue: async (deckId, slot) => {
-    try {
-      await invoke("trigger_hot_cue", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
+    const cue = getDeck(get().status, deckId).hot_cues.find((entry) => entry.slot === slot);
+    if (!cue) {
+      reportEngineError(`Hot cue ${slot + 1} is empty.`);
+      return;
     }
+    await publishCmd(getDeckOrigin(deckId), "trigger_hot_cue", {
+      position_secs: cue.position_secs,
+    });
   },
 
   saveHotCue: async (deckId, slot) => {
@@ -360,11 +363,15 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   recallSavedLoop: async (deckId, slot) => {
-    try {
-      await invoke("recall_saved_loop", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
+    const saved = getDeck(get().status, deckId).saved_loops.find((entry) => entry.slot === slot);
+    if (!saved) {
+      reportEngineError(`Saved loop ${slot + 1} is empty.`);
+      return;
     }
+    await publishCmd(getDeckOrigin(deckId), "recall_saved_loop", {
+      in_secs: saved.in_secs,
+      out_secs: saved.out_secs,
+    });
   },
 
   deleteLoop: async (deckId, slot) => {
@@ -395,11 +402,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setDeckPadMode: async (deckId, mode) => {
-    try {
-      await invoke("set_deck_pad_mode", { deckId, mode });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "set_pad_mode", { mode });
   },
 
   setDeckFilter: async (deckId, filterDb) => {
@@ -419,19 +422,11 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   beginLoopRoll: async (deckId, beats) => {
-    try {
-      await invoke("begin_loop_roll", { deckId, beats });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "begin_loop_roll", { beats });
   },
 
   endLoopRoll: async (deckId) => {
-    try {
-      await invoke("end_loop_roll", { deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "end_loop_roll");
   },
 
   triggerSamplerPad: async (deckId, slot) => {
