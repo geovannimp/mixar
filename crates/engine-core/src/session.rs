@@ -6,6 +6,7 @@ use crate::control::control_thread_loop;
 use crate::engine::Engine;
 use anyhow::Result;
 use engine_api::{Kind, Origin};
+use library::LibraryManager;
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -24,8 +25,26 @@ pub struct EngineSession {
 impl EngineSession {
     /// Create a session with fresh buses and a control thread.
     pub fn new(config: EngineConfig) -> Result<Self> {
+        Self::new_inner(config, None)
+    }
+
+    /// Create a session with a shared concrete library manager.
+    pub fn new_with_library(
+        config: EngineConfig,
+        library: Arc<Mutex<LibraryManager>>,
+    ) -> Result<Self> {
+        Self::new_inner(config, Some(library))
+    }
+
+    fn new_inner(
+        config: EngineConfig,
+        library: Option<Arc<Mutex<LibraryManager>>>,
+    ) -> Result<Self> {
         let (cmd_bus, evt_bus) = new_buses();
-        let engine = Arc::new(Mutex::new(Some(Engine::new(config)?)));
+        let engine = Arc::new(Mutex::new(Some(match library {
+            Some(library) => Engine::new_with_library(config, library)?,
+            None => Engine::new(config)?,
+        })));
         let revision = Arc::new(AtomicU64::new(0));
         let shutdown = Arc::new(AtomicBool::new(false));
 

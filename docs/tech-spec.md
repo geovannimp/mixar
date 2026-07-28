@@ -226,26 +226,25 @@ impl AudioBackend {
 }
 ```
 
-`load_track` requires a running engine (`start` first). It calls `source.load()`, then installs samples on the deck at the source’s native sample rate. Decks resample to the engine/stream rate during playback.
+`load_track` / `load_prepared_track` require a running engine (`start` first). Decks install samples at the source’s native sample rate and resample to the engine/stream rate during playback.
 
 ### 4.3 Audio loading (`AudioSource`)
 
 | Type | Crate | Role |
 |------|--------|------|
-| `AudioSource` | `audio-core` | Trait: `load() -> LoadedAudio` |
+| `AudioSource` | `audio-core` / `library-core` | Trait: `load() -> LoadedAudio` |
 | `LoadedAudio` | `audio-core` | Decoded interleaved samples + metadata |
-| `Track` | `library-core` | Library entry; implements `AudioSource` (loads `Track::path` via `codec`) |
-| `FileAudioSource` | `engine-core` | Loads from an arbitrary disk path; also `FileAudioSource::from_track(&track)` |
+| `PreparedTrackPlayback` | `library` | Library-owned handoff: track id + source + cached decode + loudness |
+| `FileAudioSource` | `library-core` | Loads from an arbitrary disk path |
 
-Callers never pass a bare path to `Engine::load_track`. Prefer a library `Track` when available:
+**Preferred host path (GUI):** `LibraryManager::prepare_*_for_playback(&Mutex<…>)` → `Engine::load_prepared_track`. The library owns decode cache / waveform ensure; the engine does not re-decode. These APIs take `&Mutex<LibraryManager>` so decode/waveform generation does not hold the library lock.
 
 ```rust
-engine.load_track(0, &track)?;
-// or, for a path outside the library:
-engine.load_track(0, &FileAudioSource::new("track.wav"))?;
+let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id)?;
+engine.load_prepared_track(0, prepared)?;
 ```
 
-New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changing `Engine` or `engine-dsp`.
+`Engine::load_track` remains for headless / simple callers that pass an `AudioSource` directly. New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changing `Engine` or `engine-dsp`.
 
 ## 5 — Threading & Buffer Model
 
@@ -253,8 +252,8 @@ New origins (HTTP, in-memory bytes, etc.) implement `AudioSource` without changi
 
 #### Load path (control thread)
 
-- App calls `Engine::load_track(deck_id, &source)`.
-- `AudioSource::load()` decodes (e.g. `FileAudioSource` → `codec`) into `LoadedAudio`.
+- Prefer library prepare → `Engine::load_prepared_track` (decode/cache outside the host `AppState` lock).
+- Or `Engine::load_track(deck_id, &source)` which calls `AudioSource::load()` then installs samples.
 - Engine installs samples on the deck via `Deck::load_audio_samples` (native rate).
 
 #### Producer Thread (engine-controlled)
@@ -748,7 +747,7 @@ trait WritableLibrary: Library {
 | Ordered vs unordered lists | `Playlist.sortable` | Playlist and crate are the same structure |
 | Canonical store | `library` / `LibraryManager` | Mixxx-like reliability; storage engine is an implementation detail |
 | External apps | `library-adapters` + `Migratable` / `Exportable` | No coupling of proprietary parsers to the manager schema |
-| Playback | `Track: AudioSource` → `Engine::load_track` | Library does not own the audio device path |
+| Playback | `PreparedTrackPlayback` → `load_prepared_track` (or `AudioSource` → `load_track`) | Library owns decode/metadata; engine owns the device path |
 
 ## 11 — Acceptance Criteria & Performance
 

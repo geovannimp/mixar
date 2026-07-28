@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toastManager } from "@/components/ui/toast";
+import { getLibraryTransport } from "@/lib/library/transport";
 import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "@/types";
+
+const libraryTransport = getLibraryTransport();
 
 export function useLibrary() {
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
@@ -13,7 +15,7 @@ export function useLibrary() {
   const [analyzingTrackId, setAnalyzingTrackId] = useState<string | null>(null);
 
   const refreshCollections = useCallback(async () => {
-    const next = await invoke<CollectionSummary[]>("list_collections");
+    const next = await libraryTransport.listCollections();
     setCollections(next);
     if (next.length === 0) {
       setSelectedCollectionId(null);
@@ -29,7 +31,7 @@ export function useLibrary() {
   }, []);
 
   const refreshTracks = useCallback(async (collectionId: string) => {
-    const next = await invoke<TrackSummary[]>("list_collection_tracks", { collectionId });
+    const next = await libraryTransport.listCollectionTracks(collectionId);
     setTracks(next);
   }, []);
 
@@ -54,9 +56,8 @@ export function useLibrary() {
       setBusy(true);
       setError(null);
       try {
-        const result = await invoke<AddFolderCollectionResult>("add_folder_collection", {
-          folderPath,
-        });
+        const result: AddFolderCollectionResult =
+          await libraryTransport.addFolderCollection(folderPath);
         setSelectedCollectionId(result.collection.id);
         await refreshCollections();
         await refreshTracks(result.collection.id);
@@ -91,7 +92,7 @@ export function useLibrary() {
     setAnalyzingTrackId(trackId);
     setError(null);
     try {
-      const updated = await invoke<TrackSummary>("analyze_library_track", { trackId });
+      const updated = await libraryTransport.analyzeTrack(trackId);
       setTracks((current) => current.map((track) => (track.id === trackId ? updated : track)));
       return updated;
     } catch (err) {

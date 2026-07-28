@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { ResolvedLibraryTrack, TrackSummary } from "@/types";
+import { getLibraryTransport } from "@/lib/library/transport";
+import type { TrackSummary } from "@/types";
+
+const libraryTransport = getLibraryTransport();
 
 export function useLibraryTrackLookup(paths: string[]) {
   const [resolvedByPath, setResolvedByPath] = useState<Record<string, TrackSummary>>({});
@@ -15,9 +17,8 @@ export function useLibraryTrackLookup(paths: string[]) {
 
     let cancelled = false;
     const handle = window.setTimeout(() => {
-      invoke<ResolvedLibraryTrack[]>("resolve_library_tracks_for_paths", {
-        paths,
-      })
+      libraryTransport
+        .resolveTracksForPaths(paths)
         .then((entries) => {
           if (cancelled) {
             return;

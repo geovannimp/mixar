@@ -27,6 +27,12 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
     body: encodeEvtBody({
       type: "deck_updated",
       id: deckId,
+      track: null,
+      track_id: null,
+      title: null,
+      artist: null,
+      bpm: null,
+      key: null,
       playing,
       volume: 1,
       speed: 1,
@@ -41,6 +47,11 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
       pad_mode: "hot_cue",
       position_secs: 0,
       duration_secs: 120,
+      hot_cues: [],
+      saved_loops: [],
+      loudness_lufs: null,
+      auto_gain_db: 0,
+      active_sampler_bank_id: null,
     }),
   });
 }
@@ -50,27 +61,27 @@ describe("useEngineStore revision guards", () => {
     useEngineStore.setState({
       status: makeStatus(),
       revision: 0,
-      busRevision: 0,
       busyDecks: [false, false],
       starting: false,
     });
   });
 
-  it("applies bus updated when legacy revision is higher", () => {
-    useEngineStore.getState().applyEvent({
-      type: "status",
-      revision: 100,
-      status: makeStatus(),
-    });
-
-    expect(useEngineStore.getState().revision).toBe(100);
+  it("applies bus updated and advances revision", () => {
     expect(useEngineStore.getState().status?.decks[0]?.playing).toBe(false);
 
     useEngineStore.getState().applyBusBytes(encodeDeckUpdated(0, true, 1));
 
     const state = useEngineStore.getState();
-    expect(state.busRevision).toBe(1);
-    expect(state.revision).toBe(100);
+    expect(state.revision).toBe(1);
+    expect(state.status?.decks[0]?.playing).toBe(true);
+  });
+
+  it("ignores stale bus revisions", () => {
+    useEngineStore.getState().applyBusBytes(encodeDeckUpdated(0, true, 5));
+    useEngineStore.getState().applyBusBytes(encodeDeckUpdated(0, false, 4));
+
+    const state = useEngineStore.getState();
+    expect(state.revision).toBe(5);
     expect(state.status?.decks[0]?.playing).toBe(true);
   });
 });

@@ -25,6 +25,7 @@ pub use config::{
 };
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
+pub use library::PreparedTrackPlayback;
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
 pub use session::EngineSession;
 pub use transport::TransportEvent;

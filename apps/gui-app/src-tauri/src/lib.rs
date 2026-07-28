@@ -5,7 +5,7 @@ use deck_performance::{
 };
 use deck_sampler::{
     apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready,
-    list_sampler_banks, reapply_sampler_gains, select_bank_for_track_load, SamplerBankInfo,
+    list_sampler_banks, reapply_sampler_gains, SamplerBankInfo,
     SamplerPlayModeSetting, SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{PadMode, SyncMode};
@@ -30,7 +30,6 @@ mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
 mod engine_controller;
-mod engine_events;
 mod fs_browser;
 mod waveform_render;
 
@@ -40,9 +39,7 @@ use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
-use engine_controller::{engine_status, publish_deck, publish_status};
-
-pub(crate) use engine_controller::{bump_revision, deck_status};
+use engine_controller::{engine_status, publish_status};
 
 const NUM_DECKS: usize = 2;
 
@@ -125,7 +122,7 @@ impl Default for DeckInfo {
 }
 
 pub(crate) struct AppState {
-    pub library: LibraryManager,
+    pub library: Arc<Mutex<LibraryManager>>,
     pub session: Option<Arc<EngineSession>>,
     pub evt_forwarder: Option<EvtForwarder>,
     pub engine_config: EngineConfig,
@@ -314,7 +311,7 @@ fn settings_from_state(state: &AppState) -> AppSettings {
             .map(bus_route_from_config)
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration,
-        scan_folder_tree: state.library.config().scan_folder_tree,
+    scan_folder_tree: state.library.lock().unwrap().config().scan_folder_tree,
         library_table_columns: state.library_table_columns.clone(),
         volume_normalizer_enabled: state.volume_normalizer_enabled,
         target_lufs: state.target_lufs,
@@ -339,7 +336,7 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
         sampler_strip_route: Some(settings.sampler_strip_route),
     });
 
-    state.library.set_config(LibraryConfig {
+    state.library.lock().unwrap().set_config(LibraryConfig {
         scan_folder_tree: settings.scan_folder_tree,
     });
     state.library_table_columns = if settings.library_table_columns.is_empty() {
@@ -449,6 +446,7 @@ struct EngineStatus {
     crossfader: f32,
     cue_mix: f32,
     master_cue: bool,
+    master_deck: Option<usize>,
     decks: Vec<DeckStatus>,
     sampler: SamplerStatus,
 }
@@ -592,7 +590,10 @@ fn start_engine(
     }
 
     let config = state.engine_config.clone();
-    let session = Arc::new(EngineSession::new(config).map_err(|e| e.to_string())?);
+    let session = Arc::new(
+        EngineSession::new_with_library(config, Arc::clone(&state.library))
+            .map_err(|e| e.to_string())?,
+    );
     session
         .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
         .map_err(|e| e.to_string())?;
@@ -657,7 +658,10 @@ async fn save_settings(
 
     let mut state = shared.lock().map_err(|e| e.to_string())?;
     let config = state.engine_config.clone();
-    let session = Arc::new(EngineSession::new(config).map_err(|e| e.to_string())?);
+    let session = Arc::new(
+        EngineSession::new_with_library(config, Arc::clone(&state.library))
+            .map_err(|e| e.to_string())?,
+    );
     session
         .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
         .map_err(|e| e.to_string())?;
@@ -672,6 +676,8 @@ async fn save_settings(
         let mut source = if let Some(track_id) = track_id.as_ref() {
             state
                 .library
+                .lock()
+                .unwrap()
                 .get_track(&TrackId::new(track_id.clone()))
                 .map_err(|e| e.to_string())?
                 .ok_or_else(|| "Track not found in library.".to_string())?
@@ -740,13 +746,11 @@ fn is_pipewire_output_default(id: &str, name: &str) -> bool {
 #[tauri::command]
 fn list_collections(state: State<'_, SharedAppState>) -> Result<Vec<CollectionSummary>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    let collections = state
-        .library
-        .list_collections()
-        .map_err(|e| e.to_string())?;
+    let library = state.library.lock().map_err(|e| e.to_string())?;
+    let collections = library.list_collections().map_err(|e| e.to_string())?;
     collections
         .into_iter()
-        .map(|collection| collection_summary(&state.library, collection))
+        .map(|collection| collection_summary(&library, collection))
         .collect()
 }
 
@@ -755,16 +759,21 @@ fn add_folder_collection(
     folder_path: String,
     state: State<'_, SharedAppState>,
 ) -> Result<AddFolderCollectionResult, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
+    let state = state.lock().map_err(|e| e.to_string())?;
     let collection = state
         .library
+        .lock()
+        .map_err(|e| e.to_string())?
         .add_collection(&NewCollection::folder(folder_path))
         .map_err(|e| e.to_string())?;
     let scan = state
         .library
+        .lock()
+        .map_err(|e| e.to_string())?
         .sync_collection(Some(&collection.id))
         .map_err(|e| e.to_string())?;
-    let summary = collection_summary(&state.library, collection)?;
+    let library = state.library.lock().map_err(|e| e.to_string())?;
+    let summary = collection_summary(&library, collection)?;
 
     Ok(AddFolderCollectionResult {
         collection: summary,
@@ -780,6 +789,8 @@ fn list_collection_tracks(
     let state = state.lock().map_err(|e| e.to_string())?;
     let tracks = state
         .library
+        .lock()
+        .unwrap()
         .get_collection_tracks(&CollectionId::new(collection_id))
         .map_err(|e| e.to_string())?;
 
@@ -803,6 +814,8 @@ async fn resolve_library_tracks_for_paths(
         let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
         let resolved = guard
             .library
+            .lock()
+            .unwrap()
             .lookup_file_tracks_at_paths(&path_bufs)
             .map_err(|e| e.to_string())?;
 
@@ -827,13 +840,15 @@ async fn analyze_library_track(
 ) -> Result<TrackSummary, String> {
     let state = Arc::clone(state.inner());
     tauri::async_runtime::spawn_blocking(move || {
-        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        let guard = state.lock().map_err(|e| e.to_string())?;
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: guard.engine_config.analysis_duration,
         };
         let source = guard
             .library
+            .lock()
+            .unwrap()
             .analyze_track(&TrackId::new(track_id), options)
             .map_err(|e| e.to_string())?;
         track_summary(&source).ok_or_else(|| "Only file tracks can be analyzed.".to_string())
@@ -852,51 +867,27 @@ fn browse_fs_directory(path: String) -> Result<DirectoryListing, String> {
     browse_directory(&path)
 }
 
-pub(crate) fn load_path_to_deck_inner(
-    app: &AppHandle,
+/// Apply an already-prepared library playback handoff to a deck.
+///
+/// Callers must prepare outside the `AppState` lock — decode/waveform work can
+/// take seconds and would freeze every other host command if done while locked.
+pub(crate) fn load_prepared_to_deck_inner(
     state: &mut AppState,
     deck_id: usize,
     path: String,
-) -> Result<DeckStatus, String> {
+    prepared: library::PreparedTrackPlayback,
+) -> Result<(), String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let (mut source, title, artist, bpm, key, loudness_lufs) = {
-        let source = state
-            .library
-            .import_file_path(Path::new(&path))
-            .map_err(|e| e.to_string())?;
-        let track_id = source.id().clone();
-        let loudness_lufs = state
-            .library
-            .track_loudness_lufs(&track_id)
-            .map_err(|e| e.to_string())?;
-        let metadata = source.metadata().clone();
-        (
-            source,
-            metadata.title,
-            metadata.artist,
-            metadata.bpm,
-            metadata.key,
-            loudness_lufs,
-        )
-    };
-
-    {
-        let track_id = source.id().as_str().to_string();
-        state
-            .library
-            .ensure_track_waveform(&TrackId::new(track_id))
-            .map_err(|e| e.to_string())?;
-    }
-
-    source.metadata_mut().loudness_lufs = loudness_lufs;
-    let track_id = source.id().as_str().to_string();
+    let metadata = prepared.source.metadata().clone();
+    let track_id = prepared.track_id.as_str().to_string();
+    let loudness_lufs = prepared.loudness_lufs;
 
     with_engine(state, |engine| {
         engine
-            .load_track(deck_id, source)
+            .load_prepared_track(deck_id, prepared)
             .map_err(|e| e.to_string())
     })?;
 
@@ -906,94 +897,20 @@ pub(crate) fn load_path_to_deck_inner(
         deck.track_id = Some(track_id.clone());
         deck.playing = false;
         deck.speed = 1.0;
-        deck.title = title;
-        deck.artist = artist;
-        deck.bpm = bpm;
-        deck.key = key;
+        deck.title = metadata.title;
+        deck.artist = metadata.artist;
+        deck.bpm = metadata.bpm;
+        deck.key = metadata.key;
         deck.loudness_lufs = loudness_lufs;
     }
     sync_deck_auto_gain_from_engine(state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
-    let (hot_cues, saved_loops) =
-        fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
-    let _ = select_bank_for_track_load(state, deck_id, Some(track_id.as_str()));
-    Ok(publish_deck(app, state, deck_id))
-}
-
-pub(crate) fn load_library_track_to_deck_inner(
-    app: &AppHandle,
-    state: &mut AppState,
-    deck_id: usize,
-    track_id: String,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let (mut source, path, title, artist, bpm, key, loudness_lufs) = {
-        let tid = TrackId::new(track_id.clone());
-        let source = state
-            .library
-            .get_track(&tid)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "Track not found in library.".to_string())?;
-        let loudness_lufs = state
-            .library
-            .track_loudness_lufs(&tid)
-            .map_err(|e| e.to_string())?;
-
-        let path = source
-            .file()
-            .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
-            .path()
-            .to_string_lossy()
-            .into_owned();
-
-        let metadata = source.metadata().clone();
-        (
-            source,
-            path,
-            metadata.title,
-            metadata.artist,
-            metadata.bpm,
-            metadata.key,
-            loudness_lufs,
-        )
+    let (hot_cues, saved_loops) = {
+        let library = state.library.lock().map_err(|e| e.to_string())?;
+        fetch_deck_performance(&library, track_id_for_perf.as_deref())
     };
-
-    state
-        .library
-        .ensure_track_waveform(&TrackId::new(track_id.clone()))
-        .map_err(|e| e.to_string())?;
-
-    source.metadata_mut().loudness_lufs = loudness_lufs;
-
-    with_engine(state, |engine| {
-        engine
-            .load_track(deck_id, source)
-            .map_err(|e| e.to_string())
-    })?;
-
-    {
-        let deck = &mut state.decks[deck_id];
-        deck.track = Some(path);
-        deck.track_id = Some(track_id.clone());
-        deck.playing = false;
-        deck.speed = 1.0;
-        deck.title = title;
-        deck.artist = artist;
-        deck.bpm = bpm;
-        deck.key = key;
-        deck.loudness_lufs = loudness_lufs;
-    }
-    sync_deck_auto_gain_from_engine(state, deck_id)?;
-    let track_id_for_perf = state.decks[deck_id].track_id.clone();
-    let (hot_cues, saved_loops) =
-        fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
-    let _ = select_bank_for_track_load(state, deck_id, Some(track_id.as_str()));
-    Ok(publish_deck(app, state, deck_id))
+    Ok(())
 }
 
 #[tauri::command]
@@ -1025,9 +942,13 @@ async fn render_waveform_lane(
     let file_path = if let Some(path) = path {
         path
     } else if let Some(ref id) = track_id {
-        let state = state.lock().map_err(|e| e.to_string())?;
-        let source = state
-            .library
+        let library = {
+            let state = state.lock().map_err(|e| e.to_string())?;
+            Arc::clone(&state.library)
+        };
+        let source = library
+            .lock()
+            .map_err(|e| e.to_string())?
             .get_track(&TrackId::new(id.clone()))
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
@@ -1043,23 +964,24 @@ async fn render_waveform_lane(
 
     let cache_key = file_path.clone();
     let (overview, track_duration_secs, beat_grid) = {
-        let state = state.lock().map_err(|e| e.to_string())?;
+        let library = {
+            let state = state.lock().map_err(|e| e.to_string())?;
+            Arc::clone(&state.library)
+        };
+        let library = library.lock().map_err(|e| e.to_string())?;
         let beat_grid = track_id.as_ref().and_then(|id| {
-            state
-                .library
+            library
                 .get_track_beat_grid(&TrackId::new(id.clone()))
                 .ok()
                 .flatten()
         });
 
         if let Some(ref id) = track_id {
-            if let Some(overview_row) = state
-                .library
+            if let Some(overview_row) = library
                 .get_track_waveform_overview(&TrackId::new(id.clone()))
                 .map_err(|e| e.to_string())?
             {
-                let duration = state
-                    .library
+                let duration = library
                     .get_track(&TrackId::new(id.clone()))
                     .map_err(|e| e.to_string())?
                     .and_then(|source| source.metadata().duration_secs)
@@ -1135,18 +1057,32 @@ fn get_track_artwork(
     path: Option<String>,
     state: State<'_, SharedAppState>,
 ) -> Result<Option<String>, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    let bytes = if let Some(track_id) = track_id {
-        state
-            .library
-            .get_track_artwork(&TrackId::new(track_id))
+    // Never hold AppState while waiting on library or disk I/O — that starves every
+    // other host command for the duration of a track prepare/decode.
+    let file_path = if let Some(path) = path {
+        path
+    } else if let Some(track_id) = track_id {
+        let library = {
+            let state = state.lock().map_err(|e| e.to_string())?;
+            Arc::clone(&state.library)
+        };
+        let source = library
+            .lock()
             .map_err(|e| e.to_string())?
-    } else if let Some(path) = path {
-        library::read_artwork(std::path::Path::new(&path)).map_err(|e| e.to_string())?
+            .get_track(&TrackId::new(track_id))
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Track not found in library.".to_string())?;
+        source
+            .file()
+            .ok_or_else(|| "Only file tracks have artwork.".to_string())?
+            .path()
+            .to_string_lossy()
+            .into_owned()
     } else {
         return Err("track_id or path is required.".to_string());
     };
 
+    let bytes = library::read_artwork(Path::new(&file_path)).map_err(|e| e.to_string())?;
     Ok(bytes.map(|data| BASE64.encode(data)))
 }
 
@@ -1169,9 +1105,10 @@ pub fn run() {
                 .map_err(|err| format!("app data dir unavailable: {err}"))?;
             std::fs::create_dir_all(&app_data).map_err(|err| err.to_string())?;
 
-            let library =
+            let library = Arc::new(Mutex::new(
                 LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
-                    .map_err(|err| err.to_string())?;
+                    .map_err(|err| err.to_string())?,
+            ));
 
             let shared_session = bus_bridge::new_shared_session();
             app.manage(shared_session);

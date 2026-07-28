@@ -84,8 +84,61 @@ export const LoopRegionSchema = z.object({
 });
 export type LoopRegion = z.infer<typeof LoopRegionSchema>;
 
+export const DeckHotCueSchema = z.object({
+  slot: z.number().int().nonnegative(),
+  position_secs: z.number(),
+  loop_length_beats: z.number().int().nullable().optional(),
+  color: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+});
+export type DeckHotCue = z.infer<typeof DeckHotCueSchema>;
+
+export const DeckSavedLoopSchema = z.object({
+  slot: z.number().int().nonnegative(),
+  in_secs: z.number(),
+  out_secs: z.number(),
+  label: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+});
+export type DeckSavedLoop = z.infer<typeof DeckSavedLoopSchema>;
+
+export const SamplerPlayModeSchema = z.enum(["oneshot", "hold", "loop"]);
+export type SamplerPlayMode = z.infer<typeof SamplerPlayModeSchema>;
+
+export const SamplerSlotInfoSchema = z.object({
+  label: z.string().nullable(),
+  track_id: z.string().nullable(),
+  path: z.string().nullable(),
+  duration_secs: z.number().nullable(),
+});
+export type SamplerSlotInfo = z.infer<typeof SamplerSlotInfoSchema>;
+
+export const SamplerBankInfoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  play_mode: SamplerPlayModeSchema.nullable(),
+  sort_index: z.number().int(),
+});
+export type SamplerBankInfo = z.infer<typeof SamplerBankInfoSchema>;
+
+export const SamplerStatusSchema = z.object({
+  banks: z.array(SamplerBankInfoSchema),
+  active_bank_id: z.string().nullable(),
+  active_bank_name: z.string().nullable(),
+  bank_play_mode: SamplerPlayModeSchema.nullable(),
+  deck_slots: z.array(z.array(SamplerSlotInfoSchema)),
+  effective_play_modes: z.array(SamplerPlayModeSchema),
+});
+export type SamplerStatus = z.infer<typeof SamplerStatusSchema>;
+
 export const DeckSnapshotSchema = z.object({
   id: z.number().int().nonnegative(),
+  track: z.string().nullable(),
+  track_id: z.string().nullable(),
+  title: z.string().nullable(),
+  artist: z.string().nullable(),
+  bpm: z.number().nullable(),
+  key: z.string().nullable(),
   playing: z.boolean(),
   volume: z.number(),
   speed: z.number(),
@@ -100,6 +153,11 @@ export const DeckSnapshotSchema = z.object({
   pad_mode: PadModeSchema,
   position_secs: z.number().nullable(),
   duration_secs: z.number().nullable(),
+  hot_cues: z.array(DeckHotCueSchema),
+  saved_loops: z.array(DeckSavedLoopSchema),
+  loudness_lufs: z.number().nullable(),
+  auto_gain_db: z.number(),
+  active_sampler_bank_id: z.string().nullable(),
 });
 export type DeckSnapshot = z.infer<typeof DeckSnapshotSchema>;
 
@@ -111,6 +169,7 @@ export const EngineStatusPayloadSchema = z.object({
   master_cue: z.boolean(),
   master_deck: z.number().int().nonnegative(),
   decks: z.array(DeckSnapshotSchema),
+  sampler: SamplerStatusSchema,
 });
 export type EngineStatusPayload = z.infer<typeof EngineStatusPayloadSchema>;
 
@@ -186,6 +245,12 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("deck_updated"),
     id: z.number().int().nonnegative(),
+    track: z.string().nullable(),
+    track_id: z.string().nullable(),
+    title: z.string().nullable(),
+    artist: z.string().nullable(),
+    bpm: z.number().nullable(),
+    key: z.string().nullable(),
     playing: z.boolean(),
     volume: z.number(),
     speed: z.number(),
@@ -200,6 +265,11 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     pad_mode: PadModeSchema,
     position_secs: z.number().nullable(),
     duration_secs: z.number().nullable(),
+    hot_cues: z.array(DeckHotCueSchema),
+    saved_loops: z.array(DeckSavedLoopSchema),
+    loudness_lufs: z.number().nullable(),
+    auto_gain_db: z.number(),
+    active_sampler_bank_id: z.string().nullable(),
   }),
   z.object({ type: z.literal("position"), position_secs: z.number() }),
   z.object({

@@ -32,6 +32,12 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
   return {
     ...base,
     id: snapshot.id,
+    track: unloaded ? null : snapshot.track,
+    track_id: unloaded ? null : snapshot.track_id,
+    title: unloaded ? null : snapshot.title,
+    artist: unloaded ? null : snapshot.artist,
+    bpm: unloaded ? null : snapshot.bpm,
+    key: unloaded ? null : snapshot.key,
     playing: snapshot.playing,
     volume: snapshot.volume,
     speed: snapshot.speed,
@@ -48,16 +54,11 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     position_secs: snapshot.position_secs ?? (unloaded ? null : base.position_secs),
     duration_secs: snapshot.duration_secs,
     levels: base.levels ?? ZERO_DECK_LEVELS,
-    track: unloaded ? null : base.track,
-    track_id: unloaded ? null : base.track_id,
-    title: unloaded ? null : base.title,
-    artist: unloaded ? null : base.artist,
-    bpm: unloaded ? null : base.bpm,
-    key: unloaded ? null : base.key,
-    hot_cues: unloaded ? [] : base.hot_cues,
-    saved_loops: unloaded ? [] : base.saved_loops,
-    loudness_lufs: unloaded ? null : base.loudness_lufs,
-    auto_gain_db: unloaded ? 0 : base.auto_gain_db,
+    hot_cues: unloaded ? [] : snapshot.hot_cues,
+    saved_loops: unloaded ? [] : snapshot.saved_loops,
+    loudness_lufs: unloaded ? null : snapshot.loudness_lufs,
+    auto_gain_db: unloaded ? 0 : snapshot.auto_gain_db,
+    active_sampler_bank_id: unloaded ? null : snapshot.active_sampler_bank_id,
   };
 }
 
@@ -79,7 +80,7 @@ function mergeEngineStatusPayload(
       const merged = mergeDeckSnapshot(currentById.get(snapshot.id), snapshot);
       return { ...merged, is_master: merged.id === masterDeck };
     }),
-    sampler: current?.sampler ?? DEFAULT_SAMPLER_STATUS,
+    sampler: payload.sampler ?? current?.sampler ?? DEFAULT_SAMPLER_STATUS,
   };
 }
 
@@ -120,6 +121,12 @@ export function applyBusEvent(
       }
       const snapshot: DeckSnapshot = {
         id: deck.id,
+        track: deck.track,
+        track_id: deck.track_id,
+        title: deck.title,
+        artist: deck.artist,
+        bpm: deck.bpm,
+        key: deck.key,
         playing: deck.playing,
         volume: deck.volume,
         speed: deck.speed,
@@ -134,6 +141,11 @@ export function applyBusEvent(
         pad_mode: deck.pad_mode,
         position_secs: deck.position_secs,
         duration_secs: deck.duration_secs,
+        hot_cues: deck.hot_cues,
+        saved_loops: deck.saved_loops,
+        loudness_lufs: deck.loudness_lufs,
+        auto_gain_db: deck.auto_gain_db,
+        active_sampler_bank_id: deck.active_sampler_bank_id,
       };
       return {
         status: {
