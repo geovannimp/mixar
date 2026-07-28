@@ -163,6 +163,18 @@ pub enum CmdBody {
     DeleteSamplerBank {
         bank_id: String,
     },
+    SaveHotCue {
+        slot: u8,
+    },
+    DeleteHotCue {
+        slot: u8,
+    },
+    SaveLoop {
+        slot: u8,
+    },
+    DeleteLoop {
+        slot: u8,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].

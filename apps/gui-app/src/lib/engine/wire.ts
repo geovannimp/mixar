@@ -42,6 +42,10 @@ export const KindSchema = z.enum([
   "create_sampler_bank",
   "update_sampler_bank",
   "delete_sampler_bank",
+  "save_hot_cue",
+  "delete_hot_cue",
+  "save_loop",
+  "delete_loop",
   "updated",
   "position",
   "levels",
@@ -166,6 +170,10 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     play_mode: z.enum(["oneshot", "hold", "loop"]).nullable().optional(),
   }),
   z.object({ type: z.literal("delete_sampler_bank"), bank_id: z.string() }),
+  z.object({ type: z.literal("save_hot_cue"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("delete_hot_cue"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("save_loop"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("delete_loop"), slot: z.number().int().nonnegative() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -334,7 +342,11 @@ export type CmdKind =
   | "set_sampler_bank"
   | "create_sampler_bank"
   | "update_sampler_bank"
-  | "delete_sampler_bank";
+  | "delete_sampler_bank"
+  | "save_hot_cue"
+  | "delete_hot_cue"
+  | "save_loop"
+  | "delete_loop";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {
