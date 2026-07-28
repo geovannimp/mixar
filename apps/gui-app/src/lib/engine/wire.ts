@@ -35,6 +35,10 @@ export const KindSchema = z.enum([
   "recall_saved_loop",
   "trigger_sampler",
   "end_sampler",
+  "assign_sampler",
+  "assign_sampler_track",
+  "clear_sampler",
+  "set_sampler_bank",
   "updated",
   "position",
   "levels",
@@ -135,6 +139,18 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("trigger_sampler"), slot: z.number().int().nonnegative() }),
   z.object({ type: z.literal("end_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({
+    type: z.literal("assign_sampler"),
+    slot: z.number().int().nonnegative(),
+    path: z.string(),
+  }),
+  z.object({
+    type: z.literal("assign_sampler_track"),
+    slot: z.number().int().nonnegative(),
+    track_id: z.string(),
+  }),
+  z.object({ type: z.literal("clear_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("set_sampler_bank"), bank_id: z.string() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -296,7 +312,11 @@ export type CmdKind =
   | "trigger_hot_cue"
   | "recall_saved_loop"
   | "trigger_sampler"
-  | "end_sampler";
+  | "end_sampler"
+  | "assign_sampler"
+  | "assign_sampler_track"
+  | "clear_sampler"
+  | "set_sampler_bank";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {
