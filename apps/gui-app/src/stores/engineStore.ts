@@ -438,35 +438,22 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   assignSamplerFromTrack: async (slot, trackId, deckId = 0) => {
-    try {
-      await invoke("assign_sampler_slot_from_track", { slot, trackId, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "assign_sampler_track", {
+      slot,
+      track_id: trackId,
+    });
   },
 
   assignSamplerFromPath: async (slot, path, deckId = 0) => {
-    try {
-      await invoke("assign_sampler_slot", { slot, path, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "assign_sampler", { slot, path });
   },
 
   clearSamplerSlot: async (slot, deckId = 0) => {
-    try {
-      await invoke("clear_sampler_slot", { slot, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "clear_sampler", { slot });
   },
 
   setDeckSamplerBank: async (deckId, bankId) => {
-    try {
-      await invoke("set_deck_sampler_bank", { deckId, bankId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "set_sampler_bank", { bank_id: bankId });
   },
 
   updateSamplerBank: async (bankId, name, playMode) => {

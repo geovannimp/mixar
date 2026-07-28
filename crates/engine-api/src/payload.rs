@@ -94,6 +94,10 @@ pub enum CmdBody {
     RecallSavedLoop { in_secs: f64, out_secs: f64 },
     TriggerSampler { slot: u8 },
     EndSampler { slot: u8 },
+    AssignSampler { slot: u8, path: String },
+    AssignSamplerTrack { slot: u8, track_id: String },
+    ClearSampler { slot: u8 },
+    SetSamplerBank { bank_id: String },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].

@@ -105,11 +105,81 @@ pub fn clear_session(holder: &SharedSession) {
 
 #[tauri::command]
 pub fn engine_publish(
+    app: AppHandle,
     session: State<'_, SharedSession>,
     app_state: State<'_, crate::SharedAppState>,
     payload: Vec<u8>,
 ) -> Result<(), String> {
     let msg = decode_wire(&payload).map_err(|e| e.to_string())?;
+
+    // Host-handled sampler bank/slot cmds (library + AppState); do not forward to omnibus.
+    if let Origin::Deck(deck_id) = msg.origin {
+        let deck_id = deck_id as usize;
+        match msg.kind {
+            Kind::AssignSampler => {
+                let CmdBody::AssignSampler { slot, path } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("assign_sampler body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::assign_sampler_slot_inner(
+                    &app,
+                    &mut state,
+                    slot as usize,
+                    path,
+                    None,
+                    deck_id,
+                )?;
+                return Ok(());
+            }
+            Kind::AssignSamplerTrack => {
+                let CmdBody::AssignSamplerTrack { slot, track_id } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("assign_sampler_track body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::assign_sampler_slot_from_track_inner(
+                    &app,
+                    &mut state,
+                    slot as usize,
+                    track_id,
+                    None,
+                    deck_id,
+                )?;
+                return Ok(());
+            }
+            Kind::ClearSampler => {
+                let CmdBody::ClearSampler { slot } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("clear_sampler body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::clear_sampler_slot_inner(
+                    &app,
+                    &mut state,
+                    slot as usize,
+                    None,
+                    deck_id,
+                )?;
+                return Ok(());
+            }
+            Kind::SetSamplerBank => {
+                let CmdBody::SetSamplerBank { bank_id } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("set_sampler_bank body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_sampler::set_deck_sampler_bank_inner(&app, &mut state, deck_id, bank_id)?;
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
+
     // ponytail: AppState still owns track metadata until load migrates; clear on Unload so
     // leftover library invokes don't see a ghost track.
     if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::Unload)) {
