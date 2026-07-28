@@ -3,11 +3,10 @@
 use library::{HotCueRecord, LoopRecord};
 use library_core::TrackId;
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 
 use crate::{
-    bump_revision, deck_playback_secs, deck_status, AppState, DeckInfo, DeckStatus, SharedAppState,
-    NUM_DECKS,
+    bump_revision, deck_playback_secs, deck_status, AppState, DeckInfo, DeckStatus, NUM_DECKS,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -123,12 +122,11 @@ fn publish_deck_transport(app: &AppHandle, state: &mut AppState, deck_id: usize)
     deck
 }
 
-#[tauri::command]
-pub fn save_hot_cue(
-    app: AppHandle,
+pub(crate) fn save_hot_cue_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     slot: u8,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
@@ -137,12 +135,11 @@ pub fn save_hot_cue(
         return Err("Hot cue slot must be 0..=7.".to_string());
     }
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     let track_id = state.decks[deck_id]
         .track_id
         .clone()
         .ok_or_else(|| "Only library tracks can persist hot cues.".to_string())?;
-    let (position_secs, _) = deck_playback_secs(&state, deck_id);
+    let (position_secs, _) = deck_playback_secs(state, deck_id);
     let position = snap_secs(
         position_secs.unwrap_or(0.0),
         state.decks[deck_id].bpm,
@@ -157,21 +154,19 @@ pub fn save_hot_cue(
     let track_id = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, track_id.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
+    Ok(publish_deck_transport(app, state, deck_id))
 }
 
-#[tauri::command]
-pub fn delete_hot_cue(
-    app: AppHandle,
+pub(crate) fn delete_hot_cue_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     slot: u8,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     if let Some(track_id) = state.decks[deck_id].track_id.clone() {
         state
             .library
@@ -179,21 +174,19 @@ pub fn delete_hot_cue(
             .map_err(|e| e.to_string())?;
     }
     state.decks[deck_id].hot_cues.retain(|cue| cue.slot != slot);
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
+    Ok(publish_deck_transport(app, state, deck_id))
 }
 
-#[tauri::command]
-pub fn save_loop(
-    app: AppHandle,
+pub(crate) fn save_loop_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     slot: u8,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     let track_id = state.decks[deck_id]
         .track_id
         .clone()
@@ -218,21 +211,19 @@ pub fn save_loop(
     let track_id = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, track_id.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
+    Ok(publish_deck_transport(app, state, deck_id))
 }
 
-#[tauri::command]
-pub fn delete_loop(
-    app: AppHandle,
+pub(crate) fn delete_loop_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     slot: u8,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     if let Some(track_id) = state.decks[deck_id].track_id.clone() {
         state
             .library
@@ -242,5 +233,5 @@ pub fn delete_loop(
     state.decks[deck_id]
         .saved_loops
         .retain(|row| row.slot != slot);
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
+    Ok(publish_deck_transport(app, state, deck_id))
 }

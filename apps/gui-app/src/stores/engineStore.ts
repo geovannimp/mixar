@@ -222,7 +222,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadPathToDeck: async (deckId, path) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_path_to_deck", { deckId, path });
+      await publishCmd(getDeckOrigin(deckId), "load_path", { path });
     });
   },
 
@@ -239,7 +239,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadLibraryTrackToDeck: async (deckId, trackId) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_library_track_to_deck", { deckId, trackId });
+      await publishCmd(getDeckOrigin(deckId), "load_library_track", { track_id: trackId });
     });
   },
 
@@ -339,27 +339,15 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   saveHotCue: async (deckId, slot) => {
-    try {
-      await invoke("save_hot_cue", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "save_hot_cue", { slot });
   },
 
   deleteHotCue: async (deckId, slot) => {
-    try {
-      await invoke("delete_hot_cue", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "delete_hot_cue", { slot });
   },
 
   saveLoop: async (deckId, slot) => {
-    try {
-      await invoke("save_loop", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "save_loop", { slot });
   },
 
   recallSavedLoop: async (deckId, slot) => {
@@ -375,11 +363,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   deleteLoop: async (deckId, slot) => {
-    try {
-      await invoke("delete_loop", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "delete_loop", { slot });
   },
 
   toggleDeckSync: async (deckId, beatSync = false) => {

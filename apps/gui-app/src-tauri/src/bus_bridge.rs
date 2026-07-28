@@ -204,6 +204,66 @@ pub fn engine_publish(
                 )?;
                 return Ok(());
             }
+            Kind::SaveHotCue => {
+                let CmdBody::SaveHotCue { slot } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("save_hot_cue body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_performance::save_hot_cue_inner(&app, &mut state, deck_id, slot)?;
+                return Ok(());
+            }
+            Kind::DeleteHotCue => {
+                let CmdBody::DeleteHotCue { slot } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("delete_hot_cue body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_performance::delete_hot_cue_inner(&app, &mut state, deck_id, slot)?;
+                return Ok(());
+            }
+            Kind::SaveLoop => {
+                let CmdBody::SaveLoop { slot } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("save_loop body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_performance::save_loop_inner(&app, &mut state, deck_id, slot)?;
+                return Ok(());
+            }
+            Kind::DeleteLoop => {
+                let CmdBody::DeleteLoop { slot } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("delete_loop body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::deck_performance::delete_loop_inner(&app, &mut state, deck_id, slot)?;
+                return Ok(());
+            }
+            Kind::LoadPath => {
+                let CmdBody::LoadPath { path } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("load_path body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::load_path_to_deck_inner(&app, &mut state, deck_id, path)?;
+                return Ok(());
+            }
+            Kind::LoadLibraryTrack => {
+                let CmdBody::LoadLibraryTrack { track_id } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("load_library_track body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::load_library_track_to_deck_inner(&app, &mut state, deck_id, track_id)?;
+                return Ok(());
+            }
             _ => {}
         }
     }
