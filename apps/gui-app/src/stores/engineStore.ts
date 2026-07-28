@@ -135,15 +135,6 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   levelMeterMode: "mono",
 
   applyEvent: (event) => {
-    if (event.type === "error") {
-      reportEngineError(event.message);
-      return;
-    }
-    if (event.type === "notice") {
-      toastManager.add({ title: event.message, type: "info" });
-      return;
-    }
-
     set((current) => {
       const { status, revision } = applyEngineEvent(current.status, event, current.revision);
       return { status, revision };
