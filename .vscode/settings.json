@@ -2,5 +2,16 @@
   "rust-analyzer.linkedProjects": [
     "crates/Cargo.toml",
     "apps/gui-app/src-tauri/Cargo.toml"
-  ]
+  ],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "always"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true
+  }
 }

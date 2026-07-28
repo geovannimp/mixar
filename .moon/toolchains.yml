@@ -6,7 +6,8 @@ rust: {}
 javascript: {}
 
 node:
-  version: '22.0.0'
+  # Oxfmt/Oxlint TS configs need Node ^20.19 || >=22.18
+  version: '22.23.1'
   packageManager: 'npm'
 
 npm: {}

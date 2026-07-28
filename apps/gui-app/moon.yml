@@ -14,8 +14,8 @@ fileGroups:
     - "vite.config.*"
     - "tsconfig*.json"
     - "package.json"
-    - ".oxlintrc.json"
-    - ".oxfmtrc.json"
+    - "oxlint.config.ts"
+    - "oxfmt.config.ts"
     - "components.json"
 
 tasks:
