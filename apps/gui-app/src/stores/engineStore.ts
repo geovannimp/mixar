@@ -222,7 +222,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadPathToDeck: async (deckId, path) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_path_to_deck", { deckId, path });
+      await publishCmd(getDeckOrigin(deckId), "load_path", { path });
     });
   },
 
@@ -239,7 +239,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadLibraryTrackToDeck: async (deckId, trackId) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_library_track_to_deck", { deckId, trackId });
+      await publishCmd(getDeckOrigin(deckId), "load_library_track", { track_id: trackId });
     });
   },
 

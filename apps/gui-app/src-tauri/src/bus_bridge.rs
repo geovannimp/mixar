@@ -244,6 +244,26 @@ pub fn engine_publish(
                 crate::deck_performance::delete_loop_inner(&app, &mut state, deck_id, slot)?;
                 return Ok(());
             }
+            Kind::LoadPath => {
+                let CmdBody::LoadPath { path } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("load_path body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::load_path_to_deck_inner(&app, &mut state, deck_id, path)?;
+                return Ok(());
+            }
+            Kind::LoadLibraryTrack => {
+                let CmdBody::LoadLibraryTrack { track_id } =
+                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
+                else {
+                    return Err("load_library_track body mismatch".into());
+                };
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::load_library_track_to_deck_inner(&app, &mut state, deck_id, track_id)?;
+                return Ok(());
+            }
             _ => {}
         }
     }

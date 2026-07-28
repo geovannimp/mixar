@@ -46,6 +46,8 @@ pub enum Kind {
     DeleteHotCue,
     SaveLoop,
     DeleteLoop,
+    LoadPath,
+    LoadLibraryTrack,
     Updated,
     Position,
     Levels,

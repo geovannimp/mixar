@@ -175,6 +175,12 @@ pub enum CmdBody {
     DeleteLoop {
         slot: u8,
     },
+    LoadPath {
+        path: String,
+    },
+    LoadLibraryTrack {
+        track_id: String,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
