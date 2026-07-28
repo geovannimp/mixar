@@ -222,7 +222,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadPathToDeck: async (deckId, path) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_path_to_deck", { deckId, path });
+      await publishCmd(getDeckOrigin(deckId), "load_path", { path });
     });
   },
 
@@ -239,7 +239,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   loadLibraryTrackToDeck: async (deckId, trackId) => {
     await get().runDeckBlockingAction(deckId, async () => {
-      await invoke("load_library_track_to_deck", { deckId, trackId });
+      await publishCmd(getDeckOrigin(deckId), "load_library_track", { track_id: trackId });
     });
   },
 
@@ -339,27 +339,15 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   saveHotCue: async (deckId, slot) => {
-    try {
-      await invoke("save_hot_cue", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "save_hot_cue", { slot });
   },
 
   deleteHotCue: async (deckId, slot) => {
-    try {
-      await invoke("delete_hot_cue", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "delete_hot_cue", { slot });
   },
 
   saveLoop: async (deckId, slot) => {
-    try {
-      await invoke("save_loop", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "save_loop", { slot });
   },
 
   recallSavedLoop: async (deckId, slot) => {
@@ -375,11 +363,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   deleteLoop: async (deckId, slot) => {
-    try {
-      await invoke("delete_loop", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "delete_loop", { slot });
   },
 
   toggleDeckSync: async (deckId, beatSync = false) => {
@@ -430,71 +414,45 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   triggerSamplerPad: async (deckId, slot) => {
-    try {
-      await invoke("trigger_sampler_pad", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "trigger_sampler", { slot });
   },
 
   endSamplerPad: async (deckId, slot) => {
-    try {
-      await invoke("end_sampler_pad", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "end_sampler", { slot });
   },
 
   assignSamplerFromTrack: async (slot, trackId, deckId = 0) => {
-    try {
-      await invoke("assign_sampler_slot_from_track", { slot, trackId, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "assign_sampler_track", {
+      slot,
+      track_id: trackId,
+    });
   },
 
   assignSamplerFromPath: async (slot, path, deckId = 0) => {
-    try {
-      await invoke("assign_sampler_slot", { slot, path, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "assign_sampler", { slot, path });
   },
 
   clearSamplerSlot: async (slot, deckId = 0) => {
-    try {
-      await invoke("clear_sampler_slot", { slot, deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "clear_sampler", { slot });
   },
 
   setDeckSamplerBank: async (deckId, bankId) => {
-    try {
-      await invoke("set_deck_sampler_bank", { deckId, bankId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "set_sampler_bank", { bank_id: bankId });
   },
 
   updateSamplerBank: async (bankId, name, playMode) => {
-    try {
-      await invoke("update_sampler_bank", { bankId, name, playMode });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd("mixer", "update_sampler_bank", {
+      bank_id: bankId,
+      name,
+      play_mode: playMode,
+    });
   },
 
   createSamplerBank: async (deckId = 0, name) => {
-    try {
-      await invoke("create_sampler_bank", {
-        name: name?.trim() || null,
-        playMode: null,
-        deckId,
-      });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "create_sampler_bank", {
+      name: name?.trim() || null,
+      play_mode: null,
+    });
   },
 }));
 

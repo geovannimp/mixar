@@ -1,6 +1,7 @@
 //! Sampler banks — persist, assign, and trigger one-shots.
 
 use serde::{Deserialize, Serialize};
+use strum::EnumString;
 use tauri::{AppHandle, State};
 
 use library::{SamplerBankRecord, SamplerPlayMode as LibPlayMode, TrackId};
@@ -9,13 +10,13 @@ use library_core::{AudioSource, FileAudioSource, Library};
 use engine_core::SamplerPlayMode as DspPlayMode;
 
 use crate::engine_controller::{publish_deck, publish_status};
-use crate::deck_sync::PadMode;
 use crate::{with_engine, AppState, SharedAppState, NUM_DECKS};
 
 pub const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, EnumString)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum SamplerPlayModeSetting {
     #[default]
     Oneshot,
@@ -598,43 +599,38 @@ pub fn list_sampler_banks(state: State<'_, SharedAppState>) -> Result<Vec<Sample
         .collect())
 }
 
-#[tauri::command]
-pub fn create_sampler_bank(
-    app: AppHandle,
+pub(crate) fn create_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
+    deck_id: usize,
     name: Option<String>,
     play_mode: Option<SamplerPlayModeSetting>,
-    deck_id: Option<usize>,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerBankInfo, String> {
-    let deck_id = deck_id.unwrap_or(0);
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let draft = start_draft_sampler_bank(&mut state, deck_id, name, play_mode)?;
-    load_bank_into_engine(&mut state, deck_id, &draft.id)?;
-    publish_deck(&app, &mut state, deck_id);
-    publish_status(&app, &mut state);
+    let draft = start_draft_sampler_bank(state, deck_id, name, play_mode)?;
+    load_bank_into_engine(state, deck_id, &draft.id)?;
+    publish_deck(app, state, deck_id);
+    publish_status(app, state);
     Ok(draft)
 }
 
-#[tauri::command]
-pub fn update_sampler_bank(
-    app: AppHandle,
+pub(crate) fn update_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     bank_id: String,
     name: String,
     play_mode: Option<SamplerPlayModeSetting>,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
     let name = name.trim().to_string();
     if name.is_empty() {
         return Err("Bank name cannot be empty.".to_string());
     }
 
-    let bank_id = if is_draft_bank_id(&state, &bank_id) {
+    let bank_id = if is_draft_bank_id(state, &bank_id) {
         if let Some(draft) = state.draft_sampler_bank.as_mut() {
             draft.name = name;
             draft.play_mode = play_mode;
         }
-        persist_draft_bank_if_needed(&mut state, &bank_id)?
+        persist_draft_bank_if_needed(state, &bank_id)?
     } else {
         state
             .library
@@ -647,31 +643,29 @@ pub fn update_sampler_bank(
         if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str())
             || state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str())
         {
-            apply_effective_play_mode_for_bank(&mut state, deck_id, &bank_id)?;
+            apply_effective_play_mode_for_bank(state, deck_id, &bank_id)?;
         }
     }
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn delete_sampler_bank(
-    app: AppHandle,
+pub(crate) fn delete_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     bank_id: String,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerStatus, String> {
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if is_draft_bank_id(&state, &bank_id) {
-        discard_draft_bank(&mut state);
-        let fallback = fallback_bank_id(&mut state, 0)?;
+    if is_draft_bank_id(state, &bank_id) {
+        discard_draft_bank(state);
+        let fallback = fallback_bank_id(state, 0)?;
         for i in 0..NUM_DECKS {
             if state.decks[i].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
                 state.decks[i].active_sampler_bank_id = Some(fallback.clone());
-                load_bank_into_engine(&mut state, i, &fallback)?;
+                load_bank_into_engine(state, i, &fallback)?;
             }
         }
-        publish_status(&app, &mut state);
-        return Ok(SamplerStatus::from_state(&state));
+        publish_status(app, state);
+        return Ok(SamplerStatus::from_state(state));
     }
 
     state
@@ -679,12 +673,11 @@ pub fn delete_sampler_bank(
         .delete_sampler_bank(&bank_id)
         .map_err(|e| e.to_string())?;
 
-    let fallback = fallback_bank_id(&mut state, 0)?;
+    let fallback = fallback_bank_id(state, 0)?;
 
     for i in 0..NUM_DECKS {
         if state.deck_default_sampler_bank_id[i].as_deref() == Some(bank_id.as_str()) {
-            // Don't store draft ids as deck defaults.
-            state.deck_default_sampler_bank_id[i] = if is_draft_bank_id(&state, &fallback) {
+            state.deck_default_sampler_bank_id[i] = if is_draft_bank_id(state, &fallback) {
                 None
             } else {
                 Some(fallback.clone())
@@ -692,27 +685,25 @@ pub fn delete_sampler_bank(
         }
         if state.decks[i].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
             state.decks[i].active_sampler_bank_id = Some(fallback.clone());
-            load_bank_into_engine(&mut state, i, &fallback)?;
+            load_bank_into_engine(state, i, &fallback)?;
         } else if state.loaded_sampler_bank_id[i].as_deref() == Some(bank_id.as_str()) {
             state.loaded_sampler_bank_id[i] = None;
         }
     }
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn set_deck_sampler_bank(
-    app: AppHandle,
+pub(crate) fn set_deck_sampler_bank_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     bank_id: String,
-    state: State<'_, SharedAppState>,
 ) -> Result<SamplerStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if !is_draft_bank_id(&state, &bank_id)
+    if !is_draft_bank_id(state, &bank_id)
         && state
             .library
             .get_sampler_bank(&bank_id)
@@ -721,35 +712,32 @@ pub fn set_deck_sampler_bank(
     {
         return Err(format!("Sampler bank not found: {bank_id}"));
     }
-    discard_draft_if_leaving(&mut state, &bank_id);
+    discard_draft_if_leaving(state, &bank_id);
     state.decks[deck_id].active_sampler_bank_id = Some(bank_id.clone());
-    load_bank_into_engine(&mut state, deck_id, &bank_id)?;
-    publish_deck(&app, &mut state, deck_id);
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    load_bank_into_engine(state, deck_id, &bank_id)?;
+    publish_deck(app, state, deck_id);
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn assign_sampler_slot(
-    app: AppHandle,
+pub(crate) fn assign_sampler_slot_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     slot: usize,
     path: String,
     bank_id: Option<String>,
-    deck_id: Option<usize>,
-    state: State<'_, SharedAppState>,
+    deck_id: usize,
 ) -> Result<SamplerStatus, String> {
     if slot >= SAMPLER_SLOT_COUNT {
         return Err(format!("Invalid sampler slot: {slot}"));
     }
-    let deck_id = deck_id.unwrap_or(0);
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let bank_id = resolve_bank_id(&mut state, bank_id.as_deref(), deck_id)?;
-    let bank_id = persist_draft_bank_if_needed(&mut state, &bank_id)?;
+    let bank_id = resolve_bank_id(state, bank_id.as_deref(), deck_id)?;
+    let bank_id = persist_draft_bank_if_needed(state, &bank_id)?;
     let (source, resolved_path, duration_secs, loudness) =
-        load_source_for_slot(&state, None, Some(&path))?;
+        load_source_for_slot(state, None, Some(&path))?;
     let label = slot_label(&source);
 
     state
@@ -764,7 +752,7 @@ pub fn assign_sampler_slot(
         .map_err(|e| e.to_string())?;
 
     if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str()) {
-        with_engine(&mut state, |engine| {
+        with_engine(state, |engine| {
             engine
                 .assign_sampler_slot(deck_id, slot, source, label.clone(), loudness)
                 .map_err(|e| e.to_string())
@@ -776,34 +764,31 @@ pub fn assign_sampler_slot(
             duration_secs,
         };
     } else if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
-        load_bank_into_engine(&mut state, deck_id, &bank_id)?;
+        load_bank_into_engine(state, deck_id, &bank_id)?;
     }
 
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn assign_sampler_slot_from_track(
-    app: AppHandle,
+pub(crate) fn assign_sampler_slot_from_track_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     slot: usize,
     track_id: String,
     bank_id: Option<String>,
-    deck_id: Option<usize>,
-    state: State<'_, SharedAppState>,
+    deck_id: usize,
 ) -> Result<SamplerStatus, String> {
     if slot >= SAMPLER_SLOT_COUNT {
         return Err(format!("Invalid sampler slot: {slot}"));
     }
-    let deck_id = deck_id.unwrap_or(0);
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let bank_id = resolve_bank_id(&mut state, bank_id.as_deref(), deck_id)?;
-    let bank_id = persist_draft_bank_if_needed(&mut state, &bank_id)?;
+    let bank_id = resolve_bank_id(state, bank_id.as_deref(), deck_id)?;
+    let bank_id = persist_draft_bank_if_needed(state, &bank_id)?;
     let (source, resolved_path, duration_secs, loudness) =
-        load_source_for_slot(&state, Some(&track_id), None)?;
+        load_source_for_slot(state, Some(&track_id), None)?;
     let label = slot_label(&source);
 
     state
@@ -818,7 +803,7 @@ pub fn assign_sampler_slot_from_track(
         .map_err(|e| e.to_string())?;
 
     if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str()) {
-        with_engine(&mut state, |engine| {
+        with_engine(state, |engine| {
             engine
                 .assign_sampler_slot(deck_id, slot, source, label.clone(), loudness)
                 .map_err(|e| e.to_string())
@@ -830,41 +815,38 @@ pub fn assign_sampler_slot_from_track(
             duration_secs,
         };
     } else if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
-        load_bank_into_engine(&mut state, deck_id, &bank_id)?;
+        load_bank_into_engine(state, deck_id, &bank_id)?;
     }
 
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
-#[tauri::command]
-pub fn clear_sampler_slot(
-    app: AppHandle,
+pub(crate) fn clear_sampler_slot_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     slot: usize,
     bank_id: Option<String>,
-    deck_id: Option<usize>,
-    state: State<'_, SharedAppState>,
+    deck_id: usize,
 ) -> Result<SamplerStatus, String> {
     if slot >= SAMPLER_SLOT_COUNT {
         return Err(format!("Invalid sampler slot: {slot}"));
     }
-    let deck_id = deck_id.unwrap_or(0);
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let bank_id = resolve_bank_id(&mut state, bank_id.as_deref(), deck_id)?;
-    if is_draft_bank_id(&state, &bank_id) {
+    let bank_id = resolve_bank_id(state, bank_id.as_deref(), deck_id)?;
+    if is_draft_bank_id(state, &bank_id) {
         if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str()) {
-            with_engine(&mut state, |engine| {
+            with_engine(state, |engine| {
                 engine
                     .clear_sampler_slot(deck_id, slot)
                     .map_err(|e| e.to_string())
             })?;
             state.sampler_slots[deck_id][slot] = SamplerSlotInfo::default();
         }
-        publish_status(&app, &mut state);
-        return Ok(SamplerStatus::from_state(&state));
+        publish_status(app, state);
+        return Ok(SamplerStatus::from_state(state));
     }
 
     state
@@ -873,7 +855,7 @@ pub fn clear_sampler_slot(
         .map_err(|e| e.to_string())?;
 
     if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id.as_str()) {
-        with_engine(&mut state, |engine| {
+        with_engine(state, |engine| {
             engine
                 .clear_sampler_slot(deck_id, slot)
                 .map_err(|e| e.to_string())
@@ -881,71 +863,8 @@ pub fn clear_sampler_slot(
         state.sampler_slots[deck_id][slot] = SamplerSlotInfo::default();
     }
 
-    publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
-}
-
-#[tauri::command]
-pub fn trigger_sampler_pad(
-    app: AppHandle,
-    deck_id: usize,
-    slot: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<SamplerStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if slot >= SAMPLER_SLOT_COUNT {
-        return Err(format!("Invalid sampler slot: {slot}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].pad_mode != PadMode::Sampler {
-        return Err("Deck is not in Sampler pad mode.".to_string());
-    }
-
-    apply_effective_play_mode(&mut state, deck_id)?;
-    ensure_deck_bank_loaded(&mut state, deck_id)?;
-    with_engine(&mut state, |engine| {
-        engine
-            .trigger_sampler(deck_id, slot)
-            .map_err(|e| e.to_string())
-    })?;
-
-    if let (Some(track_id), Some(bank_id)) = (
-        state.decks[deck_id].track_id.clone(),
-        state.decks[deck_id].active_sampler_bank_id.clone(),
-    ) {
-        let _ = state
-            .library
-            .set_track_last_sampler_bank_id(&TrackId::new(track_id), Some(&bank_id));
-    }
-
-    publish_deck(&app, &mut state, deck_id);
-    Ok(SamplerStatus::from_state(&state))
-}
-
-#[tauri::command]
-pub fn end_sampler_pad(
-    app: AppHandle,
-    deck_id: usize,
-    slot: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<SamplerStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if slot >= SAMPLER_SLOT_COUNT {
-        return Err(format!("Invalid sampler slot: {slot}"));
-    }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
-        engine
-            .end_sampler(deck_id, slot)
-            .map_err(|e| e.to_string())
-    })?;
-    publish_deck(&app, &mut state, deck_id);
-    Ok(SamplerStatus::from_state(&state))
+    publish_status(app, state);
+    Ok(SamplerStatus::from_state(state))
 }
 
 #[tauri::command]

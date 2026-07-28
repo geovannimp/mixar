@@ -33,6 +33,21 @@ export const KindSchema = z.enum([
   "end_loop_roll",
   "trigger_hot_cue",
   "recall_saved_loop",
+  "trigger_sampler",
+  "end_sampler",
+  "assign_sampler",
+  "assign_sampler_track",
+  "clear_sampler",
+  "set_sampler_bank",
+  "create_sampler_bank",
+  "update_sampler_bank",
+  "delete_sampler_bank",
+  "save_hot_cue",
+  "delete_hot_cue",
+  "save_loop",
+  "delete_loop",
+  "load_path",
+  "load_library_track",
   "updated",
   "position",
   "levels",
@@ -131,6 +146,38 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     in_secs: z.number(),
     out_secs: z.number(),
   }),
+  z.object({ type: z.literal("trigger_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("end_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({
+    type: z.literal("assign_sampler"),
+    slot: z.number().int().nonnegative(),
+    path: z.string(),
+  }),
+  z.object({
+    type: z.literal("assign_sampler_track"),
+    slot: z.number().int().nonnegative(),
+    track_id: z.string(),
+  }),
+  z.object({ type: z.literal("clear_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("set_sampler_bank"), bank_id: z.string() }),
+  z.object({
+    type: z.literal("create_sampler_bank"),
+    name: z.string().nullable().optional(),
+    play_mode: z.enum(["oneshot", "hold", "loop"]).nullable().optional(),
+  }),
+  z.object({
+    type: z.literal("update_sampler_bank"),
+    bank_id: z.string(),
+    name: z.string(),
+    play_mode: z.enum(["oneshot", "hold", "loop"]).nullable().optional(),
+  }),
+  z.object({ type: z.literal("delete_sampler_bank"), bank_id: z.string() }),
+  z.object({ type: z.literal("save_hot_cue"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("delete_hot_cue"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("save_loop"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("delete_loop"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("load_path"), path: z.string() }),
+  z.object({ type: z.literal("load_library_track"), track_id: z.string() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -290,7 +337,22 @@ export type CmdKind =
   | "begin_loop_roll"
   | "end_loop_roll"
   | "trigger_hot_cue"
-  | "recall_saved_loop";
+  | "recall_saved_loop"
+  | "trigger_sampler"
+  | "end_sampler"
+  | "assign_sampler"
+  | "assign_sampler_track"
+  | "clear_sampler"
+  | "set_sampler_bank"
+  | "create_sampler_bank"
+  | "update_sampler_bank"
+  | "delete_sampler_bank"
+  | "save_hot_cue"
+  | "delete_hot_cue"
+  | "save_loop"
+  | "delete_loop"
+  | "load_path"
+  | "load_library_track";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

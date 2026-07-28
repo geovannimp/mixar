@@ -945,6 +945,24 @@ impl Engine {
         }
     }
 
+    /// Trigger a sampler pad; requires deck pad mode `sampler`.
+    pub fn trigger_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
+        let mode = self
+            .deck_control
+            .get(deck_id)
+            .map(|c| c.pad_mode)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
+        if mode != PadMode::Sampler {
+            return Err(anyhow::anyhow!("Deck is not in Sampler pad mode."));
+        }
+        self.trigger_sampler(deck_id, slot)
+    }
+
+    /// End hold/loop for a sampler pad slot.
+    pub fn end_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
+        self.end_sampler(deck_id, slot)
+    }
+
     /// Trigger hot cue: snap position, seek, play.
     pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
