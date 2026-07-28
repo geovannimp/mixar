@@ -880,19 +880,17 @@ fn browse_fs_directory(path: String) -> Result<DirectoryListing, String> {
     browse_directory(&path)
 }
 
-#[tauri::command]
-async fn load_path_to_deck(
-    app: AppHandle,
+pub(crate) fn load_path_to_deck_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     path: String,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
     let (mut source, title, artist, bpm, key, loudness_lufs) = {
-        let state = state.lock().map_err(|e| e.to_string())?;
         let source = state
             .library
             .import_file_path(Path::new(&path))
@@ -915,7 +913,6 @@ async fn load_path_to_deck(
 
     {
         let track_id = source.id().as_str().to_string();
-        let state = state.lock().map_err(|e| e.to_string())?;
         state
             .library
             .ensure_track_waveform(&TrackId::new(track_id))
@@ -925,8 +922,7 @@ async fn load_path_to_deck(
     source.metadata_mut().loudness_lufs = loudness_lufs;
     let track_id = source.id().as_str().to_string();
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
+    with_engine(state, |engine| {
         engine
             .load_track(deck_id, source)
             .map_err(|e| e.to_string())
@@ -944,13 +940,13 @@ async fn load_path_to_deck(
         deck.key = key;
         deck.loudness_lufs = loudness_lufs;
     }
-    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
+    sync_deck_auto_gain_from_engine(state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
-    let _ = select_bank_for_track_load(&mut state, deck_id, Some(track_id.as_str()));
-    Ok(publish_deck(&app, &mut state, deck_id))
+    let _ = select_bank_for_track_load(state, deck_id, Some(track_id.as_str()));
+    Ok(publish_deck(app, state, deck_id))
 }
 
 #[tauri::command]
@@ -989,28 +985,26 @@ async fn load_track(
     Ok(publish_deck(&app, &mut state, deck_id))
 }
 
-#[tauri::command]
-async fn load_library_track_to_deck(
-    app: AppHandle,
+pub(crate) fn load_library_track_to_deck_inner(
+    app: &AppHandle,
+    state: &mut AppState,
     deck_id: usize,
     track_id: String,
-    state: State<'_, SharedAppState>,
 ) -> Result<DeckStatus, String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
 
     let (mut source, path, title, artist, bpm, key, loudness_lufs) = {
-        let state = state.lock().map_err(|e| e.to_string())?;
-        let track_id = TrackId::new(track_id.clone());
+        let tid = TrackId::new(track_id.clone());
         let source = state
             .library
-            .get_track(&track_id)
+            .get_track(&tid)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
         let loudness_lufs = state
             .library
-            .track_loudness_lufs(&track_id)
+            .track_loudness_lufs(&tid)
             .map_err(|e| e.to_string())?;
 
         let path = source
@@ -1032,18 +1026,14 @@ async fn load_library_track_to_deck(
         )
     };
 
-    {
-        let state = state.lock().map_err(|e| e.to_string())?;
-        state
-            .library
-            .ensure_track_waveform(&TrackId::new(track_id.clone()))
-            .map_err(|e| e.to_string())?;
-    }
+    state
+        .library
+        .ensure_track_waveform(&TrackId::new(track_id.clone()))
+        .map_err(|e| e.to_string())?;
 
     source.metadata_mut().loudness_lufs = loudness_lufs;
 
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
+    with_engine(state, |engine| {
         engine
             .load_track(deck_id, source)
             .map_err(|e| e.to_string())
@@ -1061,13 +1051,13 @@ async fn load_library_track_to_deck(
         deck.key = key;
         deck.loudness_lufs = loudness_lufs;
     }
-    sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
+    sync_deck_auto_gain_from_engine(state, deck_id)?;
     let track_id_for_perf = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) =
         fetch_deck_performance(&state.library, track_id_for_perf.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
-    let _ = select_bank_for_track_load(&mut state, deck_id, Some(track_id.as_str()));
-    Ok(publish_deck(&app, &mut state, deck_id))
+    let _ = select_bank_for_track_load(state, deck_id, Some(track_id.as_str()));
+    Ok(publish_deck(app, state, deck_id))
 }
 
 #[tauri::command]
@@ -1304,8 +1294,6 @@ pub fn run() {
             browse_fs_directory,
             analyze_library_track,
             load_track,
-            load_path_to_deck,
-            load_library_track_to_deck,
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
