@@ -90,6 +90,8 @@ pub enum CmdBody {
     BeatJump { beats: i32 },
     SetPadMode { mode: PadMode },
     BeginLoopRoll { beats: u32 },
+    TriggerHotCue { position_secs: f64 },
+    RecallSavedLoop { in_secs: f64, out_secs: f64 },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].

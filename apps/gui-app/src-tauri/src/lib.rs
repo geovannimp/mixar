@@ -1,7 +1,7 @@
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
-    apply_deck_performance, delete_hot_cue, delete_loop, fetch_deck_performance, recall_saved_loop,
-    save_hot_cue, save_loop, trigger_hot_cue, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
+    apply_deck_performance, delete_hot_cue, delete_loop, fetch_deck_performance, save_hot_cue,
+    save_loop, HotCueStatus, LoopRegionStatus, SavedLoopStatus,
 };
 use deck_sampler::{
     apply_effective_play_mode, assign_sampler_slot, assign_sampler_slot_from_track,
@@ -1309,11 +1309,9 @@ pub fn run() {
             load_track,
             load_path_to_deck,
             load_library_track_to_deck,
-            trigger_hot_cue,
             save_hot_cue,
             delete_hot_cue,
             save_loop,
-            recall_saved_loop,
             delete_loop,
             render_waveform_lane,
             get_supported_audio_extensions,
