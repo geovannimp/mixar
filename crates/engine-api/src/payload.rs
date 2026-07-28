@@ -92,6 +92,8 @@ pub enum CmdBody {
     BeginLoopRoll { beats: u32 },
     TriggerHotCue { position_secs: f64 },
     RecallSavedLoop { in_secs: f64, out_secs: f64 },
+    TriggerSampler { slot: u8 },
+    EndSampler { slot: u8 },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].

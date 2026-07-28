@@ -33,6 +33,8 @@ pub enum Kind {
     EndLoopRoll,
     TriggerHotCue,
     RecallSavedLoop,
+    TriggerSampler,
+    EndSampler,
     Updated,
     Position,
     Levels,

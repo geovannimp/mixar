@@ -33,6 +33,8 @@ export const KindSchema = z.enum([
   "end_loop_roll",
   "trigger_hot_cue",
   "recall_saved_loop",
+  "trigger_sampler",
+  "end_sampler",
   "updated",
   "position",
   "levels",
@@ -131,6 +133,8 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     in_secs: z.number(),
     out_secs: z.number(),
   }),
+  z.object({ type: z.literal("trigger_sampler"), slot: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("end_sampler"), slot: z.number().int().nonnegative() }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -290,7 +294,9 @@ export type CmdKind =
   | "begin_loop_roll"
   | "end_loop_roll"
   | "trigger_hot_cue"
-  | "recall_saved_loop";
+  | "recall_saved_loop"
+  | "trigger_sampler"
+  | "end_sampler";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

@@ -9,7 +9,6 @@ use library_core::{AudioSource, FileAudioSource, Library};
 use engine_core::SamplerPlayMode as DspPlayMode;
 
 use crate::engine_controller::{publish_deck, publish_status};
-use crate::deck_sync::PadMode;
 use crate::{with_engine, AppState, SharedAppState, NUM_DECKS};
 
 pub const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
@@ -882,69 +881,6 @@ pub fn clear_sampler_slot(
     }
 
     publish_status(&app, &mut state);
-    Ok(SamplerStatus::from_state(&state))
-}
-
-#[tauri::command]
-pub fn trigger_sampler_pad(
-    app: AppHandle,
-    deck_id: usize,
-    slot: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<SamplerStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if slot >= SAMPLER_SLOT_COUNT {
-        return Err(format!("Invalid sampler slot: {slot}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].pad_mode != PadMode::Sampler {
-        return Err("Deck is not in Sampler pad mode.".to_string());
-    }
-
-    apply_effective_play_mode(&mut state, deck_id)?;
-    ensure_deck_bank_loaded(&mut state, deck_id)?;
-    with_engine(&mut state, |engine| {
-        engine
-            .trigger_sampler(deck_id, slot)
-            .map_err(|e| e.to_string())
-    })?;
-
-    if let (Some(track_id), Some(bank_id)) = (
-        state.decks[deck_id].track_id.clone(),
-        state.decks[deck_id].active_sampler_bank_id.clone(),
-    ) {
-        let _ = state
-            .library
-            .set_track_last_sampler_bank_id(&TrackId::new(track_id), Some(&bank_id));
-    }
-
-    publish_deck(&app, &mut state, deck_id);
-    Ok(SamplerStatus::from_state(&state))
-}
-
-#[tauri::command]
-pub fn end_sampler_pad(
-    app: AppHandle,
-    deck_id: usize,
-    slot: usize,
-    state: State<'_, SharedAppState>,
-) -> Result<SamplerStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-    if slot >= SAMPLER_SLOT_COUNT {
-        return Err(format!("Invalid sampler slot: {slot}"));
-    }
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    with_engine(&mut state, |engine| {
-        engine
-            .end_sampler(deck_id, slot)
-            .map_err(|e| e.to_string())
-    })?;
-    publish_deck(&app, &mut state, deck_id);
     Ok(SamplerStatus::from_state(&state))
 }
 

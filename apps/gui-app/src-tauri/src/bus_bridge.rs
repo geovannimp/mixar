@@ -122,7 +122,7 @@ pub fn engine_publish(
             crate::clear_deck_info(&mut state.decks[deck_id]);
         }
     }
-    // ponytail: AppState.pad_mode still gates sampler invokes; mirror until sampler migrates.
+    // ponytail: AppState.pad_mode still mirrors for leftover sampler bank/assign invokes.
     if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::SetPadMode)) {
         let Origin::Deck(deck_id) = msg.origin else {
             unreachable!()
@@ -143,11 +143,37 @@ pub fn engine_publish(
             }
         }
     }
+    // ponytail: bank load + play mode + last-used bank stay host-owned until bank cmds migrate.
+    let mut remember_sampler_bank: Option<(String, String)> = None;
+    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::TriggerSampler)) {
+        let Origin::Deck(deck_id) = msg.origin else {
+            unreachable!()
+        };
+        let deck_id = deck_id as usize;
+        if deck_id < crate::NUM_DECKS {
+            let mut state = app_state.lock().map_err(|e| e.to_string())?;
+            crate::deck_sampler::apply_effective_play_mode(&mut state, deck_id)?;
+            crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id)?;
+            if let (Some(track_id), Some(bank_id)) = (
+                state.decks[deck_id].track_id.clone(),
+                state.decks[deck_id].active_sampler_bank_id.clone(),
+            ) {
+                remember_sampler_bank = Some((track_id, bank_id));
+            }
+        }
+    }
     let guard = session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_ref()
         .ok_or_else(|| "Engine session not running.".to_string())?;
     session
         .publish_cmd(msg.origin, msg.kind, msg.body)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some((track_id, bank_id)) = remember_sampler_bank {
+        let state = app_state.lock().map_err(|e| e.to_string())?;
+        let _ = state
+            .library
+            .set_track_last_sampler_bank_id(&library_core::TrackId::new(track_id), Some(&bank_id));
+    }
+    Ok(())
 }

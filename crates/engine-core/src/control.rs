@@ -250,6 +250,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
         | (Kind::TriggerHotCue, CmdBody::TriggerHotCue { .. })
         | (Kind::RecallSavedLoop, CmdBody::RecallSavedLoop { .. })
+        | (Kind::TriggerSampler, CmdBody::TriggerSampler { .. })
+        | (Kind::EndSampler, CmdBody::EndSampler { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -427,6 +429,20 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.recall_deck_saved_loop(deck_id, in_secs, out_secs)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::TriggerSampler => {
+            let CmdBody::TriggerSampler { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.trigger_deck_sampler(deck_id, slot as usize)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::EndSampler => {
+            let CmdBody::EndSampler { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.end_deck_sampler(deck_id, slot as usize)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),

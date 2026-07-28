@@ -6,10 +6,9 @@ use deck_performance::{
 use deck_sampler::{
     apply_effective_play_mode, assign_sampler_slot, assign_sampler_slot_from_track,
     clear_sampler_slot, create_sampler_bank, delete_sampler_bank, empty_deck_sampler_slots,
-    end_sampler_pad, ensure_sampler_ready, get_sampler_status, list_sampler_banks,
-    reapply_sampler_gains, select_bank_for_track_load, set_deck_sampler_bank,
-    trigger_sampler_pad, update_sampler_bank, SamplerBankInfo, SamplerPlayModeSetting,
-    SamplerSlotInfo, SamplerStatus,
+    ensure_sampler_ready, get_sampler_status, list_sampler_banks, reapply_sampler_gains,
+    select_bank_for_track_load, set_deck_sampler_bank, update_sampler_bank, SamplerBankInfo,
+    SamplerPlayModeSetting, SamplerSlotInfo, SamplerStatus,
 };
 use deck_sync::{PadMode, SyncMode};
 use engine_core::{
@@ -1324,8 +1323,6 @@ pub fn run() {
             assign_sampler_slot,
             assign_sampler_slot_from_track,
             clear_sampler_slot,
-            trigger_sampler_pad,
-            end_sampler_pad,
             get_sampler_status,
             get_track_artwork,
             bus_bridge::engine_publish,

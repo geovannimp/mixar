@@ -430,19 +430,11 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   triggerSamplerPad: async (deckId, slot) => {
-    try {
-      await invoke("trigger_sampler_pad", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "trigger_sampler", { slot });
   },
 
   endSamplerPad: async (deckId, slot) => {
-    try {
-      await invoke("end_sampler_pad", { deckId, slot });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "end_sampler", { slot });
   },
 
   assignSamplerFromTrack: async (slot, trackId, deckId = 0) => {
