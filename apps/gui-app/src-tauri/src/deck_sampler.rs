@@ -92,6 +92,8 @@ impl SamplerStatus {
     pub fn from_state(state: &AppState) -> Self {
         let mut banks: Vec<SamplerBankInfo> = state
             .library
+            .lock()
+            .unwrap()
             .list_sampler_banks()
             .unwrap_or_default()
             .into_iter()
@@ -206,6 +208,8 @@ fn resolve_bank_id(
     }
     if let Some(bank) = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_banks()
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -250,6 +254,8 @@ pub(crate) fn load_bank_into_engine(
 
     let slots = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_bank_slots(bank_id)
         .map_err(|e| e.to_string())?;
 
@@ -300,6 +306,8 @@ fn apply_effective_play_mode_for_bank(
     } else {
         state
             .library
+            .lock()
+            .unwrap()
             .get_sampler_bank(bank_id)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Sampler bank not found: {bank_id}"))?
@@ -358,6 +366,8 @@ fn start_draft_sampler_bank(
 
     let persisted_count = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_banks()
         .map_err(|e| e.to_string())?
         .len();
@@ -386,6 +396,8 @@ fn fallback_bank_id(state: &mut AppState, deck_id: usize) -> Result<String, Stri
     }
     if let Some(bank) = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_banks()
         .map_err(|e| e.to_string())?
         .into_iter()
@@ -407,6 +419,8 @@ fn persist_draft_bank_if_needed(state: &mut AppState, bank_id: &str) -> Result<S
 
     let created = state
         .library
+        .lock()
+        .unwrap()
         .create_sampler_bank(
             &draft.name,
             draft.play_mode.map(|mode| mode.to_lib()),
@@ -443,6 +457,8 @@ fn load_source_for_slot(
         let tid = TrackId::new(track_id.to_string());
         let source = state
             .library
+            .lock()
+            .unwrap()
             .get_track(&tid)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Track not found in library.".to_string())?;
@@ -455,6 +471,8 @@ fn load_source_for_slot(
         let duration_secs = source.metadata().duration_secs;
         let loudness = state
             .library
+            .lock()
+            .unwrap()
             .track_loudness_lufs(&tid)
             .map_err(|e| e.to_string())?;
         return Ok((source, path, duration_secs, loudness));
@@ -473,6 +491,8 @@ pub(crate) fn ensure_sampler_ready(state: &mut AppState) -> Result<(), String> {
 
     let banks = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_banks()
         .map_err(|e| e.to_string())?;
     let bank_id = if let Some(first) = banks.first() {
@@ -512,11 +532,15 @@ pub(crate) fn select_bank_for_track_load(
     let preferred = if let Some(tid) = track_id {
         state
             .library
+            .lock()
+            .unwrap()
             .get_track_last_sampler_bank_id(&TrackId::new(tid.to_string()))
             .map_err(|e| e.to_string())?
             .filter(|id| {
                 state
                     .library
+                    .lock()
+                    .unwrap()
                     .get_sampler_bank(id)
                     .ok()
                     .flatten()
@@ -531,6 +555,8 @@ pub(crate) fn select_bank_for_track_load(
         .or_else(|| {
             state
                 .library
+                .lock()
+                .unwrap()
                 .list_sampler_banks()
                 .ok()
                 .and_then(|banks| banks.into_iter().next().map(|b| b.id))
@@ -554,6 +580,8 @@ pub(crate) fn reapply_sampler_gains(state: &mut AppState) -> Result<(), String> 
         let bank_id = resolve_bank_id(state, None, deck_id)?;
         let slots = state
             .library
+            .lock()
+            .unwrap()
             .list_sampler_bank_slots(&bank_id)
             .map_err(|e| e.to_string())?;
 
@@ -565,6 +593,8 @@ pub(crate) fn reapply_sampler_gains(state: &mut AppState) -> Result<(), String> 
             let loudness = record.track_id.as_ref().and_then(|tid| {
                 state
                     .library
+                    .lock()
+                    .unwrap()
                     .track_loudness_lufs(&TrackId::new(tid.clone()))
                     .ok()
                     .flatten()
@@ -590,13 +620,16 @@ pub(crate) fn reapply_sampler_gains(state: &mut AppState) -> Result<(), String> 
 #[tauri::command]
 pub fn list_sampler_banks(state: State<'_, SharedAppState>) -> Result<Vec<SamplerBankInfo>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(state
+    let banks = state
         .library
+        .lock()
+        .unwrap()
         .list_sampler_banks()
         .map_err(|e| e.to_string())?
         .into_iter()
         .map(SamplerBankInfo::from)
-        .collect())
+        .collect();
+    Ok(banks)
 }
 
 pub(crate) fn create_sampler_bank_inner(
@@ -634,6 +667,8 @@ pub(crate) fn update_sampler_bank_inner(
     } else {
         state
             .library
+            .lock()
+            .unwrap()
             .update_sampler_bank(&bank_id, &name, play_mode.map(|m| m.to_lib()))
             .map_err(|e| e.to_string())?;
         bank_id
@@ -670,6 +705,8 @@ pub(crate) fn delete_sampler_bank_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .delete_sampler_bank(&bank_id)
         .map_err(|e| e.to_string())?;
 
@@ -706,6 +743,8 @@ pub(crate) fn set_deck_sampler_bank_inner(
     if !is_draft_bank_id(state, &bank_id)
         && state
             .library
+            .lock()
+            .unwrap()
             .get_sampler_bank(&bank_id)
             .map_err(|e| e.to_string())?
             .is_none()
@@ -742,6 +781,8 @@ pub(crate) fn assign_sampler_slot_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .assign_sampler_bank_slot(
             &bank_id,
             slot as u8,
@@ -793,6 +834,8 @@ pub(crate) fn assign_sampler_slot_from_track_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .assign_sampler_bank_slot(
             &bank_id,
             slot as u8,
@@ -851,6 +894,8 @@ pub(crate) fn clear_sampler_slot_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .clear_sampler_bank_slot(&bank_id, slot as u8)
         .map_err(|e| e.to_string())?;
 

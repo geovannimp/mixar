@@ -1,10 +1,11 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckEq, WaveformFrame } from "@/types";
 import { WaveformTrackCache } from "@/lib/waveformTrackCache";
 import { waveformVisibleSourceSecs } from "@/lib/spectralColor";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
+const libraryTransport = getLibraryTransport();
 
 interface UseRenderWaveformLaneOptions {
   trackId: string | null;
@@ -67,7 +68,7 @@ export function useRenderWaveformLane({
       const tileWidth = cache.tileWidthPx(tileIndex);
 
       try {
-        const frame = await invoke<WaveformFrame>("render_waveform_lane", {
+        const frame: WaveformFrame = await libraryTransport.renderWaveformLane({
           trackId,
           path: trackId ? null : path,
           width: tileWidth,

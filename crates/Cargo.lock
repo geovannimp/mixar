@@ -1094,6 +1094,7 @@ dependencies = [
  "backend-null",
  "engine-api",
  "engine-dsp",
+ "library",
  "library-core",
  "log",
  "omnibus",

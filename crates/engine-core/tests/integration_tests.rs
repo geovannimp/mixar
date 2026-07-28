@@ -4,9 +4,11 @@
 
 use anyhow::Result;
 use audio_core::BusId;
-use engine_core::{AnalysisDurationMode, Engine, EngineConfig};
+use engine_core::{AnalysisDurationMode, Engine, EngineConfig, EngineSession};
+use library::{LibraryConfig, LibraryManager};
 use library_core::{AudioSource, FileAudioSource};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
@@ -37,6 +39,100 @@ fn test_engine_with_null_backend() -> Result<()> {
     engine.play(0)?;
     engine.pause(0)?;
     engine.stop()?;
+
+    Ok(())
+}
+
+#[test]
+fn test_engine_loads_library_prepared_track() -> Result<()> {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        sample_rate: 48000,
+        buffer_size: 512,
+        low_latency: false,
+        buses: vec![],
+        devices: None,
+        advanced: None,
+        audio: None,
+        analysis_duration: AnalysisDurationMode::Complete,
+    };
+
+    let lib = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default())?);
+    let imported = {
+        let guard = lib.lock().expect("library lock");
+        guard.import_file_path(&short_tone_fixture())?
+    };
+    let prepared = LibraryManager::prepare_track_for_playback(&lib, imported.id())?;
+
+    let mut engine = Engine::new(config)?;
+    engine.start()?;
+    engine.load_prepared_track(0, prepared)?;
+    engine.play(0)?;
+    engine.pause(0)?;
+    engine.stop()?;
+
+    Ok(())
+}
+
+#[test]
+fn test_engine_loads_track_via_library_manager() -> Result<()> {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        sample_rate: 48000,
+        buffer_size: 512,
+        low_latency: false,
+        buses: vec![],
+        devices: None,
+        advanced: None,
+        audio: None,
+        analysis_duration: AnalysisDurationMode::Complete,
+    };
+
+    let lib = Arc::new(Mutex::new(LibraryManager::open_in_memory(
+        LibraryConfig::default(),
+    )?));
+    let imported = lib
+        .lock()
+        .unwrap()
+        .import_file_path(&short_tone_fixture())?;
+
+    let mut engine = Engine::new_with_library(config, Arc::clone(&lib))?;
+    engine.start()?;
+    engine.load_track_from_library(0, imported.id())?;
+    engine.play(0)?;
+    engine.pause(0)?;
+    engine.stop()?;
+
+    Ok(())
+}
+
+#[test]
+fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        sample_rate: 48000,
+        buffer_size: 512,
+        low_latency: false,
+        buses: vec![],
+        devices: None,
+        advanced: None,
+        audio: None,
+        analysis_duration: AnalysisDurationMode::Complete,
+    };
+
+    let lib = Arc::new(Mutex::new(LibraryManager::open_in_memory(
+        LibraryConfig::default(),
+    )?));
+    let imported = lib
+        .lock()
+        .unwrap()
+        .import_file_path(&short_tone_fixture())?;
+
+    let session = EngineSession::new_with_library(config, Arc::clone(&lib))?;
+    session.with_engine(|engine| engine.start())?;
+    session.with_engine(|engine| engine.load_track_from_library(0, imported.id()))?;
+    session.with_engine(|engine| engine.play(0))?;
+    session.with_engine(|engine| engine.pause(0))?;
 
     Ok(())
 }

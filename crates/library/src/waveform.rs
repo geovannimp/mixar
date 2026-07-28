@@ -213,10 +213,14 @@ pub(crate) fn get_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<Option<
     }))
 }
 
+pub(crate) fn store_overview(db: &Db, track_id: &TrackId, peaks: &[SpectralPeak]) -> Result<()> {
+    debug_assert_eq!(peaks.len(), OVERVIEW_SAMPLE_COUNT);
+    upsert_track_waveform(db, track_id, peaks, &waveform_config())
+}
+
 pub(crate) fn generate_and_store_overview(db: &Db, track_id: &TrackId, path: &Path) -> Result<()> {
     let peaks = generate_overview_from_path(path)?;
-    debug_assert_eq!(peaks.len(), OVERVIEW_SAMPLE_COUNT);
-    upsert_track_waveform(db, track_id, &peaks, &waveform_config())
+    store_overview(db, track_id, &peaks)
 }
 
 #[cfg(test)]

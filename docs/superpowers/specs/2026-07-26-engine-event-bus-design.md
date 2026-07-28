@@ -84,7 +84,7 @@ Subscriptions:
 
 ### Payload / revision
 
-- Postcard for all host-facing messages.
+- MessagePack for all host-facing messages.
 - Discrete evt messages carry a monotonic `revision` so hosts can ignore stale patches.
 - Full snapshot: `Origin::Engine` + `Kind::Status` (hydrate / multi-deck changes).
 - Single-deck patch: `Origin::Deck(id)` + `Kind::Updated`.
@@ -101,12 +101,12 @@ Subscriptions:
 invoke("engine_publish", { origin, kind, payload: number[] })
   → decode → cmd Bus::publish
 
-evt Bus (Any, Any) → postcard → emit("engine://bus", { origin, kind, payload })
+evt Bus (Any, Any) → MessagePack → emit("engine://bus", bytes)
 ```
 
 - No Tauri-owned `DeckStatus` / `EngineStatus` mirror for migrated paths.
-- Remove per-action Tauri commands as each domain migrates.
-- Existing `engine://event` JSON path is retired once the store uses `engine://bus`.
+- Per-action Tauri engine commands are gone; host-only cmds (load, sampler bank persistence) stay in `bus_bridge` and emit on `engine://bus`.
+- The JSON `engine://event` path is **retired**. Runtime engine traffic is MessagePack on `engine://bus` only. Host-enriched deck/status payloads (track metadata, hot cues, loops, sampler) live in `engine-api` evt bodies.
 
 ## Frontend `EngineTransport`
 
@@ -126,23 +126,25 @@ interface EngineTransport {
 | `MemoryEngineTransport` | Unit tests |
 
 - `createEngineTransport()` selects impl from build/env.
-- Optional typed facade (`publishDeck(id, action)`) on top of raw postcard bytes.
-- Library remains on raw Tauri invokes until a separate effort.
+- Optional typed facade (`publishDeck(id, action)`) on top of wire bytes.
+
+## Frontend `LibraryTransport`
+
+Library I/O is **not** on the engine bus. Hooks use `LibraryTransport` (`listTracks`, artwork, waveform lane, …) with Tauri / memory impls under `apps/gui-app/src/lib/library/`.
+
+Host ownership: `LibraryManager` prepares `PreparedTrackPlayback` (decode cache, waveform ensure); engine consumes it via `load_prepared_track`. Do not hold `AppState` across prepare/decode.
 
 ## Testing
 
 | Layer | Check |
 |-------|--------|
-| `engine-api` | Postcard round-trip; origin/kind helpers |
+| `engine-api` | Wire round-trip; origin/kind helpers |
 | `engine-core` | Headless: publish cmd `Play` → handler → evt `Updated` (no Tauri) |
-| Frontend | Store + `MemoryEngineTransport` applies events without Tauri |
+| Frontend | Store + `MemoryEngineTransport` / `MemoryLibraryTransport` without Tauri |
 
 ## Migration
 
-1. **Foundation:** add `engine-api`, omnibus buses + control thread in `engine-core`, Tauri bridge commands, `TauriEngineTransport` + subscribe wiring; leave old invokes working.
-2. **First slice (engine only):** transport + mixer controls already on `Engine` — play/pause/seek/volume/eq/speed/crossfader/cue mix/master cue — plus status/position/levels egress; point Zustand at transport; delete those invokes.
-3. **Later slices:** sync, pads, sampler, performance — still engine-only; library untouched.
-4. **WASM host:** implement `WasmEngineTransport` when the engine wasm target exists; no bus redesign.
+**Done** for engine domains (transport, mixer, sync, pads, sampler, performance, load) and library frontend transport. Remaining: WASM `EngineTransport` when the engine wasm target exists; no bus redesign.
 
 ## Relation to deck-spec §9
 
@@ -151,5 +153,5 @@ This supersedes the Tauri-centric half of §9 (per-command returns + Tauri-owned
 ## Non-goals / deliberate ceilings
 
 - `ponytail:` Omnibus per-subscriber channel capacity (default 64) may drop under flood; coalesce high-rate meters on the control thread first; raise capacity only if `PublishResult::dropped` shows up in real use.
-- Postcard + hand-maintained TS decode for the first payload set; codegen later if the schema grows painful.
-- Dual path during migration is temporary; do not add new per-action Tauri engine commands once the bridge lands.
+- MessagePack + hand-maintained TS decode for the first payload set; codegen later if the schema grows painful.
+- Dual path during migration is gone; do not add new per-action Tauri engine commands.

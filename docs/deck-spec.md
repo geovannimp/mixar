@@ -96,41 +96,40 @@ Common expectations across all products:
 
 ### GUI (`gui-app`)
 
-| Area | Implemented | Missing |
-|------|-------------|---------|
-| Deck panel | Load (file picker + drag-drop), play/pause, title, playing pill | Artist, album art, BPM/key/time, all transport buttons |
-| Waveforms | Dual-lane scrolling (Rust-rendered), center playhead | Overview strip, beat grid, cue/loop overlays, zoom |
-| Mixer strip | Volume fader, 3-band EQ knobs, crossfader | Filter, gain trim, cue/PFL, per-deck VU |
-| Engine start | Auto-start on Decks page with promise toast | — |
-| State sync | Poll `get_status` @ 100 ms + merge command returns | **Engine event bus** (§9) |
+| Area | Implemented | Missing / next |
+|------|-------------|----------------|
+| Deck panel | Load (picker + drag-drop), play/pause, metadata, transport, pads, sync, sampler | Layout polish; some Phase 4+ (slip, FX UI) |
+| Waveforms | Dual-lane scroll + overview preview, beat grid when analyzed | Zoom; richer cue/loop overlays |
+| Mixer strip | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU | — |
+| Engine start | Auto-start on Decks page with promise toast | Move `start_engine` / hydrate off raw invoke ([#109](https://github.com/geovannimp/rust-dj-engine/issues/109)) |
+| State sync | **`EngineTransport`** → `engine://bus` → store (`applyBusEvent`) | MIDI host; optional richer hydrate cmd on the bus |
+| Library UI | **`LibraryTransport`** for tracks / artwork / waveform raster | — |
 
 ### Engine / DSP (`engine-dsp`, `engine-core`)
 
 | Capability | Status |
 |------------|--------|
 | Play / pause / stop | Yes |
-| Volume | Yes |
-| 3-band EQ (audio path) | Yes |
-| Playback speed (`set_speed`) | **Engine only** — no GUI, no key lock |
-| Seek (`seek`) | **Engine only** — no GUI scrub/jog |
-| Hot cues / loops | No |
-| Sync / quantize / slip | No |
-| FX chain | No |
-| Stems | No |
-| Scratch / vinyl simulation | No |
+| Volume / EQ / filter / gain trim | Yes |
+| Playback speed (`set_speed`) | Yes (GUI pitch control) |
+| Seek | Yes (waveform / scrub) |
+| Hot cues / loops / quantize | Yes |
+| Sync / master deck | Yes |
+| Sampler pads / banks | Yes |
+| FX chain / stems / scratch | No (later phases) |
 
-### Library metadata (available but not shown on deck)
+### Library metadata
 
-From `TrackSummary` / analysis: `title`, `artist`, `bpm`, `key`, `duration_secs`, beat grid (DB). Deck UI does not display or use these yet.
+Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_secs`, beat grid, loudness, artwork) feed deck status via host-enriched bus payloads and `LibraryTransport`.
 
-### Runtime playback time (already in `DeckStatus`)
+### Runtime playback time (in `DeckStatus`)
 
 | Field | Source | Meaning |
 |-------|--------|---------|
-| `position_secs` | Engine poll (`get_status`) | Current playhead position (elapsed time) |
-| `duration_secs` | Loaded track metadata | Total track length |
+| `position_secs` | High-rate `position` on `engine://bus` | Current playhead (elapsed) |
+| `duration_secs` | Loaded track metadata on deck snapshot | Total track length |
 
-Both are exposed today via Tauri → `DeckStatus` in `apps/gui-app/src/types.ts`. The deck UI does not render them yet (metadata bar is Phase 1). `remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
+`remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
 
 ---
 
@@ -562,49 +561,36 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 8.1 Current (implemented)
 
-There is **no** `get_deck_state` command. Deck state comes from **`get_status`**, which returns `EngineStatus`:
+There is **no** `get_deck_state` command. Authoritative deck/engine state for the UI is the **evt omnibus** (`engine://bus`), mirrored in the Zustand store.
 
 ```text
-EngineStatus
-├── running, backend, sample_rate, crossfader
+EngineStatus (hydrate + status events)
+├── running, backend, sample_rate, crossfader, cue_mix, master_cue, master_deck?
 └── decks: DeckStatus[]     // one entry per deck (0 = A, 1 = B)
-        ├── id, track, track_id, playing, volume, eq
-        └── position_secs, duration_secs
+        ├── id, track, track_id, title, artist, bpm, key, playing, volume, eq, …
+        ├── position_secs, duration_secs, hot_cues, loops, sampler bank, …
+        └── levels (from high-rate levels events)
 ```
 
-Most deck mutations (`play_deck`, `pause_deck`, `load_deck_track`, `set_deck_volume`, `set_deck_eq`, …) return an updated **`DeckStatus`** for that deck. The GUI also polls `get_status` every **100 ms** while a deck is playing (`useEngine.tsx`) — this is a stopgap until the event system (§9) lands.
+| Path | Role |
+|------|------|
+| `EngineTransport.publish` → `engine_publish` | All engine cmds (transport, mixer, load, pads, sampler, …) |
+| `EngineTransport.subscribe` → `engine://bus` | Status / updated / position / levels / notice / error |
+| `invoke("get_status")` | One-shot bootstrap hydrate only (migrate onto bus — [#109](https://github.com/geovannimp/rust-dj-engine/issues/109)) |
+| `invoke("start_engine")` / settings / devices | Session lifecycle + non-engine host APIs |
+| `LibraryTransport` | Tracks, artwork, waveform raster (not on the engine bus) |
 
-| Command | Returns | Role |
-|---------|---------|------|
-| `get_status` | `EngineStatus` | Snapshot / initial hydrate; fallback if events missed |
-| `play_deck` / `pause_deck` | `DeckStatus` | Transport |
-| `load_deck_track` | `DeckStatus` | Load file or library track |
-| `set_deck_volume` / `set_deck_eq` | `DeckStatus` | Mixer |
-| `render_waveform_lane` | `WaveformFrame` | Rust-side waveform raster (separate from status) |
+Deck mutations do **not** return `DeckStatus` for the UI to merge. The store updates from bus events. `get_status` remains for initial hydrate until a bus hydrate cmd exists.
 
-**Target:** commands still return updated state for convenience, but the **authoritative UI update path** becomes Tauri events (§9), not merge-return + poll.
+**Not planned:** a separate `get_deck_state`. Prefer richer `DeckSnapshot` / `EngineStatus` on the bus.
 
-**Not planned:** a separate `get_deck_state` unless `DeckStatus` grows large enough that per-deck fetch is needed. Prefer extending `DeckStatus` inside `get_status` (and mutation return values) instead.
+### 8.2 Engine cmds (via `publishCmd` / omnibus)
 
-### 8.2 Proposed — engine (Tauri)
+Host-handled (library + `AppState` in `bus_bridge`, then emit on bus): load path / library track, sampler bank assign/clear/select, related bank CRUD.
 
-```text
-# Transport (Phase 2+)
-cue_deck, seek_deck, set_pitch, set_reverse
+Engine-native (forwarded to cmd omnibus): play/pause, seek, volume/EQ/speed, crossfader, cue mix, pads, sync, sampler trigger, etc.
 
-# Sync (Phase 3+)
-set_deck_sync_mode, set_master_deck, nudge_phase
-
-# Pads & cues — runtime (Phase 2+)
-set_pad_mode, trigger_pad, save_pad, delete_pad   # generic; hot_cue mode → existing hot cue commands
-set_hot_cue, trigger_hot_cue, delete_hot_cue      # Hot Cue mode (implemented)
-set_loop_in, set_loop_out, set_auto_loop, exit_loop
-
-# FX (Phase 3+)
-set_deck_filter, set_deck_fx_slot, set_fx_param
-```
-
-### 8.3 Proposed — library persistence
+### 8.3 Library persistence
 
 One row per cue/loop slot, same DB as waveforms:
 
@@ -622,23 +608,18 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Implementation direction:** The engineering target for this section is [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, **MessagePack** wire codec, and a frontend **`EngineTransport`** host bridge (Tauri now; WASM later). The subsections below remain the product-level contract.
+**Current implementation:** [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire, Tauri bridges bytes only, frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is `engine_publish` / `engine://bus` only.
+
+Library metadata / decode / waveform / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
 
 ### 9.1 Problem
 
-Today the data flow is **UI-centric**:
-
-```text
-React control  →  Tauri command  →  engine mutates  →  return DeckStatus
-React poll (100 ms)  →  get_status  →  merge into React state
-```
-
-That works when **only the UI** changes the engine. It breaks when:
+UI-only request/response breaks when:
 
 - A **MIDI controller** adjusts volume, pitch, or transport on a background thread.
 - **Sync logic** changes deck tempo without a matching UI action.
 - **End-of-track** or **loop wrap** updates transport state from the audio thread.
-- Two UI surfaces (e.g. deck panel + mixer) must stay in sync without duplicate invokes.
+- Two UI surfaces must stay in sync without duplicate invokes.
 
 The UI must subscribe to **engine-originated changes**, not only refresh after its own commands.
 
@@ -647,137 +628,95 @@ The UI must subscribe to **engine-originated changes**, not only refresh after i
 | Goal | Approach |
 |------|----------|
 | Single source of truth | Engine state lives in Rust; UI is a read-only mirror |
-| Any input path | UI, MIDI, keyboard shortcuts, automation → same command queue |
-| Push, not poll | Tauri events for discrete changes; optional high-rate position channel |
-| Efficient | Coalesce noisy sources (MIDI CC); don’t emit full `EngineStatus` at audio rate |
-| Testable | Emit events from headless engine tests without a window |
+| Any input path | UI, MIDI, keyboard shortcuts, automation → same cmd bus |
+| Push, not poll | `engine://bus` for discrete + high-rate kinds |
+| Efficient | Coalesce noisy sources (MIDI CC); don’t emit full status at audio rate |
+| Testable | Headless omnibus + `MemoryEngineTransport` without a window |
 
 ### 9.3 Architecture
 
 ```text
-                    ┌─────────────────────────────────────┐
-                    │         EngineController            │
-                    │  (owns Engine + AppState.decks)     │
-                    └──────────────┬──────────────────────┘
-                                   │
-         ┌─────────────────────────┼─────────────────────────┐
-         │                         │                         │
-         ▼                         ▼                         ▼
-   UI / Tauri cmd            MIDI mapper (future)      Audio / sync thread
-         │                         │                         │
-         └─────────────────────────┴─────────────────────────┘
-                                   │
-                          apply(EngineCommand)
-                                   │
-                                   ▼
-                          mutate engine state
-                                   │
-                                   ▼
-                          EventBus::emit(...)
-                                   │
-                                   ▼
-                    Tauri AppHandle::emit("engine://…")
-                                   │
-                                   ▼
-              React listen() → setStatus / patch deck fields
+UI / MIDI / host
+      │
+      ▼
+EngineTransport.publish  →  invoke("engine_publish")  →  cmd omnibus
+                                                              │
+                                                     control thread
+                                                              │
+                                                              ▼
+                                                         evt omnibus
+                                                              │
+                                                     Tauri forwarder
+                                                              │
+                                                              ▼
+                                              emit("engine://bus", bytes)
+                                                              │
+                                                              ▼
+                                   EngineTransport.subscribe → applyBusEvent → store
 ```
 
-**All mutations** go through one Rust entry point (e.g. `EngineController::apply`). Never call `Deck::set_volume` directly from a Tauri command and skip the bus — MIDI will use the same path.
+Host-only cmds (load path/library track, sampler bank persistence) are handled in `bus_bridge` (library + `AppState`), then emit rich `status` / `updated` payloads on `engine://bus`. Engine-native cmds forward to the omnibus.
 
-### 9.4 Event types
+### 9.4 Event kinds (wire)
 
-Use a small versioned envelope so payloads can grow without breaking listeners.
+Conceptual kinds on the evt bus (MessagePack envelope with `origin`, `kind`, `revision`, `body`):
 
-```rust
-#[derive(Clone, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum EngineEvent {
-    /// Full snapshot — after load, start/stop engine, crossfader, any multi-deck change.
-    Status { revision: u64, status: EngineStatus },
-
-    /// Partial patch — preferred for single-deck MIDI tweaks (smaller payload).
-    DeckUpdated { revision: u64, deck: DeckStatus },
-
-    /// High-frequency playhead — optional separate channel (see §9.6).
-    Position { deck_id: usize, position_secs: f64 },
-
-    /// Non-fatal warning (device fallback, analysis skipped, etc.).
-    Notice { message: String },
-
-    /// Fatal to engine session (device lost). UI shows toast; may stop engine.
-    Error { message: String },
-}
-```
-
-Tauri channel names (stable contract):
-
-| Event name | Payload | When |
-|------------|---------|------|
-| `engine://event` | `EngineEvent` | All engine notifications (recommended single listener) |
-| `engine://position` | `{ deck_id, position_secs }` | Optional; only if position split from `Status` |
-
-Frontend: one `listen<EngineEvent>("engine://event", …)` in `EngineProvider`.
-
-### 9.5 When to emit
-
-| Source | Event |
-|--------|-------|
-| `start_engine` / `stop_engine` | `Status` |
-| `load_*`, `play_deck`, `pause_deck`, seek, cue | `DeckUpdated` or `Status` |
-| `set_deck_volume`, `set_deck_eq`, pitch, FX | `DeckUpdated` |
-| `set_crossfader` | `Status` (affects mix globally) |
-| MIDI mapping (future) | Same as equivalent command |
-| Track ended / loop wrapped | `DeckUpdated` (`playing: false` or position jump) |
-| Engine error | `Error` |
+| Kind | Role |
+|------|------|
+| `status` | Full snapshot (start/stop, crossfader, multi-deck) |
+| `updated` | Single-deck patch (preferred for transport/mixer tweaks) |
+| `position` | High-rate playhead |
+| `levels` | High-rate VU |
+| `notice` / `error` | Non-fatal / session-fatal |
 
 Increment **`revision`** on every emit so the UI can ignore out-of-order duplicates.
 
-**Coalescing:** MIDI control change floods (e.g. volume fader) may be coalesced to **≤60 Hz** per `(deck_id, control)` before emit. Final value always emitted on CC release if supported.
+**Coalescing:** MIDI CC floods may be coalesced to **≤60 Hz** per `(deck_id, control)` before emit.
+
+### 9.5 When to emit
+
+| Source | Kind |
+|--------|------|
+| `start_engine` / `stop_engine` | `status` |
+| load, play/pause, seek, cue, pads, sampler | `updated` or `status` |
+| volume / EQ / pitch / FX | `updated` |
+| crossfader / cue mix / master cue | `status` |
+| MIDI mapping (future) | Same as equivalent cmd |
+| Track ended / loop wrap | `updated` |
+| Engine error | `error` |
 
 ### 9.6 Position updates vs full status
 
-`position_secs` changes continuously during playback. Options:
+`position_secs` changes continuously during playback. **Current:** high-rate `position` (and `levels`) on `engine://bus`; waveform hooks extrapolate between updates. Do not resurrect a separate `engine://position` channel unless the bus path is insufficient.
 
-| Strategy | Pros | Cons |
-|----------|------|------|
-| **A — Keep UI poll for position only** | Simple; matches waveform interpolation today | Two mechanisms |
-| **B — `engine://position` at 20–60 Hz from backend timer** | Single push model; MIDI seek updates same stream | Extra thread / timer in Tauri |
-| **C — Extrapolate in UI** | Lowest backend load | Drift if pitch/sync changes |
-
-**Decision (DK11):** Phase 1 — **A** (poll position only). Phase 2 — move to **B** when MIDI + sync land, so external seeks update the same stream as playback.
-
-Waveform hook (`useRenderWaveformLane`) already extrapolates between polls; wire it to `engine://position` when available.
-
-### 9.7 UI integration (`useEngine`)
+### 9.7 UI integration
 
 ```text
-Mount EngineProvider
-  ├─ invoke("get_status")           // initial hydrate
-  ├─ listen("engine://event")       // all discrete updates → setStatus / patch
-  └─ optional: listen("engine://position") or 100 ms position poll until §9.6 B
+Mount bootstrap
+  ├─ invoke("get_status")              // one-shot hydrate
+  └─ EngineTransport.subscribe         // engine://bus → applyBusEvent
 
 User action (e.g. play)
-  ├─ invoke("play_deck", { deckId })   // fire-and-forget OK once events work
-  └─ do NOT require return value to update UI — wait for DeckUpdated event
+  ├─ EngineTransport.publish(...)      // fire-and-forget OK
+  └─ UI updates from bus events, not command return values
 ```
 
-Remove duplicate state merges from command return values once events are reliable (keep returns for error handling and tests).
+Library hooks use `LibraryTransport` (not raw `invoke`) for tracks, artwork, waveforms.
 
 ### 9.8 MIDI (future consumer)
 
-MIDI input thread **never** touches React or Tauri directly:
-
 ```text
-MIDI IN → map to EngineCommand → EngineController::apply → EventBus → UI
+MIDI IN → map to cmd → publish on cmd omnibus → evt omnibus → UI
 ```
 
-Same events the UI sees from mouse clicks. Hardware faders stay in sync because the UI listens to the same `DeckUpdated` events it did not originate.
+Same events the UI sees from mouse clicks.
 
 ### 9.9 Implementation notes (Rust)
 
-- Hold `AppHandle` in `AppState` (or dedicated `EngineNotifier`) for emit after `apply`.
-- Audio callback must **not** call `emit` directly — post to a lock-free queue; Tauri thread drains at 20–60 Hz (position) or immediately (transport).
-- Unit tests: inject a mock `EventSink` trait instead of Tauri.
+- Audio callback must **not** emit to Tauri — control thread / forwarder only.
+- Host load path: prepare (`prepare_*_for_playback` / `ensure_track_waveform` on `&Mutex<LibraryManager>`) **outside** `AppState` and without holding `library` across decode/waveform generation; emit bus payload **after** unlock; sampler bank select after first deck emit.
+- Never hold `AppState` while waiting on `library` (starves every other host command).
+- Unit tests: headless session + `MemoryEngineTransport` / `MemoryLibraryTransport`.
 
 ---
 
@@ -795,7 +734,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 - Waveform scroll tracks playhead smoothly during playback
 - Engine auto-start + errors via coss toasts (done)
 - Load library track metadata: **title, artist, BPM, key** on deck (from `TrackSummary` / analysis, not just filename)
-- **Engine event bus (§9):** `engine://event` with `Status` / `DeckUpdated`; UI subscribes in `EngineProvider` (foundation for MIDI)
+- **Engine event bus (§9):** `engine://bus` via `EngineTransport`; UI subscribes in bootstrap (foundation for MIDI)
 
 **UI layout (visual parity, placeholders OK):**
 
@@ -860,9 +799,9 @@ Make **what we already have** reliable and **look like** professional deck softw
 5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.
 6. Disabled placeholders for future controls (cue, sync, hot cues) do not clutter — clear “coming later” or omitted until Phase 2.
 7. Engine errors use **coss toasts** only.
-8. **`engine://event`** delivered to UI: external `EngineController::apply` (simulated in test) updates React state without a matching UI invoke.
+8. **`engine://bus`** delivered to UI: headless / simulated publish updates React state without a matching UI invoke return value.
 
-**Phase 2 adds:** overview, beat grid, **pads in Hot Cue mode**, loops with **`save_hot_cue`** / **`save_loop`** persistence; optional **`engine://position`** stream (§9.6 B).
+**Phase 2 adds:** overview, beat grid, **pads in Hot Cue mode**, loops with **`save_hot_cue`** / **`save_loop`** persistence; high-rate position already on the bus (§9.6).
 
 ---
 

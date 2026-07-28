@@ -37,10 +37,69 @@ pub enum PadMode {
     Sampler,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DeckHotCue {
+    pub slot: u8,
+    pub position_secs: f64,
+    pub loop_length_beats: Option<i32>,
+    pub color: Option<String>,
+    pub label: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DeckSavedLoop {
+    pub slot: u8,
+    pub in_secs: f64,
+    pub out_secs: f64,
+    pub label: Option<String>,
+    pub color: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SamplerPlayMode {
+    #[default]
+    Oneshot,
+    Hold,
+    Loop,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SamplerSlotInfo {
+    pub label: Option<String>,
+    pub track_id: Option<String>,
+    pub path: Option<String>,
+    pub duration_secs: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SamplerBankInfo {
+    pub id: String,
+    pub name: String,
+    pub play_mode: Option<SamplerPlayMode>,
+    pub sort_index: i32,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SamplerStatus {
+    pub banks: Vec<SamplerBankInfo>,
+    pub active_bank_id: Option<String>,
+    pub active_bank_name: Option<String>,
+    pub bank_play_mode: Option<SamplerPlayMode>,
+    pub deck_slots: Vec<Vec<SamplerSlotInfo>>,
+    pub effective_play_modes: Vec<SamplerPlayMode>,
+}
+
 /// Slim deck snapshot for status patches and full snapshots.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSnapshot {
     pub id: u16,
+    pub track: Option<String>,
+    pub track_id: Option<String>,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub bpm: Option<f64>,
+    pub key: Option<String>,
     pub playing: bool,
     pub volume: f32,
     pub speed: f32,
@@ -55,6 +114,11 @@ pub struct DeckSnapshot {
     pub pad_mode: PadMode,
     pub position_secs: Option<f64>,
     pub duration_secs: Option<f64>,
+    pub hot_cues: Vec<DeckHotCue>,
+    pub saved_loops: Vec<DeckSavedLoop>,
+    pub loudness_lufs: Option<f64>,
+    pub auto_gain_db: f32,
+    pub active_sampler_bank_id: Option<String>,
 }
 
 /// Full engine snapshot for hydrate and multi-deck changes.
@@ -67,6 +131,7 @@ pub struct EngineStatus {
     pub master_cue: bool,
     pub master_deck: u16,
     pub decks: Vec<DeckSnapshot>,
+    pub sampler: SamplerStatus,
 }
 
 /// Command bus payload nested inside [`crate::WireMessage::body`].
@@ -190,6 +255,12 @@ pub enum EvtBody {
     Empty,
     DeckUpdated {
         id: u16,
+        track: Option<String>,
+        track_id: Option<String>,
+        title: Option<String>,
+        artist: Option<String>,
+        bpm: Option<f64>,
+        key: Option<String>,
         playing: bool,
         volume: f32,
         speed: f32,
@@ -204,6 +275,11 @@ pub enum EvtBody {
         pad_mode: PadMode,
         position_secs: Option<f64>,
         duration_secs: Option<f64>,
+        hot_cues: Vec<DeckHotCue>,
+        saved_loops: Vec<DeckSavedLoop>,
+        loudness_lufs: Option<f64>,
+        auto_gain_db: f32,
+        active_sampler_bank_id: Option<String>,
     },
     Position {
         position_secs: f64,

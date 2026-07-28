@@ -1,5 +1,7 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
+import { getLibraryTransport } from "@/lib/library/transport";
+
+const libraryTransport = getLibraryTransport();
 
 export function useTrackArtwork(trackId: string | null, path: string | null): string | null {
   const [artwork, setArtwork] = useState<string | null>(null);
@@ -11,10 +13,8 @@ export function useTrackArtwork(trackId: string | null, path: string | null): st
     }
 
     let cancelled = false;
-    void invoke<string | null>("get_track_artwork", {
-      trackId,
-      path,
-    })
+    void libraryTransport
+      .getTrackArtwork({ trackId, path })
       .then((encoded) => {
         if (cancelled) {
           return;

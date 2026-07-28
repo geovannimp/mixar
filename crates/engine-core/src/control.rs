@@ -131,6 +131,12 @@ fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>
 fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
     EvtBody::DeckUpdated {
         id: snap.id,
+        track: snap.track,
+        track_id: snap.track_id,
+        title: snap.title,
+        artist: snap.artist,
+        bpm: snap.bpm,
+        key: snap.key,
         playing: snap.playing,
         volume: snap.volume,
         speed: snap.speed,
@@ -145,6 +151,11 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         pad_mode: snap.pad_mode,
         position_secs: snap.position_secs,
         duration_secs: snap.duration_secs,
+        hot_cues: snap.hot_cues,
+        saved_loops: snap.saved_loops,
+        loudness_lufs: snap.loudness_lufs,
+        auto_gain_db: snap.auto_gain_db,
+        active_sampler_bank_id: snap.active_sampler_bank_id,
     }
 }
 

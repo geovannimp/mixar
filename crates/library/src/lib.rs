@@ -32,7 +32,9 @@ use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
 #[cfg(feature = "analysis")]
 use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 pub use library_core::{
     is_supported_audio_extension, is_supported_audio_path, AnalyzeTrackOptions, AudioSource,
@@ -55,10 +57,20 @@ pub use sampler_data::{
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
+/// Library-owned playback handoff for engine/sampler consumers.
+#[derive(Clone)]
+pub struct PreparedTrackPlayback {
+    pub track_id: TrackId,
+    pub source: AudioSource,
+    pub audio: Arc<LoadedAudio>,
+    pub loudness_lufs: Option<f64>,
+}
+
 /// The user’s library manager (canonical writable store).
 pub struct LibraryManager {
     db: db::Db,
     config: LibraryConfig,
+    decode_cache: Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
 }
 
 impl LibraryManager {
@@ -67,6 +79,7 @@ impl LibraryManager {
         Ok(Self {
             db: db::open(db_path.as_ref())?,
             config,
+            decode_cache: Mutex::new(HashMap::new()),
         })
     }
 
@@ -75,6 +88,7 @@ impl LibraryManager {
         Ok(Self {
             db: db::open_in_memory()?,
             config,
+            decode_cache: Mutex::new(HashMap::new()),
         })
     }
 
@@ -223,18 +237,29 @@ impl LibraryManager {
     }
 
     /// Generate and persist the overview when missing (e.g. first deck load).
-    pub fn ensure_track_waveform(&self, id: &TrackId) -> Result<()> {
-        if waveform::has_track_waveform(&self.db, id)? {
+    ///
+    /// Takes `&Mutex<Self>` so overview generation does not hold the library lock.
+    pub fn ensure_track_waveform(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+        let path = {
+            let lib = library.lock().expect("library lock");
+            if waveform::has_track_waveform(&lib.db, id)? {
+                return Ok(());
+            }
+            lib.get_track(id)?
+                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+                .file()
+                .ok_or(LibraryError::Unsupported("stream tracks have no waveform"))?
+                .path()
+                .to_path_buf()
+        };
+
+        let peaks = waveform::generate_overview_from_path(&path)?;
+
+        let lib = library.lock().expect("library lock");
+        if waveform::has_track_waveform(&lib.db, id)? {
             return Ok(());
         }
-        let source = self
-            .get_track(id)?
-            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
-        let path = source
-            .file()
-            .ok_or(LibraryError::Unsupported("stream tracks have no waveform"))?
-            .path();
-        waveform::generate_and_store_overview(&self.db, id, path)
+        waveform::store_overview(&lib.db, id, &peaks)
     }
 
     /// Beat grid overlay data when the track has been analyzed.
@@ -245,6 +270,81 @@ impl LibraryManager {
     /// Read the stored integrated loudness for a track, if it has been analyzed.
     pub fn track_loudness_lufs(&self, id: &TrackId) -> Result<Option<f64>> {
         self.store().track_analysis_loudness(id)
+    }
+
+    /// Import/refresh a file, ensure library-managed playback metadata, and return a cached decode.
+    ///
+    /// Takes `&Mutex<Self>` so decode / waveform work does not hold the library lock.
+    pub fn prepare_file_path_for_playback(
+        library: &Mutex<Self>,
+        path: &Path,
+    ) -> Result<PreparedTrackPlayback> {
+        let source = {
+            let lib = library.lock().expect("library lock");
+            lib.import_file_path(path)?
+        };
+        Self::prepare_source_for_playback(library, source)
+    }
+
+    /// Resolve a library track, ensure library-managed playback metadata, and return a cached decode.
+    ///
+    /// Takes `&Mutex<Self>` so decode / waveform work does not hold the library lock.
+    pub fn prepare_track_for_playback(
+        library: &Mutex<Self>,
+        id: &TrackId,
+    ) -> Result<PreparedTrackPlayback> {
+        let source = {
+            let lib = library.lock().expect("library lock");
+            lib.get_track(id)?
+                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+        };
+        Self::prepare_source_for_playback(library, source)
+    }
+
+    fn prepare_source_for_playback(
+        library: &Mutex<Self>,
+        mut source: AudioSource,
+    ) -> Result<PreparedTrackPlayback> {
+        let track_id = source.id().clone();
+        if source.file().is_some() {
+            Self::ensure_track_waveform(library, &track_id)?;
+        }
+        let loudness_lufs = {
+            let lib = library.lock().expect("library lock");
+            lib.track_loudness_lufs(&track_id)?
+        };
+        source.metadata_mut().loudness_lufs = loudness_lufs;
+
+        let cached = {
+            let lib = library.lock().expect("library lock");
+            let cache = lib.decode_cache.lock().expect("library decode cache lock");
+            cache.get(&track_id).map(Arc::clone)
+        };
+
+        let audio = if let Some(cached) = cached {
+            cached
+        } else {
+            // Decode without holding LibraryManager so artwork/DB reads can proceed.
+            let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
+                backend: "library",
+                message: format!("failed to decode track for playback: {e}"),
+            })?);
+            let lib = library.lock().expect("library lock");
+            let mut cache = lib.decode_cache.lock().expect("library decode cache lock");
+            if let Some(existing) = cache.get(&track_id) {
+                Arc::clone(existing)
+            } else {
+                cache.insert(track_id.clone(), Arc::clone(&loaded));
+                loaded
+            }
+        };
+
+        Ok(PreparedTrackPlayback {
+            track_id,
+            source,
+            audio,
+            loudness_lufs,
+        })
     }
 
     fn track_id_for(path: &Path) -> TrackId {
@@ -969,6 +1069,55 @@ mod tests {
     }
 
     #[test]
+    fn prepare_track_for_playback_reuses_cached_decode() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_minimal_wav(&wav);
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_path(&wav).unwrap().id().clone()
+        };
+
+        let first = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        let second = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+
+        assert_eq!(first.track_id, track_id);
+        assert_eq!(second.track_id, track_id);
+        assert!(std::sync::Arc::ptr_eq(&first.audio, &second.audio));
+    }
+
+    #[test]
+    fn prepare_track_for_playback_stores_waveform_without_holding_lock_across_generate() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_minimal_wav(&wav);
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_path(&wav).unwrap().id().clone()
+        };
+
+        assert!(library
+            .lock()
+            .unwrap()
+            .get_track_waveform_overview(&track_id)
+            .unwrap()
+            .is_none());
+
+        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert_eq!(prepared.track_id, track_id);
+        assert!(library
+            .lock()
+            .unwrap()
+            .get_track_waveform_overview(&track_id)
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
     fn lookup_file_track_at_path_finds_imported_track() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("track.wav");
@@ -1173,9 +1322,14 @@ mod tests {
         assert_eq!(overview.overview_count, audio_core::OVERVIEW_SAMPLE_COUNT);
         assert_eq!(overview.peaks.len(), audio_core::OVERVIEW_SAMPLE_COUNT);
 
-        lib.ensure_track_waveform(track.id()).unwrap();
-        assert!(lib
-            .get_track_waveform_overview(track.id())
+        // Idempotent: ensure after analyze must not fail or clear the overview.
+        let track_id = track.id().clone();
+        let library = Mutex::new(lib);
+        LibraryManager::ensure_track_waveform(&library, &track_id).unwrap();
+        assert!(library
+            .lock()
+            .unwrap()
+            .get_track_waveform_overview(&track_id)
             .unwrap()
             .is_some());
     }

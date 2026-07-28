@@ -245,8 +245,38 @@ pub fn engine_publish(
                 else {
                     return Err("load_path body mismatch".into());
                 };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::load_path_to_deck_inner(&app, &mut state, deck_id, path)?;
+                // Decode/prepare outside AppState — holding the lock during decode freezes the UI.
+                let library = {
+                    let state = app_state.lock().map_err(|e| e.to_string())?;
+                    Arc::clone(&state.library)
+                };
+                let prepared = library::LibraryManager::prepare_file_path_for_playback(
+                    library.as_ref(),
+                    std::path::Path::new(&path),
+                )
+                .map_err(|e| e.to_string())?;
+                let payload = {
+                    let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                    crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
+                    let (_, payload) =
+                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
+                    payload
+                };
+                crate::engine_controller::emit_bus_payload(&app, payload);
+                // Sampler bank after emit so UI isn't starved during bank slot loads.
+                let bank_payload = {
+                    let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                    let track_id = state.decks[deck_id].track_id.clone();
+                    let _ = crate::deck_sampler::select_bank_for_track_load(
+                        &mut state,
+                        deck_id,
+                        track_id.as_deref(),
+                    );
+                    let (_, payload) =
+                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
+                    payload
+                };
+                crate::engine_controller::emit_bus_payload(&app, bank_payload);
                 return Ok(());
             }
             Kind::LoadLibraryTrack => {
@@ -255,8 +285,43 @@ pub fn engine_publish(
                 else {
                     return Err("load_library_track body mismatch".into());
                 };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::load_library_track_to_deck_inner(&app, &mut state, deck_id, track_id)?;
+                let library = {
+                    let state = app_state.lock().map_err(|e| e.to_string())?;
+                    Arc::clone(&state.library)
+                };
+                let prepared = library::LibraryManager::prepare_track_for_playback(
+                    library.as_ref(),
+                    &library_core::TrackId::new(track_id),
+                )
+                .map_err(|e| e.to_string())?;
+                let path = prepared
+                    .source
+                    .file()
+                    .ok_or_else(|| "Only file tracks can be loaded to a deck.".to_string())?
+                    .path()
+                    .to_string_lossy()
+                    .into_owned();
+                let payload = {
+                    let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                    crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
+                    let (_, payload) =
+                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
+                    payload
+                };
+                crate::engine_controller::emit_bus_payload(&app, payload);
+                let bank_payload = {
+                    let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                    let track_id = state.decks[deck_id].track_id.clone();
+                    let _ = crate::deck_sampler::select_bank_for_track_load(
+                        &mut state,
+                        deck_id,
+                        track_id.as_deref(),
+                    );
+                    let (_, payload) =
+                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
+                    payload
+                };
+                crate::engine_controller::emit_bus_payload(&app, bank_payload);
                 return Ok(());
             }
             _ => {}
@@ -365,6 +430,8 @@ pub fn engine_publish(
         let state = app_state.lock().map_err(|e| e.to_string())?;
         let _ = state
             .library
+            .lock()
+            .unwrap()
             .set_track_last_sampler_bank_id(&library_core::TrackId::new(track_id), Some(&bank_id));
     }
     Ok(())

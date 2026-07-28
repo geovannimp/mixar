@@ -10,7 +10,7 @@ Move `assign_sampler_slot`, `assign_sampler_slot_from_track`, `clear_sampler_slo
 
 ## Design
 
-These cmds are **host-handled**: `bus_bridge` runs the existing AppState/library/engine-assign logic and emits legacy `engine://event` status. They are **not** forwarded to the engine omnibus (library persistence cannot live on the control thread).
+These cmds are **host-handled**: `bus_bridge` runs the existing AppState/library/engine-assign logic and emits `engine://bus` status/updated payloads. They are **not** forwarded to the engine omnibus (library persistence cannot live on the control thread).
 
 | Kind | Body | Host |
 |------|------|------|

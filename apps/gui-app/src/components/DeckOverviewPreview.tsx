@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { motion, useTransform } from "motion/react";
 import { useWaveformClickSeek } from "@/hooks/useWaveformClickSeek";
 import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
+import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckHotCueMarker, WaveformFrame } from "@/types";
 import { WaveformCueMarkers } from "./WaveformCueMarkers";
 
 const OVERVIEW_HEIGHT = 48;
+const libraryTransport = getLibraryTransport();
 
 interface DeckOverviewPreviewProps {
   trackId: string | null;
@@ -81,20 +82,21 @@ export function DeckOverviewPreview({
 
     let cancelled = false;
 
-    invoke<WaveformFrame>("render_waveform_lane", {
-      trackId,
-      path: trackId ? null : path,
-      width,
-      height: OVERVIEW_HEIGHT,
-      positionSecs: duration / 2,
-      visibleSecs: duration,
-      bufferRatio: 0,
-      includeDetail: false,
-      includeBeatGrid: false,
-      eqLowDb: 0,
-      eqMidDb: 0,
-      eqHighDb: 0,
-    })
+    libraryTransport
+      .renderWaveformLane({
+        trackId,
+        path: trackId ? null : path,
+        width,
+        height: OVERVIEW_HEIGHT,
+        positionSecs: duration / 2,
+        visibleSecs: duration,
+        bufferRatio: 0,
+        includeDetail: false,
+        includeBeatGrid: false,
+        eqLowDb: 0,
+        eqMidDb: 0,
+        eqHighDb: 0,
+      })
       .then((next) => {
         if (!cancelled) {
           setFrame(next);

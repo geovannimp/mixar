@@ -12,10 +12,13 @@ use audio_core::LoadedAudio;
 use audio_core::{
     AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
-use engine_api::{DeckEq, DeckSnapshot, EngineStatus, LoopRegion, PadMode, SyncMode};
+use engine_api::{
+    DeckEq, DeckSnapshot, EngineStatus, LoopRegion, PadMode, SamplerStatus, SyncMode,
+};
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
+use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
 use std::collections::HashMap;
@@ -39,6 +42,7 @@ pub struct Engine {
     producer_thread: Option<JoinHandle<()>>,
     running: Arc<Mutex<bool>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
+    library: Option<Arc<Mutex<LibraryManager>>>,
     /// Decoded PCM cache keyed by track id.
     decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
     master_deck: usize,
@@ -48,6 +52,21 @@ pub struct Engine {
 impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig) -> Result<Self> {
+        Self::new_inner(config, None)
+    }
+
+    /// Create a new engine wired to the concrete shared library manager.
+    pub fn new_with_library(
+        config: EngineConfig,
+        library: Arc<Mutex<LibraryManager>>,
+    ) -> Result<Self> {
+        Self::new_inner(config, Some(library))
+    }
+
+    fn new_inner(
+        config: EngineConfig,
+        library: Option<Arc<Mutex<LibraryManager>>>,
+    ) -> Result<Self> {
         config.validate()?;
         let backend = create_backend(&config.backend)?;
 
@@ -59,6 +78,7 @@ impl Engine {
             producer_thread: None,
             running: Arc::new(Mutex::new(false)),
             transport_events: Arc::new(Mutex::new(Vec::new())),
+            library,
             decode_cache: HashMap::new(),
             master_deck: 0,
             deck_control: (0..NUM_DECKS)
@@ -68,6 +88,17 @@ impl Engine {
                 })
                 .collect(),
         })
+    }
+
+    /// Load a library-indexed track into a deck through the shared library manager.
+    pub fn load_track_from_library(&mut self, deck_id: usize, track_id: &TrackId) -> Result<()> {
+        let library = self
+            .library
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine has no attached LibraryManager"))?;
+        let prepared = LibraryManager::prepare_track_for_playback(library.as_ref(), track_id)
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.load_prepared_track(deck_id, prepared)
     }
 
     /// Start the engine
@@ -387,6 +418,44 @@ impl Engine {
             control.reset_for_load(bpm);
         }
         log::info!("Track loaded into deck {}", deck_id);
+        Ok(())
+    }
+
+    /// Load a track prepared by [`library::LibraryManager`] into a deck.
+    ///
+    /// This consumes library-owned decode/cache output directly instead of filling the engine's
+    /// legacy decode cache.
+    pub fn load_prepared_track(
+        &mut self,
+        deck_id: usize,
+        prepared: PreparedTrackPlayback,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+
+        if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
+            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
+        }
+
+        let bpm = prepared.source.metadata().bpm;
+        let loudness_lufs =
+            loudness_from_metadata(prepared.source.metadata()).or(prepared.loudness_lufs);
+        let audio = prepared.audio;
+
+        dsp.deck_mut(deck_id)
+            .expect("validated above")
+            .load(audio)?;
+        dsp.mixer_mut()
+            .channel_mut(deck_id)
+            .expect("validated above")
+            .set_loudness_lufs(loudness_lufs);
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.reset_for_load(bpm);
+        }
+        log::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
     }
 
@@ -1243,6 +1312,14 @@ impl Engine {
             master_cue: dsp.mixer().master_cue(),
             master_deck: self.master_deck as u16,
             decks,
+            sampler: SamplerStatus {
+                banks: Vec::new(),
+                active_bank_id: None,
+                active_bank_name: None,
+                bank_play_mode: None,
+                deck_slots: vec![Vec::new(); NUM_DECKS],
+                effective_play_modes: vec![Default::default(); NUM_DECKS],
+            },
         })
     }
 
@@ -1395,6 +1472,12 @@ fn deck_snapshot_from_dsp(
         });
     Some(DeckSnapshot {
         id: deck_id as u16,
+        track: None,
+        track_id: None,
+        title: None,
+        artist: None,
+        bpm: None,
+        key: None,
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
         speed: deck.speed(),
@@ -1413,6 +1496,11 @@ fn deck_snapshot_from_dsp(
         pad_mode,
         position_secs,
         duration_secs,
+        hot_cues: Vec::new(),
+        saved_loops: Vec::new(),
+        loudness_lufs: None,
+        auto_gain_db: 0.0,
+        active_sampler_bank_id: None,
     })
 }
 

@@ -7,7 +7,7 @@ import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyBusEvent } from "@/lib/engine/applyBusEvent";
 import { getEngineTransport } from "@/lib/engine/transport";
 import { getDeckOrigin, type CmdKind, type Origin } from "@/lib/engine/wire";
-import { applyEngineEvent, patchDeckPosition, type EngineEvent } from "@/lib/engineEvents";
+import { patchDeckPosition } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
   ZERO_DECK_LEVELS,
@@ -66,10 +66,8 @@ interface EngineStoreState {
   status: EngineStatus | null;
   busyDecks: [boolean, boolean];
   revision: number;
-  busRevision: number;
   starting: boolean;
   levelMeterMode: LevelMeterMode;
-  applyEvent: (event: EngineEvent) => void;
   applyBusBytes: (bytes: Uint8Array) => void;
   setStatus: (status: EngineStatus | null) => void;
   setLevelMeterMode: (mode: LevelMeterMode) => void;
@@ -130,28 +128,20 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   status: null,
   busyDecks: [false, false],
   revision: 0,
-  busRevision: 0,
   starting: false,
   levelMeterMode: "mono",
-
-  applyEvent: (event) => {
-    set((current) => {
-      const { status, revision } = applyEngineEvent(current.status, event, current.revision);
-      return { status, revision };
-    });
-  },
 
   applyBusBytes: (bytes) => {
     set((current) => {
       try {
-        const patch = applyBusEvent(current.status, current.busRevision, bytes);
+        const patch = applyBusEvent(current.status, current.revision, bytes);
         if (patch.error) {
           reportEngineError(patch.error);
         }
         if (patch.notice) {
           toastManager.add({ title: patch.notice, type: "info" });
         }
-        return { status: patch.status, busRevision: patch.revision };
+        return { status: patch.status, revision: patch.revision };
       } catch (err) {
         console.error("engine bus event decode failed", err);
         return current;

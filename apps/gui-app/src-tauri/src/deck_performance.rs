@@ -6,7 +6,7 @@ use serde::Serialize;
 use tauri::AppHandle;
 
 use crate::{
-    bump_revision, deck_playback_secs, deck_status, AppState, DeckInfo, DeckStatus, NUM_DECKS,
+    deck_playback_secs, AppState, DeckInfo, DeckStatus, NUM_DECKS,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -105,23 +105,6 @@ pub fn apply_deck_performance(
     deck.saved_loops = saved_loops;
 }
 
-fn deck_status_with_transport(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
-    let mut status = deck_status(state, id, deck);
-    status.cue_point_secs = deck.cue_point_secs;
-    status.quantize = deck.quantize;
-    status.hot_cues = deck.hot_cues.clone();
-    status.saved_loops = deck.saved_loops.clone();
-    status.active_loop = deck.active_loop.clone();
-    status
-}
-
-fn publish_deck_transport(app: &AppHandle, state: &mut AppState, deck_id: usize) -> DeckStatus {
-    let revision = bump_revision(state);
-    let deck = deck_status_with_transport(state, deck_id, &state.decks[deck_id]);
-    crate::engine_events::emit_deck_updated(app, revision, deck.clone());
-    deck
-}
-
 pub(crate) fn save_hot_cue_inner(
     app: &AppHandle,
     state: &mut AppState,
@@ -148,13 +131,18 @@ pub(crate) fn save_hot_cue_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .save_track_hot_cue(&TrackId::new(track_id), slot, position, None, None, None)
         .map_err(|e| e.to_string())?;
 
     let track_id = state.decks[deck_id].track_id.clone();
-    let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, track_id.as_deref());
+    let (hot_cues, saved_loops) = {
+        let library = state.library.lock().unwrap();
+        fetch_deck_performance(&library, track_id.as_deref())
+    };
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(publish_deck_transport(app, state, deck_id))
+    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
 }
 
 pub(crate) fn delete_hot_cue_inner(
@@ -170,11 +158,13 @@ pub(crate) fn delete_hot_cue_inner(
     if let Some(track_id) = state.decks[deck_id].track_id.clone() {
         state
             .library
+            .lock()
+            .unwrap()
             .delete_track_hot_cue(&TrackId::new(track_id), slot)
             .map_err(|e| e.to_string())?;
     }
     state.decks[deck_id].hot_cues.retain(|cue| cue.slot != slot);
-    Ok(publish_deck_transport(app, state, deck_id))
+    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
 }
 
 pub(crate) fn save_loop_inner(
@@ -198,6 +188,8 @@ pub(crate) fn save_loop_inner(
 
     state
         .library
+        .lock()
+        .unwrap()
         .save_track_loop(
             &TrackId::new(track_id),
             slot,
@@ -209,9 +201,12 @@ pub(crate) fn save_loop_inner(
         .map_err(|e| e.to_string())?;
 
     let track_id = state.decks[deck_id].track_id.clone();
-    let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, track_id.as_deref());
+    let (hot_cues, saved_loops) = {
+        let library = state.library.lock().unwrap();
+        fetch_deck_performance(&library, track_id.as_deref())
+    };
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(publish_deck_transport(app, state, deck_id))
+    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
 }
 
 pub(crate) fn delete_loop_inner(
@@ -227,11 +222,13 @@ pub(crate) fn delete_loop_inner(
     if let Some(track_id) = state.decks[deck_id].track_id.clone() {
         state
             .library
+            .lock()
+            .unwrap()
             .delete_track_loop(&TrackId::new(track_id), slot)
             .map_err(|e| e.to_string())?;
     }
     state.decks[deck_id]
         .saved_loops
         .retain(|row| row.slot != slot);
-    Ok(publish_deck_transport(app, state, deck_id))
+    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
 }
