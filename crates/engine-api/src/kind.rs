@@ -31,6 +31,8 @@ pub enum Kind {
     SetPadMode,
     BeginLoopRoll,
     EndLoopRoll,
+    TriggerHotCue,
+    RecallSavedLoop,
     Updated,
     Position,
     Levels,

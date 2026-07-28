@@ -6,8 +6,8 @@ use serde::Serialize;
 use tauri::{AppHandle, State};
 
 use crate::{
-    bump_revision, deck_playback_secs, deck_status, with_engine, AppState, DeckInfo, DeckStatus,
-    SharedAppState, NUM_DECKS,
+    bump_revision, deck_playback_secs, deck_status, AppState, DeckInfo, DeckStatus, SharedAppState,
+    NUM_DECKS,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,41 +124,6 @@ fn publish_deck_transport(app: &AppHandle, state: &mut AppState, deck_id: usize)
 }
 
 #[tauri::command]
-pub fn trigger_hot_cue(
-    app: AppHandle,
-    deck_id: usize,
-    slot: u8,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    let cue = state.decks[deck_id]
-        .hot_cues
-        .iter()
-        .find(|cue| cue.slot == slot)
-        .cloned()
-        .ok_or_else(|| format!("Hot cue {} is empty.", slot + 1))?;
-
-    let snapped = snap_secs(
-        cue.position_secs,
-        state.decks[deck_id].bpm,
-        state.decks[deck_id].quantize,
-    );
-
-    with_engine(&mut state, |engine| {
-        engine
-            .seek_deck(deck_id, snapped)
-            .map_err(|e| e.to_string())?;
-        engine.play(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].playing = true;
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
 pub fn save_hot_cue(
     app: AppHandle,
     deck_id: usize,
@@ -253,47 +218,6 @@ pub fn save_loop(
     let track_id = state.decks[deck_id].track_id.clone();
     let (hot_cues, saved_loops) = fetch_deck_performance(&state.library, track_id.as_deref());
     apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(publish_deck_transport(&app, &mut state, deck_id))
-}
-
-#[tauri::command]
-pub fn recall_saved_loop(
-    app: AppHandle,
-    deck_id: usize,
-    slot: u8,
-    state: State<'_, SharedAppState>,
-) -> Result<DeckStatus, String> {
-    if deck_id >= NUM_DECKS {
-        return Err(format!("Invalid deck ID: {deck_id}"));
-    }
-
-    let mut state = state.lock().map_err(|e| e.to_string())?;
-    if state.decks[deck_id].track.is_none() {
-        return Err("Load a track before recalling a saved loop.".to_string());
-    }
-
-    let saved = state.decks[deck_id]
-        .saved_loops
-        .iter()
-        .find(|loop_region| loop_region.slot == slot)
-        .cloned()
-        .ok_or_else(|| format!("Saved loop {} is empty.", slot + 1))?;
-
-    with_engine(&mut state, |engine| {
-        engine
-            .set_deck_loop_region(deck_id, saved.in_secs, saved.out_secs)
-            .map_err(|e| e.to_string())?;
-        engine
-            .seek_deck(deck_id, saved.in_secs)
-            .map_err(|e| e.to_string())?;
-        engine.play(deck_id).map_err(|e| e.to_string())
-    })?;
-    state.decks[deck_id].active_loop = Some(LoopRegionStatus {
-        in_secs: saved.in_secs,
-        out_secs: saved.out_secs,
-        active: true,
-    });
-    state.decks[deck_id].playing = true;
     Ok(publish_deck_transport(&app, &mut state, deck_id))
 }
 

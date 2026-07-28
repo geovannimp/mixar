@@ -945,6 +945,34 @@ impl Engine {
         }
     }
 
+    /// Trigger hot cue: snap position, seek, play.
+    pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+        if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+            return Err(anyhow::anyhow!("Load a track before triggering a hot cue."));
+        }
+        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let target = snap_secs(position_secs, bpm, quantize);
+        self.seek_deck(deck_id, target)?;
+        self.play(deck_id)
+    }
+
+    /// Recall a saved loop region: activate, seek to in, play.
+    pub fn recall_deck_saved_loop(
+        &mut self,
+        deck_id: usize,
+        in_secs: f64,
+        out_secs: f64,
+    ) -> Result<()> {
+        if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+            return Err(anyhow::anyhow!(
+                "Load a track before recalling a saved loop."
+            ));
+        }
+        self.set_deck_loop_region(deck_id, in_secs, out_secs)?;
+        self.seek_deck(deck_id, in_secs)?;
+        self.play(deck_id)
+    }
+
     /// Set controller pad mode for a deck (UI mode; no audio side effects).
     pub fn set_deck_pad_mode(&mut self, deck_id: usize, mode: PadMode) -> Result<()> {
         let control = self

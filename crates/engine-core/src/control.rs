@@ -248,6 +248,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeatJump, CmdBody::BeatJump { .. })
         | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
         | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
+        | (Kind::TriggerHotCue, CmdBody::TriggerHotCue { .. })
+        | (Kind::RecallSavedLoop, CmdBody::RecallSavedLoop { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -408,6 +410,23 @@ fn dispatch_deck_cmd(
         Kind::EndLoopRoll => {
             let _ = decode_cmd_body_for(kind, payload)?;
             eng.end_deck_loop_roll(deck_id)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::TriggerHotCue => {
+            let CmdBody::TriggerHotCue { position_secs } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.trigger_deck_hot_cue(deck_id, position_secs)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::RecallSavedLoop => {
+            let CmdBody::RecallSavedLoop { in_secs, out_secs } =
+                decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.recall_deck_saved_loop(deck_id, in_secs, out_secs)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
