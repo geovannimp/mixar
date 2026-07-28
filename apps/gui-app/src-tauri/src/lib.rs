@@ -11,9 +11,7 @@ use deck_sampler::{
     trigger_sampler_pad, update_sampler_bank, SamplerBankInfo, SamplerPlayModeSetting,
     SamplerSlotInfo, SamplerStatus,
 };
-use deck_sync::{
-    begin_loop_roll, end_loop_roll, set_deck_pad_mode, PadMode, SyncMode,
-};
+use deck_sync::{PadMode, SyncMode};
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
     EngineSession, SamplerStripRouteSetting,
@@ -1320,9 +1318,6 @@ pub fn run() {
             render_waveform_lane,
             get_supported_audio_extensions,
             sample_track_path,
-            set_deck_pad_mode,
-            begin_loop_roll,
-            end_loop_roll,
             list_sampler_banks,
             create_sampler_bank,
             update_sampler_bank,

@@ -43,6 +43,7 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     cue_point_secs: snapshot.cue_point_secs,
     quantize: snapshot.quantize,
     active_loop: snapshot.active_loop,
+    pad_mode: snapshot.pad_mode,
     is_master: base.is_master,
     position_secs: snapshot.position_secs ?? (unloaded ? null : base.position_secs),
     duration_secs: snapshot.duration_secs,
@@ -130,6 +131,7 @@ export function applyBusEvent(
         cue_point_secs: deck.cue_point_secs,
         quantize: deck.quantize,
         active_loop: deck.active_loop,
+        pad_mode: deck.pad_mode,
         position_secs: deck.position_secs,
         duration_secs: deck.duration_secs,
       };

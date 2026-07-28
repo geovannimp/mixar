@@ -12,7 +12,7 @@ use audio_core::LoadedAudio;
 use audio_core::{
     AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
 };
-use engine_api::{DeckEq, DeckSnapshot, EngineStatus, LoopRegion, SyncMode};
+use engine_api::{DeckEq, DeckSnapshot, EngineStatus, LoopRegion, PadMode, SyncMode};
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
@@ -945,6 +945,65 @@ impl Engine {
         }
     }
 
+    /// Set controller pad mode for a deck (UI mode; no audio side effects).
+    pub fn set_deck_pad_mode(&mut self, deck_id: usize, mode: PadMode) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.pad_mode = mode;
+        Ok(())
+    }
+
+    /// Begin a temporary loop roll; stashes the prior active loop for restore.
+    pub fn begin_deck_loop_roll(&mut self, deck_id: usize, beats: u32) -> Result<()> {
+        if beats == 0 {
+            return Err(anyhow::anyhow!("Loop roll requires at least 1 beat."));
+        }
+        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for loop roll."))?;
+        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let restore = self.active_loop_region(deck_id);
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.loop_roll_restore = restore;
+
+        let beat_len = 60.0 / bpm;
+        let in_secs = snap_secs(position, Some(bpm), quantize);
+        let out_secs =
+            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len));
+        self.set_deck_loop_region(deck_id, in_secs, out_secs)
+    }
+
+    /// End loop roll; restore stashed loop or clear.
+    pub fn end_deck_loop_roll(&mut self, deck_id: usize) -> Result<()> {
+        let restore = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?
+            .loop_roll_restore
+            .take();
+        if let Some(region) = restore.filter(|region| region.active) {
+            self.set_deck_loop_region(deck_id, region.in_secs, region.out_secs)
+        } else {
+            self.clear_deck_loop(deck_id)
+        }
+    }
+
+    fn active_loop_region(&self, deck_id: usize) -> Option<LoopRegion> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        deck.loop_region_secs()
+            .map(|(in_secs, out_secs)| LoopRegion {
+                in_secs,
+                out_secs,
+                active: true,
+            })
+    }
+
     /// Set cue point to the snapped playhead.
     pub fn set_deck_cue_point_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
@@ -1104,7 +1163,13 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let control = self.deck_control.get(deck_id)?;
-        deck_snapshot_from_dsp(&dsp, deck_id, control.sync_mode, control.quantize)
+        deck_snapshot_from_dsp(
+            &dsp,
+            deck_id,
+            control.sync_mode,
+            control.quantize,
+            control.pad_mode,
+        )
     }
 
     /// Full engine snapshot for bus `Status` events.
@@ -1113,12 +1178,14 @@ impl Engine {
         let dsp = dsp_engine.lock().ok()?;
         let mut decks = Vec::with_capacity(dsp.num_decks());
         for deck_id in 0..dsp.num_decks() {
-            let (sync_mode, quantize) = self
+            let (sync_mode, quantize, pad_mode) = self
                 .deck_control
                 .get(deck_id)
-                .map(|d| (d.sync_mode, d.quantize))
-                .unwrap_or((SyncMode::Off, true));
-            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id, sync_mode, quantize) {
+                .map(|d| (d.sync_mode, d.quantize, d.pad_mode))
+                .unwrap_or((SyncMode::Off, true, PadMode::HotCue));
+            if let Some(snapshot) =
+                deck_snapshot_from_dsp(&dsp, deck_id, sync_mode, quantize, pad_mode)
+            {
                 decks.push(snapshot);
             }
         }
@@ -1264,6 +1331,7 @@ fn deck_snapshot_from_dsp(
     deck_id: usize,
     sync_mode: SyncMode,
     quantize: bool,
+    pad_mode: PadMode,
 ) -> Option<DeckSnapshot> {
     let deck = dsp.deck(deck_id)?;
     let channel = dsp.mixer().channel(deck_id)?;
@@ -1296,6 +1364,7 @@ fn deck_snapshot_from_dsp(
         cue_point_secs: deck.cue_point_secs(),
         quantize,
         active_loop,
+        pad_mode,
         position_secs,
         duration_secs,
     })

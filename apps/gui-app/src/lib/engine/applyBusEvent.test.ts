@@ -29,6 +29,7 @@ function deckUpdated(overrides: Record<string, unknown> = {}) {
     cue_point_secs: null,
     quantize: true,
     active_loop: null,
+    pad_mode: "hot_cue",
     position_secs: null,
     duration_secs: null,
     ...overrides,

@@ -142,6 +142,7 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         cue_point_secs: snap.cue_point_secs,
         quantize: snap.quantize,
         active_loop: snap.active_loop,
+        pad_mode: snap.pad_mode,
         position_secs: snap.position_secs,
         duration_secs: snap.duration_secs,
     }
@@ -230,7 +231,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
             | Kind::EndCueHold
             | Kind::LoopIn
             | Kind::LoopOut
-            | Kind::ExitLoop,
+            | Kind::ExitLoop
+            | Kind::EndLoopRoll,
             CmdBody::Empty,
         ) => Ok(body),
         (Kind::Seek, CmdBody::Seek { .. })
@@ -244,6 +246,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
         | (Kind::SetAutoLoop, CmdBody::SetAutoLoop { .. })
         | (Kind::BeatJump, CmdBody::BeatJump { .. })
+        | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
+        | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
         | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
@@ -385,6 +389,25 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.beat_jump_deck(deck_id, beats)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetPadMode => {
+            let CmdBody::SetPadMode { mode } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_pad_mode(deck_id, mode)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::BeginLoopRoll => {
+            let CmdBody::BeginLoopRoll { beats } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.begin_deck_loop_roll(deck_id, beats)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::EndLoopRoll => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            eng.end_deck_loop_roll(deck_id)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),

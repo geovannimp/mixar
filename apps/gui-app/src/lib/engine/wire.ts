@@ -28,6 +28,9 @@ export const KindSchema = z.enum([
   "loop_out",
   "exit_loop",
   "beat_jump",
+  "set_pad_mode",
+  "begin_loop_roll",
+  "end_loop_roll",
   "updated",
   "position",
   "levels",
@@ -54,6 +57,9 @@ export type DeckEq = z.infer<typeof DeckEqSchema>;
 export const SyncModeSchema = z.enum(["off", "tempo", "beat"]);
 export type SyncMode = z.infer<typeof SyncModeSchema>;
 
+export const PadModeSchema = z.enum(["hot_cue", "loop_roll", "beat_jump", "sampler"]);
+export type PadMode = z.infer<typeof PadModeSchema>;
+
 export const LoopRegionSchema = z.object({
   in_secs: z.number(),
   out_secs: z.number(),
@@ -74,6 +80,7 @@ export const DeckSnapshotSchema = z.object({
   cue_point_secs: z.number().nullable(),
   quantize: z.boolean(),
   active_loop: LoopRegionSchema.nullable(),
+  pad_mode: PadModeSchema,
   position_secs: z.number().nullable(),
   duration_secs: z.number().nullable(),
 });
@@ -111,6 +118,11 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
   z.object({ type: z.literal("set_auto_loop"), beats: z.number().int().nonnegative() }),
   z.object({ type: z.literal("beat_jump"), beats: z.number().int() }),
+  z.object({ type: z.literal("set_pad_mode"), mode: PadModeSchema }),
+  z.object({
+    type: z.literal("begin_loop_roll"),
+    beats: z.number().int().positive(),
+  }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -130,6 +142,7 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     cue_point_secs: z.number().nullable(),
     quantize: z.boolean(),
     active_loop: LoopRegionSchema.nullable(),
+    pad_mode: PadModeSchema,
     position_secs: z.number().nullable(),
     duration_secs: z.number().nullable(),
   }),
@@ -264,7 +277,10 @@ export type CmdKind =
   | "loop_in"
   | "loop_out"
   | "exit_loop"
-  | "beat_jump";
+  | "beat_jump"
+  | "set_pad_mode"
+  | "begin_loop_roll"
+  | "end_loop_roll";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

@@ -395,11 +395,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   setDeckPadMode: async (deckId, mode) => {
-    try {
-      await invoke("set_deck_pad_mode", { deckId, mode });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "set_pad_mode", { mode });
   },
 
   setDeckFilter: async (deckId, filterDb) => {
@@ -419,19 +415,11 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   beginLoopRoll: async (deckId, beats) => {
-    try {
-      await invoke("begin_loop_roll", { deckId, beats });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "begin_loop_roll", { beats });
   },
 
   endLoopRoll: async (deckId) => {
-    try {
-      await invoke("end_loop_roll", { deckId });
-    } catch (err) {
-      reportEngineError(String(err));
-    }
+    await publishCmd(getDeckOrigin(deckId), "end_loop_roll");
   },
 
   triggerSamplerPad: async (deckId, slot) => {

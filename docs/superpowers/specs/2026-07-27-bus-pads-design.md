@@ -2,7 +2,7 @@
 
 Date: 2026-07-27  
 Parent: [engine event bus](./2026-07-26-engine-event-bus-design.md)  
-Status: draft
+Status: accepted
 
 ## Goal
 

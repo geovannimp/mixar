@@ -11,7 +11,9 @@ mod wire;
 
 pub use kind::Kind;
 pub use origin::Origin;
-pub use payload::{CmdBody, DeckEq, DeckSnapshot, EngineStatus, EvtBody, LoopRegion, SyncMode};
+pub use payload::{
+    CmdBody, DeckEq, DeckSnapshot, EngineStatus, EvtBody, LoopRegion, PadMode, SyncMode,
+};
 pub use wire::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
     DecodeError, EncodeError, WireMessage,

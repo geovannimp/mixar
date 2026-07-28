@@ -1,6 +1,6 @@
 //! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
-use engine_api::{decode_wire, encode_wire, Kind, Origin, WireMessage};
+use engine_api::{decode_cmd_body, decode_wire, encode_wire, CmdBody, Kind, Origin, WireMessage};
 use engine_core::{EngineSession, Evt};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -120,6 +120,27 @@ pub fn engine_publish(
         if deck_id < crate::NUM_DECKS {
             let mut state = app_state.lock().map_err(|e| e.to_string())?;
             crate::clear_deck_info(&mut state.decks[deck_id]);
+        }
+    }
+    // ponytail: AppState.pad_mode still gates sampler invokes; mirror until sampler migrates.
+    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::SetPadMode)) {
+        let Origin::Deck(deck_id) = msg.origin else {
+            unreachable!()
+        };
+        let deck_id = deck_id as usize;
+        if deck_id < crate::NUM_DECKS {
+            if let Ok(CmdBody::SetPadMode { mode }) = decode_cmd_body(&msg.body) {
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                state.decks[deck_id].pad_mode = match mode {
+                    engine_api::PadMode::HotCue => crate::deck_sync::PadMode::HotCue,
+                    engine_api::PadMode::LoopRoll => crate::deck_sync::PadMode::LoopRoll,
+                    engine_api::PadMode::BeatJump => crate::deck_sync::PadMode::BeatJump,
+                    engine_api::PadMode::Sampler => crate::deck_sync::PadMode::Sampler,
+                };
+                if mode == engine_api::PadMode::Sampler {
+                    let _ = crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id);
+                }
+            }
         }
     }
     let guard = session.lock().map_err(|e| e.to_string())?;
