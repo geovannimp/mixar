@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
@@ -24,7 +23,6 @@ import {
 import { getDefaultDeck } from "./defaultDeck";
 import { DEFAULT_SAMPLER_STATUS, EMPTY_SAMPLER_BANKS, EMPTY_SAMPLER_SLOTS } from "./defaultSampler";
 const ENGINE_ERROR_TOAST_ID = "engine-error";
-const engineTransport = getEngineTransport();
 
 function reportEngineError(message: string) {
   toastManager.add({
@@ -40,13 +38,37 @@ async function publishCmd(
   fields: Record<string, unknown> = {},
 ): Promise<void> {
   try {
-    await engineTransport.publish(origin, kind, {
+    await getEngineTransport().publish(origin, kind, {
       ...fields,
       action_timestamp_ms: Date.now(),
     });
   } catch (err) {
     reportEngineError(String(err));
   }
+}
+
+let busUnlisten: (() => void) | null = null;
+let busSubscribePromise: Promise<void> | null = null;
+
+async function ensureBusSubscribed(): Promise<void> {
+  if (busUnlisten) {
+    return;
+  }
+  if (!busSubscribePromise) {
+    busSubscribePromise = (async () => {
+      busUnlisten = await getEngineTransport().subscribe((bytes) => {
+        useEngineStore.getState().applyBusBytes(bytes);
+      });
+    })();
+  }
+  await busSubscribePromise;
+}
+
+/** Test helper: clear bus subscribe state between tests. */
+export function resetEngineBusSubscriptionForTests(): void {
+  busUnlisten?.();
+  busUnlisten = null;
+  busSubscribePromise = null;
 }
 
 function getDeck(status: EngineStatus | null, deckId: number): DeckStatus {
@@ -69,7 +91,6 @@ interface EngineStoreState {
   starting: boolean;
   levelMeterMode: LevelMeterMode;
   applyBusBytes: (bytes: Uint8Array) => void;
-  setStatus: (status: EngineStatus | null) => void;
   setLevelMeterMode: (mode: LevelMeterMode) => void;
   runDeckBlockingAction: (deckId: number, action: () => Promise<void>) => Promise<void>;
   ensureEngineRunning: () => Promise<void>;
@@ -149,8 +170,6 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     });
   },
 
-  setStatus: (status) => set({ status }),
-
   setLevelMeterMode: (mode) => set({ levelMeterMode: mode }),
 
   runDeckBlockingAction: async (deckId, action) => {
@@ -176,6 +195,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   ensureEngineRunning: async () => {
+    await ensureBusSubscribed();
     const { status, starting } = get();
     if (status?.running || starting) {
       return;
@@ -185,7 +205,9 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     try {
       await toastManager.promise(
         (async () => {
-          await invoke("start_engine");
+          await getEngineTransport().publish("engine", "start_engine", {
+            action_timestamp_ms: Date.now(),
+          });
         })(),
         {
           loading: { title: "Starting engine…", type: "loading" },

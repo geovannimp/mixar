@@ -101,7 +101,7 @@ Common expectations across all products:
 | Deck panel | Load (picker + drag-drop), play/pause, metadata, transport, pads, sync, sampler | Layout polish; some Phase 4+ (slip, FX UI) |
 | Waveforms | Dual-lane scroll + overview preview, beat grid when analyzed | Zoom; richer cue/loop overlays |
 | Mixer strip | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU | — |
-| Engine start | Auto-start on Decks page with promise toast | Move `start_engine` / hydrate off raw invoke ([#109](https://github.com/geovannimp/rust-dj-engine/issues/109)) |
+| Engine start | Auto-start on Decks via store `ensureEngineRunning` → `publishCmd("engine", "start_engine")` | — |
 | State sync | **`EngineTransport`** → `engine://bus` → store (`applyBusEvent`) | MIDI host; optional richer hydrate cmd on the bus |
 | Library UI | **`LibraryTransport`** for tracks / artwork / waveform raster | — |
 
@@ -574,13 +574,12 @@ EngineStatus (hydrate + status events)
 
 | Path | Role |
 |------|------|
-| `EngineTransport.publish` → `engine_publish` | All engine cmds (transport, mixer, load, pads, sampler, …) |
-| `EngineTransport.subscribe` → `engine://bus` | Status / updated / position / levels / notice / error |
-| `invoke("get_status")` | One-shot bootstrap hydrate only (migrate onto bus — [#109](https://github.com/geovannimp/rust-dj-engine/issues/109)) |
-| `invoke("start_engine")` / settings / devices | Session lifecycle + non-engine host APIs |
+| `EngineTransport.publish` → `engine_publish` | All engine cmds (transport, mixer, load, pads, sampler, **start_engine**, …) |
+| `EngineTransport.subscribe` → `engine://bus` | Status / updated / position / levels / notice / error (store owns subscribe) |
+| Settings / devices / FS | Non-engine host APIs (`get_settings`, `save_settings`, device list, …) |
 | `LibraryTransport` | Tracks, artwork, waveform raster (not on the engine bus) |
 
-Deck mutations do **not** return `DeckStatus` for the UI to merge. The store updates from bus events. `get_status` remains for initial hydrate until a bus hydrate cmd exists.
+Deck mutations do **not** return `DeckStatus` for the UI to merge. The store updates from bus events. There is no `get_status` hydrate — status arrives after `start_engine` emits on the bus.
 
 **Not planned:** a separate `get_deck_state`. Prefer richer `DeckSnapshot` / `EngineStatus` on the bus.
 
@@ -692,9 +691,10 @@ Increment **`revision`** on every emit so the UI can ignore out-of-order duplica
 ### 9.7 UI integration
 
 ```text
-Mount bootstrap
-  ├─ invoke("get_status")              // one-shot hydrate
-  └─ EngineTransport.subscribe         // engine://bus → applyBusEvent
+Mount / enter decks
+  └─ engine store ensureEngineRunning
+       ├─ await EngineTransport.subscribe (engine://bus → applyBusEvent)
+       └─ publishCmd("engine", "start_engine")   // host emits status
 
 User action (e.g. play)
   ├─ EngineTransport.publish(...)      // fire-and-forget OK
@@ -848,7 +848,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 | DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |
 | DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (Phase 2) |
 | DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (Phase 2) |
-| DK8 | Deck state API | **`get_status`** only — no `get_deck_state`; extend `DeckStatus` as needed |
+| DK8 | Deck state API | Bus `status` / `updated` snapshots — no `get_deck_state`; no `get_status` hydrate |
 | DK9 | Error UX | **coss toast**; engine start uses **promise toast** |
 | DK10 | Phase 1 scope | **Polish existing features + DJ app look** — no new performance engine features |
 | DK11 | Position stream | Poll in Phase 1; **`engine://position`** push in Phase 2 |

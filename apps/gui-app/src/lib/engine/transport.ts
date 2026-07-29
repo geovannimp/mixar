@@ -7,7 +7,8 @@ import type { CmdKind, Origin } from "@/lib/engine/wire";
 export interface EngineTransport {
   /** `fields` are CmdBody payload fields only — body `type` is derived from `kind`. */
   publish(origin: Origin, kind: CmdKind, fields?: Record<string, unknown>): Promise<void>;
-  subscribe(handler: (message: Uint8Array) => void): () => void;
+  /** Resolves after the host listener is registered so start cannot race the first status. */
+  subscribe(handler: (message: Uint8Array) => void): Promise<() => void>;
 }
 
 export type EngineBackend = "tauri" | "memory" | "wasm";
@@ -33,4 +34,9 @@ let sharedTransport: EngineTransport | null = null;
 export function getEngineTransport(): EngineTransport {
   sharedTransport ??= createEngineTransport();
   return sharedTransport;
+}
+
+/** Test helper: swap the shared transport (pass `null` to clear). */
+export function setEngineTransportForTests(transport: EngineTransport | null): void {
+  sharedTransport = transport;
 }
