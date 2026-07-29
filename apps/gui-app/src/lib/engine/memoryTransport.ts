@@ -6,7 +6,7 @@ export function createMemoryEngineTransport(): EngineTransport {
 
   return {
     publish: async () => {},
-    subscribe(handler) {
+    async subscribe(handler) {
       handlers.add(handler);
       return () => {
         handlers.delete(handler);

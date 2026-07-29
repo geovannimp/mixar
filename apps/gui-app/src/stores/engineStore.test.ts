@@ -1,13 +1,22 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeEvtBody, encodeWire } from "@/lib/engine/wire";
+import type { EngineTransport } from "@/lib/engine/transport";
+import { setEngineTransportForTests } from "@/lib/engine/transport";
 import { DEFAULT_DECK_A, DEFAULT_DECK_B } from "@/stores/defaultDeck";
 import { DEFAULT_SAMPLER_STATUS } from "@/stores/defaultSampler";
-import { useEngineStore } from "@/stores/engineStore";
+import { resetEngineBusSubscriptionForTests, useEngineStore } from "@/stores/engineStore";
 import type { EngineStatus } from "@/types";
 
-function makeStatus(): EngineStatus {
+vi.mock("@/components/ui/toast", () => ({
+  toastManager: {
+    add: vi.fn(),
+    promise: vi.fn(async (p: Promise<unknown>) => p),
+  },
+}));
+
+function makeStatus(running = true): EngineStatus {
   return {
-    running: true,
+    running,
     backend: "cpal",
     sample_rate: 48_000,
     crossfader: 0.5,
@@ -58,6 +67,8 @@ function encodeDeckUpdated(deckId: number, playing: boolean, revision: number): 
 
 describe("useEngineStore revision guards", () => {
   beforeEach(() => {
+    resetEngineBusSubscriptionForTests();
+    setEngineTransportForTests(null);
     useEngineStore.setState({
       status: makeStatus(),
       revision: 0,
@@ -83,5 +94,47 @@ describe("useEngineStore revision guards", () => {
     const state = useEngineStore.getState();
     expect(state.revision).toBe(5);
     expect(state.status?.decks[0]?.playing).toBe(true);
+  });
+});
+
+describe("useEngineStore ensureEngineRunning", () => {
+  beforeEach(() => {
+    resetEngineBusSubscriptionForTests();
+    useEngineStore.setState({
+      status: null,
+      revision: 0,
+      busyDecks: [false, false],
+      starting: false,
+    });
+  });
+
+  it("publishes start_engine on engine origin after bus subscribe", async () => {
+    const published: Array<{ origin: unknown; kind: string }> = [];
+    const transport: EngineTransport = {
+      publish: async (origin, kind) => {
+        published.push({ origin, kind });
+      },
+      subscribe: async () => () => {},
+    };
+    setEngineTransportForTests(transport);
+
+    await useEngineStore.getState().ensureEngineRunning();
+
+    expect(published.some((p) => p.kind === "start_engine" && p.origin === "engine")).toBe(true);
+  });
+
+  it("skips start when already running", async () => {
+    const published: Array<{ origin: unknown; kind: string }> = [];
+    setEngineTransportForTests({
+      publish: async (origin, kind) => {
+        published.push({ origin, kind });
+      },
+      subscribe: async () => () => {},
+    });
+    useEngineStore.setState({ status: makeStatus(true) });
+
+    await useEngineStore.getState().ensureEngineRunning();
+
+    expect(published).toHaveLength(0);
   });
 });

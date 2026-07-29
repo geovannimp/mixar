@@ -48,6 +48,7 @@ export const KindSchema = z.enum([
   "delete_loop",
   "load_path",
   "load_library_track",
+  "start_engine",
   "updated",
   "position",
   "levels",
@@ -422,7 +423,8 @@ export type CmdKind =
   | "save_loop"
   | "delete_loop"
   | "load_path"
-  | "load_library_track";
+  | "load_library_track"
+  | "start_engine";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {

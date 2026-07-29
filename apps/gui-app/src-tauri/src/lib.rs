@@ -39,7 +39,7 @@ use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
-use engine_controller::{engine_status, publish_status};
+use engine_controller::publish_status;
 
 const NUM_DECKS: usize = 2;
 
@@ -578,15 +578,14 @@ fn stop_session(state: &mut AppState) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-fn start_engine(
-    app: AppHandle,
-    shared: State<'_, SharedAppState>,
-    session_holder: State<'_, SharedSession>,
-) -> Result<EngineStatus, String> {
-    let mut state = shared.lock().map_err(|e| e.to_string())?;
+pub(crate) fn start_engine_inner(
+    app: &AppHandle,
+    state: &mut AppState,
+    session_holder: &SharedSession,
+) -> Result<(), String> {
     if state.session.is_some() {
-        return Ok(engine_status(&state));
+        let _ = publish_status(app, state);
+        return Ok(());
     }
 
     let config = state.engine_config.clone();
@@ -598,18 +597,13 @@ fn start_engine(
         .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
         .map_err(|e| e.to_string())?;
     state.session = Some(Arc::clone(&session));
-    install_session(session_holder.inner(), Arc::clone(&session));
+    install_session(session_holder, Arc::clone(&session));
     state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
-    apply_normalizer_target(&mut state)?;
-    ensure_sampler_ready(&mut state)?;
+    apply_normalizer_target(state)?;
+    ensure_sampler_ready(state)?;
 
-    Ok(publish_status(&app, &mut state))
-}
-
-#[tauri::command]
-fn get_status(state: State<'_, SharedAppState>) -> Result<EngineStatus, String> {
-    let state = state.lock().map_err(|e| e.to_string())?;
-    Ok(engine_status(&state))
+    let _ = publish_status(app, state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -657,18 +651,7 @@ async fn save_settings(
     }
 
     let mut state = shared.lock().map_err(|e| e.to_string())?;
-    let config = state.engine_config.clone();
-    let session = Arc::new(
-        EngineSession::new_with_library(config, Arc::clone(&state.library))
-            .map_err(|e| e.to_string())?,
-    );
-    session
-        .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
-        .map_err(|e| e.to_string())?;
-    state.session = Some(Arc::clone(&session));
-    install_session(&session_holder, Arc::clone(&session));
-    state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
-    apply_normalizer_target(&mut state)?;
+    start_engine_inner(&app, &mut state, &session_holder)?;
 
     for (deck_id, path) in deck_tracks {
         let track_id = state.decks[deck_id].track_id.clone();
@@ -1138,8 +1121,6 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            start_engine,
-            get_status,
             get_settings,
             save_settings,
             list_output_devices,

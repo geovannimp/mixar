@@ -115,6 +115,17 @@ pub fn engine_publish(
 ) -> Result<(), String> {
     let msg = decode_wire(&payload).map_err(|e| e.to_string())?;
 
+    if msg.origin == Origin::Engine {
+        match msg.kind {
+            Kind::StartEngine => {
+                let mut state = app_state.lock().map_err(|e| e.to_string())?;
+                crate::start_engine_inner(&app, &mut state, session.inner())?;
+                return Ok(());
+            }
+            _ => {}
+        }
+    }
+
     // Host-handled sampler bank/slot cmds (library + AppState); do not forward to omnibus.
     if let Origin::Deck(deck_id) = msg.origin {
         let deck_id = deck_id as usize;

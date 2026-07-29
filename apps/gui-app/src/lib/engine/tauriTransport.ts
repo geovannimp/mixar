@@ -19,8 +19,8 @@ export function createTauriEngineTransport(): EngineTransport {
           ),
         ),
       }),
-    subscribe: (handler) => {
-      const unlistenPromise = listen<number[] | Uint8Array>(ENGINE_BUS_EVENT, (event) => {
+    subscribe: async (handler) => {
+      const unlisten = await listen<number[] | Uint8Array>(ENGINE_BUS_EVENT, (event) => {
         const payload = event.payload;
         const bytes = payload instanceof Uint8Array ? payload : Uint8Array.from(payload ?? []);
         if (bytes.length === 0) {
@@ -29,7 +29,7 @@ export function createTauriEngineTransport(): EngineTransport {
         handler(bytes);
       });
       return () => {
-        void unlistenPromise.then((unlisten) => unlisten());
+        unlisten();
       };
     },
   };

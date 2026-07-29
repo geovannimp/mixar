@@ -48,6 +48,7 @@ pub enum Kind {
     DeleteLoop,
     LoadPath,
     LoadLibraryTrack,
+    StartEngine,
     Updated,
     Position,
     Levels,
