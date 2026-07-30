@@ -29,7 +29,10 @@ pub struct SpectralPeak {
     pub high: f32,
 }
 
-/// Choose a bucket count from track length (~77 buckets/s), clamped to min/max.
+/// Choose a bucket count from track length (~77 buckets/s).
+///
+/// Non-positive `duration_ms` returns `0`; otherwise
+/// `ceil(duration_ms / WAVEFORM_MS_PER_BUCKET).max(1)` with no min/max clamp.
 pub fn waveform_buckets_for_duration(duration_ms: i32) -> usize {
     if duration_ms <= 0 {
         return 0;

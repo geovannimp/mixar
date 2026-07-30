@@ -8,7 +8,7 @@
 //! re-export dasp's `Frame` trait and `slice` module for frame/sample conversions.
 
 mod audio_source;
-mod time;
+pub mod time;
 mod waveform;
 
 use std::sync::atomic::AtomicU32;
