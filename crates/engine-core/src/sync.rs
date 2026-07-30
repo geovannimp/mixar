@@ -26,16 +26,16 @@ pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
 
 fn snap_secs_local(secs: f64, bpm: Option<f64>, quantize: bool) -> f64 {
     if !quantize {
-        return secs.max(0.0);
+        return secs;
     }
     let Some(bpm) = bpm else {
-        return secs.max(0.0);
+        return secs;
     };
     if bpm <= 0.0 {
-        return secs.max(0.0);
+        return secs;
     }
     let beat = 60.0 / bpm;
-    ((secs / beat).round() * beat).max(0.0)
+    (secs / beat).round() * beat
 }
 
 pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f64) -> f32 {
@@ -82,8 +82,8 @@ mod tests {
     }
 
     #[test]
-    fn snap_ms_without_quantize_passes_through_non_negative() {
+    fn snap_ms_without_quantize_passes_through_including_negatives() {
         assert_eq!(snap_ms(500, Some(120.0), false), 500);
-        assert_eq!(snap_ms(-100, None, false), 0);
+        assert_eq!(snap_ms(-100, None, false), -100);
     }
 }

@@ -1181,10 +1181,9 @@ impl Engine {
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for beat jump."))?;
-        let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
-        let raw = (ms_to_secs(position_ms) + beat_len * f64::from(beats))
-            .clamp(0.0, ms_to_secs(duration_ms));
+        let raw = ms_to_secs(position_ms) + beat_len * f64::from(beats);
         let target = snap_ms(secs_to_ms(raw), Some(bpm), quantize);
         self.seek_deck(deck_id, target)
     }
