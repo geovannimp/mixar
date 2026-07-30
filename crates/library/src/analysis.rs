@@ -36,7 +36,9 @@ pub(crate) fn upsert_track_analysis(
             .as_ref()
             .map(|g| f64::from(g.grid_stability))),
         sample_rate: Set(analysis.metadata.sample_rate as i32),
-        duration_analyzed_secs: Set(analysis.metadata.duration_analyzed_secs),
+        duration_analyzed_secs: Set(audio_core::ms_to_secs(
+            analysis.metadata.duration_analyzed_ms,
+        )),
         loudness_lufs: Set(analysis.loudness_lufs),
         beat_grid_json: Set(beat_grid_json),
     };

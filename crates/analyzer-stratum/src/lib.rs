@@ -48,7 +48,8 @@ impl AudioAnalyzer for StratumAnalyzer {
         let result = analyze_audio(samples, sample_rate, self.inner.clone())
             .map_err(|e| backend_err("stratum", e.to_string()))?;
 
-        let duration_analyzed_secs = samples.len() as f64 / f64::from(sample_rate.max(1));
+        let duration_analyzed_ms =
+            (samples.len() as f64 / f64::from(sample_rate.max(1)) * 1000.0).round() as i32;
         let analyzed_at = time::now_rfc3339();
 
         let mut track = TrackAnalysis {
@@ -61,7 +62,7 @@ impl AudioAnalyzer for StratumAnalyzer {
                 backend_version: env!("CARGO_PKG_VERSION").to_string(),
                 analyzed_at,
                 sample_rate,
-                duration_analyzed_secs,
+                duration_analyzed_ms,
             },
         };
 

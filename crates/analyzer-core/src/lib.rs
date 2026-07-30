@@ -36,7 +36,7 @@ mod tests {
                 backend_version: "0".into(),
                 analyzed_at: "1".into(),
                 sample_rate: 44100,
-                duration_analyzed_secs: 1.0,
+                duration_analyzed_ms: 1000,
             },
         };
         let json = serde_json::to_string(&analysis).unwrap();

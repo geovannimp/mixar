@@ -694,9 +694,9 @@ impl LibraryManager {
 
         let mut config = AnalysisConfig::default();
         let tag_metadata = tags::read_tags(&path)?;
-        config.max_duration_secs = options
+        config.max_duration_ms = options
             .analysis_duration
-            .resolve_max_duration_secs(tag_metadata.duration_ms.map(audio_core::ms_to_secs));
+            .resolve_max_duration_ms(tag_metadata.duration_ms);
         let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
         let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
         analysis.loudness_lufs =

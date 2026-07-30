@@ -41,5 +41,5 @@ pub struct AnalysisRunMetadata {
     pub backend_version: String,
     pub analyzed_at: String,
     pub sample_rate: u32,
-    pub duration_analyzed_secs: f64,
+    pub duration_analyzed_ms: i32,
 }

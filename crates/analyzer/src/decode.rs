@@ -15,8 +15,8 @@ pub fn decode_mono(path: &Path, config: &AnalysisConfig) -> Result<DecodedMono> 
     let channels = decoder.channels().max(1) as usize;
 
     let max_frames = config
-        .max_duration_secs
-        .map(|secs| (secs * f64::from(sample_rate)).ceil() as usize);
+        .max_duration_ms
+        .map(|ms| (f64::from(ms) / 1000.0 * f64::from(sample_rate)).ceil() as usize);
 
     let mut interleaved = Vec::new();
     let mut chunk = vec![0.0f32; 8192 * channels];
