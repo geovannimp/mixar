@@ -5,12 +5,13 @@ use crate::producer::{
     create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceStreamSetup,
 };
 use crate::routing::DeviceStreamPlan;
-use crate::sync::{beat_align_target, snap_secs, target_sync_speed, DeckControlState};
+use crate::sync::{beat_align_target, snap_ms, target_sync_speed, DeckControlState};
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::LoadedAudio;
 use audio_core::{
-    AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo, Sample, StreamParams,
+    ms_to_secs, secs_to_ms, AudioStream, BusConfig, BusId, ChannelMapping, DeviceId, DeviceInfo,
+    Sample, StreamParams,
 };
 use engine_api::{
     DeckEq, DeckSnapshot, EngineStatus, LoopRegion, PadMode, SamplerStatus, SyncMode,
@@ -29,8 +30,8 @@ use std::time::Duration;
 
 const NUM_DECKS: usize = 2;
 
-/// Cue point (secs) and optional loop region `(start, end)` for status mirroring.
-type DeckTransportState = (Option<f64>, Option<(f64, f64)>);
+/// Cue point (ms) and optional loop region `(start, end)` for status mirroring.
+type DeckTransportState = (Option<i32>, Option<(i32, i32)>);
 
 /// Main engine struct
 pub struct Engine {
@@ -336,7 +337,7 @@ impl Engine {
     }
 
     /// Snapshot playback positions for all decks that currently have loaded audio.
-    pub fn deck_playback_snapshot(&self) -> Vec<(usize, f64, f64)> {
+    pub fn deck_playback_snapshot(&self) -> Vec<(usize, i32, i32)> {
         let Some(dsp_engine) = self.dsp_engine.as_ref() else {
             return Vec::new();
         };
@@ -350,11 +351,11 @@ impl Engine {
             let Some(deck) = dsp.deck(deck_id) else {
                 continue;
             };
-            let Some(duration) = deck.duration_seconds() else {
+            let Some(duration_secs) = deck.duration_seconds() else {
                 continue;
             };
-            let position = deck.position_seconds().unwrap_or(0.0);
-            snapshot.push((deck_id, position, duration));
+            let position = deck.position_ms().unwrap_or(0);
+            snapshot.push((deck_id, position, secs_to_ms(duration_secs)));
         }
         snapshot
     }
@@ -651,8 +652,8 @@ impl Engine {
                 .ok_or_else(|| anyhow::anyhow!("Slave deck BPM is required for beat sync."))?;
             (bpm, control.quantize)
         };
-        let (master_pos, _) = self.deck_playback_secs(master_id).unwrap_or((0.0, 0.0));
-        let (slave_pos, duration) = self.deck_playback_secs(slave_id).unwrap_or((0.0, 0.0));
+        let (master_pos, _) = self.deck_playback_ms(master_id).unwrap_or((0, 0));
+        let (slave_pos, duration) = self.deck_playback_ms(slave_id).unwrap_or((0, 0));
         let target = beat_align_target(
             master_pos, slave_pos, duration, master_bpm, slave_bpm, quantize,
         );
@@ -759,15 +760,15 @@ impl Engine {
         }
     }
 
-    /// Seek a deck to a position in seconds.
-    pub fn seek_deck(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+    /// Seek a deck to a position in milliseconds.
+    pub fn seek_deck(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.seek_secs(position_secs)?;
+            deck.seek_ms(position_ms)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -934,15 +935,15 @@ impl Engine {
             .set_slot_auto_gain_db(slot, auto_gain_db)
     }
 
-    /// Set the temporary cue point in seconds.
-    pub fn set_deck_cue_point(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+    /// Set the temporary cue point in milliseconds.
+    pub fn set_deck_cue_point(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_cue_point_secs(position_secs)?;
+            deck.set_cue_point_ms(position_ms)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -980,19 +981,14 @@ impl Engine {
     }
 
     /// Activate a loop region on a deck.
-    pub fn set_deck_loop_region(
-        &mut self,
-        deck_id: usize,
-        in_secs: f64,
-        out_secs: f64,
-    ) -> Result<()> {
+    pub fn set_deck_loop_region(&mut self, deck_id: usize, in_ms: i32, out_ms: i32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.set_loop_region_secs(in_secs, out_secs)?;
+            deck.set_loop_region_ms(in_ms, out_ms)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -1033,12 +1029,12 @@ impl Engine {
     }
 
     /// Trigger hot cue: snap position, seek, play.
-    pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_secs: f64) -> Result<()> {
+    pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
             return Err(anyhow::anyhow!("Load a track before triggering a hot cue."));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let target = snap_secs(position_secs, bpm, quantize);
+        let target = snap_ms(position_ms, bpm, quantize);
         self.seek_deck(deck_id, target)?;
         self.play(deck_id)
     }
@@ -1047,16 +1043,16 @@ impl Engine {
     pub fn recall_deck_saved_loop(
         &mut self,
         deck_id: usize,
-        in_secs: f64,
-        out_secs: f64,
+        in_ms: i32,
+        out_ms: i32,
     ) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
             return Err(anyhow::anyhow!(
                 "Load a track before recalling a saved loop."
             ));
         }
-        self.set_deck_loop_region(deck_id, in_secs, out_secs)?;
-        self.seek_deck(deck_id, in_secs)?;
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
+        self.seek_deck(deck_id, in_ms)?;
         self.play(deck_id)
     }
 
@@ -1077,7 +1073,7 @@ impl Engine {
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for loop roll."))?;
-        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let restore = self.active_loop_region(deck_id);
         let control = self
             .deck_control
@@ -1086,10 +1082,13 @@ impl Engine {
         control.loop_roll_restore = restore;
 
         let beat_len = 60.0 / bpm;
-        let in_secs = snap_secs(position, Some(bpm), quantize);
-        let out_secs =
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len));
-        self.set_deck_loop_region(deck_id, in_secs, out_secs)
+        let in_ms = snap_ms(position_ms, Some(bpm), quantize);
+        let in_secs = ms_to_secs(in_ms);
+        let duration = ms_to_secs(duration_ms);
+        let out_ms = secs_to_ms(
+            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
+        );
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
     /// End loop roll; restore stashed loop or clear.
@@ -1101,7 +1100,7 @@ impl Engine {
             .loop_roll_restore
             .take();
         if let Some(region) = restore.filter(|region| region.active) {
-            self.set_deck_loop_region(deck_id, region.in_secs, region.out_secs)
+            self.set_deck_loop_region(deck_id, region.in_ms, region.out_ms)
         } else {
             self.clear_deck_loop(deck_id)
         }
@@ -1111,12 +1110,11 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let deck = dsp.deck(deck_id)?;
-        deck.loop_region_secs()
-            .map(|(in_secs, out_secs)| LoopRegion {
-                in_secs,
-                out_secs,
-                active: true,
-            })
+        deck.loop_region_ms().map(|(in_ms, out_ms)| LoopRegion {
+            in_ms,
+            out_ms,
+            active: true,
+        })
     }
 
     /// Set cue point to the snapped playhead.
@@ -1125,8 +1123,8 @@ impl Engine {
             return Err(anyhow::anyhow!("Load a track before setting cue."));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let target = snap_secs(position, bpm, quantize);
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let target = snap_ms(position_ms, bpm, quantize);
         self.set_deck_cue_point(deck_id, target)
     }
 
@@ -1137,40 +1135,43 @@ impl Engine {
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
-        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
-        let in_secs = snap_secs(position, Some(bpm), quantize);
-        let out_secs =
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len));
-        self.set_deck_loop_region(deck_id, in_secs, out_secs)
+        let in_ms = snap_ms(position_ms, Some(bpm), quantize);
+        let in_secs = ms_to_secs(in_ms);
+        let duration = ms_to_secs(duration_ms);
+        let out_ms = secs_to_ms(
+            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
+        );
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
     /// Move loop-in to the snapped playhead (keeps existing out, or default 4 beats).
     pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let in_secs = snap_secs(position, bpm, quantize);
-        let default_out = in_secs + 60.0 / bpm.unwrap_or(120.0) * 4.0;
-        let out_secs = self
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let in_ms = snap_ms(position_ms, bpm, quantize);
+        let default_out = in_ms + secs_to_ms(60.0 / bpm.unwrap_or(120.0) * 4.0);
+        let out_ms = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region.map(|(_, out)| out))
             .unwrap_or(default_out);
-        self.set_deck_loop_region(deck_id, in_secs, out_secs.max(in_secs + 0.01))
+        self.set_deck_loop_region(deck_id, in_ms, out_ms.max(in_ms + 10))
     }
 
     /// Move loop-out to the snapped playhead (keeps existing in, or 0).
     pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let (position, _) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
-        let out_secs = snap_secs(position, bpm, quantize);
-        let in_secs = self
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let out_ms = snap_ms(position_ms, bpm, quantize);
+        let in_ms = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region.map(|(inn, _)| inn))
-            .unwrap_or(0.0);
-        if out_secs <= in_secs {
+            .unwrap_or(0);
+        if out_ms <= in_ms {
             return Err(anyhow::anyhow!("Loop out must be after loop in."));
         }
-        self.set_deck_loop_region(deck_id, in_secs, out_secs)
+        self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
     /// Jump playhead by `beats` (negative = backward), optionally snapped.
@@ -1180,10 +1181,11 @@ impl Engine {
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for beat jump."))?;
-        let (position, duration) = self.deck_playback_secs(deck_id).unwrap_or((0.0, 0.0));
+        let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
-        let raw = (position + beat_len * f64::from(beats)).clamp(0.0, duration);
-        let target = snap_secs(raw, Some(bpm), quantize);
+        let raw = (ms_to_secs(position_ms) + beat_len * f64::from(beats))
+            .clamp(0.0, ms_to_secs(duration_ms));
+        let target = snap_ms(secs_to_ms(raw), Some(bpm), quantize);
         self.seek_deck(deck_id, target)
     }
 
@@ -1200,7 +1202,7 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let deck = dsp.deck(deck_id)?;
-        Some((deck.cue_point_secs(), deck.loop_region_secs()))
+        Some((deck.cue_point_ms(), deck.loop_region_ms()))
     }
 
     /// Whether a deck is currently playing.
@@ -1256,13 +1258,13 @@ impl Engine {
         Some(dsp.mixer().master_cue())
     }
 
-    /// Playback position and duration for a deck (seconds), when the engine is running.
-    pub fn deck_playback_secs(&self, deck_id: usize) -> Option<(f64, f64)> {
+    /// Playback position and duration for a deck (milliseconds), when the engine is running.
+    pub fn deck_playback_ms(&self, deck_id: usize) -> Option<(i32, i32)> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let deck = dsp.deck(deck_id)?;
-        let duration = deck.duration_seconds()?;
-        let position = deck.position_seconds().unwrap_or(0.0);
+        let duration = secs_to_ms(deck.duration_seconds()?);
+        let position = deck.position_ms().unwrap_or(0);
         Some((position, duration))
     }
 
@@ -1459,17 +1461,18 @@ fn deck_snapshot_from_dsp(
     let deck = dsp.deck(deck_id)?;
     let channel = dsp.mixer().channel(deck_id)?;
     let eq = channel.eq_gains();
-    let (position_secs, duration_secs) = match deck.duration_seconds() {
-        Some(duration) => (Some(deck.position_seconds().unwrap_or(0.0)), Some(duration)),
+    let (position_ms, duration_ms) = match deck.duration_seconds() {
+        Some(duration) => (
+            Some(deck.position_ms().unwrap_or(0)),
+            Some(secs_to_ms(duration)),
+        ),
         None => (None, None),
     };
-    let active_loop = deck
-        .loop_region_secs()
-        .map(|(in_secs, out_secs)| LoopRegion {
-            in_secs,
-            out_secs,
-            active: true,
-        });
+    let active_loop = deck.loop_region_ms().map(|(in_ms, out_ms)| LoopRegion {
+        in_ms,
+        out_ms,
+        active: true,
+    });
     Some(DeckSnapshot {
         id: deck_id as u16,
         track: None,
@@ -1490,12 +1493,12 @@ fn deck_snapshot_from_dsp(
         gain_trim_db: channel.gain_trim_db(),
         headphone_cue: channel.headphone_cue(),
         sync_mode,
-        cue_point_secs: deck.cue_point_secs(),
+        cue_point_ms: deck.cue_point_ms(),
         quantize,
         active_loop,
         pad_mode,
-        position_secs,
-        duration_secs,
+        position_ms,
+        duration_ms,
         hot_cues: Vec::new(),
         saved_loops: Vec::new(),
         loudness_lufs: None,

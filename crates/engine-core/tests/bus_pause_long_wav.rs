@@ -46,10 +46,10 @@ fn pause_preserves_position_on_long_24bit_wav() {
             engine.start()?;
             eprintln!("loading long wav…");
             engine.load_track(0, AudioSource::File(FileAudioSource::from_path(long_wav())))?;
-            let (pos, dur) = engine.deck_playback_secs(0).expect("playback secs");
+            let (pos, dur) = engine.deck_playback_ms(0).expect("playback ms");
             eprintln!("loaded pos={pos} dur={dur}");
-            engine.seek_deck(0, 30.0)?;
-            let (pos, _) = engine.deck_playback_secs(0).expect("after seek");
+            engine.seek_deck(0, 30_000)?;
+            let (pos, _) = engine.deck_playback_ms(0).expect("after seek");
             eprintln!("after seek pos={pos}");
             Ok(())
         })
@@ -67,15 +67,15 @@ fn pause_preserves_position_on_long_24bit_wav() {
     let event = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
         playing,
-        position_secs,
-        duration_secs,
+        position_ms,
+        duration_ms,
         ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
-    eprintln!("pause playing={playing} pos={position_secs:?} dur={duration_secs:?}");
+    eprintln!("pause playing={playing} pos={position_ms:?} dur={duration_ms:?}");
     assert!(!playing);
-    let pos = position_secs.expect("position");
-    assert!(pos >= 29.0, "expected near 30s after pause, got {pos}");
+    let pos = position_ms.expect("position");
+    assert!(pos >= 29_000, "expected near 30s after pause, got {pos}");
 }

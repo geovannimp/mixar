@@ -145,12 +145,12 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         gain_trim_db: snap.gain_trim_db,
         headphone_cue: snap.headphone_cue,
         sync_mode: snap.sync_mode,
-        cue_point_secs: snap.cue_point_secs,
+        cue_point_ms: snap.cue_point_ms,
         quantize: snap.quantize,
         active_loop: snap.active_loop,
         pad_mode: snap.pad_mode,
-        position_secs: snap.position_secs,
-        duration_secs: snap.duration_secs,
+        position_ms: snap.position_ms,
+        duration_ms: snap.duration_ms,
         hot_cues: snap.hot_cues,
         saved_loops: snap.saved_loops,
         loudness_lufs: snap.loudness_lufs,
@@ -289,10 +289,10 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::Seek => {
-            let CmdBody::Seek { position_secs } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::Seek { position_ms } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
-            eng.seek_deck(deck_id, position_secs)?;
+            eng.seek_deck(deck_id, position_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetVolume => {
@@ -426,20 +426,18 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::TriggerHotCue => {
-            let CmdBody::TriggerHotCue { position_secs } = decode_cmd_body_for(kind, payload)?
-            else {
+            let CmdBody::TriggerHotCue { position_ms } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
-            eng.trigger_deck_hot_cue(deck_id, position_secs)?;
+            eng.trigger_deck_hot_cue(deck_id, position_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::RecallSavedLoop => {
-            let CmdBody::RecallSavedLoop { in_secs, out_secs } =
-                decode_cmd_body_for(kind, payload)?
+            let CmdBody::RecallSavedLoop { in_ms, out_ms } = decode_cmd_body_for(kind, payload)?
             else {
                 unreachable!()
             };
-            eng.recall_deck_saved_loop(deck_id, in_secs, out_secs)?;
+            eng.recall_deck_saved_loop(deck_id, in_ms, out_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::TriggerSampler => {
@@ -519,7 +517,7 @@ fn tick(
                 Origin::Deck(deck_id as u16),
                 Kind::Position,
                 EvtBody::Position {
-                    position_secs: position,
+                    position_ms: position,
                 },
             );
         }
