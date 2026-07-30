@@ -1,67 +1,44 @@
 import { useEffect, useState } from "react";
+import { useStore } from "@tanstack/react-form";
 import { MessageBanner } from "@/components/MessageBanner";
+import { useAppForm } from "@/components/settings/form";
 import { SettingsAudioPanel } from "@/components/settings/SettingsAudioPanel";
 import { SettingsLibraryPanel } from "@/components/settings/SettingsLibraryPanel";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
+import { settingsFormOptions } from "@/components/settings/settingsFormOptions";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
 import { useSettings } from "@/hooks/useSettings";
 import { normalizeAppSettings } from "@/lib/busSettings";
-import { buttonBase } from "@/lib/ui";
-import type { AppSettings, AudioDeviceSummary, SettingsSection } from "@/types";
+import type { AppSettings, SettingsSection } from "@/types";
 
-function SettingsSectionPanel({
-  section,
-  draft,
-  devices,
-  devicesLoading,
-  onChange,
+function SettingsForm({
+  settings,
+  error,
+  busy,
+  saved,
+  save,
 }: {
-  section: SettingsSection;
-  draft: AppSettings;
-  devices: AudioDeviceSummary[];
-  devicesLoading: boolean;
-  onChange: (next: AppSettings) => void;
+  settings: AppSettings;
+  error: string | null;
+  busy: boolean;
+  saved: boolean;
+  save: (next: AppSettings) => Promise<void>;
 }) {
-  switch (section) {
-    case "audio":
-      return (
-        <SettingsAudioPanel
-          draft={draft}
-          devices={devices}
-          devicesLoading={devicesLoading}
-          onChange={onChange}
-        />
-      );
-    case "library":
-      return <SettingsLibraryPanel draft={draft} onChange={onChange} />;
-    default: {
-      const exhaustive: never = section;
-      return exhaustive;
-    }
-  }
-}
-
-export function SettingsPage() {
-  const { settings, error, busy, saved, save } = useSettings();
-  const [draft, setDraft] = useState<AppSettings | null>(null);
   const [section, setSection] = useState<SettingsSection>("audio");
-  const { devices, loading: devicesLoading } = useAudioDevices(
-    draft?.backend ?? settings?.backend ?? "cpal",
-  );
+  const form = useAppForm({
+    ...settingsFormOptions,
+    defaultValues: normalizeAppSettings(settings),
+    onSubmit: async ({ value }) => {
+      await save(value);
+    },
+  });
 
   useEffect(() => {
-    if (settings) {
-      setDraft(normalizeAppSettings(settings));
-    }
-  }, [settings]);
+    form.reset(normalizeAppSettings(settings));
+  }, [form, settings]);
 
-  if (!draft) {
-    return (
-      <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
-        Loading settings…
-      </div>
-    );
-  }
+  const backend = useStore(form.store, (state) => state.values.backend);
+  const { devices, loading: devicesLoading } = useAudioDevices(backend);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -81,36 +58,57 @@ export function SettingsPage() {
       <div className="grid min-h-0 flex-1 grid-cols-1 sm:grid-cols-[11rem_1fr]">
         <SettingsSidebar active={section} onSelect={setSection} />
 
-        <form
-          className="flex min-h-0 flex-1 flex-col"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save(draft);
-          }}
-        >
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-            <div className="max-w-2xl">
-              <SettingsSectionPanel
-                section={section}
-                draft={draft}
-                devices={devices}
-                devicesLoading={devicesLoading}
-                onChange={setDraft}
-              />
+        <form.AppForm>
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void form.handleSubmit();
+            }}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="max-w-2xl">
+                {(() => {
+                  switch (section) {
+                    case "audio":
+                      return (
+                        <SettingsAudioPanel
+                          form={form}
+                          devices={devices}
+                          devicesLoading={devicesLoading}
+                        />
+                      );
+                    case "library":
+                      return <SettingsLibraryPanel form={form} />;
+                    default: {
+                      const exhaustive: never = section;
+                      return exhaustive;
+                    }
+                  }
+                })()}
+              </div>
             </div>
-          </div>
 
-          <div className="shrink-0 border-t border-white/8 px-4 py-3 sm:px-6">
-            <button
-              type="submit"
-              className={`${buttonBase} border-emerald-500/45 bg-emerald-500/15 hover:bg-emerald-500/25`}
-              disabled={busy}
-            >
-              {busy ? "Saving…" : "Save"}
-            </button>
-          </div>
-        </form>
+            <div className="shrink-0 border-t border-white/8 px-4 py-3 sm:px-6">
+              <form.SaveButton busy={busy} />
+            </div>
+          </form>
+        </form.AppForm>
       </div>
     </div>
   );
+}
+
+export function SettingsPage() {
+  const { settings, error, busy, saved, save } = useSettings();
+
+  if (!settings) {
+    return (
+      <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+        Loading settings…
+      </div>
+    );
+  }
+
+  return <SettingsForm settings={settings} error={error} busy={busy} saved={saved} save={save} />;
 }
