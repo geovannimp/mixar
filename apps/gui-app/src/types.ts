@@ -1,6 +1,6 @@
 export interface DeckHotCueMarker {
   slot: number;
-  position_secs: number;
+  position_ms: number;
   loop_length_beats?: number | null;
   color?: string | null;
   label?: string | null;
@@ -8,21 +8,21 @@ export interface DeckHotCueMarker {
 
 export interface DeckSavedLoop {
   slot: number;
-  in_secs: number;
-  out_secs: number;
+  in_ms: number;
+  out_ms: number;
   label?: string | null;
   color?: string | null;
 }
 
 export interface DeckActiveLoop {
-  in_secs: number;
-  out_secs: number;
+  in_ms: number;
+  out_ms: number;
   active: boolean;
 }
 
 export interface DeckLoopMarker {
-  start_secs: number;
-  end_secs: number;
+  start_ms: number;
+  end_ms: number;
   active?: boolean;
 }
 
@@ -68,9 +68,9 @@ export interface DeckStatus {
   volume: number;
   speed: number;
   eq: DeckEq;
-  position_secs: number | null;
-  duration_secs: number | null;
-  cue_point_secs: number | null;
+  position_ms: number | null;
+  duration_ms: number | null;
+  cue_point_ms: number | null;
   quantize: boolean;
   hot_cues: DeckHotCueMarker[];
   saved_loops: DeckSavedLoop[];
@@ -91,17 +91,17 @@ export interface WaveformFrame {
   width: number;
   height: number;
   rgba_base64: string;
-  center_secs: number;
-  cover_start_secs: number;
-  cover_end_secs: number;
-  visible_secs: number;
+  center_ms: number;
+  cover_start_ms: number;
+  cover_end_ms: number;
+  visible_ms: number;
 }
 
 export interface SamplerSlotInfo {
   label: string | null;
   track_id: string | null;
   path: string | null;
-  duration_secs: number | null;
+  duration_ms: number | null;
 }
 
 export interface SamplerBankInfo {
@@ -202,7 +202,7 @@ export interface TrackSummary {
   genre: string | null;
   bpm: number | null;
   key: string | null;
-  duration_secs: number | null;
+  duration_ms: number | null;
   path: string;
 }
 

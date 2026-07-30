@@ -12,32 +12,32 @@ const HOT_CUE_COLORS = [
 ] as const;
 
 interface WaveformCueMarkersProps {
-  durationSecs: number;
+  durationMs: number;
   hotCues?: DeckHotCueMarker[];
   loops?: DeckLoopMarker[];
 }
 
-function toPercent(secs: number, durationSecs: number): number {
-  if (durationSecs <= 0) {
+function toPercent(secs: number, durationMs: number): number {
+  if (durationMs <= 0) {
     return 0;
   }
-  return Math.min(100, Math.max(0, (secs / durationSecs) * 100));
+  return Math.min(100, Math.max(0, (secs / durationMs) * 100));
 }
 
 export function WaveformCueMarkers({
-  durationSecs,
+  durationMs,
   hotCues = [],
   loops = [],
 }: WaveformCueMarkersProps) {
-  if (durationSecs <= 0 || (hotCues.length === 0 && loops.length === 0)) {
+  if (durationMs <= 0 || (hotCues.length === 0 && loops.length === 0)) {
     return null;
   }
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
       {loops.map((loop, index) => {
-        const left = toPercent(loop.start_secs, durationSecs);
-        const right = toPercent(loop.end_secs, durationSecs);
+        const left = toPercent(loop.start_ms, durationMs);
+        const right = toPercent(loop.end_ms, durationMs);
         const width = Math.max(0, right - left);
         if (width <= 0) {
           return null;
@@ -55,7 +55,7 @@ export function WaveformCueMarkers({
       })}
 
       {hotCues.map((cue) => {
-        const left = toPercent(cue.position_secs, durationSecs);
+        const left = toPercent(cue.position_ms, durationMs);
         const color =
           cue.color ?? HOT_CUE_COLORS[cue.slot % HOT_CUE_COLORS.length] ?? HOT_CUE_COLORS[0];
 

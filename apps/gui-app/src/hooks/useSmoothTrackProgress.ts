@@ -2,33 +2,33 @@ import { type MotionValue, useAnimationFrame, useMotionValue } from "motion/reac
 import { useCallback, useEffect, useRef } from "react";
 
 interface UseSmoothTrackProgressOptions {
-  positionSecs: number;
-  durationSecs: number | null | undefined;
+  positionMs: number;
+  durationMs: number | null | undefined;
   playing: boolean;
   speed?: number;
 }
 
 /** Normalized 0–1 playhead progress; snaps on seek/cue, smooth during playback. */
 export function useSmoothTrackProgress({
-  positionSecs,
-  durationSecs,
+  positionMs,
+  durationMs,
   playing,
   speed = 1,
 }: UseSmoothTrackProgressOptions): MotionValue<number> {
-  const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 0;
+  const duration = durationMs != null && durationMs > 0 ? durationMs : 0;
 
   const toProgress = useCallback(
-    (secs: number) => {
+    (ms: number) => {
       if (duration <= 0) {
         return 0;
       }
-      return Math.min(1, Math.max(0, secs / duration));
+      return Math.min(1, Math.max(0, ms / duration));
     },
     [duration],
   );
 
-  const motionProgress = useMotionValue(toProgress(positionSecs));
-  const engineRef = useRef({ pos: positionSecs, at: performance.now() });
+  const motionProgress = useMotionValue(toProgress(positionMs));
+  const engineRef = useRef({ pos: positionMs, at: performance.now() });
   const speedRef = useRef(speed);
 
   // Rebase when tempo changes so the new rate only applies going forward.
@@ -47,8 +47,8 @@ export function useSmoothTrackProgress({
   }, [duration, motionProgress, speed]);
 
   useEffect(() => {
-    engineRef.current = { pos: positionSecs, at: performance.now() };
-    const target = toProgress(positionSecs);
+    engineRef.current = { pos: positionMs, at: performance.now() };
+    const target = toProgress(positionMs);
     const current = motionProgress.get();
     const delta = Math.abs(target - current);
 
@@ -56,7 +56,7 @@ export function useSmoothTrackProgress({
     if (delta > 0.015 || !playing) {
       motionProgress.set(target);
     }
-  }, [motionProgress, playing, positionSecs, toProgress]);
+  }, [motionProgress, playing, positionMs, toProgress]);
 
   useAnimationFrame((_, deltaMs) => {
     if (!playing || duration <= 0) {
@@ -64,12 +64,12 @@ export function useSmoothTrackProgress({
     }
 
     const dt = deltaMs / 1000;
-    const rate = speedRef.current;
-    const next = Math.min(1, motionProgress.get() + (dt / duration) * rate);
+    const rateMs = speedRef.current * 1000;
+    const next = Math.min(1, motionProgress.get() + (dt * rateMs) / duration);
     motionProgress.set(next);
 
     const { pos, at } = engineRef.current;
-    const engineEstimate = toProgress(pos + ((performance.now() - at) / 1000) * rate);
+    const engineEstimate = toProgress(pos + ((performance.now() - at) / 1000) * rateMs);
     const error = engineEstimate - motionProgress.get();
     if (Math.abs(error) > 0.02) {
       motionProgress.set(Math.min(1, Math.max(0, motionProgress.get() + error * 0.25)));

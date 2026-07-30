@@ -48,7 +48,7 @@ export function HotCuePads({ hotCues, disabled, onTrigger, onSave, onDelete }: H
             </span>
             {filled ? (
               <span className="mt-0.5 text-[9px] tabular-nums opacity-75">
-                {formatDeckTimeTenth(cue?.position_secs)}
+                {formatDeckTimeTenth(cue?.position_ms)}
               </span>
             ) : null}
           </DeckButton>

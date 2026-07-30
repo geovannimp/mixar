@@ -28,7 +28,7 @@ function deckIdFromOrigin(origin: Origin): number | null {
 /** Merge engine deck snapshot onto UI deck; metadata/levels stay on `base` until unload. */
 function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnapshot): DeckStatus {
   const base = existing ?? getDefaultDeck(snapshot.id);
-  const unloaded = snapshot.duration_secs == null && existing?.duration_secs != null;
+  const unloaded = snapshot.duration_ms == null && existing?.duration_ms != null;
   return {
     ...base,
     id: snapshot.id,
@@ -46,13 +46,13 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     gain_trim_db: snapshot.gain_trim_db,
     headphone_cue: snapshot.headphone_cue,
     sync_mode: snapshot.sync_mode,
-    cue_point_secs: snapshot.cue_point_secs,
+    cue_point_ms: snapshot.cue_point_ms,
     quantize: snapshot.quantize,
     active_loop: snapshot.active_loop,
     pad_mode: snapshot.pad_mode,
     is_master: base.is_master,
-    position_secs: snapshot.position_secs ?? (unloaded ? null : base.position_secs),
-    duration_secs: snapshot.duration_secs,
+    position_ms: snapshot.position_ms ?? (unloaded ? null : base.position_ms),
+    duration_ms: snapshot.duration_ms,
     levels: base.levels ?? ZERO_DECK_LEVELS,
     hot_cues: unloaded ? [] : snapshot.hot_cues,
     saved_loops: unloaded ? [] : snapshot.saved_loops,
@@ -135,12 +135,12 @@ export function applyBusEvent(
         gain_trim_db: deck.gain_trim_db,
         headphone_cue: deck.headphone_cue,
         sync_mode: deck.sync_mode,
-        cue_point_secs: deck.cue_point_secs,
+        cue_point_ms: deck.cue_point_ms,
         quantize: deck.quantize,
         active_loop: deck.active_loop,
         pad_mode: deck.pad_mode,
-        position_secs: deck.position_secs,
-        duration_secs: deck.duration_secs,
+        position_ms: deck.position_ms,
+        duration_ms: deck.duration_ms,
         hot_cues: deck.hot_cues,
         saved_loops: deck.saved_loops,
         loudness_lufs: deck.loudness_lufs,
@@ -164,13 +164,13 @@ export function applyBusEvent(
         revision: wire.revision,
       };
     })
-    .with({ type: "position" }, ({ position_secs }) => {
+    .with({ type: "position" }, ({ position_ms }) => {
       const deckId = deckIdFromOrigin(wire.origin);
       if (wire.kind !== "position" || !current || deckId === null) {
         return { status: current, revision: lastRevision };
       }
       return {
-        status: patchDeckPosition(current, deckId, position_secs),
+        status: patchDeckPosition(current, deckId, position_ms),
         revision: lastRevision,
       };
     })

@@ -45,23 +45,23 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
     <div className="flex shrink-0 flex-col gap-0.5">
       <div className="flex items-baseline justify-between gap-3 font-mono tabular-nums">
         <span className="text-sm font-semibold text-zinc-100 sm:text-base">
-          {formatDeckRemainingDisplay(overview.position_secs, overview.duration_secs)}
+          {formatDeckRemainingDisplay(overview.position_ms, overview.duration_ms)}
         </span>
         <span className="text-[11px] text-zinc-500 sm:text-xs">
-          {formatDeckTotalDisplay(overview.duration_secs)}
+          {formatDeckTotalDisplay(overview.duration_ms)}
         </span>
       </div>
       <DeckOverviewPreview
         trackId={overview.track_id}
         path={overview.track}
-        positionSecs={overview.position_secs ?? 0}
+        positionMs={overview.position_ms ?? 0}
         playing={overview.playing}
         speed={overview.speed}
-        durationSecs={overview.duration_secs}
+        durationMs={overview.duration_ms}
         hotCues={overview.hot_cues}
         disabled={transportDisabled}
-        onSeek={(positionSecs) => {
-          void engineActions.seekDeck(deckId, positionSecs);
+        onSeek={(positionMs) => {
+          void engineActions.seekDeck(deckId, positionMs);
         }}
       />
     </div>
@@ -184,8 +184,8 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
         playing={deck.playing}
         bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
         hasTrack={Boolean(deck.track)}
-        positionSecs={deck.position_secs ?? 0}
-        durationSecs={deck.duration_secs}
+        positionMs={deck.position_ms ?? 0}
+        durationMs={deck.duration_ms}
         speed={deck.speed}
       />
       <div className="flex items-end gap-2">

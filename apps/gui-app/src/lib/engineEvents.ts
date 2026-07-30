@@ -3,12 +3,12 @@ import type { DeckLevels, EngineStatus } from "@/types";
 export function patchDeckPosition(
   status: EngineStatus,
   deckId: number,
-  positionSecs: number,
+  positionMs: number,
 ): EngineStatus {
   return {
     ...status,
     decks: status.decks.map((deck) =>
-      deck.id === deckId ? { ...deck, position_secs: positionSecs } : deck,
+      deck.id === deckId ? { ...deck, position_ms: positionMs } : deck,
     ),
   };
 }

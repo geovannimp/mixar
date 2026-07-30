@@ -6,12 +6,12 @@ export type WaveformScrubMode = "center" | "track";
 export interface WaveformDragScrubConfig {
   enabled: boolean;
   mode: WaveformScrubMode;
-  spanSecs: number;
-  positionSecs: number;
+  spanMs: number;
+  positionMs: number;
   playing?: boolean;
   speed?: number;
-  maxSecs?: number;
-  onSeek: (positionSecs: number) => void;
+  maxMs?: number;
+  onSeek: (positionMs: number) => void;
   seekThrottleMs?: number;
   /** Reuse an existing smooth playhead (DualDeckWaveform + lane renderer). */
   playhead?: SmoothPlayhead;
@@ -20,20 +20,20 @@ export interface WaveformDragScrubConfig {
 export function useWaveformDragScrub({
   enabled,
   mode,
-  spanSecs,
-  positionSecs,
+  spanMs,
+  positionMs,
   playing = false,
   speed = 1,
-  maxSecs,
+  maxMs,
   onSeek,
   seekThrottleMs = 32,
   playhead: externalPlayhead,
 }: WaveformDragScrubConfig) {
   const internalPlayhead = useSmoothPlayhead({
-    positionSecs,
+    positionMs,
     playing,
     speed,
-    maxSecs,
+    maxMs,
   });
   const playhead = externalPlayhead ?? internalPlayhead;
 
@@ -42,35 +42,36 @@ export function useWaveformDragScrub({
   const anchorRef = useRef({ x: 0, position: 0, width: 1 });
   const lastSeekRef = useRef(0);
 
+  // Upper bound only when known; do not floor at 0 (negative seek/cue allowed).
   const clampPosition = useCallback(
-    (secs: number) => {
-      const max = maxSecs ?? Number.POSITIVE_INFINITY;
-      return Math.min(max, Math.max(0, secs));
+    (ms: number) => {
+      const max = maxMs ?? Number.POSITIVE_INFINITY;
+      return Math.min(max, ms);
     },
-    [maxSecs],
+    [maxMs],
   );
 
   const positionFromPointer = useCallback(
     (clientX: number) => {
       const { x, position, width } = anchorRef.current;
       const deltaX = clientX - x;
-      const deltaSecs = (deltaX / Math.max(width, 1)) * spanSecs;
+      const deltaMs = (deltaX / Math.max(width, 1)) * spanMs;
       if (mode === "center") {
-        return clampPosition(position - deltaSecs);
+        return clampPosition(position - deltaMs);
       }
-      return clampPosition(position + deltaSecs);
+      return clampPosition(position + deltaMs);
     },
-    [clampPosition, mode, spanSecs],
+    [clampPosition, mode, spanMs],
   );
 
   const emitSeek = useCallback(
-    (secs: number) => {
+    (ms: number) => {
       const now = performance.now();
       if (now - lastSeekRef.current < seekThrottleMs) {
         return;
       }
       lastSeekRef.current = now;
-      onSeek(secs);
+      onSeek(ms);
     },
     [onSeek, seekThrottleMs],
   );
@@ -92,7 +93,7 @@ export function useWaveformDragScrub({
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!enabled || spanSecs <= 0) {
+      if (!enabled || spanMs <= 0) {
         return;
       }
       event.preventDefault();
@@ -108,7 +109,7 @@ export function useWaveformDragScrub({
       playhead.beginScrub(startPosition);
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [enabled, playhead, spanSecs],
+    [enabled, playhead, spanMs],
   );
 
   const handlePointerMove = useCallback(

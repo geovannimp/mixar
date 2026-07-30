@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckEq, WaveformFrame } from "@/types";
 import { WaveformTrackCache } from "@/lib/waveformTrackCache";
-import { waveformVisibleSourceSecs } from "@/lib/spectralColor";
+import { waveformVisibleSourceMs } from "@/lib/spectralColor";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
 const libraryTransport = getLibraryTransport();
@@ -10,8 +10,8 @@ const libraryTransport = getLibraryTransport();
 interface UseRenderWaveformLaneOptions {
   trackId: string | null;
   path: string | null;
-  durationSecs: number | null | undefined;
-  positionSecs: number;
+  durationMs: number | null | undefined;
+  positionMs: number;
   playing: boolean;
   speed?: number;
   eq: DeckEq;
@@ -24,8 +24,8 @@ interface UseRenderWaveformLaneOptions {
 export function useRenderWaveformLane({
   trackId,
   path,
-  durationSecs,
-  positionSecs,
+  durationMs,
+  positionMs,
   playing,
   speed = 1,
   eq,
@@ -45,15 +45,15 @@ export function useRenderWaveformLane({
   const getPositionRef = useRef(getPosition);
   const isScrubbingRef = useRef(isScrubbing);
   const eqRef = useRef(eq);
-  const visibleSourceSecs = waveformVisibleSourceSecs(speed);
-  const visibleSourceSecsRef = useRef(visibleSourceSecs);
+  const visibleSourceMs = waveformVisibleSourceMs(speed);
+  const visibleSourceMsRef = useRef(visibleSourceMs);
 
   getPositionRef.current = getPosition;
   isScrubbingRef.current = isScrubbing;
   eqRef.current = eq;
-  visibleSourceSecsRef.current = visibleSourceSecs;
+  visibleSourceMsRef.current = visibleSourceMs;
 
-  const duration = durationSecs != null && durationSecs > 0 ? durationSecs : null;
+  const duration = durationMs != null && durationMs > 0 ? durationMs : null;
 
   const fetchTile = useCallback(
     async (cache: WaveformTrackCache, tileIndex: number, requestId: number) => {
@@ -73,8 +73,8 @@ export function useRenderWaveformLane({
           path: trackId ? null : path,
           width: tileWidth,
           height,
-          positionSecs: start + tileDuration / 2,
-          visibleSecs: tileDuration,
+          positionMs: start + tileDuration / 2,
+          visibleMs: tileDuration,
           bufferRatio: 0,
           includeDetail: true,
           includeBeatGrid: true,
@@ -111,7 +111,7 @@ export function useRenderWaveformLane({
       }
 
       const position = getPositionRef.current();
-      const halfWindow = visibleSourceSecsRef.current / 2;
+      const halfWindow = visibleSourceMsRef.current / 2;
       const viewStart = position - halfWindow;
       const viewEnd = position + halfWindow;
       const missing = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin);
@@ -144,8 +144,8 @@ export function useRenderWaveformLane({
     setTrackCache(cache);
 
     const position = getPositionRef.current();
-    const viewStart = position - cache.visibleSecs / 2;
-    const viewEnd = position + cache.visibleSecs / 2;
+    const viewStart = position - cache.visibleMs / 2;
+    const viewEnd = position + cache.visibleMs / 2;
     const requestId = requestIdRef.current;
     const initialTiles = cache.missingTileIndices(viewStart, viewEnd, 0);
 
@@ -159,7 +159,7 @@ export function useRenderWaveformLane({
       return;
     }
     ensureVisibleTiles(0);
-  }, [playing, positionSecs, ensureVisibleTiles]);
+  }, [playing, positionMs, ensureVisibleTiles]);
 
   useEffect(() => {
     if (!playing) {
@@ -183,7 +183,7 @@ export function useRenderWaveformLane({
   return {
     trackCache,
     tileRevision,
-    visibleSecs: visibleSourceSecs,
+    visibleMs: visibleSourceMs,
     estimatedPosition,
     loading,
   };

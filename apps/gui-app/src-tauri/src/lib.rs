@@ -1,4 +1,4 @@
-use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
+use audio_core::{ms_to_secs, secs_to_ms, BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
     apply_deck_performance, fetch_deck_performance, HotCueStatus, LoopRegionStatus,
     SavedLoopStatus,
@@ -74,7 +74,7 @@ pub(crate) struct DeckInfo {
     volume: f32,
     speed: f32,
     eq: DeckEq,
-    cue_point_secs: Option<f64>,
+    cue_point_ms: Option<i32>,
     quantize: bool,
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
@@ -103,7 +103,7 @@ impl Default for DeckInfo {
             volume: 1.0,
             speed: 1.0,
             eq: DeckEq::default(),
-            cue_point_secs: None,
+            cue_point_ms: None,
             quantize: true,
             hot_cues: Vec::new(),
             saved_loops: Vec::new(),
@@ -403,9 +403,9 @@ pub(crate) struct DeckStatus {
     volume: f32,
     speed: f32,
     eq: DeckEq,
-    position_secs: Option<f64>,
-    duration_secs: Option<f64>,
-    cue_point_secs: Option<f64>,
+    position_ms: Option<i32>,
+    duration_ms: Option<i32>,
+    cue_point_ms: Option<i32>,
     quantize: bool,
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
@@ -429,13 +429,13 @@ struct WaveformFrame {
     /// Base64-encoded RGBA bytes (width * height * 4).
     rgba_base64: String,
     /// Playhead time the strip was centered on when rendered.
-    center_secs: f64,
+    center_ms: i32,
     /// Absolute timeline start covered by the strip.
-    cover_start_secs: f64,
+    cover_start_ms: i32,
     /// Absolute timeline end covered by the strip.
-    cover_end_secs: f64,
-    /// Seconds shown in the viewport (center playhead window).
-    visible_secs: f64,
+    cover_end_ms: i32,
+    /// Milliseconds shown in the viewport (center playhead window).
+    visible_ms: i32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -470,7 +470,7 @@ struct TrackSummary {
     genre: Option<String>,
     bpm: Option<f64>,
     key: Option<String>,
-    duration_secs: Option<f64>,
+    duration_ms: Option<i32>,
     path: String,
 }
 
@@ -480,12 +480,12 @@ struct AddFolderCollectionResult {
     scan: library_core::ScanReport,
 }
 
-fn deck_playback_secs(state: &AppState, deck_id: usize) -> (Option<f64>, Option<f64>) {
+fn deck_playback_ms(state: &AppState, deck_id: usize) -> (Option<i32>, Option<i32>) {
     let Some(session) = state.session.as_ref() else {
         return (None, None);
     };
     session
-        .with_engine(|engine| match engine.deck_playback_secs(deck_id) {
+        .with_engine(|engine| match engine.deck_playback_ms(deck_id) {
             Some((position, duration)) => Ok((Some(position), Some(duration))),
             None => Ok((None, None)),
         })
@@ -530,7 +530,7 @@ fn track_summary(source: &AudioSource) -> Option<TrackSummary> {
         genre: metadata.genre.clone(),
         bpm: metadata.bpm,
         key: metadata.key.clone(),
-        duration_secs: metadata.duration_secs,
+        duration_ms: metadata.duration_ms,
         path: file.path().to_string_lossy().into_owned(),
     })
 }
@@ -902,8 +902,8 @@ async fn render_waveform_lane(
     path: Option<String>,
     width: u32,
     height: u32,
-    position_secs: f64,
-    visible_secs: f64,
+    position_ms: i32,
+    visible_ms: i32,
     buffer_ratio: f64,
     include_detail: bool,
     include_beat_grid: bool,
@@ -914,8 +914,11 @@ async fn render_waveform_lane(
 ) -> Result<WaveformFrame, String> {
     let viewport_width = width.max(1) as usize;
     let height = height.max(1) as usize;
-    let visible_secs = visible_secs.max(0.1);
+    let visible_ms = visible_ms.max(100);
     let buffer_ratio = buffer_ratio.clamp(0.0, 4.0);
+    // audio-core window helpers still take seconds; convert at this boundary.
+    let position_secs = ms_to_secs(position_ms);
+    let visible_secs = ms_to_secs(visible_ms);
     // Wider strip so the client can pan smoothly between IPC refreshes.
     let cover_secs = visible_secs * (1.0 + 2.0 * buffer_ratio);
     let strip_width = ((viewport_width as f64) * (cover_secs / visible_secs))
@@ -946,7 +949,7 @@ async fn render_waveform_lane(
     };
 
     let cache_key = file_path.clone();
-    let (overview, track_duration_secs, beat_grid) = {
+    let (overview, track_duration_ms, beat_grid) = {
         let library = {
             let state = state.lock().map_err(|e| e.to_string())?;
             Arc::clone(&state.library)
@@ -967,25 +970,27 @@ async fn render_waveform_lane(
                 let duration = library
                     .get_track(&TrackId::new(id.clone()))
                     .map_err(|e| e.to_string())?
-                    .and_then(|source| source.metadata().duration_secs)
-                    .unwrap_or(0.0);
-                if !overview_row.peaks.is_empty() && duration > 0.0 {
+                    .and_then(|source| source.metadata().duration_ms)
+                    .unwrap_or(0);
+                if !overview_row.peaks.is_empty() && duration > 0 {
                     (Some(overview_row.peaks), duration, beat_grid)
                 } else {
-                    (None, 0.0, beat_grid)
+                    (None, 0, beat_grid)
                 }
             } else {
-                (None, 0.0, beat_grid)
+                (None, 0, beat_grid)
             }
         } else {
-            (None, 0.0, beat_grid)
+            (None, 0, beat_grid)
         }
     };
 
-    let (overview, track_duration_secs) = if let Some(peaks) = overview {
-        (peaks, track_duration_secs)
+    let (overview, track_duration_ms) = if let Some(peaks) = overview {
+        (peaks, track_duration_ms)
     } else {
-        get_or_compute_overview(&state, cache_key.clone(), file_path.clone()).await?
+        let (peaks, duration_secs) =
+            get_or_compute_overview(&state, cache_key.clone(), file_path.clone()).await?;
+        (peaks, secs_to_ms(duration_secs))
     };
 
     let detail = if include_detail {
@@ -1009,6 +1014,7 @@ async fn render_waveform_lane(
     } else {
         None
     };
+    let track_duration_secs = ms_to_secs(track_duration_ms);
     let rgba = render_scrolling_lane(
         strip_width,
         height,
@@ -1022,15 +1028,15 @@ async fn render_waveform_lane(
         include_beat_grid,
     );
 
-    let half_cover = cover_secs / 2.0;
+    let half_cover_ms = secs_to_ms(cover_secs / 2.0);
     Ok(WaveformFrame {
         width: strip_width as u32,
         height: height as u32,
         rgba_base64: BASE64.encode(rgba),
-        center_secs: position_secs,
-        cover_start_secs: position_secs - half_cover,
-        cover_end_secs: position_secs + half_cover,
-        visible_secs,
+        center_ms: position_ms,
+        cover_start_ms: position_ms - half_cover_ms,
+        cover_end_ms: position_ms + half_cover_ms,
+        visible_ms,
     })
 }
 

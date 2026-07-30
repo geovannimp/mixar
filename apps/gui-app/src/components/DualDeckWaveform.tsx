@@ -22,22 +22,22 @@ const WaveformLane = memo(function WaveformLane({
   const engineRunning = useEngineRunning();
   const deck = useDeckWaveform(deckId);
   const { ref, size } = useLaneDimensions();
-  const positionSecs = deck.position_secs ?? 0;
+  const positionMs = deck.position_ms ?? 0;
   const hasTrack = Boolean(deck.track);
-  const durationSecs = deck.duration_secs ?? undefined;
+  const durationMs = deck.duration_ms ?? undefined;
 
   const playhead = useSmoothPlayhead({
-    positionSecs,
+    positionMs,
     playing: deck.playing,
     speed: deck.speed,
-    maxSecs: durationSecs,
+    maxMs: durationMs,
   });
 
-  const { trackCache, tileRevision, visibleSecs } = useRenderWaveformLane({
+  const { trackCache, tileRevision, visibleMs } = useRenderWaveformLane({
     trackId: deck.track_id,
     path: deck.track,
-    durationSecs: deck.duration_secs,
-    positionSecs,
+    durationMs: deck.duration_ms,
+    positionMs,
     playing: deck.playing,
     speed: deck.speed,
     eq: deck.eq,
@@ -49,13 +49,13 @@ const WaveformLane = memo(function WaveformLane({
   const seekEnabled = hasTrack && engineRunning;
   const safeSpeed =
     Number.isFinite(deck.speed) && deck.speed > 0 ? Math.min(2, Math.max(0.5, deck.speed)) : 1;
-  // Match RustRenderedLane: viewport seconds = width * speed / pxPerSec (long tracks cap px/sec).
-  const viewSpanSecs =
-    trackCache && size.width > 0 ? (size.width * safeSpeed) / trackCache.pxPerSec : visibleSecs;
+  // Match RustRenderedLane: viewport ms = width * speed / pxPerMs (long tracks cap density).
+  const viewSpanMs =
+    trackCache && size.width > 0 ? (size.width * safeSpeed) / trackCache.pxPerMs : visibleMs;
 
   const handleSeek = useCallback(
-    (secs: number) => {
-      void engineActions.seekDeck(deckId, secs);
+    (ms: number) => {
+      void engineActions.seekDeck(deckId, ms);
     },
     [deckId],
   );
@@ -63,16 +63,16 @@ const WaveformLane = memo(function WaveformLane({
   const { scrubbing, getPosition, handlers, cursorClass } = useWaveformDragScrub({
     enabled: seekEnabled,
     mode: "center",
-    spanSecs: viewSpanSecs,
-    positionSecs,
+    spanMs: viewSpanMs,
+    positionMs,
     playing: deck.playing,
     speed: deck.speed,
-    maxSecs: durationSecs,
+    maxMs: durationMs,
     onSeek: handleSeek,
     playhead,
   });
 
-  const ariaValueNow = scrubbing ? getPosition() : positionSecs;
+  const ariaValueNow = scrubbing ? getPosition() : positionMs;
 
   return (
     <div
@@ -83,7 +83,7 @@ const WaveformLane = memo(function WaveformLane({
       role={seekEnabled ? "slider" : undefined}
       aria-label={seekEnabled ? `${accent.label} waveform scrub` : undefined}
       aria-valuemin={0}
-      aria-valuemax={deck.duration_secs ?? undefined}
+      aria-valuemax={deck.duration_ms ?? undefined}
       aria-valuenow={ariaValueNow}
     >
       <RustRenderedLane
@@ -97,7 +97,7 @@ const WaveformLane = memo(function WaveformLane({
       />
       <WaveformWindowMarkersMotion
         motionPos={playhead.motionPos}
-        visibleSecs={viewSpanSecs}
+        visibleMs={viewSpanMs}
         hotCues={deck.hot_cues}
         activeLoop={deck.active_loop}
       />

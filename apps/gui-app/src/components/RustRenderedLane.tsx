@@ -24,7 +24,7 @@ export function RustRenderedLane({
 }: RustRenderedLaneProps) {
   const stripCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const pxPerSec = trackCache?.pxPerSec ?? 0;
+  const pxPerMs = trackCache?.pxPerMs ?? 0;
   const stripWidth = trackCache?.canvas.width ?? 0;
   const stripHeight = trackCache?.height ?? 0;
   const safeSpeed = Number.isFinite(speed) && speed > 0 ? Math.min(2, Math.max(0.5, speed)) : 1;
@@ -33,12 +33,12 @@ export function RustRenderedLane({
   const speedMV = useMotionValue(safeSpeed);
   speedMV.set(safeSpeed);
 
-  const stripX = useTransform([motionPos, speedMV], ([positionSecs, spd]) => {
-    const rate = pxPerSec / (typeof spd === "number" && spd > 0 ? spd : 1);
+  const stripX = useTransform([motionPos, speedMV], ([positionMs, spd]) => {
+    const rate = pxPerMs / (typeof spd === "number" && spd > 0 ? spd : 1);
     if (rate <= 0 || viewportWidth <= 0) {
       return 0;
     }
-    return viewportWidth / 2 - (positionSecs as number) * rate;
+    return viewportWidth / 2 - (positionMs as number) * rate;
   });
 
   useEffect(() => {

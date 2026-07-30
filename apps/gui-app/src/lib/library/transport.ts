@@ -13,8 +13,8 @@ export interface RenderWaveformLaneRequest {
   path: string | null;
   width: number;
   height: number;
-  positionSecs: number;
-  visibleSecs: number;
+  positionMs: number;
+  visibleMs: number;
   bufferRatio: number;
   includeDetail: boolean;
   includeBeatGrid: boolean;

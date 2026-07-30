@@ -32,12 +32,12 @@ function deckUpdated(overrides: Record<string, unknown> = {}) {
     gain_trim_db: 0,
     headphone_cue: false,
     sync_mode: "off",
-    cue_point_secs: null,
+    cue_point_ms: null,
     quantize: true,
     active_loop: null,
     pad_mode: "hot_cue",
-    position_secs: null,
-    duration_secs: null,
+    position_ms: null,
+    duration_ms: null,
     hot_cues: [],
     saved_loops: [],
     loudness_lufs: null,
@@ -63,13 +63,13 @@ function baseStatus(): EngineStatus {
 describe("applyBusEvent", () => {
   it("applies position updates for deck 0", () => {
     const current = baseStatus();
-    current.decks[0] = { ...current.decks[0], playing: true, position_secs: 1 };
+    current.decks[0] = { ...current.decks[0], playing: true, position_ms: 1000 };
     const bytes = packWire({ deck: 0 }, "position", 1, {
       type: "position",
-      position_secs: 12.25,
+      position_ms: 12250,
     });
     const patch = applyBusEvent(current, 1, bytes);
-    expect(patch.status?.decks[0]?.position_secs).toBe(12.25);
+    expect(patch.status?.decks[0]?.position_ms).toBe(12250);
   });
 
   it("deck_updated pause keeps position when provided", () => {
@@ -77,8 +77,8 @@ describe("applyBusEvent", () => {
     current.decks[0] = {
       ...current.decks[0],
       playing: true,
-      position_secs: 12.25,
-      duration_secs: 180,
+      position_ms: 12250,
+      duration_ms: 180000,
     };
     const bytes = packWire(
       { deck: 0 },
@@ -86,13 +86,13 @@ describe("applyBusEvent", () => {
       2,
       deckUpdated({
         playing: false,
-        position_secs: 12.25,
-        duration_secs: 180,
+        position_ms: 12250,
+        duration_ms: 180000,
       }),
     );
     const patch = applyBusEvent(current, 1, bytes);
     expect(patch.status?.decks[0]?.playing).toBe(false);
-    expect(patch.status?.decks[0]?.position_secs).toBe(12.25);
+    expect(patch.status?.decks[0]?.position_ms).toBe(12250);
   });
 
   it("deck_updated with null position keeps prior position", () => {
@@ -100,8 +100,8 @@ describe("applyBusEvent", () => {
     current.decks[0] = {
       ...current.decks[0],
       playing: true,
-      position_secs: 12.25,
-      duration_secs: 180,
+      position_ms: 12250,
+      duration_ms: 180000,
     };
     const bytes = packWire(
       { deck: 0 },
@@ -109,12 +109,12 @@ describe("applyBusEvent", () => {
       2,
       deckUpdated({
         playing: false,
-        position_secs: null,
-        duration_secs: 180,
+        position_ms: null,
+        duration_ms: 180000,
       }),
     );
     const patch = applyBusEvent(current, 1, bytes);
-    expect(patch.status?.decks[0]?.position_secs).toBe(12.25);
+    expect(patch.status?.decks[0]?.position_ms).toBe(12250);
   });
 
   it("deck_updated applies channel-strip fields", () => {
@@ -149,14 +149,14 @@ describe("applyBusEvent", () => {
         bpm: 128,
         key: "8A",
         hot_cues: [
-          { slot: 1, position_secs: 12.5, loop_length_beats: null, color: null, label: null },
+          { slot: 1, position_ms: 12500, loop_length_beats: null, color: null, label: null },
         ],
-        saved_loops: [{ slot: 2, in_secs: 4, out_secs: 8, label: null, color: null }],
+        saved_loops: [{ slot: 2, in_ms: 4000, out_ms: 8000, label: null, color: null }],
         loudness_lufs: -8.2,
         auto_gain_db: 1.5,
         active_sampler_bank_id: "bank-1",
-        duration_secs: 180,
-        position_secs: 12.5,
+        duration_ms: 180000,
+        position_ms: 12500,
       }),
     );
 
@@ -173,10 +173,10 @@ describe("applyBusEvent", () => {
       active_sampler_bank_id: "bank-1",
     });
     expect(patch.status?.decks[0]?.hot_cues).toEqual([
-      { slot: 1, position_secs: 12.5, loop_length_beats: null, color: null, label: null },
+      { slot: 1, position_ms: 12500, loop_length_beats: null, color: null, label: null },
     ]);
     expect(patch.status?.decks[0]?.saved_loops).toEqual([
-      { slot: 2, in_secs: 4, out_secs: 8, label: null, color: null },
+      { slot: 2, in_ms: 4000, out_ms: 8000, label: null, color: null },
     ]);
   });
 
@@ -187,27 +187,27 @@ describe("applyBusEvent", () => {
       title: "Song",
       artist: "Artist",
       track: "/a.wav",
-      duration_secs: 180,
-      position_secs: 12,
+      duration_ms: 180000,
+      position_ms: 12000,
     };
     const withLoop = packWire(
       { deck: 0 },
       "updated",
       2,
       deckUpdated({
-        cue_point_secs: 1.5,
+        cue_point_ms: 1500,
         quantize: false,
-        active_loop: { in_secs: 0, out_secs: 2, active: true },
-        duration_secs: 180,
-        position_secs: 12,
+        active_loop: { in_ms: 0, out_ms: 2000, active: true },
+        duration_ms: 180000,
+        position_ms: 12000,
       }),
     );
     const afterLoop = applyBusEvent(current, 1, withLoop);
-    expect(afterLoop.status?.decks[0]?.cue_point_secs).toBe(1.5);
+    expect(afterLoop.status?.decks[0]?.cue_point_ms).toBe(1500);
     expect(afterLoop.status?.decks[0]?.quantize).toBe(false);
     expect(afterLoop.status?.decks[0]?.active_loop).toEqual({
-      in_secs: 0,
-      out_secs: 2,
+      in_ms: 0,
+      out_ms: 2000,
       active: true,
     });
 
@@ -216,14 +216,14 @@ describe("applyBusEvent", () => {
       "updated",
       3,
       deckUpdated({
-        duration_secs: null,
-        position_secs: null,
+        duration_ms: null,
+        position_ms: null,
       }),
     );
     const afterUnload = applyBusEvent(afterLoop.status, afterLoop.revision, unloaded);
     expect(afterUnload.status?.decks[0]?.title).toBeNull();
     expect(afterUnload.status?.decks[0]?.track).toBeNull();
-    expect(afterUnload.status?.decks[0]?.duration_secs).toBeNull();
+    expect(afterUnload.status?.decks[0]?.duration_ms).toBeNull();
   });
 
   it("deck_updated applies sync_mode; status updates master_deck", () => {

@@ -188,7 +188,7 @@ export function columnSortValue(
       case "key":
         return track.key;
       case "duration":
-        return track.duration_secs;
+        return track.duration_ms;
       case "path":
         return track.path;
       default: {
@@ -213,7 +213,7 @@ export function columnSortValue(
     case "key":
       return known?.key ?? null;
     case "duration":
-      return known?.duration_secs ?? null;
+      return known?.duration_ms ?? null;
     case "path":
       return row.file.path;
     default: {
@@ -240,7 +240,7 @@ export function formatColumnValue(row: LibraryTableRow, column: LibraryTableColu
       case "key":
         return formatOptional(track.key);
       case "duration":
-        return formatDuration(track.duration_secs);
+        return formatDuration(track.duration_ms);
       case "path":
         return track.path;
       default: {
@@ -265,7 +265,7 @@ export function formatColumnValue(row: LibraryTableRow, column: LibraryTableColu
     case "key":
       return formatOptional(known?.key);
     case "duration":
-      return formatDuration(known?.duration_secs);
+      return formatDuration(known?.duration_ms);
     case "path":
       return row.file.path;
     default: {

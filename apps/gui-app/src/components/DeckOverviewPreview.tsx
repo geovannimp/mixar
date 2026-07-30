@@ -12,22 +12,22 @@ const libraryTransport = getLibraryTransport();
 interface DeckOverviewPreviewProps {
   trackId: string | null;
   path: string | null;
-  positionSecs: number;
+  positionMs: number;
   playing?: boolean;
   speed?: number;
-  durationSecs: number | null;
+  durationMs: number | null;
   hotCues?: DeckHotCueMarker[];
   disabled?: boolean;
-  onSeek?: (positionSecs: number) => void;
+  onSeek?: (positionMs: number) => void;
 }
 
 export function DeckOverviewPreview({
   trackId,
   path,
-  positionSecs,
+  positionMs,
   playing = false,
   speed = 1,
-  durationSecs,
+  durationMs,
   hotCues = [],
   disabled,
   onSeek,
@@ -38,14 +38,14 @@ export function DeckOverviewPreview({
   const [width, setWidth] = useState(0);
 
   const hasTrack = Boolean(trackId || path);
-  const duration = durationSecs != null && durationSecs > 0 ? durationSecs : 1;
+  const duration = durationMs != null && durationMs > 0 ? durationMs : 1;
   const seekEnabled = Boolean(onSeek) && !disabled && hasTrack;
 
   const playhead = useSmoothPlayhead({
-    positionSecs,
+    positionMs,
     playing,
     speed,
-    maxSecs: duration,
+    maxMs: duration,
   });
 
   const playheadLeft = useTransform(playhead.motionPos, (value) => {
@@ -55,7 +55,7 @@ export function DeckOverviewPreview({
 
   const { handlers, cursorClass } = useWaveformClickSeek({
     enabled: seekEnabled,
-    durationSecs: duration,
+    durationMs: duration,
     onSeek: onSeek ?? (() => undefined),
   });
 
@@ -88,8 +88,8 @@ export function DeckOverviewPreview({
         path: trackId ? null : path,
         width,
         height: OVERVIEW_HEIGHT,
-        positionSecs: duration / 2,
-        visibleSecs: duration,
+        positionMs: duration / 2,
+        visibleMs: duration,
         bufferRatio: 0,
         includeDetail: false,
         includeBeatGrid: false,
@@ -158,7 +158,7 @@ export function DeckOverviewPreview({
       {hasTrack ? (
         <>
           <canvas ref={canvasRef} className="block h-full w-full" aria-hidden />
-          <WaveformCueMarkers durationSecs={duration} hotCues={hotCues} />
+          <WaveformCueMarkers durationMs={duration} hotCues={hotCues} />
           <motion.div
             className="pointer-events-none absolute inset-y-0 z-20 w-px bg-white/90 shadow-[0_0_6px_rgba(255,255,255,0.45)]"
             style={{

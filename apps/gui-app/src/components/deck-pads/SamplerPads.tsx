@@ -172,9 +172,9 @@ export function SamplerPads({
                 <span className="w-full min-w-0 truncate text-[11px] font-bold leading-tight sm:text-xs">
                   {filled && label ? label : slot + 1}
                 </span>
-                {filled && sample?.duration_secs != null ? (
+                {filled && sample?.duration_ms != null ? (
                   <span className="mt-0.5 max-w-full truncate text-[9px] tabular-nums opacity-75">
-                    {formatDeckTimeTenth(sample.duration_secs)}
+                    {formatDeckTimeTenth(sample.duration_ms)}
                   </span>
                 ) : (
                   <span className="mt-0.5 text-[9px] uppercase opacity-75">sample</span>

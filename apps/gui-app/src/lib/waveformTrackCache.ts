@@ -1,5 +1,5 @@
 import type { WaveformFrame } from "@/types";
-import { WAVEFORM_VISIBLE_SECS } from "./spectralColor";
+import { WAVEFORM_VISIBLE_MS } from "./spectralColor";
 
 const MIN_TILES = 1;
 const MAX_TILES = 48;
@@ -17,32 +17,26 @@ function decodeBase64Rgba(base64: string): Uint8ClampedArray {
 }
 
 /** Pick tile duration from track length (not a fixed window size). */
-export function computeTileSecs(
-  durationSecs: number,
-  visibleSecs: number = WAVEFORM_VISIBLE_SECS,
-): number {
-  if (durationSecs <= visibleSecs) {
-    return durationSecs;
+export function computeTileMs(durationMs: number, visibleMs: number = WAVEFORM_VISIBLE_MS): number {
+  if (durationMs <= visibleMs) {
+    return durationMs;
   }
-  const targetTiles = Math.min(
-    MAX_TILES,
-    Math.max(MIN_TILES, Math.ceil(durationSecs / visibleSecs)),
-  );
-  return durationSecs / targetTiles;
+  const targetTiles = Math.min(MAX_TILES, Math.max(MIN_TILES, Math.ceil(durationMs / visibleMs)));
+  return durationMs / targetTiles;
 }
 
 /**
- * Horizontal resolution for the full-track strip. Long tracks reduce px/sec so the
+ * Horizontal resolution for the full-track strip. Long tracks reduce px/ms so the
  * strip stays under {@link MAX_WAVEFORM_CANVAS_WIDTH} (oversized canvases break scrub/playhead).
  */
-export function computePxPerSec(
+export function computePxPerMs(
   viewportWidth: number,
-  durationSecs: number,
-  visibleSecs: number,
+  durationMs: number,
+  visibleMs: number,
   maxCanvasWidth: number = MAX_WAVEFORM_CANVAS_WIDTH,
 ): number {
-  const safeDuration = Math.max(durationSecs, visibleSecs, 1e-6);
-  const ideal = Math.max(viewportWidth, 1) / Math.max(visibleSecs, 1e-6);
+  const safeDuration = Math.max(durationMs, visibleMs, 1e-6);
+  const ideal = Math.max(viewportWidth, 1) / Math.max(visibleMs, 1e-6);
   const capped = maxCanvasWidth / safeDuration;
   return Math.min(ideal, capped);
 }
@@ -50,10 +44,10 @@ export function computePxPerSec(
 /** Full-track strip filled incrementally; never re-fetches completed tiles. */
 export class WaveformTrackCache {
   readonly canvas: HTMLCanvasElement;
-  readonly visibleSecs: number;
-  readonly tileSecs: number;
-  readonly pxPerSec: number;
-  readonly durationSecs: number;
+  readonly visibleMs: number;
+  readonly tileMs: number;
+  readonly pxPerMs: number;
+  readonly durationMs: number;
   readonly height: number;
 
   private readonly filledTiles = new Set<number>();
@@ -63,31 +57,31 @@ export class WaveformTrackCache {
 
   private constructor(
     canvas: HTMLCanvasElement,
-    durationSecs: number,
-    visibleSecs: number,
-    tileSecs: number,
-    pxPerSec: number,
+    durationMs: number,
+    visibleMs: number,
+    tileMs: number,
+    pxPerMs: number,
     height: number,
   ) {
     this.canvas = canvas;
-    this.durationSecs = durationSecs;
-    this.visibleSecs = visibleSecs;
-    this.tileSecs = tileSecs;
-    this.pxPerSec = pxPerSec;
+    this.durationMs = durationMs;
+    this.visibleMs = visibleMs;
+    this.tileMs = tileMs;
+    this.pxPerMs = pxPerMs;
     this.height = height;
-    this.tileCount = Math.max(1, Math.ceil(durationSecs / tileSecs));
+    this.tileCount = Math.max(1, Math.ceil(durationMs / tileMs));
   }
 
   static create(
     viewportWidth: number,
     height: number,
-    durationSecs: number,
-    visibleSecs: number = WAVEFORM_VISIBLE_SECS,
+    durationMs: number,
+    visibleMs: number = WAVEFORM_VISIBLE_MS,
   ): WaveformTrackCache {
-    const safeDuration = Math.max(durationSecs, visibleSecs);
-    const tileSecs = computeTileSecs(safeDuration, visibleSecs);
-    const pxPerSec = computePxPerSec(viewportWidth, safeDuration, visibleSecs);
-    const canvasWidth = Math.max(1, Math.ceil(safeDuration * pxPerSec));
+    const safeDuration = Math.max(durationMs, visibleMs);
+    const tileMs = computeTileMs(safeDuration, visibleMs);
+    const pxPerMs = computePxPerMs(viewportWidth, safeDuration, visibleMs);
+    const canvasWidth = Math.max(1, Math.ceil(safeDuration * pxPerMs));
 
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth;
@@ -98,7 +92,7 @@ export class WaveformTrackCache {
       ctx.fillRect(0, 0, canvasWidth, height);
     }
 
-    return new WaveformTrackCache(canvas, safeDuration, visibleSecs, tileSecs, pxPerSec, height);
+    return new WaveformTrackCache(canvas, safeDuration, visibleMs, tileMs, pxPerMs, height);
   }
 
   get tileRevision(): number {
@@ -106,14 +100,14 @@ export class WaveformTrackCache {
   }
 
   tileRange(index: number): { start: number; end: number; duration: number } {
-    const start = index * this.tileSecs;
-    const end = Math.min(this.durationSecs, start + this.tileSecs);
-    return { start, end, duration: Math.max(end - start, 0.1) };
+    const start = index * this.tileMs;
+    const end = Math.min(this.durationMs, start + this.tileMs);
+    return { start, end, duration: Math.max(end - start, 100) };
   }
 
   tileWidthPx(index: number): number {
     const { duration } = this.tileRange(index);
-    return Math.max(1, Math.round(duration * this.pxPerSec));
+    return Math.max(1, Math.round(duration * this.pxPerMs));
   }
 
   tryMarkPending(index: number): boolean {
@@ -134,8 +128,8 @@ export class WaveformTrackCache {
   }
 
   missingTileIndices(viewStart: number, viewEnd: number, prefetchMargin = 1): number[] {
-    const first = Math.floor(viewStart / this.tileSecs) - prefetchMargin;
-    const last = Math.floor(viewEnd / this.tileSecs) + prefetchMargin;
+    const first = Math.floor(viewStart / this.tileMs) - prefetchMargin;
+    const last = Math.floor(viewEnd / this.tileMs) + prefetchMargin;
     const center = (viewStart + viewEnd) / 2;
 
     const indices: number[] = [];
@@ -146,8 +140,8 @@ export class WaveformTrackCache {
     }
 
     indices.sort((a, b) => {
-      const centerA = (a + 0.5) * this.tileSecs;
-      const centerB = (b + 0.5) * this.tileSecs;
+      const centerA = (a + 0.5) * this.tileMs;
+      const centerB = (b + 0.5) * this.tileMs;
       return Math.abs(centerA - center) - Math.abs(centerB - center);
     });
 
@@ -175,7 +169,7 @@ export class WaveformTrackCache {
       tile.getContext("2d")?.putImageData(image, 0, 0);
 
       const { start } = this.tileRange(tileIndex);
-      const destX = start * this.pxPerSec;
+      const destX = start * this.pxPerMs;
       ctx.drawImage(tile, destX, 0);
 
       if (tileIndex >= 0 && tileIndex < this.tileCount) {

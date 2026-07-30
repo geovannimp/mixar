@@ -1,13 +1,13 @@
-export const WAVEFORM_VISIBLE_SECS = 24;
+export const WAVEFORM_VISIBLE_MS = 24_000;
 /** Extra cover on each side of the viewport (fraction of visible window). */
 export const WAVEFORM_BUFFER_RATIO = 1.0;
 /** Refresh the strip when the playhead reaches this fraction of the buffer. */
 export const WAVEFORM_REFRESH_MARGIN = 0.35;
 
 /** Source-time window shown in the scrolling lane (scales with vinyl tempo). */
-export function waveformVisibleSourceSecs(speed: number): number {
+export function waveformVisibleSourceMs(speed: number): number {
   const clamped = Number.isFinite(speed) && speed > 0 ? speed : 1;
-  return WAVEFORM_VISIBLE_SECS * Math.min(2, Math.max(0.5, clamped));
+  return WAVEFORM_VISIBLE_MS * Math.min(2, Math.max(0.5, clamped));
 }
 
 const LOW_RGB: readonly [number, number, number] = [255, 72, 48];

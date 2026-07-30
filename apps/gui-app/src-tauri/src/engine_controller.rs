@@ -12,7 +12,7 @@ use tauri::{AppHandle, Emitter};
 use crate::deck_sampler::SamplerStatus;
 use crate::deck_sync::SyncMode;
 use crate::bus_bridge::ENGINE_BUS_EVENT;
-use crate::{deck_playback_secs, AppState, DeckInfo, DeckStatus, EngineStatus, NUM_DECKS};
+use crate::{deck_playback_ms, AppState, DeckInfo, DeckStatus, EngineStatus, NUM_DECKS};
 
 /// Overlay engine-owned transport/mix fields onto AppState before publish.
 fn sync_app_state_from_engine(state: &mut AppState) {
@@ -48,11 +48,11 @@ fn sync_app_state_from_engine(state: &mut AppState) {
             engine_api::SyncMode::Tempo => SyncMode::Tempo,
             engine_api::SyncMode::Beat => SyncMode::Beat,
         };
-        deck.cue_point_secs = snap.cue_point_secs;
+        deck.cue_point_ms = snap.cue_point_ms;
         deck.quantize = snap.quantize;
         deck.active_loop = snap.active_loop.map(|region| crate::deck_performance::LoopRegionStatus {
-            in_secs: region.in_secs,
-            out_secs: region.out_secs,
+            in_ms: region.in_ms,
+            out_ms: region.out_ms,
             active: region.active,
         });
     }
@@ -64,7 +64,7 @@ pub fn bump_revision(state: &mut AppState) -> u64 {
 }
 
 pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
-    let (position_secs, duration_secs) = deck_playback_secs(state, id);
+    let (position_ms, duration_ms) = deck_playback_ms(state, id);
     DeckStatus {
         id,
         track: deck.track.clone(),
@@ -77,9 +77,9 @@ pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         volume: deck.volume,
         speed: deck.speed,
         eq: deck.eq.clone(),
-        position_secs,
-        duration_secs,
-        cue_point_secs: deck.cue_point_secs,
+        position_ms,
+        duration_ms,
+        cue_point_ms: deck.cue_point_ms,
         quantize: deck.quantize,
         hot_cues: deck.hot_cues.clone(),
         saved_loops: deck.saved_loops.clone(),
@@ -165,22 +165,22 @@ fn to_api_deck_snapshot(deck: DeckStatus) -> ApiDeckSnapshot {
         gain_trim_db: deck.gain_trim_db,
         headphone_cue: deck.headphone_cue,
         sync_mode: to_api_sync_mode(deck.sync_mode),
-        cue_point_secs: deck.cue_point_secs,
+        cue_point_ms: deck.cue_point_ms,
         quantize: deck.quantize,
         active_loop: deck.active_loop.map(|region| ApiLoopRegion {
-            in_secs: region.in_secs,
-            out_secs: region.out_secs,
+            in_ms: region.in_ms,
+            out_ms: region.out_ms,
             active: region.active,
         }),
         pad_mode: to_api_pad_mode(deck.pad_mode),
-        position_secs: deck.position_secs,
-        duration_secs: deck.duration_secs,
+        position_ms: deck.position_ms,
+        duration_ms: deck.duration_ms,
         hot_cues: deck
             .hot_cues
             .into_iter()
             .map(|cue| ApiDeckHotCue {
                 slot: cue.slot,
-                position_secs: cue.position_secs,
+                position_ms: cue.position_ms,
                 loop_length_beats: cue.loop_length_beats,
                 color: cue.color,
                 label: cue.label,
@@ -191,8 +191,8 @@ fn to_api_deck_snapshot(deck: DeckStatus) -> ApiDeckSnapshot {
             .into_iter()
             .map(|saved| ApiDeckSavedLoop {
                 slot: saved.slot,
-                in_secs: saved.in_secs,
-                out_secs: saved.out_secs,
+                in_ms: saved.in_ms,
+                out_ms: saved.out_ms,
                 label: saved.label,
                 color: saved.color,
             })
@@ -227,7 +227,7 @@ fn to_api_sampler_status(status: SamplerStatus) -> ApiSamplerStatus {
                         label: slot.label,
                         track_id: slot.track_id,
                         path: slot.path,
-                        duration_secs: slot.duration_secs,
+                        duration_ms: slot.duration_ms,
                     })
                     .collect()
             })
@@ -296,12 +296,12 @@ pub fn prepare_deck_event(state: &mut AppState, deck_id: usize) -> Result<(DeckS
             gain_trim_db: snapshot.gain_trim_db,
             headphone_cue: snapshot.headphone_cue,
             sync_mode: snapshot.sync_mode,
-            cue_point_secs: snapshot.cue_point_secs,
+            cue_point_ms: snapshot.cue_point_ms,
             quantize: snapshot.quantize,
             active_loop: snapshot.active_loop,
             pad_mode: snapshot.pad_mode,
-            position_secs: snapshot.position_secs,
-            duration_secs: snapshot.duration_secs,
+            position_ms: snapshot.position_ms,
+            duration_ms: snapshot.duration_ms,
             hot_cues: snapshot.hot_cues,
             saved_loops: snapshot.saved_loops,
             loudness_lufs: snapshot.loudness_lufs,
