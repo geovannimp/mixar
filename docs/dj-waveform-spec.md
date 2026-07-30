@@ -375,9 +375,9 @@ Track load / seek
 drawScrollingLane(
   overview: &[SpectralPeak],
   detail: Option<&[SpectralPeak]>,       // visible + buffered spans merged
-  detail_range: (f64, f64),             // [start_secs, end_secs] detail covers
-  visible_range: (f64, f64),              // subset currently on screen
-  position_secs, duration_secs,
+  detail_range: (i32, i32),             // [start_ms, end_ms] detail covers
+  visible_range: (i32, i32),              // subset currently on screen
+  position_ms, duration_ms,
 )
 ```
 
@@ -395,7 +395,7 @@ Two common encoding strategies behave very differently:
 
 #### A — Fixed visual rate (Mixxx-style: 441 samples / second of audio)
 
-Bytes per track ≈ `duration_secs × visual_rate × bytes_per_sample`.
+Bytes per track ≈ `(duration_ms / 1000) × visual_rate × bytes_per_sample`.
 
 | Encoding | Bytes / visual sample | 7 min track | 10,000 tracks (7 min avg) |
 |----------|----------------------|-------------|---------------------------|
@@ -479,7 +479,7 @@ CREATE TABLE IF NOT EXISTS track_waveform (
 | Scroll detail | **Not stored** — runtime window analysis (§8.4) |
 | Cascade | `ON DELETE CASCADE` when track removed |
 
-`overview_rate` is derivable as `overview_count / duration_secs` and need not be stored unless we want to avoid joining `tracks` for display.
+`overview_rate` is derivable as `overview_count / (duration_ms / 1000)` and need not be stored unless we want to avoid joining `tracks` for display.
 
 Rejected alternatives: separate `library_waveforms.db`, filesystem sidecar files, scroll blobs in SQLite.
 

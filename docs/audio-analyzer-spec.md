@@ -254,8 +254,8 @@ pub struct AnalysisConfig {
     pub min_bpm_confidence: f32,
     /// Minimum key confidence to prefer analysis over file tags.
     pub min_key_confidence: f32,
-    /// Max seconds of audio to decode (None = full file).
-    pub max_duration_secs: Option<f64>,
+    /// Max milliseconds of audio to decode (None = full file).
+    pub max_duration_ms: Option<i32>,
     /// Preferred analysis sample rate (None = native or backend default).
     pub sample_rate: Option<u32>,
 }
@@ -313,7 +313,7 @@ pub struct AnalysisRunMetadata {
     pub backend_version: String,
     pub analyzed_at: String, // RFC3339
     pub sample_rate: u32,
-    pub duration_analyzed_secs: f64,
+    pub duration_analyzed_ms: i32,
 }
 ```
 
@@ -479,7 +479,7 @@ CREATE TABLE IF NOT EXISTS track_analysis (
     key_clarity REAL,
     grid_stability REAL,
     sample_rate INTEGER NOT NULL,
-    duration_analyzed_secs REAL NOT NULL
+    duration_analyzed_ms INTEGER NOT NULL
 );
 ```
 
@@ -522,7 +522,7 @@ Phase 2: optional `Library::get_track_analysis(&TrackId) -> Result<Option<TrackA
 
 Mitigations:
 
-- `max_duration_secs` for quick scan mode (e.g. first 90 s only).
+- `max_duration_ms` for quick scan mode (e.g. first 90_000 ms only).
 - Release profile (`LTO`) for analyzer benchmarks.
 - Do not run analysis on audio callback or producer thread.
 
