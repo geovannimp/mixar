@@ -19,7 +19,7 @@ pub struct Model {
     pub bpm: Option<f64>,
     #[sea_orm(column_name = "key")]
     pub key: Option<String>,
-    pub duration_secs: Option<f64>,
+    pub duration_ms: Option<i32>,
     pub sample_rate: Option<i32>,
     pub channels: Option<i32>,
     pub bitrate_kbps: Option<i32>,

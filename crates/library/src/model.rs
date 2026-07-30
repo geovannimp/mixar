@@ -17,7 +17,7 @@ pub fn track_metadata(model: &tracks::Model) -> TrackMetadata {
         genre: model.genre.clone(),
         bpm: model.bpm,
         key: model.key.clone(),
-        duration_secs: model.duration_secs,
+        duration_ms: model.duration_ms,
         sample_rate: model.sample_rate.map(|v| v as u32),
         channels: model.channels.map(|v| v as u16),
         bitrate_kbps: model.bitrate_kbps.map(|v| v as u32),

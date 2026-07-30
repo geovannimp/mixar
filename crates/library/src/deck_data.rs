@@ -12,7 +12,7 @@ use crate::entity::{track_hot_cue, track_loop, TrackHotCueEntity, TrackLoopEntit
 #[derive(Debug, Clone, PartialEq)]
 pub struct HotCueRecord {
     pub slot_index: u8,
-    pub position_secs: f64,
+    pub position_ms: i32,
     pub loop_length_beats: Option<i32>,
     pub color: Option<String>,
     pub label: Option<String>,
@@ -21,8 +21,8 @@ pub struct HotCueRecord {
 #[derive(Debug, Clone, PartialEq)]
 pub struct LoopRecord {
     pub slot_index: u8,
-    pub in_secs: f64,
-    pub out_secs: f64,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub label: Option<String>,
     pub color: Option<String>,
 }
@@ -46,7 +46,7 @@ pub fn list_hot_cues(db: &Db, track_id: &TrackId) -> Result<Vec<HotCueRecord>> {
         .into_iter()
         .map(|row| HotCueRecord {
             slot_index: row.slot_index as u8,
-            position_secs: row.position_secs,
+            position_ms: row.position_ms,
             loop_length_beats: row.loop_length_beats,
             color: row.color,
             label: row.label,
@@ -60,7 +60,7 @@ pub fn save_hot_cue(
     db: &Db,
     track_id: &TrackId,
     slot_index: u8,
-    position_secs: f64,
+    position_ms: i32,
     loop_length_beats: Option<i32>,
     color: Option<String>,
     label: Option<String>,
@@ -75,7 +75,7 @@ pub fn save_hot_cue(
     TrackHotCueEntity::insert(track_hot_cue::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
         slot_index: Set(i32::from(slot_index)),
-        position_secs: Set(position_secs),
+        position_ms: Set(position_ms),
         loop_length_beats: Set(loop_length_beats),
         color: Set(color),
         label: Set(label),
@@ -87,7 +87,7 @@ pub fn save_hot_cue(
             track_hot_cue::Column::SlotIndex,
         ])
         .update_columns([
-            track_hot_cue::Column::PositionSecs,
+            track_hot_cue::Column::PositionMs,
             track_hot_cue::Column::LoopLengthBeats,
             track_hot_cue::Column::Color,
             track_hot_cue::Column::Label,
@@ -119,8 +119,8 @@ pub fn list_loops(db: &Db, track_id: &TrackId) -> Result<Vec<LoopRecord>> {
         .into_iter()
         .map(|row| LoopRecord {
             slot_index: row.slot_index as u8,
-            in_secs: row.in_secs,
-            out_secs: row.out_secs,
+            in_ms: row.in_ms,
+            out_ms: row.out_ms,
             label: row.label,
             color: row.color,
         })
@@ -133,8 +133,8 @@ pub fn save_loop(
     db: &Db,
     track_id: &TrackId,
     slot_index: u8,
-    in_secs: f64,
-    out_secs: f64,
+    in_ms: i32,
+    out_ms: i32,
     label: Option<String>,
     color: Option<String>,
 ) -> Result<()> {
@@ -144,7 +144,7 @@ pub fn save_loop(
             message: "loop slot must be 0..=15".into(),
         });
     }
-    if out_secs <= in_secs {
+    if out_ms <= in_ms {
         return Err(LibraryError::Backend {
             backend: "deck_data",
             message: "loop out must be after loop in".into(),
@@ -154,8 +154,8 @@ pub fn save_loop(
     TrackLoopEntity::insert(track_loop::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
         slot_index: Set(i32::from(slot_index)),
-        in_secs: Set(in_secs),
-        out_secs: Set(out_secs),
+        in_ms: Set(in_ms),
+        out_ms: Set(out_ms),
         label: Set(label),
         color: Set(color),
         updated_at: Set(now_iso()),
@@ -163,8 +163,8 @@ pub fn save_loop(
     .on_conflict(
         OnConflict::columns([track_loop::Column::TrackId, track_loop::Column::SlotIndex])
             .update_columns([
-                track_loop::Column::InSecs,
-                track_loop::Column::OutSecs,
+                track_loop::Column::InMs,
+                track_loop::Column::OutMs,
                 track_loop::Column::Label,
                 track_loop::Column::Color,
                 track_loop::Column::UpdatedAt,
@@ -183,4 +183,44 @@ pub fn delete_loop(db: &Db, track_id: &TrackId, slot_index: u8) -> Result<()> {
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use crate::store::Store;
+    use library_core::TrackMetadata;
+    use std::path::Path;
+
+    #[test]
+    fn hot_cue_and_loop_roundtrip_ms() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/a.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/a.wav"),
+                &TrackMetadata::default(),
+                "1",
+            )
+            .unwrap();
+
+        save_hot_cue(&db, &id, 0, 12_500, None, None, Some("drop".into())).unwrap();
+        save_loop(&db, &id, 1, 0, 1000, None, None).unwrap();
+
+        let cues = list_hot_cues(&db, &id).unwrap();
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].position_ms, 12_500);
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].in_ms, 0);
+        assert_eq!(loops[0].out_ms, 1000);
+
+        assert!(save_loop(&db, &id, 2, 1000, 1000, None, None).is_err());
+        assert!(save_hot_cue(&db, &id, 0, -500, None, None, None).is_ok());
+        assert_eq!(list_hot_cues(&db, &id).unwrap()[0].position_ms, -500);
+    }
 }

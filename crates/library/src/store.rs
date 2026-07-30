@@ -41,7 +41,7 @@ impl<'a> Store<'a> {
             genre: Set(metadata.genre.clone()),
             bpm: Set(metadata.bpm),
             key: Set(metadata.key.clone()),
-            duration_secs: Set(metadata.duration_secs),
+            duration_ms: Set(metadata.duration_ms),
             sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
@@ -64,7 +64,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Genre,
                         tracks::Column::Bpm,
                         tracks::Column::Key,
-                        tracks::Column::DurationSecs,
+                        tracks::Column::DurationMs,
                         tracks::Column::SampleRate,
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
@@ -98,7 +98,7 @@ impl<'a> Store<'a> {
             genre: Set(metadata.genre.clone()),
             bpm: Set(metadata.bpm),
             key: Set(metadata.key.clone()),
-            duration_secs: Set(metadata.duration_secs),
+            duration_ms: Set(metadata.duration_ms),
             sample_rate: Set(metadata.sample_rate.map(|v| v as i32)),
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
@@ -121,7 +121,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Genre,
                         tracks::Column::Bpm,
                         tracks::Column::Key,
-                        tracks::Column::DurationSecs,
+                        tracks::Column::DurationMs,
                         tracks::Column::SampleRate,
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
@@ -409,6 +409,7 @@ mod tests {
         let id = TrackId::new("/music/a.wav");
         let meta = TrackMetadata {
             title: Some("a".into()),
+            duration_ms: Some(12_500),
             ..TrackMetadata::default()
         };
         store
@@ -416,5 +417,6 @@ mod tests {
             .unwrap();
         let fetched = store.get_track(&id).unwrap().unwrap();
         assert_eq!(fetched.metadata().title.as_deref(), Some("a"));
+        assert_eq!(fetched.metadata().duration_ms, Some(12_500));
     }
 }

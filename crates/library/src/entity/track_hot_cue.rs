@@ -8,7 +8,7 @@ pub struct Model {
     pub track_id: String,
     #[sea_orm(primary_key, auto_increment = false)]
     pub slot_index: i32,
-    pub position_secs: f64,
+    pub position_ms: i32,
     pub loop_length_beats: Option<i32>,
     pub color: Option<String>,
     pub label: Option<String>,

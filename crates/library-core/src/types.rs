@@ -88,8 +88,8 @@ pub struct TrackMetadata {
     pub bpm: Option<f64>,
     /// Musical key (e.g. `"Am"`, `"F#m"`, `"Bb"`). Always musical notation — never Camelot / Open Key codes.
     pub key: Option<String>,
-    /// Duration in seconds.
-    pub duration_secs: Option<f64>,
+    /// Duration in milliseconds.
+    pub duration_ms: Option<i32>,
     /// Sample rate in Hz.
     pub sample_rate: Option<u32>,
     /// Channel count.
