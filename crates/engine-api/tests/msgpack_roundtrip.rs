@@ -38,7 +38,7 @@ fn cmd_and_evt_bodies_roundtrip() {
     );
 
     let seek = CmdBody::Seek {
-        position_secs: 12.5,
+        position_ms: 12_500,
     };
     assert_eq!(
         decode_cmd_body(&encode_cmd_body(&seek).unwrap()).unwrap(),

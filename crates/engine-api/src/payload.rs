@@ -21,8 +21,8 @@ pub enum SyncMode {
 /// Active loop region on a deck.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LoopRegion {
-    pub in_secs: f64,
-    pub out_secs: f64,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub active: bool,
 }
 
@@ -40,7 +40,7 @@ pub enum PadMode {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckHotCue {
     pub slot: u8,
-    pub position_secs: f64,
+    pub position_ms: i32,
     pub loop_length_beats: Option<i32>,
     pub color: Option<String>,
     pub label: Option<String>,
@@ -49,8 +49,8 @@ pub struct DeckHotCue {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckSavedLoop {
     pub slot: u8,
-    pub in_secs: f64,
-    pub out_secs: f64,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub label: Option<String>,
     pub color: Option<String>,
 }
@@ -69,7 +69,7 @@ pub struct SamplerSlotInfo {
     pub label: Option<String>,
     pub track_id: Option<String>,
     pub path: Option<String>,
-    pub duration_secs: Option<f64>,
+    pub duration_ms: Option<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -108,12 +108,12 @@ pub struct DeckSnapshot {
     pub gain_trim_db: f32,
     pub headphone_cue: bool,
     pub sync_mode: SyncMode,
-    pub cue_point_secs: Option<f64>,
+    pub cue_point_ms: Option<i32>,
     pub quantize: bool,
     pub active_loop: Option<LoopRegion>,
     pub pad_mode: PadMode,
-    pub position_secs: Option<f64>,
-    pub duration_secs: Option<f64>,
+    pub position_ms: Option<i32>,
+    pub duration_ms: Option<i32>,
     pub hot_cues: Vec<DeckHotCue>,
     pub saved_loops: Vec<DeckSavedLoop>,
     pub loudness_lufs: Option<f64>,
@@ -140,7 +140,7 @@ pub struct EngineStatus {
 pub enum CmdBody {
     Empty,
     Seek {
-        position_secs: f64,
+        position_ms: i32,
     },
     SetVolume {
         volume: f32,
@@ -190,11 +190,11 @@ pub enum CmdBody {
         beats: u32,
     },
     TriggerHotCue {
-        position_secs: f64,
+        position_ms: i32,
     },
     RecallSavedLoop {
-        in_secs: f64,
-        out_secs: f64,
+        in_ms: i32,
+        out_ms: i32,
     },
     TriggerSampler {
         slot: u8,
@@ -269,12 +269,12 @@ pub enum EvtBody {
         gain_trim_db: f32,
         headphone_cue: bool,
         sync_mode: SyncMode,
-        cue_point_secs: Option<f64>,
+        cue_point_ms: Option<i32>,
         quantize: bool,
         active_loop: Option<LoopRegion>,
         pad_mode: PadMode,
-        position_secs: Option<f64>,
-        duration_secs: Option<f64>,
+        position_ms: Option<i32>,
+        duration_ms: Option<i32>,
         hot_cues: Vec<DeckHotCue>,
         saved_loops: Vec<DeckSavedLoop>,
         loudness_lufs: Option<f64>,
@@ -282,7 +282,7 @@ pub enum EvtBody {
         active_sampler_bank_id: Option<String>,
     },
     Position {
-        position_secs: f64,
+        position_ms: i32,
     },
     Levels {
         peak_l: f32,
