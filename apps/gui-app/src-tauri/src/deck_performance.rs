@@ -1,6 +1,5 @@
 //! Phase 2 deck performance commands (seek, cue, loops, hot cues).
 
-use audio_core::{ms_to_secs, secs_to_ms};
 use library::{HotCueRecord, LoopRecord};
 use library_core::TrackId;
 use serde::Serialize;
@@ -34,6 +33,7 @@ pub struct LoopRegionStatus {
 }
 
 /// Beat-quantize media time without clamping (negative positions allowed).
+/// Beat math stays in milliseconds (`60_000 / bpm`).
 pub fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if !quantize {
         return ms;
@@ -44,9 +44,8 @@ pub fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if bpm <= 0.0 {
         return ms;
     }
-    let secs = ms_to_secs(ms);
-    let beat = 60.0 / bpm;
-    secs_to_ms((secs / beat).round() * beat)
+    let beat_ms = 60_000.0 / bpm;
+    ((f64::from(ms) / beat_ms).round() * beat_ms).round() as i32
 }
 
 fn hot_cue_from_record(record: HotCueRecord) -> HotCueStatus {

@@ -5,7 +5,7 @@
 
 use crate::transport::DeckTransportEvent;
 use anyhow::Result;
-use audio_core::{ms_to_secs, secs_to_ms, LoadedAudio, Sample};
+use audio_core::{secs_to_ms, LoadedAudio, Sample};
 use dasp_graph::Buffer;
 use resampler::Resampler;
 use std::fmt;
@@ -30,7 +30,7 @@ pub struct Deck {
     /// Current state
     state: DeckState,
     /// Current position in source frames (integer floor; may be negative).
-    position: i64,
+    position_frames: i64,
     /// Sub-frame source position for tempo / loop accuracy (signed; source of truth).
     position_frac: f64,
     /// Playback speed (1.0 = normal speed)
@@ -64,7 +64,7 @@ impl fmt::Debug for Deck {
         f.debug_struct("Deck")
             .field("id", &self.id)
             .field("state", &self.state)
-            .field("position", &self.position)
+            .field("position_frames", &self.position_frames)
             .field("speed", &self.speed)
             .field("sample_rate", &self.sample_rate)
             .field("buffer_size", &self.buffer_size)
@@ -88,7 +88,7 @@ impl Deck {
         Self {
             id,
             state: DeckState::Stopped,
-            position: 0,
+            position_frames: 0,
             position_frac: 0.0,
             speed: 1.0,
             sample_rate,
@@ -138,8 +138,8 @@ impl Deck {
     }
 
     /// Get the current position in source frames (may be negative).
-    pub fn position(&self) -> i64 {
-        self.position
+    pub fn position_frames(&self) -> i64 {
+        self.position_frames
     }
 
     /// Current playback position in milliseconds (source file time).
@@ -159,8 +159,12 @@ impl Deck {
     pub fn loop_region_ms(&self) -> Option<(i32, i32)> {
         let audio = self.loaded.as_ref()?;
         let rate = f64::from(audio.sample_rate);
-        self.loop_region
-            .map(|(start, end)| (secs_to_ms(start / rate), secs_to_ms(end / rate)))
+        self.loop_region.map(|(start_frames, end_frames)| {
+            (
+                secs_to_ms(start_frames / rate),
+                secs_to_ms(end_frames / rate),
+            )
+        })
     }
 
     /// Get the current playback speed
@@ -188,7 +192,7 @@ impl Deck {
     /// Stop playback and reset position
     pub fn stop(&mut self) -> Result<()> {
         self.state = DeckState::Stopped;
-        self.position = 0;
+        self.position_frames = 0;
         self.position_frac = 0.0;
         self.cue_hold_return = None;
         self.reset_resampler_state();
@@ -205,9 +209,9 @@ impl Deck {
     }
 
     /// Seek to a specific position (in source frames at the file sample rate).
-    pub fn seek(&mut self, position: i64) -> Result<()> {
-        self.position = position;
-        self.position_frac = position as f64;
+    pub fn seek(&mut self, frames: i64) -> Result<()> {
+        self.position_frames = frames;
+        self.position_frac = frames as f64;
         self.reset_resampler_state();
         Ok(())
     }
@@ -218,9 +222,9 @@ impl Deck {
             .loaded
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("No track loaded"))?;
-        let frames = ms_to_secs(ms) * f64::from(audio.sample_rate);
+        let frames = f64::from(ms) * f64::from(audio.sample_rate) / 1000.0;
         self.position_frac = frames;
-        self.position = frames.floor() as i64;
+        self.position_frames = frames.floor() as i64;
         self.reset_resampler_state();
         Ok(())
     }
@@ -228,7 +232,7 @@ impl Deck {
     /// Clear loaded audio and reset transport state.
     pub fn unload(&mut self) -> Result<()> {
         self.state = DeckState::Stopped;
-        self.position = 0;
+        self.position_frames = 0;
         self.position_frac = 0.0;
         self.loaded = None;
         self.resampler = None;
@@ -274,7 +278,8 @@ impl Deck {
         Ok(())
     }
 
-    /// Activate a loop region in source milliseconds.
+    /// Activate a loop region from source-time milliseconds.
+    /// Stores inclusive/exclusive bounds as source frames (not seconds).
     pub fn set_loop_region_ms(&mut self, in_ms: i32, out_ms: i32) -> Result<()> {
         let audio = self
             .loaded
@@ -284,7 +289,9 @@ impl Deck {
             return Err(anyhow::anyhow!("Loop out must be after loop in"));
         }
         let rate = f64::from(audio.sample_rate);
-        self.loop_region = Some((ms_to_secs(in_ms) * rate, ms_to_secs(out_ms) * rate));
+        let in_frames = f64::from(in_ms) * rate / 1000.0;
+        let out_frames = f64::from(out_ms) * rate / 1000.0;
+        self.loop_region = Some((in_frames, out_frames));
         Ok(())
     }
 
@@ -340,7 +347,7 @@ impl Deck {
 
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
     pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
-        self.position = 0;
+        self.position_frames = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
         self.cue_point_ms = Some(0);
@@ -412,8 +419,8 @@ impl Deck {
                 self.play_interpolated(frames, &loaded.samples, source_rate);
             } else {
                 let source_frames = self.play_loaded_audio(frames, &loaded.samples);
-                self.position += source_frames as i64;
-                self.position_frac = self.position as f64;
+                self.position_frames += source_frames as i64;
+                self.position_frac = self.position_frames as f64;
             }
 
             // Debug: Check if we're producing non-zero samples
@@ -483,7 +490,7 @@ impl Deck {
             }
         }
 
-        self.position = self.position_frac.floor() as i64;
+        self.position_frames = self.position_frac.floor() as i64;
     }
 
     /// Render loaded audio into `self.buffer`.
@@ -497,11 +504,11 @@ impl Deck {
 
         let start_pos = self.position_frac as usize * 2;
 
-        if self.position.rem_euclid(1000) == 0 {
+        if self.position_frames.rem_euclid(1000) == 0 {
             log::debug!(
                 "Deck {}: position={}, start_pos={}, audio_len={}, frames={}",
                 self.id,
-                self.position,
+                self.position_frames,
                 start_pos,
                 audio_samples.len(),
                 frames
@@ -589,7 +596,7 @@ impl Deck {
                 log::info!(
                     "Deck {} resample: pos={}, consumed={}, out_frames={}/{}",
                     self.id,
-                    self.position,
+                    self.position_frames,
                     total_input_frames,
                     out_frames,
                     output_frames
@@ -668,7 +675,7 @@ mod tests {
         let deck = new_deck(CHUNK);
         assert_eq!(deck.id(), 0);
         assert_eq!(deck.state(), &DeckState::Stopped);
-        assert_eq!(deck.position(), 0);
+        assert_eq!(deck.position_frames(), 0);
         assert_eq!(deck.speed(), 1.0);
     }
 
@@ -687,7 +694,7 @@ mod tests {
         // Test stop
         deck.stop().unwrap();
         assert_eq!(deck.state(), &DeckState::Stopped);
-        assert_eq!(deck.position(), 0);
+        assert_eq!(deck.position_frames(), 0);
     }
 
     #[test]
@@ -707,7 +714,7 @@ mod tests {
         let mut deck = new_deck(CHUNK);
 
         deck.seek(1000).unwrap();
-        assert_eq!(deck.position(), 1000);
+        assert_eq!(deck.position_frames(), 1000);
     }
 
     #[test]
@@ -769,7 +776,7 @@ mod tests {
 
         let expected_source =
             (total_output_frames as f64 * input_rate as f64 / ENGINE_RATE as f64) as u64;
-        let actual = deck.position();
+        let actual = deck.position_frames();
         let ratio = actual as f64 / expected_source as f64;
         eprintln!("expected_source={expected_source}, actual={actual}, ratio={ratio:.4}");
         assert!(
@@ -804,7 +811,7 @@ mod tests {
 
         let expected_source =
             (total_output_frames as f64 * input_rate as f64 / ENGINE_RATE as f64) as u64;
-        let actual = deck.position();
+        let actual = deck.position_frames();
         let ratio = actual as f64 / expected_source as f64;
         assert!(
             (ratio - 1.0).abs() < 0.02,
@@ -837,9 +844,9 @@ mod tests {
             "graph-sized process must produce audio after 44.1→48k resample"
         );
         assert!(
-            deck.position() > 0,
+            deck.position_frames() > 0,
             "source position must advance (got {})",
-            deck.position()
+            deck.position_frames()
         );
     }
 

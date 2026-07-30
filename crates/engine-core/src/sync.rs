@@ -1,6 +1,5 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
-use audio_core::{ms_to_secs, secs_to_ms};
 use engine_api::{LoopRegion, PadMode, SyncMode};
 
 #[derive(Clone, Debug, Default)]
@@ -20,22 +19,24 @@ impl DeckControlState {
     }
 }
 
-pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
-    secs_to_ms(snap_secs_local(ms_to_secs(ms), bpm, quantize))
+/// Beat length in milliseconds for a given BPM.
+fn beat_ms(bpm: f64) -> f64 {
+    60_000.0 / bpm
 }
 
-fn snap_secs_local(secs: f64, bpm: Option<f64>, quantize: bool) -> f64 {
+/// Snap media time to the nearest beat when quantize is on. Stays in ms end-to-end.
+pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if !quantize {
-        return secs;
+        return ms;
     }
     let Some(bpm) = bpm else {
-        return secs;
+        return ms;
     };
     if bpm <= 0.0 {
-        return secs;
+        return ms;
     }
-    let beat = 60.0 / bpm;
-    (secs / beat).round() * beat
+    let beat = beat_ms(bpm);
+    ((f64::from(ms) / beat).round() * beat).round() as i32
 }
 
 pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f64) -> f32 {
@@ -51,11 +52,11 @@ pub(crate) fn beat_align_target(
     slave_bpm: f64,
     quantize: bool,
 ) -> i32 {
-    let master_pos = ms_to_secs(master_pos_ms);
-    let slave_pos = ms_to_secs(slave_pos_ms);
-    let duration = ms_to_secs(duration_ms);
-    let master_beat = 60.0 / master_bpm;
-    let slave_beat = 60.0 / slave_bpm;
+    let master_pos = f64::from(master_pos_ms);
+    let slave_pos = f64::from(slave_pos_ms);
+    let duration = f64::from(duration_ms);
+    let master_beat = beat_ms(master_bpm);
+    let slave_beat = beat_ms(slave_bpm);
     let master_phase = master_pos % master_beat;
 
     let slave_beat_index = (slave_pos / slave_beat).floor();
@@ -64,11 +65,11 @@ pub(crate) fn beat_align_target(
         target += slave_beat;
     }
 
-    secs_to_ms(snap_secs_local(
-        target.min(duration),
+    snap_ms(
+        target.min(duration).round() as i32,
         Some(slave_bpm),
         quantize,
-    ))
+    )
 }
 
 #[cfg(test)]
@@ -85,5 +86,12 @@ mod tests {
     fn snap_ms_without_quantize_passes_through_including_negatives() {
         assert_eq!(snap_ms(500, Some(120.0), false), 500);
         assert_eq!(snap_ms(-100, None, false), -100);
+    }
+
+    #[test]
+    fn snap_ms_quantizes_to_nearest_beat_in_ms() {
+        // 120 BPM → 500 ms per beat; 620 → 500, 760 → 1000
+        assert_eq!(snap_ms(620, Some(120.0), true), 500);
+        assert_eq!(snap_ms(760, Some(120.0), true), 1000);
     }
 }

@@ -17,7 +17,7 @@ pub struct Model {
     pub key_clarity: Option<f64>,
     pub grid_stability: Option<f64>,
     pub sample_rate: i32,
-    pub duration_analyzed_secs: f64,
+    pub duration_analyzed_ms: i32,
     pub loudness_lufs: Option<f64>,
     pub beat_grid_json: Option<String>,
     #[sea_orm(
