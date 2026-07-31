@@ -45,10 +45,10 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.2",
     "@tauri-apps/cli": "^2",
+    "@types/node": "^26.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
-    "@types/node": "^26.0.0",
     "oxfmt": "^0.59.0",
     "oxlint": "^1.74.0",
     "tailwindcss": "^4.3.2",

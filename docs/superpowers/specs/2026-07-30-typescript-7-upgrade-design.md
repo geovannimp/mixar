@@ -45,9 +45,8 @@ Aggressive tsconfig modernization on the TypeScript 6 commit, then a small TypeS
 |--------|------|----|-----|
 | `target` | `ES2020` | `ES2025` | Align with 6.0 default |
 | `lib` | `["ES2020", "DOM", "DOM.Iterable"]` | `["ES2025", "DOM"]` | `DOM.Iterable` is included in `DOM` in 6.0 |
-| `rootDir` | (unset) | `"./src"` | 6.0 defaults `rootDir` to the tsconfig directory; pin for `include: ["src"]` |
 
-Keep: `strict`, `module: "ESNext"`, `moduleResolution: "bundler"`, `noEmit`, `paths` (`@/*` → `./src/*`) without `baseUrl`. Do not set `ignoreDeprecations`. Leave app `types` empty / unset (Vite client types via `src/vite-env.d.ts`).
+Keep: `strict`, `module: "ESNext"`, `moduleResolution: "bundler"`, `noEmit`, `paths` (`@/*` → `./src/*`) without `baseUrl`. Do not set `ignoreDeprecations` or `rootDir` (unnecessary with `noEmit` + `include: ["src"]`). Leave app `types` empty / unset (Vite client types via `src/vite-env.d.ts`).
 
 ### `apps/gui-app/tsconfig.node.json`
 

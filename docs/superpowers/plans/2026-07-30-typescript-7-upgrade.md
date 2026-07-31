@@ -24,7 +24,7 @@
 |------|------|
 | `apps/gui-app/package.json` | Bump `typescript`; add `@types/node` |
 | `package-lock.json` | Lockfile updates |
-| `apps/gui-app/tsconfig.json` | `target`/`lib`/`rootDir` modernization |
+| `apps/gui-app/tsconfig.json` | `target`/`lib` modernization |
 | `apps/gui-app/tsconfig.node.json` | `"types": ["node"]` |
 | `apps/gui-app/vite.config.ts` | Remove obsolete `@ts-expect-error` for `process` |
 | `docs/superpowers/specs/2026-07-30-typescript-7-upgrade-design.md` | Spec (already written) |
@@ -74,7 +74,7 @@ Expected: lockfile updates; `typescript@6.0.3` (or latest 6.0.x matching `~6.0.3
 
 - [ ] **Step 3: Modernize `tsconfig.json`**
 
-Replace compiler `target` / `lib` and add `rootDir`:
+Replace compiler `target` / `lib`:
 
 ```json
 {
@@ -94,7 +94,6 @@ Replace compiler `target` / `lib` and add `rootDir`:
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "rootDir": "./src",
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -220,7 +219,7 @@ EOF
 git push -u origin HEAD
 gh pr create --title "chore(gui-app): upgrade TypeScript to 7 via 6" --body "$(cat <<'EOF'
 ## Summary
-- Upgrade `apps/gui-app` TypeScript `~5.8.3` → `~6.0.3` with modernized tsconfig (`target`/`lib` ES2025, `rootDir`, Node `types` for Vite config), then → `~7.0.2`.
+- Upgrade `apps/gui-app` TypeScript `~5.8.3` → `~6.0.3` with modernized tsconfig (`target`/`lib` ES2025, Node `types` for Vite config), then → `~7.0.2`.
 - Adds `@types/node` so `tsconfig.node.json` works under 6/7 `types` defaults; removes obsolete `process` `@ts-expect-error`.
 - Deliberately defers `oxlint-tsgolint` / type-aware `typeCheck` and lefthook wiring to #99.
 
