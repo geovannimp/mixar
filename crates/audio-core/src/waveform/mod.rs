@@ -37,7 +37,7 @@ pub fn waveform_buckets_for_duration(duration_ms: i32) -> usize {
     if duration_ms <= 0 {
         return 0;
     }
-    let buckets = (duration_ms as f64 / WAVEFORM_MS_PER_BUCKET as f64).ceil() as usize;
+    let buckets = (duration_ms as f64 / WAVEFORM_MS_PER_BUCKET).ceil() as usize;
     buckets.max(1)
 }
 
