@@ -7,7 +7,7 @@ const MAX_TILES = 48;
 /** Common browser/GPU 2D canvas width ceiling (Chrome often caps at 16384). */
 export const MAX_WAVEFORM_CANVAS_WIDTH = 16384;
 
-function decodeBase64Rgba(base64: string): Uint8ClampedArray {
+function decodeBase64Rgba(base64: string): Uint8ClampedArray<ArrayBuffer> {
   const binary = atob(base64);
   const bytes = new Uint8ClampedArray(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
