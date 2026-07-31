@@ -2,14 +2,14 @@
 
 use serde::{Deserialize, Serialize};
 use strum::EnumString;
-use tauri::{AppHandle, State};
+use tauri::State;
 
 use library::{SamplerBankRecord, SamplerPlayMode as LibPlayMode, TrackId};
 use library_core::{AudioSource, FileAudioSource, Library};
 
 use engine_core::SamplerPlayMode as DspPlayMode;
 
-use crate::engine_controller::{publish_deck, publish_status};
+use crate::bus_bridge::{publish_deck_updated, publish_engine_status};
 use crate::{with_engine, AppState, SharedAppState, NUM_DECKS};
 
 pub const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
@@ -633,7 +633,6 @@ pub fn list_sampler_banks(state: State<'_, SharedAppState>) -> Result<Vec<Sample
 }
 
 pub(crate) fn create_sampler_bank_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     name: Option<String>,
@@ -641,13 +640,12 @@ pub(crate) fn create_sampler_bank_inner(
 ) -> Result<SamplerBankInfo, String> {
     let draft = start_draft_sampler_bank(state, deck_id, name, play_mode)?;
     load_bank_into_engine(state, deck_id, &draft.id)?;
-    publish_deck(app, state, deck_id);
-    publish_status(app, state);
+    publish_deck_updated(state, deck_id);
+    publish_engine_status(state);
     Ok(draft)
 }
 
 pub(crate) fn update_sampler_bank_inner(
-    app: &AppHandle,
     state: &mut AppState,
     bank_id: String,
     name: String,
@@ -681,12 +679,11 @@ pub(crate) fn update_sampler_bank_inner(
             apply_effective_play_mode_for_bank(state, deck_id, &bank_id)?;
         }
     }
-    publish_status(app, state);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn delete_sampler_bank_inner(
-    app: &AppHandle,
     state: &mut AppState,
     bank_id: String,
 ) -> Result<SamplerStatus, String> {
@@ -699,7 +696,7 @@ pub(crate) fn delete_sampler_bank_inner(
                 load_bank_into_engine(state, i, &fallback)?;
             }
         }
-        publish_status(app, state);
+        publish_engine_status(state);
         return Ok(SamplerStatus::from_state(state));
     }
 
@@ -727,12 +724,11 @@ pub(crate) fn delete_sampler_bank_inner(
             state.loaded_sampler_bank_id[i] = None;
         }
     }
-    publish_status(app, state);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn set_deck_sampler_bank_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     bank_id: String,
@@ -754,13 +750,12 @@ pub(crate) fn set_deck_sampler_bank_inner(
     discard_draft_if_leaving(state, &bank_id);
     state.decks[deck_id].active_sampler_bank_id = Some(bank_id.clone());
     load_bank_into_engine(state, deck_id, &bank_id)?;
-    publish_deck(app, state, deck_id);
-    publish_status(app, state);
+    publish_deck_updated(state, deck_id);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn assign_sampler_slot_inner(
-    app: &AppHandle,
     state: &mut AppState,
     slot: usize,
     path: String,
@@ -808,12 +803,11 @@ pub(crate) fn assign_sampler_slot_inner(
         load_bank_into_engine(state, deck_id, &bank_id)?;
     }
 
-    publish_status(app, state);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn assign_sampler_slot_from_track_inner(
-    app: &AppHandle,
     state: &mut AppState,
     slot: usize,
     track_id: String,
@@ -861,12 +855,11 @@ pub(crate) fn assign_sampler_slot_from_track_inner(
         load_bank_into_engine(state, deck_id, &bank_id)?;
     }
 
-    publish_status(app, state);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }
 
 pub(crate) fn clear_sampler_slot_inner(
-    app: &AppHandle,
     state: &mut AppState,
     slot: usize,
     bank_id: Option<String>,
@@ -888,7 +881,7 @@ pub(crate) fn clear_sampler_slot_inner(
             })?;
             state.sampler_slots[deck_id][slot] = SamplerSlotInfo::default();
         }
-        publish_status(app, state);
+        publish_engine_status(state);
         return Ok(SamplerStatus::from_state(state));
     }
 
@@ -908,6 +901,6 @@ pub(crate) fn clear_sampler_slot_inner(
         state.sampler_slots[deck_id][slot] = SamplerSlotInfo::default();
     }
 
-    publish_status(app, state);
+    publish_engine_status(state);
     Ok(SamplerStatus::from_state(state))
 }

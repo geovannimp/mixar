@@ -852,4 +852,4 @@ Make **what we already have** reliable and **look like** professional deck softw
 | DK9 | Error UX | **coss toast**; engine start uses **promise toast** |
 | DK10 | Phase 1 scope | **Polish existing features + DJ app look** — no new performance engine features |
 | DK11 | Position stream | Poll in Phase 1; **`engine://position`** push in Phase 2 |
-| DK12 | State sync | **Event bus** — UI subscribes; all inputs use `EngineController::apply` |
+| DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (`EvtForwarder` → `engine://bus`) |
