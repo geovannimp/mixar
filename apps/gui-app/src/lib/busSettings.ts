@@ -2,6 +2,7 @@ import type {
   AppSettings,
   BusChannelMode,
   BusRouteSettings,
+  JogMode,
   SamplerPlayMode,
   SamplerStripRoute,
 } from "@/types";
@@ -12,6 +13,8 @@ export const DEFAULT_VOLUME_NORMALIZER_ENABLED = true;
 export const DEFAULT_TARGET_LUFS = -18;
 export const DEFAULT_SAMPLER_PLAY_MODE: SamplerPlayMode = "oneshot";
 export const DEFAULT_SAMPLER_STRIP_ROUTE: SamplerStripRoute = "before";
+export const DEFAULT_TOP_JOG_MODE: JogMode = "vinyl";
+export const DEFAULT_OUTER_JOG_MODE: JogMode = "pitch_bend";
 export const MIN_TARGET_LUFS = -24;
 export const MAX_TARGET_LUFS = -9;
 
@@ -53,6 +56,13 @@ function normalizeSamplerStripRoute(route: SamplerStripRoute | undefined): Sampl
   return DEFAULT_SAMPLER_STRIP_ROUTE;
 }
 
+function normalizeJogMode(mode: JogMode | undefined, fallback: JogMode): JogMode {
+  if (mode === "vinyl" || mode === "pitch_bend" || mode === "ignore") {
+    return mode;
+  }
+  return fallback;
+}
+
 export function normalizeAppSettings(settings: AppSettings): AppSettings {
   const targetLufs = Number.isFinite(settings.target_lufs)
     ? settings.target_lufs
@@ -72,5 +82,10 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     sampler_play_mode: normalizeSamplerPlayMode(settings.sampler_play_mode),
     sampler_strip_route: normalizeSamplerStripRoute(settings.sampler_strip_route),
     deck_default_sampler_bank_id: [defaults[0] ?? null, defaults[1] ?? null],
+    default_top_jog_mode: normalizeJogMode(settings.default_top_jog_mode, DEFAULT_TOP_JOG_MODE),
+    default_outer_jog_mode: normalizeJogMode(
+      settings.default_outer_jog_mode,
+      DEFAULT_OUTER_JOG_MODE,
+    ),
   };
 }

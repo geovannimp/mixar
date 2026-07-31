@@ -37,6 +37,19 @@ pub enum PadMode {
     Sampler,
 }
 
+/// Jog platter policy for top (touched) or outer (untouched) turns.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum JogMode {
+    /// Scratch / vinyl platter rate from ticks (stop, reverse).
+    #[default]
+    Vinyl,
+    /// Temporary pitch bend; decays when idle.
+    PitchBend,
+    /// Ignore turns.
+    Ignore,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckHotCue {
     pub slot: u8,
@@ -119,6 +132,9 @@ pub struct DeckSnapshot {
     pub loudness_lufs: Option<f64>,
     pub auto_gain_db: f32,
     pub active_sampler_bank_id: Option<String>,
+    pub top_jog_mode: JogMode,
+    pub outer_jog_mode: JogMode,
+    pub jog_touching: bool,
 }
 
 /// Full engine snapshot for hydrate and multi-deck changes.
@@ -246,6 +262,16 @@ pub enum CmdBody {
     LoadLibraryTrack {
         track_id: String,
     },
+    JogTouch {
+        touching: bool,
+    },
+    JogTurn {
+        delta: i32,
+    },
+    SetJogMode {
+        top: JogMode,
+        outer: JogMode,
+    },
 }
 
 /// Event bus payload nested inside [`crate::WireMessage::body`].
@@ -280,6 +306,9 @@ pub enum EvtBody {
         loudness_lufs: Option<f64>,
         auto_gain_db: f32,
         active_sampler_bank_id: Option<String>,
+        top_jog_mode: JogMode,
+        outer_jog_mode: JogMode,
+        jog_touching: bool,
     },
     Position {
         position_ms: i32,

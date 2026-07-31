@@ -18,6 +18,7 @@ enum CmdOutcome {
     DeckUpdated(usize),
     DecksUpdated(Vec<usize>),
     EngineStatus,
+    Silent,
 }
 
 struct PeakHoldState {
@@ -156,6 +157,9 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         loudness_lufs: snap.loudness_lufs,
         auto_gain_db: snap.auto_gain_db,
         active_sampler_bank_id: snap.active_sampler_bank_id,
+        top_jog_mode: snap.top_jog_mode,
+        outer_jog_mode: snap.outer_jog_mode,
+        jog_touching: snap.jog_touching,
     }
 }
 
@@ -225,6 +229,7 @@ fn handle_cmd_event(
                 Ok(())
             });
         }
+        Ok(CmdOutcome::Silent) => {}
         Err(e) => publish_error(evt_bus, origin, e.to_string()),
     }
 }
@@ -265,7 +270,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::EndSampler, CmdBody::EndSampler { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
         | (Kind::SetCueMix, CmdBody::SetCueMix { .. })
-        | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. }) => Ok(body),
+        | (Kind::SetMasterCue, CmdBody::SetMasterCue { .. })
+        | (Kind::JogTouch, CmdBody::JogTouch { .. })
+        | (Kind::JogTurn, CmdBody::JogTurn { .. })
+        | (Kind::SetJogMode, CmdBody::SetJogMode { .. }) => Ok(body),
         _ => Err(anyhow!("cmd body does not match kind {kind:?}")),
     }
 }
@@ -452,6 +460,27 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.end_deck_sampler(deck_id, slot as usize)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::JogTouch => {
+            let CmdBody::JogTouch { touching } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_jog_touch(deck_id, touching)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::JogTurn => {
+            let CmdBody::JogTurn { delta } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.deck_jog_turn(deck_id, delta)?;
+            Ok(CmdOutcome::Silent)
+        }
+        Kind::SetJogMode => {
+            let CmdBody::SetJogMode { top, outer } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_jog_mode(deck_id, top, outer)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),

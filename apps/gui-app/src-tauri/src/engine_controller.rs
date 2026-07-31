@@ -55,6 +55,9 @@ fn sync_app_state_from_engine(state: &mut AppState) {
             out_ms: region.out_ms,
             active: region.active,
         });
+        deck.top_jog_mode = snap.top_jog_mode;
+        deck.outer_jog_mode = snap.outer_jog_mode;
+        deck.jog_touching = snap.jog_touching;
     }
 }
 
@@ -93,6 +96,9 @@ pub fn deck_status(state: &AppState, id: usize, deck: &DeckInfo) -> DeckStatus {
         pad_mode: deck.pad_mode,
         headphone_cue: deck.headphone_cue,
         active_sampler_bank_id: deck.active_sampler_bank_id.clone(),
+        top_jog_mode: deck.top_jog_mode,
+        outer_jog_mode: deck.outer_jog_mode,
+        jog_touching: deck.jog_touching,
     }
 }
 
@@ -200,6 +206,9 @@ fn to_api_deck_snapshot(deck: DeckStatus) -> ApiDeckSnapshot {
         loudness_lufs: deck.loudness_lufs,
         auto_gain_db: deck.auto_gain_db,
         active_sampler_bank_id: deck.active_sampler_bank_id,
+        top_jog_mode: deck.top_jog_mode,
+        outer_jog_mode: deck.outer_jog_mode,
+        jog_touching: deck.jog_touching,
     }
 }
 
@@ -307,6 +316,9 @@ pub fn prepare_deck_event(state: &mut AppState, deck_id: usize) -> Result<(DeckS
             loudness_lufs: snapshot.loudness_lufs,
             auto_gain_db: snapshot.auto_gain_db,
             active_sampler_bank_id: snapshot.active_sampler_bank_id,
+            top_jog_mode: snapshot.top_jog_mode,
+            outer_jog_mode: snapshot.outer_jog_mode,
+            jog_touching: snapshot.jog_touching,
         },
     )?;
     Ok((deck, payload))

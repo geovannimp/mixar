@@ -13,6 +13,7 @@ import {
   type DeckEq,
   type DeckStatus,
   type EngineStatus,
+  type JogMode,
   type LevelMeterMode,
   type PadMode,
   type SamplerBankInfo,
@@ -106,6 +107,9 @@ interface EngineStoreState {
   setCueMix: (mix: number) => Promise<void>;
   setMasterCue: (enabled: boolean) => Promise<void>;
   seekDeck: (deckId: number, positionMs: number) => Promise<void>;
+  jogTouch: (deckId: number, touching: boolean) => Promise<void>;
+  jogTurn: (deckId: number, delta: number) => Promise<void>;
+  setJogMode: (deckId: number, top: JogMode, outer: JogMode) => Promise<void>;
   unloadDeck: (deckId: number) => Promise<void>;
   setDeckCuePoint: (deckId: number) => Promise<void>;
   beginDeckCueHold: (deckId: number) => Promise<void>;
@@ -290,6 +294,23 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     await publishCmd(getDeckOrigin(deckId), "seek", {
       position_ms: positionMs,
     });
+  },
+
+  jogTouch: async (deckId, touching) => {
+    await publishCmd(getDeckOrigin(deckId), "jog_touch", { touching });
+  },
+
+  jogTurn: async (deckId, delta) => {
+    if (!Number.isFinite(delta) || delta === 0) {
+      return;
+    }
+    await publishCmd(getDeckOrigin(deckId), "jog_turn", {
+      delta: Math.trunc(delta),
+    });
+  },
+
+  setJogMode: async (deckId, top, outer) => {
+    await publishCmd(getDeckOrigin(deckId), "set_jog_mode", { top, outer });
   },
 
   unloadDeck: async (deckId) => {
@@ -526,6 +547,9 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
     auto_gain_db: deck.auto_gain_db,
     gain_trim_db: deck.gain_trim_db,
     active_sampler_bank_id: deck.active_sampler_bank_id,
+    top_jog_mode: deck.top_jog_mode,
+    outer_jog_mode: deck.outer_jog_mode,
+    jog_touching: deck.jog_touching,
   };
 }
 
@@ -594,6 +618,11 @@ export const engineActions = {
   setMasterCue: (enabled: boolean) => useEngineStore.getState().setMasterCue(enabled),
   seekDeck: (deckId: number, positionMs: number) =>
     useEngineStore.getState().seekDeck(deckId, positionMs),
+  jogTouch: (deckId: number, touching: boolean) =>
+    useEngineStore.getState().jogTouch(deckId, touching),
+  jogTurn: (deckId: number, delta: number) => useEngineStore.getState().jogTurn(deckId, delta),
+  setJogMode: (deckId: number, top: JogMode, outer: JogMode) =>
+    useEngineStore.getState().setJogMode(deckId, top, outer),
   unloadDeck: (deckId: number) => useEngineStore.getState().unloadDeck(deckId),
   setDeckCuePoint: (deckId: number) => useEngineStore.getState().setDeckCuePoint(deckId),
   beginDeckCueHold: (deckId: number) => useEngineStore.getState().beginDeckCueHold(deckId),

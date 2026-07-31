@@ -59,6 +59,9 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     loudness_lufs: unloaded ? null : snapshot.loudness_lufs,
     auto_gain_db: unloaded ? 0 : snapshot.auto_gain_db,
     active_sampler_bank_id: unloaded ? null : snapshot.active_sampler_bank_id,
+    top_jog_mode: snapshot.top_jog_mode,
+    outer_jog_mode: snapshot.outer_jog_mode,
+    jog_touching: snapshot.jog_touching,
   };
 }
 
@@ -146,6 +149,9 @@ export function applyBusEvent(
         loudness_lufs: deck.loudness_lufs,
         auto_gain_db: deck.auto_gain_db,
         active_sampler_bank_id: deck.active_sampler_bank_id,
+        top_jog_mode: deck.top_jog_mode,
+        outer_jog_mode: deck.outer_jog_mode,
+        jog_touching: deck.jog_touching,
       };
       return {
         status: {

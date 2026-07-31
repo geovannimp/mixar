@@ -31,6 +31,9 @@ export const DEFAULT_DECK_A: DeckStatus = {
   pad_mode: "hot_cue",
   headphone_cue: false,
   active_sampler_bank_id: null,
+  top_jog_mode: "vinyl",
+  outer_jog_mode: "pitch_bend",
+  jog_touching: false,
   levels: ZERO_DECK_LEVELS,
 };
 

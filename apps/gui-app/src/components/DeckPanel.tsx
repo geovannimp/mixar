@@ -184,9 +184,17 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
         playing={deck.playing}
         bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
         hasTrack={Boolean(deck.track)}
+        enabled={!transportDisabled}
+        jogTouching={deck.jog_touching}
         positionMs={deck.position_ms ?? 0}
         durationMs={deck.duration_ms}
         speed={deck.speed}
+        onJogTouch={(touching) => {
+          void engineActions.jogTouch(deckId, touching);
+        }}
+        onJogTurn={(delta) => {
+          void engineActions.jogTurn(deckId, delta);
+        }}
       />
       <div className="flex items-end gap-2">
         {isDeckA ? (

@@ -23,6 +23,26 @@ pub enum DeckState {
     Paused,
 }
 
+/// Platter policy for touched (top) or untouched (outer) jog turns.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum JogMode {
+    #[default]
+    Vinyl,
+    PitchBend,
+    Ignore,
+}
+
+/// Mixxx-shaped vinyl constants (P2; not bus-configurable yet).
+const JOG_INTERVALS_PER_REV: f64 = 720.0;
+const JOG_RPM: f64 = 100.0 / 3.0; // 33⅓
+const JOG_ALPHA: f64 = 1.0 / 8.0;
+const JOG_BETA: f64 = JOG_ALPHA / 32.0;
+const JOG_VINYL_HOLD_SECS: f64 = 0.02;
+const JOG_RELEASE_RATE_PER_SEC: f32 = 12.0;
+const JOG_BEND_PER_TICK: f32 = 0.0015;
+const JOG_BEND_DECAY_PER_SEC: f32 = 8.0;
+const JOG_BEND_MAX: f32 = 0.08;
+
 /// Audio deck for DJ-style playback
 pub struct Deck {
     /// Deck identifier
@@ -35,6 +55,20 @@ pub struct Deck {
     position_frac: f64,
     /// Playback speed (1.0 = normal speed)
     speed: f32,
+    /// Transient platter multiplier on top of `speed` (scratch / bend).
+    jog_rate: f32,
+    top_jog_mode: JogMode,
+    outer_jog_mode: JogMode,
+    jog_touching: bool,
+    /// Filtered vinyl angular velocity (revolutions per second).
+    jog_velocity: f64,
+    jog_velocity_deriv: f64,
+    /// Seconds since last vinyl/bend tick (for hold + bend decay).
+    jog_idle_secs: f64,
+    /// Engine samples since last `jog_turn` (for vinyl velocity).
+    jog_samples_since_tick: u64,
+    /// When true, ramp `jog_rate` toward 1.0 after leaving vinyl.
+    jog_releasing: bool,
     /// Immutable engine output sample rate (from config).
     sample_rate: u32,
     /// Immutable engine callback size in frames (from config).
@@ -91,6 +125,15 @@ impl Deck {
             position_frames: 0,
             position_frac: 0.0,
             speed: 1.0,
+            jog_rate: 1.0,
+            top_jog_mode: JogMode::Vinyl,
+            outer_jog_mode: JogMode::PitchBend,
+            jog_touching: false,
+            jog_velocity: 0.0,
+            jog_velocity_deriv: 0.0,
+            jog_idle_secs: 1.0,
+            jog_samples_since_tick: u64::MAX / 4,
+            jog_releasing: false,
             sample_rate,
             buffer_size: buffer_size.max(1),
             buffer: Vec::new(),
@@ -206,6 +249,162 @@ impl Deck {
         }
         self.speed = speed;
         Ok(())
+    }
+
+    pub fn top_jog_mode(&self) -> JogMode {
+        self.top_jog_mode
+    }
+
+    pub fn outer_jog_mode(&self) -> JogMode {
+        self.outer_jog_mode
+    }
+
+    pub fn jog_touching(&self) -> bool {
+        self.jog_touching
+    }
+
+    pub fn jog_rate(&self) -> f32 {
+        self.jog_rate
+    }
+
+    pub fn set_jog_mode(&mut self, top: JogMode, outer: JogMode) {
+        let was = self.active_jog_mode();
+        self.top_jog_mode = top;
+        self.outer_jog_mode = outer;
+        if was == JogMode::Vinyl && self.active_jog_mode() != JogMode::Vinyl {
+            self.begin_jog_release();
+        }
+    }
+
+    pub fn set_jog_touch(&mut self, touching: bool) {
+        let was = self.active_jog_mode();
+        self.jog_touching = touching;
+        let now = self.active_jog_mode();
+        if was == JogMode::Vinyl && now != JogMode::Vinyl {
+            self.begin_jog_release();
+        }
+        if now == JogMode::Vinyl {
+            self.jog_releasing = false;
+            self.jog_idle_secs = 0.0;
+            if touching {
+                // Touching a vinyl platter stops the motor until ticks arrive.
+                self.jog_velocity = 0.0;
+                self.jog_velocity_deriv = 0.0;
+                self.jog_rate = 0.0;
+            }
+        }
+    }
+
+    pub fn jog_turn(&mut self, delta: i32) {
+        if delta == 0 {
+            return;
+        }
+        match self.active_jog_mode() {
+            JogMode::Ignore => {}
+            JogMode::PitchBend => {
+                self.jog_releasing = false;
+                let bend = (self.jog_rate - 1.0) + (delta as f32) * JOG_BEND_PER_TICK;
+                self.jog_rate = 1.0 + bend.clamp(-JOG_BEND_MAX, JOG_BEND_MAX);
+                self.jog_idle_secs = 0.0;
+            }
+            JogMode::Vinyl => {
+                self.jog_releasing = false;
+                let dt = if self.jog_samples_since_tick == 0 {
+                    1.0 / f64::from(self.sample_rate)
+                } else {
+                    (self.jog_samples_since_tick as f64 / f64::from(self.sample_rate))
+                        .clamp(1.0 / f64::from(self.sample_rate), 0.05)
+                };
+                self.jog_samples_since_tick = 0;
+                let instant_rps = f64::from(delta) / JOG_INTERVALS_PER_REV / dt;
+                let err = instant_rps - self.jog_velocity;
+                self.jog_velocity += JOG_ALPHA * err;
+                self.jog_velocity_deriv += JOG_BETA * err / dt;
+                self.jog_velocity += self.jog_velocity_deriv * dt;
+                let vinyl_rps = JOG_RPM / 60.0;
+                self.jog_rate = ((self.jog_velocity / vinyl_rps) as f32).clamp(-3.0, 3.0);
+                self.jog_idle_secs = 0.0;
+            }
+        }
+    }
+
+    fn active_jog_mode(&self) -> JogMode {
+        if self.jog_touching {
+            self.top_jog_mode
+        } else {
+            self.outer_jog_mode
+        }
+    }
+
+    fn begin_jog_release(&mut self) {
+        self.jog_releasing = true;
+        self.jog_velocity = 0.0;
+        self.jog_velocity_deriv = 0.0;
+    }
+
+    /// Advance jog filters for one output buffer (`frames` at engine sample rate).
+    fn tick_jog(&mut self, frames: usize) {
+        let dt = frames as f64 / f64::from(self.sample_rate);
+        self.jog_idle_secs += dt;
+        self.jog_samples_since_tick = self.jog_samples_since_tick.saturating_add(frames as u64);
+
+        if self.jog_releasing {
+            let step = JOG_RELEASE_RATE_PER_SEC * (dt as f32);
+            if (self.jog_rate - 1.0).abs() <= step {
+                self.jog_rate = 1.0;
+                self.jog_releasing = false;
+            } else {
+                self.jog_rate += (1.0 - self.jog_rate).signum() * step;
+            }
+            return;
+        }
+
+        match self.active_jog_mode() {
+            JogMode::Vinyl => {
+                if self.jog_idle_secs >= JOG_VINYL_HOLD_SECS {
+                    // No recent ticks: motor stopped while touching, or coast to 0 when free.
+                    self.jog_velocity *= 0.5_f64.powf(dt / 0.01);
+                    if self.jog_velocity.abs() < 1e-4 {
+                        self.jog_velocity = 0.0;
+                        self.jog_velocity_deriv = 0.0;
+                    }
+                    let vinyl_rps = JOG_RPM / 60.0;
+                    self.jog_rate = (self.jog_velocity / vinyl_rps) as f32;
+                    if self.jog_touching {
+                        self.jog_rate = 0.0;
+                        self.jog_velocity = 0.0;
+                        self.jog_velocity_deriv = 0.0;
+                    }
+                }
+            }
+            JogMode::PitchBend => {
+                if self.jog_idle_secs > 0.03 {
+                    let decay = (-JOG_BEND_DECAY_PER_SEC * (dt as f32)).exp();
+                    let bend = (self.jog_rate - 1.0) * decay;
+                    if bend.abs() < 1e-4 {
+                        self.jog_rate = 1.0;
+                    } else {
+                        self.jog_rate = 1.0 + bend;
+                    }
+                }
+            }
+            JogMode::Ignore => {
+                if !self.jog_releasing {
+                    self.jog_rate = 1.0;
+                }
+            }
+        }
+    }
+
+    fn effective_speed(&self) -> f32 {
+        self.speed * self.jog_rate
+    }
+
+    fn jog_driving_audio(&self) -> bool {
+        self.jog_touching
+            || self.jog_releasing
+            || (self.jog_rate - 1.0).abs() > 1e-4
+            || (self.active_jog_mode() == JogMode::Vinyl && self.jog_idle_secs < 0.05)
     }
 
     /// Seek to a specific position (in source frames at the file sample rate).
@@ -397,7 +596,10 @@ impl Deck {
     /// # Arguments
     /// * `frames` - Number of frames to process (should match the engine buffer size)
     pub fn process(&mut self, frames: usize) -> Result<&[Sample]> {
-        if self.state != DeckState::Playing {
+        self.tick_jog(frames);
+
+        let transport_playing = self.state == DeckState::Playing;
+        if !transport_playing && !self.jog_driving_audio() {
             // Return silence if not playing. resize() only zero-fills new capacity;
             // after playback the buffer may already be the right length with stale audio.
             self.buffer.resize(frames * 2, 0.0);
@@ -412,9 +614,11 @@ impl Deck {
         // Play loaded audio samples if available, otherwise generate test audio
         if let Some(loaded) = self.loaded.clone() {
             let source_rate = loaded.sample_rate;
-            let use_interp = (self.speed - 1.0).abs() > f32::EPSILON
+            let eff = self.effective_speed();
+            let use_interp = (eff - 1.0).abs() > f32::EPSILON
                 || self.loop_region.is_some()
-                || self.position_frac < 0.0;
+                || self.position_frac < 0.0
+                || !transport_playing;
             if use_interp || self.resampler.is_none() {
                 self.play_interpolated(frames, &loaded.samples, source_rate);
             } else {
@@ -448,7 +652,9 @@ impl Deck {
             self.buffer.fill(0.0);
         }
 
-        self.check_track_end();
+        if transport_playing {
+            self.check_track_end();
+        }
 
         Ok(&self.buffer)
     }
@@ -459,7 +665,8 @@ impl Deck {
         self.buffer.resize(buffer_size, 0.0);
 
         let total_source_frames = audio_samples.len() / 2;
-        let step = self.speed as f64 * f64::from(source_rate) / f64::from(self.sample_rate);
+        let step =
+            self.effective_speed() as f64 * f64::from(source_rate) / f64::from(self.sample_rate);
 
         for out in 0..frames {
             if self.position_frac < 0.0 {
@@ -928,5 +1135,59 @@ mod tests {
             "stopped deck must output silence, got stale samples: max={}",
             stopped.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
         );
+    }
+
+    #[test]
+    fn vinyl_touch_holds_at_zero_rate() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 100], ENGINE_RATE);
+        deck.play().unwrap();
+        deck.set_jog_touch(true);
+        assert_eq!(deck.jog_rate(), 0.0);
+        deck.process(CHUNK).unwrap();
+        assert_eq!(deck.jog_rate(), 0.0);
+    }
+
+    #[test]
+    fn vinyl_turn_moves_rate_and_release_ramps() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 100], ENGINE_RATE);
+        deck.set_jog_touch(true);
+        for _ in 0..8 {
+            let _ = deck.process(48);
+            deck.jog_turn(8);
+        }
+        assert!(deck.jog_rate().abs() > 0.05, "rate={}", deck.jog_rate());
+        deck.set_jog_touch(false);
+        for _ in 0..50 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(
+            (deck.jog_rate() - 1.0).abs() < 0.05,
+            "expected ramp to 1, got {}",
+            deck.jog_rate()
+        );
+    }
+
+    #[test]
+    fn outer_pitch_bend_decays() {
+        let mut deck = new_deck(CHUNK);
+        assert!(!deck.jog_touching());
+        assert_eq!(deck.outer_jog_mode(), JogMode::PitchBend);
+        deck.jog_turn(40);
+        assert!((deck.jog_rate() - 1.0).abs() > 1e-3);
+        for _ in 0..100 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!((deck.jog_rate() - 1.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn ignore_mode_is_noop() {
+        let mut deck = new_deck(CHUNK);
+        deck.set_jog_mode(JogMode::Ignore, JogMode::Ignore);
+        deck.set_jog_touch(true);
+        deck.jog_turn(50);
+        assert_eq!(deck.jog_rate(), 1.0);
     }
 }

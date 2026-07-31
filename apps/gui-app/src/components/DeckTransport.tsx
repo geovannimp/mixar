@@ -1,8 +1,9 @@
-import type { ReactNode } from "react";
+import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { barCycleRotationDeg, getBarCycleDurationMs } from "@/lib/format";
+import { degreesToJogTicks } from "@/lib/jogTicks";
 import { useSmoothTrackProgress } from "@/hooks/useSmoothTrackProgress";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 
@@ -11,26 +12,43 @@ interface JogPlatterProps {
   playing: boolean;
   bpm: number | null;
   hasTrack: boolean;
+  enabled?: boolean;
+  jogTouching?: boolean;
   positionMs?: number;
   durationMs?: number | null;
   speed?: number;
+  onJogTouch?: (touching: boolean) => void;
+  onJogTurn?: (delta: number) => void;
 }
 
-/** Flat jog wheel — bar tracker follows tempo; outer ring shows track progress. */
+function pointerAngleDeg(el: HTMLElement, clientX: number, clientY: number): number {
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
+}
+
+/** Flat jog wheel — always top plate; drag publishes jog_touch + jog_turn. */
 export function JogPlatter({
   accent: accentKey,
   playing,
   bpm,
   hasTrack,
+  enabled = false,
+  jogTouching = false,
   positionMs = 0,
   durationMs,
   speed = 1,
+  onJogTouch,
+  onJogTurn,
 }: JogPlatterProps) {
   const accent = DECK_ACCENTS[accentKey];
   const trackerRotate = useMotionValue(0);
   const lastPositionRef = useRef(0);
   const rotationRef = useRef(0);
   const trackerInitializedRef = useRef(false);
+  const draggingRef = useRef(false);
+  const lastAngleRef = useRef<number | null>(null);
 
   const trackProgress = useSmoothTrackProgress({
     positionMs,
@@ -48,6 +66,7 @@ export function JogPlatter({
   const ringStroke = accentKey === "a" ? "rgba(56, 189, 248, 0.55)" : "rgba(251, 113, 133, 0.55)";
 
   const effectiveBpm = bpm != null && bpm > 0 ? bpm : 120;
+  const interactive = enabled && hasTrack;
 
   useEffect(() => {
     if (!hasTrack) {
@@ -71,6 +90,11 @@ export function JogPlatter({
       return;
     }
 
+    if (draggingRef.current || jogTouching) {
+      lastPositionRef.current = positionMs;
+      return;
+    }
+
     const delta = positionMs - lastPositionRef.current;
     lastPositionRef.current = positionMs;
     const seekThreshold = Math.max(200, cycleDurationMs * 0.15);
@@ -86,12 +110,81 @@ export function JogPlatter({
       duration: isSeek ? 0 : 0.15,
       ease: "linear",
     });
-  }, [positionMs, effectiveBpm, hasTrack, trackerRotate]);
+  }, [positionMs, effectiveBpm, hasTrack, trackerRotate, jogTouching]);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!interactive || event.button !== 0) {
+      return;
+    }
+    const el = event.currentTarget;
+    el.setPointerCapture(event.pointerId);
+    draggingRef.current = true;
+    lastAngleRef.current = pointerAngleDeg(el, event.clientX, event.clientY);
+    onJogTouch?.(true);
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current || !interactive) {
+      return;
+    }
+    const el = event.currentTarget;
+    const angle = pointerAngleDeg(el, event.clientX, event.clientY);
+    const prev = lastAngleRef.current;
+    lastAngleRef.current = angle;
+    if (prev == null) {
+      return;
+    }
+    let deltaDeg = angle - prev;
+    if (deltaDeg > 180) {
+      deltaDeg -= 360;
+    } else if (deltaDeg < -180) {
+      deltaDeg += 360;
+    }
+    rotationRef.current += deltaDeg;
+    trackerRotate.set(rotationRef.current);
+    const ticks = degreesToJogTicks(deltaDeg);
+    if (ticks !== 0) {
+      onJogTurn?.(ticks);
+    }
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) {
+      return;
+    }
+    draggingRef.current = false;
+    lastAngleRef.current = null;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    onJogTouch?.(false);
+  };
 
   return (
-    <div className="relative size-32 shrink-0 sm:size-36" title="Jog wheel" aria-label="Jog wheel">
+    <div
+      className={`relative size-32 shrink-0 sm:size-36 ${interactive ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
+      title="Jog wheel"
+      aria-label="Jog wheel"
+      role={interactive ? "slider" : undefined}
+      aria-disabled={!interactive}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onLostPointerCapture={() => {
+        if (draggingRef.current) {
+          draggingRef.current = false;
+          lastAngleRef.current = null;
+          onJogTouch?.(false);
+        }
+      }}
+    >
       <div
-        className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border bg-zinc-950/80 shadow-inner ${accent.ring}`}
+        className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border bg-zinc-950/80 shadow-inner ${accent.ring} ${
+          jogTouching ? "ring-2 ring-white/30" : ""
+        }`}
       >
         <svg
           className="pointer-events-none absolute inset-0 size-full -rotate-90"

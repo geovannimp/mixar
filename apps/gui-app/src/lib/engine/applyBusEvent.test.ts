@@ -43,6 +43,9 @@ function deckUpdated(overrides: Record<string, unknown> = {}) {
     loudness_lufs: null,
     auto_gain_db: 0,
     active_sampler_bank_id: null,
+    top_jog_mode: "vinyl",
+    outer_jog_mode: "pitch_bend",
+    jog_touching: false,
     ...overrides,
   };
 }

@@ -402,7 +402,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 | J5 | **Jog sensitivity** | Configurable | P3 |
 | J6 | **Platter animation** | Sync rotation to effective BPM | P2 |
 
-**Engine:** Jog updates `seek` + brief speed override; scratch requires small buffer and high callback rate.
+**Engine:** Jog updates via `jog_touch` / `jog_turn` / `set_jog_mode` (shared `JogMode`: vinyl | pitch_bend | ignore on top & outer). Transient `jog_rate` layered on deck speed; GUI platter is always top.
 
 ---
 

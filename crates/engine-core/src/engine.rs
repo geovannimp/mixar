@@ -607,6 +607,50 @@ impl Engine {
         }
     }
 
+    pub fn set_deck_jog_touch(&mut self, deck_id: usize, touching: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_jog_touch(touching);
+        Ok(())
+    }
+
+    pub fn deck_jog_turn(&mut self, deck_id: usize, delta: i32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.jog_turn(delta);
+        Ok(())
+    }
+
+    pub fn set_deck_jog_mode(
+        &mut self,
+        deck_id: usize,
+        top: engine_api::JogMode,
+        outer: engine_api::JogMode,
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_jog_mode(map_jog_mode(top), map_jog_mode(outer));
+        Ok(())
+    }
+
     fn apply_tempo_sync(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
         if slave_id == master_id {
             return Err(anyhow::anyhow!("Cannot sync a deck to itself."));
@@ -1503,7 +1547,26 @@ fn deck_snapshot_from_dsp(
         loudness_lufs: None,
         auto_gain_db: 0.0,
         active_sampler_bank_id: None,
+        top_jog_mode: map_jog_mode_to_api(deck.top_jog_mode()),
+        outer_jog_mode: map_jog_mode_to_api(deck.outer_jog_mode()),
+        jog_touching: deck.jog_touching(),
     })
+}
+
+fn map_jog_mode(mode: engine_api::JogMode) -> engine_dsp::JogMode {
+    match mode {
+        engine_api::JogMode::Vinyl => engine_dsp::JogMode::Vinyl,
+        engine_api::JogMode::PitchBend => engine_dsp::JogMode::PitchBend,
+        engine_api::JogMode::Ignore => engine_dsp::JogMode::Ignore,
+    }
+}
+
+fn map_jog_mode_to_api(mode: engine_dsp::JogMode) -> engine_api::JogMode {
+    match mode {
+        engine_dsp::JogMode::Vinyl => engine_api::JogMode::Vinyl,
+        engine_dsp::JogMode::PitchBend => engine_api::JogMode::PitchBend,
+        engine_dsp::JogMode::Ignore => engine_api::JogMode::Ignore,
+    }
 }
 
 fn loudness_from_metadata(metadata: &TrackMetadata) -> Option<f64> {
