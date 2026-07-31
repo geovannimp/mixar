@@ -107,7 +107,7 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
     };
     let region = active_loop.expect("roll loop");
     assert!(region.active);
-    assert!(region.out_secs > region.in_secs);
+    assert!(region.out_ms > region.in_ms);
 
     session
         .publish_cmd(
@@ -173,7 +173,7 @@ fn end_loop_roll_restores_prior_active_loop() {
         panic!("expected DeckUpdated");
     };
     let restored = active_loop.expect("restored loop");
-    assert!((restored.in_secs - prior.in_secs).abs() < 1e-6);
-    assert!((restored.out_secs - prior.out_secs).abs() < 1e-6);
+    assert_eq!(restored.in_ms, prior.in_ms);
+    assert_eq!(restored.out_ms, prior.out_ms);
     assert!(restored.active);
 }

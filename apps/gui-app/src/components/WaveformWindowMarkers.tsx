@@ -12,27 +12,27 @@ const HOT_CUE_COLORS = [
 ] as const;
 
 interface WaveformWindowMarkersProps {
-  windowStartSecs: number;
-  windowEndSecs: number;
+  windowStartMs: number;
+  windowEndMs: number;
   hotCues?: DeckHotCueMarker[];
   activeLoop?: DeckActiveLoop | null;
 }
 
-function toWindowPercent(secs: number, windowStartSecs: number, windowEndSecs: number): number {
-  const span = windowEndSecs - windowStartSecs;
+function toWindowPercent(secs: number, windowStartMs: number, windowEndMs: number): number {
+  const span = windowEndMs - windowStartMs;
   if (span <= 0) {
     return 0;
   }
-  return Math.min(100, Math.max(0, ((secs - windowStartSecs) / span) * 100));
+  return Math.min(100, Math.max(0, ((secs - windowStartMs) / span) * 100));
 }
 
 export function WaveformWindowMarkers({
-  windowStartSecs,
-  windowEndSecs,
+  windowStartMs,
+  windowEndMs,
   hotCues = [],
   activeLoop = null,
 }: WaveformWindowMarkersProps) {
-  const span = windowEndSecs - windowStartSecs;
+  const span = windowEndMs - windowStartMs;
   if (span <= 0) {
     return null;
   }
@@ -49,18 +49,18 @@ export function WaveformWindowMarkers({
         <div
           className="absolute inset-y-0 border-x border-emerald-400/70 bg-emerald-400/18"
           style={{
-            left: `${toWindowPercent(activeLoop.in_secs, windowStartSecs, windowEndSecs)}%`,
+            left: `${toWindowPercent(activeLoop.in_ms, windowStartMs, windowEndMs)}%`,
             width: `${Math.max(
               0,
-              toWindowPercent(activeLoop.out_secs, windowStartSecs, windowEndSecs) -
-                toWindowPercent(activeLoop.in_secs, windowStartSecs, windowEndSecs),
+              toWindowPercent(activeLoop.out_ms, windowStartMs, windowEndMs) -
+                toWindowPercent(activeLoop.in_ms, windowStartMs, windowEndMs),
             )}%`,
           }}
         />
       ) : null}
 
       {hotCues.map((cue) => {
-        const left = toWindowPercent(cue.position_secs, windowStartSecs, windowEndSecs);
+        const left = toWindowPercent(cue.position_ms, windowStartMs, windowEndMs);
         if (left < 0 || left > 100) {
           return null;
         }

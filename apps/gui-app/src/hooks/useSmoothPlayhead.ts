@@ -4,40 +4,43 @@ import { useCallback, useEffect, useRef } from "react";
 export interface SmoothPlayhead {
   motionPos: MotionValue<number>;
   getPosition: () => number;
-  beginScrub: (positionSecs: number) => void;
-  updateScrub: (positionSecs: number) => void;
+  beginScrub: (positionMs: number) => void;
+  updateScrub: (positionMs: number) => void;
   endScrub: () => void;
   isScrubbing: () => boolean;
 }
 
 interface UseSmoothPlayheadOptions {
-  positionSecs: number;
+  positionMs: number;
   playing: boolean;
   speed?: number;
-  maxSecs?: number;
+  maxMs?: number;
 }
 
-const SEEK_SNAP_SECS = 0.18;
-const DRIFT_CORRECT_SECS = 0.06;
+const SEEK_SNAP_MS = 180;
+const DRIFT_CORRECT_MS = 60;
+/** Soft animate threshold while paused (ms). */
+const PAUSE_ANIMATE_MIN_MS = 10;
 
 export function useSmoothPlayhead({
-  positionSecs,
+  positionMs,
   playing,
   speed = 1,
-  maxSecs,
+  maxMs,
 }: UseSmoothPlayheadOptions): SmoothPlayhead {
-  const motionPos = useMotionValue(positionSecs);
+  const motionPos = useMotionValue(positionMs);
   const scrubbingRef = useRef(false);
   const scrubPosRef = useRef<number | null>(null);
-  const engineRef = useRef({ pos: positionSecs, at: performance.now() });
+  const engineRef = useRef({ pos: positionMs, at: performance.now() });
   const speedRef = useRef(speed);
-  const maxSecsRef = useRef(maxSecs);
+  const maxMsRef = useRef(maxMs);
 
-  maxSecsRef.current = maxSecs;
+  maxMsRef.current = maxMs;
 
+  // Upper bound only when known; do not floor at 0 (negative seek/cue allowed).
   const clamp = useCallback((value: number) => {
-    const max = maxSecsRef.current ?? Number.POSITIVE_INFINITY;
-    return Math.min(max, Math.max(0, value));
+    const max = maxMsRef.current ?? Number.POSITIVE_INFINITY;
+    return Math.min(max, value);
   }, []);
 
   // Rebase the engine anchor when tempo changes so drift correction does not
@@ -54,26 +57,26 @@ export function useSmoothPlayhead({
   }, [motionPos, speed]);
 
   useEffect(() => {
-    engineRef.current = { pos: positionSecs, at: performance.now() };
+    engineRef.current = { pos: positionMs, at: performance.now() };
 
     if (scrubbingRef.current) {
       return;
     }
 
     const current = motionPos.get();
-    const delta = Math.abs(positionSecs - current);
+    const delta = Math.abs(positionMs - current);
 
-    if (!playing || delta >= SEEK_SNAP_SECS) {
-      if (!playing && delta > 0.01 && delta < SEEK_SNAP_SECS) {
-        void animate(motionPos, clamp(positionSecs), {
+    if (!playing || delta >= SEEK_SNAP_MS) {
+      if (!playing && delta > PAUSE_ANIMATE_MIN_MS && delta < SEEK_SNAP_MS) {
+        void animate(motionPos, clamp(positionMs), {
           duration: 0.08,
           ease: "easeOut",
         });
       } else {
-        motionPos.set(clamp(positionSecs));
+        motionPos.set(clamp(positionMs));
       }
     }
-  }, [clamp, motionPos, playing, positionSecs]);
+  }, [clamp, motionPos, playing, positionMs]);
 
   useAnimationFrame((_, deltaMs) => {
     if (scrubbingRef.current) {
@@ -89,14 +92,14 @@ export function useSmoothPlayhead({
     }
 
     const dt = deltaMs / 1000;
-    const rate = speedRef.current;
-    const next = clamp(motionPos.get() + dt * rate);
+    const rateMs = speedRef.current * 1000;
+    const next = clamp(motionPos.get() + dt * rateMs);
     motionPos.set(next);
 
     const { pos, at } = engineRef.current;
-    const engineEstimate = clamp(pos + ((performance.now() - at) / 1000) * rate);
+    const engineEstimate = clamp(pos + ((performance.now() - at) / 1000) * rateMs);
     const error = engineEstimate - motionPos.get();
-    if (Math.abs(error) > DRIFT_CORRECT_SECS) {
+    if (Math.abs(error) > DRIFT_CORRECT_MS) {
       motionPos.set(clamp(motionPos.get() + error * 0.25));
     }
   });

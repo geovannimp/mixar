@@ -80,7 +80,7 @@ fn set_auto_loop_publishes_active_loop() {
     };
     let region = active_loop.expect("loop region");
     assert!(region.active);
-    assert!(region.out_secs > region.in_secs);
+    assert!(region.out_ms > region.in_ms);
 }
 
 #[test]
@@ -113,12 +113,11 @@ fn set_quantize_and_cue_point_roundtrip() {
         )
         .expect("cue");
     let cue = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { cue_point_secs, .. } =
-        decode_evt_body(cue.payload()).expect("decode")
+    let EvtBody::DeckUpdated { cue_point_ms, .. } = decode_evt_body(cue.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
-    assert!(cue_point_secs.is_some());
+    assert!(cue_point_ms.is_some());
 
     session
         .publish_cmd(
@@ -162,15 +161,15 @@ fn unload_clears_duration() {
         .expect("unload");
     let event = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
-        duration_secs,
-        cue_point_secs,
+        duration_ms,
+        cue_point_ms,
         active_loop,
         ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
-    assert!(duration_secs.is_none());
-    assert!(cue_point_secs.is_none() || cue_point_secs == Some(0.0));
+    assert!(duration_ms.is_none());
+    assert!(cue_point_ms.is_none() || cue_point_ms == Some(0));
     assert!(active_loop.is_none());
 }

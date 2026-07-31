@@ -629,7 +629,7 @@ CREATE TABLE tracks (
   genre TEXT,
   bpm REAL,
   key TEXT,
-  duration_secs REAL,
+  duration_ms INTEGER,
   sample_rate INTEGER,
   channels INTEGER,
   bitrate_kbps INTEGER,

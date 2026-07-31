@@ -29,13 +29,16 @@ pub struct SpectralPeak {
     pub high: f32,
 }
 
-/// Choose a bucket count from track length (~77 buckets/s), clamped to min/max.
-pub fn waveform_buckets_for_duration(duration_secs: f64) -> usize {
-    if duration_secs <= 0.0 {
-        return MIN_WAVEFORM_BUCKETS;
+/// Choose a bucket count from track length (~77 buckets/s).
+///
+/// Non-positive `duration_ms` returns `0`; otherwise
+/// `ceil(duration_ms / WAVEFORM_MS_PER_BUCKET).max(1)` with no min/max clamp.
+pub fn waveform_buckets_for_duration(duration_ms: i32) -> usize {
+    if duration_ms <= 0 {
+        return 0;
     }
-    let buckets = (duration_secs * 1000.0 / WAVEFORM_MS_PER_BUCKET).ceil() as usize;
-    buckets.clamp(MIN_WAVEFORM_BUCKETS, MAX_WAVEFORM_BUCKETS)
+    let buckets = (duration_ms as f64 / WAVEFORM_MS_PER_BUCKET).ceil() as usize;
+    buckets.max(1)
 }
 
 /// Buckets for a visible time window (~1 bucket per pixel).
@@ -270,10 +273,12 @@ mod tests {
 
     #[test]
     fn adaptive_buckets_scale_with_duration() {
-        assert_eq!(waveform_buckets_for_duration(0.0), MIN_WAVEFORM_BUCKETS);
-        assert_eq!(waveform_buckets_for_duration(30.0), MIN_WAVEFORM_BUCKETS);
-        let long = waveform_buckets_for_duration(600.0);
-        assert_eq!(long, MAX_WAVEFORM_BUCKETS);
+        use crate::secs_to_ms;
+
+        assert_eq!(waveform_buckets_for_duration(0), 0);
+        assert_eq!(waveform_buckets_for_duration(secs_to_ms(30.0)), 2_308);
+        let long = waveform_buckets_for_duration(secs_to_ms(600.0));
+        assert_eq!(long, 46_154);
     }
 
     #[test]

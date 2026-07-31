@@ -105,7 +105,7 @@ interface EngineStoreState {
   setCrossfader: (position: number) => Promise<void>;
   setCueMix: (mix: number) => Promise<void>;
   setMasterCue: (enabled: boolean) => Promise<void>;
-  seekDeck: (deckId: number, positionSecs: number) => Promise<void>;
+  seekDeck: (deckId: number, positionMs: number) => Promise<void>;
   unloadDeck: (deckId: number) => Promise<void>;
   setDeckCuePoint: (deckId: number) => Promise<void>;
   beginDeckCueHold: (deckId: number) => Promise<void>;
@@ -282,13 +282,13 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     await publishCmd("mixer", "set_master_cue", { enabled });
   },
 
-  seekDeck: async (deckId, positionSecs) => {
+  seekDeck: async (deckId, positionMs) => {
     const status = get().status;
     if (status) {
-      set({ status: patchDeckPosition(status, deckId, positionSecs) });
+      set({ status: patchDeckPosition(status, deckId, positionMs) });
     }
     await publishCmd(getDeckOrigin(deckId), "seek", {
-      position_secs: positionSecs,
+      position_ms: positionMs,
     });
   },
 
@@ -337,7 +337,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       return;
     }
     await publishCmd(getDeckOrigin(deckId), "trigger_hot_cue", {
-      position_secs: cue.position_secs,
+      position_ms: cue.position_ms,
     });
   },
 
@@ -360,8 +360,8 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
       return;
     }
     await publishCmd(getDeckOrigin(deckId), "recall_saved_loop", {
-      in_secs: saved.in_secs,
-      out_secs: saved.out_secs,
+      in_ms: saved.in_ms,
+      out_ms: saved.out_ms,
     });
   },
 
@@ -480,8 +480,8 @@ function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
 function selectDeckTransport(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
-    position_secs: deck.position_secs,
-    duration_secs: deck.duration_secs,
+    position_ms: deck.position_ms,
+    duration_ms: deck.duration_ms,
     playing: deck.playing,
   };
 }
@@ -492,13 +492,13 @@ function selectDeckWaveform(state: EngineStoreState, deckId: number) {
     id: deck.id,
     track: deck.track,
     track_id: deck.track_id,
-    position_secs: deck.position_secs,
+    position_ms: deck.position_ms,
     playing: deck.playing,
     speed: deck.speed,
     eq: deck.eq,
     hot_cues: deck.hot_cues,
     active_loop: deck.active_loop,
-    duration_secs: deck.duration_secs,
+    duration_ms: deck.duration_ms,
   };
 }
 
@@ -515,7 +515,7 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
     playing: deck.playing,
     speed: deck.speed,
     quantize: deck.quantize,
-    cue_point_secs: deck.cue_point_secs,
+    cue_point_ms: deck.cue_point_ms,
     hot_cues: deck.hot_cues,
     saved_loops: deck.saved_loops,
     active_loop: deck.active_loop,
@@ -534,10 +534,10 @@ function selectDeckOverview(state: EngineStoreState, deckId: number) {
   return {
     track_id: deck.track_id,
     track: deck.track,
-    position_secs: deck.position_secs,
+    position_ms: deck.position_ms,
     playing: deck.playing,
     speed: deck.speed,
-    duration_secs: deck.duration_secs,
+    duration_ms: deck.duration_ms,
     hot_cues: deck.hot_cues,
   };
 }
@@ -592,8 +592,8 @@ export const engineActions = {
   setCrossfader: (position: number) => useEngineStore.getState().setCrossfader(position),
   setCueMix: (mix: number) => useEngineStore.getState().setCueMix(mix),
   setMasterCue: (enabled: boolean) => useEngineStore.getState().setMasterCue(enabled),
-  seekDeck: (deckId: number, positionSecs: number) =>
-    useEngineStore.getState().seekDeck(deckId, positionSecs),
+  seekDeck: (deckId: number, positionMs: number) =>
+    useEngineStore.getState().seekDeck(deckId, positionMs),
   unloadDeck: (deckId: number) => useEngineStore.getState().unloadDeck(deckId),
   setDeckCuePoint: (deckId: number) => useEngineStore.getState().setDeckCuePoint(deckId),
   beginDeckCueHold: (deckId: number) => useEngineStore.getState().beginDeckCueHold(deckId),

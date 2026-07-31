@@ -19,18 +19,24 @@ impl DeckControlState {
     }
 }
 
-pub(crate) fn snap_secs(secs: f64, bpm: Option<f64>, quantize: bool) -> f64 {
+/// Beat length in milliseconds for a given BPM.
+fn beat_ms(bpm: f64) -> f64 {
+    60_000.0 / bpm
+}
+
+/// Snap media time to the nearest beat when quantize is on. Stays in ms end-to-end.
+pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if !quantize {
-        return secs.max(0.0);
+        return ms;
     }
     let Some(bpm) = bpm else {
-        return secs.max(0.0);
+        return ms;
     };
     if bpm <= 0.0 {
-        return secs.max(0.0);
+        return ms;
     }
-    let beat = 60.0 / bpm;
-    ((secs / beat).round() * beat).max(0.0)
+    let beat = beat_ms(bpm);
+    ((f64::from(ms) / beat).round() * beat).round() as i32
 }
 
 pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f64) -> f32 {
@@ -39,15 +45,18 @@ pub(crate) fn target_sync_speed(master_bpm: f64, master_speed: f32, slave_bpm: f
 }
 
 pub(crate) fn beat_align_target(
-    master_pos: f64,
-    slave_pos: f64,
-    duration: f64,
+    master_pos_ms: i32,
+    slave_pos_ms: i32,
+    duration_ms: i32,
     master_bpm: f64,
     slave_bpm: f64,
     quantize: bool,
-) -> f64 {
-    let master_beat = 60.0 / master_bpm;
-    let slave_beat = 60.0 / slave_bpm;
+) -> i32 {
+    let master_pos = f64::from(master_pos_ms);
+    let slave_pos = f64::from(slave_pos_ms);
+    let duration = f64::from(duration_ms);
+    let master_beat = beat_ms(master_bpm);
+    let slave_beat = beat_ms(slave_bpm);
     let master_phase = master_pos % master_beat;
 
     let slave_beat_index = (slave_pos / slave_beat).floor();
@@ -56,7 +65,11 @@ pub(crate) fn beat_align_target(
         target += slave_beat;
     }
 
-    snap_secs(target.min(duration), Some(slave_bpm), quantize)
+    snap_ms(
+        target.min(duration).round() as i32,
+        Some(slave_bpm),
+        quantize,
+    )
 }
 
 #[cfg(test)]
@@ -67,5 +80,18 @@ mod tests {
     fn target_sync_speed_matches_master_effective_tempo() {
         // Master 120 BPM at 1.0 → slave 100 BPM needs 1.2×
         assert!((target_sync_speed(120.0, 1.0, 100.0) - 1.2).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn snap_ms_without_quantize_passes_through_including_negatives() {
+        assert_eq!(snap_ms(500, Some(120.0), false), 500);
+        assert_eq!(snap_ms(-100, None, false), -100);
+    }
+
+    #[test]
+    fn snap_ms_quantizes_to_nearest_beat_in_ms() {
+        // 120 BPM → 500 ms per beat; 620 → 500, 760 → 1000
+        assert_eq!(snap_ms(620, Some(120.0), true), 500);
+        assert_eq!(snap_ms(760, Some(120.0), true), 1000);
     }
 }

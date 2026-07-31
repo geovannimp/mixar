@@ -130,7 +130,7 @@ impl LibraryManager {
         &self,
         id: &TrackId,
         slot_index: u8,
-        position_secs: f64,
+        position_ms: i32,
         loop_length_beats: Option<i32>,
         color: Option<String>,
         label: Option<String>,
@@ -139,7 +139,7 @@ impl LibraryManager {
             &self.db,
             id,
             slot_index,
-            position_secs,
+            position_ms,
             loop_length_beats,
             color,
             label,
@@ -154,12 +154,12 @@ impl LibraryManager {
         &self,
         id: &TrackId,
         slot_index: u8,
-        in_secs: f64,
-        out_secs: f64,
+        in_ms: i32,
+        out_ms: i32,
         label: Option<String>,
         color: Option<String>,
     ) -> Result<()> {
-        deck_data::save_loop(&self.db, id, slot_index, in_secs, out_secs, label, color)
+        deck_data::save_loop(&self.db, id, slot_index, in_ms, out_ms, label, color)
     }
 
     pub fn delete_track_loop(&self, id: &TrackId, slot_index: u8) -> Result<()> {
@@ -694,9 +694,9 @@ impl LibraryManager {
 
         let mut config = AnalysisConfig::default();
         let tag_metadata = tags::read_tags(&path)?;
-        config.max_duration_secs = options
+        config.max_duration_ms = options
             .analysis_duration
-            .resolve_max_duration_secs(tag_metadata.duration_secs);
+            .resolve_max_duration_ms(tag_metadata.duration_ms);
         let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
         let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
         analysis.loudness_lufs =

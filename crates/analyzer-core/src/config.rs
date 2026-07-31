@@ -38,11 +38,11 @@ pub enum AnalysisDurationMode {
 }
 
 impl AnalysisDurationMode {
-    /// Resolve to a decode cap in seconds (`None` = entire file).
-    pub fn resolve_max_duration_secs(self, track_duration_secs: Option<f64>) -> Option<f64> {
+    /// Resolve to a decode cap in milliseconds (`None` = entire file).
+    pub fn resolve_max_duration_ms(self, track_duration_ms: Option<i32>) -> Option<i32> {
         match self {
-            Self::Fast => Some(30.0),
-            Self::Precise => track_duration_secs.map(|duration| (duration * 0.5).max(1.0)),
+            Self::Fast => Some(30_000),
+            Self::Precise => track_duration_ms.map(|duration| (duration / 2).max(1000)),
             Self::Complete => None,
         }
     }
@@ -55,27 +55,31 @@ mod duration_mode_tests {
     #[test]
     fn fast_is_30_seconds() {
         assert_eq!(
-            AnalysisDurationMode::Fast.resolve_max_duration_secs(None),
-            Some(30.0)
+            AnalysisDurationMode::Fast.resolve_max_duration_ms(None),
+            Some(30_000)
         );
     }
 
     #[test]
     fn precise_is_half_track() {
         assert_eq!(
-            AnalysisDurationMode::Precise.resolve_max_duration_secs(Some(240.0)),
-            Some(120.0)
+            AnalysisDurationMode::Precise.resolve_max_duration_ms(Some(240_000)),
+            Some(120_000)
         );
         assert_eq!(
-            AnalysisDurationMode::Precise.resolve_max_duration_secs(Some(1.0)),
-            Some(1.0)
+            AnalysisDurationMode::Precise.resolve_max_duration_ms(Some(1000)),
+            Some(1000)
+        );
+        assert_eq!(
+            AnalysisDurationMode::Precise.resolve_max_duration_ms(Some(500)),
+            Some(1000)
         );
     }
 
     #[test]
     fn precise_without_duration_is_none() {
         assert_eq!(
-            AnalysisDurationMode::Precise.resolve_max_duration_secs(None),
+            AnalysisDurationMode::Precise.resolve_max_duration_ms(None),
             None
         );
     }
@@ -83,7 +87,7 @@ mod duration_mode_tests {
     #[test]
     fn complete_is_full_file() {
         assert_eq!(
-            AnalysisDurationMode::Complete.resolve_max_duration_secs(Some(300.0)),
+            AnalysisDurationMode::Complete.resolve_max_duration_ms(Some(300_000)),
             None
         );
     }
@@ -98,8 +102,8 @@ pub struct AnalysisConfig {
     pub min_bpm_confidence: f32,
     /// Minimum key confidence to prefer analysis over file tags when not forced.
     pub min_key_confidence: f32,
-    /// Max seconds of audio to decode (`None` = full file).
-    pub max_duration_secs: Option<f64>,
+    /// Max milliseconds of audio to decode (`None` = full file).
+    pub max_duration_ms: Option<i32>,
     /// Preferred analysis sample rate (`None` = native or backend default).
     pub sample_rate: Option<u32>,
 }
@@ -110,7 +114,7 @@ impl Default for AnalysisConfig {
             targets: AnalysisTargets::all(),
             min_bpm_confidence: 0.5,
             min_key_confidence: 0.5,
-            max_duration_secs: None,
+            max_duration_ms: None,
             sample_rate: None,
         }
     }

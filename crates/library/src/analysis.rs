@@ -36,7 +36,7 @@ pub(crate) fn upsert_track_analysis(
             .as_ref()
             .map(|g| f64::from(g.grid_stability))),
         sample_rate: Set(analysis.metadata.sample_rate as i32),
-        duration_analyzed_secs: Set(analysis.metadata.duration_analyzed_secs),
+        duration_analyzed_ms: Set(analysis.metadata.duration_analyzed_ms),
         loudness_lufs: Set(analysis.loudness_lufs),
         beat_grid_json: Set(beat_grid_json),
     };
@@ -55,7 +55,7 @@ pub(crate) fn upsert_track_analysis(
                     track_analysis::Column::KeyClarity,
                     track_analysis::Column::GridStability,
                     track_analysis::Column::SampleRate,
-                    track_analysis::Column::DurationAnalyzedSecs,
+                    track_analysis::Column::DurationAnalyzedMs,
                     track_analysis::Column::LoudnessLufs,
                     track_analysis::Column::BeatGridJson,
                 ])

@@ -46,7 +46,7 @@ fn pause_preserves_playback_position() {
                 0,
                 AudioSource::File(FileAudioSource::from_path(short_tone_fixture())),
             )?;
-            engine.seek_deck(0, 0.05)?;
+            engine.seek_deck(0, 50)?;
             Ok(())
         })
         .expect("load");
@@ -65,16 +65,16 @@ fn pause_preserves_playback_position() {
     let event = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
         playing,
-        position_secs,
+        position_ms,
         ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
     assert!(!playing);
-    let pos = position_secs.expect("position");
+    let pos = position_ms.expect("position");
     assert!(
-        pos >= 0.04,
-        "pause should not reset to start, got position_secs={pos}"
+        pos >= 40,
+        "pause should not reset to start, got position_ms={pos}"
     );
 }

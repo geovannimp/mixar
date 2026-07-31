@@ -4,7 +4,7 @@ export const EMPTY_SAMPLER_SLOTS: SamplerSlotInfo[] = Array.from({ length: 8 }, 
   label: null,
   track_id: null,
   path: null,
-  duration_secs: null,
+  duration_ms: null,
 }));
 
 export const EMPTY_SAMPLER_BANKS: SamplerBankInfo[] = [];

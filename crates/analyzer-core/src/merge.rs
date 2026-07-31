@@ -57,7 +57,7 @@ mod tests {
                 backend_version: "0".into(),
                 analyzed_at: "2026-01-01T00:00:00Z".into(),
                 sample_rate: 44100,
-                duration_analyzed_secs: 1.0,
+                duration_analyzed_ms: 1000,
             },
         }
     }

@@ -5,14 +5,12 @@ use library_core::TrackId;
 use serde::Serialize;
 use tauri::AppHandle;
 
-use crate::{
-    deck_playback_secs, AppState, DeckInfo, DeckStatus, NUM_DECKS,
-};
+use crate::{deck_playback_ms, AppState, DeckInfo, DeckStatus, NUM_DECKS};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HotCueStatus {
     pub slot: u8,
-    pub position_secs: f64,
+    pub position_ms: i32,
     pub loop_length_beats: Option<i32>,
     pub color: Option<String>,
     pub label: Option<String>,
@@ -21,37 +19,39 @@ pub struct HotCueStatus {
 #[derive(Debug, Clone, Serialize)]
 pub struct SavedLoopStatus {
     pub slot: u8,
-    pub in_secs: f64,
-    pub out_secs: f64,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub label: Option<String>,
     pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LoopRegionStatus {
-    pub in_secs: f64,
-    pub out_secs: f64,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub active: bool,
 }
 
-pub fn snap_secs(secs: f64, bpm: Option<f64>, quantize: bool) -> f64 {
+/// Beat-quantize media time without clamping (negative positions allowed).
+/// Beat math stays in milliseconds (`60_000 / bpm`).
+pub fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if !quantize {
-        return secs.max(0.0);
+        return ms;
     }
     let Some(bpm) = bpm else {
-        return secs.max(0.0);
+        return ms;
     };
     if bpm <= 0.0 {
-        return secs.max(0.0);
+        return ms;
     }
-    let beat = 60.0 / bpm;
-    ((secs / beat).round() * beat).max(0.0)
+    let beat_ms = 60_000.0 / bpm;
+    ((f64::from(ms) / beat_ms).round() * beat_ms).round() as i32
 }
 
 fn hot_cue_from_record(record: HotCueRecord) -> HotCueStatus {
     HotCueStatus {
         slot: record.slot_index,
-        position_secs: record.position_secs,
+        position_ms: record.position_ms,
         loop_length_beats: record.loop_length_beats,
         color: record.color,
         label: record.label,
@@ -61,8 +61,8 @@ fn hot_cue_from_record(record: HotCueRecord) -> HotCueStatus {
 fn saved_loop_from_record(record: LoopRecord) -> SavedLoopStatus {
     SavedLoopStatus {
         slot: record.slot_index,
-        in_secs: record.in_secs,
-        out_secs: record.out_secs,
+        in_ms: record.in_ms,
+        out_ms: record.out_ms,
         label: record.label,
         color: record.color,
     }
@@ -96,7 +96,7 @@ pub fn apply_deck_performance(
 ) {
     if reset_transport {
         deck.quantize = true;
-        deck.cue_point_secs = Some(0.0);
+        deck.cue_point_ms = Some(0);
         deck.active_loop = None;
         deck.sync_mode = crate::SyncMode::Off;
         deck.speed = 1.0;
@@ -122,9 +122,9 @@ pub(crate) fn save_hot_cue_inner(
         .track_id
         .clone()
         .ok_or_else(|| "Only library tracks can persist hot cues.".to_string())?;
-    let (position_secs, _) = deck_playback_secs(state, deck_id);
-    let position = snap_secs(
-        position_secs.unwrap_or(0.0),
+    let (position_ms, _) = deck_playback_ms(state, deck_id);
+    let position = snap_ms(
+        position_ms.unwrap_or(0),
         state.decks[deck_id].bpm,
         state.decks[deck_id].quantize,
     );
@@ -193,8 +193,8 @@ pub(crate) fn save_loop_inner(
         .save_track_loop(
             &TrackId::new(track_id),
             slot,
-            region.in_secs,
-            region.out_secs,
+            region.in_ms,
+            region.out_ms,
             None,
             None,
         )

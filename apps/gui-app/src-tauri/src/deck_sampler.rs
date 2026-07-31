@@ -55,7 +55,7 @@ pub struct SamplerSlotInfo {
     pub label: Option<String>,
     pub track_id: Option<String>,
     pub path: Option<String>,
-    pub duration_secs: Option<f64>,
+    pub duration_ms: Option<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -272,7 +272,7 @@ pub(crate) fn load_bank_into_engine(
         if slot >= SAMPLER_SLOT_COUNT {
             continue;
         }
-        let (source, path, duration_secs, loudness) =
+        let (source, path, duration_ms, loudness) =
             load_source_for_slot(state, record.track_id.as_deref(), record.path.as_deref())?;
         let label = record.label.unwrap_or_else(|| slot_label(&source));
         with_engine(state, |engine| {
@@ -284,7 +284,7 @@ pub(crate) fn load_bank_into_engine(
             label: Some(label),
             track_id: record.track_id,
             path: Some(path),
-            duration_secs,
+            duration_ms,
         };
     }
 
@@ -452,7 +452,7 @@ fn load_source_for_slot(
     state: &AppState,
     track_id: Option<&str>,
     path: Option<&str>,
-) -> Result<(AudioSource, String, Option<f64>, Option<f64>), String> {
+) -> Result<(AudioSource, String, Option<i32>, Option<f64>), String> {
     if let Some(track_id) = track_id {
         let tid = TrackId::new(track_id.to_string());
         let source = state
@@ -468,22 +468,22 @@ fn load_source_for_slot(
             .path()
             .to_string_lossy()
             .into_owned();
-        let duration_secs = source.metadata().duration_secs;
+        let duration_ms = source.metadata().duration_ms;
         let loudness = state
             .library
             .lock()
             .unwrap()
             .track_loudness_lufs(&tid)
             .map_err(|e| e.to_string())?;
-        return Ok((source, path, duration_secs, loudness));
+        return Ok((source, path, duration_ms, loudness));
     }
 
     let path = path
         .ok_or_else(|| "Path is required.".to_string())?
         .to_string();
     let source = AudioSource::File(FileAudioSource::from_path(&path));
-    let duration_secs = source.metadata().duration_secs;
-    Ok((source, path, duration_secs, None))
+    let duration_ms = source.metadata().duration_ms;
+    Ok((source, path, duration_ms, None))
 }
 
 pub(crate) fn ensure_sampler_ready(state: &mut AppState) -> Result<(), String> {
@@ -775,7 +775,7 @@ pub(crate) fn assign_sampler_slot_inner(
     }
     let bank_id = resolve_bank_id(state, bank_id.as_deref(), deck_id)?;
     let bank_id = persist_draft_bank_if_needed(state, &bank_id)?;
-    let (source, resolved_path, duration_secs, loudness) =
+    let (source, resolved_path, duration_ms, loudness) =
         load_source_for_slot(state, None, Some(&path))?;
     let label = slot_label(&source);
 
@@ -802,7 +802,7 @@ pub(crate) fn assign_sampler_slot_inner(
             label: Some(label),
             track_id: None,
             path: Some(resolved_path),
-            duration_secs,
+            duration_ms,
         };
     } else if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
         load_bank_into_engine(state, deck_id, &bank_id)?;
@@ -828,7 +828,7 @@ pub(crate) fn assign_sampler_slot_from_track_inner(
     }
     let bank_id = resolve_bank_id(state, bank_id.as_deref(), deck_id)?;
     let bank_id = persist_draft_bank_if_needed(state, &bank_id)?;
-    let (source, resolved_path, duration_secs, loudness) =
+    let (source, resolved_path, duration_ms, loudness) =
         load_source_for_slot(state, Some(&track_id), None)?;
     let label = slot_label(&source);
 
@@ -855,7 +855,7 @@ pub(crate) fn assign_sampler_slot_from_track_inner(
             label: Some(label),
             track_id: Some(track_id),
             path: Some(resolved_path),
-            duration_secs,
+            duration_ms,
         };
     } else if state.decks[deck_id].active_sampler_bank_id.as_deref() == Some(bank_id.as_str()) {
         load_bank_into_engine(state, deck_id, &bank_id)?;

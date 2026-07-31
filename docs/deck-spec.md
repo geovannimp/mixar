@@ -120,16 +120,16 @@ Common expectations across all products:
 
 ### Library metadata
 
-Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_secs`, beat grid, loudness, artwork) feed deck status via host-enriched bus payloads and `LibraryTransport`.
+Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_ms`, beat grid, loudness, artwork) feed deck status via host-enriched bus payloads and `LibraryTransport`.
 
 ### Runtime playback time (in `DeckStatus`)
 
 | Field | Source | Meaning |
 |-------|--------|---------|
-| `position_secs` | High-rate `position` on `engine://bus` | Current playhead (elapsed) |
-| `duration_secs` | Loaded track metadata on deck snapshot | Total track length |
+| `position_ms` | High-rate `position` on `engine://bus` | Current playhead (elapsed) |
+| `duration_ms` | Loaded track metadata on deck snapshot | Total track length |
 
-`remaining_secs` is derived in the UI as `duration_secs - position_secs` when both are set.
+`remaining_ms` is derived in the UI as `duration_ms - position_ms` when both are set.
 
 ---
 
@@ -142,20 +142,20 @@ DeckState
 ├── identity: deck_id (0..N-1)
 ├── loaded: Option<LoadedTrackView>
 │   ├── track_id, path, title, artist, album, artwork_ref
-│   ├── bpm, key, duration_secs
+│   ├── bpm, key, duration_ms
 │   └── analysis: beat_grid_ref, cue_points[], loops[]
-├── transport: playing, position_secs, remaining_secs
+├── transport: playing, position_ms, remaining_ms
 ├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
 ├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
 ├── key: display_key, key_shift_semitones, key_lock
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
-├── slip: enabled, shadow_position_secs
+├── slip: enabled, shadow_position_ms
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
 │   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
 ├── stems: { vocal, instrumental, bass, drums, hihat } mute/solo gains
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
-└── waveform: scroll_window_secs, zoom_level
+└── waveform: scroll_window_ms, zoom_level
 ```
 
 UI layout zones (match competitor ergonomics):
@@ -183,8 +183,8 @@ UI layout zones (match competitor ergonomics):
 | M1 | **Title & artist** | Primary and secondary line; truncate with tooltip | All | P0 |
 | M2 | **Album art** | Circular or square thumbnail; placeholder when missing | Rekordbox, Serato | P1 |
 | M3 | **Duration** | Total track length | All | P0 |
-| M4 | **Elapsed time** | Display `position_secs` as mm:ss.ms | All | P0 |
-| M5 | **Remaining time** | `-mm:ss` from `duration_secs - position_secs` | All | P0 |
+| M4 | **Elapsed time** | Display `position_ms` as mm:ss.ms | All | P0 |
+| M5 | **Remaining time** | `-mm:ss` from `duration_ms - position_ms` | All | P0 |
 | M6 | **Original BPM** | From library analysis | All | P0 |
 | M7 | **Effective BPM** | After pitch adjustment (`original × pitch_ratio`) | All | P1 |
 | M8 | **Musical key** | e.g. `Gm`, `8A` (user preference) | All | P0 |
@@ -207,7 +207,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | W3 | **Beat grid overlay** | Vertical lines from `beat_grid`; downbeat emphasis | P0 |
 | W4 | **Hot cue markers** | Colored flags on overview + scroll | P1 |
 | W5 | **Loop region highlight** | Active loop bracket on waveform | P1 |
-| W6 | **Zoom** | Adjust `visible_secs` (e.g. 4–64 s); mouse wheel or buttons | P1 |
+| W6 | **Zoom** | Adjust `visible_ms` (e.g. 4000–64000 ms); mouse wheel or buttons | P1 |
 | W7 | **Stacked dual-deck view** | Deck A lane above Deck B (current) | P0 |
 | W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar (Serato) | P2 |
 | W9 | **End-of-track warning** | Visual cue near track end | P2 |
@@ -479,7 +479,7 @@ track_waveform (overview blob)          -- see dj-waveform-spec.md
 CREATE TABLE IF NOT EXISTS track_hot_cue (
     track_id            TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
     slot_index          INTEGER NOT NULL,   -- 0..7 (expand to 15)
-    position_secs       REAL NOT NULL,
+    position_ms       INTEGER NOT NULL,
     loop_length_beats   INTEGER,            -- NULL = jump cue; set = hotcue loop
     color               TEXT,
     label               TEXT,
@@ -490,8 +490,8 @@ CREATE TABLE IF NOT EXISTS track_hot_cue (
 CREATE TABLE IF NOT EXISTS track_loop (
     track_id            TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
     slot_index          INTEGER NOT NULL,
-    in_secs             REAL NOT NULL,
-    out_secs            REAL NOT NULL,
+    in_ms               INTEGER NOT NULL,
+    out_ms              INTEGER NOT NULL,
     label               TEXT,
     color               TEXT,
     updated_at          TEXT NOT NULL,
@@ -530,11 +530,11 @@ Extend `Deck` in `engine-dsp` with:
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `position_secs` | `number \| null` | Live playhead; null when no track loaded |
-| `duration_secs` | `number \| null` | From loaded track; null when unknown |
+| `position_ms` | `number \| null` | Live playhead; null when no track loaded |
+| `duration_ms` | `number \| null` | From loaded track; null when unknown |
 | `playing`, `volume`, `eq`, `track`, `track_id` | — | Already wired |
 
-**Target:** extend `DeckStatus` to expose everything in §4 for 60 fps-safe polling (waveform remains separate invoke). `remaining_secs` stays a UI-derived field unless we add it to the API for convenience.
+**Target:** extend `DeckStatus` to expose everything in §4 for 60 fps-safe polling (waveform remains separate invoke). `remaining_ms` stays a UI-derived field unless we add it to the API for convenience.
 
 ---
 
@@ -568,7 +568,7 @@ EngineStatus (hydrate + status events)
 ├── running, backend, sample_rate, crossfader, cue_mix, master_cue, master_deck?
 └── decks: DeckStatus[]     // one entry per deck (0 = A, 1 = B)
         ├── id, track, track_id, title, artist, bpm, key, playing, volume, eq, …
-        ├── position_secs, duration_secs, hot_cues, loops, sampler bank, …
+        ├── position_ms, duration_ms, hot_cues, loops, sampler bank, …
         └── levels (from high-rate levels events)
 ```
 
@@ -594,10 +594,10 @@ Engine-native (forwarded to cmd omnibus): play/pause, seek, volume/EQ/speed, cro
 One row per cue/loop slot, same DB as waveforms:
 
 ```text
-save_hot_cue(track_id, slot_index, position_secs, loop_length_beats?, color?, label?)
+save_hot_cue(track_id, slot_index, position_ms, loop_length_beats?, color?, label?)
 delete_hot_cue(track_id, slot_index)
 
-save_loop(track_id, slot_index, in_secs, out_secs, label?, color?)
+save_loop(track_id, slot_index, in_ms, out_ms, label?, color?)
 delete_loop(track_id, slot_index)
 ```
 
@@ -686,7 +686,7 @@ Increment **`revision`** on every emit so the UI can ignore out-of-order duplica
 
 ### 9.6 Position updates vs full status
 
-`position_secs` changes continuously during playback. **Current:** high-rate `position` (and `levels`) on `engine://bus`; waveform hooks extrapolate between updates. Do not resurrect a separate `engine://position` channel unless the bus path is insufficient.
+`position_ms` changes continuously during playback. **Current:** high-rate `position` (and `levels`) on `engine://bus`; waveform hooks extrapolate between updates. Do not resurrect a separate `engine://position` channel unless the bus path is insufficient.
 
 ### 9.7 UI integration
 
@@ -729,7 +729,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 **Engine / behavior (fix & wire existing):**
 
 - Stable load → play/pause on both decks (file picker + library drag-drop)
-- `position_secs` / `duration_secs` polled and shown (elapsed + remaining)
+- `position_ms` / `duration_ms` polled and shown (elapsed + remaining)
 - Volume faders, 3-band EQ, crossfader — responsive, no stale UI
 - Waveform scroll tracks playhead smoothly during playback
 - Engine auto-start + errors via coss toasts (done)
@@ -793,7 +793,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 **Phase 1 complete when:**
 
 1. Both decks: load (picker + drag-drop), play, pause work reliably with no silent failures.
-2. Deck UI shows **title, artist, BPM, key**, **elapsed** (`position_secs`), **remaining**, and **total** (`duration_secs`).
+2. Deck UI shows **title, artist, BPM, key**, **elapsed** (`position_ms`), **remaining**, and **total** (`duration_ms`).
 3. Layout reads as a **DJ app**: waveform stack → deck panels → center mixer; transport and platter visible per deck.
 4. **Volume, EQ, crossfader** reflect engine state; changes apply without glitching audio.
 5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.

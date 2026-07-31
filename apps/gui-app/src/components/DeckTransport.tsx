@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { animate, motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
-import { barCycleRotationDeg, getBarCycleDurationSecs } from "@/lib/format";
+import { barCycleRotationDeg, getBarCycleDurationMs } from "@/lib/format";
 import { useSmoothTrackProgress } from "@/hooks/useSmoothTrackProgress";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 
@@ -11,8 +11,8 @@ interface JogPlatterProps {
   playing: boolean;
   bpm: number | null;
   hasTrack: boolean;
-  positionSecs?: number;
-  durationSecs?: number | null;
+  positionMs?: number;
+  durationMs?: number | null;
   speed?: number;
 }
 
@@ -22,8 +22,8 @@ export function JogPlatter({
   playing,
   bpm,
   hasTrack,
-  positionSecs = 0,
-  durationSecs,
+  positionMs = 0,
+  durationMs,
   speed = 1,
 }: JogPlatterProps) {
   const accent = DECK_ACCENTS[accentKey];
@@ -33,8 +33,8 @@ export function JogPlatter({
   const trackerInitializedRef = useRef(false);
 
   const trackProgress = useSmoothTrackProgress({
-    positionSecs,
-    durationSecs,
+    positionMs,
+    durationMs,
     playing,
     speed,
   });
@@ -58,35 +58,35 @@ export function JogPlatter({
       return;
     }
 
-    const cycleDuration = getBarCycleDurationSecs(effectiveBpm);
-    if (cycleDuration == null) {
+    const cycleDurationMs = getBarCycleDurationMs(effectiveBpm);
+    if (cycleDurationMs == null) {
       return;
     }
 
     if (!trackerInitializedRef.current) {
       trackerInitializedRef.current = true;
-      lastPositionRef.current = positionSecs;
-      rotationRef.current = barCycleRotationDeg(positionSecs, effectiveBpm);
+      lastPositionRef.current = positionMs;
+      rotationRef.current = barCycleRotationDeg(positionMs, effectiveBpm);
       trackerRotate.set(rotationRef.current);
       return;
     }
 
-    const delta = positionSecs - lastPositionRef.current;
-    lastPositionRef.current = positionSecs;
-    const seekThreshold = Math.max(0.2, cycleDuration * 0.15);
+    const delta = positionMs - lastPositionRef.current;
+    lastPositionRef.current = positionMs;
+    const seekThreshold = Math.max(200, cycleDurationMs * 0.15);
     const isSeek = Math.abs(delta) > seekThreshold;
 
     if (isSeek) {
-      rotationRef.current = barCycleRotationDeg(positionSecs, effectiveBpm);
+      rotationRef.current = barCycleRotationDeg(positionMs, effectiveBpm);
     } else {
-      rotationRef.current += (delta / cycleDuration) * 360;
+      rotationRef.current += (delta / cycleDurationMs) * 360;
     }
 
     void animate(trackerRotate, rotationRef.current, {
       duration: isSeek ? 0 : 0.15,
       ease: "linear",
     });
-  }, [positionSecs, effectiveBpm, hasTrack, trackerRotate]);
+  }, [positionMs, effectiveBpm, hasTrack, trackerRotate]);
 
   return (
     <div className="relative size-32 shrink-0 sm:size-36" title="Jog wheel" aria-label="Jog wheel">

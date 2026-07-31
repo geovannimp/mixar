@@ -79,15 +79,15 @@ export const PadModeSchema = z.enum(["hot_cue", "loop_roll", "beat_jump", "sampl
 export type PadMode = z.infer<typeof PadModeSchema>;
 
 export const LoopRegionSchema = z.object({
-  in_secs: z.number(),
-  out_secs: z.number(),
+  in_ms: z.number(),
+  out_ms: z.number(),
   active: z.boolean(),
 });
 export type LoopRegion = z.infer<typeof LoopRegionSchema>;
 
 export const DeckHotCueSchema = z.object({
   slot: z.number().int().nonnegative(),
-  position_secs: z.number(),
+  position_ms: z.number(),
   loop_length_beats: z.number().int().nullable().optional(),
   color: z.string().nullable().optional(),
   label: z.string().nullable().optional(),
@@ -96,8 +96,8 @@ export type DeckHotCue = z.infer<typeof DeckHotCueSchema>;
 
 export const DeckSavedLoopSchema = z.object({
   slot: z.number().int().nonnegative(),
-  in_secs: z.number(),
-  out_secs: z.number(),
+  in_ms: z.number(),
+  out_ms: z.number(),
   label: z.string().nullable().optional(),
   color: z.string().nullable().optional(),
 });
@@ -110,7 +110,7 @@ export const SamplerSlotInfoSchema = z.object({
   label: z.string().nullable(),
   track_id: z.string().nullable(),
   path: z.string().nullable(),
-  duration_secs: z.number().nullable(),
+  duration_ms: z.number().nullable(),
 });
 export type SamplerSlotInfo = z.infer<typeof SamplerSlotInfoSchema>;
 
@@ -148,12 +148,12 @@ export const DeckSnapshotSchema = z.object({
   gain_trim_db: z.number(),
   headphone_cue: z.boolean(),
   sync_mode: SyncModeSchema,
-  cue_point_secs: z.number().nullable(),
+  cue_point_ms: z.number().nullable(),
   quantize: z.boolean(),
   active_loop: LoopRegionSchema.nullable(),
   pad_mode: PadModeSchema,
-  position_secs: z.number().nullable(),
-  duration_secs: z.number().nullable(),
+  position_ms: z.number().nullable(),
+  duration_ms: z.number().nullable(),
   hot_cues: z.array(DeckHotCueSchema),
   saved_loops: z.array(DeckSavedLoopSchema),
   loudness_lufs: z.number().nullable(),
@@ -176,7 +176,7 @@ export type EngineStatusPayload = z.infer<typeof EngineStatusPayloadSchema>;
 
 export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
-  z.object({ type: z.literal("seek"), position_secs: z.number() }),
+  z.object({ type: z.literal("seek"), position_ms: z.number() }),
   z.object({ type: z.literal("set_volume"), volume: z.number() }),
   z.object({
     type: z.literal("set_eq"),
@@ -200,11 +200,11 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     type: z.literal("begin_loop_roll"),
     beats: z.number().int().positive(),
   }),
-  z.object({ type: z.literal("trigger_hot_cue"), position_secs: z.number() }),
+  z.object({ type: z.literal("trigger_hot_cue"), position_ms: z.number() }),
   z.object({
     type: z.literal("recall_saved_loop"),
-    in_secs: z.number(),
-    out_secs: z.number(),
+    in_ms: z.number(),
+    out_ms: z.number(),
   }),
   z.object({ type: z.literal("trigger_sampler"), slot: z.number().int().nonnegative() }),
   z.object({ type: z.literal("end_sampler"), slot: z.number().int().nonnegative() }),
@@ -260,19 +260,19 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     gain_trim_db: z.number(),
     headphone_cue: z.boolean(),
     sync_mode: SyncModeSchema,
-    cue_point_secs: z.number().nullable(),
+    cue_point_ms: z.number().nullable(),
     quantize: z.boolean(),
     active_loop: LoopRegionSchema.nullable(),
     pad_mode: PadModeSchema,
-    position_secs: z.number().nullable(),
-    duration_secs: z.number().nullable(),
+    position_ms: z.number().nullable(),
+    duration_ms: z.number().nullable(),
     hot_cues: z.array(DeckHotCueSchema),
     saved_loops: z.array(DeckSavedLoopSchema),
     loudness_lufs: z.number().nullable(),
     auto_gain_db: z.number(),
     active_sampler_bank_id: z.string().nullable(),
   }),
-  z.object({ type: z.literal("position"), position_secs: z.number() }),
+  z.object({ type: z.literal("position"), position_ms: z.number() }),
   z.object({
     type: z.literal("levels"),
     peak_l: z.number(),

@@ -98,7 +98,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let config = AnalysisConfig {
-            max_duration_secs: Some(5.0),
+            max_duration_ms: Some(5000),
             ..Default::default()
         };
 

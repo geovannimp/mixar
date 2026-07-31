@@ -68,22 +68,22 @@ fn trigger_hot_cue_seeks_and_plays() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::TriggerHotCue,
-            encode_cmd_body(&CmdBody::TriggerHotCue { position_secs: 0.5 }).unwrap(),
+            encode_cmd_body(&CmdBody::TriggerHotCue { position_ms: 500 }).unwrap(),
         )
         .expect("trigger");
 
     let event = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
         playing,
-        position_secs,
+        position_ms,
         ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
     assert!(playing);
-    let pos = position_secs.expect("position");
-    assert!(pos >= 0.0);
+    let pos = position_ms.expect("position");
+    assert!((pos - 500).abs() <= 1);
 }
 
 #[test]
@@ -99,8 +99,8 @@ fn recall_saved_loop_activates_and_plays() {
             Origin::Deck(0),
             Kind::RecallSavedLoop,
             encode_cmd_body(&CmdBody::RecallSavedLoop {
-                in_secs: 0.0,
-                out_secs: 1.0,
+                in_ms: 0,
+                out_ms: 1000,
             })
             .unwrap(),
         )
@@ -117,7 +117,7 @@ fn recall_saved_loop_activates_and_plays() {
     };
     assert!(playing);
     let region = active_loop.expect("loop");
-    assert!((region.in_secs - 0.0).abs() < 1e-6);
-    assert!((region.out_secs - 1.0).abs() < 1e-6);
+    assert_eq!(region.in_ms, 0);
+    assert_eq!(region.out_ms, 1000);
     assert!(region.active);
 }
