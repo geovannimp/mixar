@@ -49,7 +49,7 @@ export function createLibraryTransport(options?: { backend?: LibraryBackend }): 
       return createTauriLibraryTransport();
     default: {
       const _exhaustive: never = backend;
-      throw new Error(`Unknown library transport backend: ${_exhaustive}`);
+      throw new Error(`Unknown library transport backend: ${String(_exhaustive)}`);
     }
   }
 }

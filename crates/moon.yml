@@ -42,6 +42,28 @@ tasks:
           - '**/*.rs'
         passDotWhenNoResults: false
 
+  # Pre-commit only: clippy the crates workspace when any .rs is staged.
+  # pass: false — cargo clippy does not take file path args (unlike rustfmt).
+  lint-files:
+    command: 'cargo'
+    args:
+      - 'clippy'
+      - '--all-targets'
+      - '--all-features'
+      - '--'
+      - '-D'
+      - 'warnings'
+    inputs:
+      - '**/*.rs'
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: false
+        filter:
+          - '**/*.rs'
+        passDotWhenNoResults: false
+
   lint:
     command: 'cargo'
     args:

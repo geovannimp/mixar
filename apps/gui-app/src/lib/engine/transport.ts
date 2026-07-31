@@ -24,7 +24,7 @@ export function createEngineTransport(options?: { backend?: EngineBackend }): En
       return createWasmEngineTransport();
     default: {
       const _exhaustive: never = backend;
-      throw new Error(`Unknown engine transport backend: ${_exhaustive}`);
+      throw new Error(`Unknown engine transport backend: ${String(_exhaustive)}`);
     }
   }
 }

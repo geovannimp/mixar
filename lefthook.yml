@@ -13,6 +13,5 @@ pre-commit:
       run: npm run format:staged
       stage_fixed: true
     lint:
-      glob: "*.{ts,tsx}"
       run: npm run lint:staged
       stage_fixed: true
