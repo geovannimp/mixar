@@ -287,12 +287,13 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   seekDeck: async (deckId, positionMs) => {
+    const clamped = Number.isFinite(positionMs) ? Math.trunc(positionMs) : 0;
     const status = get().status;
     if (status) {
-      set({ status: patchDeckPosition(status, deckId, positionMs) });
+      set({ status: patchDeckPosition(status, deckId, clamped) });
     }
     await publishCmd(getDeckOrigin(deckId), "seek", {
-      position_ms: positionMs,
+      position_ms: clamped,
     });
   },
 
