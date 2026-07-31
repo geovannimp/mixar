@@ -1002,6 +1002,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive-where"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d08b3a0bcc0d079199cd476b2cae8435016ec11d1c0986c6901c5ac223041534"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.106",
+]
+
+[[package]]
 name = "derive_more"
 version = "2.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2960,9 +2971,9 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-macros"
-version = "2.0.0-rc.42"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e166e50db6f9992fc65c488ef089e50072a31253588e3aa863aa6a9f34f2851"
+checksum = "b4cbb7ae053b9b37c919ea944a3bc52f7830a90c223f8a765c908293bca8f22d"
 dependencies = [
  "heck 0.5.0",
  "itertools 0.14.0",
@@ -2976,12 +2987,13 @@ dependencies = [
 
 [[package]]
 name = "sea-orm-sync"
-version = "2.0.0-rc.42"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3125d39254245a068472e5ffe8152eb234734feb266048b8997c52b9234c76b0"
+checksum = "af077c8192295a81104bdb5ffdc7f527ed9808b668e4fb047678180ac56bd5a7"
 dependencies = [
  "bigdecimal",
  "chrono",
+ "derive-where",
  "derive_more",
  "inventory",
  "itertools 0.14.0",
