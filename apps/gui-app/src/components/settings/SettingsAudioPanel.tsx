@@ -16,6 +16,7 @@ import type {
   AudioDeviceSummary,
   BusChannelMode,
   BusRouteSettings,
+  JogMode,
   SamplerBankInfo,
   SamplerPlayMode,
   SamplerStripRoute,
@@ -31,6 +32,12 @@ const BACKEND_OPTIONS = BACKENDS.map((backend) => ({
   value: backend,
   label: backend,
 }));
+
+const JOG_MODE_OPTIONS: { value: JogMode; label: string }[] = [
+  { value: "vinyl", label: "Vinyl (scratch)" },
+  { value: "pitch_bend", label: "Pitch bend" },
+  { value: "ignore", label: "Ignore" },
+];
 
 const CHANNEL_MODE_OPTIONS: { value: BusChannelMode; label: string }[] = [
   { value: "stereo", label: "Stereo pair" },
@@ -270,6 +277,31 @@ export function SettingsAudioPanel({
           checked={draft.low_latency}
           onCheckedChange={(low_latency) => onChange({ ...draft, low_latency })}
         />
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Jog wheel"
+          description="Defaults for top (touch) and outer (freewheel) platter policy. GUI platter always uses top."
+        />
+        <SettingsField label="Top (touched)">
+          <SettingsSelect
+            aria-label="Default top jog mode"
+            value={draft.default_top_jog_mode}
+            options={JOG_MODE_OPTIONS}
+            onValueChange={(default_top_jog_mode) => onChange({ ...draft, default_top_jog_mode })}
+          />
+        </SettingsField>
+        <SettingsField label="Outer (untouched)">
+          <SettingsSelect
+            aria-label="Default outer jog mode"
+            value={draft.default_outer_jog_mode}
+            options={JOG_MODE_OPTIONS}
+            onValueChange={(default_outer_jog_mode) =>
+              onChange({ ...draft, default_outer_jog_mode })
+            }
+          />
+        </SettingsField>
       </section>
 
       <section className="space-y-5 border-t border-white/8 pt-6">

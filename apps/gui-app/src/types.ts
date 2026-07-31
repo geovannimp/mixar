@@ -52,6 +52,7 @@ export const ZERO_DECK_LEVELS: DeckLevels = {
 
 export type SyncMode = "off" | "tempo" | "beat";
 export type PadMode = "hot_cue" | "loop_roll" | "beat_jump" | "sampler";
+export type JogMode = "vinyl" | "pitch_bend" | "ignore";
 export type KeyDisplayMode = "musical" | "camelot";
 export type SamplerPlayMode = "oneshot" | "hold" | "loop";
 export type SamplerStripRoute = "before" | "after";
@@ -84,6 +85,9 @@ export interface DeckStatus {
   pad_mode: PadMode;
   headphone_cue: boolean;
   active_sampler_bank_id: string | null;
+  top_jog_mode: JogMode;
+  outer_jog_mode: JogMode;
+  jog_touching: boolean;
   levels: DeckLevels;
 }
 
@@ -169,6 +173,8 @@ export interface AppSettings {
   sampler_play_mode: SamplerPlayMode;
   sampler_strip_route: SamplerStripRoute;
   deck_default_sampler_bank_id: [string | null, string | null];
+  default_top_jog_mode: JogMode;
+  default_outer_jog_mode: JogMode;
 }
 
 export type LibraryTableColumn =

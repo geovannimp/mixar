@@ -29,15 +29,18 @@ function deckIdFromOrigin(origin: Origin): number | null {
 function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnapshot): DeckStatus {
   const base = existing ?? getDefaultDeck(snapshot.id);
   const unloaded = snapshot.duration_ms == null && existing?.duration_ms != null;
+  // Engine control snapshots omit host library fields (track/title/cues). Keep base unless
+  // this event is an unload or a host-authored update that includes track identity.
+  const trustLibrary = unloaded || snapshot.track != null || snapshot.track_id != null;
   return {
     ...base,
     id: snapshot.id,
-    track: unloaded ? null : snapshot.track,
-    track_id: unloaded ? null : snapshot.track_id,
-    title: unloaded ? null : snapshot.title,
-    artist: unloaded ? null : snapshot.artist,
-    bpm: unloaded ? null : snapshot.bpm,
-    key: unloaded ? null : snapshot.key,
+    track: unloaded ? null : (snapshot.track ?? base.track),
+    track_id: unloaded ? null : (snapshot.track_id ?? base.track_id),
+    title: unloaded ? null : (snapshot.title ?? base.title),
+    artist: unloaded ? null : (snapshot.artist ?? base.artist),
+    bpm: unloaded ? null : (snapshot.bpm ?? base.bpm),
+    key: unloaded ? null : (snapshot.key ?? base.key),
     playing: snapshot.playing,
     volume: snapshot.volume,
     speed: snapshot.speed,
@@ -54,11 +57,18 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     position_ms: snapshot.position_ms ?? (unloaded ? null : base.position_ms),
     duration_ms: snapshot.duration_ms,
     levels: base.levels ?? ZERO_DECK_LEVELS,
-    hot_cues: unloaded ? [] : snapshot.hot_cues,
-    saved_loops: unloaded ? [] : snapshot.saved_loops,
-    loudness_lufs: unloaded ? null : snapshot.loudness_lufs,
-    auto_gain_db: unloaded ? 0 : snapshot.auto_gain_db,
-    active_sampler_bank_id: unloaded ? null : snapshot.active_sampler_bank_id,
+    hot_cues: unloaded ? [] : trustLibrary ? snapshot.hot_cues : base.hot_cues,
+    saved_loops: unloaded ? [] : trustLibrary ? snapshot.saved_loops : base.saved_loops,
+    loudness_lufs: unloaded ? null : trustLibrary ? snapshot.loudness_lufs : base.loudness_lufs,
+    auto_gain_db: unloaded ? 0 : trustLibrary ? snapshot.auto_gain_db : base.auto_gain_db,
+    active_sampler_bank_id: unloaded
+      ? null
+      : trustLibrary
+        ? snapshot.active_sampler_bank_id
+        : base.active_sampler_bank_id,
+    top_jog_mode: snapshot.top_jog_mode,
+    outer_jog_mode: snapshot.outer_jog_mode,
+    jog_touching: snapshot.jog_touching,
   };
 }
 
@@ -146,6 +156,9 @@ export function applyBusEvent(
         loudness_lufs: deck.loudness_lufs,
         auto_gain_db: deck.auto_gain_db,
         active_sampler_bank_id: deck.active_sampler_bank_id,
+        top_jog_mode: deck.top_jog_mode,
+        outer_jog_mode: deck.outer_jog_mode,
+        jog_touching: deck.jog_touching,
       };
       return {
         status: {

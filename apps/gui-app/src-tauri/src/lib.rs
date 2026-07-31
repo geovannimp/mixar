@@ -88,6 +88,9 @@ pub(crate) struct DeckInfo {
     loop_roll_restore: Option<LoopRegionStatus>,
     headphone_cue: bool,
     active_sampler_bank_id: Option<String>,
+    top_jog_mode: engine_api::JogMode,
+    outer_jog_mode: engine_api::JogMode,
+    jog_touching: bool,
 }
 
 impl Default for DeckInfo {
@@ -117,6 +120,9 @@ impl Default for DeckInfo {
             loop_roll_restore: None,
             headphone_cue: false,
             active_sampler_bank_id: None,
+            top_jog_mode: engine_api::JogMode::Vinyl,
+            outer_jog_mode: engine_api::JogMode::PitchBend,
+            jog_touching: false,
         }
     }
 }
@@ -143,6 +149,8 @@ pub(crate) struct AppState {
     pub loaded_sampler_bank_id: [Option<String>; NUM_DECKS],
     /// Unsaved bank created with "+" — persisted on first rename / play-mode / sample assign.
     pub draft_sampler_bank: Option<SamplerBankInfo>,
+    pub default_top_jog_mode: engine_api::JogMode,
+    pub default_outer_jog_mode: engine_api::JogMode,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -198,6 +206,14 @@ struct AppSettings {
     sampler_strip_route: SamplerStripRouteSetting,
     #[serde(default = "default_deck_sampler_banks")]
     deck_default_sampler_bank_id: [Option<String>; NUM_DECKS],
+    #[serde(default)]
+    default_top_jog_mode: engine_api::JogMode,
+    #[serde(default = "default_outer_jog_mode")]
+    default_outer_jog_mode: engine_api::JogMode,
+}
+
+fn default_outer_jog_mode() -> engine_api::JogMode {
+    engine_api::JogMode::PitchBend
 }
 
 fn default_volume_normalizer_enabled() -> bool {
@@ -318,6 +334,8 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         sampler_play_mode: state.sampler_play_mode,
         sampler_strip_route: state.sampler_strip_route,
         deck_default_sampler_bank_id: state.deck_default_sampler_bank_id.clone(),
+        default_top_jog_mode: state.default_top_jog_mode,
+        default_outer_jog_mode: state.default_outer_jog_mode,
     }
 }
 
@@ -349,6 +367,8 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     state.sampler_play_mode = settings.sampler_play_mode;
     state.sampler_strip_route = settings.sampler_strip_route;
     state.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
+    state.default_top_jog_mode = settings.default_top_jog_mode;
+    state.default_outer_jog_mode = settings.default_outer_jog_mode;
     Ok(())
 }
 
@@ -419,6 +439,9 @@ pub(crate) struct DeckStatus {
     pad_mode: PadMode,
     headphone_cue: bool,
     active_sampler_bank_id: Option<String>,
+    top_jog_mode: engine_api::JogMode,
+    outer_jog_mode: engine_api::JogMode,
+    jog_touching: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -601,6 +624,18 @@ pub(crate) fn start_engine_inner(
     state.evt_forwarder = Some(EvtForwarder::start(app.clone(), session));
     apply_normalizer_target(state)?;
     ensure_sampler_ready(state)?;
+
+    let top = state.default_top_jog_mode;
+    let outer = state.default_outer_jog_mode;
+    for deck_id in 0..NUM_DECKS {
+        state.decks[deck_id].top_jog_mode = top;
+        state.decks[deck_id].outer_jog_mode = outer;
+        let _ = with_engine(state, |engine| {
+            engine
+                .set_deck_jog_mode(deck_id, top, outer)
+                .map_err(|e| e.to_string())
+        });
+    }
 
     let _ = publish_status(app, state);
     Ok(())
@@ -1123,6 +1158,8 @@ pub fn run() {
                 sampler_slots: empty_deck_sampler_slots(),
                 loaded_sampler_bank_id: std::array::from_fn(|_| None),
                 draft_sampler_bank: None,
+                default_top_jog_mode: engine_api::JogMode::Vinyl,
+                default_outer_jog_mode: engine_api::JogMode::PitchBend,
             })));
             Ok(())
         })

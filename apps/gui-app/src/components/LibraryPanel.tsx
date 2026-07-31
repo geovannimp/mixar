@@ -93,6 +93,8 @@ export function LibraryPanel() {
       sampler_play_mode: "oneshot",
       sampler_strip_route: "before",
       deck_default_sampler_bank_id: [null, null],
+      default_top_jog_mode: "vinyl",
+      default_outer_jog_mode: "pitch_bend",
     },
   );
 

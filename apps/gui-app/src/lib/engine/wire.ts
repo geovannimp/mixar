@@ -48,6 +48,9 @@ export const KindSchema = z.enum([
   "delete_loop",
   "load_path",
   "load_library_track",
+  "jog_touch",
+  "jog_turn",
+  "set_jog_mode",
   "start_engine",
   "updated",
   "position",
@@ -77,6 +80,9 @@ export type SyncMode = z.infer<typeof SyncModeSchema>;
 
 export const PadModeSchema = z.enum(["hot_cue", "loop_roll", "beat_jump", "sampler"]);
 export type PadMode = z.infer<typeof PadModeSchema>;
+
+export const JogModeSchema = z.enum(["vinyl", "pitch_bend", "ignore"]);
+export type JogMode = z.infer<typeof JogModeSchema>;
 
 export const LoopRegionSchema = z.object({
   in_ms: z.number(),
@@ -159,6 +165,9 @@ export const DeckSnapshotSchema = z.object({
   loudness_lufs: z.number().nullable(),
   auto_gain_db: z.number(),
   active_sampler_bank_id: z.string().nullable(),
+  top_jog_mode: JogModeSchema,
+  outer_jog_mode: JogModeSchema,
+  jog_touching: z.boolean(),
 });
 export type DeckSnapshot = z.infer<typeof DeckSnapshotSchema>;
 
@@ -238,6 +247,13 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("delete_loop"), slot: z.number().int().nonnegative() }),
   z.object({ type: z.literal("load_path"), path: z.string() }),
   z.object({ type: z.literal("load_library_track"), track_id: z.string() }),
+  z.object({ type: z.literal("jog_touch"), touching: z.boolean() }),
+  z.object({ type: z.literal("jog_turn"), delta: z.number().int() }),
+  z.object({
+    type: z.literal("set_jog_mode"),
+    top: JogModeSchema,
+    outer: JogModeSchema,
+  }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
@@ -271,6 +287,9 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     loudness_lufs: z.number().nullable(),
     auto_gain_db: z.number(),
     active_sampler_bank_id: z.string().nullable(),
+    top_jog_mode: JogModeSchema,
+    outer_jog_mode: JogModeSchema,
+    jog_touching: z.boolean(),
   }),
   z.object({ type: z.literal("position"), position_ms: z.number() }),
   z.object({
@@ -424,6 +443,9 @@ export type CmdKind =
   | "delete_loop"
   | "load_path"
   | "load_library_track"
+  | "jog_touch"
+  | "jog_turn"
+  | "set_jog_mode"
   | "start_engine";
 
 /** Nested CmdBody: no fields → empty; otherwise tag with `kind`. Strips wire-only `action_timestamp_ms`. */
