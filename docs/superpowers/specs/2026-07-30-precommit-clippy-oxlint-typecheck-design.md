@@ -14,12 +14,12 @@ Close the gap between local pre-commit (`format:staged` / `lint:staged`) and CI 
 ### Rust (`crates` moon project)
 
 - Add `lint-files` moon task (pre-commit only, `runInCI: false`).
-- Inputs: staged `**/*.rs` via moon `affectedFiles` (same skip pattern as `format-files`).
-- Implementation: small script maps each path to its workspace package (first path segment under `crates/`, which matches `[package].name` today) and runs:
+- When any staged `**/*.rs` exists under `crates/`, run the same clippy invocation as CI:
 
-  `cargo clippy -p <pkgs…> --all-targets -- -D warnings`
+  `cargo clippy --all-targets --all-features -- -D warnings`
 
-- CI `lint` remains full-workspace clippy (`--all-targets --all-features -D warnings`).
+- Use moon `affectedFiles` with `pass: false` (clippy does not take file path args) and `passDotWhenNoResults: false` so the task skips when no `.rs` is staged.
+- CI `lint` remains the same full-workspace clippy command.
 
 ### TypeScript (`gui-app`)
 

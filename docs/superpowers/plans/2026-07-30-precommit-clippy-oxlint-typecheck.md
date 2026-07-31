@@ -12,18 +12,16 @@
 
 ## Global Constraints
 
-- Clippy on affected packages only (not full workspace) for `lint-files`.
-- Same clippy deny flags as CI for those packages: `--all-targets` and `-D warnings`. Prefer also `--all-features` to match CI `lint` when clipping packages.
+- Clippy when any crates `.rs` is staged (moon project gate; same flags as CI `lint`).
 - Oxlint typeCheck (not separate `tsc --noEmit`) for the TS gate.
 - Do not add src-tauri clippy in this slice.
-- Prefer fewest files; reuse moon `affectedFiles` patterns from `format-files`.
+- Prefer fewest files; reuse moon `affectedFiles` skip patterns from `format-files`.
 
 ## File map
 
 | File | Role |
 |------|------|
-| `crates/scripts/clippy-packages.sh` | Map `.rs` paths → unique `-p` names; run clippy |
-| `crates/moon.yml` | Add `lint-files` calling the script |
+| `crates/moon.yml` | Add `lint-files` → workspace clippy when `.rs` staged |
 | `apps/gui-app/package.json` | Add `oxlint-tsgolint` |
 | `apps/gui-app/oxlint.config.ts` | `typeAware` + `typeCheck` |
 | `lefthook.yml` | Drop TS-only lint glob |
@@ -32,51 +30,21 @@
 
 ---
 
-### Task 1: Rust lint-files + clippy script
+### Task 1: Rust lint-files
 
 **Files:**
-- Create: `crates/scripts/clippy-packages.sh`
 - Modify: `crates/moon.yml`
 
-- [ ] **Step 1: Add script**
+- [ ] **Step 1: Add lint-files**
 
-Script under `crates/` (moon project root):
+Same clippy args as CI `lint`. `affectedFiles.pass: false` + `.rs` filter + `passDotWhenNoResults: false` so the task runs only when `.rs` is staged and does not append file paths to cargo.
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-# Args: paths relative to crates/ (or absolute). Collect unique top-level package dirs.
-pkgs=()
-for f in "$@"; do
-  rel="${f#./}"
-  case "$rel" in
-    *.rs) ;;
-    *) continue ;;
-  esac
-  pkg="${rel%%/*}"
-  [[ -f "$pkg/Cargo.toml" ]] || continue
-  pkgs+=("$pkg")
-done
-# unique
-mapfile -t pkgs < <(printf '%s\n' "${pkgs[@]}" | sort -u)
-[[ ${#pkgs[@]} -eq 0 ]] && exit 0
-args=()
-for p in "${pkgs[@]}"; do args+=(-p "$p"); done
-exec cargo clippy "${args[@]}" --all-targets --all-features -- -D warnings
-```
+- [ ] **Step 2: Smoke** `npx moon run rust:lint-files` → clippy workspace.
 
-- [ ] **Step 2: moon lint-files**
-
-Mirror `format-files` options; command runs the script with affected files as args.
-
-- [ ] **Step 3: Smoke**
-
-Stage a dummy path or run script with `engine-dsp/src/lib.rs` and confirm clippy starts for `-p engine-dsp`.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```
-chore(crates): add lint-files clippy for staged packages
+chore(crates): add lint-files clippy when Rust sources staged
 ```
 
 ---
