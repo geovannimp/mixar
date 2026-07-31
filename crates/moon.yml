@@ -42,6 +42,21 @@ tasks:
           - '**/*.rs'
         passDotWhenNoResults: false
 
+  # Pre-commit only: clippy affected packages from staged .rs paths.
+  lint-files:
+    command: 'bash'
+    args: ['scripts/clippy-packages.sh']
+    inputs:
+      - '**/*.rs'
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: 'args'
+        filter:
+          - '**/*.rs'
+        passDotWhenNoResults: false
+
   lint:
     command: 'cargo'
     args:

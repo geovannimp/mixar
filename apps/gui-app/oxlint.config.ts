@@ -1,6 +1,10 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
+  options: {
+    typeAware: true,
+    typeCheck: true,
+  },
   plugins: ["typescript", "unicorn", "oxc", "import"],
   categories: {
     correctness: "error",
