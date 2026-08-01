@@ -7,7 +7,7 @@ import type { DeckHotCueMarker } from "@/types";
 interface HotCuePadsProps {
   hotCues: DeckHotCueMarker[];
   disabled?: boolean;
-  onTrigger: (slot: number) => void;
+  onTrigger: (cue: DeckHotCueMarker) => void;
   onSave: (slot: number) => void;
   onDelete: (slot: number) => void;
 }
@@ -36,8 +36,8 @@ export function HotCuePads({ hotCues, disabled, onTrigger, onSave, onDelete }: H
                 onDelete(slot);
                 return;
               }
-              if (filled) {
-                onTrigger(slot);
+              if (cue) {
+                onTrigger(cue);
                 return;
               }
               onSave(slot);

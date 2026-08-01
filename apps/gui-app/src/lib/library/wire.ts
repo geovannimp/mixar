@@ -3,7 +3,20 @@
 import { decode, encode } from "@msgpack/msgpack";
 import { z } from "zod";
 
-export const KindSchema = z.enum(["analyze_track", "track_analyzed", "error", "notice"]);
+export const KindSchema = z.enum([
+  "analyze_track",
+  "track_analyzed",
+  "refresh_track",
+  "track_updated",
+  "save_hot_cue",
+  "delete_hot_cue",
+  "save_loop",
+  "delete_loop",
+  "hot_cues_changed",
+  "loops_changed",
+  "error",
+  "notice",
+]);
 export type Kind = z.infer<typeof KindSchema>;
 
 export const OriginSchema = z.union([z.literal("library"), z.object({ track: z.string() })]);
@@ -23,6 +36,24 @@ export const TrackSummarySchema = z.object({
 });
 export type WireTrackSummary = z.infer<typeof TrackSummarySchema>;
 
+export const HotCueSchema = z.object({
+  slot: z.number().int().nonnegative(),
+  position_ms: z.number().int(),
+  loop_length_beats: z.number().int().nullable().optional(),
+  color: z.string().nullable().optional(),
+  label: z.string().nullable().optional(),
+});
+export type WireHotCue = z.infer<typeof HotCueSchema>;
+
+export const SavedLoopSchema = z.object({
+  slot: z.number().int().nonnegative(),
+  in_ms: z.number().int(),
+  out_ms: z.number().int(),
+  label: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+});
+export type WireSavedLoop = z.infer<typeof SavedLoopSchema>;
+
 export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
   z.object({
@@ -30,12 +61,55 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     track_id: z.string(),
     force: z.boolean(),
   }),
+  z.object({
+    type: z.literal("refresh_track"),
+    track_id: z.string(),
+  }),
+  z.object({
+    type: z.literal("save_hot_cue"),
+    track_id: z.string(),
+    slot: z.number().int().nonnegative(),
+    position_ms: z.number().int(),
+    loop_length_beats: z.number().int().nullable().optional(),
+    color: z.string().nullable().optional(),
+    label: z.string().nullable().optional(),
+  }),
+  z.object({
+    type: z.literal("delete_hot_cue"),
+    track_id: z.string(),
+    slot: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("save_loop"),
+    track_id: z.string(),
+    slot: z.number().int().nonnegative(),
+    in_ms: z.number().int(),
+    out_ms: z.number().int(),
+    label: z.string().nullable().optional(),
+    color: z.string().nullable().optional(),
+  }),
+  z.object({
+    type: z.literal("delete_loop"),
+    track_id: z.string(),
+    slot: z.number().int().nonnegative(),
+  }),
 ]);
 export type CmdBody = z.infer<typeof CmdBodySchema>;
 
 export const EvtBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
   z.object({ type: z.literal("track_analyzed"), track: TrackSummarySchema }),
+  z.object({ type: z.literal("track_updated"), track: TrackSummarySchema }),
+  z.object({
+    type: z.literal("hot_cues_changed"),
+    track_id: z.string(),
+    hot_cues: z.array(HotCueSchema),
+  }),
+  z.object({
+    type: z.literal("loops_changed"),
+    track_id: z.string(),
+    loops: z.array(SavedLoopSchema),
+  }),
   z.object({
     type: z.literal("error"),
     message: z.string(),
@@ -124,7 +198,13 @@ export function encodeWireCmd(
   });
 }
 
-export type CmdKind = "analyze_track";
+export type CmdKind =
+  | "analyze_track"
+  | "refresh_track"
+  | "save_hot_cue"
+  | "delete_hot_cue"
+  | "save_loop"
+  | "delete_loop";
 
 /** Client-side evt filter; omit a field (or pass null) to match any. */
 export type SubscribeFilter = {

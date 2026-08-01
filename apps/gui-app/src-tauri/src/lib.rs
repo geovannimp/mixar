@@ -1,7 +1,5 @@
 use audio_core::{ms_to_secs, secs_to_ms, BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
-use deck_performance::{
-    apply_deck_performance, fetch_deck_performance, HotCueStatus, SavedLoopStatus,
-};
+use deck_performance::{HotCueStatus, SavedLoopStatus};
 use deck_sampler::{
     apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready,
     list_sampler_banks, reapply_sampler_gains, SamplerBankInfo,
@@ -513,8 +511,12 @@ pub(crate) fn start_engine_inner(
 
     let config = state.engine_config.clone();
     let session = Arc::new(
-        EngineSession::new_with_library(config, Arc::clone(&state.library))
-            .map_err(|e| e.to_string())?,
+        EngineSession::new_with_library_bus(
+            config,
+            Arc::clone(&state.library),
+            state.library_session.cmd_bus(),
+        )
+        .map_err(|e| e.to_string())?,
     );
     session
         .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
@@ -793,12 +795,7 @@ pub(crate) fn load_prepared_to_deck_inner(
         deck.loudness_lufs = loudness_lufs;
     }
     sync_deck_auto_gain_from_engine(state, deck_id)?;
-    let track_id_for_perf = state.decks[deck_id].track_id.clone();
-    let (hot_cues, saved_loops) = {
-        let library = state.library.lock().map_err(|e| e.to_string())?;
-        fetch_deck_performance(&library, track_id_for_perf.as_deref())
-    };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    // Cue/loop/metadata UI comes from library `useTrack` (RefreshTrack + evts), not host hydrate.
     Ok(())
 }
 

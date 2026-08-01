@@ -16,6 +16,7 @@ import {
   useSamplerEffectivePlayMode,
 } from "@/hooks/useEngine";
 import { getDefaultDeck } from "@/stores/defaultDeck";
+import { useTrack } from "@/hooks/useTrack";
 import type { DeckStatus } from "@/types";
 import { DeckPadsPanel } from "./DeckPadsPanel";
 import { DeckLoopPanel } from "./DeckLoopPanel";
@@ -40,6 +41,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
   transportDisabled: boolean;
 }) {
   const overview = useDeckOverview(deckId);
+  const { track } = useTrack(overview.track_id);
 
   return (
     <div className="flex shrink-0 flex-col gap-0.5">
@@ -58,7 +60,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
         playing={overview.playing}
         speed={overview.speed}
         durationMs={overview.duration_ms}
-        hotCues={overview.hot_cues}
+        hotCues={track?.hot_cues ?? []}
         disabled={transportDisabled}
         onSeek={(positionMs) => {
           void engineActions.seekDeck(deckId, positionMs);
@@ -79,6 +81,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
 }) {
   const controls = useDeckControls(deckId);
   const transport = useDeckTransport(deckId);
+  const { track: libraryTrack } = useTrack(controls.track_id);
   const samplerSlots = useSamplerSlots(deckId);
   const samplerBanks = useSamplerBanks();
   const effectivePlayMode = useSamplerEffectivePlayMode(deckId);
@@ -90,6 +93,12 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
     ...getDefaultDeck(deckId),
     ...controls,
     ...transport,
+    title: libraryTrack?.title ?? controls.title,
+    artist: libraryTrack?.artist ?? controls.artist,
+    bpm: libraryTrack?.bpm ?? controls.bpm,
+    key: libraryTrack?.key ?? controls.key,
+    hot_cues: libraryTrack?.hot_cues ?? [],
+    saved_loops: libraryTrack?.saved_loops ?? [],
   };
 
   const hotCuePanel = (
@@ -102,14 +111,17 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       onSetPadMode={(mode) => {
         void engineActions.setDeckPadMode(deckId, mode);
       }}
-      onTriggerHotCue={(slot) => {
-        void engineActions.triggerHotCue(deckId, slot);
+      onTriggerHotCue={(cue) => {
+        void engineActions.triggerHotCue(deckId, cue);
       }}
       onSaveHotCue={(slot) => {
         void engineActions.saveHotCue(deckId, slot);
       }}
       onDeleteHotCue={(slot) => {
-        void engineActions.deleteHotCue(deckId, slot);
+        if (!deck.track_id) {
+          return;
+        }
+        void engineActions.deleteHotCue(deck.track_id, slot);
       }}
       onBeginLoopRoll={(beats) => {
         void engineActions.beginLoopRoll(deckId, beats);
@@ -157,11 +169,14 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       onSaveLoop={(slot) => {
         void engineActions.saveLoop(deckId, slot);
       }}
-      onRecallSavedLoop={(slot) => {
-        void engineActions.recallSavedLoop(deckId, slot);
+      onTriggerLoop={(loop) => {
+        void engineActions.triggerLoop(deckId, loop);
       }}
       onDeleteLoop={(slot) => {
-        void engineActions.deleteLoop(deckId, slot);
+        if (!deck.track_id) {
+          return;
+        }
+        void engineActions.deleteLoop(deck.track_id, slot);
       }}
       onBeatJump={(beats) => {
         void engineActions.beatJumpDeck(deckId, beats);

@@ -1,6 +1,6 @@
 //! Library session: owns `LibraryManager`, omnibus buses, and the worker thread.
 
-use crate::bus::{new_buses, subscribe_evt_all, EvtReceiver, LibraryBus};
+use crate::bus::{new_buses, subscribe_evt_all, subscribe_evt_track, EvtReceiver, LibraryBus};
 use crate::worker::worker_thread_loop;
 use crate::{LibraryConfig, LibraryError, LibraryManager, Result};
 use library_api::{encode_evt_body, EvtBody, Kind, Origin};
@@ -105,6 +105,12 @@ impl LibrarySession {
     /// Subscribe to all egress events (host bridge).
     pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
         subscribe_evt_all(&self.evt_bus)
+            .map_err(|e| LibraryError::Io(std::io::Error::other(e.to_string())))
+    }
+
+    /// Subscribe to egress events for one track (`Origin::Track`).
+    pub fn subscribe_evt_track(&self, track_id: impl Into<String>) -> Result<EvtReceiver> {
+        subscribe_evt_track(&self.evt_bus, track_id)
             .map_err(|e| LibraryError::Io(std::io::Error::other(e.to_string())))
     }
 

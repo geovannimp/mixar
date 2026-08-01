@@ -1701,6 +1701,7 @@ dependencies = [
  "engine-api",
  "engine-dsp",
  "library",
+ "library-api",
  "library-core",
  "log",
  "omnibus",

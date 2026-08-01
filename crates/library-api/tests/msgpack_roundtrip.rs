@@ -2,7 +2,7 @@
 
 use library_api::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
-    CmdBody, EvtBody, Kind, Origin, TrackSummary, WireMessage,
+    CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop, TrackSummary, WireMessage,
 };
 
 #[test]
@@ -66,5 +66,48 @@ fn cmd_and_evt_bodies_roundtrip() {
     assert_eq!(
         decode_evt_body(&encode_evt_body(&err).unwrap()).unwrap(),
         err
+    );
+
+    let save = CmdBody::SaveHotCue {
+        track_id: "t1".into(),
+        slot: 2,
+        position_ms: 12_500,
+        loop_length_beats: None,
+        color: None,
+        label: Some("drop".into()),
+    };
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&save).unwrap()).unwrap(),
+        save
+    );
+
+    let cues = EvtBody::HotCuesChanged {
+        track_id: "t1".into(),
+        hot_cues: vec![HotCue {
+            slot: 2,
+            position_ms: 12_500,
+            loop_length_beats: None,
+            color: None,
+            label: Some("drop".into()),
+        }],
+    };
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&cues).unwrap()).unwrap(),
+        cues
+    );
+
+    let loops = EvtBody::LoopsChanged {
+        track_id: "t1".into(),
+        loops: vec![SavedLoop {
+            slot: 0,
+            in_ms: 0,
+            out_ms: 2000,
+            label: None,
+            color: None,
+        }],
+    };
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&loops).unwrap()).unwrap(),
+        loops
     );
 }
