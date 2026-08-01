@@ -70,18 +70,21 @@ export function LibraryPanel() {
   const { analyse } = useTrack(null);
   const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
 
+  const collectionIdsKey = collections.map((collection) => collection.id).join("\0");
+
   useEffect(() => {
-    if (collections.length === 0) {
+    const ids = collectionIdsKey ? collectionIdsKey.split("\0") : [];
+    if (ids.length === 0) {
       setSelectedCollectionId(null);
       return;
     }
     setSelectedCollectionId((current) => {
-      if (current && collections.some((collection) => collection.id === current)) {
+      if (current && ids.includes(current)) {
         return current;
       }
-      return collections[0]?.id ?? null;
+      return ids[0] ?? null;
     });
-  }, [collections]);
+  }, [collectionIdsKey]);
 
   useEffect(() => {
     return useLibraryStore.subscribe((state, prev) => {

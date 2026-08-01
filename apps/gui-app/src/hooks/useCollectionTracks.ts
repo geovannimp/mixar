@@ -1,16 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { selectCollectionTracks, useLibraryStore } from "@/stores/libraryStore";
+import { toTrackSummaryView, useLibraryStore, type LibraryTrack } from "@/stores/libraryStore";
 import type { TrackSummary } from "@/types";
 
 export function useCollectionTracks(collectionId: string | null | undefined): {
   tracks: TrackSummary[];
 } {
-  const { tracks, loadCollectionTracks } = useLibraryStore(
+  const { trackIds, tracksById, loadCollectionTracks } = useLibraryStore(
     useShallow((state) => ({
-      tracks: selectCollectionTracks(state, collectionId),
+      trackIds: collectionId ? (state.collections[collectionId]?.trackIds ?? EMPTY_IDS) : EMPTY_IDS,
+      tracksById: state.tracks,
       loadCollectionTracks: state.loadCollectionTracks,
     })),
+  );
+
+  const tracks = useMemo(
+    () =>
+      trackIds
+        .map((id) => tracksById[id])
+        .filter((track): track is LibraryTrack => Boolean(track))
+        .map(toTrackSummaryView),
+    [trackIds, tracksById],
   );
 
   useEffect(() => {
@@ -24,3 +34,5 @@ export function useCollectionTracks(collectionId: string | null | undefined): {
 
   return { tracks };
 }
+
+const EMPTY_IDS: string[] = [];

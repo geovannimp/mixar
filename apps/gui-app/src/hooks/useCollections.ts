@@ -1,8 +1,8 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
-import { selectLibraryCollections, useLibraryStore } from "@/stores/libraryStore";
+import { useLibraryStore, type LibraryCollection } from "@/stores/libraryStore";
 import type { AddFolderCollectionResult, CollectionSummary } from "@/types";
 
 export function useCollections(): {
@@ -12,16 +12,31 @@ export function useCollections(): {
   addCollection: () => Promise<AddFolderCollectionResult | null | undefined>;
   addCollectionFromPath: (folderPath: string) => Promise<AddFolderCollectionResult | null>;
 } {
-  const { collections, busy, error, refreshCollections, addFolderCollectionFromPath } =
-    useLibraryStore(
-      useShallow((state) => ({
-        collections: selectLibraryCollections(state),
-        busy: state.busy,
-        error: state.error,
-        refreshCollections: state.refreshCollections,
-        addFolderCollectionFromPath: state.addFolderCollectionFromPath,
-      })),
-    );
+  const {
+    collectionIds,
+    collectionsById,
+    busy,
+    error,
+    refreshCollections,
+    addFolderCollectionFromPath,
+  } = useLibraryStore(
+    useShallow((state) => ({
+      collectionIds: state.collectionIds,
+      collectionsById: state.collections,
+      busy: state.busy,
+      error: state.error,
+      refreshCollections: state.refreshCollections,
+      addFolderCollectionFromPath: state.addFolderCollectionFromPath,
+    })),
+  );
+
+  const collections = useMemo(
+    () =>
+      collectionIds
+        .map((id) => collectionsById[id])
+        .filter((collection): collection is LibraryCollection => Boolean(collection)),
+    [collectionIds, collectionsById],
+  );
 
   useEffect(() => {
     refreshCollections().catch((err: unknown) => {

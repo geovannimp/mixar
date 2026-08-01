@@ -319,23 +319,3 @@ export const useLibraryStore = create<LibraryState>()(
     },
   })),
 );
-
-export function selectLibraryCollections(state: LibraryState): CollectionSummary[] {
-  return state.collectionIds
-    .map((id) => state.collections[id])
-    .filter((collection): collection is LibraryCollection => Boolean(collection));
-}
-
-export function selectCollectionTracks(
-  state: LibraryState,
-  collectionId: string | null | undefined,
-): TrackSummary[] {
-  if (!collectionId) {
-    return [];
-  }
-  const trackIds = state.collections[collectionId]?.trackIds ?? [];
-  return trackIds
-    .map((id) => state.tracks[id])
-    .filter((track): track is LibraryTrack => Boolean(track))
-    .map(toTrackSummaryView);
-}
