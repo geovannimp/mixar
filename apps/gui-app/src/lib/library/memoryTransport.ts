@@ -1,15 +1,23 @@
 import type { LibraryTransport } from "@/lib/library/transport";
 import {
   cmdBodyForKind,
+  decodeWire,
   encodeEvtBody,
   encodeWire,
+  matchesSubscribeFilter,
   type CmdKind,
   type Origin,
+  type SubscribeFilter,
 } from "@/lib/library/wire";
+
+type HandlerEntry = {
+  handler: (message: Uint8Array) => void;
+  filter?: SubscribeFilter;
+};
 
 /** In-memory transport for tests; publish can optionally synthesize evt via subscribe. */
 export function createMemoryLibraryTransport(): LibraryTransport {
-  const handlers = new Set<(message: Uint8Array) => void>();
+  const handlers = new Set<HandlerEntry>();
 
   return {
     async listCollections() {
@@ -60,14 +68,24 @@ export function createMemoryLibraryTransport(): LibraryTransport {
           },
         }),
       });
-      for (const handler of handlers) {
-        handler(evtBytes);
+      let message;
+      try {
+        message = decodeWire(evtBytes);
+      } catch {
+        return;
+      }
+      for (const entry of handlers) {
+        if (!matchesSubscribeFilter(message, entry.filter)) {
+          continue;
+        }
+        entry.handler(evtBytes);
       }
     },
-    async subscribe(handler) {
-      handlers.add(handler);
+    async subscribe(handler, filter?: SubscribeFilter) {
+      const entry: HandlerEntry = { handler, filter };
+      handlers.add(entry);
       return () => {
-        handlers.delete(handler);
+        handlers.delete(entry);
       };
     },
   };

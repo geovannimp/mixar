@@ -1,6 +1,6 @@
 import { createMemoryLibraryTransport } from "@/lib/library/memoryTransport";
 import { createTauriLibraryTransport } from "@/lib/library/tauriTransport";
-import type { CmdKind, Origin } from "@/lib/library/wire";
+import type { CmdKind, Origin, SubscribeFilter } from "@/lib/library/wire";
 import type {
   AddFolderCollectionResult,
   CollectionSummary,
@@ -8,6 +8,8 @@ import type {
   TrackSummary,
   WaveformFrame,
 } from "@/types";
+
+export type { SubscribeFilter };
 
 export interface RenderWaveformLaneRequest {
   trackId: string | null;
@@ -38,8 +40,11 @@ export interface LibraryTransport {
   getTrackArtwork(request: GetTrackArtworkRequest): Promise<string | null>;
   /** `fields` are CmdBody payload fields only — body `type` is derived from `kind`. */
   publish(origin: Origin, kind: CmdKind, fields?: Record<string, unknown>): Promise<void>;
-  /** Resolves after the host listener is registered. */
-  subscribe(handler: (message: Uint8Array) => void): Promise<() => void>;
+  /**
+   * Resolves after the host listener is registered.
+   * Optional `filter` matches origin and/or kind (client-side; host still forwards all evt).
+   */
+  subscribe(handler: (message: Uint8Array) => void, filter?: SubscribeFilter): Promise<() => void>;
 }
 
 export type LibraryBackend = "tauri" | "memory";

@@ -14,10 +14,13 @@ pub type EvtReceiver = omnibus::BusReceiver<Origin, Kind, Arc<[u8]>>;
 pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 
 /// Create a matched cmd/evt bus pair.
+///
+/// Cmd capacity is large so bulk analyze (one cmd per track) can queue without
+/// dropping while the worker runs analysis serially.
 pub fn new_buses() -> (LibraryBus, LibraryBus) {
     (
-        LibraryBus::with_capacity(256),
-        LibraryBus::with_capacity(512),
+        LibraryBus::with_capacity(4096),
+        LibraryBus::with_capacity(2048),
     )
 }
 

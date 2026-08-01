@@ -126,6 +126,38 @@ export function encodeWireCmd(
 
 export type CmdKind = "analyze_track";
 
+/** Client-side evt filter; omit a field (or pass null) to match any. */
+export type SubscribeFilter = {
+  origin?: Origin | null;
+  kind?: Kind | readonly Kind[] | null;
+};
+
+export function originsEqual(a: Origin, b: Origin): boolean {
+  if (a === "library" || b === "library") {
+    return a === b;
+  }
+  return a.track === b.track;
+}
+
+export function matchesSubscribeFilter(
+  message: WireMessage,
+  filter?: SubscribeFilter | null,
+): boolean {
+  if (!filter) {
+    return true;
+  }
+  if (filter.origin != null && !originsEqual(message.origin, filter.origin)) {
+    return false;
+  }
+  if (filter.kind != null) {
+    const kinds = typeof filter.kind === "string" ? [filter.kind] : filter.kind;
+    if (!kinds.includes(message.kind)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function cmdBodyForKind(kind: CmdKind, fields: Record<string, unknown> = {}): CmdBody {
   const { action_timestamp_ms: _actionTimestampMs, ...bodyFields } = fields;
   if (Object.keys(bodyFields).length === 0) {

@@ -1,7 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { LibraryTransport } from "@/lib/library/transport";
-import { actionTimestampMsFromFields, cmdBodyForKind, encodeWireCmd } from "@/lib/library/wire";
+import {
+  actionTimestampMsFromFields,
+  cmdBodyForKind,
+  decodeWire,
+  encodeWireCmd,
+  matchesSubscribeFilter,
+  type SubscribeFilter,
+} from "@/lib/library/wire";
 import type {
   AddFolderCollectionResult,
   CollectionSummary,
@@ -35,12 +42,21 @@ export function createTauriLibraryTransport(): LibraryTransport {
           ),
         ),
       }),
-    subscribe: async (handler) => {
+    subscribe: async (handler, filter?: SubscribeFilter) => {
       const unlisten = await listen<number[] | Uint8Array>(LIBRARY_BUS_EVENT, (event) => {
         const payload = event.payload;
         const bytes = payload instanceof Uint8Array ? payload : Uint8Array.from(payload ?? []);
         if (bytes.length === 0) {
           return;
+        }
+        if (filter) {
+          try {
+            if (!matchesSubscribeFilter(decodeWire(bytes), filter)) {
+              return;
+            }
+          } catch {
+            return;
+          }
         }
         handler(bytes);
       });

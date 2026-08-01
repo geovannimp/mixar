@@ -48,4 +48,33 @@ describe("library transport", () => {
     unsub();
     setLibraryTransportForTests(null);
   });
+
+  it("subscribe filter matches kind and origin", async () => {
+    const transport = createLibraryTransport({ backend: "memory" });
+
+    const matched: string[] = [];
+    const skipped: string[] = [];
+    const unsubMatch = await transport.subscribe(
+      (bytes) => {
+        matched.push(decodeEvtBody(decodeWire(bytes).body).type);
+      },
+      { kind: "track_analyzed", origin: { track: "track-42" } },
+    );
+    const unsubSkip = await transport.subscribe(
+      (bytes) => {
+        skipped.push(decodeEvtBody(decodeWire(bytes).body).type);
+      },
+      { kind: "error" },
+    );
+
+    await transport.publish("library", "analyze_track", {
+      track_id: "track-42",
+      force: false,
+    });
+
+    expect(matched).toEqual(["track_analyzed"]);
+    expect(skipped).toEqual([]);
+    unsubMatch();
+    unsubSkip();
+  });
 });
