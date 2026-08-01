@@ -135,10 +135,10 @@ interface EngineStoreState {
   exitDeckLoop: (deckId: number) => Promise<void>;
   triggerHotCue: (deckId: number, cue: DeckHotCueMarker) => Promise<void>;
   saveHotCue: (deckId: number, slot: number) => Promise<void>;
-  deleteHotCue: (deckId: number, slot: number) => Promise<void>;
+  deleteHotCue: (trackId: string, slot: number) => Promise<void>;
   saveLoop: (deckId: number, slot: number) => Promise<void>;
   triggerLoop: (deckId: number, loop: DeckSavedLoop) => Promise<void>;
-  deleteLoop: (deckId: number, slot: number) => Promise<void>;
+  deleteLoop: (trackId: string, slot: number) => Promise<void>;
   toggleDeckSync: (deckId: number, beatSync?: boolean) => Promise<void>;
   setMasterDeck: (deckId: number) => Promise<void>;
   beatJumpDeck: (deckId: number, beats: number) => Promise<void>;
@@ -376,31 +376,18 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     await publishCmd(getDeckOrigin(deckId), "save_hot_cue", { slot });
   },
 
-  deleteHotCue: async (deckId, slot) => {
-    const trackId = getDeck(get().status, deckId).track_id;
-    if (!trackId) {
-      reportEngineError("Only library tracks can persist hot cues.");
-      return;
-    }
+  deleteHotCue: async (trackId, slot) => {
     await publishLibraryCmd("delete_hot_cue", { track_id: trackId, slot });
   },
 
   saveLoop: async (deckId, slot) => {
     const deck = getDeck(get().status, deckId);
-    if (!deck.track_id) {
-      reportEngineError("Only library tracks can persist loops.");
-      return;
-    }
     const region = deck.active_loop;
-    if (!region) {
-      reportEngineError("Set an active loop before saving.");
-      return;
-    }
     await publishLibraryCmd("save_loop", {
       track_id: deck.track_id,
       slot,
-      in_ms: region.in_ms,
-      out_ms: region.out_ms,
+      in_ms: region?.in_ms,
+      out_ms: region?.out_ms,
     });
   },
 
@@ -411,12 +398,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     });
   },
 
-  deleteLoop: async (deckId, slot) => {
-    const trackId = getDeck(get().status, deckId).track_id;
-    if (!trackId) {
-      reportEngineError("Only library tracks can persist loops.");
-      return;
-    }
+  deleteLoop: async (trackId, slot) => {
     await publishLibraryCmd("delete_loop", { track_id: trackId, slot });
   },
 
@@ -667,12 +649,13 @@ export const engineActions = {
   triggerHotCue: (deckId: number, cue: DeckHotCueMarker) =>
     useEngineStore.getState().triggerHotCue(deckId, cue),
   saveHotCue: (deckId: number, slot: number) => useEngineStore.getState().saveHotCue(deckId, slot),
-  deleteHotCue: (deckId: number, slot: number) =>
-    useEngineStore.getState().deleteHotCue(deckId, slot),
+  deleteHotCue: (trackId: string, slot: number) =>
+    useEngineStore.getState().deleteHotCue(trackId, slot),
   saveLoop: (deckId: number, slot: number) => useEngineStore.getState().saveLoop(deckId, slot),
   triggerLoop: (deckId: number, loop: DeckSavedLoop) =>
     useEngineStore.getState().triggerLoop(deckId, loop),
-  deleteLoop: (deckId: number, slot: number) => useEngineStore.getState().deleteLoop(deckId, slot),
+  deleteLoop: (trackId: string, slot: number) =>
+    useEngineStore.getState().deleteLoop(trackId, slot),
   toggleDeckSync: (deckId: number, beatSync?: boolean) =>
     useEngineStore.getState().toggleDeckSync(deckId, beatSync),
   setMasterDeck: (deckId: number) => useEngineStore.getState().setMasterDeck(deckId),

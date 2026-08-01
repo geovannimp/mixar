@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { encodeEvtBody, encodeWire } from "@/lib/library/wire";
-import { useLibraryStore } from "@/stores/libraryStore";
+import { applyLibraryBusBytesForTests, useLibraryStore } from "@/stores/libraryStore";
 
 describe("libraryStore", () => {
   it("applies track_updated and hot_cues_changed for one track", () => {
     useLibraryStore.setState({ tracks: {} });
 
-    useLibraryStore.getState().applyBusBytes(
+    applyLibraryBusBytesForTests(
       encodeWire({
         origin: { track: "t1" },
         kind: "track_updated",
@@ -30,7 +30,7 @@ describe("libraryStore", () => {
       }),
     );
 
-    useLibraryStore.getState().applyBusBytes(
+    applyLibraryBusBytesForTests(
       encodeWire({
         origin: { track: "t1" },
         kind: "hot_cues_changed",

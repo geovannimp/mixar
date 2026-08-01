@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useCollectionTracks } from "@/hooks/useCollectionTracks";
+import { useCollections } from "@/hooks/useCollections";
 import { useDriveBrowser } from "@/hooks/useDriveBrowser";
-import { useLibrary } from "@/hooks/useLibrary";
 import { useLibraryTrackLookup } from "@/hooks/useLibraryTrackLookup";
 import { useSettings } from "@/hooks/useSettings";
+import { useTrack } from "@/hooks/useTrack";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/libraryTable";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/libraryTable";
 import { normalizeAppSettings } from "@/lib/busSettings";
 import { buttonIcon } from "@/lib/ui";
+import { toTrackSummaryView, useLibraryStore } from "@/stores/libraryStore";
 import type { LibrarySourceTab, LibraryTableRow } from "@/types";
 import { CollectionList } from "./CollectionList";
 import { DriveBrowser } from "./DriveBrowser";
@@ -24,6 +27,7 @@ export function LibraryPanel() {
   const engineBusy = useEngineBusy();
   const { loadLibraryTrackToDeck, loadPathToDeck } = engineActions;
   const [sourceTab, setSourceTab] = useState<LibrarySourceTab>("collections");
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [debouncedFilter, setDebouncedFilter] = useState("");
 
@@ -57,16 +61,38 @@ export function LibraryPanel() {
 
   const {
     collections,
-    selectedCollectionId,
-    tracks,
-    error: libraryError,
     busy: libraryBusy,
-    analyzingTrackId,
-    setSelectedCollectionId,
-    addFolderCollection,
-    addFolderCollectionFromPath,
-    analyzeTrack,
-  } = useLibrary({ onTrackAnalyzed: upsertResolvedTrack });
+    error: libraryError,
+    addCollection,
+    addCollectionFromPath,
+  } = useCollections();
+  const { tracks } = useCollectionTracks(selectedCollectionId);
+  const { analyse } = useTrack(null);
+  const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
+
+  useEffect(() => {
+    if (collections.length === 0) {
+      setSelectedCollectionId(null);
+      return;
+    }
+    setSelectedCollectionId((current) => {
+      if (current && collections.some((collection) => collection.id === current)) {
+        return current;
+      }
+      return collections[0]?.id ?? null;
+    });
+  }, [collections]);
+
+  useEffect(() => {
+    return useLibraryStore.subscribe((state, prev) => {
+      if (state.lastAnalyzedTrackId && state.lastAnalyzedTrackId !== prev.lastAnalyzedTrackId) {
+        const track = state.tracks[state.lastAnalyzedTrackId];
+        if (track) {
+          upsertResolvedTrack(toTrackSummaryView(track));
+        }
+      }
+    });
+  }, [upsertResolvedTrack]);
 
   useEffect(() => {
     const handleFocus = () => {
@@ -142,9 +168,9 @@ export function LibraryPanel() {
 
   const handleAnalyze = useCallback(
     (trackId: string) => {
-      void analyzeTrack(trackId);
+      void analyse(trackId);
     },
-    [analyzeTrack],
+    [analyse],
   );
 
   const handleBrowseCollectionFolder = useCallback(
@@ -157,9 +183,13 @@ export function LibraryPanel() {
 
   const handleCreateCollectionFromFolder = useCallback(
     (folderPath: string) => {
-      void addFolderCollectionFromPath(folderPath);
+      void addCollectionFromPath(folderPath).then((result) => {
+        if (result) {
+          setSelectedCollectionId(result.collection.id);
+        }
+      });
     },
-    [addFolderCollectionFromPath],
+    [addCollectionFromPath],
   );
 
   return (
@@ -200,7 +230,13 @@ export function LibraryPanel() {
                     disabled={panelBusy}
                     title="Add folder collection"
                     aria-label="Add folder collection"
-                    onClick={addFolderCollection}
+                    onClick={() => {
+                      void addCollection().then((result) => {
+                        if (result) {
+                          setSelectedCollectionId(result.collection.id);
+                        }
+                      });
+                    }}
                   >
                     +
                   </button>

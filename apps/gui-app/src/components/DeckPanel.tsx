@@ -41,7 +41,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
   transportDisabled: boolean;
 }) {
   const overview = useDeckOverview(deckId);
-  const track = useTrack(overview.track_id);
+  const { track } = useTrack(overview.track_id);
 
   return (
     <div className="flex shrink-0 flex-col gap-0.5">
@@ -81,7 +81,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
 }) {
   const controls = useDeckControls(deckId);
   const transport = useDeckTransport(deckId);
-  const libraryTrack = useTrack(controls.track_id);
+  const { track: libraryTrack } = useTrack(controls.track_id);
   const samplerSlots = useSamplerSlots(deckId);
   const samplerBanks = useSamplerBanks();
   const effectivePlayMode = useSamplerEffectivePlayMode(deckId);
@@ -118,7 +118,10 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
         void engineActions.saveHotCue(deckId, slot);
       }}
       onDeleteHotCue={(slot) => {
-        void engineActions.deleteHotCue(deckId, slot);
+        if (!deck.track_id) {
+          return;
+        }
+        void engineActions.deleteHotCue(deck.track_id, slot);
       }}
       onBeginLoopRoll={(beats) => {
         void engineActions.beginLoopRoll(deckId, beats);
@@ -170,7 +173,10 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
         void engineActions.triggerLoop(deckId, loop);
       }}
       onDeleteLoop={(slot) => {
-        void engineActions.deleteLoop(deckId, slot);
+        if (!deck.track_id) {
+          return;
+        }
+        void engineActions.deleteLoop(deck.track_id, slot);
       }}
       onBeatJump={(beats) => {
         void engineActions.beatJumpDeck(deckId, beats);

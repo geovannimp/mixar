@@ -93,7 +93,7 @@ function toSavedLoop(loop: WireSavedLoop): DeckSavedLoop {
   };
 }
 
-function toTrackSummaryView(track: LibraryTrack): TrackSummary {
+export function toTrackSummaryView(track: LibraryTrack): TrackSummary {
   return {
     id: track.id,
     display_name: track.display_name,
@@ -112,20 +112,94 @@ type LibraryState = {
   collections: Record<string, LibraryCollection>;
   collectionIds: string[];
   tracks: Record<string, LibraryTrack>;
-  selectedCollectionId: string | null;
   error: string | null;
   busy: boolean;
   analyzingTrackId: string | null;
   /** Last track id that finished analyze (for UI side effects). */
   lastAnalyzedTrackId: string | null;
 
-  applyBusBytes: (bytes: Uint8Array) => void;
   refreshCollections: () => Promise<void>;
-  selectCollection: (collectionId: string | null) => void;
-  loadSelectedCollectionTracks: () => Promise<void>;
+  loadCollectionTracks: (collectionId: string) => Promise<void>;
   addFolderCollectionFromPath: (folderPath: string) => Promise<AddFolderCollectionResult | null>;
   analyzeTrack: (trackId: string) => Promise<void>;
 };
+
+type LibrarySet = (
+  partial: LibraryState | Partial<LibraryState> | ((state: LibraryState) => Partial<LibraryState>),
+) => void;
+
+function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
+  let body;
+  try {
+    body = decodeEvtBody(decodeWire(bytes).body);
+  } catch {
+    return;
+  }
+  switch (body.type) {
+    case "track_analyzed":
+    case "track_updated": {
+      const summary = toTrackSummary(body.track);
+      set((state) => {
+        const existing = state.tracks[summary.id];
+        const track = trackFromSummary(summary, existing);
+        const next: Partial<LibraryState> = {
+          tracks: { ...state.tracks, [track.id]: track },
+        };
+        if (body.type === "track_analyzed") {
+          next.analyzingTrackId =
+            state.analyzingTrackId === track.id ? null : state.analyzingTrackId;
+          next.lastAnalyzedTrackId = track.id;
+        }
+        return next;
+      });
+      return;
+    }
+    case "hot_cues_changed": {
+      const hotCues = body.hot_cues.map(toHotCue);
+      set((state) => {
+        const base = state.tracks[body.track_id] ?? stubTrack(body.track_id);
+        return {
+          tracks: {
+            ...state.tracks,
+            [body.track_id]: { ...base, hot_cues: hotCues },
+          },
+        };
+      });
+      return;
+    }
+    case "loops_changed": {
+      const savedLoops = body.loops.map(toSavedLoop);
+      set((state) => {
+        const base = state.tracks[body.track_id] ?? stubTrack(body.track_id);
+        return {
+          tracks: {
+            ...state.tracks,
+            [body.track_id]: { ...base, saved_loops: savedLoops },
+          },
+        };
+      });
+      return;
+    }
+    case "error": {
+      set((state) => ({
+        error: body.message,
+        analyzingTrackId: body.track_id
+          ? state.analyzingTrackId === body.track_id
+            ? null
+            : state.analyzingTrackId
+          : null,
+      }));
+      return;
+    }
+    case "notice":
+    case "empty":
+      return;
+    default: {
+      const _exhaustive: never = body;
+      return _exhaustive;
+    }
+  }
+}
 
 type LibraryBus = <
   T,
@@ -137,7 +211,7 @@ type LibraryBus = <
 
 type LibraryBusImpl = <T>(f: StateCreator<T, [], []>) => StateCreator<T, [], []>;
 
-/** Subscribe once to `library://bus` and route events into the store. */
+/** Subscribe once to `library://bus` and apply events via `set` (not store actions). */
 const libraryBusImpl: LibraryBusImpl = (f) => (set, get, store) => {
   let started = false;
   const start = () => {
@@ -146,8 +220,7 @@ const libraryBusImpl: LibraryBusImpl = (f) => (set, get, store) => {
     }
     started = true;
     void getLibraryTransport().subscribe((bytes) => {
-      const state = get() as LibraryState;
-      state.applyBusBytes(bytes);
+      applyBusBytes(set as LibrarySet, bytes);
     });
   };
   queueMicrotask(start);
@@ -156,6 +229,11 @@ const libraryBusImpl: LibraryBusImpl = (f) => (set, get, store) => {
 
 export const libraryBus = libraryBusImpl as unknown as LibraryBus;
 
+/** Test helper: apply a bus evt without going through the transport. */
+export function applyLibraryBusBytesForTests(bytes: Uint8Array): void {
+  applyBusBytes(useLibraryStore.setState as LibrarySet, bytes);
+}
+
 const transport = getLibraryTransport();
 
 export const useLibraryStore = create<LibraryState>()(
@@ -163,84 +241,10 @@ export const useLibraryStore = create<LibraryState>()(
     collections: {},
     collectionIds: [],
     tracks: {},
-    selectedCollectionId: null,
     error: null,
     busy: false,
     analyzingTrackId: null,
     lastAnalyzedTrackId: null,
-
-    applyBusBytes: (bytes) => {
-      let body;
-      try {
-        body = decodeEvtBody(decodeWire(bytes).body);
-      } catch {
-        return;
-      }
-      switch (body.type) {
-        case "track_analyzed":
-        case "track_updated": {
-          const summary = toTrackSummary(body.track);
-          set((state) => {
-            const existing = state.tracks[summary.id];
-            const track = trackFromSummary(summary, existing);
-            const next: Partial<LibraryState> = {
-              tracks: { ...state.tracks, [track.id]: track },
-            };
-            if (body.type === "track_analyzed") {
-              next.analyzingTrackId =
-                state.analyzingTrackId === track.id ? null : state.analyzingTrackId;
-              next.lastAnalyzedTrackId = track.id;
-            }
-            return next;
-          });
-          return;
-        }
-        case "hot_cues_changed": {
-          const hotCues = body.hot_cues.map(toHotCue);
-          set((state) => {
-            const base = state.tracks[body.track_id] ?? stubTrack(body.track_id);
-            return {
-              tracks: {
-                ...state.tracks,
-                [body.track_id]: { ...base, hot_cues: hotCues },
-              },
-            };
-          });
-          return;
-        }
-        case "loops_changed": {
-          const savedLoops = body.loops.map(toSavedLoop);
-          set((state) => {
-            const base = state.tracks[body.track_id] ?? stubTrack(body.track_id);
-            return {
-              tracks: {
-                ...state.tracks,
-                [body.track_id]: { ...base, saved_loops: savedLoops },
-              },
-            };
-          });
-          return;
-        }
-        case "error": {
-          set((state) => ({
-            error: body.message,
-            analyzingTrackId: body.track_id
-              ? state.analyzingTrackId === body.track_id
-                ? null
-                : state.analyzingTrackId
-              : null,
-          }));
-          return;
-        }
-        case "notice":
-        case "empty":
-          return;
-        default: {
-          const _exhaustive: never = body;
-          return _exhaustive;
-        }
-      }
-    },
 
     refreshCollections: async () => {
       const next = await transport.listCollections();
@@ -253,32 +257,14 @@ export const useLibraryStore = create<LibraryState>()(
             trackIds: prev?.trackIds ?? [],
           };
         }
-        let selectedCollectionId = state.selectedCollectionId;
-        if (next.length === 0) {
-          selectedCollectionId = null;
-        } else if (
-          !selectedCollectionId ||
-          !next.some((collection) => collection.id === selectedCollectionId)
-        ) {
-          selectedCollectionId = next[0]?.id ?? null;
-        }
         return {
           collections,
           collectionIds: next.map((collection) => collection.id),
-          selectedCollectionId,
         };
       });
     },
 
-    selectCollection: (collectionId) => {
-      set({ selectedCollectionId: collectionId });
-    },
-
-    loadSelectedCollectionTracks: async () => {
-      const collectionId = get().selectedCollectionId;
-      if (!collectionId) {
-        return;
-      }
+    loadCollectionTracks: async (collectionId) => {
       const summaries = await transport.listCollectionTracks(collectionId);
       set((state) => {
         const tracks = { ...state.tracks };
@@ -309,9 +295,8 @@ export const useLibraryStore = create<LibraryState>()(
       set({ busy: true, error: null });
       try {
         const result = await transport.addFolderCollection(folderPath);
-        set({ selectedCollectionId: result.collection.id });
         await get().refreshCollections();
-        await get().loadSelectedCollectionTracks();
+        await get().loadCollectionTracks(result.collection.id);
         return result;
       } catch (err) {
         set({ error: String(err) });
@@ -341,8 +326,10 @@ export function selectLibraryCollections(state: LibraryState): CollectionSummary
     .filter((collection): collection is LibraryCollection => Boolean(collection));
 }
 
-export function selectSelectedCollectionTracks(state: LibraryState): TrackSummary[] {
-  const collectionId = state.selectedCollectionId;
+export function selectCollectionTracks(
+  state: LibraryState,
+  collectionId: string | null | undefined,
+): TrackSummary[] {
   if (!collectionId) {
     return [];
   }

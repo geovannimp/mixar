@@ -22,7 +22,7 @@ const WaveformLane = memo(function WaveformLane({
 }) {
   const engineRunning = useEngineRunning();
   const deck = useDeckWaveform(deckId);
-  const libraryTrack = useTrack(deck.track_id);
+  const { track: libraryTrack } = useTrack(deck.track_id);
   const { ref, size } = useLaneDimensions();
   const positionMs = deck.position_ms ?? 0;
   const hasTrack = Boolean(deck.track);
