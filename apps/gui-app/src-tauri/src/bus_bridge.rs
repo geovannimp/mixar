@@ -1,6 +1,12 @@
 //! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
-use engine_api::{decode_cmd_body, decode_wire, encode_wire, CmdBody, Kind, Origin, WireMessage};
+use engine_api::{
+    decode_cmd_body, decode_wire, encode_wire, CmdBody, DeckHotCue as ApiDeckHotCue,
+    DeckSavedLoop as ApiDeckSavedLoop, DeckSnapshot, EvtBody, Kind, Origin,
+    PadMode as ApiPadMode, SamplerBankInfo as ApiSamplerBankInfo,
+    SamplerPlayMode as ApiSamplerPlayMode, SamplerSlotInfo as ApiSamplerSlotInfo,
+    SamplerStatus as ApiSamplerStatus, WireMessage,
+};
 use engine_core::{EngineSession, Evt};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -10,7 +16,10 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::deck_sampler::SamplerPlayModeSetting;
+use crate::deck_performance::{HotCueStatus, SavedLoopStatus};
+use crate::deck_sampler::{SamplerPlayModeSetting, SamplerStatus};
+use crate::deck_sync::PadMode;
+use crate::{AppState, DeckInfo, NUM_DECKS};
 
 pub const ENGINE_BUS_EVENT: &str = "engine://bus";
 
@@ -138,7 +147,6 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::assign_sampler_slot_inner(
-                    &app,
                     &mut state,
                     slot as usize,
                     path,
@@ -155,7 +163,6 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::assign_sampler_slot_from_track_inner(
-                    &app,
                     &mut state,
                     slot as usize,
                     track_id,
@@ -172,7 +179,6 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::clear_sampler_slot_inner(
-                    &app,
                     &mut state,
                     slot as usize,
                     None,
@@ -187,7 +193,8 @@ pub fn engine_publish(
                     return Err("set_sampler_bank body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_sampler::set_deck_sampler_bank_inner(&app, &mut state, deck_id, bank_id)?;
+                crate::deck_sampler::set_deck_sampler_bank_inner(
+                    &mut state, deck_id, bank_id)?;
                 return Ok(());
             }
             Kind::CreateSamplerBank => {
@@ -198,7 +205,6 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::create_sampler_bank_inner(
-                    &app,
                     &mut state,
                     deck_id,
                     name,
@@ -217,7 +223,7 @@ pub fn engine_publish(
                     return Err("save_hot_cue body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::save_hot_cue_inner(&app, &mut state, deck_id, slot)?;
+                crate::deck_performance::save_hot_cue_inner(&mut state, deck_id, slot)?;
                 return Ok(());
             }
             Kind::DeleteHotCue => {
@@ -227,7 +233,7 @@ pub fn engine_publish(
                     return Err("delete_hot_cue body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::delete_hot_cue_inner(&app, &mut state, deck_id, slot)?;
+                crate::deck_performance::delete_hot_cue_inner(&mut state, deck_id, slot)?;
                 return Ok(());
             }
             Kind::SaveLoop => {
@@ -237,7 +243,7 @@ pub fn engine_publish(
                     return Err("save_loop body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::save_loop_inner(&app, &mut state, deck_id, slot)?;
+                crate::deck_performance::save_loop_inner(&mut state, deck_id, slot)?;
                 return Ok(());
             }
             Kind::DeleteLoop => {
@@ -247,7 +253,7 @@ pub fn engine_publish(
                     return Err("delete_loop body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::delete_loop_inner(&app, &mut state, deck_id, slot)?;
+                crate::deck_performance::delete_loop_inner(&mut state, deck_id, slot)?;
                 return Ok(());
             }
             Kind::LoadPath => {
@@ -266,16 +272,13 @@ pub fn engine_publish(
                     std::path::Path::new(&path),
                 )
                 .map_err(|e| e.to_string())?;
-                let payload = {
+                {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
-                    let (_, payload) =
-                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
-                    payload
-                };
-                crate::engine_controller::emit_bus_payload(&app, payload);
-                // Sampler bank after emit so UI isn't starved during bank slot loads.
-                let bank_payload = {
+                    publish_deck_updated(&state, deck_id);
+                }
+                // Sampler bank after first Updated so UI isn't starved during bank slot loads.
+                {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     let track_id = state.decks[deck_id].track_id.clone();
                     let _ = crate::deck_sampler::select_bank_for_track_load(
@@ -283,11 +286,8 @@ pub fn engine_publish(
                         deck_id,
                         track_id.as_deref(),
                     );
-                    let (_, payload) =
-                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
-                    payload
-                };
-                crate::engine_controller::emit_bus_payload(&app, bank_payload);
+                    publish_deck_updated(&state, deck_id);
+                }
                 return Ok(());
             }
             Kind::LoadLibraryTrack => {
@@ -312,15 +312,12 @@ pub fn engine_publish(
                     .path()
                     .to_string_lossy()
                     .into_owned();
-                let payload = {
+                {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
-                    let (_, payload) =
-                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
-                    payload
-                };
-                crate::engine_controller::emit_bus_payload(&app, payload);
-                let bank_payload = {
+                    publish_deck_updated(&state, deck_id);
+                }
+                {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     let track_id = state.decks[deck_id].track_id.clone();
                     let _ = crate::deck_sampler::select_bank_for_track_load(
@@ -328,11 +325,8 @@ pub fn engine_publish(
                         deck_id,
                         track_id.as_deref(),
                     );
-                    let (_, payload) =
-                        crate::engine_controller::prepare_deck_event(&mut state, deck_id)?;
-                    payload
-                };
-                crate::engine_controller::emit_bus_payload(&app, bank_payload);
+                    publish_deck_updated(&state, deck_id);
+                }
                 return Ok(());
             }
             _ => {}
@@ -352,7 +346,6 @@ pub fn engine_publish(
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
                 crate::deck_sampler::update_sampler_bank_inner(
-                    &app,
                     &mut state,
                     bank_id,
                     name,
@@ -371,7 +364,7 @@ pub fn engine_publish(
                     return Err("delete_sampler_bank body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_sampler::delete_sampler_bank_inner(&app, &mut state, bank_id)?;
+                crate::deck_sampler::delete_sampler_bank_inner(&mut state, bank_id)?;
                 return Ok(());
             }
             _ => {}
@@ -446,4 +439,182 @@ pub fn engine_publish(
             .set_track_last_sampler_bank_id(&library_core::TrackId::new(track_id), Some(&bank_id));
     }
     Ok(())
+}
+
+fn to_api_pad_mode(mode: PadMode) -> ApiPadMode {
+    match mode {
+        PadMode::HotCue => ApiPadMode::HotCue,
+        PadMode::LoopRoll => ApiPadMode::LoopRoll,
+        PadMode::BeatJump => ApiPadMode::BeatJump,
+        PadMode::Sampler => ApiPadMode::Sampler,
+    }
+}
+
+fn to_api_play_mode(mode: SamplerPlayModeSetting) -> ApiSamplerPlayMode {
+    match mode {
+        SamplerPlayModeSetting::Oneshot => ApiSamplerPlayMode::Oneshot,
+        SamplerPlayModeSetting::Hold => ApiSamplerPlayMode::Hold,
+        SamplerPlayModeSetting::Loop => ApiSamplerPlayMode::Loop,
+    }
+}
+
+fn to_api_hot_cues(cues: &[HotCueStatus]) -> Vec<ApiDeckHotCue> {
+    cues.iter()
+        .map(|cue| ApiDeckHotCue {
+            slot: cue.slot,
+            position_ms: cue.position_ms,
+            loop_length_beats: cue.loop_length_beats,
+            color: cue.color.clone(),
+            label: cue.label.clone(),
+        })
+        .collect()
+}
+
+fn to_api_saved_loops(loops: &[SavedLoopStatus]) -> Vec<ApiDeckSavedLoop> {
+    loops
+        .iter()
+        .map(|saved| ApiDeckSavedLoop {
+            slot: saved.slot,
+            in_ms: saved.in_ms,
+            out_ms: saved.out_ms,
+            label: saved.label.clone(),
+            color: saved.color.clone(),
+        })
+        .collect()
+}
+
+/// Overlay host-owned enrichment onto an engine transport snapshot.
+fn overlay_host_enrichment(snap: &mut DeckSnapshot, deck: &DeckInfo) {
+    snap.track = deck.track.clone();
+    snap.track_id = deck.track_id.clone();
+    snap.title = deck.title.clone();
+    snap.artist = deck.artist.clone();
+    snap.bpm = deck.bpm;
+    snap.key = deck.key.clone();
+    snap.hot_cues = to_api_hot_cues(&deck.hot_cues);
+    snap.saved_loops = to_api_saved_loops(&deck.saved_loops);
+    snap.loudness_lufs = deck.loudness_lufs;
+    snap.auto_gain_db = deck.auto_gain_db;
+    snap.active_sampler_bank_id = deck.active_sampler_bank_id.clone();
+    // ponytail: AppState.pad_mode still mirrors for leftover sampler invokes.
+    snap.pad_mode = to_api_pad_mode(deck.pad_mode);
+}
+
+fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
+    EvtBody::DeckUpdated {
+        id: snap.id,
+        track: snap.track,
+        track_id: snap.track_id,
+        title: snap.title,
+        artist: snap.artist,
+        bpm: snap.bpm,
+        key: snap.key,
+        playing: snap.playing,
+        volume: snap.volume,
+        speed: snap.speed,
+        eq: snap.eq,
+        filter_db: snap.filter_db,
+        gain_trim_db: snap.gain_trim_db,
+        headphone_cue: snap.headphone_cue,
+        sync_mode: snap.sync_mode,
+        cue_point_ms: snap.cue_point_ms,
+        quantize: snap.quantize,
+        active_loop: snap.active_loop,
+        pad_mode: snap.pad_mode,
+        position_ms: snap.position_ms,
+        duration_ms: snap.duration_ms,
+        hot_cues: snap.hot_cues,
+        saved_loops: snap.saved_loops,
+        loudness_lufs: snap.loudness_lufs,
+        auto_gain_db: snap.auto_gain_db,
+        active_sampler_bank_id: snap.active_sampler_bank_id,
+        top_jog_mode: snap.top_jog_mode,
+        outer_jog_mode: snap.outer_jog_mode,
+        jog_touching: snap.jog_touching,
+    }
+}
+
+fn to_api_sampler_status(status: SamplerStatus) -> ApiSamplerStatus {
+    ApiSamplerStatus {
+        banks: status
+            .banks
+            .into_iter()
+            .map(|bank| ApiSamplerBankInfo {
+                id: bank.id,
+                name: bank.name,
+                play_mode: bank.play_mode.map(to_api_play_mode),
+                sort_index: bank.sort_index,
+            })
+            .collect(),
+        active_bank_id: status.active_bank_id,
+        active_bank_name: status.active_bank_name,
+        bank_play_mode: status.bank_play_mode.map(to_api_play_mode),
+        deck_slots: status
+            .deck_slots
+            .into_iter()
+            .map(|slots| {
+                slots
+                    .into_iter()
+                    .map(|slot| ApiSamplerSlotInfo {
+                        label: slot.label,
+                        track_id: slot.track_id,
+                        path: slot.path,
+                        duration_ms: slot.duration_ms,
+                    })
+                    .collect()
+            })
+            .collect(),
+        effective_play_modes: status
+            .effective_play_modes
+            .into_iter()
+            .map(to_api_play_mode)
+            .collect(),
+    }
+}
+
+/// Publish enriched `DeckUpdated` onto the session evt bus (`EvtForwarder` → UI).
+pub fn publish_deck_updated(state: &AppState, deck_id: usize) {
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
+    let Ok(Some(mut snap)) = session.with_engine(|eng| Ok(eng.deck_snapshot(deck_id))) else {
+        log::warn!("publish_deck_updated: deck {deck_id} snapshot unavailable");
+        return;
+    };
+    if deck_id < NUM_DECKS {
+        overlay_host_enrichment(&mut snap, &state.decks[deck_id]);
+    }
+    if let Err(err) = session.publish_evt(
+        Origin::Deck(deck_id as u16),
+        Kind::Updated,
+        deck_snapshot_to_evt(snap),
+    ) {
+        log::warn!("publish_deck_updated: {err}");
+    }
+}
+
+/// Publish enriched `EngineStatus` onto the session evt bus (`EvtForwarder` → UI).
+pub fn publish_engine_status(state: &AppState) {
+    let Some(session) = state.session.as_ref() else {
+        return;
+    };
+    let Ok(Some(mut status)) = session.with_engine(|eng| Ok(eng.engine_status_snapshot())) else {
+        log::warn!("publish_engine_status: snapshot unavailable");
+        return;
+    };
+    for snap in &mut status.decks {
+        let id = snap.id as usize;
+        if id < NUM_DECKS {
+            overlay_host_enrichment(snap, &state.decks[id]);
+        }
+    }
+    status.sampler = to_api_sampler_status(SamplerStatus::from_state(state));
+    status.running = true;
+    if let Err(err) = session.publish_evt(
+        Origin::Mixer,
+        Kind::Status,
+        EvtBody::EngineStatus { status },
+    ) {
+        log::warn!("publish_engine_status: {err}");
+    }
 }

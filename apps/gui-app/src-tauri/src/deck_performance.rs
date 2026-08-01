@@ -3,9 +3,8 @@
 use library::{HotCueRecord, LoopRecord};
 use library_core::TrackId;
 use serde::Serialize;
-use tauri::AppHandle;
 
-use crate::{deck_playback_ms, AppState, DeckInfo, DeckStatus, NUM_DECKS};
+use crate::{deck_playback_ms, AppState, DeckInfo, NUM_DECKS};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct HotCueStatus {
@@ -92,25 +91,47 @@ pub fn apply_deck_performance(
     deck: &mut DeckInfo,
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
-    reset_transport: bool,
 ) {
-    if reset_transport {
-        deck.quantize = true;
-        deck.cue_point_ms = Some(0);
-        deck.active_loop = None;
-        deck.sync_mode = crate::SyncMode::Off;
-        deck.speed = 1.0;
-    }
     deck.hot_cues = hot_cues;
     deck.saved_loops = saved_loops;
 }
 
+/// Quantize flag lives on the engine after AppState thinning; hot-cue save still needs it for snap.
+fn deck_quantize(state: &AppState, deck_id: usize) -> bool {
+    let Some(session) = state.session.as_ref() else {
+        return true;
+    };
+    session
+        .with_engine(|engine| {
+            Ok(engine
+                .deck_snapshot(deck_id)
+                .map(|snap| snap.quantize)
+                .unwrap_or(true))
+        })
+        .unwrap_or(true)
+}
+
+fn deck_active_loop(state: &AppState, deck_id: usize) -> Option<LoopRegionStatus> {
+    let session = state.session.as_ref()?;
+    session
+        .with_engine(|engine| {
+            Ok(engine.deck_snapshot(deck_id).and_then(|snap| {
+                snap.active_loop.map(|region| LoopRegionStatus {
+                    in_ms: region.in_ms,
+                    out_ms: region.out_ms,
+                    active: region.active,
+                })
+            }))
+        })
+        .ok()
+        .flatten()
+}
+
 pub(crate) fn save_hot_cue_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     slot: u8,
-) -> Result<DeckStatus, String> {
+) -> Result<(), String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -126,7 +147,7 @@ pub(crate) fn save_hot_cue_inner(
     let position = snap_ms(
         position_ms.unwrap_or(0),
         state.decks[deck_id].bpm,
-        state.decks[deck_id].quantize,
+        deck_quantize(state, deck_id),
     );
 
     state
@@ -141,16 +162,16 @@ pub(crate) fn save_hot_cue_inner(
         let library = state.library.lock().unwrap();
         fetch_deck_performance(&library, track_id.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    crate::bus_bridge::publish_deck_updated(state, deck_id);
+    Ok(())
 }
 
 pub(crate) fn delete_hot_cue_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     slot: u8,
-) -> Result<DeckStatus, String> {
+) -> Result<(), String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -164,15 +185,15 @@ pub(crate) fn delete_hot_cue_inner(
             .map_err(|e| e.to_string())?;
     }
     state.decks[deck_id].hot_cues.retain(|cue| cue.slot != slot);
-    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
+    crate::bus_bridge::publish_deck_updated(state, deck_id);
+    Ok(())
 }
 
 pub(crate) fn save_loop_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     slot: u8,
-) -> Result<DeckStatus, String> {
+) -> Result<(), String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -181,9 +202,7 @@ pub(crate) fn save_loop_inner(
         .track_id
         .clone()
         .ok_or_else(|| "Only library tracks can persist loops.".to_string())?;
-    let region = state.decks[deck_id]
-        .active_loop
-        .clone()
+    let region = deck_active_loop(state, deck_id)
         .ok_or_else(|| "Set an active loop before saving.".to_string())?;
 
     state
@@ -205,16 +224,16 @@ pub(crate) fn save_loop_inner(
         let library = state.library.lock().unwrap();
         fetch_deck_performance(&library, track_id.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
-    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    crate::bus_bridge::publish_deck_updated(state, deck_id);
+    Ok(())
 }
 
 pub(crate) fn delete_loop_inner(
-    app: &AppHandle,
     state: &mut AppState,
     deck_id: usize,
     slot: u8,
-) -> Result<DeckStatus, String> {
+) -> Result<(), String> {
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
@@ -230,5 +249,6 @@ pub(crate) fn delete_loop_inner(
     state.decks[deck_id]
         .saved_loops
         .retain(|row| row.slot != slot);
-    Ok(crate::engine_controller::publish_deck(app, state, deck_id))
+    crate::bus_bridge::publish_deck_updated(state, deck_id);
+    Ok(())
 }

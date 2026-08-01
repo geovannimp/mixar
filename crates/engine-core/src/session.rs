@@ -5,7 +5,7 @@ use crate::config::EngineConfig;
 use crate::control::control_thread_loop;
 use crate::engine::Engine;
 use anyhow::Result;
-use engine_api::{Kind, Origin};
+use engine_api::{encode_evt_body, EvtBody, Kind, Origin};
 use library::LibraryManager;
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -102,6 +102,15 @@ impl EngineSession {
     pub fn publish_cmd(&self, origin: Origin, kind: Kind, body: impl AsRef<[u8]>) -> Result<()> {
         self.cmd_bus
             .publish(Event::new(origin, kind, Arc::from(body.as_ref())))?;
+        Ok(())
+    }
+
+    /// Host/engine egress: encode `EvtBody`, bump revision, publish on the evt bus.
+    pub fn publish_evt(&self, origin: Origin, kind: Kind, body: EvtBody) -> Result<()> {
+        let bytes = encode_evt_body(&body)?;
+        self.revision.fetch_add(1, Ordering::Relaxed);
+        self.evt_bus
+            .publish(Event::new(origin, kind, Arc::from(bytes)))?;
         Ok(())
     }
 

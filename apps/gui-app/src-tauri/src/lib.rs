@@ -1,14 +1,13 @@
 use audio_core::{ms_to_secs, secs_to_ms, BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use deck_performance::{
-    apply_deck_performance, fetch_deck_performance, HotCueStatus, LoopRegionStatus,
-    SavedLoopStatus,
+    apply_deck_performance, fetch_deck_performance, HotCueStatus, SavedLoopStatus,
 };
 use deck_sampler::{
     apply_effective_play_mode, empty_deck_sampler_slots, ensure_sampler_ready,
     list_sampler_banks, reapply_sampler_gains, SamplerBankInfo,
-    SamplerPlayModeSetting, SamplerSlotInfo, SamplerStatus,
+    SamplerPlayModeSetting, SamplerSlotInfo,
 };
-use deck_sync::{PadMode, SyncMode};
+use deck_sync::PadMode;
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
     EngineSession, SamplerStripRouteSetting,
@@ -29,7 +28,6 @@ mod bus_bridge;
 mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
-mod engine_controller;
 mod fs_browser;
 mod waveform_render;
 
@@ -39,28 +37,11 @@ use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
 use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
-use engine_controller::publish_status;
+use bus_bridge::publish_engine_status;
 
 const NUM_DECKS: usize = 2;
 
 type SharedAppState = Arc<Mutex<AppState>>;
-
-#[derive(Debug, Clone, Serialize)]
-struct DeckEq {
-    low: f32,
-    mid: f32,
-    high: f32,
-}
-
-impl Default for DeckEq {
-    fn default() -> Self {
-        Self {
-            low: 0.0,
-            mid: 0.0,
-            high: 0.0,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct DeckInfo {
@@ -70,27 +51,12 @@ pub(crate) struct DeckInfo {
     artist: Option<String>,
     bpm: Option<f64>,
     key: Option<String>,
-    playing: bool,
-    volume: f32,
-    speed: f32,
-    eq: DeckEq,
-    cue_point_ms: Option<i32>,
-    quantize: bool,
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
-    active_loop: Option<LoopRegionStatus>,
-    filter_db: f32,
-    gain_trim_db: f32,
     loudness_lufs: Option<f64>,
     auto_gain_db: f32,
-    sync_mode: SyncMode,
     pad_mode: PadMode,
-    loop_roll_restore: Option<LoopRegionStatus>,
-    headphone_cue: bool,
     active_sampler_bank_id: Option<String>,
-    top_jog_mode: engine_api::JogMode,
-    outer_jog_mode: engine_api::JogMode,
-    jog_touching: bool,
 }
 
 impl Default for DeckInfo {
@@ -102,27 +68,12 @@ impl Default for DeckInfo {
             artist: None,
             bpm: None,
             key: None,
-            playing: false,
-            volume: 1.0,
-            speed: 1.0,
-            eq: DeckEq::default(),
-            cue_point_ms: None,
-            quantize: true,
             hot_cues: Vec::new(),
             saved_loops: Vec::new(),
-            active_loop: None,
-            filter_db: 0.0,
-            gain_trim_db: 0.0,
             loudness_lufs: None,
             auto_gain_db: 0.0,
-            sync_mode: SyncMode::Off,
             pad_mode: PadMode::HotCue,
-            loop_roll_restore: None,
-            headphone_cue: false,
             active_sampler_bank_id: None,
-            top_jog_mode: engine_api::JogMode::Vinyl,
-            outer_jog_mode: engine_api::JogMode::PitchBend,
-            jog_touching: false,
         }
     }
 }
@@ -133,11 +84,6 @@ pub(crate) struct AppState {
     pub evt_forwarder: Option<EvtForwarder>,
     pub engine_config: EngineConfig,
     pub decks: [DeckInfo; NUM_DECKS],
-    pub crossfader: f32,
-    pub cue_mix: f32,
-    pub master_cue: bool,
-    pub master_deck: usize,
-    pub revision: u64,
     pub audio_cache: AudioCache,
     pub library_table_columns: Vec<String>,
     pub volume_normalizer_enabled: bool,
@@ -411,40 +357,6 @@ fn default_engine_config() -> EngineConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(crate) struct DeckStatus {
-    id: usize,
-    track: Option<String>,
-    track_id: Option<String>,
-    title: Option<String>,
-    artist: Option<String>,
-    bpm: Option<f64>,
-    key: Option<String>,
-    playing: bool,
-    volume: f32,
-    speed: f32,
-    eq: DeckEq,
-    position_ms: Option<i32>,
-    duration_ms: Option<i32>,
-    cue_point_ms: Option<i32>,
-    quantize: bool,
-    hot_cues: Vec<HotCueStatus>,
-    saved_loops: Vec<SavedLoopStatus>,
-    active_loop: Option<LoopRegionStatus>,
-    filter_db: f32,
-    gain_trim_db: f32,
-    loudness_lufs: Option<f64>,
-    auto_gain_db: f32,
-    sync_mode: SyncMode,
-    is_master: bool,
-    pad_mode: PadMode,
-    headphone_cue: bool,
-    active_sampler_bank_id: Option<String>,
-    top_jog_mode: engine_api::JogMode,
-    outer_jog_mode: engine_api::JogMode,
-    jog_touching: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
 struct WaveformFrame {
     /// Full strip pixel width (may be wider than the viewport).
     width: u32,
@@ -459,19 +371,6 @@ struct WaveformFrame {
     cover_end_ms: i32,
     /// Milliseconds shown in the viewport (center playhead window).
     visible_ms: i32,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct EngineStatus {
-    running: bool,
-    backend: String,
-    sample_rate: u32,
-    crossfader: f32,
-    cue_mix: f32,
-    master_cue: bool,
-    master_deck: Option<usize>,
-    decks: Vec<DeckStatus>,
-    sampler: SamplerStatus,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -517,12 +416,7 @@ fn deck_playback_ms(state: &AppState, deck_id: usize) -> (Option<i32>, Option<i3
 
 pub(crate) fn clear_deck_info(deck: &mut DeckInfo) {
     *deck = DeckInfo {
-        volume: deck.volume,
-        eq: deck.eq.clone(),
-        filter_db: deck.filter_db,
-        gain_trim_db: deck.gain_trim_db,
         pad_mode: deck.pad_mode,
-        headphone_cue: deck.headphone_cue,
         active_sampler_bank_id: deck.active_sampler_bank_id.clone(),
         ..DeckInfo::default()
     };
@@ -607,7 +501,7 @@ pub(crate) fn start_engine_inner(
     session_holder: &SharedSession,
 ) -> Result<(), String> {
     if state.session.is_some() {
-        let _ = publish_status(app, state);
+        let _ = publish_engine_status(state);
         return Ok(());
     }
 
@@ -628,8 +522,6 @@ pub(crate) fn start_engine_inner(
     let top = state.default_top_jog_mode;
     let outer = state.default_outer_jog_mode;
     for deck_id in 0..NUM_DECKS {
-        state.decks[deck_id].top_jog_mode = top;
-        state.decks[deck_id].outer_jog_mode = outer;
         let _ = with_engine(state, |engine| {
             engine
                 .set_deck_jog_mode(deck_id, top, outer)
@@ -637,7 +529,7 @@ pub(crate) fn start_engine_inner(
         });
     }
 
-    let _ = publish_status(app, state);
+    publish_engine_status(state);
     Ok(())
 }
 
@@ -709,7 +601,6 @@ async fn save_settings(
                 .map_err(|e| e.to_string())
         })?;
         sync_deck_auto_gain_from_engine(&mut state, deck_id)?;
-        state.decks[deck_id].playing = false;
     }
     state.loaded_sampler_bank_id = std::array::from_fn(|_| None);
     let _ = ensure_sampler_ready(&mut state);
@@ -717,7 +608,7 @@ async fn save_settings(
     for deck_id in 0..NUM_DECKS {
         let _ = apply_effective_play_mode(&mut state, deck_id);
     }
-    let _ = publish_status(&app, &mut state);
+    publish_engine_status(&state);
 
     Ok(settings_from_state(&state))
 }
@@ -913,8 +804,6 @@ pub(crate) fn load_prepared_to_deck_inner(
         let deck = &mut state.decks[deck_id];
         deck.track = Some(path);
         deck.track_id = Some(track_id.clone());
-        deck.playing = false;
-        deck.speed = 1.0;
         deck.title = metadata.title;
         deck.artist = metadata.artist;
         deck.bpm = metadata.bpm;
@@ -927,7 +816,7 @@ pub(crate) fn load_prepared_to_deck_inner(
         let library = state.library.lock().map_err(|e| e.to_string())?;
         fetch_deck_performance(&library, track_id_for_perf.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     Ok(())
 }
 
@@ -1143,11 +1032,6 @@ pub fn run() {
                 evt_forwarder: None,
                 engine_config: default_engine_config(),
                 decks: Default::default(),
-                crossfader: 0.5,
-                cue_mix: 0.0,
-                master_cue: false,
-                master_deck: 0,
-                revision: 0,
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
                 volume_normalizer_enabled: default_volume_normalizer_enabled(),
