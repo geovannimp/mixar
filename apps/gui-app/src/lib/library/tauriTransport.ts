@@ -28,8 +28,9 @@ export function createTauriLibraryTransport(): LibraryTransport {
       invoke<AddFolderCollectionResult>("add_folder_collection", { folderPath }),
     resolveTracksForPaths: (paths) =>
       invoke<ResolvedLibraryTrack[]>("resolve_library_tracks_for_paths", { paths }),
-    renderWaveformLane: (request) => invoke<WaveformFrame>("render_waveform_lane", { request }),
-    getTrackArtwork: (request) => invoke<string | null>("get_track_artwork", { request }),
+    // Tauri commands take flat camelCase args, not a nested `request` object.
+    renderWaveformLane: (request) => invoke<WaveformFrame>("render_waveform_lane", { ...request }),
+    getTrackArtwork: (request) => invoke<string | null>("get_track_artwork", { ...request }),
     publish: (origin, kind, fields = {}) =>
       invoke("library_publish", {
         payload: Array.from(
