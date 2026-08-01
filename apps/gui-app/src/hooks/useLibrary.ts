@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { toastManager } from "@/components/ui/toast";
 import { getLibraryTransport } from "@/lib/library/transport";
+import { decodeEvtBody, decodeWire, toTrackSummary } from "@/lib/library/wire";
 import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "@/types";
 
 const libraryTransport = getLibraryTransport();
@@ -51,6 +52,66 @@ export function useLibrary() {
     });
   }, [selectedCollectionId, refreshTracks]);
 
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    void libraryTransport
+      .subscribe((bytes) => {
+        let message;
+        try {
+          message = decodeWire(bytes);
+        } catch {
+          return;
+        }
+        let body;
+        try {
+          body = decodeEvtBody(message.body);
+        } catch {
+          return;
+        }
+        switch (body.type) {
+          case "track_analyzed": {
+            const updated = toTrackSummary(body.track);
+            setTracks((current) =>
+              current.map((track) => (track.id === updated.id ? updated : track)),
+            );
+            setAnalyzingTrackId((current) => (current === updated.id ? null : current));
+            break;
+          }
+          case "error": {
+            setError(body.message);
+            if (body.track_id) {
+              setAnalyzingTrackId((current) => (current === body.track_id ? null : current));
+            } else {
+              setAnalyzingTrackId(null);
+            }
+            break;
+          }
+          case "notice":
+          case "empty":
+            break;
+          default: {
+            const _exhaustive: never = body;
+            void _exhaustive;
+            break;
+          }
+        }
+      })
+      .then((unsub) => {
+        if (cancelled) {
+          unsub();
+          return;
+        }
+        unsubscribe = unsub;
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, []);
+
   const addFolderCollectionFromPath = useCallback(
     async (folderPath: string) => {
       setBusy(true);
@@ -92,13 +153,12 @@ export function useLibrary() {
     setAnalyzingTrackId(trackId);
     setError(null);
     try {
-      const updated = await libraryTransport.analyzeTrack(trackId);
-      setTracks((current) => current.map((track) => (track.id === trackId ? updated : track)));
-      return updated;
+      await libraryTransport.publish("library", "analyze_track", {
+        track_id: trackId,
+        force: false,
+      });
     } catch (err) {
       setError(String(err));
-      return null;
-    } finally {
       setAnalyzingTrackId(null);
     }
   }, []);

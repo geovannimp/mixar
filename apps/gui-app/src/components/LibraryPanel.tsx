@@ -5,6 +5,8 @@ import { useDriveBrowser } from "@/hooks/useDriveBrowser";
 import { useLibrary } from "@/hooks/useLibrary";
 import { useLibraryTrackLookup } from "@/hooks/useLibraryTrackLookup";
 import { useSettings } from "@/hooks/useSettings";
+import { getLibraryTransport } from "@/lib/library/transport";
+import { decodeEvtBody, decodeWire, toTrackSummary } from "@/lib/library/wire";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/libraryTable";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/libraryTable";
 import { normalizeAppSettings } from "@/lib/busSettings";
@@ -18,6 +20,8 @@ import { LibrarySourceTabs } from "./LibrarySourceTabs";
 import { LibraryTrackTable } from "./LibraryTrackTable";
 import { MessageBanner } from "./MessageBanner";
 import { engineActions, useEngineBusy, useEngineRunning } from "@/hooks/useEngine";
+
+const libraryTransport = getLibraryTransport();
 
 export function LibraryPanel() {
   const engineRunning = useEngineRunning();
@@ -107,6 +111,34 @@ export function LibraryPanel() {
 
   const { resolvedByPath, upsertResolvedTrack } = useLibraryTrackLookup(driveFilePaths);
 
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    void libraryTransport
+      .subscribe((bytes) => {
+        try {
+          const message = decodeWire(bytes);
+          const body = decodeEvtBody(message.body);
+          if (body.type === "track_analyzed") {
+            upsertResolvedTrack(toTrackSummary(body.track));
+          }
+        } catch {
+          // ignore malformed evt
+        }
+      })
+      .then((unsub) => {
+        if (cancelled) {
+          unsub();
+          return;
+        }
+        unsubscribe = unsub;
+      });
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [upsertResolvedTrack]);
+
   const tableRows = useMemo((): LibraryTableRow[] => {
     if (sourceTab === "collections") {
       return tracks.map(libraryRowFromTrack);
@@ -141,13 +173,10 @@ export function LibraryPanel() {
   );
 
   const handleAnalyze = useCallback(
-    async (trackId: string) => {
-      const updated = await analyzeTrack(trackId);
-      if (updated) {
-        upsertResolvedTrack(updated);
-      }
+    (trackId: string) => {
+      void analyzeTrack(trackId);
     },
-    [analyzeTrack, upsertResolvedTrack],
+    [analyzeTrack],
   );
 
   const handleBrowseCollectionFolder = useCallback(

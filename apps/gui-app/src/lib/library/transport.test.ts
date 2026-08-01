@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { createLibraryTransport, getLibraryTransport } from "@/lib/library/transport";
+import {
+  createLibraryTransport,
+  getLibraryTransport,
+  setLibraryTransportForTests,
+} from "@/lib/library/transport";
+import { decodeEvtBody, decodeWire } from "@/lib/library/wire";
 
 describe("library transport", () => {
   it("creates a memory transport with empty read defaults", async () => {
@@ -19,5 +24,28 @@ describe("library transport", () => {
 
   it("memoizes the shared transport", () => {
     expect(getLibraryTransport()).toBe(getLibraryTransport());
+  });
+
+  it("memory publish analyze emits track_analyzed to subscribers", async () => {
+    const transport = createLibraryTransport({ backend: "memory" });
+    setLibraryTransportForTests(transport);
+
+    const seen: string[] = [];
+    const unsub = await transport.subscribe((bytes) => {
+      const message = decodeWire(bytes);
+      const body = decodeEvtBody(message.body);
+      if (body.type === "track_analyzed") {
+        seen.push(body.track.id);
+      }
+    });
+
+    await transport.publish("library", "analyze_track", {
+      track_id: "track-42",
+      force: false,
+    });
+
+    expect(seen).toEqual(["track-42"]);
+    unsub();
+    setLibraryTransportForTests(null);
   });
 });

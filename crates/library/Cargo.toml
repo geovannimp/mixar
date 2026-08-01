@@ -9,7 +9,9 @@ description = "Library manager for rust-dj-engine"
 
 [dependencies]
 library-core = { path = "../library-core" }
+library-api = { path = "../library-api" }
 audio-core = { path = "../audio-core" }
+omnibus = "0.1"
 lofty = "0.22"
 log.workspace = true
 serde = { workspace = true, features = ["derive"] }
