@@ -91,12 +91,12 @@ pub fn apply_deck_performance(
     deck: &mut DeckInfo,
     hot_cues: Vec<HotCueStatus>,
     saved_loops: Vec<SavedLoopStatus>,
-    _reset_transport: bool,
 ) {
     deck.hot_cues = hot_cues;
     deck.saved_loops = saved_loops;
 }
 
+/// Quantize flag lives on the engine after AppState thinning; hot-cue save still needs it for snap.
 fn deck_quantize(state: &AppState, deck_id: usize) -> bool {
     let Some(session) = state.session.as_ref() else {
         return true;
@@ -162,7 +162,7 @@ pub(crate) fn save_hot_cue_inner(
         let library = state.library.lock().unwrap();
         fetch_deck_performance(&library, track_id.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     crate::bus_bridge::publish_deck_updated(state, deck_id);
     Ok(())
 }
@@ -224,7 +224,7 @@ pub(crate) fn save_loop_inner(
         let library = state.library.lock().unwrap();
         fetch_deck_performance(&library, track_id.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, false);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     crate::bus_bridge::publish_deck_updated(state, deck_id);
     Ok(())
 }

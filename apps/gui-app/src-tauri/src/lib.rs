@@ -816,7 +816,7 @@ pub(crate) fn load_prepared_to_deck_inner(
         let library = state.library.lock().map_err(|e| e.to_string())?;
         fetch_deck_performance(&library, track_id_for_perf.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops, true);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
     Ok(())
 }
 
