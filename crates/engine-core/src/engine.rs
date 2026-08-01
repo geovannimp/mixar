@@ -19,7 +19,7 @@ use engine_api::{
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
-use library::{LibraryManager, PreparedTrackPlayback};
+use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
 use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
 use std::collections::HashMap;
@@ -44,6 +44,8 @@ pub struct Engine {
     running: Arc<Mutex<bool>>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
     library: Option<Arc<Mutex<LibraryManager>>>,
+    /// Optional library cmd bus for deck performance persistence (hot cues / loops).
+    library_cmd: Option<LibraryBus>,
     /// Decoded PCM cache keyed by track id.
     decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
     master_deck: usize,
@@ -53,7 +55,7 @@ pub struct Engine {
 impl Engine {
     /// Create a new engine with the given configuration
     pub fn new(config: EngineConfig) -> Result<Self> {
-        Self::new_inner(config, None)
+        Self::new_inner(config, None, None)
     }
 
     /// Create a new engine wired to the concrete shared library manager.
@@ -61,12 +63,22 @@ impl Engine {
         config: EngineConfig,
         library: Arc<Mutex<LibraryManager>>,
     ) -> Result<Self> {
-        Self::new_inner(config, Some(library))
+        Self::new_inner(config, Some(library), None)
+    }
+
+    /// Create an engine with library manager + library cmd bus (performance persistence).
+    pub fn new_with_library_bus(
+        config: EngineConfig,
+        library: Arc<Mutex<LibraryManager>>,
+        library_cmd: LibraryBus,
+    ) -> Result<Self> {
+        Self::new_inner(config, Some(library), Some(library_cmd))
     }
 
     fn new_inner(
         config: EngineConfig,
         library: Option<Arc<Mutex<LibraryManager>>>,
+        library_cmd: Option<LibraryBus>,
     ) -> Result<Self> {
         config.validate()?;
         let backend = create_backend(&config.backend)?;
@@ -80,6 +92,7 @@ impl Engine {
             running: Arc::new(Mutex::new(false)),
             transport_events: Arc::new(Mutex::new(Vec::new())),
             library,
+            library_cmd,
             decode_cache: HashMap::new(),
             master_deck: 0,
             deck_control: (0..NUM_DECKS)
@@ -404,7 +417,8 @@ impl Engine {
             Arc::clone(cached)
         } else {
             let audio = Arc::new(source.load()?);
-            self.decode_cache.insert(track_id, Arc::clone(&audio));
+            self.decode_cache
+                .insert(track_id.clone(), Arc::clone(&audio));
             audio
         };
 
@@ -417,6 +431,7 @@ impl Engine {
             .set_loudness_lufs(loudness_lufs);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.reset_for_load(bpm);
+            control.track_id = Some(track_id);
         }
         log::info!("Track loaded into deck {}", deck_id);
         Ok(())
@@ -442,6 +457,7 @@ impl Engine {
         }
 
         let bpm = prepared.source.metadata().bpm;
+        let track_id = prepared.track_id.clone();
         let loudness_lufs =
             loudness_from_metadata(prepared.source.metadata()).or(prepared.loudness_lufs);
         let audio = prepared.audio;
@@ -455,6 +471,7 @@ impl Engine {
             .set_loudness_lufs(loudness_lufs);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
             control.reset_for_load(bpm);
+            control.track_id = Some(track_id);
         }
         log::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
@@ -1081,6 +1098,107 @@ impl Engine {
         let target = snap_ms(position_ms, bpm, quantize);
         self.seek_deck(deck_id, target)?;
         self.play(deck_id)
+    }
+
+    /// Snap playhead and persist a hot cue via the library cmd bus.
+    pub fn save_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        if slot > 7 {
+            return Err(anyhow::anyhow!("Hot cue slot must be 0..=7."));
+        }
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
+        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let position_ms = snap_ms(position_ms, bpm, quantize);
+        self.publish_library_cmd(
+            library_api::Kind::SaveHotCue,
+            library_api::CmdBody::SaveHotCue {
+                track_id: track_id.as_str().to_string(),
+                slot,
+                position_ms,
+                loop_length_beats: None,
+                color: None,
+                label: None,
+            },
+        )
+    }
+
+    /// Delete a persisted hot cue via the library cmd bus.
+    pub fn delete_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
+        self.publish_library_cmd(
+            library_api::Kind::DeleteHotCue,
+            library_api::CmdBody::DeleteHotCue {
+                track_id: track_id.as_str().to_string(),
+                slot,
+            },
+        )
+    }
+
+    /// Persist the active loop region via the library cmd bus.
+    pub fn save_deck_loop(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist loops."))?;
+        let region = self
+            .deck_snapshot(deck_id)
+            .and_then(|snap| snap.active_loop)
+            .ok_or_else(|| anyhow::anyhow!("Set an active loop before saving."))?;
+        self.publish_library_cmd(
+            library_api::Kind::SaveLoop,
+            library_api::CmdBody::SaveLoop {
+                track_id: track_id.as_str().to_string(),
+                slot,
+                in_ms: region.in_ms,
+                out_ms: region.out_ms,
+                label: None,
+                color: None,
+            },
+        )
+    }
+
+    /// Delete a persisted loop via the library cmd bus.
+    pub fn delete_deck_loop(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist loops."))?;
+        self.publish_library_cmd(
+            library_api::Kind::DeleteLoop,
+            library_api::CmdBody::DeleteLoop {
+                track_id: track_id.as_str().to_string(),
+                slot,
+            },
+        )
+    }
+
+    fn publish_library_cmd(
+        &self,
+        kind: library_api::Kind,
+        body: library_api::CmdBody,
+    ) -> Result<()> {
+        let bus = self.library_cmd.as_ref().ok_or_else(|| {
+            anyhow::anyhow!("Engine has no library cmd bus for deck performance persistence")
+        })?;
+        let bytes = library_api::encode_cmd_body(&body)
+            .map_err(|e| anyhow::anyhow!("encode library cmd: {e}"))?;
+        bus.publish(omnibus::Event::new(
+            library_api::Origin::Library,
+            kind,
+            Arc::from(bytes),
+        ))
+        .map_err(|e| anyhow::anyhow!("library cmd publish: {e}"))?;
+        Ok(())
     }
 
     /// Recall a saved loop region: activate, seek to in, play.

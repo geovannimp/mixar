@@ -285,6 +285,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
         | (Kind::TriggerHotCue, CmdBody::TriggerHotCue { .. })
         | (Kind::RecallSavedLoop, CmdBody::RecallSavedLoop { .. })
+        | (Kind::SaveHotCue, CmdBody::SaveHotCue { .. })
+        | (Kind::DeleteHotCue, CmdBody::DeleteHotCue { .. })
+        | (Kind::SaveLoop, CmdBody::SaveLoop { .. })
+        | (Kind::DeleteLoop, CmdBody::DeleteLoop { .. })
         | (Kind::TriggerSampler, CmdBody::TriggerSampler { .. })
         | (Kind::EndSampler, CmdBody::EndSampler { .. })
         | (Kind::SetCrossfader, CmdBody::SetCrossfader { .. })
@@ -458,6 +462,34 @@ fn dispatch_deck_cmd(
             };
             eng.trigger_deck_hot_cue(deck_id, position_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SaveHotCue => {
+            let CmdBody::SaveHotCue { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.save_deck_hot_cue(deck_id, slot)?;
+            Ok(CmdOutcome::Silent)
+        }
+        Kind::DeleteHotCue => {
+            let CmdBody::DeleteHotCue { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.delete_deck_hot_cue(deck_id, slot)?;
+            Ok(CmdOutcome::Silent)
+        }
+        Kind::SaveLoop => {
+            let CmdBody::SaveLoop { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.save_deck_loop(deck_id, slot)?;
+            Ok(CmdOutcome::Silent)
+        }
+        Kind::DeleteLoop => {
+            let CmdBody::DeleteLoop { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.delete_deck_loop(deck_id, slot)?;
+            Ok(CmdOutcome::Silent)
         }
         Kind::RecallSavedLoop => {
             let CmdBody::RecallSavedLoop { in_ms, out_ms } = decode_cmd_body_for(kind, payload)?

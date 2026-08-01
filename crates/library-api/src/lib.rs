@@ -11,7 +11,7 @@ mod wire;
 
 pub use kind::Kind;
 pub use origin::Origin;
-pub use payload::{CmdBody, EvtBody, TrackSummary};
+pub use payload::{CmdBody, EvtBody, HotCue, SavedLoop, TrackSummary};
 pub use wire::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
     DecodeError, EncodeError, WireMessage,

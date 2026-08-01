@@ -6,6 +6,12 @@ use serde::{Deserialize, Serialize};
 pub enum Kind {
     AnalyzeTrack,
     TrackAnalyzed,
+    SaveHotCue,
+    DeleteHotCue,
+    SaveLoop,
+    DeleteLoop,
+    HotCuesChanged,
+    LoopsChanged,
     Error,
     Notice,
 }

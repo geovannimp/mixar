@@ -138,7 +138,7 @@ describe("applyBusEvent", () => {
     expect(patch.status?.decks[0]?.headphone_cue).toBe(true);
   });
 
-  it("deck_updated applies library-backed deck fields from the bus", () => {
+  it("deck_updated applies library-backed deck metadata from the bus (cues stay on library evt)", () => {
     const current = baseStatus();
     const bytes = packWire(
       { deck: 0 },
@@ -175,12 +175,9 @@ describe("applyBusEvent", () => {
       auto_gain_db: 1.5,
       active_sampler_bank_id: "bank-1",
     });
-    expect(patch.status?.decks[0]?.hot_cues).toEqual([
-      { slot: 1, position_ms: 12500, loop_length_beats: null, color: null, label: null },
-    ]);
-    expect(patch.status?.decks[0]?.saved_loops).toEqual([
-      { slot: 2, in_ms: 4000, out_ms: 8000, label: null, color: null },
-    ]);
+    // Engine/host DeckUpdated no longer carries cue authority.
+    expect(patch.status?.decks[0]?.hot_cues).toEqual([]);
+    expect(patch.status?.decks[0]?.saved_loops).toEqual([]);
   });
 
   it("deck_updated from engine keeps host track metadata (jog touch)", () => {

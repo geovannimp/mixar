@@ -1,8 +1,11 @@
 //! Library worker thread: drains cmd bus and publishes evt.
 
 use crate::bus::LibraryBus;
-use crate::LibraryManager;
-use library_api::{decode_cmd_body, encode_evt_body, CmdBody, EvtBody, Kind, Origin, TrackSummary};
+use crate::{HotCueRecord, LibraryManager, LoopRecord};
+use library_api::{
+    decode_cmd_body, encode_evt_body, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
+    TrackSummary,
+};
 use library_core::{
     AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, TrackId, WritableLibrary,
 };
@@ -50,66 +53,307 @@ fn handle_cmd(
     revision: &Arc<AtomicU64>,
 ) {
     match event.kind() {
-        Kind::AnalyzeTrack => {
-            let body = match decode_cmd_body(event.payload()) {
-                Ok(CmdBody::AnalyzeTrack { track_id, force }) => (track_id, force),
-                Ok(_) => {
-                    publish_error(
-                        evt_bus,
-                        revision,
-                        Origin::Library,
-                        "analyze_track body mismatch".into(),
-                        None,
-                    );
-                    return;
-                }
-                Err(err) => {
-                    publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
-                    return;
-                }
-            };
-            let (track_id, force) = body;
-            let duration = *analysis_duration.lock().unwrap_or_else(|e| e.into_inner());
-            let options = AnalyzeTrackOptions {
-                force,
-                analysis_duration: duration,
-            };
-            let result = library
-                .lock()
-                .unwrap_or_else(|e| e.into_inner())
-                .analyze_track(&TrackId::new(track_id.clone()), options);
-
-            match result {
-                Ok(source) => match track_summary(&source) {
-                    Some(track) => {
-                        let _ = publish_evt(
-                            evt_bus,
-                            revision,
-                            Origin::Track(track.id.clone()),
-                            Kind::TrackAnalyzed,
-                            EvtBody::TrackAnalyzed { track },
-                        );
-                    }
-                    None => publish_error(
-                        evt_bus,
-                        revision,
-                        Origin::Track(track_id.clone()),
-                        "Only file tracks can be analyzed.".into(),
-                        Some(track_id),
-                    ),
-                },
-                Err(err) => publish_error(
-                    evt_bus,
-                    revision,
-                    Origin::Track(track_id.clone()),
-                    err.to_string(),
-                    Some(track_id),
-                ),
-            }
-        }
-        Kind::TrackAnalyzed | Kind::Error | Kind::Notice => {
+        Kind::AnalyzeTrack => handle_analyze(event, library, analysis_duration, evt_bus, revision),
+        Kind::SaveHotCue => handle_save_hot_cue(event, library, evt_bus, revision),
+        Kind::DeleteHotCue => handle_delete_hot_cue(event, library, evt_bus, revision),
+        Kind::SaveLoop => handle_save_loop(event, library, evt_bus, revision),
+        Kind::DeleteLoop => handle_delete_loop(event, library, evt_bus, revision),
+        Kind::TrackAnalyzed
+        | Kind::HotCuesChanged
+        | Kind::LoopsChanged
+        | Kind::Error
+        | Kind::Notice => {
             // Ignore evt kinds published onto cmd by mistake.
         }
+    }
+}
+
+fn handle_analyze(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    analysis_duration: &Arc<Mutex<AnalysisDurationMode>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let body = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::AnalyzeTrack { track_id, force }) => (track_id, force),
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "analyze_track body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+    let (track_id, force) = body;
+    let duration = *analysis_duration.lock().unwrap_or_else(|e| e.into_inner());
+    let options = AnalyzeTrackOptions {
+        force,
+        analysis_duration: duration,
+    };
+    let result = library
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .analyze_track(&TrackId::new(track_id.clone()), options);
+
+    match result {
+        Ok(source) => match track_summary(&source) {
+            Some(track) => {
+                let _ = publish_evt(
+                    evt_bus,
+                    revision,
+                    Origin::Track(track.id.clone()),
+                    Kind::TrackAnalyzed,
+                    EvtBody::TrackAnalyzed { track },
+                );
+            }
+            None => publish_error(
+                evt_bus,
+                revision,
+                Origin::Track(track_id.clone()),
+                "Only file tracks can be analyzed.".into(),
+                Some(track_id),
+            ),
+        },
+        Err(err) => publish_error(
+            evt_bus,
+            revision,
+            Origin::Track(track_id.clone()),
+            err.to_string(),
+            Some(track_id),
+        ),
+    }
+}
+
+fn handle_save_hot_cue(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let (track_id, slot, position_ms, loop_length_beats, color, label) =
+        match decode_cmd_body(event.payload()) {
+            Ok(CmdBody::SaveHotCue {
+                track_id,
+                slot,
+                position_ms,
+                loop_length_beats,
+                color,
+                label,
+            }) => (track_id, slot, position_ms, loop_length_beats, color, label),
+            Ok(_) => {
+                publish_error(
+                    evt_bus,
+                    revision,
+                    Origin::Library,
+                    "save_hot_cue body mismatch".into(),
+                    None,
+                );
+                return;
+            }
+            Err(err) => {
+                publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+                return;
+            }
+        };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.save_track_hot_cue(&id, slot, position_ms, loop_length_beats, color, label)
+            .and_then(|_| lib.list_track_hot_cues(&id))
+    };
+    publish_hot_cues_result(evt_bus, revision, track_id, result);
+}
+
+fn handle_delete_hot_cue(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let (track_id, slot) = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::DeleteHotCue { track_id, slot }) => (track_id, slot),
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "delete_hot_cue body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.delete_track_hot_cue(&id, slot)
+            .and_then(|_| lib.list_track_hot_cues(&id))
+    };
+    publish_hot_cues_result(evt_bus, revision, track_id, result);
+}
+
+fn handle_save_loop(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let (track_id, slot, in_ms, out_ms, label, color) = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::SaveLoop {
+            track_id,
+            slot,
+            in_ms,
+            out_ms,
+            label,
+            color,
+        }) => (track_id, slot, in_ms, out_ms, label, color),
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "save_loop body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.save_track_loop(&id, slot, in_ms, out_ms, label, color)
+            .and_then(|_| lib.list_track_loops(&id))
+    };
+    publish_loops_result(evt_bus, revision, track_id, result);
+}
+
+fn handle_delete_loop(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let (track_id, slot) = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::DeleteLoop { track_id, slot }) => (track_id, slot),
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "delete_loop body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.delete_track_loop(&id, slot)
+            .and_then(|_| lib.list_track_loops(&id))
+    };
+    publish_loops_result(evt_bus, revision, track_id, result);
+}
+
+fn publish_hot_cues_result(
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+    track_id: String,
+    result: crate::Result<Vec<HotCueRecord>>,
+) {
+    match result {
+        Ok(rows) => {
+            let _ = publish_evt(
+                evt_bus,
+                revision,
+                Origin::Track(track_id.clone()),
+                Kind::HotCuesChanged,
+                EvtBody::HotCuesChanged {
+                    track_id,
+                    hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+                },
+            );
+        }
+        Err(err) => publish_error(
+            evt_bus,
+            revision,
+            Origin::Track(track_id.clone()),
+            err.to_string(),
+            Some(track_id),
+        ),
+    }
+}
+
+fn publish_loops_result(
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+    track_id: String,
+    result: crate::Result<Vec<LoopRecord>>,
+) {
+    match result {
+        Ok(rows) => {
+            let _ = publish_evt(
+                evt_bus,
+                revision,
+                Origin::Track(track_id.clone()),
+                Kind::LoopsChanged,
+                EvtBody::LoopsChanged {
+                    track_id,
+                    loops: rows.into_iter().map(saved_loop_from_record).collect(),
+                },
+            );
+        }
+        Err(err) => publish_error(
+            evt_bus,
+            revision,
+            Origin::Track(track_id.clone()),
+            err.to_string(),
+            Some(track_id),
+        ),
+    }
+}
+
+fn hot_cue_from_record(record: HotCueRecord) -> HotCue {
+    HotCue {
+        slot: record.slot_index,
+        position_ms: record.position_ms,
+        loop_length_beats: record.loop_length_beats,
+        color: record.color,
+        label: record.label,
+    }
+}
+
+fn saved_loop_from_record(record: LoopRecord) -> SavedLoop {
+    SavedLoop {
+        slot: record.slot_index,
+        in_ms: record.in_ms,
+        out_ms: record.out_ms,
+        label: record.label,
+        color: record.color,
     }
 }
 

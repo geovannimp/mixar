@@ -28,3 +28,11 @@ pub fn new_buses() -> (LibraryBus, LibraryBus) {
 pub fn subscribe_evt_all(bus: &LibraryBus) -> Result<EvtReceiver, omnibus::OmnibusError> {
     bus.subscribe(Filter::Any, Filter::Any)
 }
+
+/// Subscribe to egress events for a single track origin.
+pub fn subscribe_evt_track(
+    bus: &LibraryBus,
+    track_id: impl Into<String>,
+) -> Result<EvtReceiver, omnibus::OmnibusError> {
+    bus.subscribe(Filter::Is(Origin::Track(track_id.into())), Filter::Any)
+}

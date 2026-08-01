@@ -513,8 +513,12 @@ pub(crate) fn start_engine_inner(
 
     let config = state.engine_config.clone();
     let session = Arc::new(
-        EngineSession::new_with_library(config, Arc::clone(&state.library))
-            .map_err(|e| e.to_string())?,
+        EngineSession::new_with_library_bus(
+            config,
+            Arc::clone(&state.library),
+            state.library_session.cmd_bus(),
+        )
+        .map_err(|e| e.to_string())?,
     );
     session
         .with_engine(|engine| engine.start().map_err(|e| anyhow::anyhow!(e)))
@@ -798,7 +802,15 @@ pub(crate) fn load_prepared_to_deck_inner(
         let library = state.library.lock().map_err(|e| e.to_string())?;
         fetch_deck_performance(&library, track_id_for_perf.as_deref())
     };
-    apply_deck_performance(&mut state.decks[deck_id], hot_cues, saved_loops);
+    apply_deck_performance(&mut state.decks[deck_id], hot_cues.clone(), saved_loops.clone());
+    if let Some(track_id) = track_id_for_perf.as_deref() {
+        crate::deck_performance::publish_performance_hydrate(
+            state,
+            track_id,
+            &hot_cues,
+            &saved_loops,
+        );
+    }
     Ok(())
 }
 

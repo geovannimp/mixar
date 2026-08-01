@@ -19,6 +19,7 @@ analyzer-core = { path = "../analyzer-core" }
 engine-dsp = { path = "../engine-dsp" }
 library-core = { path = "../library-core" }
 library = { path = "../library" }
+library-api = { path = "../library-api" }
 resampler = { path = "../resampler" }
 backend-null = { path = "../backend-null" }
 backend-miniaudio = { path = "../backend-miniaudio" }
@@ -33,3 +34,4 @@ tokio.workspace = true
 
 [dev-dependencies]
 library-core = { path = "../library-core" }
+tempfile = "3.0"

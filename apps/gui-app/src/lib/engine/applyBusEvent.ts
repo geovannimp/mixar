@@ -57,8 +57,9 @@ function mergeDeckSnapshot(existing: DeckStatus | undefined, snapshot: DeckSnaps
     position_ms: snapshot.position_ms ?? (unloaded ? null : base.position_ms),
     duration_ms: snapshot.duration_ms,
     levels: base.levels ?? ZERO_DECK_LEVELS,
-    hot_cues: unloaded ? [] : trustLibrary ? snapshot.hot_cues : base.hot_cues,
-    saved_loops: unloaded ? [] : trustLibrary ? snapshot.saved_loops : base.saved_loops,
+    // Cue/loop lists come from library evt (`hot_cues_changed` / `loops_changed`), not engine snapshots.
+    hot_cues: unloaded ? [] : base.hot_cues,
+    saved_loops: unloaded ? [] : base.saved_loops,
     loudness_lufs: unloaded ? null : trustLibrary ? snapshot.loudness_lufs : base.loudness_lufs,
     auto_gain_db: unloaded ? 0 : trustLibrary ? snapshot.auto_gain_db : base.auto_gain_db,
     active_sampler_bank_id: unloaded

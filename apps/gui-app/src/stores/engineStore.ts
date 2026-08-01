@@ -6,6 +6,8 @@ import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyBusEvent } from "@/lib/engine/applyBusEvent";
 import { getEngineTransport } from "@/lib/engine/transport";
 import { getDeckOrigin, type CmdKind, type Origin } from "@/lib/engine/wire";
+import { applyLibraryPerformanceBytes } from "@/lib/library/applyLibraryPerformance";
+import { getLibraryTransport } from "@/lib/library/transport";
 import { patchDeckPosition } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
@@ -49,10 +51,11 @@ async function publishCmd(
 }
 
 let busUnlisten: (() => void) | null = null;
+let libraryPerfUnlisten: (() => void) | null = null;
 let busSubscribePromise: Promise<void> | null = null;
 
 async function ensureBusSubscribed(): Promise<void> {
-  if (busUnlisten) {
+  if (busUnlisten && libraryPerfUnlisten) {
     return;
   }
   if (!busSubscribePromise) {
@@ -60,6 +63,18 @@ async function ensureBusSubscribed(): Promise<void> {
       busUnlisten = await getEngineTransport().subscribe((bytes) => {
         useEngineStore.getState().applyBusBytes(bytes);
       });
+      // Kind-filtered library performance stream; patches decks by track_id.
+      // Per-track Origin filter remains available for Deck-scoped listeners.
+      libraryPerfUnlisten = await getLibraryTransport().subscribe(
+        (bytes) => {
+          const status = useEngineStore.getState().status;
+          const next = applyLibraryPerformanceBytes(status, bytes);
+          if (next && next !== status) {
+            useEngineStore.setState({ status: next });
+          }
+        },
+        { kind: ["hot_cues_changed", "loops_changed"] },
+      );
     })();
   }
   await busSubscribePromise;
@@ -69,6 +84,8 @@ async function ensureBusSubscribed(): Promise<void> {
 export function resetEngineBusSubscriptionForTests(): void {
   busUnlisten?.();
   busUnlisten = null;
+  libraryPerfUnlisten?.();
+  libraryPerfUnlisten = null;
   busSubscribePromise = null;
 }
 

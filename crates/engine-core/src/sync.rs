@@ -1,6 +1,7 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
 use engine_api::{LoopRegion, PadMode, SyncMode};
+use library_core::TrackId;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DeckControlState {
@@ -9,6 +10,8 @@ pub(crate) struct DeckControlState {
     pub quantize: bool,
     pub pad_mode: PadMode,
     pub loop_roll_restore: Option<LoopRegion>,
+    /// Library track id when the deck holds a library-backed (or id'd) load.
+    pub track_id: Option<TrackId>,
 }
 
 impl DeckControlState {
@@ -16,6 +19,7 @@ impl DeckControlState {
         self.bpm = bpm.filter(|b| b.is_finite() && *b > 0.0);
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
+        self.track_id = None;
     }
 }
 

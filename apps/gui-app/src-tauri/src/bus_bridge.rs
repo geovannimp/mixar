@@ -1,8 +1,7 @@
 //! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
 use engine_api::{
-    decode_cmd_body, decode_wire, encode_wire, CmdBody, DeckHotCue as ApiDeckHotCue,
-    DeckSavedLoop as ApiDeckSavedLoop, DeckSnapshot, EvtBody, Kind, Origin,
+    decode_cmd_body, decode_wire, encode_wire, CmdBody, DeckSnapshot, EvtBody, Kind, Origin,
     PadMode as ApiPadMode, SamplerBankInfo as ApiSamplerBankInfo,
     SamplerPlayMode as ApiSamplerPlayMode, SamplerSlotInfo as ApiSamplerSlotInfo,
     SamplerStatus as ApiSamplerStatus, WireMessage,
@@ -16,7 +15,6 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, State};
 
-use crate::deck_performance::{HotCueStatus, SavedLoopStatus};
 use crate::deck_sampler::{SamplerPlayModeSetting, SamplerStatus};
 use crate::deck_sync::PadMode;
 use crate::{AppState, DeckInfo, NUM_DECKS};
@@ -214,46 +212,6 @@ pub fn engine_publish(
                         .transpose()
                         .map_err(|e| e.to_string())?,
                 )?;
-                return Ok(());
-            }
-            Kind::SaveHotCue => {
-                let CmdBody::SaveHotCue { slot } =
-                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
-                else {
-                    return Err("save_hot_cue body mismatch".into());
-                };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::save_hot_cue_inner(&mut state, deck_id, slot)?;
-                return Ok(());
-            }
-            Kind::DeleteHotCue => {
-                let CmdBody::DeleteHotCue { slot } =
-                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
-                else {
-                    return Err("delete_hot_cue body mismatch".into());
-                };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::delete_hot_cue_inner(&mut state, deck_id, slot)?;
-                return Ok(());
-            }
-            Kind::SaveLoop => {
-                let CmdBody::SaveLoop { slot } =
-                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
-                else {
-                    return Err("save_loop body mismatch".into());
-                };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::save_loop_inner(&mut state, deck_id, slot)?;
-                return Ok(());
-            }
-            Kind::DeleteLoop => {
-                let CmdBody::DeleteLoop { slot } =
-                    decode_cmd_body(&msg.body).map_err(|e| e.to_string())?
-                else {
-                    return Err("delete_loop body mismatch".into());
-                };
-                let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_performance::delete_loop_inner(&mut state, deck_id, slot)?;
                 return Ok(());
             }
             Kind::LoadPath => {
@@ -458,31 +416,6 @@ fn to_api_play_mode(mode: SamplerPlayModeSetting) -> ApiSamplerPlayMode {
     }
 }
 
-fn to_api_hot_cues(cues: &[HotCueStatus]) -> Vec<ApiDeckHotCue> {
-    cues.iter()
-        .map(|cue| ApiDeckHotCue {
-            slot: cue.slot,
-            position_ms: cue.position_ms,
-            loop_length_beats: cue.loop_length_beats,
-            color: cue.color.clone(),
-            label: cue.label.clone(),
-        })
-        .collect()
-}
-
-fn to_api_saved_loops(loops: &[SavedLoopStatus]) -> Vec<ApiDeckSavedLoop> {
-    loops
-        .iter()
-        .map(|saved| ApiDeckSavedLoop {
-            slot: saved.slot,
-            in_ms: saved.in_ms,
-            out_ms: saved.out_ms,
-            label: saved.label.clone(),
-            color: saved.color.clone(),
-        })
-        .collect()
-}
-
 /// Overlay host-owned enrichment onto an engine transport snapshot.
 fn overlay_host_enrichment(snap: &mut DeckSnapshot, deck: &DeckInfo) {
     snap.track = deck.track.clone();
@@ -491,8 +424,7 @@ fn overlay_host_enrichment(snap: &mut DeckSnapshot, deck: &DeckInfo) {
     snap.artist = deck.artist.clone();
     snap.bpm = deck.bpm;
     snap.key = deck.key.clone();
-    snap.hot_cues = to_api_hot_cues(&deck.hot_cues);
-    snap.saved_loops = to_api_saved_loops(&deck.saved_loops);
+    // hot_cues / saved_loops come from library evt (Origin::Track), not AppState overlay.
     snap.loudness_lufs = deck.loudness_lufs;
     snap.auto_gain_db = deck.auto_gain_db;
     snap.active_sampler_bank_id = deck.active_sampler_bank_id.clone();
