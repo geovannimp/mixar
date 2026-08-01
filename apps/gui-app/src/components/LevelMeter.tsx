@@ -11,8 +11,10 @@ function segmentOn(level: number, indexFromBottom: number): boolean {
 }
 
 function holdSegment(hold: number): number | null {
-  if (hold <= 0) return null;
-  return Math.min(SEGMENTS - 1, Math.max(0, Math.ceil(hold * SEGMENTS) - 1));
+  // Match segmentOn: the bottom segment represents [1/SEGMENTS, 2/SEGMENTS).
+  // Tiny residual hold (e.g. 1e-5 after engine idle cutoff) must not light a bar.
+  if (hold < 1 / SEGMENTS - 1e-6) return null;
+  return Math.min(SEGMENTS - 1, Math.ceil(hold * SEGMENTS) - 1);
 }
 
 function Ladder({ peak, hold, className }: { peak: number; hold: number; className?: string }) {

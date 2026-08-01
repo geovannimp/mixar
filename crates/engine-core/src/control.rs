@@ -24,6 +24,8 @@ enum CmdOutcome {
 struct PeakHoldState {
     hold_l: Vec<f32>,
     hold_r: Vec<f32>,
+    /// Decks that last published non-idle levels and still need a zero flush for the UI.
+    needs_zero_flush: Vec<bool>,
 }
 
 impl PeakHoldState {
@@ -31,6 +33,7 @@ impl PeakHoldState {
         Self {
             hold_l: vec![0.0; 2],
             hold_r: vec![0.0; 2],
+            needs_zero_flush: vec![false; 2],
         }
     }
 
@@ -39,6 +42,7 @@ impl PeakHoldState {
         if self.hold_l.len() < need {
             self.hold_l.resize(need, 0.0);
             self.hold_r.resize(need, 0.0);
+            self.needs_zero_flush.resize(need, false);
         }
     }
 
@@ -54,6 +58,21 @@ impl PeakHoldState {
             *hold = peak;
         } else {
             *hold = (*hold - PEAK_HOLD_DECAY_PER_TICK).max(0.0);
+        }
+    }
+
+    fn mark_published(&mut self, deck_id: usize, idle: bool) {
+        self.ensure_capacity(deck_id);
+        self.needs_zero_flush[deck_id] = !idle;
+    }
+
+    fn take_zero_flush(&mut self, deck_id: usize) -> bool {
+        self.ensure_capacity(deck_id);
+        if self.needs_zero_flush[deck_id] {
+            self.needs_zero_flush[deck_id] = false;
+            true
+        } else {
+            false
         }
     }
 }
@@ -558,8 +577,22 @@ fn tick(
         // once peaks and hold are fully idle (otherwise UI meters stick).
         let (peak_hold_l, peak_hold_r) = peak_hold.update(deck_id, peak_l, peak_r);
         if !should_publish_levels(playing, peak_l, peak_r, peak_hold_l, peak_hold_r) {
+            if peak_hold.take_zero_flush(deck_id) {
+                publish_evt(
+                    evt_bus,
+                    Origin::Deck(deck_id as u16),
+                    Kind::Levels,
+                    EvtBody::Levels {
+                        peak_l: 0.0,
+                        peak_r: 0.0,
+                        peak_hold_l: 0.0,
+                        peak_hold_r: 0.0,
+                    },
+                );
+            }
             continue;
         }
+        peak_hold.mark_published(deck_id, false);
         publish_evt(
             evt_bus,
             Origin::Deck(deck_id as u16),
@@ -620,5 +653,14 @@ mod tests {
     #[test]
     fn playing_always_publishes_even_when_silent() {
         assert!(should_publish_levels(true, 0.0, 0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn idle_deck_flushes_zeros_once() {
+        let mut hold = PeakHoldState::new();
+        let _ = hold.update(0, 0.5, 0.5);
+        hold.mark_published(0, false);
+        assert!(hold.take_zero_flush(0));
+        assert!(!hold.take_zero_flush(0));
     }
 }
