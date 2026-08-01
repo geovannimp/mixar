@@ -7,7 +7,7 @@ use library_api::{
     TrackSummary,
 };
 use library_core::{
-    AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, TrackId, WritableLibrary,
+    AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, Library, TrackId, WritableLibrary,
 };
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -54,17 +54,122 @@ fn handle_cmd(
 ) {
     match event.kind() {
         Kind::AnalyzeTrack => handle_analyze(event, library, analysis_duration, evt_bus, revision),
+        Kind::RefreshTrack => handle_refresh_track(event, library, evt_bus, revision),
         Kind::SaveHotCue => handle_save_hot_cue(event, library, evt_bus, revision),
         Kind::DeleteHotCue => handle_delete_hot_cue(event, library, evt_bus, revision),
         Kind::SaveLoop => handle_save_loop(event, library, evt_bus, revision),
         Kind::DeleteLoop => handle_delete_loop(event, library, evt_bus, revision),
         Kind::TrackAnalyzed
+        | Kind::TrackUpdated
         | Kind::HotCuesChanged
         | Kind::LoopsChanged
         | Kind::Error
         | Kind::Notice => {
             // Ignore evt kinds published onto cmd by mistake.
         }
+    }
+}
+
+fn handle_refresh_track(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let track_id = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::RefreshTrack { track_id }) => track_id,
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "refresh_track body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        match lib.get_track(&id) {
+            Ok(Some(source)) => match track_summary(&source) {
+                Some(track) => {
+                    let cues = lib.list_track_hot_cues(&id);
+                    let loops = lib.list_track_loops(&id);
+                    Ok((track, cues, loops))
+                }
+                None => Err("Only file tracks can be refreshed.".to_string()),
+            },
+            Ok(None) => Err(format!("Track not found: {track_id}")),
+            Err(err) => Err(err.to_string()),
+        }
+    };
+
+    match result {
+        Ok((track, cues, loops)) => {
+            let _ = publish_evt(
+                evt_bus,
+                revision,
+                Origin::Track(track_id.clone()),
+                Kind::TrackUpdated,
+                EvtBody::TrackUpdated { track },
+            );
+            match cues {
+                Ok(rows) => {
+                    let _ = publish_evt(
+                        evt_bus,
+                        revision,
+                        Origin::Track(track_id.clone()),
+                        Kind::HotCuesChanged,
+                        EvtBody::HotCuesChanged {
+                            track_id: track_id.clone(),
+                            hot_cues: rows.into_iter().map(hot_cue_from_record).collect(),
+                        },
+                    );
+                }
+                Err(err) => publish_error(
+                    evt_bus,
+                    revision,
+                    Origin::Track(track_id.clone()),
+                    err.to_string(),
+                    Some(track_id.clone()),
+                ),
+            }
+            match loops {
+                Ok(rows) => {
+                    let _ = publish_evt(
+                        evt_bus,
+                        revision,
+                        Origin::Track(track_id.clone()),
+                        Kind::LoopsChanged,
+                        EvtBody::LoopsChanged {
+                            track_id: track_id.clone(),
+                            loops: rows.into_iter().map(saved_loop_from_record).collect(),
+                        },
+                    );
+                }
+                Err(err) => publish_error(
+                    evt_bus,
+                    revision,
+                    Origin::Track(track_id.clone()),
+                    err.to_string(),
+                    Some(track_id),
+                ),
+            }
+        }
+        Err(message) => publish_error(
+            evt_bus,
+            revision,
+            Origin::Track(track_id.clone()),
+            message,
+            Some(track_id),
+        ),
     }
 }
 

@@ -1126,62 +1126,6 @@ impl Engine {
         )
     }
 
-    /// Delete a persisted hot cue via the library cmd bus.
-    pub fn delete_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        let track_id = self
-            .deck_control
-            .get(deck_id)
-            .and_then(|c| c.track_id.clone())
-            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
-        self.publish_library_cmd(
-            library_api::Kind::DeleteHotCue,
-            library_api::CmdBody::DeleteHotCue {
-                track_id: track_id.as_str().to_string(),
-                slot,
-            },
-        )
-    }
-
-    /// Persist the active loop region via the library cmd bus.
-    pub fn save_deck_loop(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        let track_id = self
-            .deck_control
-            .get(deck_id)
-            .and_then(|c| c.track_id.clone())
-            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist loops."))?;
-        let region = self
-            .deck_snapshot(deck_id)
-            .and_then(|snap| snap.active_loop)
-            .ok_or_else(|| anyhow::anyhow!("Set an active loop before saving."))?;
-        self.publish_library_cmd(
-            library_api::Kind::SaveLoop,
-            library_api::CmdBody::SaveLoop {
-                track_id: track_id.as_str().to_string(),
-                slot,
-                in_ms: region.in_ms,
-                out_ms: region.out_ms,
-                label: None,
-                color: None,
-            },
-        )
-    }
-
-    /// Delete a persisted loop via the library cmd bus.
-    pub fn delete_deck_loop(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        let track_id = self
-            .deck_control
-            .get(deck_id)
-            .and_then(|c| c.track_id.clone())
-            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist loops."))?;
-        self.publish_library_cmd(
-            library_api::Kind::DeleteLoop,
-            library_api::CmdBody::DeleteLoop {
-                track_id: track_id.as_str().to_string(),
-                slot,
-            },
-        )
-    }
-
     fn publish_library_cmd(
         &self,
         kind: library_api::Kind,

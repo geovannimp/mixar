@@ -10,10 +10,10 @@
 
 Move quantize-aware hot-cue (and sibling loop) **persistence** off the Tauri host intercept path:
 
-- **Engine** owns playhead + quantize and decides snapped positions on save.
-- **Library** owns cue/loop rows and **emits** change events on its evt bus.
-- **Tauri** only bridges bytes (no `SaveHotCue` / `DeleteHotCue` / `SaveLoop` / `DeleteLoop` intercept).
-- **FE** patches deck cue/loop UI from library evts, filtered to the **loaded track**.
+- **Engine** owns playhead + quantize; **SaveHotCue** snaps in-engine then publishes a library cmd.
+- **FE** owns loop save: reads `active_loop` and publishes library `SaveLoop` (deletes too).
+- **Library** owns cue/loop rows + track metadata evts; **`useTrack(trackId)`** is the UI source.
+- **Tauri** only bridges bytes (no performance intercept / no hydrate).
 
 ## Decisions
 

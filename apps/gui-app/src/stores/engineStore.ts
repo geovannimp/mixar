@@ -6,8 +6,8 @@ import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyBusEvent } from "@/lib/engine/applyBusEvent";
 import { getEngineTransport } from "@/lib/engine/transport";
 import { getDeckOrigin, type CmdKind, type Origin } from "@/lib/engine/wire";
-import { applyLibraryPerformanceBytes } from "@/lib/library/applyLibraryPerformance";
 import { getLibraryTransport } from "@/lib/library/transport";
+import { getLibraryTrack } from "@/stores/libraryTrackStore";
 import { patchDeckPosition } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
@@ -51,11 +51,10 @@ async function publishCmd(
 }
 
 let busUnlisten: (() => void) | null = null;
-let libraryPerfUnlisten: (() => void) | null = null;
 let busSubscribePromise: Promise<void> | null = null;
 
 async function ensureBusSubscribed(): Promise<void> {
-  if (busUnlisten && libraryPerfUnlisten) {
+  if (busUnlisten) {
     return;
   }
   if (!busSubscribePromise) {
@@ -63,18 +62,6 @@ async function ensureBusSubscribed(): Promise<void> {
       busUnlisten = await getEngineTransport().subscribe((bytes) => {
         useEngineStore.getState().applyBusBytes(bytes);
       });
-      // Kind-filtered library performance stream; patches decks by track_id.
-      // Per-track Origin filter remains available for Deck-scoped listeners.
-      libraryPerfUnlisten = await getLibraryTransport().subscribe(
-        (bytes) => {
-          const status = useEngineStore.getState().status;
-          const next = applyLibraryPerformanceBytes(status, bytes);
-          if (next && next !== status) {
-            useEngineStore.setState({ status: next });
-          }
-        },
-        { kind: ["hot_cues_changed", "loops_changed"] },
-      );
     })();
   }
   await busSubscribePromise;
@@ -84,9 +71,18 @@ async function ensureBusSubscribed(): Promise<void> {
 export function resetEngineBusSubscriptionForTests(): void {
   busUnlisten?.();
   busUnlisten = null;
-  libraryPerfUnlisten?.();
-  libraryPerfUnlisten = null;
   busSubscribePromise = null;
+}
+
+async function publishLibraryCmd(
+  kind: "delete_hot_cue" | "save_loop" | "delete_loop",
+  fields: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await getLibraryTransport().publish("library", kind, fields);
+  } catch (err) {
+    reportEngineError(String(err));
+  }
 }
 
 function getDeck(status: EngineStatus | null, deckId: number): DeckStatus {
@@ -370,7 +366,8 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   triggerHotCue: async (deckId, slot) => {
-    const cue = getDeck(get().status, deckId).hot_cues.find((entry) => entry.slot === slot);
+    const trackId = getDeck(get().status, deckId).track_id;
+    const cue = getLibraryTrack(trackId)?.hot_cues.find((entry) => entry.slot === slot);
     if (!cue) {
       reportEngineError(`Hot cue ${slot + 1} is empty.`);
       return;
@@ -385,15 +382,36 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   deleteHotCue: async (deckId, slot) => {
-    await publishCmd(getDeckOrigin(deckId), "delete_hot_cue", { slot });
+    const trackId = getDeck(get().status, deckId).track_id;
+    if (!trackId) {
+      reportEngineError("Only library tracks can persist hot cues.");
+      return;
+    }
+    await publishLibraryCmd("delete_hot_cue", { track_id: trackId, slot });
   },
 
   saveLoop: async (deckId, slot) => {
-    await publishCmd(getDeckOrigin(deckId), "save_loop", { slot });
+    const deck = getDeck(get().status, deckId);
+    if (!deck.track_id) {
+      reportEngineError("Only library tracks can persist loops.");
+      return;
+    }
+    const region = deck.active_loop;
+    if (!region) {
+      reportEngineError("Set an active loop before saving.");
+      return;
+    }
+    await publishLibraryCmd("save_loop", {
+      track_id: deck.track_id,
+      slot,
+      in_ms: region.in_ms,
+      out_ms: region.out_ms,
+    });
   },
 
   recallSavedLoop: async (deckId, slot) => {
-    const saved = getDeck(get().status, deckId).saved_loops.find((entry) => entry.slot === slot);
+    const trackId = getDeck(get().status, deckId).track_id;
+    const saved = getLibraryTrack(trackId)?.saved_loops.find((entry) => entry.slot === slot);
     if (!saved) {
       reportEngineError(`Saved loop ${slot + 1} is empty.`);
       return;
@@ -405,7 +423,12 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 
   deleteLoop: async (deckId, slot) => {
-    await publishCmd(getDeckOrigin(deckId), "delete_loop", { slot });
+    const trackId = getDeck(get().status, deckId).track_id;
+    if (!trackId) {
+      reportEngineError("Only library tracks can persist loops.");
+      return;
+    }
+    await publishLibraryCmd("delete_loop", { track_id: trackId, slot });
   },
 
   toggleDeckSync: async (deckId, beatSync = false) => {

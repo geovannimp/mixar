@@ -44,6 +44,9 @@ pub enum CmdBody {
         track_id: String,
         force: bool,
     },
+    RefreshTrack {
+        track_id: String,
+    },
     SaveHotCue {
         track_id: String,
         slot: u8,
@@ -81,6 +84,9 @@ pub enum CmdBody {
 pub enum EvtBody {
     Empty,
     TrackAnalyzed {
+        track: TrackSummary,
+    },
+    TrackUpdated {
         track: TrackSummary,
     },
     HotCuesChanged {

@@ -6,6 +6,8 @@ import { z } from "zod";
 export const KindSchema = z.enum([
   "analyze_track",
   "track_analyzed",
+  "refresh_track",
+  "track_updated",
   "save_hot_cue",
   "delete_hot_cue",
   "save_loop",
@@ -60,6 +62,10 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     force: z.boolean(),
   }),
   z.object({
+    type: z.literal("refresh_track"),
+    track_id: z.string(),
+  }),
+  z.object({
     type: z.literal("save_hot_cue"),
     track_id: z.string(),
     slot: z.number().int().nonnegative(),
@@ -93,6 +99,7 @@ export type CmdBody = z.infer<typeof CmdBodySchema>;
 export const EvtBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
   z.object({ type: z.literal("track_analyzed"), track: TrackSummarySchema }),
+  z.object({ type: z.literal("track_updated"), track: TrackSummarySchema }),
   z.object({
     type: z.literal("hot_cues_changed"),
     track_id: z.string(),
@@ -193,6 +200,7 @@ export function encodeWireCmd(
 
 export type CmdKind =
   | "analyze_track"
+  | "refresh_track"
   | "save_hot_cue"
   | "delete_hot_cue"
   | "save_loop"

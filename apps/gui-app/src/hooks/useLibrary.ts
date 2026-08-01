@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { toastManager } from "@/components/ui/toast";
 import { getLibraryTransport } from "@/lib/library/transport";
 import { decodeEvtBody, decodeWire, toTrackSummary } from "@/lib/library/wire";
+import { useLibraryTrackStore } from "@/stores/libraryTrackStore";
 import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "@/types";
 
 const libraryTransport = getLibraryTransport();
@@ -40,6 +41,7 @@ export function useLibrary(options?: UseLibraryOptions) {
   const refreshTracks = useCallback(async (collectionId: string) => {
     const next = await libraryTransport.listCollectionTracks(collectionId);
     setTracks(next);
+    useLibraryTrackStore.getState().upsertMany(next);
   }, []);
 
   useEffect(() => {
@@ -78,15 +80,23 @@ export function useLibrary(options?: UseLibraryOptions) {
             return;
           }
           switch (body.type) {
-            case "track_analyzed": {
+            case "track_analyzed":
+            case "track_updated": {
               const updated = toTrackSummary(body.track);
+              useLibraryTrackStore.getState().upsertSummary(updated);
               setTracks((current) =>
                 current.map((track) => (track.id === updated.id ? updated : track)),
               );
-              setAnalyzingTrackId((current) => (current === updated.id ? null : current));
-              onTrackAnalyzedRef.current?.(updated);
+              if (body.type === "track_analyzed") {
+                setAnalyzingTrackId((current) => (current === updated.id ? null : current));
+                onTrackAnalyzedRef.current?.(updated);
+              }
               break;
             }
+            case "hot_cues_changed":
+            case "loops_changed":
+              // Handled by libraryTrackStore via useTrack bus subscription.
+              break;
             case "error": {
               setError(body.message);
               if (body.track_id) {

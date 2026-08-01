@@ -8,6 +8,7 @@ import {
   useDeckWaveform,
   useEngineRunning,
 } from "@/hooks/useEngine";
+import { useTrack } from "@/hooks/useTrack";
 import { useRenderWaveformLane } from "@/hooks/useRenderWaveformLane";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
 import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
@@ -21,6 +22,7 @@ const WaveformLane = memo(function WaveformLane({
 }) {
   const engineRunning = useEngineRunning();
   const deck = useDeckWaveform(deckId);
+  const libraryTrack = useTrack(deck.track_id);
   const { ref, size } = useLaneDimensions();
   const positionMs = deck.position_ms ?? 0;
   const hasTrack = Boolean(deck.track);
@@ -98,7 +100,7 @@ const WaveformLane = memo(function WaveformLane({
       <WaveformWindowMarkersMotion
         motionPos={playhead.motionPos}
         visibleMs={viewSpanMs}
-        hotCues={deck.hot_cues}
+        hotCues={libraryTrack?.hot_cues ?? []}
         activeLoop={deck.active_loop}
       />
     </div>
