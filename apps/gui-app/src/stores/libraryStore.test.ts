@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { encodeEvtBody, encodeWire } from "@/lib/library/wire";
-import { useLibraryTrackStore } from "@/stores/libraryTrackStore";
+import { useLibraryStore } from "@/stores/libraryStore";
 
-describe("libraryTrackStore", () => {
+describe("libraryStore", () => {
   it("applies track_updated and hot_cues_changed for one track", () => {
-    useLibraryTrackStore.setState({ tracks: {} });
+    useLibraryStore.setState({ tracks: {} });
 
-    useLibraryTrackStore.getState().applyBusBytes(
+    useLibraryStore.getState().applyBusBytes(
       encodeWire({
         origin: { track: "t1" },
         kind: "track_updated",
@@ -30,7 +30,7 @@ describe("libraryTrackStore", () => {
       }),
     );
 
-    useLibraryTrackStore.getState().applyBusBytes(
+    useLibraryStore.getState().applyBusBytes(
       encodeWire({
         origin: { track: "t1" },
         kind: "hot_cues_changed",
@@ -52,7 +52,7 @@ describe("libraryTrackStore", () => {
       }),
     );
 
-    const track = useLibraryTrackStore.getState().tracks.t1;
+    const track = useLibraryStore.getState().tracks.t1;
     expect(track?.title).toBe("Title");
     expect(track?.artist).toBe("Artist");
     expect(track?.hot_cues).toEqual([

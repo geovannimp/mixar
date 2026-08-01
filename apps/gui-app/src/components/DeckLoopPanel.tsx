@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { cn } from "@/lib/utils";
-import type { DeckStatus } from "@/types";
+import type { DeckSavedLoop, DeckStatus } from "@/types";
 
 const AUTO_LOOP_BEATS = [1, 2, 4, 8, 16, 32] as const;
 
@@ -13,7 +13,7 @@ interface DeckLoopPanelProps {
   onLoopOut: () => void;
   onExitLoop: () => void;
   onSaveLoop: (slot: number) => void;
-  onRecallSavedLoop: (slot: number) => void;
+  onTriggerLoop: (loop: DeckSavedLoop) => void;
   onDeleteLoop: (slot: number) => void;
   onBeatJump: (beats: number) => void;
 }
@@ -26,7 +26,7 @@ export function DeckLoopPanel({
   onLoopOut,
   onExitLoop,
   onSaveLoop,
-  onRecallSavedLoop,
+  onTriggerLoop,
   onDeleteLoop,
   onBeatJump,
 }: DeckLoopPanelProps) {
@@ -107,7 +107,7 @@ export function DeckLoopPanel({
                 onDeleteLoop(loopSlot);
                 return;
               }
-              onRecallSavedLoop(loopSlot);
+              onTriggerLoop(savedLoop);
             }}
           >
             {loopBeats}

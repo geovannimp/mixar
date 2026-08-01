@@ -111,8 +111,8 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       onSetPadMode={(mode) => {
         void engineActions.setDeckPadMode(deckId, mode);
       }}
-      onTriggerHotCue={(slot) => {
-        void engineActions.triggerHotCue(deckId, slot);
+      onTriggerHotCue={(cue) => {
+        void engineActions.triggerHotCue(deckId, cue);
       }}
       onSaveHotCue={(slot) => {
         void engineActions.saveHotCue(deckId, slot);
@@ -166,8 +166,8 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       onSaveLoop={(slot) => {
         void engineActions.saveLoop(deckId, slot);
       }}
-      onRecallSavedLoop={(slot) => {
-        void engineActions.recallSavedLoop(deckId, slot);
+      onTriggerLoop={(loop) => {
+        void engineActions.triggerLoop(deckId, loop);
       }}
       onDeleteLoop={(slot) => {
         void engineActions.deleteLoop(deckId, slot);

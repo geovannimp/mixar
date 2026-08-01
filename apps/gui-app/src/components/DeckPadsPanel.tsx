@@ -6,6 +6,7 @@ import { SamplerPads } from "@/components/deck-pads/SamplerPads";
 import { cn } from "@/lib/utils";
 import { PAD_MODES, PAD_MODE_SHORT_LABELS } from "@/lib/padModes";
 import type {
+  DeckHotCueMarker,
   DeckStatus,
   PadMode,
   SamplerBankInfo,
@@ -20,7 +21,7 @@ interface DeckPadsPanelProps {
   effectivePlayMode: SamplerPlayMode;
   disabled?: boolean;
   onSetPadMode: (mode: PadMode) => void;
-  onTriggerHotCue: (slot: number) => void;
+  onTriggerHotCue: (cue: DeckHotCueMarker) => void;
   onSaveHotCue: (slot: number) => void;
   onDeleteHotCue: (slot: number) => void;
   onBeginLoopRoll: (beats: number) => void;

@@ -1,160 +1,99 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
-import { getLibraryTransport } from "@/lib/library/transport";
-import { decodeEvtBody, decodeWire, toTrackSummary } from "@/lib/library/wire";
-import { useLibraryTrackStore } from "@/stores/libraryTrackStore";
-import type { AddFolderCollectionResult, CollectionSummary, TrackSummary } from "@/types";
-
-const libraryTransport = getLibraryTransport();
+import {
+  selectLibraryCollections,
+  selectSelectedCollectionTracks,
+  useLibraryStore,
+} from "@/stores/libraryStore";
+import type { TrackSummary } from "@/types";
 
 export type UseLibraryOptions = {
   onTrackAnalyzed?: (track: TrackSummary) => void;
 };
 
 export function useLibrary(options?: UseLibraryOptions) {
-  const [collections, setCollections] = useState<CollectionSummary[]>([]);
-  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
-  const [tracks, setTracks] = useState<TrackSummary[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [analyzingTrackId, setAnalyzingTrackId] = useState<string | null>(null);
   const onTrackAnalyzedRef = useRef(options?.onTrackAnalyzed);
   onTrackAnalyzedRef.current = options?.onTrackAnalyzed;
 
-  const refreshCollections = useCallback(async () => {
-    const next = await libraryTransport.listCollections();
-    setCollections(next);
-    if (next.length === 0) {
-      setSelectedCollectionId(null);
-      setTracks([]);
-      return;
-    }
-    setSelectedCollectionId((current) => {
-      if (current && next.some((collection) => collection.id === current)) {
-        return current;
-      }
-      return next[0]?.id ?? null;
-    });
-  }, []);
-
-  const refreshTracks = useCallback(async (collectionId: string) => {
-    const next = await libraryTransport.listCollectionTracks(collectionId);
-    setTracks(next);
-    useLibraryTrackStore.getState().upsertMany(next);
-  }, []);
+  const {
+    collections,
+    selectedCollectionId,
+    tracks,
+    error,
+    busy,
+    analyzingTrackId,
+    selectCollection,
+    refreshCollections,
+    loadSelectedCollectionTracks,
+    addFolderCollectionFromPath: addFromPath,
+    analyzeTrack,
+  } = useLibraryStore(
+    useShallow((state) => ({
+      collections: selectLibraryCollections(state),
+      selectedCollectionId: state.selectedCollectionId,
+      tracks: selectSelectedCollectionTracks(state),
+      error: state.error,
+      busy: state.busy,
+      analyzingTrackId: state.analyzingTrackId,
+      selectCollection: state.selectCollection,
+      refreshCollections: state.refreshCollections,
+      loadSelectedCollectionTracks: state.loadSelectedCollectionTracks,
+      addFolderCollectionFromPath: state.addFolderCollectionFromPath,
+      analyzeTrack: state.analyzeTrack,
+    })),
+  );
 
   useEffect(() => {
     refreshCollections().catch((err: unknown) => {
-      setError(String(err));
+      useLibraryStore.setState({ error: String(err) });
     });
   }, [refreshCollections]);
 
   useEffect(() => {
     if (!selectedCollectionId) {
-      setTracks([]);
       return;
     }
-    refreshTracks(selectedCollectionId).catch((err: unknown) => {
-      setError(String(err));
+    loadSelectedCollectionTracks().catch((err: unknown) => {
+      useLibraryStore.setState({ error: String(err) });
     });
-  }, [selectedCollectionId, refreshTracks]);
+  }, [selectedCollectionId, loadSelectedCollectionTracks]);
 
   useEffect(() => {
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-
-    void libraryTransport
-      .subscribe(
-        (bytes) => {
-          let message;
-          try {
-            message = decodeWire(bytes);
-          } catch {
-            return;
-          }
-          let body;
-          try {
-            body = decodeEvtBody(message.body);
-          } catch {
-            return;
-          }
-          switch (body.type) {
-            case "track_analyzed":
-            case "track_updated": {
-              const updated = toTrackSummary(body.track);
-              useLibraryTrackStore.getState().upsertSummary(updated);
-              setTracks((current) =>
-                current.map((track) => (track.id === updated.id ? updated : track)),
-              );
-              if (body.type === "track_analyzed") {
-                setAnalyzingTrackId((current) => (current === updated.id ? null : current));
-                onTrackAnalyzedRef.current?.(updated);
-              }
-              break;
-            }
-            case "hot_cues_changed":
-            case "loops_changed":
-              // Handled by libraryTrackStore via useTrack bus subscription.
-              break;
-            case "error": {
-              setError(body.message);
-              if (body.track_id) {
-                setAnalyzingTrackId((current) => (current === body.track_id ? null : current));
-              } else {
-                setAnalyzingTrackId(null);
-              }
-              break;
-            }
-            case "notice":
-            case "empty":
-              break;
-            default: {
-              const _exhaustive: never = body;
-              void _exhaustive;
-              break;
-            }
-          }
-        },
-        { kind: ["track_analyzed", "error", "notice"] },
-      )
-      .then((unsub) => {
-        if (cancelled) {
-          unsub();
-          return;
+    return useLibraryStore.subscribe((state, prev) => {
+      if (state.lastAnalyzedTrackId && state.lastAnalyzedTrackId !== prev.lastAnalyzedTrackId) {
+        const track = state.tracks[state.lastAnalyzedTrackId];
+        if (track) {
+          onTrackAnalyzedRef.current?.({
+            id: track.id,
+            display_name: track.display_name,
+            artist: track.artist,
+            title: track.title,
+            album: track.album,
+            genre: track.genre,
+            bpm: track.bpm,
+            key: track.key,
+            duration_ms: track.duration_ms,
+            path: track.path,
+          });
         }
-        unsubscribe = unsub;
-      });
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
+      }
+    });
   }, []);
 
   const addFolderCollectionFromPath = useCallback(
     async (folderPath: string) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const result: AddFolderCollectionResult =
-          await libraryTransport.addFolderCollection(folderPath);
-        setSelectedCollectionId(result.collection.id);
-        await refreshCollections();
-        await refreshTracks(result.collection.id);
+      const result = await addFromPath(folderPath);
+      if (result) {
         toastManager.add({
           title: "Collection created",
           type: "success",
         });
-        return result;
-      } catch (err) {
-        setError(String(err));
-        return null;
-      } finally {
-        setBusy(false);
       }
+      return result;
     },
-    [refreshCollections, refreshTracks],
+    [addFromPath],
   );
 
   const addFolderCollection = useCallback(async () => {
@@ -165,23 +104,8 @@ export function useLibrary(options?: UseLibraryOptions) {
     if (typeof selected !== "string") {
       return;
     }
-
     await addFolderCollectionFromPath(selected);
   }, [addFolderCollectionFromPath]);
-
-  const analyzeTrack = useCallback(async (trackId: string) => {
-    setAnalyzingTrackId(trackId);
-    setError(null);
-    try {
-      await libraryTransport.publish("library", "analyze_track", {
-        track_id: trackId,
-        force: false,
-      });
-    } catch (err) {
-      setError(String(err));
-      setAnalyzingTrackId(null);
-    }
-  }, []);
 
   return {
     collections,
@@ -190,7 +114,7 @@ export function useLibrary(options?: UseLibraryOptions) {
     error,
     busy,
     analyzingTrackId,
-    setSelectedCollectionId,
+    setSelectedCollectionId: selectCollection,
     addFolderCollection,
     addFolderCollectionFromPath,
     analyzeTrack,

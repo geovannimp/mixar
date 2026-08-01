@@ -7,12 +7,13 @@ import { applyBusEvent } from "@/lib/engine/applyBusEvent";
 import { getEngineTransport } from "@/lib/engine/transport";
 import { getDeckOrigin, type CmdKind, type Origin } from "@/lib/engine/wire";
 import { getLibraryTransport } from "@/lib/library/transport";
-import { getLibraryTrack } from "@/stores/libraryTrackStore";
 import { patchDeckPosition } from "@/lib/engineEvents";
 import { cyclePadMode } from "@/lib/padModes";
 import {
   ZERO_DECK_LEVELS,
   type DeckEq,
+  type DeckHotCueMarker,
+  type DeckSavedLoop,
   type DeckStatus,
   type EngineStatus,
   type JogMode,
@@ -132,11 +133,11 @@ interface EngineStoreState {
   setDeckLoopIn: (deckId: number) => Promise<void>;
   setDeckLoopOut: (deckId: number) => Promise<void>;
   exitDeckLoop: (deckId: number) => Promise<void>;
-  triggerHotCue: (deckId: number, slot: number) => Promise<void>;
+  triggerHotCue: (deckId: number, cue: DeckHotCueMarker) => Promise<void>;
   saveHotCue: (deckId: number, slot: number) => Promise<void>;
   deleteHotCue: (deckId: number, slot: number) => Promise<void>;
   saveLoop: (deckId: number, slot: number) => Promise<void>;
-  recallSavedLoop: (deckId: number, slot: number) => Promise<void>;
+  triggerLoop: (deckId: number, loop: DeckSavedLoop) => Promise<void>;
   deleteLoop: (deckId: number, slot: number) => Promise<void>;
   toggleDeckSync: (deckId: number, beatSync?: boolean) => Promise<void>;
   setMasterDeck: (deckId: number) => Promise<void>;
@@ -365,13 +366,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     await publishCmd(getDeckOrigin(deckId), "exit_loop");
   },
 
-  triggerHotCue: async (deckId, slot) => {
-    const trackId = getDeck(get().status, deckId).track_id;
-    const cue = getLibraryTrack(trackId)?.hot_cues.find((entry) => entry.slot === slot);
-    if (!cue) {
-      reportEngineError(`Hot cue ${slot + 1} is empty.`);
-      return;
-    }
+  triggerHotCue: async (deckId, cue) => {
     await publishCmd(getDeckOrigin(deckId), "trigger_hot_cue", {
       position_ms: cue.position_ms,
     });
@@ -409,16 +404,10 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     });
   },
 
-  recallSavedLoop: async (deckId, slot) => {
-    const trackId = getDeck(get().status, deckId).track_id;
-    const saved = getLibraryTrack(trackId)?.saved_loops.find((entry) => entry.slot === slot);
-    if (!saved) {
-      reportEngineError(`Saved loop ${slot + 1} is empty.`);
-      return;
-    }
+  triggerLoop: async (deckId, loop) => {
     await publishCmd(getDeckOrigin(deckId), "recall_saved_loop", {
-      in_ms: saved.in_ms,
-      out_ms: saved.out_ms,
+      in_ms: loop.in_ms,
+      out_ms: loop.out_ms,
     });
   },
 
@@ -675,14 +664,14 @@ export const engineActions = {
   setDeckLoopIn: (deckId: number) => useEngineStore.getState().setDeckLoopIn(deckId),
   setDeckLoopOut: (deckId: number) => useEngineStore.getState().setDeckLoopOut(deckId),
   exitDeckLoop: (deckId: number) => useEngineStore.getState().exitDeckLoop(deckId),
-  triggerHotCue: (deckId: number, slot: number) =>
-    useEngineStore.getState().triggerHotCue(deckId, slot),
+  triggerHotCue: (deckId: number, cue: DeckHotCueMarker) =>
+    useEngineStore.getState().triggerHotCue(deckId, cue),
   saveHotCue: (deckId: number, slot: number) => useEngineStore.getState().saveHotCue(deckId, slot),
   deleteHotCue: (deckId: number, slot: number) =>
     useEngineStore.getState().deleteHotCue(deckId, slot),
   saveLoop: (deckId: number, slot: number) => useEngineStore.getState().saveLoop(deckId, slot),
-  recallSavedLoop: (deckId: number, slot: number) =>
-    useEngineStore.getState().recallSavedLoop(deckId, slot),
+  triggerLoop: (deckId: number, loop: DeckSavedLoop) =>
+    useEngineStore.getState().triggerLoop(deckId, loop),
   deleteLoop: (deckId: number, slot: number) => useEngineStore.getState().deleteLoop(deckId, slot),
   toggleDeckSync: (deckId: number, beatSync?: boolean) =>
     useEngineStore.getState().toggleDeckSync(deckId, beatSync),
