@@ -577,7 +577,7 @@ EngineStatus (hydrate + status events)
 | `EngineTransport.publish` → `engine_publish` | All engine cmds (transport, mixer, load, pads, sampler, **start_engine**, …) |
 | `EngineTransport.subscribe` → `engine://bus` | Status / updated / position / levels / notice / error (store owns subscribe) |
 | Settings / devices / FS | Non-engine host APIs (`get_settings`, `save_settings`, device list, …) |
-| `LibraryTransport` | Tracks, artwork, waveform raster (not on the engine bus) |
+| `LibraryTransport` | Tracks, artwork, waveform raster; **analyze** via publish/subscribe on library bus |
 
 Deck mutations do **not** return `DeckStatus` for the UI to merge. The store updates from bus events. There is no `get_status` hydrate — status arrives after `start_engine` emits on the bus.
 
@@ -610,6 +610,8 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 **Current implementation:** [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire, Tauri bridges bytes only, frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is `engine_publish` / `engine://bus` only.
 
 Library metadata / decode / waveform / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
+
+**Library bus:** [`2026-07-31-library-event-bus-design.md`](superpowers/specs/2026-07-31-library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`), Tauri `library_publish` / `library://bus`, FE `LibraryTransport.publish` / `subscribe`. First migrated domain: track analysis.
 
 ### 9.1 Problem
 

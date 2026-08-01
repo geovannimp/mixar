@@ -38,6 +38,24 @@ export function LibraryPanel() {
   const { settings, refresh: refreshSettings } = useSettings();
 
   const {
+    volumes,
+    currentPath,
+    listing,
+    selectedVolume,
+    error: driveError,
+    busy: driveBusy,
+    openVolume,
+    openDirectory,
+  } = useDriveBrowser();
+
+  const driveFilePaths = useMemo(
+    () => (sourceTab === "drive" ? (listing?.audio_files ?? []).map((file) => file.path) : []),
+    [listing?.audio_files, sourceTab],
+  );
+
+  const { resolvedByPath, upsertResolvedTrack } = useLibraryTrackLookup(driveFilePaths);
+
+  const {
     collections,
     selectedCollectionId,
     tracks,
@@ -48,18 +66,7 @@ export function LibraryPanel() {
     addFolderCollection,
     addFolderCollectionFromPath,
     analyzeTrack,
-  } = useLibrary();
-
-  const {
-    volumes,
-    currentPath,
-    listing,
-    selectedVolume,
-    error: driveError,
-    busy: driveBusy,
-    openVolume,
-    openDirectory,
-  } = useDriveBrowser();
+  } = useLibrary({ onTrackAnalyzed: upsertResolvedTrack });
 
   useEffect(() => {
     const handleFocus = () => {
@@ -100,13 +107,6 @@ export function LibraryPanel() {
 
   const leftPaneTitle = sourceTab === "collections" ? "Collections" : "Browse";
 
-  const driveFilePaths = useMemo(
-    () => (sourceTab === "drive" ? (listing?.audio_files ?? []).map((file) => file.path) : []),
-    [listing?.audio_files, sourceTab],
-  );
-
-  const { resolvedByPath, upsertResolvedTrack } = useLibraryTrackLookup(driveFilePaths);
-
   const tableRows = useMemo((): LibraryTableRow[] => {
     if (sourceTab === "collections") {
       return tracks.map(libraryRowFromTrack);
@@ -141,13 +141,10 @@ export function LibraryPanel() {
   );
 
   const handleAnalyze = useCallback(
-    async (trackId: string) => {
-      const updated = await analyzeTrack(trackId);
-      if (updated) {
-        upsertResolvedTrack(updated);
-      }
+    (trackId: string) => {
+      void analyzeTrack(trackId);
     },
-    [analyzeTrack, upsertResolvedTrack],
+    [analyzeTrack],
   );
 
   const handleBrowseCollectionFolder = useCallback(

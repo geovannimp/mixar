@@ -12,10 +12,9 @@ use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
     EngineSession, SamplerStripRouteSetting,
 };
-use library::{LibraryConfig, LibraryManager, NewCollection, WritableLibrary};
+use library::{LibraryConfig, LibraryManager, LibrarySession, NewCollection, WritableLibrary};
 use library_core::{
-    AnalyzeTrackOptions, AudioSource, CollectionId, FileAudioSource, Library, TrackId,
-    SUPPORTED_AUDIO_EXTENSIONS,
+    AudioSource, CollectionId, FileAudioSource, Library, TrackId, SUPPORTED_AUDIO_EXTENSIONS,
 };
 use resampler::normalize_resampler_quality;
 use serde::{Deserialize, Serialize};
@@ -29,6 +28,7 @@ mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
 mod fs_browser;
+mod library_bus;
 mod waveform_render;
 
 use audio_cache::{get_or_compute_detail, get_or_compute_overview, AudioCache};
@@ -38,6 +38,7 @@ use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
 use bus_bridge::publish_engine_status;
+use library_bus::{LibraryEvtForwarder, SharedLibrarySession};
 
 const NUM_DECKS: usize = 2;
 
@@ -80,6 +81,8 @@ impl Default for DeckInfo {
 
 pub(crate) struct AppState {
     pub library: Arc<Mutex<LibraryManager>>,
+    pub library_session: SharedLibrarySession,
+    pub library_evt_forwarder: Option<LibraryEvtForwarder>,
     pub session: Option<Arc<EngineSession>>,
     pub evt_forwarder: Option<EvtForwarder>,
     pub engine_config: EngineConfig,
@@ -303,6 +306,9 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     state.library.lock().unwrap().set_config(LibraryConfig {
         scan_folder_tree: settings.scan_folder_tree,
     });
+    state
+        .library_session
+        .set_analysis_duration(settings.analysis_duration);
     state.library_table_columns = if settings.library_table_columns.is_empty() {
         default_library_table_columns()
     } else {
@@ -743,30 +749,6 @@ async fn resolve_library_tracks_for_paths(
 }
 
 #[tauri::command]
-async fn analyze_library_track(
-    track_id: String,
-    state: State<'_, SharedAppState>,
-) -> Result<TrackSummary, String> {
-    let state = Arc::clone(state.inner());
-    tauri::async_runtime::spawn_blocking(move || {
-        let guard = state.lock().map_err(|e| e.to_string())?;
-        let options = AnalyzeTrackOptions {
-            force: false,
-            analysis_duration: guard.engine_config.analysis_duration,
-        };
-        let source = guard
-            .library
-            .lock()
-            .unwrap()
-            .analyze_track(&TrackId::new(track_id), options)
-            .map_err(|e| e.to_string())?;
-        track_summary(&source).ok_or_else(|| "Only file tracks can be analyzed.".to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
 fn list_fs_volumes() -> Result<Vec<VolumeInfo>, String> {
     list_volumes()
 }
@@ -1018,19 +1000,28 @@ pub fn run() {
                 .map_err(|err| format!("app data dir unavailable: {err}"))?;
             std::fs::create_dir_all(&app_data).map_err(|err| err.to_string())?;
 
-            let library = Arc::new(Mutex::new(
-                LibraryManager::open(app_data.join("library.db"), LibraryConfig::default())
+            let engine_config = default_engine_config();
+            let library_session = Arc::new(
+                LibrarySession::open(app_data.join("library.db"), LibraryConfig::default())
                     .map_err(|err| err.to_string())?,
-            ));
+            );
+            library_session.set_analysis_duration(engine_config.analysis_duration);
+            let library = library_session.library();
 
             let shared_session = bus_bridge::new_shared_session();
             app.manage(shared_session);
+            app.manage(Arc::clone(&library_session));
+
+            let library_evt_forwarder =
+                Some(LibraryEvtForwarder::start(app.handle().clone(), Arc::clone(&library_session)));
 
             app.manage(Arc::new(Mutex::new(AppState {
                 library,
+                library_session,
+                library_evt_forwarder,
                 session: None,
                 evt_forwarder: None,
-                engine_config: default_engine_config(),
+                engine_config,
                 decks: Default::default(),
                 audio_cache: AudioCache::new(),
                 library_table_columns: default_library_table_columns(),
@@ -1057,12 +1048,12 @@ pub fn run() {
             resolve_library_tracks_for_paths,
             list_fs_volumes,
             browse_fs_directory,
-            analyze_library_track,
             render_waveform_lane,
             get_supported_audio_extensions,
             list_sampler_banks,
             get_track_artwork,
             bus_bridge::engine_publish,
+            library_bus::library_publish,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

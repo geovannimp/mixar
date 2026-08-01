@@ -1795,9 +1795,11 @@ dependencies = [
  "analyzer",
  "analyzer-core",
  "audio-core 0.1.0",
+ "library-api",
  "library-core",
  "lofty",
  "log",
+ "omnibus",
  "rusqlite",
  "sea-orm-sync",
  "serde",
@@ -1811,6 +1813,17 @@ name = "library-adapters"
 version = "0.1.0"
 dependencies = [
  "library-core",
+]
+
+[[package]]
+name = "library-api"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "rmp-serde",
+ "serde",
+ "serde_bytes",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

@@ -18,14 +18,17 @@
 
 #[cfg(feature = "analysis")]
 mod analysis;
+mod bus;
 mod db;
 mod deck_data;
 mod entity;
 mod model;
 mod sampler_data;
+mod session;
 mod store;
 mod tags;
 mod waveform;
+mod worker;
 
 #[cfg(feature = "analysis")]
 use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
@@ -44,6 +47,7 @@ pub use library_core::{
     TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
+pub use bus::{Evt, EvtReceiver, LibraryBus};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
@@ -54,6 +58,7 @@ pub use sampler_data::{
     set_track_last_sampler_bank_id, update_bank, SamplerBankRecord, SamplerPlayMode,
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
+pub use session::LibrarySession;
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 
