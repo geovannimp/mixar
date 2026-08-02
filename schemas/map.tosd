@@ -1,0 +1,30 @@
+# TOML Schema for controller map.toml (editor aid; runtime validation is Rust).
+# See https://toml-schema.org/
+
+title = "rust-mixer controller map.toml"
+schema_version = "1.0.0"
+
+[[properties]]
+name = "schema_version"
+type = "integer"
+required = true
+allowedvalues = [1]
+
+[[properties]]
+name = "inputs"
+type = "table"
+
+[[properties]]
+name = "outputs"
+type = "table"
+
+# Action vocabulary (closed; must map to engine_api Kind + CmdBody):
+# toggle_play, play, pause, cue, begin_cue_hold, end_cue_hold, toggle_sync,
+# set_quantize, set_volume, set_filter, set_gain, set_eq_high, set_eq_mid, set_eq_low,
+# set_crossfader, set_cue_mix, set_master_cue, set_headphone_cue, jog_touch, jog_turn,
+# trigger_hot_cue_1..8, loop_in, loop_out, exit_loop, auto_loop_4,
+# beat_jump_fwd_4, beat_jump_back_4, pad_mode_*, trigger_sampler_1..8
+
+# Binding: action string | { action, modifier?, soft_takeover?, script? } | array of tables
+# modifier must be custom.*
+# Output: { on = alias|inline, off = alias|inline }

@@ -1,0 +1,23 @@
+schema_version = 1
+
+[inputs.deck_1]
+play_pause = "toggle_play"
+cue = "cue"
+volume = [
+  { action = "set_volume", soft_takeover = true },
+  { action = "set_filter", modifier = "custom.shift", soft_takeover = true },
+]
+filter = { action = "set_filter", soft_takeover = true }
+jog_touch = "jog_touch"
+jog_turn = "jog_turn"
+
+[inputs.deck_2]
+play_pause = "toggle_play"
+volume = { action = "set_volume", soft_takeover = true }
+
+[inputs.master]
+crossfader = { action = "set_crossfader", soft_takeover = true }
+
+[outputs.deck_1]
+play_pause = { on = "pause_led", off = "play_led" }
+cue = { on = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F }, off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }

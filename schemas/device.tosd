@@ -1,0 +1,76 @@
+# TOML Schema for controller device.toml (editor aid; runtime validation is Rust).
+# See https://toml-schema.org/
+
+title = "rust-mixer controller device.toml"
+schema_version = "1.0.0"
+
+[[properties]]
+name = "schema_version"
+type = "integer"
+required = true
+allowedvalues = [1]
+
+[[properties]]
+name = "id"
+type = "string"
+required = true
+
+[[properties]]
+name = "name"
+type = "string"
+required = true
+
+[[properties]]
+name = "usb_vid"
+type = "integer"
+
+[[properties]]
+name = "usb_pid"
+type = "integer"
+
+[[properties]]
+name = "midi_name_contains"
+type = "array"
+
+[[properties]]
+name = "audio"
+type = "table"
+
+[[properties]]
+name = "deck_1"
+type = "table"
+
+[[properties]]
+name = "deck_2"
+type = "table"
+
+[[properties]]
+name = "deck_3"
+type = "table"
+
+[[properties]]
+name = "deck_4"
+type = "table"
+
+[[properties]]
+name = "master"
+type = "table"
+
+[[properties]]
+name = "sampler"
+type = "table"
+
+[[properties]]
+name = "custom"
+type = "table"
+
+# Closed deck input aliases (watch / inputs catalog)
+# play_pause, cue, cue_hold, sync, quantize, volume, gain, eq_high, eq_mid, eq_low,
+# filter, jog_touch, jog_turn, hot_cue_1..8, pad_1..8, loop_in, loop_out, exit_loop,
+# auto_loop, beat_jump_fwd, beat_jump_back, pad_mode_*
+
+# MIDI endpoint shape:
+# type = "note" | "cc"
+# channel = 1..=16
+# note or cc = 0..=127
+# optional velocity / value / direction = "in" | "out" | "inout"
