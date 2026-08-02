@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { MessageBanner } from "@/components/MessageBanner";
+import { MessageBanner } from "@/components/library/MessageBanner";
 import { SettingsAudioPanel } from "@/components/settings/SettingsAudioPanel";
 import { SettingsLibraryPanel } from "@/components/settings/SettingsLibraryPanel";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";

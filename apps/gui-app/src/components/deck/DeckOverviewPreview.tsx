@@ -4,7 +4,7 @@ import { useWaveformClickSeek } from "@/hooks/useWaveformClickSeek";
 import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
 import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckHotCueMarker, WaveformFrame } from "@/types";
-import { WaveformCueMarkers } from "./WaveformCueMarkers";
+import { WaveformCueMarkers } from "@/components/waveform/WaveformCueMarkers";
 
 const OVERVIEW_HEIGHT = 48;
 const libraryTransport = getLibraryTransport();

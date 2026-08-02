@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { windowPercent } from "@/components/WaveformWindowMarkersMotion";
+import { windowPercent } from "@/components/waveform/WaveformWindowMarkersMotion";
 
 describe("windowPercent", () => {
   it("maps cue at window center to 50%", () => {

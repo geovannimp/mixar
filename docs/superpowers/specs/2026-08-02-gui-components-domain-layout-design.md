@@ -1,7 +1,7 @@
 # gui-app components domain layout
 
 Date: 2026-08-02  
-Status: draft  
+Status: implemented  
 Scope: Reorganize `apps/gui-app/src/components` into feature-domain folders (same idea as `hooks/engine` and `hooks/library`)
 
 ## Goal

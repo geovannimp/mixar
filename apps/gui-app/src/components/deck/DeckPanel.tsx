@@ -24,7 +24,7 @@ import { DeckTempoPanel } from "./DeckTempoPanel";
 import { DeckTrackInfo } from "./DeckTrackInfo";
 import { DeckInfoPopover } from "./DeckInfoPopover";
 import { DeckCircularButton, JogPlatter } from "./DeckTransport";
-import { TrackDropZone } from "./TrackDropZone";
+import { TrackDropZone } from "@/components/dnd/TrackDropZone";
 import { deckDropId } from "@/lib/trackDrag";
 
 interface DeckPanelProps {

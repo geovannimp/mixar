@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Settings } from "lucide-react";
-import { PadGridContainer } from "@/components/deck-pads/PadGridContainer";
-import { SamplerBankConfigDialog } from "@/components/SamplerBankConfigDialog";
-import { TrackDropZone } from "@/components/TrackDropZone";
+import { PadGridContainer } from "@/components/deck/pads/PadGridContainer";
+import { SamplerBankConfigDialog } from "@/components/dialogs/SamplerBankConfigDialog";
+import { TrackDropZone } from "@/components/dnd/TrackDropZone";
 import { DeckButton } from "@/components/ui/deck-button";
 import { DEFAULT_SAMPLER_PLAY_MODE } from "@/lib/busSettings";
 import { formatDeckTimeTenth } from "@/lib/format";
