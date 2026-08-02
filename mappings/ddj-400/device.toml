@@ -1,0 +1,159 @@
+# Pioneer DDJ-400 device definition.
+# MIDI from Mixxx Pioneer-DDJ-400.midi.xml (7-bit MSB CCs; 14-bit LSB ignored in v1).
+# Ref: https://github.com/mixxxdj/mixxx/blob/main/res/controllers/Pioneer-DDJ-400.midi.xml
+
+schema_version = 1
+id = "pioneer.ddj-400"
+name = "Pioneer DDJ-400"
+midi_name_contains = ["DDJ-400"]
+
+[audio]
+output_name_contains = ["DDJ-400"]
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }
+cue = { type = "note", channel = 1, note = 0x0C }
+sync = { type = "note", channel = 1, note = 0x58 }
+quantize = { type = "note", channel = 1, note = 0x68 }
+headphone_cue = { type = "note", channel = 1, note = 0x54 }
+
+volume = { type = "cc", channel = 1, cc = 0x13 }
+gain = { type = "cc", channel = 1, cc = 0x04 }
+tempo = { type = "cc", channel = 1, cc = 0x00 }
+eq_high = { type = "cc", channel = 1, cc = 0x07 }
+eq_mid = { type = "cc", channel = 1, cc = 0x0B }
+eq_low = { type = "cc", channel = 1, cc = 0x0F }
+filter = { type = "cc", channel = 7, cc = 0x17 }
+
+jog_touch = { type = "note", channel = 1, note = 0x36 }
+jog_touch_shift = { type = "note", channel = 1, note = 0x67 }
+jog_turn = { type = "cc", channel = 1, cc = 0x22 }
+jog_search = { type = "cc", channel = 1, cc = 0x29 }
+
+loop_in = { type = "note", channel = 1, note = 0x10 }
+loop_out = { type = "note", channel = 1, note = 0x11 }
+exit_loop = { type = "note", channel = 1, note = 0x4D }
+
+hot_cue_1 = { type = "note", channel = 8, note = 0x00 }
+hot_cue_2 = { type = "note", channel = 8, note = 0x01 }
+hot_cue_3 = { type = "note", channel = 8, note = 0x02 }
+hot_cue_4 = { type = "note", channel = 8, note = 0x03 }
+hot_cue_5 = { type = "note", channel = 8, note = 0x04 }
+hot_cue_6 = { type = "note", channel = 8, note = 0x05 }
+hot_cue_7 = { type = "note", channel = 8, note = 0x06 }
+hot_cue_8 = { type = "note", channel = 8, note = 0x07 }
+delete_hot_cue_1 = { type = "note", channel = 9, note = 0x00 }
+delete_hot_cue_2 = { type = "note", channel = 9, note = 0x01 }
+delete_hot_cue_3 = { type = "note", channel = 9, note = 0x02 }
+delete_hot_cue_4 = { type = "note", channel = 9, note = 0x03 }
+delete_hot_cue_5 = { type = "note", channel = 9, note = 0x04 }
+delete_hot_cue_6 = { type = "note", channel = 9, note = 0x05 }
+delete_hot_cue_7 = { type = "note", channel = 9, note = 0x06 }
+delete_hot_cue_8 = { type = "note", channel = 9, note = 0x07 }
+
+auto_loop_1 = { type = "note", channel = 8, note = 0x62 }
+auto_loop_2 = { type = "note", channel = 8, note = 0x63 }
+auto_loop_4 = { type = "note", channel = 8, note = 0x64 }
+auto_loop_8 = { type = "note", channel = 8, note = 0x65 }
+auto_loop_16 = { type = "note", channel = 8, note = 0x66 }
+auto_loop_32 = { type = "note", channel = 8, note = 0x67 }
+
+beat_jump_back_1 = { type = "note", channel = 8, note = 0x20 }
+beat_jump_fwd_1 = { type = "note", channel = 8, note = 0x21 }
+beat_jump_back_2 = { type = "note", channel = 8, note = 0x22 }
+beat_jump_fwd_2 = { type = "note", channel = 8, note = 0x23 }
+beat_jump_back_4 = { type = "note", channel = 8, note = 0x24 }
+beat_jump_fwd_4 = { type = "note", channel = 8, note = 0x25 }
+beat_jump_back_8 = { type = "note", channel = 8, note = 0x26 }
+beat_jump_fwd_8 = { type = "note", channel = 8, note = 0x27 }
+
+play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+cue_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
+sync_led = { type = "note", channel = 1, note = 0x58, velocity = 0x7F, direction = "out" }
+pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction = "out" }
+hot_cue_1_led = { type = "note", channel = 8, note = 0x00, velocity = 0x7F, direction = "out" }
+hot_cue_2_led = { type = "note", channel = 8, note = 0x01, velocity = 0x7F, direction = "out" }
+hot_cue_3_led = { type = "note", channel = 8, note = 0x02, velocity = 0x7F, direction = "out" }
+hot_cue_4_led = { type = "note", channel = 8, note = 0x03, velocity = 0x7F, direction = "out" }
+hot_cue_5_led = { type = "note", channel = 8, note = 0x04, velocity = 0x7F, direction = "out" }
+hot_cue_6_led = { type = "note", channel = 8, note = 0x05, velocity = 0x7F, direction = "out" }
+hot_cue_7_led = { type = "note", channel = 8, note = 0x06, velocity = 0x7F, direction = "out" }
+hot_cue_8_led = { type = "note", channel = 8, note = 0x07, velocity = 0x7F, direction = "out" }
+
+[deck_2]
+play_pause = { type = "note", channel = 2, note = 0x0B }
+cue = { type = "note", channel = 2, note = 0x0C }
+sync = { type = "note", channel = 2, note = 0x58 }
+quantize = { type = "note", channel = 2, note = 0x68 }
+headphone_cue = { type = "note", channel = 2, note = 0x54 }
+
+volume = { type = "cc", channel = 2, cc = 0x13 }
+gain = { type = "cc", channel = 2, cc = 0x04 }
+tempo = { type = "cc", channel = 2, cc = 0x00 }
+eq_high = { type = "cc", channel = 2, cc = 0x07 }
+eq_mid = { type = "cc", channel = 2, cc = 0x0B }
+eq_low = { type = "cc", channel = 2, cc = 0x0F }
+filter = { type = "cc", channel = 7, cc = 0x18 }
+
+jog_touch = { type = "note", channel = 2, note = 0x36 }
+jog_touch_shift = { type = "note", channel = 2, note = 0x67 }
+jog_turn = { type = "cc", channel = 2, cc = 0x22 }
+jog_search = { type = "cc", channel = 2, cc = 0x29 }
+
+loop_in = { type = "note", channel = 2, note = 0x10 }
+loop_out = { type = "note", channel = 2, note = 0x11 }
+exit_loop = { type = "note", channel = 2, note = 0x4D }
+
+hot_cue_1 = { type = "note", channel = 10, note = 0x00 }
+hot_cue_2 = { type = "note", channel = 10, note = 0x01 }
+hot_cue_3 = { type = "note", channel = 10, note = 0x02 }
+hot_cue_4 = { type = "note", channel = 10, note = 0x03 }
+hot_cue_5 = { type = "note", channel = 10, note = 0x04 }
+hot_cue_6 = { type = "note", channel = 10, note = 0x05 }
+hot_cue_7 = { type = "note", channel = 10, note = 0x06 }
+hot_cue_8 = { type = "note", channel = 10, note = 0x07 }
+delete_hot_cue_1 = { type = "note", channel = 11, note = 0x00 }
+delete_hot_cue_2 = { type = "note", channel = 11, note = 0x01 }
+delete_hot_cue_3 = { type = "note", channel = 11, note = 0x02 }
+delete_hot_cue_4 = { type = "note", channel = 11, note = 0x03 }
+delete_hot_cue_5 = { type = "note", channel = 11, note = 0x04 }
+delete_hot_cue_6 = { type = "note", channel = 11, note = 0x05 }
+delete_hot_cue_7 = { type = "note", channel = 11, note = 0x06 }
+delete_hot_cue_8 = { type = "note", channel = 11, note = 0x07 }
+
+auto_loop_1 = { type = "note", channel = 10, note = 0x62 }
+auto_loop_2 = { type = "note", channel = 10, note = 0x63 }
+auto_loop_4 = { type = "note", channel = 10, note = 0x64 }
+auto_loop_8 = { type = "note", channel = 10, note = 0x65 }
+auto_loop_16 = { type = "note", channel = 10, note = 0x66 }
+auto_loop_32 = { type = "note", channel = 10, note = 0x67 }
+
+beat_jump_back_1 = { type = "note", channel = 10, note = 0x20 }
+beat_jump_fwd_1 = { type = "note", channel = 10, note = 0x21 }
+beat_jump_back_2 = { type = "note", channel = 10, note = 0x22 }
+beat_jump_fwd_2 = { type = "note", channel = 10, note = 0x23 }
+beat_jump_back_4 = { type = "note", channel = 10, note = 0x24 }
+beat_jump_fwd_4 = { type = "note", channel = 10, note = 0x25 }
+beat_jump_back_8 = { type = "note", channel = 10, note = 0x26 }
+beat_jump_fwd_8 = { type = "note", channel = 10, note = 0x27 }
+
+play_led = { type = "note", channel = 2, note = 0x0B, velocity = 0x7F, direction = "out" }
+cue_led = { type = "note", channel = 2, note = 0x0C, velocity = 0x7F, direction = "out" }
+sync_led = { type = "note", channel = 2, note = 0x58, velocity = 0x7F, direction = "out" }
+pfl_led = { type = "note", channel = 2, note = 0x54, velocity = 0x7F, direction = "out" }
+hot_cue_1_led = { type = "note", channel = 10, note = 0x00, velocity = 0x7F, direction = "out" }
+hot_cue_2_led = { type = "note", channel = 10, note = 0x01, velocity = 0x7F, direction = "out" }
+hot_cue_3_led = { type = "note", channel = 10, note = 0x02, velocity = 0x7F, direction = "out" }
+hot_cue_4_led = { type = "note", channel = 10, note = 0x03, velocity = 0x7F, direction = "out" }
+hot_cue_5_led = { type = "note", channel = 10, note = 0x04, velocity = 0x7F, direction = "out" }
+hot_cue_6_led = { type = "note", channel = 10, note = 0x05, velocity = 0x7F, direction = "out" }
+hot_cue_7_led = { type = "note", channel = 10, note = 0x06, velocity = 0x7F, direction = "out" }
+hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, direction = "out" }
+
+[master]
+crossfader = { type = "cc", channel = 7, cc = 0x1F }
+cue_mix = { type = "cc", channel = 7, cc = 0x0C }
+
+[custom]
+shift = { type = "note", channel = 1, note = 0x3F }
+shift_deck2 = { type = "note", channel = 2, note = 0x3F }

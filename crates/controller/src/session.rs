@@ -83,6 +83,8 @@ impl MappingSession {
                 | "filter_db"
                 | "gain"
                 | "gain_db"
+                | "speed"
+                | "tempo"
                 | "eq_low"
                 | "eq_mid"
                 | "eq_high"
@@ -241,6 +243,11 @@ impl MappingSession {
                 CmdBody::SetGainTrim { gain_db } => {
                     if let Origin::Deck(d) = o {
                         self.snapshot.gain_db[d as usize] = *gain_db;
+                    }
+                }
+                CmdBody::SetSpeed { speed } => {
+                    if let Origin::Deck(d) = o {
+                        self.snapshot.speed[d as usize] = *speed;
                     }
                 }
                 CmdBody::SetEq { low, mid, high } => {

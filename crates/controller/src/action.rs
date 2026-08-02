@@ -6,12 +6,13 @@ use crate::device::{origin_deck_id, SECTION_MASTER, SECTION_SAMPLER};
 use crate::error::LoadError;
 
 /// Engine control values mirrored for soft-takeover / action context.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ControlSnapshot {
     pub playing: [bool; 4],
     pub volume: [f32; 4],
     pub filter_db: [f32; 4],
     pub gain_db: [f32; 4],
+    pub speed: [f32; 4],
     pub eq_low: [f32; 4],
     pub eq_mid: [f32; 4],
     pub eq_high: [f32; 4],
@@ -22,6 +23,27 @@ pub struct ControlSnapshot {
     pub master_cue: bool,
     /// Hot cue positions ms per deck/slot (None = empty).
     pub hot_cues: [[Option<i32>; 8]; 4],
+}
+
+impl Default for ControlSnapshot {
+    fn default() -> Self {
+        Self {
+            playing: [false; 4],
+            volume: [1.0; 4],
+            filter_db: [0.0; 4],
+            gain_db: [0.0; 4],
+            speed: [1.0; 4],
+            eq_low: [1.0; 4],
+            eq_mid: [1.0; 4],
+            eq_high: [1.0; 4],
+            headphone_cue: [false; 4],
+            quantize: [false; 4],
+            crossfader: 0.5,
+            cue_mix: 0.5,
+            master_cue: false,
+            hot_cues: [[None; 8]; 4],
+        }
+    }
 }
 
 impl ControlSnapshot {
@@ -39,6 +61,7 @@ impl ControlSnapshot {
                     "volume" => self.volume[i] = value,
                     "filter" | "filter_db" => self.filter_db[i] = value,
                     "gain" | "gain_db" => self.gain_db[i] = value,
+                    "speed" | "tempo" => self.speed[i] = value,
                     "eq_low" => self.eq_low[i] = value,
                     "eq_mid" => self.eq_mid[i] = value,
                     "eq_high" => self.eq_high[i] = value,
@@ -66,6 +89,7 @@ impl ControlSnapshot {
                     // filter_db mirrored as normalized -1..1 mapped externally; store as 0..1-ish
                     "set_filter" => Some(filter_db_to_norm(self.filter_db[i])),
                     "set_gain" => Some(gain_db_to_norm(self.gain_db[i])),
+                    "set_speed" => Some(speed_to_norm(self.speed[i])),
                     "set_eq_low" => Some(eq_to_norm(self.eq_low[i])),
                     "set_eq_mid" => Some(eq_to_norm(self.eq_mid[i])),
                     "set_eq_high" => Some(eq_to_norm(self.eq_high[i])),
@@ -105,6 +129,17 @@ fn eq_to_norm(g: f32) -> f32 {
 
 fn norm_to_eq(n: f32) -> f32 {
     n.clamp(0.0, 1.0) * 2.0 - 1.0
+}
+
+/// Pioneer tempo fader: top = slow. Map engine speed (~0.84..1.16) ↔ MIDI 0..1 inverted.
+fn speed_to_norm(speed: f32) -> f32 {
+    let s = speed.clamp(0.84, 1.16);
+    (1.0 - (s - 0.84) / 0.32).clamp(0.0, 1.0)
+}
+
+fn norm_to_speed(n: f32) -> f32 {
+    // inverted: MIDI 0 (top) → 1.16, MIDI 1 (bottom) → 0.84
+    1.16 - n.clamp(0.0, 1.0) * 0.32
 }
 
 pub fn origin_for_section(section: &str) -> Result<Origin, LoadError> {
@@ -151,6 +186,13 @@ pub fn resolve_action(
         "play" => active.then_some((origin, Kind::Play, CmdBody::Empty)),
         "pause" => active.then_some((origin, Kind::Pause, CmdBody::Empty)),
         "cue" => active.then_some((origin, Kind::SetCuePoint, CmdBody::Empty)),
+        "cue_default" => {
+            if active {
+                Some((origin, Kind::BeginCueHold, CmdBody::Empty))
+            } else {
+                Some((origin, Kind::EndCueHold, CmdBody::Empty))
+            }
+        }
         "begin_cue_hold" => active.then_some((origin, Kind::BeginCueHold, CmdBody::Empty)),
         "end_cue_hold" => (!active).then_some((origin, Kind::EndCueHold, CmdBody::Empty)),
         "toggle_sync" => active.then_some((
@@ -187,6 +229,13 @@ pub fn resolve_action(
             Kind::SetGainTrim,
             CmdBody::SetGainTrim {
                 gain_db: norm_to_gain_db(norm),
+            },
+        )),
+        "set_speed" => Some((
+            origin,
+            Kind::SetSpeed,
+            CmdBody::SetSpeed {
+                speed: norm_to_speed(norm),
             },
         )),
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
@@ -270,24 +319,57 @@ pub fn resolve_action(
             let Origin::Deck(d) = origin else {
                 return None;
             };
-            let pos = snap.hot_cues[deck_idx(d)][(slot - 1) as usize].unwrap_or(0);
+            let idx = (slot - 1) as usize;
+            match snap.hot_cues[deck_idx(d)][idx] {
+                Some(pos) => Some((
+                    origin,
+                    Kind::TriggerHotCue,
+                    CmdBody::TriggerHotCue { position_ms: pos },
+                )),
+                None => Some((
+                    origin,
+                    Kind::SaveHotCue,
+                    CmdBody::SaveHotCue { slot: slot - 1 },
+                )),
+            }
+        }
+        a if a.starts_with("delete_hot_cue_") => {
+            if !active {
+                return None;
+            }
+            let slot: u8 = a.strip_prefix("delete_hot_cue_")?.parse().ok()?;
+            if !(1..=8).contains(&slot) {
+                return None;
+            }
             Some((
                 origin,
-                Kind::TriggerHotCue,
-                CmdBody::TriggerHotCue { position_ms: pos },
+                Kind::DeleteHotCue,
+                CmdBody::DeleteHotCue { slot: slot - 1 },
             ))
         }
         "loop_in" => active.then_some((origin, Kind::LoopIn, CmdBody::Empty)),
         "loop_out" => active.then_some((origin, Kind::LoopOut, CmdBody::Empty)),
         "exit_loop" => active.then_some((origin, Kind::ExitLoop, CmdBody::Empty)),
-        "auto_loop_4" => {
-            active.then_some((origin, Kind::SetAutoLoop, CmdBody::SetAutoLoop { beats: 4 }))
+        a if a.starts_with("auto_loop_") => {
+            if !active {
+                return None;
+            }
+            let beats: u32 = a.strip_prefix("auto_loop_")?.parse().ok()?;
+            Some((origin, Kind::SetAutoLoop, CmdBody::SetAutoLoop { beats }))
         }
-        "beat_jump_fwd_4" => {
-            active.then_some((origin, Kind::BeatJump, CmdBody::BeatJump { beats: 4 }))
+        a if a.starts_with("beat_jump_fwd_") => {
+            if !active {
+                return None;
+            }
+            let beats: i32 = a.strip_prefix("beat_jump_fwd_")?.parse().ok()?;
+            Some((origin, Kind::BeatJump, CmdBody::BeatJump { beats }))
         }
-        "beat_jump_back_4" => {
-            active.then_some((origin, Kind::BeatJump, CmdBody::BeatJump { beats: -4 }))
+        a if a.starts_with("beat_jump_back_") => {
+            if !active {
+                return None;
+            }
+            let beats: i32 = a.strip_prefix("beat_jump_back_")?.parse().ok()?;
+            Some((origin, Kind::BeatJump, CmdBody::BeatJump { beats: -beats }))
         }
         "pad_mode_hot_cue" => active.then_some((
             origin,
