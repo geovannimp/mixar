@@ -1,4 +1,4 @@
-import { memo, useRef } from "react";
+import { useRef } from "react";
 import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeckButton } from "@/components/ui/deck-button";
@@ -80,7 +80,7 @@ function DeckOverviewPlayhead({
   );
 }
 
-const DeckOverviewSection = memo(function DeckOverviewSection({
+function DeckOverviewSection({
   deckId,
   transportDisabled,
 }: {
@@ -108,7 +108,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
       />
     </div>
   );
-});
+}
 
 function DeckJog({
   deckId,
@@ -150,7 +150,7 @@ function DeckJog({
   );
 }
 
-const DeckPerformanceSection = memo(function DeckPerformanceSection({
+function DeckPerformanceSection({
   deckId,
   accentKey,
   transportDisabled,
@@ -405,7 +405,7 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
       {transportControls}
     </div>
   );
-});
+}
 
 export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
   const accent = DECK_ACCENTS[accentKey];

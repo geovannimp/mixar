@@ -1,4 +1,4 @@
-import { memo, useCallback, type RefObject } from "react";
+import { useCallback, type RefObject } from "react";
 import { DECK_ACCENTS } from "@/lib/ui";
 import { useWaveformDragScrub } from "@/hooks/useWaveformDragScrub";
 import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
@@ -124,13 +124,7 @@ function WaveformPlayheadHost({
   );
 }
 
-const WaveformLane = memo(function WaveformLane({
-  deckId,
-  accent,
-}: {
-  deckId: number;
-  accent: (typeof DECK_ACCENTS)["a"];
-}) {
+function WaveformLane({ deckId, accent }: { deckId: number; accent: (typeof DECK_ACCENTS)["a"] }) {
   const deck = useDeckWaveform(deckId);
   const { ref, size } = useLaneDimensions();
 
@@ -150,9 +144,9 @@ const WaveformLane = memo(function WaveformLane({
       laneRef={ref}
     />
   );
-});
+}
 
-export const DualDeckWaveform = memo(function DualDeckWaveform() {
+export function DualDeckWaveform() {
   const deckAHasTrack = useDeckHasTrack(0);
   const deckBHasTrack = useDeckHasTrack(1);
 
@@ -174,4 +168,4 @@ export const DualDeckWaveform = memo(function DualDeckWaveform() {
       ) : null}
     </div>
   );
-});
+}
