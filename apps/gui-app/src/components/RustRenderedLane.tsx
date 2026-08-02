@@ -90,5 +90,3 @@ export function RustRenderedLane({
     </div>
   );
 }
-
-export { useLaneDimensions } from "./useLaneDimensions";
