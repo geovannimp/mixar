@@ -1,4 +1,4 @@
-import { DeckMixer } from "./DeckMixer";
+import { DeckMixer } from "@/components/mixer/DeckMixer";
 import { DeckPanel } from "./DeckPanel";
 
 /** Fixed-height deck/mixer/deck row (410px). Waveform lives in MixerPage above this. */

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { DragDropProvider, DragOverlay } from "@dnd-kit/react";
-import { OsFileDropBridge } from "@/components/OsFileDropBridge";
-import { TrackDragCard } from "@/components/TrackDragCard";
+import { OsFileDropBridge } from "@/components/dnd/OsFileDropBridge";
+import { TrackDragCard } from "@/components/dnd/TrackDragCard";
 import { applyTrackDrop, isTrackDragData, isTrackDropData } from "@/lib/trackDrag";
 
 interface TrackDragProviderProps {

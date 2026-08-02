@@ -1,4 +1,4 @@
-import { PadGridContainer } from "@/components/deck-pads/PadGridContainer";
+import { PadGridContainer } from "@/components/deck/pads/PadGridContainer";
 import { DeckButton } from "@/components/ui/deck-button";
 import { LOOP_ROLL_BEATS } from "@/lib/padModes";
 

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { DeckGrid } from "@/components/DeckGrid";
-import { DualDeckWaveform } from "@/components/DualDeckWaveform";
-import { LibraryPanel } from "@/components/LibraryPanel";
-import { TrackDragProvider } from "@/components/TrackDragProvider";
+import { DeckGrid } from "@/components/deck/DeckGrid";
+import { DualDeckWaveform } from "@/components/waveform/DualDeckWaveform";
+import { LibraryPanel } from "@/components/library/LibraryPanel";
+import { TrackDragProvider } from "@/components/dnd/TrackDragProvider";
 import { engineActions } from "@/stores/engineStore";
 
 const WAVEFORM_MIN_HEIGHT = "70px";

@@ -1,8 +1,8 @@
 import { match } from "ts-pattern";
-import { BeatJumpPads } from "@/components/deck-pads/BeatJumpPads";
-import { HotCuePads } from "@/components/deck-pads/HotCuePads";
-import { LoopRollPads } from "@/components/deck-pads/LoopRollPads";
-import { SamplerPads } from "@/components/deck-pads/SamplerPads";
+import { BeatJumpPads } from "@/components/deck/pads/BeatJumpPads";
+import { HotCuePads } from "@/components/deck/pads/HotCuePads";
+import { LoopRollPads } from "@/components/deck/pads/LoopRollPads";
+import { SamplerPads } from "@/components/deck/pads/SamplerPads";
 import { cn } from "@/lib/utils";
 import { PAD_MODES, PAD_MODE_SHORT_LABELS } from "@/lib/padModes";
 import type {

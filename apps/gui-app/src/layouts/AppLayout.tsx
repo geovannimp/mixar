@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { ToastProvider } from "@/components/ui/toast";
-import { AppHeader } from "@/components/AppHeader";
-import { WindowResizeBorder } from "@/components/WindowResizeBorder";
+import { AppHeader } from "@/components/shell/AppHeader";
+import { WindowResizeBorder } from "@/components/shell/WindowResizeBorder";
 
 function AppLayoutContent() {
   return (
