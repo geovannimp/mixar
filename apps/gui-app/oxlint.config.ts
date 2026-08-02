@@ -11,6 +11,7 @@ export default defineConfig({
   },
   rules: {
     "import/no-relative-parent-imports": "error",
+    "unicorn/filename-case": ["error", { case: "kebabCase" }],
   },
   env: {
     builtin: true,

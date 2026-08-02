@@ -1,0 +1,61 @@
+import { cn } from "@/lib/utils";
+import { useDeckLevels } from "@/hooks/engine/use-deck-levels";
+import type { LevelMeterMode } from "@/types";
+
+const SEGMENTS = 12;
+const YELLOW_FROM = 8;
+const RED_FROM = 10;
+
+function segmentOn(level: number, indexFromBottom: number): boolean {
+  const threshold = (indexFromBottom + 1) / SEGMENTS;
+  return level >= threshold - 1e-6;
+}
+
+function holdSegment(hold: number): number | null {
+  // Match segmentOn: the bottom segment represents [1/SEGMENTS, 2/SEGMENTS).
+  // Tiny residual hold (e.g. 1e-5 after engine idle cutoff) must not light a bar.
+  if (hold < 1 / SEGMENTS - 1e-6) return null;
+  return Math.min(SEGMENTS - 1, Math.ceil(hold * SEGMENTS) - 1);
+}
+
+function Ladder({ peak, hold, className }: { peak: number; hold: number; className?: string }) {
+  const holdIdx = holdSegment(hold);
+  return (
+    <div className={cn("flex h-full w-1.5 flex-col-reverse gap-px", className)} aria-hidden>
+      {Array.from({ length: SEGMENTS }, (_, fromBottom) => {
+        const on = segmentOn(peak, fromBottom);
+        const isHold = holdIdx === fromBottom;
+        let color = "bg-zinc-800";
+        if (on || isHold) {
+          if (fromBottom >= RED_FROM) color = "bg-red-500/50";
+          else if (fromBottom >= YELLOW_FROM) color = "bg-amber-400/45";
+          else color = "bg-emerald-500/45";
+        }
+        return <div key={fromBottom} className={cn("min-h-0 flex-1 rounded-[1px]", color)} />;
+      })}
+    </div>
+  );
+}
+
+export function LevelMeter({ deckId, mode }: { deckId: number; mode: LevelMeterMode }) {
+  const levels = useDeckLevels(deckId);
+
+  switch (mode) {
+    case "mono": {
+      const peak = Math.max(levels.peak_l, levels.peak_r);
+      const hold = Math.max(levels.peak_hold_l, levels.peak_hold_r);
+      return <Ladder peak={peak} hold={hold} />;
+    }
+    case "stereo":
+      return (
+        <div className="flex h-full gap-px">
+          <Ladder peak={levels.peak_l} hold={levels.peak_hold_l} />
+          <Ladder peak={levels.peak_r} hold={levels.peak_hold_r} />
+        </div>
+      );
+    default: {
+      const _exhaustive: never = mode;
+      return _exhaustive;
+    }
+  }
+}

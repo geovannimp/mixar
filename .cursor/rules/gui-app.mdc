@@ -10,17 +10,18 @@ Reference: `docs/deck-spec.md`, `docs/tech-spec.md`. App root: `apps/gui-app` (T
 
 ## Modules & imports
 
-- **No barrel files.** Do not add `index.ts` / `index.tsx` that only re-export, and do not import a folder as a module (`@/hooks/engine` → use `@/hooks/engine/useDeckLevels`; `@/components/deck` → use `@/components/deck/DeckPanel`). Import the concrete file path.
+- **No barrel files.** Do not add `index.ts` / `index.tsx` that only re-export, and do not import a folder as a module (`@/hooks/engine` → use `@/hooks/engine/use-deck-levels`; `@/components/deck` → use `@/components/deck/deck-panel`). Import the concrete file path.
 - Keep imports at the top of the file (no inline imports).
 - Prefer the `@/` path alias for app source.
 - Feature UI lives under domain folders: `deck/` (+ `deck/pads/`), `mixer/`, `library/`, `waveform/`, `shell/`, `dnd/`, `dialogs/`, plus existing `ui/` and `settings/`. See `docs/superpowers/specs/2026-08-02-gui-components-domain-layout-design.md`.
+- **Filenames are kebab-case** (shadcn-style), e.g. `deck-panel.tsx`, `use-deck-levels.ts`, `button.tsx`. Enforced by `unicorn/filename-case`.
 
 ## UI
 
 - Follow `docs/deck-spec.md` for deck layout and phased features.
 - Use **coss** UI components and **toast** notifications (`toast.promise` for async startup); avoid verbose inline status text.
 - Prefer minimal, focused UI diffs; match existing deck visual language.
-- Pad mode grids: wrap pad buttons in `PadGridContainer`; mode components live under `src/components/deck/pads/` (no barrels).
+- Pad mode grids: wrap pad buttons in `PadGridContainer`; mode components live under `src/components/deck/pads/` as kebab files (e.g. `hot-cue-pads.tsx`; no barrels).
 
 ## State & exhaustiveness
 

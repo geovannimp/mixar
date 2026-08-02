@@ -1,5 +1,5 @@
-import { createMemoryLibraryTransport } from "@/lib/library/memoryTransport";
-import { createTauriLibraryTransport } from "@/lib/library/tauriTransport";
+import { createMemoryLibraryTransport } from "@/lib/library/memory-transport";
+import { createTauriLibraryTransport } from "@/lib/library/tauri-transport";
 import type { CmdKind, Origin, SubscribeFilter } from "@/lib/library/wire";
 import type {
   AddFolderCollectionResult,
