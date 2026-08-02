@@ -4,10 +4,36 @@ import {
   createLibraryTransport,
   getLibraryTransport,
   setLibraryTransportForTests,
+  toTauriRenderWaveformLaneArgs,
 } from "@/lib/library/transport";
 import { decodeEvtBody, decodeWire } from "@/lib/library/wire";
 
 describe("library transport", () => {
+  it("truncates waveform lane i32 fields so Tauri serde accepts tile centers", () => {
+    // Tile math yields floats (odd tileMs / 2, duration/tiles); Rust cmd takes i32.
+    const args = toTauriRenderWaveformLaneArgs({
+      trackId: "t1",
+      path: null,
+      width: 1125.7,
+      height: 55.2,
+      positionMs: 11_312.5,
+      visibleMs: 22_222.222_222_222_223,
+      bufferRatio: 0,
+      includeDetail: true,
+      includeBeatGrid: true,
+      eqLowDb: 0,
+      eqMidDb: 0,
+      eqHighDb: 0,
+    });
+
+    expect(args.width).toBe(1125);
+    expect(args.height).toBe(55);
+    expect(args.positionMs).toBe(11_312);
+    expect(args.visibleMs).toBe(22_222);
+    expect(Number.isInteger(args.positionMs)).toBe(true);
+    expect(Number.isInteger(args.visibleMs)).toBe(true);
+  });
+
   it("creates a memory transport with empty read defaults", async () => {
     const transport = createLibraryTransport({ backend: "memory" });
 

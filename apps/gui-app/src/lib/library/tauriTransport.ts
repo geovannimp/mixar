@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { LibraryTransport } from "@/lib/library/transport";
+import { toTauriRenderWaveformLaneArgs, type LibraryTransport } from "@/lib/library/transport";
 import {
   actionTimestampMsFromFields,
   cmdBodyForKind,
@@ -29,7 +29,10 @@ export function createTauriLibraryTransport(): LibraryTransport {
     resolveTracksForPaths: (paths) =>
       invoke<ResolvedLibraryTrack[]>("resolve_library_tracks_for_paths", { paths }),
     // Tauri commands take flat camelCase args, not a nested `request` object.
-    renderWaveformLane: (request) => invoke<WaveformFrame>("render_waveform_lane", { ...request }),
+    renderWaveformLane: (request) =>
+      invoke<WaveformFrame>("render_waveform_lane", {
+        ...toTauriRenderWaveformLaneArgs(request),
+      }),
     getTrackArtwork: (request) => invoke<string | null>("get_track_artwork", { ...request }),
     publish: (origin, kind, fields = {}) =>
       invoke("library_publish", {
