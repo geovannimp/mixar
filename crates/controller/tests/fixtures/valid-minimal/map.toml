@@ -1,0 +1,11 @@
+schema_version = 1
+
+[inputs.deck_1]
+play_pause = "toggle_play"
+volume = [
+  { action = "set_volume", soft_takeover = true },
+  { action = "set_filter", modifier = "custom.shift", soft_takeover = true },
+]
+
+[outputs.deck_1]
+play_pause = { on = "pause_led", off = "play_led" }

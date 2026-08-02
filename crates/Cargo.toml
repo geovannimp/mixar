@@ -17,6 +17,7 @@ members = [
     "analyzer-stratum",
     "analyzer",
     "app-example",
+    "controller",
 ]
 resolver = "2"
 

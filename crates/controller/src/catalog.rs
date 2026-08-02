@@ -1,0 +1,168 @@
+//! Closed alias + action vocabularies (single source of truth).
+
+/// Action name as written in `map.toml`.
+pub type ActionName = str;
+
+const DECK_ALIASES: &[&str] = &[
+    "play_pause",
+    "cue",
+    "cue_hold",
+    "sync",
+    "quantize",
+    "volume",
+    "gain",
+    "eq_high",
+    "eq_mid",
+    "eq_low",
+    "filter",
+    "jog_touch",
+    "jog_turn",
+    "hot_cue_1",
+    "hot_cue_2",
+    "hot_cue_3",
+    "hot_cue_4",
+    "hot_cue_5",
+    "hot_cue_6",
+    "hot_cue_7",
+    "hot_cue_8",
+    "pad_1",
+    "pad_2",
+    "pad_3",
+    "pad_4",
+    "pad_5",
+    "pad_6",
+    "pad_7",
+    "pad_8",
+    "loop_in",
+    "loop_out",
+    "exit_loop",
+    "auto_loop",
+    "beat_jump_fwd",
+    "beat_jump_back",
+    "pad_mode_hot_cue",
+    "pad_mode_loop_roll",
+    "pad_mode_beat_jump",
+    "pad_mode_sampler",
+];
+
+const MASTER_ALIASES: &[&str] = &[
+    "crossfader",
+    "cue_mix",
+    "master_cue",
+    "headphone_cue_1",
+    "headphone_cue_2",
+    "headphone_cue_3",
+    "headphone_cue_4",
+];
+
+const SAMPLER_ALIASES: &[&str] = &[
+    "trigger_1",
+    "trigger_2",
+    "trigger_3",
+    "trigger_4",
+    "trigger_5",
+    "trigger_6",
+    "trigger_7",
+    "trigger_8",
+    "end_1",
+    "end_2",
+    "end_3",
+    "end_4",
+    "end_5",
+    "end_6",
+    "end_7",
+    "end_8",
+];
+
+/// Actions that map 1:1 to engine cmds (absolute CC / faders default soft-takeover on).
+pub const ABSOLUTE_ACTIONS: &[&str] = &[
+    "set_volume",
+    "set_filter",
+    "set_gain",
+    "set_eq_high",
+    "set_eq_mid",
+    "set_eq_low",
+    "set_crossfader",
+    "set_cue_mix",
+];
+
+const ACTIONS: &[&str] = &[
+    "toggle_play",
+    "play",
+    "pause",
+    "cue",
+    "begin_cue_hold",
+    "end_cue_hold",
+    "toggle_sync",
+    "set_quantize",
+    "set_volume",
+    "set_filter",
+    "set_gain",
+    "set_eq_high",
+    "set_eq_mid",
+    "set_eq_low",
+    "set_crossfader",
+    "set_cue_mix",
+    "set_master_cue",
+    "set_headphone_cue",
+    "jog_touch",
+    "jog_turn",
+    "trigger_hot_cue_1",
+    "trigger_hot_cue_2",
+    "trigger_hot_cue_3",
+    "trigger_hot_cue_4",
+    "trigger_hot_cue_5",
+    "trigger_hot_cue_6",
+    "trigger_hot_cue_7",
+    "trigger_hot_cue_8",
+    "loop_in",
+    "loop_out",
+    "exit_loop",
+    "auto_loop_4",
+    "beat_jump_fwd_4",
+    "beat_jump_back_4",
+    "pad_mode_hot_cue",
+    "pad_mode_loop_roll",
+    "pad_mode_beat_jump",
+    "pad_mode_sampler",
+    "trigger_sampler_1",
+    "trigger_sampler_2",
+    "trigger_sampler_3",
+    "trigger_sampler_4",
+    "trigger_sampler_5",
+    "trigger_sampler_6",
+    "trigger_sampler_7",
+    "trigger_sampler_8",
+];
+
+pub fn is_known_action(name: &str) -> bool {
+    ACTIONS.contains(&name)
+}
+
+pub fn is_absolute_action(name: &str) -> bool {
+    ABSOLUTE_ACTIONS.contains(&name)
+}
+
+pub fn is_closed_input_alias(section: &str, alias: &str) -> bool {
+    if section == "custom" {
+        return false;
+    }
+    if section == "master" {
+        return MASTER_ALIASES.contains(&alias);
+    }
+    if section == "sampler" {
+        return SAMPLER_ALIASES.contains(&alias);
+    }
+    if section.starts_with("deck_") {
+        return DECK_ALIASES.contains(&alias);
+    }
+    false
+}
+
+pub fn is_snake_case(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+        && name.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+}

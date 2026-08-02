@@ -1,0 +1,13 @@
+schema_version = 1
+id = "test.minimal"
+name = "Test Minimal"
+midi_name_contains = ["Minimal"]
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }
+volume = { type = "cc", channel = 1, cc = 0x13 }
+play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+pause_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
+
+[custom]
+shift = { type = "note", channel = 1, note = 0x3F }

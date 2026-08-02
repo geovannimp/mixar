@@ -1,0 +1,27 @@
+[package]
+name = "controller"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "MIDI controller mapping bundles (device/map/Rhai) for the engine bus"
+
+[[bin]]
+name = "map-check"
+path = "src/bin/map-check.rs"
+
+[features]
+default = []
+# Reserved: midir conflicts with cpal's alsa-sys in this workspace (links = "alsa").
+# Hosts should enumerate MIDI outside this crate until versions align.
+native-midi = []
+
+[dependencies]
+engine-api = { path = "../engine-api" }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+thiserror = { workspace = true }
+rhai = { version = "1.21", default-features = false, features = ["std", "sync"] }
+
+[dev-dependencies]

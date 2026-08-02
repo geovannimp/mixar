@@ -1,0 +1,6 @@
+schema_version = 1
+id = "test.bad"
+name = "Bad"
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }

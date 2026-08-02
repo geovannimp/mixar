@@ -90,3 +90,36 @@ tasks:
       - '@group(sources)'
     options:
       runInCI: true
+
+  test-mappings:
+    command: 'cargo'
+    args:
+      - 'run'
+      - '-p'
+      - 'controller'
+      - '--bin'
+      - 'map-check'
+      - '--'
+      - '--all'
+      - '../mappings'
+    inputs:
+      - 'controller/**/*'
+    options:
+      runInCI: true
+
+  test-mapping:
+    command: 'cargo'
+    args:
+      - 'run'
+      - '-p'
+      - 'controller'
+      - '--bin'
+      - 'map-check'
+      - '--'
+    inputs:
+      - 'controller/**/*'
+    options:
+      runInCI: false
+      cache: false
+      affectedFiles:
+        pass: 'args'
