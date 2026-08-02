@@ -1,6 +1,6 @@
-import { createMemoryEngineTransport } from "@/lib/engine/memoryTransport";
-import { createTauriEngineTransport } from "@/lib/engine/tauriTransport";
-import { createWasmEngineTransport } from "@/lib/engine/wasmTransport";
+import { createMemoryEngineTransport } from "@/lib/engine/memory-transport";
+import { createTauriEngineTransport } from "@/lib/engine/tauri-transport";
+import { createWasmEngineTransport } from "@/lib/engine/wasm-transport";
 import type { CmdKind, Origin } from "@/lib/engine/wire";
 
 /** Host-agnostic engine command surface; wire encoding is transport-specific. */

@@ -108,7 +108,7 @@ Make component ownership obvious by domain, reduce the flat `components/` root (
 
 ## Import rules
 
-- Always import the concrete file: `@/components/deck/pads/HotCuePads`, never `@/components/deck` or `@/components/deck/pads`.
+- Always import the concrete file: `@/components/deck/pads/hot-cue-pads`, never `@/components/deck` or `@/components/deck/pads`.
 - Prefer `@/` aliases for cross-folder imports; relative `./` is fine within the same folder.
 - After the move, update `.cursor/rules/gui-app.mdc`:
   - Document domain folders.
