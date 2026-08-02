@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { useCollectionTracks } from "@/hooks/useCollectionTracks";
-import { useCollections } from "@/hooks/useCollections";
-import { useDriveBrowser } from "@/hooks/useDriveBrowser";
-import { useLibraryTrackLookup } from "@/hooks/useLibraryTrackLookup";
+import { useCollectionTracks } from "@/hooks/library/useCollectionTracks";
+import { useCollections } from "@/hooks/library/useCollections";
+import { useDriveBrowser } from "@/hooks/library/useDriveBrowser";
+import { useLibraryTrackLookup } from "@/hooks/library/useLibraryTrackLookup";
 import { useSettings } from "@/hooks/useSettings";
-import { useTrack } from "@/hooks/useTrack";
+import { useTrack } from "@/hooks/library/useTrack";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/libraryTable";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/libraryTable";
 import { normalizeAppSettings } from "@/lib/busSettings";
@@ -20,7 +20,9 @@ import { LibraryPane } from "./LibraryPane";
 import { LibrarySourceTabs } from "./LibrarySourceTabs";
 import { LibraryTrackTable } from "./LibraryTrackTable";
 import { MessageBanner } from "./MessageBanner";
-import { engineActions, useEngineBusy, useEngineRunning } from "@/hooks/useEngine";
+import { engineActions } from "@/stores/engineStore";
+import { useEngineBusy } from "@/hooks/engine/useEngineBusy";
+import { useEngineRunning } from "@/hooks/engine/useEngineRunning";
 
 export function LibraryPanel() {
   const engineRunning = useEngineRunning();

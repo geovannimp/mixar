@@ -2,17 +2,16 @@ import { useCallback, type RefObject } from "react";
 import { DECK_ACCENTS } from "@/lib/ui";
 import { useWaveformDragScrub } from "@/hooks/useWaveformDragScrub";
 import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
-import {
-  engineActions,
-  useDeckHasTrack,
-  useDeckPosition,
-  useDeckWaveform,
-  useEngineRunning,
-} from "@/hooks/useEngine";
-import { useTrack } from "@/hooks/useTrack";
+import { useDeckHasTrack } from "@/hooks/engine/useDeckHasTrack";
+import { useDeckPosition } from "@/hooks/engine/useDeckPosition";
+import { useDeckWaveform } from "@/hooks/engine/useDeckWaveform";
+import { useEngineRunning } from "@/hooks/engine/useEngineRunning";
+import { engineActions } from "@/stores/engineStore";
+import { useTrack } from "@/hooks/library/useTrack";
 import type { DeckActiveLoop, DeckEq } from "@/types";
 import { useRenderWaveformLane } from "@/hooks/useRenderWaveformLane";
-import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
+import { RustRenderedLane } from "./RustRenderedLane";
+import { useLaneDimensions } from "./useLaneDimensions";
 import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
 
 function WaveformPlayheadHost({

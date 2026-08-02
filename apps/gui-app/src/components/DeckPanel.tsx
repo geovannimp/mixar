@@ -4,20 +4,18 @@ import { cn } from "@/lib/utils";
 import { DeckButton } from "@/components/ui/deck-button";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
 import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "@/lib/format";
-import {
-  engineActions,
-  useDeckControls,
-  useDeckOverview,
-  useDeckPosition,
-  useDeckTransport,
-  useDeckBusy,
-  useEngineRunning,
-  useSamplerSlots,
-  useSamplerBanks,
-  useSamplerEffectivePlayMode,
-} from "@/hooks/useEngine";
+import { useDeckBusy } from "@/hooks/engine/useDeckBusy";
+import { useDeckControls } from "@/hooks/engine/useDeckControls";
+import { useDeckOverview } from "@/hooks/engine/useDeckOverview";
+import { useDeckPosition } from "@/hooks/engine/useDeckPosition";
+import { useDeckTransport } from "@/hooks/engine/useDeckTransport";
+import { useEngineRunning } from "@/hooks/engine/useEngineRunning";
+import { useSamplerBanks } from "@/hooks/engine/useSamplerBanks";
+import { useSamplerEffectivePlayMode } from "@/hooks/engine/useSamplerEffectivePlayMode";
+import { useSamplerSlots } from "@/hooks/engine/useSamplerSlots";
+import { engineActions } from "@/stores/engineStore";
 import { getDefaultDeck } from "@/stores/defaultDeck";
-import { useTrack } from "@/hooks/useTrack";
+import { useTrack } from "@/hooks/library/useTrack";
 import type { DeckStatus } from "@/types";
 import { DeckPadsPanel } from "./DeckPadsPanel";
 import { DeckLoopPanel } from "./DeckLoopPanel";

@@ -4,7 +4,7 @@ import { DeckGrid } from "@/components/DeckGrid";
 import { DualDeckWaveform } from "@/components/DualDeckWaveform";
 import { LibraryPanel } from "@/components/LibraryPanel";
 import { TrackDragProvider } from "@/components/TrackDragProvider";
-import { engineActions } from "@/hooks/useEngine";
+import { engineActions } from "@/stores/engineStore";
 
 const WAVEFORM_MIN_HEIGHT = "70px";
 const WAVEFORM_DEFAULT_HEIGHT = "112px";

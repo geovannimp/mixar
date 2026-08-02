@@ -1,6 +1,6 @@
 import type { TrackDragPayload } from "@/lib/libraryTable";
 import type { LibraryTableRow } from "@/types";
-import { engineActions } from "@/hooks/useEngine";
+import { engineActions } from "@/stores/engineStore";
 
 export const TRACK_DRAG_TYPE = "track" as const;
 

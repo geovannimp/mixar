@@ -10,7 +10,7 @@ Reference: `docs/deck-spec.md`, `docs/tech-spec.md`. App root: `apps/gui-app` (T
 
 ## Modules & imports
 
-- **No barrel files.** Do not add `index.ts` / `index.tsx` that only re-export. Import from the concrete module (`@/components/deck-pads/HotCuePads`, not `@/components/deck-pads`).
+- **No barrel files.** Do not add `index.ts` / `index.tsx` that only re-export, and do not import a folder as a module (`@/hooks/engine` → use `@/hooks/engine/useDeckLevels`). Import the concrete file path.
 - Keep imports at the top of the file (no inline imports).
 - Prefer the `@/` path alias for app source.
 

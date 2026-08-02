@@ -1,6 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import { toastManager } from "@/components/ui/toast";
 import { getSupportedAudioExtensions } from "@/lib/audioExtensions";
 import { applyBusEvent } from "@/lib/engine/applyBusEvent";
@@ -19,13 +18,9 @@ import {
   type JogMode,
   type LevelMeterMode,
   type PadMode,
-  type SamplerBankInfo,
   type SamplerPlayMode,
-  type SamplerSlotInfo,
-  type SamplerStatus,
 } from "@/types";
 import { getDefaultDeck } from "./defaultDeck";
-import { DEFAULT_SAMPLER_STATUS, EMPTY_SAMPLER_BANKS, EMPTY_SAMPLER_SLOTS } from "./defaultSampler";
 const ENGINE_ERROR_TOAST_ID = "engine-error";
 
 function reportEngineError(message: string) {
@@ -492,142 +487,6 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
   },
 }));
 
-const selectEngineHeaderInfo = (state: EngineStoreState) => ({
-  running: Boolean(state.status?.running),
-  backend: state.status?.backend ?? "",
-  sampleRate: state.status?.sample_rate ?? 0,
-});
-
-/** Mixer knobs/faders — excludes HF levels so VU ticks do not re-render EQ/volume. */
-export function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
-  const deck = getDeck(state.status, deckId);
-  return {
-    volume: deck.volume,
-    eq: deck.eq,
-    filter_db: deck.filter_db,
-    gain_trim_db: deck.gain_trim_db,
-    headphone_cue: deck.headphone_cue,
-  };
-}
-
-export function selectDeckLevels(state: EngineStoreState, deckId: number) {
-  return getDeck(state.status, deckId).levels;
-}
-
-export function selectDeckPosition(state: EngineStoreState, deckId: number): number {
-  return getDeck(state.status, deckId).position_ms ?? 0;
-}
-
-export function selectDeckTransport(state: EngineStoreState, deckId: number) {
-  const deck = getDeck(state.status, deckId);
-  return {
-    position_ms: deck.position_ms,
-    duration_ms: deck.duration_ms,
-    playing: deck.playing,
-  };
-}
-
-/** Waveform chrome — excludes HF position; playhead leaves subscribe via selectDeckPosition. */
-export function selectDeckWaveform(state: EngineStoreState, deckId: number) {
-  const deck = getDeck(state.status, deckId);
-  return {
-    id: deck.id,
-    track: deck.track,
-    track_id: deck.track_id,
-    playing: deck.playing,
-    speed: deck.speed,
-    eq: deck.eq,
-    hot_cues: deck.hot_cues,
-    active_loop: deck.active_loop,
-    duration_ms: deck.duration_ms,
-  };
-}
-
-export function selectDeckControls(state: EngineStoreState, deckId: number) {
-  const deck = getDeck(state.status, deckId);
-  return {
-    id: deck.id,
-    track: deck.track,
-    track_id: deck.track_id,
-    title: deck.title,
-    artist: deck.artist,
-    bpm: deck.bpm,
-    key: deck.key,
-    playing: deck.playing,
-    speed: deck.speed,
-    quantize: deck.quantize,
-    cue_point_ms: deck.cue_point_ms,
-    hot_cues: deck.hot_cues,
-    saved_loops: deck.saved_loops,
-    active_loop: deck.active_loop,
-    sync_mode: deck.sync_mode,
-    is_master: deck.is_master,
-    pad_mode: deck.pad_mode,
-    loudness_lufs: deck.loudness_lufs,
-    auto_gain_db: deck.auto_gain_db,
-    gain_trim_db: deck.gain_trim_db,
-    active_sampler_bank_id: deck.active_sampler_bank_id,
-    top_jog_mode: deck.top_jog_mode,
-    outer_jog_mode: deck.outer_jog_mode,
-    jog_touching: deck.jog_touching,
-  };
-}
-
-/** Overview chrome — excludes HF position; time/playhead leaves subscribe separately. */
-export function selectDeckOverview(state: EngineStoreState, deckId: number) {
-  const deck = getDeck(state.status, deckId);
-  return {
-    track_id: deck.track_id,
-    track: deck.track,
-    playing: deck.playing,
-    speed: deck.speed,
-    duration_ms: deck.duration_ms,
-    hot_cues: deck.hot_cues,
-  };
-}
-
-const selectDeckMixerChannel0 = (state: EngineStoreState) => selectDeckMixerChannel(state, 0);
-const selectDeckMixerChannel1 = (state: EngineStoreState) => selectDeckMixerChannel(state, 1);
-
-const selectDeckLevels0 = (state: EngineStoreState) => selectDeckLevels(state, 0);
-const selectDeckLevels1 = (state: EngineStoreState) => selectDeckLevels(state, 1);
-
-const selectDeckPosition0 = (state: EngineStoreState) => selectDeckPosition(state, 0);
-const selectDeckPosition1 = (state: EngineStoreState) => selectDeckPosition(state, 1);
-
-const selectDeckTransport0 = (state: EngineStoreState) => selectDeckTransport(state, 0);
-const selectDeckTransport1 = (state: EngineStoreState) => selectDeckTransport(state, 1);
-
-const selectDeckWaveform0 = (state: EngineStoreState) => selectDeckWaveform(state, 0);
-const selectDeckWaveform1 = (state: EngineStoreState) => selectDeckWaveform(state, 1);
-
-const selectDeckControls0 = (state: EngineStoreState) => selectDeckControls(state, 0);
-const selectDeckControls1 = (state: EngineStoreState) => selectDeckControls(state, 1);
-
-const selectDeckOverview0 = (state: EngineStoreState) => selectDeckOverview(state, 0);
-const selectDeckOverview1 = (state: EngineStoreState) => selectDeckOverview(state, 1);
-
-const DECK_MIXER_CHANNEL_SELECTORS = [selectDeckMixerChannel0, selectDeckMixerChannel1] as const;
-
-const DECK_LEVELS_SELECTORS = [selectDeckLevels0, selectDeckLevels1] as const;
-
-const DECK_POSITION_SELECTORS = [selectDeckPosition0, selectDeckPosition1] as const;
-
-const DECK_TRANSPORT_SELECTORS = [selectDeckTransport0, selectDeckTransport1] as const;
-
-const DECK_WAVEFORM_SELECTORS = [selectDeckWaveform0, selectDeckWaveform1] as const;
-
-const DECK_CONTROLS_SELECTORS = [selectDeckControls0, selectDeckControls1] as const;
-
-const DECK_OVERVIEW_SELECTORS = [selectDeckOverview0, selectDeckOverview1] as const;
-
-function deckSelector<T>(
-  deckId: number,
-  selectors: readonly ((state: EngineStoreState) => T)[],
-): (state: EngineStoreState) => T {
-  return selectors[deckId] ?? selectors[0];
-}
-
 export const engineActions = {
   ensureEngineRunning: () => useEngineStore.getState().ensureEngineRunning(),
   setLevelMeterMode: (mode: LevelMeterMode) => useEngineStore.getState().setLevelMeterMode(mode),
@@ -709,91 +568,3 @@ export const engineActions = {
   createSamplerBank: (deckId?: number, name?: string) =>
     useEngineStore.getState().createSamplerBank(deckId, name),
 };
-
-export function useEngineRunning(): boolean {
-  return useEngineStore((state) => Boolean(state.status?.running));
-}
-
-export function useEngineBusy(): boolean {
-  return useEngineStore((state) => state.starting || state.busyDecks[0] || state.busyDecks[1]);
-}
-
-export function useDeckBusy(deckId: number): boolean {
-  return useEngineStore((state) => state.busyDecks[deckId] ?? false);
-}
-
-export function useEngineHeaderInfo() {
-  return useEngineStore(useShallow(selectEngineHeaderInfo));
-}
-
-export function useCrossfader(): number {
-  return useEngineStore((state) => state.status?.crossfader ?? 0.5);
-}
-
-export function useCueMix(): number {
-  return useEngineStore((state) => state.status?.cue_mix ?? 0);
-}
-
-export function useMasterCue(): boolean {
-  return useEngineStore((state) => state.status?.master_cue ?? false);
-}
-
-export function useLevelMeterMode(): LevelMeterMode {
-  return useEngineStore((state) => state.levelMeterMode);
-}
-
-export function useDeckHasTrack(deckId: number): boolean {
-  return useEngineStore((state) => Boolean(getDeck(state.status, deckId).track));
-}
-
-export function useAnyDeckHasTrack(): boolean {
-  return useEngineStore((state) => Boolean(state.status?.decks.some((deck) => deck.track)));
-}
-
-export function useDeckMixerChannel(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_MIXER_CHANNEL_SELECTORS)));
-}
-
-export function useDeckLevels(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_LEVELS_SELECTORS)));
-}
-
-export function useDeckPosition(deckId: number): number {
-  return useEngineStore(deckSelector(deckId, DECK_POSITION_SELECTORS));
-}
-
-export function useDeckTransport(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_TRANSPORT_SELECTORS)));
-}
-
-export function useDeckWaveform(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_WAVEFORM_SELECTORS)));
-}
-
-export function useDeckControls(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_CONTROLS_SELECTORS)));
-}
-
-export function useDeckOverview(deckId: number) {
-  return useEngineStore(useShallow(deckSelector(deckId, DECK_OVERVIEW_SELECTORS)));
-}
-
-export function useSamplerSlots(deckId: number): SamplerSlotInfo[] {
-  return useEngineStore(
-    (state) => state.status?.sampler?.deck_slots[deckId] ?? EMPTY_SAMPLER_SLOTS,
-  );
-}
-
-export function useSamplerStatus(): SamplerStatus {
-  return useEngineStore((state) => state.status?.sampler ?? DEFAULT_SAMPLER_STATUS);
-}
-
-export function useSamplerBanks(): SamplerBankInfo[] {
-  return useEngineStore((state) => state.status?.sampler?.banks ?? EMPTY_SAMPLER_BANKS);
-}
-
-export function useSamplerEffectivePlayMode(deckId: number): SamplerPlayMode {
-  return useEngineStore(
-    (state) => state.status?.sampler?.effective_play_modes[deckId] ?? "oneshot",
-  );
-}

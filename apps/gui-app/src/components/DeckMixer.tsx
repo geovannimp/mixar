@@ -4,12 +4,10 @@ import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "@/lib/ui";
 import { DEFAULT_DECK_EQ, type DeckEq, type LevelMeterMode } from "@/types";
-import {
-  engineActions,
-  useCrossfader,
-  useDeckMixerChannel,
-  useLevelMeterMode,
-} from "@/hooks/useEngine";
+import { useCrossfader } from "@/hooks/engine/useCrossfader";
+import { useDeckMixerChannel } from "@/hooks/engine/useDeckMixerChannel";
+import { useLevelMeterMode } from "@/hooks/engine/useLevelMeterMode";
+import { engineActions } from "@/stores/engineStore";
 import { LevelMeter } from "./LevelMeter";
 import { RotaryKnob } from "./RotaryKnob";
 

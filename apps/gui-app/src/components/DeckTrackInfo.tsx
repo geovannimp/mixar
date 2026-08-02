@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Disc3 } from "lucide-react";
 import { deckDisplayTitle, formatOptional } from "@/lib/format";
 import { formatDeckKey, getKeyDisplayMode, setKeyDisplayMode } from "@/lib/keyFormat";
-import { useTrackArtwork } from "@/hooks/useTrackArtwork";
+import { useTrackArtwork } from "@/hooks/library/useTrackArtwork";
 import type { DeckStatus, KeyDisplayMode } from "@/types";
 
 interface DeckTrackInfoProps {

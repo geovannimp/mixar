@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useDeckLevels } from "@/hooks/useEngine";
+import { useDeckLevels } from "@/hooks/engine/useDeckLevels";
 import type { LevelMeterMode } from "@/types";
 
 const SEGMENTS = 12;
