@@ -26,6 +26,19 @@ export interface RenderWaveformLaneRequest {
   eqHighDb: number;
 }
 
+/** Tauri `render_waveform_lane` takes i32 px/ms fields; tile math often yields floats. */
+export function toTauriRenderWaveformLaneArgs(
+  request: RenderWaveformLaneRequest,
+): RenderWaveformLaneRequest {
+  return {
+    ...request,
+    width: Math.trunc(request.width),
+    height: Math.trunc(request.height),
+    positionMs: Math.trunc(request.positionMs),
+    visibleMs: Math.trunc(request.visibleMs),
+  };
+}
+
 export interface GetTrackArtworkRequest {
   trackId: string | null;
   path: string | null;
