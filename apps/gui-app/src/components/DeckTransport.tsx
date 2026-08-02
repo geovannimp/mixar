@@ -1,6 +1,6 @@
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useRef } from "react";
-import { animate, motion, useMotionValue, useTransform } from "motion/react";
+import { motion, useMotionValue, useTransform } from "motion/react";
 import { DeckButton } from "@/components/ui/deck-button";
 import { barCycleRotationDeg, getBarCycleDurationMs } from "@/lib/format";
 import { degreesToJogTicks } from "@/lib/jogTicks";
@@ -106,10 +106,8 @@ export function JogPlatter({
       rotationRef.current += (delta / cycleDurationMs) * 360;
     }
 
-    void animate(trackerRotate, rotationRef.current, {
-      duration: isSeek ? 0 : 0.15,
-      ease: "linear",
-    });
+    // Direct set — avoid overlapping animate() calls at ~30 Hz position ticks.
+    trackerRotate.set(rotationRef.current);
   }, [positionMs, effectiveBpm, hasTrack, trackerRotate, jogTouching]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {

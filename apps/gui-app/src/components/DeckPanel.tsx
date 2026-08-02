@@ -8,6 +8,7 @@ import {
   engineActions,
   useDeckControls,
   useDeckOverview,
+  useDeckPosition,
   useDeckTransport,
   useDeckBusy,
   useEngineRunning,
@@ -33,6 +34,58 @@ interface DeckPanelProps {
   accentKey: DeckAccent;
 }
 
+const DeckRemainingTime = memo(function DeckRemainingTime({
+  deckId,
+  durationMs,
+}: {
+  deckId: number;
+  durationMs: number | null;
+}) {
+  const positionMs = useDeckPosition(deckId);
+  return (
+    <span className="text-sm font-semibold text-zinc-100 sm:text-base">
+      {formatDeckRemainingDisplay(positionMs, durationMs)}
+    </span>
+  );
+});
+
+const DeckOverviewPlayhead = memo(function DeckOverviewPlayhead({
+  deckId,
+  trackId,
+  path,
+  playing,
+  speed,
+  durationMs,
+  transportDisabled,
+}: {
+  deckId: number;
+  trackId: string | null;
+  path: string | null;
+  playing: boolean;
+  speed: number;
+  durationMs: number | null;
+  transportDisabled: boolean;
+}) {
+  const positionMs = useDeckPosition(deckId);
+  const { track } = useTrack(trackId);
+
+  return (
+    <DeckOverviewPreview
+      trackId={trackId}
+      path={path}
+      positionMs={positionMs}
+      playing={playing}
+      speed={speed}
+      durationMs={durationMs}
+      hotCues={track?.hot_cues ?? []}
+      disabled={transportDisabled}
+      onSeek={(nextMs) => {
+        void engineActions.seekDeck(deckId, nextMs);
+      }}
+    />
+  );
+});
+
 const DeckOverviewSection = memo(function DeckOverviewSection({
   deckId,
   transportDisabled,
@@ -41,32 +94,65 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
   transportDisabled: boolean;
 }) {
   const overview = useDeckOverview(deckId);
-  const { track } = useTrack(overview.track_id);
 
   return (
     <div className="flex shrink-0 flex-col gap-0.5">
       <div className="flex items-baseline justify-between gap-3 font-mono tabular-nums">
-        <span className="text-sm font-semibold text-zinc-100 sm:text-base">
-          {formatDeckRemainingDisplay(overview.position_ms, overview.duration_ms)}
-        </span>
+        <DeckRemainingTime deckId={deckId} durationMs={overview.duration_ms} />
         <span className="text-[11px] text-zinc-500 sm:text-xs">
           {formatDeckTotalDisplay(overview.duration_ms)}
         </span>
       </div>
-      <DeckOverviewPreview
+      <DeckOverviewPlayhead
+        deckId={deckId}
         trackId={overview.track_id}
         path={overview.track}
-        positionMs={overview.position_ms ?? 0}
         playing={overview.playing}
         speed={overview.speed}
         durationMs={overview.duration_ms}
-        hotCues={track?.hot_cues ?? []}
-        disabled={transportDisabled}
-        onSeek={(positionMs) => {
-          void engineActions.seekDeck(deckId, positionMs);
-        }}
+        transportDisabled={transportDisabled}
       />
     </div>
+  );
+});
+
+const DeckJog = memo(function DeckJog({
+  deckId,
+  accentKey,
+  bpm,
+  speed,
+  hasTrack,
+  transportDisabled,
+  jogTouching,
+}: {
+  deckId: number;
+  accentKey: DeckAccent;
+  bpm: number | null;
+  speed: number;
+  hasTrack: boolean;
+  transportDisabled: boolean;
+  jogTouching: boolean;
+}) {
+  const transport = useDeckTransport(deckId);
+
+  return (
+    <JogPlatter
+      accent={accentKey}
+      playing={transport.playing}
+      bpm={bpm != null ? bpm * speed : bpm}
+      hasTrack={hasTrack}
+      enabled={!transportDisabled}
+      jogTouching={jogTouching}
+      positionMs={transport.position_ms ?? 0}
+      durationMs={transport.duration_ms}
+      speed={speed}
+      onJogTouch={(touching) => {
+        void engineActions.jogTouch(deckId, touching);
+      }}
+      onJogTurn={(delta) => {
+        void engineActions.jogTurn(deckId, delta);
+      }}
+    />
   );
 });
 
@@ -80,7 +166,6 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
   transportDisabled: boolean;
 }) {
   const controls = useDeckControls(deckId);
-  const transport = useDeckTransport(deckId);
   const { track: libraryTrack } = useTrack(controls.track_id);
   const samplerSlots = useSamplerSlots(deckId);
   const samplerBanks = useSamplerBanks();
@@ -92,7 +177,6 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
   const deck: DeckStatus = {
     ...getDefaultDeck(deckId),
     ...controls,
-    ...transport,
     title: libraryTrack?.title ?? controls.title,
     artist: libraryTrack?.artist ?? controls.artist,
     bpm: libraryTrack?.bpm ?? controls.bpm,
@@ -194,22 +278,14 @@ const DeckPerformanceSection = memo(function DeckPerformanceSection({
 
   const transportControls = (
     <div className="flex shrink-0 flex-col items-center justify-end gap-2">
-      <JogPlatter
-        accent={accentKey}
-        playing={deck.playing}
-        bpm={deck.bpm != null ? deck.bpm * deck.speed : deck.bpm}
-        hasTrack={Boolean(deck.track)}
-        enabled={!transportDisabled}
-        jogTouching={deck.jog_touching}
-        positionMs={deck.position_ms ?? 0}
-        durationMs={deck.duration_ms}
+      <DeckJog
+        deckId={deckId}
+        accentKey={accentKey}
+        bpm={deck.bpm}
         speed={deck.speed}
-        onJogTouch={(touching) => {
-          void engineActions.jogTouch(deckId, touching);
-        }}
-        onJogTurn={(delta) => {
-          void engineActions.jogTurn(deckId, delta);
-        }}
+        hasTrack={Boolean(deck.track)}
+        transportDisabled={transportDisabled}
+        jogTouching={deck.jog_touching}
       />
       <div className="flex items-end gap-2">
         {isDeckA ? (

@@ -1,22 +1,17 @@
+import { memo } from "react";
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "@/lib/ui";
-import {
-  DEFAULT_DECK_EQ,
-  ZERO_DECK_LEVELS,
-  type DeckEq,
-  type DeckStatus,
-  type LevelMeterMode,
-} from "@/types";
+import { DEFAULT_DECK_EQ, type DeckEq, type LevelMeterMode } from "@/types";
 import {
   engineActions,
   useCrossfader,
+  useDeckLevels,
   useDeckMixerChannel,
   useLevelMeterMode,
 } from "@/hooks/useEngine";
-import { getDefaultDeck } from "@/stores/defaultDeck";
 import { LevelMeter } from "./LevelMeter";
 import { RotaryKnob } from "./RotaryKnob";
 
@@ -65,7 +60,7 @@ interface DeckEqColumnProps {
   onFilterChange: (filterDb: number) => void;
 }
 
-function DeckEqColumn({
+const DeckEqColumn = memo(function DeckEqColumn({
   accent,
   eq,
   filterDb,
@@ -98,7 +93,7 @@ function DeckEqColumn({
       />
     </div>
   );
-}
+});
 
 interface DeckVolumeFaderProps {
   channelAccent: DeckAccent;
@@ -112,7 +107,7 @@ interface DeckVolumeFaderProps {
   onCueChange: (cue: boolean) => void;
 }
 
-function DeckVolumeFader({
+const DeckVolumeFader = memo(function DeckVolumeFader({
   channelAccent,
   accent,
   gainDb,
@@ -179,23 +174,25 @@ function DeckVolumeFader({
       </button>
     </div>
   );
-}
-
-interface LevelMetersColumnProps {
-  decks: DeckStatus[];
-  levelMeterMode: LevelMeterMode;
-}
+});
 
 /** Spacers match GAIN / % / cue so meters align with the volume slider track. */
-function LevelMetersColumn({ decks, levelMeterMode }: LevelMetersColumnProps) {
+const LevelMetersColumn = memo(function LevelMetersColumn({
+  levelMeterMode,
+}: {
+  levelMeterMode: LevelMeterMode;
+}) {
+  const levels0 = useDeckLevels(0);
+  const levels1 = useDeckLevels(1);
+
   return (
     <div className="flex h-full shrink-0 flex-col items-center gap-1">
       <div className="invisible shrink-0" aria-hidden>
         <MixerKnob label="GAIN" value={0} accent={DECK_ACCENTS.a} onValueChange={() => undefined} />
       </div>
       <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
-        <LevelMeter levels={decks[0]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
-        <LevelMeter levels={decks[1]?.levels ?? ZERO_DECK_LEVELS} mode={levelMeterMode} />
+        <LevelMeter levels={levels0} mode={levelMeterMode} />
+        <LevelMeter levels={levels1} mode={levelMeterMode} />
       </div>
       <span className="invisible w-full shrink-0 text-center text-[9px] tabular-nums" aria-hidden>
         100%
@@ -203,15 +200,17 @@ function LevelMetersColumn({ decks, levelMeterMode }: LevelMetersColumnProps) {
       <div className="invisible size-7 shrink-0" aria-hidden />
     </div>
   );
-}
+});
 
-interface CrossfaderProps {
+function Crossfader({
+  position,
+  disabled,
+  onPositionChange,
+}: {
   position: number;
   disabled?: boolean;
   onPositionChange: (position: number) => void;
-}
-
-function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
+}) {
   const percent = Math.round(position * 10000) / 100;
 
   return (
@@ -247,33 +246,62 @@ function Crossfader({ position, disabled, onPositionChange }: CrossfaderProps) {
   );
 }
 
-interface DeckMixerProps {
-  decks: DeckStatus[];
-  crossfader: number;
-  levelMeterMode: LevelMeterMode;
-  onVolumeChange: (deckId: number, volume: number) => void;
-  onEqChange: (deckId: number, eq: DeckEq) => void;
-  onFilterChange: (deckId: number, filterDb: number) => void;
-  onGainChange: (deckId: number, gainDb: number) => void;
-  onCueChange: (deckId: number, enabled: boolean) => void;
-  onCrossfaderChange: (position: number) => void;
-  onLevelMeterModeChange: (mode: LevelMeterMode) => void;
-}
+const MixerEqColumn = memo(function MixerEqColumn({
+  deckId,
+  accent,
+}: {
+  deckId: number;
+  accent: (typeof DECK_ACCENTS)[DeckAccent];
+}) {
+  const channel = useDeckMixerChannel(deckId);
+  return (
+    <DeckEqColumn
+      accent={accent}
+      eq={channel.eq ?? DEFAULT_DECK_EQ}
+      filterDb={channel.filter_db}
+      onEqChange={(eq) => {
+        void engineActions.setDeckEq(deckId, eq);
+      }}
+      onFilterChange={(filterDb) => {
+        void engineActions.setDeckFilter(deckId, filterDb);
+      }}
+    />
+  );
+});
 
-function DeckMixerView({
-  decks,
-  crossfader,
-  levelMeterMode,
-  onVolumeChange,
-  onEqChange,
-  onFilterChange,
-  onGainChange,
-  onCueChange,
-  onCrossfaderChange,
-  onLevelMeterModeChange,
-}: DeckMixerProps) {
-  const accents = [DECK_ACCENTS.a, DECK_ACCENTS.b] as const;
-  const channelAccents = ["a", "b"] as const satisfies readonly DeckAccent[];
+const MixerVolumeColumn = memo(function MixerVolumeColumn({
+  deckId,
+  channelAccent,
+  accent,
+}: {
+  deckId: number;
+  channelAccent: DeckAccent;
+  accent: (typeof DECK_ACCENTS)[DeckAccent];
+}) {
+  const channel = useDeckMixerChannel(deckId);
+  return (
+    <DeckVolumeFader
+      channelAccent={channelAccent}
+      accent={accent}
+      gainDb={channel.gain_trim_db}
+      volume={channel.volume}
+      cue={channel.headphone_cue}
+      onGainChange={(gainDb) => {
+        void engineActions.setDeckGainTrim(deckId, gainDb);
+      }}
+      onVolumeChange={(volume) => {
+        void engineActions.setDeckVolume(deckId, volume);
+      }}
+      onCueChange={(cue) => {
+        void engineActions.setDeckHeadphoneCue(deckId, cue);
+      }}
+    />
+  );
+});
+
+export function DeckMixer() {
+  const crossfader = useCrossfader();
+  const levelMeterMode = useLevelMeterMode();
 
   return (
     <div className="flex h-full w-max shrink-0 flex-col gap-2 border-x border-white/6 bg-zinc-900/50 px-2.5 py-3">
@@ -293,107 +321,32 @@ function DeckMixerView({
               : "Level meter mode: stereo. Switch to mono."
           }
           title={levelMeterMode === "mono" ? "Mono meters (max L/R)" : "Stereo meters (L/R)"}
-          onClick={() => onLevelMeterModeChange(levelMeterMode === "mono" ? "stereo" : "mono")}
+          onClick={() =>
+            engineActions.setLevelMeterMode(levelMeterMode === "mono" ? "stereo" : "mono")
+          }
         >
           {levelMeterMode === "mono" ? "M" : "S"}
         </button>
       </div>
 
       <div className="flex min-h-0 flex-1 items-stretch justify-center gap-1">
-        <DeckEqColumn
-          accent={accents[0]}
-          eq={decks[0]?.eq ?? DEFAULT_DECK_EQ}
-          filterDb={decks[0]?.filter_db ?? 0}
-          onEqChange={(eq) => onEqChange(0, eq)}
-          onFilterChange={(filterDb) => onFilterChange(0, filterDb)}
-        />
+        <MixerEqColumn deckId={0} accent={DECK_ACCENTS.a} />
 
         <div className="flex min-h-0 shrink-0 items-stretch gap-1 px-0.5">
-          <DeckVolumeFader
-            channelAccent={channelAccents[0]}
-            accent={accents[0]}
-            gainDb={decks[0]?.gain_trim_db ?? 0}
-            volume={decks[0]?.volume ?? 1}
-            cue={decks[0]?.headphone_cue ?? false}
-            onGainChange={(gainDb) => onGainChange(0, gainDb)}
-            onVolumeChange={(volume) => onVolumeChange(0, volume)}
-            onCueChange={(cue) => onCueChange(0, cue)}
-          />
-          <LevelMetersColumn decks={decks} levelMeterMode={levelMeterMode} />
-          <DeckVolumeFader
-            channelAccent={channelAccents[1]}
-            accent={accents[1]}
-            gainDb={decks[1]?.gain_trim_db ?? 0}
-            volume={decks[1]?.volume ?? 1}
-            cue={decks[1]?.headphone_cue ?? false}
-            onGainChange={(gainDb) => onGainChange(1, gainDb)}
-            onVolumeChange={(volume) => onVolumeChange(1, volume)}
-            onCueChange={(cue) => onCueChange(1, cue)}
-          />
+          <MixerVolumeColumn deckId={0} channelAccent="a" accent={DECK_ACCENTS.a} />
+          <LevelMetersColumn levelMeterMode={levelMeterMode} />
+          <MixerVolumeColumn deckId={1} channelAccent="b" accent={DECK_ACCENTS.b} />
         </div>
 
-        <DeckEqColumn
-          accent={accents[1]}
-          eq={decks[1]?.eq ?? DEFAULT_DECK_EQ}
-          filterDb={decks[1]?.filter_db ?? 0}
-          onEqChange={(eq) => onEqChange(1, eq)}
-          onFilterChange={(filterDb) => onFilterChange(1, filterDb)}
-        />
+        <MixerEqColumn deckId={1} accent={DECK_ACCENTS.b} />
       </div>
 
-      <Crossfader position={crossfader} onPositionChange={onCrossfaderChange} />
+      <Crossfader
+        position={crossfader}
+        onPositionChange={(position) => {
+          void engineActions.setCrossfader(position);
+        }}
+      />
     </div>
-  );
-}
-
-export function DeckMixer() {
-  const crossfader = useCrossfader();
-  const levelMeterMode = useLevelMeterMode();
-  const deck0 = useDeckMixerChannel(0);
-  const deck1 = useDeckMixerChannel(1);
-  const {
-    setDeckVolume,
-    setDeckEq,
-    setCrossfader,
-    setDeckFilter,
-    setDeckGainTrim,
-    setDeckHeadphoneCue,
-    setLevelMeterMode,
-  } = engineActions;
-
-  const decks: DeckStatus[] = [
-    {
-      ...getDefaultDeck(0),
-      volume: deck0.volume,
-      eq: deck0.eq,
-      filter_db: deck0.filter_db,
-      gain_trim_db: deck0.gain_trim_db,
-      headphone_cue: deck0.headphone_cue,
-      levels: deck0.levels,
-    },
-    {
-      ...getDefaultDeck(1),
-      volume: deck1.volume,
-      eq: deck1.eq,
-      filter_db: deck1.filter_db,
-      gain_trim_db: deck1.gain_trim_db,
-      headphone_cue: deck1.headphone_cue,
-      levels: deck1.levels,
-    },
-  ];
-
-  return (
-    <DeckMixerView
-      decks={decks}
-      crossfader={crossfader}
-      levelMeterMode={levelMeterMode}
-      onVolumeChange={setDeckVolume}
-      onEqChange={setDeckEq}
-      onFilterChange={setDeckFilter}
-      onGainChange={setDeckGainTrim}
-      onCueChange={setDeckHeadphoneCue}
-      onCrossfaderChange={setCrossfader}
-      onLevelMeterModeChange={setLevelMeterMode}
-    />
   );
 }

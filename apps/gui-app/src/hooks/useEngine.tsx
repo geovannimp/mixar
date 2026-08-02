@@ -12,6 +12,8 @@ export {
   useDeckHasTrack,
   useAnyDeckHasTrack,
   useDeckMixerChannel,
+  useDeckLevels,
+  useDeckPosition,
   useDeckTransport,
   useDeckWaveform,
   useDeckControls,

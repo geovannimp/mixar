@@ -498,7 +498,8 @@ const selectEngineHeaderInfo = (state: EngineStoreState) => ({
   sampleRate: state.status?.sample_rate ?? 0,
 });
 
-function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
+/** Mixer knobs/faders — excludes HF levels so VU ticks do not re-render EQ/volume. */
+export function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
     volume: deck.volume,
@@ -506,11 +507,18 @@ function selectDeckMixerChannel(state: EngineStoreState, deckId: number) {
     filter_db: deck.filter_db,
     gain_trim_db: deck.gain_trim_db,
     headphone_cue: deck.headphone_cue,
-    levels: deck.levels,
   };
 }
 
-function selectDeckTransport(state: EngineStoreState, deckId: number) {
+export function selectDeckLevels(state: EngineStoreState, deckId: number) {
+  return getDeck(state.status, deckId).levels;
+}
+
+export function selectDeckPosition(state: EngineStoreState, deckId: number): number {
+  return getDeck(state.status, deckId).position_ms ?? 0;
+}
+
+export function selectDeckTransport(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
     position_ms: deck.position_ms,
@@ -519,13 +527,13 @@ function selectDeckTransport(state: EngineStoreState, deckId: number) {
   };
 }
 
-function selectDeckWaveform(state: EngineStoreState, deckId: number) {
+/** Waveform chrome — excludes HF position; playhead leaves subscribe via selectDeckPosition. */
+export function selectDeckWaveform(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
     id: deck.id,
     track: deck.track,
     track_id: deck.track_id,
-    position_ms: deck.position_ms,
     playing: deck.playing,
     speed: deck.speed,
     eq: deck.eq,
@@ -535,7 +543,7 @@ function selectDeckWaveform(state: EngineStoreState, deckId: number) {
   };
 }
 
-function selectDeckControls(state: EngineStoreState, deckId: number) {
+export function selectDeckControls(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
     id: deck.id,
@@ -565,12 +573,12 @@ function selectDeckControls(state: EngineStoreState, deckId: number) {
   };
 }
 
-function selectDeckOverview(state: EngineStoreState, deckId: number) {
+/** Overview chrome — excludes HF position; time/playhead leaves subscribe separately. */
+export function selectDeckOverview(state: EngineStoreState, deckId: number) {
   const deck = getDeck(state.status, deckId);
   return {
     track_id: deck.track_id,
     track: deck.track,
-    position_ms: deck.position_ms,
     playing: deck.playing,
     speed: deck.speed,
     duration_ms: deck.duration_ms,
@@ -580,6 +588,12 @@ function selectDeckOverview(state: EngineStoreState, deckId: number) {
 
 const selectDeckMixerChannel0 = (state: EngineStoreState) => selectDeckMixerChannel(state, 0);
 const selectDeckMixerChannel1 = (state: EngineStoreState) => selectDeckMixerChannel(state, 1);
+
+const selectDeckLevels0 = (state: EngineStoreState) => selectDeckLevels(state, 0);
+const selectDeckLevels1 = (state: EngineStoreState) => selectDeckLevels(state, 1);
+
+const selectDeckPosition0 = (state: EngineStoreState) => selectDeckPosition(state, 0);
+const selectDeckPosition1 = (state: EngineStoreState) => selectDeckPosition(state, 1);
 
 const selectDeckTransport0 = (state: EngineStoreState) => selectDeckTransport(state, 0);
 const selectDeckTransport1 = (state: EngineStoreState) => selectDeckTransport(state, 1);
@@ -594,6 +608,10 @@ const selectDeckOverview0 = (state: EngineStoreState) => selectDeckOverview(stat
 const selectDeckOverview1 = (state: EngineStoreState) => selectDeckOverview(state, 1);
 
 const DECK_MIXER_CHANNEL_SELECTORS = [selectDeckMixerChannel0, selectDeckMixerChannel1] as const;
+
+const DECK_LEVELS_SELECTORS = [selectDeckLevels0, selectDeckLevels1] as const;
+
+const DECK_POSITION_SELECTORS = [selectDeckPosition0, selectDeckPosition1] as const;
 
 const DECK_TRANSPORT_SELECTORS = [selectDeckTransport0, selectDeckTransport1] as const;
 
@@ -734,6 +752,14 @@ export function useAnyDeckHasTrack(): boolean {
 
 export function useDeckMixerChannel(deckId: number) {
   return useEngineStore(useShallow(deckSelector(deckId, DECK_MIXER_CHANNEL_SELECTORS)));
+}
+
+export function useDeckLevels(deckId: number) {
+  return useEngineStore(useShallow(deckSelector(deckId, DECK_LEVELS_SELECTORS)));
+}
+
+export function useDeckPosition(deckId: number): number {
+  return useEngineStore(deckSelector(deckId, DECK_POSITION_SELECTORS));
 }
 
 export function useDeckTransport(deckId: number) {

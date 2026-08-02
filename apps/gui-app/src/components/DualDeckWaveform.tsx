@@ -1,59 +1,76 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, type RefObject } from "react";
 import { DECK_ACCENTS } from "@/lib/ui";
 import { useWaveformDragScrub } from "@/hooks/useWaveformDragScrub";
 import { useSmoothPlayhead } from "@/hooks/useSmoothPlayhead";
 import {
   engineActions,
   useDeckHasTrack,
+  useDeckPosition,
   useDeckWaveform,
   useEngineRunning,
 } from "@/hooks/useEngine";
 import { useTrack } from "@/hooks/useTrack";
+import type { DeckActiveLoop, DeckEq } from "@/types";
 import { useRenderWaveformLane } from "@/hooks/useRenderWaveformLane";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
 import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
 
-const WaveformLane = memo(function WaveformLane({
+const WaveformPlayheadHost = memo(function WaveformPlayheadHost({
   deckId,
   accent,
+  trackId,
+  path,
+  playing,
+  speed,
+  eq,
+  activeLoop,
+  durationMs,
+  width,
+  height,
+  laneRef,
 }: {
   deckId: number;
   accent: (typeof DECK_ACCENTS)["a"];
+  trackId: string | null;
+  path: string | null;
+  playing: boolean;
+  speed: number;
+  eq: DeckEq;
+  activeLoop: DeckActiveLoop | null;
+  durationMs: number | null;
+  width: number;
+  height: number;
+  laneRef: RefObject<HTMLDivElement | null>;
 }) {
   const engineRunning = useEngineRunning();
-  const deck = useDeckWaveform(deckId);
-  const { track: libraryTrack } = useTrack(deck.track_id);
-  const { ref, size } = useLaneDimensions();
-  const positionMs = deck.position_ms ?? 0;
-  const hasTrack = Boolean(deck.track);
-  const durationMs = deck.duration_ms ?? undefined;
+  const positionMs = useDeckPosition(deckId);
+  const { track: libraryTrack } = useTrack(trackId);
+  const hasTrack = Boolean(path);
+  const duration = durationMs ?? undefined;
 
   const playhead = useSmoothPlayhead({
     positionMs,
-    playing: deck.playing,
-    speed: deck.speed,
-    maxMs: durationMs,
+    playing,
+    speed,
+    maxMs: duration,
   });
 
   const { trackCache, tileRevision, visibleMs } = useRenderWaveformLane({
-    trackId: deck.track_id,
-    path: deck.track,
-    durationMs: deck.duration_ms,
+    trackId,
+    path,
+    durationMs,
     positionMs,
-    playing: deck.playing,
-    speed: deck.speed,
-    eq: deck.eq,
-    width: size.width,
-    height: size.height,
+    playing,
+    speed,
+    eq,
+    width,
+    height,
     getPosition: playhead.getPosition,
     isScrubbing: playhead.isScrubbing,
   });
   const seekEnabled = hasTrack && engineRunning;
-  const safeSpeed =
-    Number.isFinite(deck.speed) && deck.speed > 0 ? Math.min(2, Math.max(0.5, deck.speed)) : 1;
-  // Match RustRenderedLane: viewport ms = width * speed / pxPerMs (long tracks cap density).
-  const viewSpanMs =
-    trackCache && size.width > 0 ? (size.width * safeSpeed) / trackCache.pxPerMs : visibleMs;
+  const safeSpeed = Number.isFinite(speed) && speed > 0 ? Math.min(2, Math.max(0.5, speed)) : 1;
+  const viewSpanMs = trackCache && width > 0 ? (width * safeSpeed) / trackCache.pxPerMs : visibleMs;
 
   const handleSeek = useCallback(
     (ms: number) => {
@@ -67,9 +84,9 @@ const WaveformLane = memo(function WaveformLane({
     mode: "center",
     spanMs: viewSpanMs,
     positionMs,
-    playing: deck.playing,
-    speed: deck.speed,
-    maxMs: durationMs,
+    playing,
+    speed,
+    maxMs: duration,
     onSeek: handleSeek,
     playhead,
   });
@@ -78,21 +95,21 @@ const WaveformLane = memo(function WaveformLane({
 
   return (
     <div
-      ref={ref}
+      ref={laneRef}
       className={`relative min-h-0 flex-1 ${cursorClass}`}
       style={{ touchAction: seekEnabled ? "none" : undefined }}
       {...handlers}
       role={seekEnabled ? "slider" : undefined}
       aria-label={seekEnabled ? `${accent.label} waveform scrub` : undefined}
       aria-valuemin={0}
-      aria-valuemax={deck.duration_ms ?? undefined}
+      aria-valuemax={durationMs ?? undefined}
       aria-valuenow={ariaValueNow}
     >
       <RustRenderedLane
         trackCache={trackCache}
         tileRevision={tileRevision}
-        viewportWidth={size.width}
-        speed={deck.speed}
+        viewportWidth={width}
+        speed={speed}
         motionPos={playhead.motionPos}
         label={accent.label}
         labelClass={accent.text}
@@ -101,9 +118,37 @@ const WaveformLane = memo(function WaveformLane({
         motionPos={playhead.motionPos}
         visibleMs={viewSpanMs}
         hotCues={libraryTrack?.hot_cues ?? []}
-        activeLoop={deck.active_loop}
+        activeLoop={activeLoop}
       />
     </div>
+  );
+});
+
+const WaveformLane = memo(function WaveformLane({
+  deckId,
+  accent,
+}: {
+  deckId: number;
+  accent: (typeof DECK_ACCENTS)["a"];
+}) {
+  const deck = useDeckWaveform(deckId);
+  const { ref, size } = useLaneDimensions();
+
+  return (
+    <WaveformPlayheadHost
+      deckId={deckId}
+      accent={accent}
+      trackId={deck.track_id}
+      path={deck.track}
+      playing={deck.playing}
+      speed={deck.speed}
+      eq={deck.eq}
+      activeLoop={deck.active_loop}
+      durationMs={deck.duration_ms}
+      width={size.width}
+      height={size.height}
+      laneRef={ref}
+    />
   );
 });
 
