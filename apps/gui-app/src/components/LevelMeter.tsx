@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
-import type { DeckLevels, LevelMeterMode } from "@/types";
+import { useDeckLevels } from "@/hooks/useEngine";
+import type { LevelMeterMode } from "@/types";
 
 const SEGMENTS = 12;
 const YELLOW_FROM = 8;
@@ -36,7 +37,9 @@ function Ladder({ peak, hold, className }: { peak: number; hold: number; classNa
   );
 }
 
-export function LevelMeter({ levels, mode }: { levels: DeckLevels; mode: LevelMeterMode }) {
+export function LevelMeter({ deckId, mode }: { deckId: number; mode: LevelMeterMode }) {
+  const levels = useDeckLevels(deckId);
+
   switch (mode) {
     case "mono": {
       const peak = Math.max(levels.peak_l, levels.peak_r);

@@ -1,4 +1,3 @@
-import { memo } from "react";
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -8,7 +7,6 @@ import { DEFAULT_DECK_EQ, type DeckEq, type LevelMeterMode } from "@/types";
 import {
   engineActions,
   useCrossfader,
-  useDeckLevels,
   useDeckMixerChannel,
   useLevelMeterMode,
 } from "@/hooks/useEngine";
@@ -60,7 +58,7 @@ interface DeckEqColumnProps {
   onFilterChange: (filterDb: number) => void;
 }
 
-const DeckEqColumn = memo(function DeckEqColumn({
+function DeckEqColumn({
   accent,
   eq,
   filterDb,
@@ -93,7 +91,7 @@ const DeckEqColumn = memo(function DeckEqColumn({
       />
     </div>
   );
-});
+}
 
 interface DeckVolumeFaderProps {
   channelAccent: DeckAccent;
@@ -107,7 +105,7 @@ interface DeckVolumeFaderProps {
   onCueChange: (cue: boolean) => void;
 }
 
-const DeckVolumeFader = memo(function DeckVolumeFader({
+function DeckVolumeFader({
   channelAccent,
   accent,
   gainDb,
@@ -174,25 +172,18 @@ const DeckVolumeFader = memo(function DeckVolumeFader({
       </button>
     </div>
   );
-});
+}
 
 /** Spacers match GAIN / % / cue so meters align with the volume slider track. */
-const LevelMetersColumn = memo(function LevelMetersColumn({
-  levelMeterMode,
-}: {
-  levelMeterMode: LevelMeterMode;
-}) {
-  const levels0 = useDeckLevels(0);
-  const levels1 = useDeckLevels(1);
-
+function LevelMetersColumn({ levelMeterMode }: { levelMeterMode: LevelMeterMode }) {
   return (
     <div className="flex h-full shrink-0 flex-col items-center gap-1">
       <div className="invisible shrink-0" aria-hidden>
         <MixerKnob label="GAIN" value={0} accent={DECK_ACCENTS.a} onValueChange={() => undefined} />
       </div>
       <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
-        <LevelMeter levels={levels0} mode={levelMeterMode} />
-        <LevelMeter levels={levels1} mode={levelMeterMode} />
+        <LevelMeter deckId={0} mode={levelMeterMode} />
+        <LevelMeter deckId={1} mode={levelMeterMode} />
       </div>
       <span className="invisible w-full shrink-0 text-center text-[9px] tabular-nums" aria-hidden>
         100%
@@ -200,7 +191,7 @@ const LevelMetersColumn = memo(function LevelMetersColumn({
       <div className="invisible size-7 shrink-0" aria-hidden />
     </div>
   );
-});
+}
 
 function Crossfader({
   position,
@@ -246,7 +237,7 @@ function Crossfader({
   );
 }
 
-const MixerEqColumn = memo(function MixerEqColumn({
+function MixerEqColumn({
   deckId,
   accent,
 }: {
@@ -267,9 +258,9 @@ const MixerEqColumn = memo(function MixerEqColumn({
       }}
     />
   );
-});
+}
 
-const MixerVolumeColumn = memo(function MixerVolumeColumn({
+function MixerVolumeColumn({
   deckId,
   channelAccent,
   accent,
@@ -297,7 +288,7 @@ const MixerVolumeColumn = memo(function MixerVolumeColumn({
       }}
     />
   );
-});
+}
 
 export function DeckMixer() {
   const crossfader = useCrossfader();

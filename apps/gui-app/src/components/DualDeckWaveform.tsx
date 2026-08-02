@@ -15,7 +15,7 @@ import { useRenderWaveformLane } from "@/hooks/useRenderWaveformLane";
 import { RustRenderedLane, useLaneDimensions } from "./RustRenderedLane";
 import { WaveformWindowMarkersMotion } from "./WaveformWindowMarkersMotion";
 
-const WaveformPlayheadHost = memo(function WaveformPlayheadHost({
+function WaveformPlayheadHost({
   deckId,
   accent,
   trackId,
@@ -122,7 +122,7 @@ const WaveformPlayheadHost = memo(function WaveformPlayheadHost({
       />
     </div>
   );
-});
+}
 
 const WaveformLane = memo(function WaveformLane({
   deckId,

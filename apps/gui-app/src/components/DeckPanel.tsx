@@ -34,22 +34,16 @@ interface DeckPanelProps {
   accentKey: DeckAccent;
 }
 
-const DeckRemainingTime = memo(function DeckRemainingTime({
-  deckId,
-  durationMs,
-}: {
-  deckId: number;
-  durationMs: number | null;
-}) {
+function DeckRemainingTime({ deckId, durationMs }: { deckId: number; durationMs: number | null }) {
   const positionMs = useDeckPosition(deckId);
   return (
     <span className="text-sm font-semibold text-zinc-100 sm:text-base">
       {formatDeckRemainingDisplay(positionMs, durationMs)}
     </span>
   );
-});
+}
 
-const DeckOverviewPlayhead = memo(function DeckOverviewPlayhead({
+function DeckOverviewPlayhead({
   deckId,
   trackId,
   path,
@@ -84,7 +78,7 @@ const DeckOverviewPlayhead = memo(function DeckOverviewPlayhead({
       }}
     />
   );
-});
+}
 
 const DeckOverviewSection = memo(function DeckOverviewSection({
   deckId,
@@ -116,7 +110,7 @@ const DeckOverviewSection = memo(function DeckOverviewSection({
   );
 });
 
-const DeckJog = memo(function DeckJog({
+function DeckJog({
   deckId,
   accentKey,
   bpm,
@@ -154,7 +148,7 @@ const DeckJog = memo(function DeckJog({
       }}
     />
   );
-});
+}
 
 const DeckPerformanceSection = memo(function DeckPerformanceSection({
   deckId,
