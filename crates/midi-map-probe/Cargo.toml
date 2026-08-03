@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 license = "GPL-3.0"
-description = "Standalone MIDI→mapping probe (midir only; not a workspace member)"
+description = "Standalone MIDI→mapping probe (midir only; excluded from workspace)"
+
+# Virtual workspace root so this package is not pulled into crates/Cargo.toml members.
+[workspace]
 
 [[bin]]
 name = "midi-map-probe"

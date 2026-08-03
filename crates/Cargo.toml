@@ -19,6 +19,8 @@ members = [
     "app-example",
     "controller",
 ]
+# Standalone midir probe — must stay excluded (alsa-sys vs cpal).
+exclude = ["midi-map-probe"]
 resolver = "2"
 
 [workspace.package]
