@@ -1,0 +1,16 @@
+[package]
+name = "midi-map-probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0"
+description = "Standalone MIDI→mapping probe (midir only; not a workspace member)"
+
+[[bin]]
+name = "midi-map-probe"
+path = "src/main.rs"
+
+[dependencies]
+controller = { path = "../controller" }
+engine-api = { path = "../engine-api" }
+midir = "0.10"

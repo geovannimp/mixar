@@ -5,6 +5,8 @@
 schema_version = 1
 id = "pioneer.ddj-400"
 name = "Pioneer DDJ-400"
+usb_vid = 0x2b73
+usb_pid = 0x0026
 midi_name_contains = ["DDJ-400"]
 
 [audio]
@@ -157,5 +159,5 @@ crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
 cue_mix = { type = "cc14", channel = 7, cc = { msb = 0x0C, lsb = 0x2C } }
 
 [custom]
-shift = { type = "note", channel = 1, note = 0x3F }
+shift_deck1 = { type = "note", channel = 1, note = 0x3F }
 shift_deck2 = { type = "note", channel = 2, note = 0x3F }
