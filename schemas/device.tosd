@@ -70,7 +70,9 @@ type = "table"
 # auto_loop, beat_jump_fwd, beat_jump_back, pad_mode_*
 
 # MIDI endpoint shape:
-# type = "note" | "cc"
+# type = "note" | "cc" | "cc14"
 # channel = 1..=16
-# note or cc = 0..=127
+# note = 0..=127
+# cc = 0..=127                    # when type = "cc"
+# cc = { msb = …, lsb = … }       # when type = "cc14"
 # optional velocity / value / direction = "in" | "out" | "inout"

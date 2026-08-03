@@ -111,7 +111,11 @@ crossfader = { type = "cc", channel = 1, cc = 0x1F }
 shift = { type = "note", channel = 1, note = 0x3F }
 ```
 
-**MIDI message table (v1):** `type` = `note` | `cc` (pitch-bend / 14-bit / sysex can extend later). Include `channel` and `note` or `cc`; optional `velocity` / `value` for defaults on output. Optional `direction` = `in` | `out` | `inout` (default `inout`). **Input matching** only considers aliases with `in` or `inout`. Shared note/CC across an input alias and an `out`-only LED alias is normal and allowed.
+**MIDI message table (v1):** `type` = `note` | `cc` | `cc14`. Include `channel` and:
+- `note` for notes
+- `cc = <u8>` for 7-bit CC
+- `cc = { msb = …, lsb = … }` for 14-bit CC (session pairs both bytes → one 0…1 value)
+Optional `velocity` / `value` for defaults on output. Optional `direction` = `in` | `out` | `inout` (default `inout`). **Input matching** only considers aliases with `in` or `inout`. Shared note/CC across an input alias and an `out`-only LED alias is normal and allowed. `cc14` registers both MSB and LSB as input identities for the same alias.
 
 **Autoload:** on port connect, match `usb_vid`/`usb_pid` and/or `midi_name_contains` → load bundle → `on_init` → enable map. Pinning an alternate map for the same device is settings work after v1.
 

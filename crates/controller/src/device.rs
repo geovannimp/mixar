@@ -93,12 +93,13 @@ impl DeviceFile {
                     // device.toml but cannot be used as [inputs.*] keys (checked in map).
                 }
                 if ep.direction.allows_input() {
-                    let key = ep.match_key();
                     let path = format!("{section}.{alias}");
-                    if let Some(prev) = input_keys.insert(key, path.clone()) {
-                        return Err(LoadError::Validation(format!(
-                            "input MIDI clash: `{prev}` and `{path}` share the same type/channel/note|cc"
-                        )));
+                    for key in ep.match_keys() {
+                        if let Some(prev) = input_keys.insert(key, path.clone()) {
+                            return Err(LoadError::Validation(format!(
+                                "input MIDI clash: `{prev}` and `{path}` share the same type/channel/note|cc"
+                            )));
+                        }
                     }
                 }
             }
@@ -123,7 +124,7 @@ impl DeviceFile {
     pub fn find_input_match(&self, key: MatchKey) -> Option<(&str, &str, &MidiEndpoint)> {
         for (section, aliases) in &self.sections {
             for (alias, ep) in aliases {
-                if ep.direction.allows_input() && ep.match_key() == key {
+                if ep.direction.allows_input() && ep.match_keys().contains(&key) {
                     return Some((section.as_str(), alias.as_str(), ep));
                 }
             }

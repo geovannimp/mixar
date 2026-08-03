@@ -1,0 +1,4 @@
+schema_version = 1
+
+[inputs.deck_1]
+volume = { action = "set_volume", soft_takeover = false }

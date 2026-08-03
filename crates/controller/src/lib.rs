@@ -24,7 +24,7 @@ pub use map_file::{
     InputBinding, MapFile, OutputBinding, OutputTarget, RawBinding, SoftTakeoverDefault,
 };
 pub use midi::{
-    match_device, parse_short, Direction, MidiEndpoint, MidiIdentity, MidiMsgType, ParsedMidi,
-    ShortMsg,
+    match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint, MidiIdentity,
+    MidiMsgType, ParsedMidi, ShortMsg,
 };
 pub use session::{BusPublish, MappingSession, MidiOut, MidiPort};

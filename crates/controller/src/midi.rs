@@ -1,4 +1,4 @@
-//! Short MIDI message parse (note / CC, v1).
+//! Short MIDI message parse (note / CC / CC14).
 
 use serde::{Deserialize, Serialize};
 
@@ -27,6 +27,15 @@ impl Direction {
 pub enum MidiMsgType {
     Note,
     Cc,
+    Cc14,
+}
+
+/// 7-bit CC number or 14-bit MSB/LSB pair under `cc = …`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CcField {
+    SevenBit(u8),
+    FourteenBit { msb: u8, lsb: u8 },
 }
 
 /// Device alias MIDI endpoint.
@@ -38,7 +47,7 @@ pub struct MidiEndpoint {
     #[serde(default)]
     pub note: Option<u8>,
     #[serde(default)]
-    pub cc: Option<u8>,
+    pub cc: Option<CcField>,
     #[serde(default)]
     pub velocity: Option<u8>,
     #[serde(default)]
@@ -61,16 +70,49 @@ impl MidiEndpoint {
                     return Err(format!("{path}: note message requires `note`"));
                 }
             }
-            MidiMsgType::Cc => {
-                if self.cc.is_none() {
-                    return Err(format!("{path}: cc message requires `cc`"));
+            MidiMsgType::Cc => match &self.cc {
+                Some(CcField::SevenBit(_)) => {}
+                Some(CcField::FourteenBit { .. }) => {
+                    return Err(format!(
+                        "{path}: type=cc expects `cc = <u8>`; use type=cc14 for msb/lsb"
+                    ));
                 }
-            }
+                None => return Err(format!("{path}: cc message requires `cc`")),
+            },
+            MidiMsgType::Cc14 => match &self.cc {
+                Some(CcField::FourteenBit { msb, lsb }) => {
+                    if msb == lsb {
+                        return Err(format!("{path}: cc14 msb and lsb must differ"));
+                    }
+                }
+                Some(CcField::SevenBit(_)) => {
+                    return Err(format!(
+                        "{path}: type=cc14 expects `cc = {{ msb = …, lsb = … }}`"
+                    ));
+                }
+                None => {
+                    return Err(format!(
+                        "{path}: cc14 requires `cc = {{ msb = …, lsb = … }}`"
+                    ));
+                }
+            },
         }
         Ok(())
     }
 
+    pub fn cc14_pair(&self) -> Option<(u8, u8)> {
+        match (&self.msg_type, &self.cc) {
+            (MidiMsgType::Cc14, Some(CcField::FourteenBit { msb, lsb })) => Some((*msb, *lsb)),
+            _ => None,
+        }
+    }
+
+    pub fn is_cc14(&self) -> bool {
+        self.msg_type == MidiMsgType::Cc14
+    }
+
     /// Encode as 3-byte short MIDI (status + data1 + data2).
+    /// For `cc14`, sends the MSB CC (outputs are 7-bit on/off style).
     pub fn to_bytes(&self, data2_override: Option<u8>) -> [u8; 3] {
         let ch = self.channel.saturating_sub(1) & 0x0F;
         match self.msg_type {
@@ -80,22 +122,53 @@ impl MidiEndpoint {
                 [0x90 | ch, note & 0x7F, vel & 0x7F]
             }
             MidiMsgType::Cc => {
-                let cc = self.cc.unwrap_or(0);
+                let cc = match &self.cc {
+                    Some(CcField::SevenBit(n)) => *n,
+                    _ => 0,
+                };
                 let val = data2_override.or(self.value).unwrap_or(0x7F);
                 [0xB0 | ch, cc & 0x7F, val & 0x7F]
+            }
+            MidiMsgType::Cc14 => {
+                let msb = match &self.cc {
+                    Some(CcField::FourteenBit { msb, .. }) => *msb,
+                    _ => 0,
+                };
+                let val = data2_override.or(self.value).unwrap_or(0x7F);
+                [0xB0 | ch, msb & 0x7F, val & 0x7F]
             }
         }
     }
 
-    pub fn match_key(&self) -> MatchKey {
+    /// All MIDI identities this endpoint claims (one for note/cc, two for cc14).
+    pub fn match_keys(&self) -> Vec<MatchKey> {
         match self.msg_type {
-            MidiMsgType::Note => MatchKey::Note {
+            MidiMsgType::Note => vec![MatchKey::Note {
                 channel: self.channel,
                 note: self.note.unwrap_or(0),
-            },
-            MidiMsgType::Cc => MatchKey::Cc {
-                channel: self.channel,
-                cc: self.cc.unwrap_or(0),
+            }],
+            MidiMsgType::Cc => {
+                let cc = match &self.cc {
+                    Some(CcField::SevenBit(n)) => *n,
+                    _ => 0,
+                };
+                vec![MatchKey::Cc {
+                    channel: self.channel,
+                    cc,
+                }]
+            }
+            MidiMsgType::Cc14 => match &self.cc {
+                Some(CcField::FourteenBit { msb, lsb }) => vec![
+                    MatchKey::Cc {
+                        channel: self.channel,
+                        cc: *msb,
+                    },
+                    MatchKey::Cc {
+                        channel: self.channel,
+                        cc: *lsb,
+                    },
+                ],
+                _ => Vec::new(),
             },
         }
     }
@@ -118,7 +191,8 @@ pub enum ShortMsg {
 pub struct ParsedMidi {
     pub msg: ShortMsg,
     pub match_key: MatchKey,
-    /// Normalized 0..1 from velocity/value (note-off → 0).
+    /// Normalized 0..1 from velocity/value (note-off → 0). 7-bit CC only;
+    /// session replaces this for cc14 after pairing.
     pub norm: f32,
     /// True for note-on with vel>0 or CC; false for note-off / note-on vel0.
     pub active: bool,
@@ -197,6 +271,12 @@ pub fn parse_short(bytes: &[u8]) -> Option<ParsedMidi> {
     }
 }
 
+/// Combine 14-bit MIDI into 0..1.
+pub fn norm_from_cc14(msb: u8, lsb: u8) -> f32 {
+    let v = (u16::from(msb & 0x7F) << 7) | u16::from(lsb & 0x7F);
+    v as f32 / 16383.0
+}
+
 /// USB / name identity for autoload matching.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MidiIdentity {
@@ -253,5 +333,27 @@ mod tests {
     fn note_on_vel0_is_off() {
         let n = parse_short(&[0x90, 0x0B, 0x00]).unwrap();
         assert!(!n.active);
+    }
+
+    #[test]
+    fn cc14_endpoint_parses_and_lists_both_keys() {
+        let toml = r#"
+            type = "cc14"
+            channel = 1
+            cc = { msb = 0x13, lsb = 0x33 }
+        "#;
+        let ep: MidiEndpoint = toml::from_str(toml).unwrap();
+        ep.validate("volume").unwrap();
+        let keys = ep.match_keys();
+        assert_eq!(keys.len(), 2);
+        assert!(keys.contains(&MatchKey::Cc {
+            channel: 1,
+            cc: 0x13
+        }));
+        assert!(keys.contains(&MatchKey::Cc {
+            channel: 1,
+            cc: 0x33
+        }));
+        assert!((norm_from_cc14(0x40, 0x00) - (0x40u16 << 7) as f32 / 16383.0).abs() < 1e-6);
     }
 }

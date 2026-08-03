@@ -1,5 +1,5 @@
 # Pioneer DDJ-400 device definition.
-# MIDI from Mixxx Pioneer-DDJ-400.midi.xml (7-bit MSB CCs; 14-bit LSB ignored in v1).
+# MIDI from Mixxx Pioneer-DDJ-400.midi.xml (cc14 for absolute faders/knobs; jog_side = outer ring).
 # Ref: https://github.com/mixxxdj/mixxx/blob/main/res/controllers/Pioneer-DDJ-400.midi.xml
 
 schema_version = 1
@@ -17,17 +17,18 @@ sync = { type = "note", channel = 1, note = 0x58 }
 quantize = { type = "note", channel = 1, note = 0x68 }
 headphone_cue = { type = "note", channel = 1, note = 0x54 }
 
-volume = { type = "cc", channel = 1, cc = 0x13 }
-gain = { type = "cc", channel = 1, cc = 0x04 }
-tempo = { type = "cc", channel = 1, cc = 0x00 }
-eq_high = { type = "cc", channel = 1, cc = 0x07 }
-eq_mid = { type = "cc", channel = 1, cc = 0x0B }
-eq_low = { type = "cc", channel = 1, cc = 0x0F }
-filter = { type = "cc", channel = 7, cc = 0x17 }
+volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
+gain = { type = "cc14", channel = 1, cc = { msb = 0x04, lsb = 0x24 } }
+tempo = { type = "cc14", channel = 1, cc = { msb = 0x00, lsb = 0x20 } }
+eq_high = { type = "cc14", channel = 1, cc = { msb = 0x07, lsb = 0x27 } }
+eq_mid = { type = "cc14", channel = 1, cc = { msb = 0x0B, lsb = 0x2B } }
+eq_low = { type = "cc14", channel = 1, cc = { msb = 0x0F, lsb = 0x2F } }
+filter = { type = "cc14", channel = 7, cc = { msb = 0x17, lsb = 0x37 } }
 
 jog_touch = { type = "note", channel = 1, note = 0x36 }
 jog_touch_shift = { type = "note", channel = 1, note = 0x67 }
 jog_turn = { type = "cc", channel = 1, cc = 0x22 }
+jog_side = { type = "cc", channel = 1, cc = 0x21 }
 jog_search = { type = "cc", channel = 1, cc = 0x29 }
 
 loop_in = { type = "note", channel = 1, note = 0x10 }
@@ -87,17 +88,18 @@ sync = { type = "note", channel = 2, note = 0x58 }
 quantize = { type = "note", channel = 2, note = 0x68 }
 headphone_cue = { type = "note", channel = 2, note = 0x54 }
 
-volume = { type = "cc", channel = 2, cc = 0x13 }
-gain = { type = "cc", channel = 2, cc = 0x04 }
-tempo = { type = "cc", channel = 2, cc = 0x00 }
-eq_high = { type = "cc", channel = 2, cc = 0x07 }
-eq_mid = { type = "cc", channel = 2, cc = 0x0B }
-eq_low = { type = "cc", channel = 2, cc = 0x0F }
-filter = { type = "cc", channel = 7, cc = 0x18 }
+volume = { type = "cc14", channel = 2, cc = { msb = 0x13, lsb = 0x33 } }
+gain = { type = "cc14", channel = 2, cc = { msb = 0x04, lsb = 0x24 } }
+tempo = { type = "cc14", channel = 2, cc = { msb = 0x00, lsb = 0x20 } }
+eq_high = { type = "cc14", channel = 2, cc = { msb = 0x07, lsb = 0x27 } }
+eq_mid = { type = "cc14", channel = 2, cc = { msb = 0x0B, lsb = 0x2B } }
+eq_low = { type = "cc14", channel = 2, cc = { msb = 0x0F, lsb = 0x2F } }
+filter = { type = "cc14", channel = 7, cc = { msb = 0x18, lsb = 0x38 } }
 
 jog_touch = { type = "note", channel = 2, note = 0x36 }
 jog_touch_shift = { type = "note", channel = 2, note = 0x67 }
 jog_turn = { type = "cc", channel = 2, cc = 0x22 }
+jog_side = { type = "cc", channel = 2, cc = 0x21 }
 jog_search = { type = "cc", channel = 2, cc = 0x29 }
 
 loop_in = { type = "note", channel = 2, note = 0x10 }
@@ -151,8 +153,8 @@ hot_cue_7_led = { type = "note", channel = 10, note = 0x06, velocity = 0x7F, dir
 hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, direction = "out" }
 
 [master]
-crossfader = { type = "cc", channel = 7, cc = 0x1F }
-cue_mix = { type = "cc", channel = 7, cc = 0x0C }
+crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
+cue_mix = { type = "cc14", channel = 7, cc = { msb = 0x0C, lsb = 0x2C } }
 
 [custom]
 shift = { type = "note", channel = 1, note = 0x3F }

@@ -1,0 +1,7 @@
+schema_version = 1
+id = "test.cc14"
+name = "CC14 fixture"
+midi_name_contains = ["cc14"]
+
+[deck_1]
+volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }

@@ -10,7 +10,7 @@ use crate::bundle::Bundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
 use crate::map_file::{InputBinding, OutputTarget};
-use crate::midi::{parse_short, MidiEndpoint, ShortMsg};
+use crate::midi::{norm_from_cc14, parse_short, MidiEndpoint, ShortMsg};
 use crate::script::{ScriptHost, ScriptRuntime};
 
 pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
@@ -44,6 +44,8 @@ pub struct MappingSession {
     soft_latched: HashSet<String>,
     /// Last CC publish time per "section.alias".
     cc_last: HashMap<String, Instant>,
+    /// 14-bit CC pair state: "section.alias" → (msb, lsb).
+    cc14_state: HashMap<String, (Option<u8>, Option<u8>)>,
     /// Last edge state for notes: "section.alias" → active.
     note_state: HashMap<String, bool>,
     /// Output signal cache: "section.alias" → active.
@@ -63,6 +65,7 @@ impl MappingSession {
             modifiers: HashSet::new(),
             soft_latched: HashSet::new(),
             cc_last: HashMap::new(),
+            cc14_state: HashMap::new(),
             note_state: HashMap::new(),
             output_state: HashMap::new(),
             script,
@@ -136,10 +139,13 @@ impl MappingSession {
         let Some(parsed) = parse_short(bytes) else {
             return;
         };
-        let Some((section, alias, _ep)) = self.bundle.device.find_input_match(parsed.match_key)
+        let Some((section, alias, ep)) = self.bundle.device.find_input_match(parsed.match_key)
         else {
             return;
         };
+        // Clone endpoint fields we need after borrow ends.
+        let is_cc14 = ep.is_cc14();
+        let cc14_pair = ep.cc14_pair();
         let section = section.to_string();
         let alias = alias.to_string();
         let key = format!("{section}.{alias}");
@@ -155,8 +161,31 @@ impl MappingSession {
             return;
         }
 
-        // Edge for notes: only process transitions for button-like msgs.
+        // Resolve normalized value (cc14 pairs MSB+LSB).
+        let mut norm = parsed.norm;
         let is_cc = matches!(parsed.msg, ShortMsg::Cc { .. });
+        if is_cc14 {
+            let ShortMsg::Cc { cc, value, .. } = parsed.msg else {
+                return;
+            };
+            let Some((msb_cc, lsb_cc)) = cc14_pair else {
+                return;
+            };
+            let entry = self.cc14_state.entry(key.clone()).or_insert((None, None));
+            if cc == msb_cc {
+                entry.0 = Some(value);
+            } else if cc == lsb_cc {
+                entry.1 = Some(value);
+            } else {
+                return;
+            }
+            let (Some(msb), Some(lsb)) = *entry else {
+                return; // wait until both bytes seen
+            };
+            norm = norm_from_cc14(msb, lsb);
+        }
+
+        // Edge for notes: only process transitions for button-like msgs.
         if !is_cc {
             let prev = self.note_state.get(&key).copied().unwrap_or(false);
             if prev == parsed.active {
@@ -196,7 +225,7 @@ impl MappingSession {
                     snapshot: &self.snapshot,
                     modifiers: &self.modifiers,
                 };
-                let _ = script.call_named(script_fn, &mut host, parsed.norm, parsed.active);
+                let _ = script.call_named(script_fn, &mut host, norm, parsed.active);
             }
             return;
         }
@@ -213,7 +242,7 @@ impl MappingSession {
             if let Some(engine_v) = self.snapshot.get_norm_for_action(origin.clone(), action) {
                 let latched = self.soft_latched.contains(&key);
                 if !latched {
-                    let dist = (parsed.norm - engine_v).abs();
+                    let dist = (norm - engine_v).abs();
                     if dist > SOFT_TAKEOVER_THRESHOLD {
                         return;
                     }
@@ -223,7 +252,7 @@ impl MappingSession {
         }
 
         if let Some((o, kind, body)) =
-            resolve_action(action, origin, parsed.norm, parsed.active, &self.snapshot)
+            resolve_action(action, origin, norm, parsed.active, &self.snapshot)
         {
             if is_cc {
                 self.cc_last.insert(key.clone(), Instant::now());

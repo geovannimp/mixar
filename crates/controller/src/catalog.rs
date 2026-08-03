@@ -18,6 +18,7 @@ const DECK_ALIASES: &[&str] = &[
     "filter",
     "jog_touch",
     "jog_turn",
+    "jog_side",
     "jog_touch_shift",
     "jog_search",
     "headphone_cue",
