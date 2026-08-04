@@ -71,6 +71,8 @@ export function LibraryPanel() {
   const { tracks } = useCollectionTracks(selectedCollectionId);
   const { analyse } = useTrack(null);
   const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
+  const focusedTrackRowIndex = useLibraryStore((state) => state.focusedTrackRowIndex);
+  const setTrackFocusRowCount = useLibraryStore((state) => state.setTrackFocusRowCount);
 
   const collectionIdsKey = collections.map((collection) => collection.id).join("\0");
 
@@ -296,6 +298,8 @@ export function LibraryPanel() {
               engineRunning={engineRunning}
               busy={panelBusy}
               analyzingTrackId={analyzingTrackId}
+              focusedRowIndex={focusedTrackRowIndex}
+              onVisibleRowCountChange={setTrackFocusRowCount}
               onLoadToDeck={handleLoadRow}
               onAnalyze={handleAnalyze}
             />

@@ -93,6 +93,13 @@ function toSavedLoop(loop: WireSavedLoop): DeckSavedLoop {
   };
 }
 
+function navigateIndex(current: number, count: number, delta: 1 | -1): number {
+  if (count <= 0) {
+    return 0;
+  }
+  return Math.min(count - 1, Math.max(0, current + delta));
+}
+
 export function toTrackSummaryView(track: LibraryTrack): TrackSummary {
   return {
     id: track.id,
@@ -117,6 +124,13 @@ type LibraryState = {
   analyzingTrackId: string | null;
   /** Last track id that finished analyze (for UI side effects). */
   lastAnalyzedTrackId: string | null;
+  /** Focused row in the visible track table (MIDI library nav). */
+  focusedTrackRowIndex: number;
+  /** Visible row count for clamp; panel updates when table rows change. */
+  trackFocusRowCount: number;
+
+  setTrackFocusRowCount: (count: number) => void;
+  navigateTrackFocus: (delta: 1 | -1) => void;
 
   refreshCollections: () => Promise<void>;
   loadCollectionTracks: (collectionId: string) => Promise<void>;
@@ -129,12 +143,39 @@ type LibrarySet = (
 ) => void;
 
 function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
+  let wire;
   let body;
   try {
-    body = decodeEvtBody(decodeWire(bytes).body);
+    wire = decodeWire(bytes);
+    body = decodeEvtBody(wire.body);
   } catch {
     return;
   }
+
+  if (wire.origin === "library_navigation") {
+    if (wire.kind === "navigate_next") {
+      set((state) => ({
+        focusedTrackRowIndex: navigateIndex(
+          state.focusedTrackRowIndex,
+          state.trackFocusRowCount,
+          1,
+        ),
+      }));
+      return;
+    }
+    if (wire.kind === "navigate_prev") {
+      set((state) => ({
+        focusedTrackRowIndex: navigateIndex(
+          state.focusedTrackRowIndex,
+          state.trackFocusRowCount,
+          -1,
+        ),
+      }));
+      return;
+    }
+    return;
+  }
+
   switch (body.type) {
     case "track_analyzed":
     case "track_updated": {
@@ -245,6 +286,26 @@ export const useLibraryStore = create<LibraryState>()(
     busy: false,
     analyzingTrackId: null,
     lastAnalyzedTrackId: null,
+    focusedTrackRowIndex: 0,
+    trackFocusRowCount: 0,
+
+    setTrackFocusRowCount: (count) => {
+      set((state) => ({
+        trackFocusRowCount: Math.max(0, count),
+        focusedTrackRowIndex:
+          count <= 0 ? 0 : Math.min(state.focusedTrackRowIndex, Math.max(0, count - 1)),
+      }));
+    },
+
+    navigateTrackFocus: (delta) => {
+      set((state) => ({
+        focusedTrackRowIndex: navigateIndex(
+          state.focusedTrackRowIndex,
+          state.trackFocusRowCount,
+          delta,
+        ),
+      }));
+    },
 
     refreshCollections: async () => {
       const next = await transport.listCollections();

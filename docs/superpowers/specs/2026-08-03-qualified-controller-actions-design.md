@@ -1,7 +1,7 @@
 # Qualified Controller Actions + Library Navigation Design
 
 **Date:** 2026-08-03  
-**Status:** draft  
+**Status:** accepted  
 **Branch context:** `feat/controller-mapping`  
 **Related:** [engine event bus](./2026-07-26-engine-event-bus-design.md), [library event bus](./2026-07-31-library-event-bus-design.md)
 
@@ -169,12 +169,12 @@ Library bus design: hosts never observe cmds. Navigation is a signal **to** the 
 
 ## Acceptance
 
-- [ ] Map actions use `OriginTemplate::leaf`; short names gone from catalog + fixtures
-- [ ] `Deck(_)` binds from section; `Deck(n)` absolute
-- [ ] Engine mappings still publish engine cmds with correct bodies (incl. toggles / soft-takeover)
-- [ ] `LibraryNavigation::navigate_*` publishes library **evt**; FE can move selection
-- [ ] Library worker unchanged for nav; no `LibraryManager` calls
-- [ ] Wire remains typed enums (no string kinds on the bus)
+- [x] Map actions use `OriginTemplate::leaf`; short names gone from catalog + fixtures
+- [x] `Deck(_)` binds from section; `Deck(n)` absolute
+- [x] Engine mappings still publish engine cmds with correct bodies (incl. toggles / soft-takeover)
+- [x] `LibraryNavigation::navigate_*` publishes library **evt**; FE can move selection
+- [x] Library worker unchanged for nav; no `LibraryManager` calls
+- [x] Wire remains typed enums (no string kinds on the bus)
 
 ## Non-goals / deferred
 

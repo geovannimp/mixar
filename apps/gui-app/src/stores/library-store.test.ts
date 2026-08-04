@@ -59,4 +59,23 @@ describe("libraryStore", () => {
       { slot: 1, position_ms: 500, loop_length_beats: null, color: null, label: null },
     ]);
   });
+
+  it("navigate_next advances focusedTrackRowIndex", () => {
+    useLibraryStore.setState({
+      focusedTrackRowIndex: 0,
+      trackFocusRowCount: 3,
+    });
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "navigate_next",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "empty" }),
+      }),
+    );
+
+    expect(useLibraryStore.getState().focusedTrackRowIndex).toBe(1);
+  });
 });
