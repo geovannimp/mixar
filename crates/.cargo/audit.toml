@@ -1,4 +1,5 @@
-# cargo-audit config (run from `crates/`).
+# cargo-audit config for the crates workspace (`cargo audit` cwd = crates/).
+# Path must be crates/.cargo/audit.toml (not crates/audit.toml).
 # Prefer bumping deps; ignore only when a clean bump is not feasible yet.
 
 [advisories]
