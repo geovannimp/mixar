@@ -5,112 +5,112 @@
 schema_version = 1
 
 [inputs.deck_1]
-play_pause = "toggle_play"
-cue = "cue_default"
-sync = "toggle_sync"
-quantize = "set_quantize"
-headphone_cue = "set_headphone_cue"
-volume = { action = "set_volume", soft_takeover = true }
-gain = { action = "set_gain", soft_takeover = true }
-tempo = { action = "set_speed", soft_takeover = true }
-eq_high = { action = "set_eq_high", soft_takeover = true }
-eq_mid = { action = "set_eq_mid", soft_takeover = true }
-eq_low = { action = "set_eq_low", soft_takeover = true }
-filter = { action = "set_filter", soft_takeover = true }
-jog_touch = "jog_touch"
-jog_touch_shift = "jog_touch"
-jog_turn = "jog_turn"
-jog_side = "jog_turn"
-jog_search = "jog_turn"
-loop_in = "loop_in"
-loop_out = "loop_out"
-exit_loop = "exit_loop"
-hot_cue_1 = "trigger_hot_cue_1"
-hot_cue_2 = "trigger_hot_cue_2"
-hot_cue_3 = "trigger_hot_cue_3"
-hot_cue_4 = "trigger_hot_cue_4"
-hot_cue_5 = "trigger_hot_cue_5"
-hot_cue_6 = "trigger_hot_cue_6"
-hot_cue_7 = "trigger_hot_cue_7"
-hot_cue_8 = "trigger_hot_cue_8"
-delete_hot_cue_1 = "delete_hot_cue_1"
-delete_hot_cue_2 = "delete_hot_cue_2"
-delete_hot_cue_3 = "delete_hot_cue_3"
-delete_hot_cue_4 = "delete_hot_cue_4"
-delete_hot_cue_5 = "delete_hot_cue_5"
-delete_hot_cue_6 = "delete_hot_cue_6"
-delete_hot_cue_7 = "delete_hot_cue_7"
-delete_hot_cue_8 = "delete_hot_cue_8"
-auto_loop_1 = "auto_loop_1"
-auto_loop_2 = "auto_loop_2"
-auto_loop_4 = "auto_loop_4"
-auto_loop_8 = "auto_loop_8"
-auto_loop_16 = "auto_loop_16"
-auto_loop_32 = "auto_loop_32"
-beat_jump_back_1 = "beat_jump_back_1"
-beat_jump_fwd_1 = "beat_jump_fwd_1"
-beat_jump_back_2 = "beat_jump_back_2"
-beat_jump_fwd_2 = "beat_jump_fwd_2"
-beat_jump_back_4 = "beat_jump_back_4"
-beat_jump_fwd_4 = "beat_jump_fwd_4"
-beat_jump_back_8 = "beat_jump_back_8"
-beat_jump_fwd_8 = "beat_jump_fwd_8"
+play_pause = "Deck(_)::toggle_play"
+cue = "Deck(_)::cue_default"
+sync = "Deck(_)::toggle_sync"
+quantize = "Deck(_)::set_quantize"
+headphone_cue = "Deck(_)::set_headphone_cue"
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+gain = { action = "Deck(_)::set_gain", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
+eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
+eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }
+filter = { action = "Deck(_)::set_filter", soft_takeover = true }
+jog_touch = "Deck(_)::jog_touch"
+jog_touch_shift = "Deck(_)::jog_touch"
+jog_turn = "Deck(_)::jog_turn"
+jog_side = "Deck(_)::jog_turn"
+jog_search = "Deck(_)::jog_turn"
+loop_in = "Deck(_)::loop_in"
+loop_out = "Deck(_)::loop_out"
+exit_loop = "Deck(_)::exit_loop"
+hot_cue_1 = "Deck(_)::trigger_hot_cue_1"
+hot_cue_2 = "Deck(_)::trigger_hot_cue_2"
+hot_cue_3 = "Deck(_)::trigger_hot_cue_3"
+hot_cue_4 = "Deck(_)::trigger_hot_cue_4"
+hot_cue_5 = "Deck(_)::trigger_hot_cue_5"
+hot_cue_6 = "Deck(_)::trigger_hot_cue_6"
+hot_cue_7 = "Deck(_)::trigger_hot_cue_7"
+hot_cue_8 = "Deck(_)::trigger_hot_cue_8"
+delete_hot_cue_1 = "Deck(_)::delete_hot_cue_1"
+delete_hot_cue_2 = "Deck(_)::delete_hot_cue_2"
+delete_hot_cue_3 = "Deck(_)::delete_hot_cue_3"
+delete_hot_cue_4 = "Deck(_)::delete_hot_cue_4"
+delete_hot_cue_5 = "Deck(_)::delete_hot_cue_5"
+delete_hot_cue_6 = "Deck(_)::delete_hot_cue_6"
+delete_hot_cue_7 = "Deck(_)::delete_hot_cue_7"
+delete_hot_cue_8 = "Deck(_)::delete_hot_cue_8"
+auto_loop_1 = "Deck(_)::auto_loop_1"
+auto_loop_2 = "Deck(_)::auto_loop_2"
+auto_loop_4 = "Deck(_)::auto_loop_4"
+auto_loop_8 = "Deck(_)::auto_loop_8"
+auto_loop_16 = "Deck(_)::auto_loop_16"
+auto_loop_32 = "Deck(_)::auto_loop_32"
+beat_jump_back_1 = "Deck(_)::beat_jump_back_1"
+beat_jump_fwd_1 = "Deck(_)::beat_jump_fwd_1"
+beat_jump_back_2 = "Deck(_)::beat_jump_back_2"
+beat_jump_fwd_2 = "Deck(_)::beat_jump_fwd_2"
+beat_jump_back_4 = "Deck(_)::beat_jump_back_4"
+beat_jump_fwd_4 = "Deck(_)::beat_jump_fwd_4"
+beat_jump_back_8 = "Deck(_)::beat_jump_back_8"
+beat_jump_fwd_8 = "Deck(_)::beat_jump_fwd_8"
 
 [inputs.deck_2]
-play_pause = "toggle_play"
-cue = "cue_default"
-sync = "toggle_sync"
-quantize = "set_quantize"
-headphone_cue = "set_headphone_cue"
-volume = { action = "set_volume", soft_takeover = true }
-gain = { action = "set_gain", soft_takeover = true }
-tempo = { action = "set_speed", soft_takeover = true }
-eq_high = { action = "set_eq_high", soft_takeover = true }
-eq_mid = { action = "set_eq_mid", soft_takeover = true }
-eq_low = { action = "set_eq_low", soft_takeover = true }
-filter = { action = "set_filter", soft_takeover = true }
-jog_touch = "jog_touch"
-jog_touch_shift = "jog_touch"
-jog_turn = "jog_turn"
-jog_side = "jog_turn"
-jog_search = "jog_turn"
-loop_in = "loop_in"
-loop_out = "loop_out"
-exit_loop = "exit_loop"
-hot_cue_1 = "trigger_hot_cue_1"
-hot_cue_2 = "trigger_hot_cue_2"
-hot_cue_3 = "trigger_hot_cue_3"
-hot_cue_4 = "trigger_hot_cue_4"
-hot_cue_5 = "trigger_hot_cue_5"
-hot_cue_6 = "trigger_hot_cue_6"
-hot_cue_7 = "trigger_hot_cue_7"
-hot_cue_8 = "trigger_hot_cue_8"
-delete_hot_cue_1 = "delete_hot_cue_1"
-delete_hot_cue_2 = "delete_hot_cue_2"
-delete_hot_cue_3 = "delete_hot_cue_3"
-delete_hot_cue_4 = "delete_hot_cue_4"
-delete_hot_cue_5 = "delete_hot_cue_5"
-delete_hot_cue_6 = "delete_hot_cue_6"
-delete_hot_cue_7 = "delete_hot_cue_7"
-delete_hot_cue_8 = "delete_hot_cue_8"
-auto_loop_1 = "auto_loop_1"
-auto_loop_2 = "auto_loop_2"
-auto_loop_4 = "auto_loop_4"
-auto_loop_8 = "auto_loop_8"
-auto_loop_16 = "auto_loop_16"
-auto_loop_32 = "auto_loop_32"
-beat_jump_back_1 = "beat_jump_back_1"
-beat_jump_fwd_1 = "beat_jump_fwd_1"
-beat_jump_back_2 = "beat_jump_back_2"
-beat_jump_fwd_2 = "beat_jump_fwd_2"
-beat_jump_back_4 = "beat_jump_back_4"
-beat_jump_fwd_4 = "beat_jump_fwd_4"
-beat_jump_back_8 = "beat_jump_back_8"
-beat_jump_fwd_8 = "beat_jump_fwd_8"
+play_pause = "Deck(_)::toggle_play"
+cue = "Deck(_)::cue_default"
+sync = "Deck(_)::toggle_sync"
+quantize = "Deck(_)::set_quantize"
+headphone_cue = "Deck(_)::set_headphone_cue"
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+gain = { action = "Deck(_)::set_gain", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
+eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
+eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }
+filter = { action = "Deck(_)::set_filter", soft_takeover = true }
+jog_touch = "Deck(_)::jog_touch"
+jog_touch_shift = "Deck(_)::jog_touch"
+jog_turn = "Deck(_)::jog_turn"
+jog_side = "Deck(_)::jog_turn"
+jog_search = "Deck(_)::jog_turn"
+loop_in = "Deck(_)::loop_in"
+loop_out = "Deck(_)::loop_out"
+exit_loop = "Deck(_)::exit_loop"
+hot_cue_1 = "Deck(_)::trigger_hot_cue_1"
+hot_cue_2 = "Deck(_)::trigger_hot_cue_2"
+hot_cue_3 = "Deck(_)::trigger_hot_cue_3"
+hot_cue_4 = "Deck(_)::trigger_hot_cue_4"
+hot_cue_5 = "Deck(_)::trigger_hot_cue_5"
+hot_cue_6 = "Deck(_)::trigger_hot_cue_6"
+hot_cue_7 = "Deck(_)::trigger_hot_cue_7"
+hot_cue_8 = "Deck(_)::trigger_hot_cue_8"
+delete_hot_cue_1 = "Deck(_)::delete_hot_cue_1"
+delete_hot_cue_2 = "Deck(_)::delete_hot_cue_2"
+delete_hot_cue_3 = "Deck(_)::delete_hot_cue_3"
+delete_hot_cue_4 = "Deck(_)::delete_hot_cue_4"
+delete_hot_cue_5 = "Deck(_)::delete_hot_cue_5"
+delete_hot_cue_6 = "Deck(_)::delete_hot_cue_6"
+delete_hot_cue_7 = "Deck(_)::delete_hot_cue_7"
+delete_hot_cue_8 = "Deck(_)::delete_hot_cue_8"
+auto_loop_1 = "Deck(_)::auto_loop_1"
+auto_loop_2 = "Deck(_)::auto_loop_2"
+auto_loop_4 = "Deck(_)::auto_loop_4"
+auto_loop_8 = "Deck(_)::auto_loop_8"
+auto_loop_16 = "Deck(_)::auto_loop_16"
+auto_loop_32 = "Deck(_)::auto_loop_32"
+beat_jump_back_1 = "Deck(_)::beat_jump_back_1"
+beat_jump_fwd_1 = "Deck(_)::beat_jump_fwd_1"
+beat_jump_back_2 = "Deck(_)::beat_jump_back_2"
+beat_jump_fwd_2 = "Deck(_)::beat_jump_fwd_2"
+beat_jump_back_4 = "Deck(_)::beat_jump_back_4"
+beat_jump_fwd_4 = "Deck(_)::beat_jump_fwd_4"
+beat_jump_back_8 = "Deck(_)::beat_jump_back_8"
+beat_jump_fwd_8 = "Deck(_)::beat_jump_fwd_8"
 
 [inputs.master]
-crossfader = { action = "set_crossfader", soft_takeover = true }
-cue_mix = { action = "set_cue_mix", soft_takeover = true }
+crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+cue_mix = { action = "Mixer::set_cue_mix", soft_takeover = true }
 
 [outputs.deck_1]
 play_pause = { on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }

@@ -8,7 +8,7 @@ use rhai::{Dynamic, Engine, Scope, AST};
 
 use crate::action::ControlSnapshot;
 use crate::error::{LoadError, RuntimeError};
-use crate::session::{BusPublish, MidiOut};
+use crate::session::{ActionPublish, MidiOut};
 
 /// Shared bridge used by registered Rhai functions.
 pub struct ScriptBridge {
@@ -18,7 +18,7 @@ pub struct ScriptBridge {
 
 /// Host handles passed into a script call.
 pub struct ScriptHost<'a> {
-    pub bus: &'a mut dyn BusPublish,
+    pub bus: &'a mut dyn ActionPublish,
     pub midi: &'a mut dyn MidiOut,
     pub snapshot: &'a ControlSnapshot,
     pub modifiers: &'a HashSet<String>,
@@ -129,7 +129,7 @@ impl ScriptRuntime {
         for (origin_s, kind_s, _) in pubs {
             let origin = parse_origin(&origin_s).unwrap_or(Origin::Engine);
             let kind = parse_kind(&kind_s).unwrap_or(Kind::Notice);
-            host.bus.publish(origin, kind, CmdBody::Empty);
+            host.bus.publish_engine(origin, kind, CmdBody::Empty);
         }
         for m in midis {
             host.midi.send(&m);

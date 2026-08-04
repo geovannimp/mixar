@@ -1,6 +1,6 @@
 //! Session tests for cc14 pairing.
 
-use controller::{load_bundle, BusPublish, MappingSession};
+use controller::{load_bundle, ActionPublish, MappingSession};
 use engine_api::{CmdBody, Kind, Origin};
 use std::path::PathBuf;
 
@@ -8,9 +8,16 @@ struct Capture {
     cmds: Vec<(Origin, Kind, CmdBody)>,
 }
 
-impl BusPublish for Capture {
-    fn publish(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
+impl ActionPublish for Capture {
+    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
         self.cmds.push((origin, kind, body));
+    }
+    fn publish_library_evt(
+        &mut self,
+        _origin: library_api::Origin,
+        _kind: library_api::Kind,
+        _body: library_api::EvtBody,
+    ) {
     }
 }
 

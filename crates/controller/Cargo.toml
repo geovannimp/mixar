@@ -19,6 +19,7 @@ native-midi = []
 
 [dependencies]
 engine-api = { path = "../engine-api" }
+library-api = { path = "../library-api" }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 thiserror = { workspace = true }

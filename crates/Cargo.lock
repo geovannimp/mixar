@@ -709,6 +709,7 @@ name = "controller"
 version = "0.1.0"
 dependencies = [
  "engine-api",
+ "library-api",
  "rhai",
  "serde",
  "thiserror 1.0.69",

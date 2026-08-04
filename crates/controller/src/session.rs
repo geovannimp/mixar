@@ -4,8 +4,10 @@ use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
 use engine_api::{CmdBody, Kind, Origin};
+use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
-use crate::action::{origin_for_section, resolve_action, ControlSnapshot};
+use crate::action::{resolve_action, ControlSnapshot, RoutedAction};
+use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 use crate::bundle::Bundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
@@ -16,8 +18,21 @@ use crate::script::{ScriptHost, ScriptRuntime};
 pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 
-pub trait BusPublish {
-    fn publish(&mut self, origin: Origin, kind: Kind, body: CmdBody);
+pub trait ActionPublish {
+    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody);
+    fn publish_library_evt(
+        &mut self,
+        origin: LibraryOrigin,
+        kind: LibraryKind,
+        body: LibraryEvtBody,
+    );
+}
+
+/// Compatibility alias for engine-only hosts/tests.
+pub trait BusPublish: ActionPublish {
+    fn publish(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
+        self.publish_engine(origin, kind, body);
+    }
 }
 
 pub trait MidiOut {
@@ -103,7 +118,7 @@ impl MappingSession {
 
     pub fn on_init(
         &mut self,
-        bus: &mut impl BusPublish,
+        bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
         self.run_hook("on_init", bus, midi)
@@ -111,7 +126,7 @@ impl MappingSession {
 
     pub fn on_shutdown(
         &mut self,
-        bus: &mut impl BusPublish,
+        bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
         self.run_hook("on_shutdown", bus, midi)
@@ -120,7 +135,7 @@ impl MappingSession {
     fn run_hook(
         &mut self,
         name: &str,
-        bus: &mut impl BusPublish,
+        bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
         let Some(script) = self.script.as_mut() else {
@@ -135,7 +150,7 @@ impl MappingSession {
         script.call_hook(name, &mut host)
     }
 
-    pub fn handle_midi(&mut self, bytes: &[u8], bus: &mut impl BusPublish) {
+    pub fn handle_midi(&mut self, bytes: &[u8], bus: &mut impl ActionPublish) {
         let Some(parsed) = parse_short(bytes) else {
             return;
         };
@@ -234,78 +249,93 @@ impl MappingSession {
             Some(a) => a.as_str(),
             None => return,
         };
-        let Ok(origin) = origin_for_section(&section) else {
+        let Ok((template, leaf)) = parse_action_id(action) else {
+            return;
+        };
+        let Ok(bound) = bind_origin(template, &section) else {
             return;
         };
 
         if binding.soft_takeover_effective() {
-            if let Some(engine_v) = self.snapshot.get_norm_for_action(origin.clone(), action) {
-                let latched = self.soft_latched.contains(&key);
-                if !latched {
-                    let dist = (norm - engine_v).abs();
-                    if dist > SOFT_TAKEOVER_THRESHOLD {
-                        return;
+            if let BoundOrigin::Engine(origin) = &bound {
+                if let Some(engine_v) = self.snapshot.get_norm_for_action(origin.clone(), leaf) {
+                    let latched = self.soft_latched.contains(&key);
+                    if !latched {
+                        let dist = (norm - engine_v).abs();
+                        if dist > SOFT_TAKEOVER_THRESHOLD {
+                            return;
+                        }
+                        self.soft_latched.insert(key.clone());
                     }
-                    self.soft_latched.insert(key.clone());
                 }
             }
         }
 
-        if let Some((o, kind, body)) =
-            resolve_action(action, origin, norm, parsed.active, &self.snapshot)
+        if let Some(routed) = resolve_action(action, &section, norm, parsed.active, &self.snapshot)
         {
             if is_cc {
                 self.cc_last.insert(key.clone(), Instant::now());
             }
-            // Mirror absolute values into snapshot after publish intent
-            match &body {
-                CmdBody::SetVolume { volume } => {
-                    if let Origin::Deck(d) = o {
-                        self.snapshot.volume[d as usize] = *volume;
+            match &routed {
+                RoutedAction::EngineCmd {
+                    origin: o,
+                    kind,
+                    body,
+                } => {
+                    // Mirror absolute values into snapshot after publish intent
+                    match body {
+                        CmdBody::SetVolume { volume } => {
+                            if let Origin::Deck(d) = *o {
+                                self.snapshot.volume[d as usize] = *volume;
+                            }
+                        }
+                        CmdBody::SetFilter { filter_db } => {
+                            if let Origin::Deck(d) = *o {
+                                self.snapshot.filter_db[d as usize] = *filter_db;
+                            }
+                        }
+                        CmdBody::SetGainTrim { gain_db } => {
+                            if let Origin::Deck(d) = *o {
+                                self.snapshot.gain_db[d as usize] = *gain_db;
+                            }
+                        }
+                        CmdBody::SetSpeed { speed } => {
+                            if let Origin::Deck(d) = *o {
+                                self.snapshot.speed[d as usize] = *speed;
+                            }
+                        }
+                        CmdBody::SetEq { low, mid, high } => {
+                            if let Origin::Deck(d) = *o {
+                                let i = d as usize;
+                                self.snapshot.eq_low[i] = *low;
+                                self.snapshot.eq_mid[i] = *mid;
+                                self.snapshot.eq_high[i] = *high;
+                            }
+                        }
+                        CmdBody::SetCrossfader { position } => {
+                            self.snapshot.crossfader = *position;
+                        }
+                        CmdBody::SetCueMix { mix } => {
+                            self.snapshot.cue_mix = *mix;
+                        }
+                        _ => {}
                     }
-                }
-                CmdBody::SetFilter { filter_db } => {
-                    if let Origin::Deck(d) = o {
-                        self.snapshot.filter_db[d as usize] = *filter_db;
+                    if matches!(kind, Kind::Play) {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.playing[d as usize] = true;
+                        }
                     }
-                }
-                CmdBody::SetGainTrim { gain_db } => {
-                    if let Origin::Deck(d) = o {
-                        self.snapshot.gain_db[d as usize] = *gain_db;
+                    if matches!(kind, Kind::Pause) {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.playing[d as usize] = false;
+                        }
                     }
+                    bus.publish_engine(o.clone(), kind.clone(), body.clone());
                 }
-                CmdBody::SetSpeed { speed } => {
-                    if let Origin::Deck(d) = o {
-                        self.snapshot.speed[d as usize] = *speed;
-                    }
+                RoutedAction::LibraryEvt { origin, kind, body } => {
+                    bus.publish_library_evt(origin.clone(), kind.clone(), body.clone());
                 }
-                CmdBody::SetEq { low, mid, high } => {
-                    if let Origin::Deck(d) = o {
-                        let i = d as usize;
-                        self.snapshot.eq_low[i] = *low;
-                        self.snapshot.eq_mid[i] = *mid;
-                        self.snapshot.eq_high[i] = *high;
-                    }
-                }
-                CmdBody::SetCrossfader { position } => {
-                    self.snapshot.crossfader = *position;
-                }
-                CmdBody::SetCueMix { mix } => {
-                    self.snapshot.cue_mix = *mix;
-                }
-                _ => {}
             }
-            if matches!(kind, Kind::Play) {
-                if let Origin::Deck(d) = o {
-                    self.snapshot.playing[d as usize] = true;
-                }
-            }
-            if matches!(kind, Kind::Pause) {
-                if let Origin::Deck(d) = o {
-                    self.snapshot.playing[d as usize] = false;
-                }
-            }
-            bus.publish(o, kind, body);
         }
     }
 

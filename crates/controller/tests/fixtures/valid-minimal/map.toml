@@ -1,10 +1,10 @@
 schema_version = 1
 
 [inputs.deck_1]
-play_pause = "toggle_play"
+play_pause = "Deck(_)::toggle_play"
 volume = [
-  { action = "set_volume", soft_takeover = true },
-  { action = "set_filter", modifier = "custom.shift", soft_takeover = true },
+  { action = "Deck(_)::set_volume", soft_takeover = true },
+  { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },
 ]
 
 [outputs.deck_1]

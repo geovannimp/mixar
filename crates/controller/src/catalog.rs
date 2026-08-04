@@ -1,6 +1,8 @@
 //! Closed alias + action vocabularies (single source of truth).
 
-/// Action name as written in `map.toml`.
+use crate::action_id::{parse_action_id, OriginTemplate};
+
+/// Action name as written in `map.toml` (`OriginTemplate::leaf`).
 pub type ActionName = str;
 
 const DECK_ALIASES: &[&str] = &[
@@ -101,8 +103,8 @@ const SAMPLER_ALIASES: &[&str] = &[
     "end_8",
 ];
 
-/// Actions that map 1:1 to engine cmds (absolute CC / faders default soft-takeover on).
-pub const ABSOLUTE_ACTIONS: &[&str] = &[
+/// Leaves that map 1:1 to absolute CC / faders (default soft-takeover on).
+pub const ABSOLUTE_LEAVES: &[&str] = &[
     "set_volume",
     "set_filter",
     "set_gain",
@@ -114,7 +116,7 @@ pub const ABSOLUTE_ACTIONS: &[&str] = &[
     "set_speed",
 ];
 
-const ACTIONS: &[&str] = &[
+const DECK_LEAVES: &[&str] = &[
     "toggle_play",
     "play",
     "pause",
@@ -130,11 +132,8 @@ const ACTIONS: &[&str] = &[
     "set_eq_high",
     "set_eq_mid",
     "set_eq_low",
-    "set_crossfader",
-    "set_cue_mix",
-    "set_master_cue",
-    "set_headphone_cue",
     "set_speed",
+    "set_headphone_cue",
     "jog_touch",
     "jog_turn",
     "trigger_hot_cue_1",
@@ -184,12 +183,33 @@ const ACTIONS: &[&str] = &[
     "trigger_sampler_8",
 ];
 
+const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
+
+const ENGINE_LEAVES: &[&str] = &["start_engine"];
+
+const LIBRARY_NAV_LEAVES: &[&str] = &["navigate_next", "navigate_prev"];
+
+/// Backward-compatible name used by map soft-takeover defaults.
+pub const ABSOLUTE_ACTIONS: &[&str] = ABSOLUTE_LEAVES;
+
 pub fn is_known_action(name: &str) -> bool {
-    ACTIONS.contains(&name)
+    let Ok((template, leaf)) = parse_action_id(name) else {
+        return false;
+    };
+    match template {
+        OriginTemplate::Deck(_) => DECK_LEAVES.contains(&leaf),
+        OriginTemplate::Mixer => MIXER_LEAVES.contains(&leaf),
+        OriginTemplate::Engine => ENGINE_LEAVES.contains(&leaf),
+        OriginTemplate::LibraryNavigation => LIBRARY_NAV_LEAVES.contains(&leaf),
+    }
 }
 
 pub fn is_absolute_action(name: &str) -> bool {
-    ABSOLUTE_ACTIONS.contains(&name)
+    let Ok((_, leaf)) = parse_action_id(name) else {
+        // Allow leaf-only checks for internal soft-takeover defaults.
+        return ABSOLUTE_LEAVES.contains(&name);
+    };
+    ABSOLUTE_LEAVES.contains(&leaf)
 }
 
 pub fn is_closed_input_alias(section: &str, alias: &str) -> bool {

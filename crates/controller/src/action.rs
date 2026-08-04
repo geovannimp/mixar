@@ -1,7 +1,9 @@
-//! Action string → `(Origin, Kind, CmdBody)`.
+//! Action string → [`RoutedAction`].
 
 use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode};
+use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
+use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 use crate::device::{origin_deck_id, SECTION_MASTER, SECTION_SAMPLER};
 use crate::error::LoadError;
 
@@ -75,16 +77,16 @@ impl ControlSnapshot {
         }
     }
 
-    pub fn get_norm_for_action(&self, origin: Origin, action: &str) -> Option<f32> {
+    pub fn get_norm_for_action(&self, origin: Origin, leaf: &str) -> Option<f32> {
         match origin {
-            Origin::Mixer => match action {
+            Origin::Mixer => match leaf {
                 "set_crossfader" => Some(self.crossfader),
                 "set_cue_mix" => Some(self.cue_mix),
                 _ => None,
             },
             Origin::Deck(d) => {
                 let i = deck_idx(d);
-                match action {
+                match leaf {
                     "set_volume" => Some(self.volume[i]),
                     // filter_db mirrored as normalized -1..1 mapped externally; store as 0..1-ish
                     "set_filter" => Some(filter_db_to_norm(self.filter_db[i])),
@@ -159,16 +161,58 @@ pub fn origin_for_section(section: &str) -> Result<Origin, LoadError> {
     )))
 }
 
-/// Resolve action to cmd. `norm` is MIDI 0..1; `active` for buttons.
+/// Resolved mapping publish target.
+#[derive(Clone, Debug, PartialEq)]
+pub enum RoutedAction {
+    EngineCmd {
+        origin: Origin,
+        kind: Kind,
+        body: CmdBody,
+    },
+    LibraryEvt {
+        origin: LibraryOrigin,
+        kind: LibraryKind,
+        body: LibraryEvtBody,
+    },
+}
+
+fn engine_cmd(origin: Origin, kind: Kind, body: CmdBody) -> RoutedAction {
+    RoutedAction::EngineCmd { origin, kind, body }
+}
+
+/// Resolve qualified action to a routable cmd/evt. `norm` is MIDI 0..1; `active` for buttons.
 pub fn resolve_action(
     action: &str,
-    origin: Origin,
+    section: &str,
     norm: f32,
     active: bool,
     snap: &ControlSnapshot,
-) -> Option<(Origin, Kind, CmdBody)> {
+) -> Option<RoutedAction> {
+    let (template, leaf) = parse_action_id(action).ok()?;
+    let bound = bind_origin(template, section).ok()?;
+
+    if let BoundOrigin::LibraryNavigation = bound {
+        if !active {
+            return None;
+        }
+        let kind = match leaf {
+            "navigate_next" => LibraryKind::NavigateNext,
+            "navigate_prev" => LibraryKind::NavigatePrev,
+            _ => return None,
+        };
+        return Some(RoutedAction::LibraryEvt {
+            origin: LibraryOrigin::LibraryNavigation,
+            kind,
+            body: LibraryEvtBody::Empty,
+        });
+    }
+
+    let BoundOrigin::Engine(origin) = bound else {
+        return None;
+    };
+
     // Buttons: only fire on press (active edge handled by caller).
-    match action {
+    match leaf {
         "toggle_play" => {
             if !active {
                 return None;
@@ -178,24 +222,26 @@ pub fn resolve_action(
                 _ => false,
             };
             if playing {
-                Some((origin, Kind::Pause, CmdBody::Empty))
+                Some(engine_cmd(origin, Kind::Pause, CmdBody::Empty))
             } else {
-                Some((origin, Kind::Play, CmdBody::Empty))
+                Some(engine_cmd(origin, Kind::Play, CmdBody::Empty))
             }
         }
-        "play" => active.then_some((origin, Kind::Play, CmdBody::Empty)),
-        "pause" => active.then_some((origin, Kind::Pause, CmdBody::Empty)),
-        "cue" => active.then_some((origin, Kind::SetCuePoint, CmdBody::Empty)),
+        "play" => active.then_some(engine_cmd(origin, Kind::Play, CmdBody::Empty)),
+        "pause" => active.then_some(engine_cmd(origin, Kind::Pause, CmdBody::Empty)),
+        "cue" => active.then_some(engine_cmd(origin, Kind::SetCuePoint, CmdBody::Empty)),
         "cue_default" => {
             if active {
-                Some((origin, Kind::BeginCueHold, CmdBody::Empty))
+                Some(engine_cmd(origin, Kind::BeginCueHold, CmdBody::Empty))
             } else {
-                Some((origin, Kind::EndCueHold, CmdBody::Empty))
+                Some(engine_cmd(origin, Kind::EndCueHold, CmdBody::Empty))
             }
         }
-        "begin_cue_hold" => active.then_some((origin, Kind::BeginCueHold, CmdBody::Empty)),
-        "end_cue_hold" => (!active).then_some((origin, Kind::EndCueHold, CmdBody::Empty)),
-        "toggle_sync" => active.then_some((
+        "begin_cue_hold" => {
+            active.then_some(engine_cmd(origin, Kind::BeginCueHold, CmdBody::Empty))
+        }
+        "end_cue_hold" => (!active).then_some(engine_cmd(origin, Kind::EndCueHold, CmdBody::Empty)),
+        "toggle_sync" => active.then_some(engine_cmd(
             origin,
             Kind::ToggleSync,
             CmdBody::ToggleSync { beat_sync: false },
@@ -208,30 +254,34 @@ pub fn resolve_action(
                 Origin::Deck(d) => !snap.quantize[deck_idx(d)],
                 _ => true,
             };
-            Some((origin, Kind::SetQuantize, CmdBody::SetQuantize { enabled }))
+            Some(engine_cmd(
+                origin,
+                Kind::SetQuantize,
+                CmdBody::SetQuantize { enabled },
+            ))
         }
-        "set_volume" => Some((
+        "set_volume" => Some(engine_cmd(
             origin,
             Kind::SetVolume,
             CmdBody::SetVolume {
                 volume: norm.clamp(0.0, 1.0),
             },
         )),
-        "set_filter" => Some((
+        "set_filter" => Some(engine_cmd(
             origin,
             Kind::SetFilter,
             CmdBody::SetFilter {
                 filter_db: norm_to_filter_db(norm),
             },
         )),
-        "set_gain" => Some((
+        "set_gain" => Some(engine_cmd(
             origin,
             Kind::SetGainTrim,
             CmdBody::SetGainTrim {
                 gain_db: norm_to_gain_db(norm),
             },
         )),
-        "set_speed" => Some((
+        "set_speed" => Some(engine_cmd(
             origin,
             Kind::SetSpeed,
             CmdBody::SetSpeed {
@@ -247,22 +297,26 @@ pub fn resolve_action(
             let mut mid = snap.eq_mid[i];
             let mut high = snap.eq_high[i];
             let v = norm_to_eq(norm);
-            match action {
+            match leaf {
                 "set_eq_low" => low = v,
                 "set_eq_mid" => mid = v,
                 "set_eq_high" => high = v,
                 _ => {}
             }
-            Some((origin, Kind::SetEq, CmdBody::SetEq { low, mid, high }))
+            Some(engine_cmd(
+                origin,
+                Kind::SetEq,
+                CmdBody::SetEq { low, mid, high },
+            ))
         }
-        "set_crossfader" => Some((
+        "set_crossfader" => Some(engine_cmd(
             Origin::Mixer,
             Kind::SetCrossfader,
             CmdBody::SetCrossfader {
                 position: norm.clamp(0.0, 1.0),
             },
         )),
-        "set_cue_mix" => Some((
+        "set_cue_mix" => Some(engine_cmd(
             Origin::Mixer,
             Kind::SetCueMix,
             CmdBody::SetCueMix {
@@ -273,7 +327,7 @@ pub fn resolve_action(
             if !active {
                 return None;
             }
-            Some((
+            Some(engine_cmd(
                 Origin::Mixer,
                 Kind::SetMasterCue,
                 CmdBody::SetMasterCue {
@@ -289,13 +343,13 @@ pub fn resolve_action(
                 return None;
             };
             let enabled = !snap.headphone_cue[deck_idx(d)];
-            Some((
+            Some(engine_cmd(
                 origin,
                 Kind::SetHeadphoneCue,
                 CmdBody::SetHeadphoneCue { enabled },
             ))
         }
-        "jog_touch" => Some((
+        "jog_touch" => Some(engine_cmd(
             origin,
             Kind::JogTouch,
             CmdBody::JogTouch { touching: active },
@@ -306,7 +360,11 @@ pub fn resolve_action(
             if delta == 0 {
                 return None;
             }
-            Some((origin, Kind::JogTurn, CmdBody::JogTurn { delta }))
+            Some(engine_cmd(
+                origin,
+                Kind::JogTurn,
+                CmdBody::JogTurn { delta },
+            ))
         }
         a if a.starts_with("trigger_hot_cue_") => {
             if !active {
@@ -321,12 +379,12 @@ pub fn resolve_action(
             };
             let idx = (slot - 1) as usize;
             match snap.hot_cues[deck_idx(d)][idx] {
-                Some(pos) => Some((
+                Some(pos) => Some(engine_cmd(
                     origin,
                     Kind::TriggerHotCue,
                     CmdBody::TriggerHotCue { position_ms: pos },
                 )),
-                None => Some((
+                None => Some(engine_cmd(
                     origin,
                     Kind::SaveHotCue,
                     CmdBody::SaveHotCue { slot: slot - 1 },
@@ -341,58 +399,70 @@ pub fn resolve_action(
             if !(1..=8).contains(&slot) {
                 return None;
             }
-            Some((
+            Some(engine_cmd(
                 origin,
                 Kind::DeleteHotCue,
                 CmdBody::DeleteHotCue { slot: slot - 1 },
             ))
         }
-        "loop_in" => active.then_some((origin, Kind::LoopIn, CmdBody::Empty)),
-        "loop_out" => active.then_some((origin, Kind::LoopOut, CmdBody::Empty)),
-        "exit_loop" => active.then_some((origin, Kind::ExitLoop, CmdBody::Empty)),
+        "loop_in" => active.then_some(engine_cmd(origin, Kind::LoopIn, CmdBody::Empty)),
+        "loop_out" => active.then_some(engine_cmd(origin, Kind::LoopOut, CmdBody::Empty)),
+        "exit_loop" => active.then_some(engine_cmd(origin, Kind::ExitLoop, CmdBody::Empty)),
         a if a.starts_with("auto_loop_") => {
             if !active {
                 return None;
             }
             let beats: u32 = a.strip_prefix("auto_loop_")?.parse().ok()?;
-            Some((origin, Kind::SetAutoLoop, CmdBody::SetAutoLoop { beats }))
+            Some(engine_cmd(
+                origin,
+                Kind::SetAutoLoop,
+                CmdBody::SetAutoLoop { beats },
+            ))
         }
         a if a.starts_with("beat_jump_fwd_") => {
             if !active {
                 return None;
             }
             let beats: i32 = a.strip_prefix("beat_jump_fwd_")?.parse().ok()?;
-            Some((origin, Kind::BeatJump, CmdBody::BeatJump { beats }))
+            Some(engine_cmd(
+                origin,
+                Kind::BeatJump,
+                CmdBody::BeatJump { beats },
+            ))
         }
         a if a.starts_with("beat_jump_back_") => {
             if !active {
                 return None;
             }
             let beats: i32 = a.strip_prefix("beat_jump_back_")?.parse().ok()?;
-            Some((origin, Kind::BeatJump, CmdBody::BeatJump { beats: -beats }))
+            Some(engine_cmd(
+                origin,
+                Kind::BeatJump,
+                CmdBody::BeatJump { beats: -beats },
+            ))
         }
-        "pad_mode_hot_cue" => active.then_some((
+        "pad_mode_hot_cue" => active.then_some(engine_cmd(
             origin,
             Kind::SetPadMode,
             CmdBody::SetPadMode {
                 mode: PadMode::HotCue,
             },
         )),
-        "pad_mode_loop_roll" => active.then_some((
+        "pad_mode_loop_roll" => active.then_some(engine_cmd(
             origin,
             Kind::SetPadMode,
             CmdBody::SetPadMode {
                 mode: PadMode::LoopRoll,
             },
         )),
-        "pad_mode_beat_jump" => active.then_some((
+        "pad_mode_beat_jump" => active.then_some(engine_cmd(
             origin,
             Kind::SetPadMode,
             CmdBody::SetPadMode {
                 mode: PadMode::BeatJump,
             },
         )),
-        "pad_mode_sampler" => active.then_some((
+        "pad_mode_sampler" => active.then_some(engine_cmd(
             origin,
             Kind::SetPadMode,
             CmdBody::SetPadMode {
@@ -404,7 +474,7 @@ pub fn resolve_action(
                 return None;
             }
             let slot: u8 = a.strip_prefix("trigger_sampler_")?.parse().ok()?;
-            Some((
+            Some(engine_cmd(
                 origin,
                 Kind::TriggerSampler,
                 CmdBody::TriggerSampler { slot: slot - 1 },

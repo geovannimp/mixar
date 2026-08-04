@@ -5,9 +5,16 @@ use engine_api::{CmdBody, Kind, Origin};
 struct CaptureBus {
     cmds: Vec<(Origin, Kind, CmdBody)>,
 }
-impl controller::BusPublish for CaptureBus {
-    fn publish(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
+impl controller::ActionPublish for CaptureBus {
+    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
         self.cmds.push((origin, kind, body));
+    }
+    fn publish_library_evt(
+        &mut self,
+        _origin: library_api::Origin,
+        _kind: library_api::Kind,
+        _body: library_api::EvtBody,
+    ) {
     }
 }
 

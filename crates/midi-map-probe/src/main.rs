@@ -13,15 +13,23 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 
-use controller::{load_bundle, BusPublish, MappingSession, MidiOut};
+use controller::{load_bundle, ActionPublish, MappingSession, MidiOut};
 use engine_api::{CmdBody, Kind, Origin};
 use midir::{Ignore, MidiInput};
 
 struct Printer;
 
-impl BusPublish for Printer {
-    fn publish(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
+impl ActionPublish for Printer {
+    fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
         println!("  → cmd  {origin:?}  {kind:?}  {body:?}");
+    }
+    fn publish_library_evt(
+        &mut self,
+        origin: library_api::Origin,
+        kind: library_api::Kind,
+        body: library_api::EvtBody,
+    ) {
+        println!("  → lib_evt  {origin:?}  {kind:?}  {body:?}");
     }
 }
 

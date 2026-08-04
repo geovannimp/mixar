@@ -15,5 +15,5 @@ path = "src/main.rs"
 
 [dependencies]
 controller = { path = "../controller" }
-engine-api = { path = "../engine-api" }
+library-api = { path = "../library-api" }
 midir = "0.10"
