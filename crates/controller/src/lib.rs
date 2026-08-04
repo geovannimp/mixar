@@ -5,6 +5,7 @@ mod action_id;
 mod bundle;
 mod catalog;
 mod device;
+mod engine;
 mod error;
 mod map_file;
 mod midi;
@@ -22,6 +23,9 @@ pub use catalog::{is_closed_input_alias, is_known_action, ActionName};
 pub use check::check_bundle_dir;
 pub use device::{
     AudioHints, DeviceFile, SectionName, SECTION_CUSTOM, SECTION_MASTER, SECTION_SAMPLER,
+};
+pub use engine::{
+    ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,
 };
 pub use error::{LoadError, MidiPortError, RuntimeError};
 pub use map_file::{

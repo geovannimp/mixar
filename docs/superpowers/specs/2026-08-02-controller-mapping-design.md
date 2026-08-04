@@ -272,7 +272,7 @@ Optional root npm aliases (`test:mappings`, `test:mapping`) for shorter DX. CI r
 ## Acceptance (v1)
 
 - [x] `controller` crate loads a valid bundle and rejects invalid ones with clear errors
-- [ ] Host adapter can attach a MIDI port, autoload by identity, publish play/volume-class cmds on the engine bus *(crate `MidiPort` trait + fake-port tests done; midir/Tauri blocked on Linux `alsa` link clash with cpal — follow-up)*
+- [x] Host adapter can attach a MIDI port, autoload by identity, publish play/volume-class cmds on the engine bus *(Tauri `ControllerEngine` host; midir git-pin for alsa/cpal coexistence; connect asks FE before enable)*
 - [x] Output path lights LEDs from evt (alias and inline forms)
 - [x] Modifier + soft-takeover behave as specified
 - [x] Optional Rhai `on_init` / script binding works

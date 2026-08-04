@@ -11,18 +11,17 @@ description = "MIDI controller mapping bundles (device/map/Rhai) for the engine 
 name = "map-check"
 path = "src/bin/map-check.rs"
 
-[features]
-default = []
-# Reserved: midir conflicts with cpal's alsa-sys in this workspace (links = "alsa").
-# Hosts should enumerate MIDI outside this crate until versions align.
-native-midi = []
-
 [dependencies]
 engine-api = { path = "../engine-api" }
 library-api = { path = "../library-api" }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 thiserror = { workspace = true }
+log = { workspace = true }
+# Git pin: midir#199 widens alsa to <0.13 so we share alsa-sys with cpal 0.18.
+# Switch to crates.io once a release includes that bound.
+midir = { git = "https://github.com/Boddlnagg/midir", rev = "e5a60b5" }
 rhai = { version = "1.21", default-features = false, features = ["std", "sync"] }
 
 [dev-dependencies]
+tempfile = "3"

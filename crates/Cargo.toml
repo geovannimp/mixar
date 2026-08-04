@@ -19,7 +19,7 @@ members = [
     "app-example",
     "controller",
 ]
-# Standalone midir probe — must stay excluded (alsa-sys vs cpal).
+# Standalone midir probe — optional debug tool (own workspace; not required for gui-app).
 exclude = ["midi-map-probe"]
 resolver = "2"
 

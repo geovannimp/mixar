@@ -22,6 +22,7 @@ use tauri::{AppHandle, Manager, State};
 
 mod audio_cache;
 mod bus_bridge;
+mod controller_host;
 mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
@@ -81,6 +82,7 @@ pub(crate) struct AppState {
     pub library: Arc<Mutex<LibraryManager>>,
     pub library_session: SharedLibrarySession,
     pub library_evt_forwarder: Option<LibraryEvtForwarder>,
+    pub controller_host: Option<controller_host::ControllerHost>,
     pub session: Option<Arc<EngineSession>>,
     pub evt_forwarder: Option<EvtForwarder>,
     pub engine_config: EngineConfig,
@@ -1025,8 +1027,21 @@ pub fn run() {
             let library = library_session.library();
 
             let shared_session = bus_bridge::new_shared_session();
-            app.manage(shared_session);
+            app.manage(shared_session.clone());
             app.manage(Arc::clone(&library_session));
+
+            let shipped_mappings = controller_host::resolve_shipped_mappings(app.handle());
+            let controller = Arc::new(Mutex::new(
+                controller_host::open_engine(&app_data, &shipped_mappings)
+                    .map_err(|err| err.to_string())?,
+            ));
+            app.manage(Arc::clone(&controller));
+            let controller_host = Some(controller_host::ControllerHost::start(
+                app.handle().clone(),
+                Arc::clone(&controller),
+                Arc::clone(&shared_session),
+                Arc::clone(&library_session),
+            ));
 
             let library_evt_forwarder =
                 Some(LibraryEvtForwarder::start(app.handle().clone(), Arc::clone(&library_session)));
@@ -1035,6 +1050,7 @@ pub fn run() {
                 library,
                 library_session,
                 library_evt_forwarder,
+                controller_host,
                 session: None,
                 evt_forwarder: None,
                 engine_config,
@@ -1070,6 +1086,12 @@ pub fn run() {
             get_track_artwork,
             bus_bridge::engine_publish,
             library_bus::library_publish,
+            controller_host::controller_list_mappings,
+            controller_host::controller_list_devices,
+            controller_host::controller_enable_mapping,
+            controller_host::controller_disable_mapping,
+            controller_host::controller_update_mapping,
+            controller_host::controller_update_all_mappings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

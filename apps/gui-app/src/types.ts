@@ -230,7 +230,7 @@ export interface ResolvedLibraryTrack {
   track: TrackSummary;
 }
 
-export type SettingsSection = "audio" | "library";
+export type SettingsSection = "audio" | "library" | "controllers";
 
 export type LibrarySourceTab = "collections" | "drive";
 
