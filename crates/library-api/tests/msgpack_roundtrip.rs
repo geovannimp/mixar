@@ -111,3 +111,30 @@ fn cmd_and_evt_bodies_roundtrip() {
         loops
     );
 }
+
+#[test]
+fn library_navigation_origin_and_navigate_kinds_roundtrip() {
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::NavigateNext,
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&EvtBody::Empty).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.origin, Origin::LibraryNavigation);
+    assert_eq!(decoded.kind, Kind::NavigateNext);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), EvtBody::Empty);
+
+    let prev = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::NavigatePrev,
+        revision: 2,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&EvtBody::Empty).unwrap(),
+    };
+    assert_eq!(
+        decode_wire(&encode_wire(&prev).unwrap()).unwrap().kind,
+        Kind::NavigatePrev
+    );
+}
