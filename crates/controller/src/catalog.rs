@@ -189,9 +189,6 @@ const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
 const LIBRARY_NAV_LEAVES: &[&str] = &["navigate_next", "navigate_prev"];
 
-/// Backward-compatible name used by map soft-takeover defaults.
-pub const ABSOLUTE_ACTIONS: &[&str] = ABSOLUTE_LEAVES;
-
 pub fn is_known_action(name: &str) -> bool {
     let Ok((template, leaf)) = parse_action_id(name) else {
         return false;

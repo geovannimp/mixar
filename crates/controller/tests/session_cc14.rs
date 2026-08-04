@@ -44,6 +44,6 @@ fn cc14_waits_for_both_bytes_then_publishes_volume() {
     let CmdBody::SetVolume { volume } = &bus.cmds[0].2 else {
         panic!("expected SetVolume");
     };
-    let expected = ((0x40u16 << 7) | 0x00) as f32 / 16383.0;
+    let expected = (0x40u16 << 7) as f32 / 16383.0;
     assert!((volume - expected).abs() < 1e-5);
 }

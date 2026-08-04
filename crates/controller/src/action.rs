@@ -4,8 +4,6 @@ use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
-use crate::device::{origin_deck_id, SECTION_MASTER, SECTION_SAMPLER};
-use crate::error::LoadError;
 
 /// Engine control values mirrored for soft-takeover / action context.
 #[derive(Clone, Debug)]
@@ -142,23 +140,6 @@ fn speed_to_norm(speed: f32) -> f32 {
 fn norm_to_speed(n: f32) -> f32 {
     // inverted: MIDI 0 (top) → 1.16, MIDI 1 (bottom) → 0.84
     1.16 - n.clamp(0.0, 1.0) * 0.32
-}
-
-pub fn origin_for_section(section: &str) -> Result<Origin, LoadError> {
-    if section == SECTION_MASTER {
-        return Ok(Origin::Mixer);
-    }
-    if section == SECTION_SAMPLER {
-        // Sampler cmds still use deck origin in engine today for per-deck slots;
-        // v1 uses Deck(0) as default bank deck when section is sampler-global.
-        return Ok(Origin::Deck(0));
-    }
-    if let Some(id) = origin_deck_id(section) {
-        return Ok(Origin::Deck(id));
-    }
-    Err(LoadError::Validation(format!(
-        "cannot derive Origin for section `{section}`"
-    )))
 }
 
 /// Resolved mapping publish target.
