@@ -12,6 +12,7 @@ play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction
 pause_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
 pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction = "out" }
 hot_cue_1_led = { type = "note", channel = 1, note = 0x2E, velocity = 0x7F, direction = "out" }
+vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
 
 [custom]
 shift = { type = "note", channel = 1, note = 0x3F }

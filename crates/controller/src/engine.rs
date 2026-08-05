@@ -496,6 +496,7 @@ impl ControllerEngine {
                 out: &mut attached.output,
             };
             attached.session.flush_coalesced(bus, &mut sink);
+            let _ = attached.session.idle_heartbeat(bus, &mut sink);
         }
     }
 
@@ -515,6 +516,16 @@ impl ControllerEngine {
                 out: &mut attached.output,
             };
             attached.session.set_deck_hot_cues(deck, cues, &mut sink);
+        }
+    }
+
+    /// Push deck peak level to `vu_meter` MIDI out (no-op if mapping has none).
+    pub fn set_deck_vu(&mut self, deck: u16, level: f32) {
+        if let Some(attached) = self.attached.as_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+            };
+            attached.session.set_deck_vu(deck, level, &mut sink);
         }
     }
 

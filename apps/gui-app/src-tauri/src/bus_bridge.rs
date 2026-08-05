@@ -1,8 +1,8 @@
 //! Tauri bridge for engine cmd/evt omnibus (MessagePack wire bytes).
 
 use engine_api::{
-    decode_cmd_body, decode_wire, encode_wire, CmdBody, DeckSnapshot, EvtBody, Kind, Origin,
-    PadMode as ApiPadMode, SamplerBankInfo as ApiSamplerBankInfo,
+    decode_cmd_body, decode_evt_body, decode_wire, encode_wire, CmdBody, DeckSnapshot, EvtBody,
+    Kind, Origin, PadMode as ApiPadMode, SamplerBankInfo as ApiSamplerBankInfo,
     SamplerPlayMode as ApiSamplerPlayMode, SamplerSlotInfo as ApiSamplerSlotInfo,
     SamplerStatus as ApiSamplerStatus, WireMessage,
 };
@@ -72,6 +72,15 @@ impl EvtForwarder {
                 }
 
                 for ev in discrete.into_iter().chain(coalesced.into_values()) {
+                    if *ev.kind() == Kind::Levels {
+                        if let Origin::Deck(deck) = ev.origin() {
+                            if let Ok(EvtBody::Levels { peak_l, peak_r, .. }) =
+                                decode_evt_body(ev.payload())
+                            {
+                                mirror_levels_to_controller(&app, *deck, peak_l.max(peak_r));
+                            }
+                        }
+                    }
                     let Ok(data) = encode_wire(&WireMessage {
                         origin: ev.origin().clone(),
                         kind: ev.kind().clone(),
@@ -117,6 +126,19 @@ pub fn install_session(holder: &SharedSession, session: Arc<EngineSession>) {
 
 pub fn clear_session(holder: &SharedSession) {
     *holder.lock().expect("shared session lock") = None;
+}
+
+fn mirror_levels_to_controller(app: &AppHandle, deck: u16, level: f32) {
+    let Some(controller) = app.try_state::<SharedController>() else {
+        return;
+    };
+    let controller = Arc::clone(&controller);
+    {
+        let Ok(mut eng) = controller.lock() else {
+            return;
+        };
+        eng.set_deck_vu(deck, level);
+    }
 }
 
 /// Keep controller pad Trigger/Save routing aligned with library cues for a deck.

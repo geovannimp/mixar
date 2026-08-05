@@ -133,3 +133,17 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].1, Kind::Pause);
 }
+
+#[test]
+fn set_deck_vu_sends_cc_with_mixxx_scale() {
+    let mut s = session();
+    let mut midi = CaptureMidi { frames: vec![] };
+    s.set_deck_vu(0, 0.5, &mut midi);
+    assert_eq!(midi.frames.len(), 1);
+    // 0.5 * 150 = 75
+    assert_eq!(midi.frames[0], vec![0xB0, 0x02, 75]);
+    s.set_deck_vu(0, 0.5, &mut midi);
+    assert_eq!(midi.frames.len(), 1, "duplicate VU must not resend");
+    s.set_deck_vu(0, 1.0, &mut midi);
+    assert_eq!(midi.frames[1], vec![0xB0, 0x02, 127]); // 150 clamped
+}

@@ -17,6 +17,8 @@ use crate::script::{ScriptHost, ScriptRuntime};
 
 pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
+/// Script `idle_heartbeat` cadence when no deck is playing.
+const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Latest absolute CC waiting for ≤60 Hz flush.
 #[derive(Clone, Debug)]
@@ -76,7 +78,11 @@ pub struct MappingSession {
     note_state: HashMap<String, bool>,
     /// Output signal cache: "section.alias" → active.
     output_state: HashMap<String, bool>,
+    /// Last VU MIDI data2 per "section.vu_meter" (skip duplicates).
+    vu_out: HashMap<String, u8>,
     script: Option<ScriptRuntime>,
+    /// Last script `idle_heartbeat`; `None` → first call fires immediately.
+    last_idle_heartbeat: Option<Instant>,
 }
 
 impl MappingSession {
@@ -95,7 +101,9 @@ impl MappingSession {
             cc14_state: HashMap::new(),
             note_state: HashMap::new(),
             output_state: HashMap::new(),
+            vu_out: HashMap::new(),
             script,
+            last_idle_heartbeat: None,
         })
     }
 
@@ -167,6 +175,43 @@ impl MappingSession {
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
         self.run_hook("on_shutdown", bus, midi)
+    }
+
+    /// Drive continuous `vu_meter` CC out (Mixxx scale: level×150, clamp 127).
+    pub fn set_deck_vu(&mut self, deck: u16, level: f32, midi: &mut impl MidiOut) {
+        let section = format!("deck_{}", deck.min(3) + 1);
+        let Some(ep) = self.bundle.device.endpoint(&section, "vu_meter") else {
+            return;
+        };
+        let value = (level.clamp(0.0, 1.0) * 150.0).min(127.0).round() as u8;
+        let key = format!("{section}.vu_meter");
+        if self.vu_out.get(&key).copied() == Some(value) {
+            return;
+        }
+        self.vu_out.insert(key, value);
+        midi.send(&ep.to_bytes(Some(value)));
+    }
+
+    /// Optional script keepalive while all decks are stopped. Call from the MIDI pump.
+    pub fn idle_heartbeat(
+        &mut self,
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) -> Result<(), RuntimeError> {
+        if self.script.is_none() {
+            return Ok(());
+        }
+        if self.snapshot.playing.iter().any(|&p| p) {
+            return Ok(());
+        }
+        if self
+            .last_idle_heartbeat
+            .is_some_and(|t| t.elapsed() < IDLE_HEARTBEAT_INTERVAL)
+        {
+            return Ok(());
+        }
+        self.last_idle_heartbeat = Some(Instant::now());
+        self.run_hook("idle_heartbeat", bus, midi)
     }
 
     fn run_hook(
