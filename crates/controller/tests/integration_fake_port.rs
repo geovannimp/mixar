@@ -47,11 +47,16 @@ fn fake_port_midi_in_and_led_out() {
         out: CaptureMidi { frames: vec![] },
     };
 
-    s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus);
+    s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut port.out);
     assert_eq!(bus.cmds[0].1, Kind::Play);
+    assert_eq!(port.out.frames[0], vec![0x90, 0x0C, 0x7F]);
 
     s.on_deck_playing(0, true, &mut port.out);
-    assert_eq!(port.out.frames[0], vec![0x90, 0x0C, 0x7F]);
+    assert_eq!(
+        port.out.frames.len(),
+        1,
+        "LED already lit from play publish"
+    );
 
     let _ = controller::MidiPort::send(&mut port, &[0x90, 0x00, 0x00]);
     assert_eq!(port.out.frames.len(), 2);

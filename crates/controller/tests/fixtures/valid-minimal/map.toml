@@ -2,6 +2,8 @@ schema_version = 1
 
 [inputs.deck_1]
 play_pause = "Deck(_)::toggle_play"
+headphone_cue = "Deck(_)::set_headphone_cue"
+pad_1 = "Deck(_)::pad_1"
 volume = [
   { action = "Deck(_)::set_volume", soft_takeover = true },
   { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },
@@ -9,3 +11,5 @@ volume = [
 
 [outputs.deck_1]
 play_pause = { on = "pause_led", off = "play_led" }
+headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
+hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 1, note = 0x2E, velocity = 0x00 } }

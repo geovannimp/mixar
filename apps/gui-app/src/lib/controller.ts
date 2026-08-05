@@ -34,6 +34,10 @@ export function listControllerDevices(): Promise<ControllerDeviceInfo[]> {
   return invoke("controller_list_devices");
 }
 
+export function listControllerPendingOffers(): Promise<ControllerBusEvent[]> {
+  return invoke("controller_pending_offers");
+}
+
 export function enableControllerMapping(
   mappingId: string,
   portName?: string | null,

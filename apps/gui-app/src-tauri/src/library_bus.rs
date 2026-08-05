@@ -1,12 +1,15 @@
 //! Tauri bridge for library cmd/evt omnibus (MessagePack wire bytes).
 
 use library::{Evt, LibrarySession};
-use library_api::{decode_wire, encode_wire, WireMessage};
+use library_api::{decode_evt_body, decode_wire, encode_wire, EvtBody, Kind, WireMessage};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
+
+use crate::controller_host::SharedController;
+use crate::SharedAppState;
 
 pub const LIBRARY_BUS_EVENT: &str = "library://bus";
 
@@ -15,6 +18,51 @@ pub type SharedLibrarySession = Arc<LibrarySession>;
 pub struct LibraryEvtForwarder {
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
+}
+
+fn hot_cue_slots(cues: &[library_api::HotCue]) -> [Option<i32>; 8] {
+    let mut slots = [None; 8];
+    for cue in cues {
+        let idx = cue.slot as usize;
+        if idx < 8 {
+            slots[idx] = Some(cue.position_ms);
+        }
+    }
+    slots
+}
+
+/// Push library cue positions into the controller so pads Trigger instead of Save.
+fn mirror_hot_cues_to_controller(app: &AppHandle, track_id: &str, cues: &[library_api::HotCue]) {
+    let Some(app_state) = app.try_state::<SharedAppState>() else {
+        return;
+    };
+    let Some(controller) = app.try_state::<SharedController>() else {
+        return;
+    };
+    let app_state = Arc::clone(&app_state);
+    let controller = Arc::clone(&controller);
+    let Ok(state) = app_state.lock() else {
+        return;
+    };
+    let deck_ids: Vec<u16> = state
+        .decks
+        .iter()
+        .enumerate()
+        .filter_map(|(i, deck)| {
+            (deck.track_id.as_deref() == Some(track_id)).then_some(i as u16)
+        })
+        .collect();
+    drop(state);
+    if deck_ids.is_empty() {
+        return;
+    }
+    let slots = hot_cue_slots(cues);
+    let Ok(mut eng) = controller.lock() else {
+        return;
+    };
+    for deck in deck_ids {
+        eng.set_deck_hot_cues(deck, slots);
+    }
 }
 
 impl LibraryEvtForwarder {
@@ -40,6 +88,13 @@ impl LibraryEvtForwarder {
                 }
 
                 for ev in batch {
+                    if *ev.kind() == Kind::HotCuesChanged {
+                        if let Ok(EvtBody::HotCuesChanged { track_id, hot_cues }) =
+                            decode_evt_body(ev.payload())
+                        {
+                            mirror_hot_cues_to_controller(&app, &track_id, &hot_cues);
+                        }
+                    }
                     let Ok(data) = encode_wire(&WireMessage {
                         origin: ev.origin().clone(),
                         kind: ev.kind().clone(),

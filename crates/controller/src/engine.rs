@@ -94,15 +94,26 @@ impl MidiOut for MidiSink<'_> {
     }
 }
 
+struct CatalogEntry {
+    path: PathBuf,
+    device_id: String,
+    name: String,
+    usb_vid: Option<u16>,
+    usb_pid: Option<u16>,
+    midi_name_contains: Vec<String>,
+}
+
 /// Glue midir + app-data mapping bundles for a host (Tauri / WASM).
 pub struct ControllerEngine {
     app_dir: PathBuf,
     shipped_dir: PathBuf,
-    /// mapping id → bundle root under app-data
-    catalog: HashMap<String, PathBuf>,
+    /// mapping folder id → cached device identity + path
+    catalog: HashMap<String, CatalogEntry>,
     known_input_ports: HashSet<String>,
-    /// Ports already offered this appearance (cleared when port disappears).
+    /// Ports already event-emitted this appearance (cleared when port disappears).
     offered_ports: HashSet<String>,
+    /// Snapshot of unmatched mapped ports — no MIDI I/O to read.
+    pending_offers_cache: Vec<ControllerEvent>,
     events: VecDeque<ControllerEvent>,
     midi_tx: Sender<Vec<u8>>,
     midi_rx: Receiver<Vec<u8>>,
@@ -121,6 +132,7 @@ impl ControllerEngine {
             catalog: HashMap::new(),
             known_input_ports: HashSet::new(),
             offered_ports: HashSet::new(),
+            pending_offers_cache: Vec::new(),
             events: VecDeque::new(),
             midi_tx,
             midi_rx,
@@ -213,9 +225,19 @@ impl ControllerEngine {
             }
             let path = entry.path();
             match load_bundle(&path) {
-                Ok(_bundle) => {
+                Ok(bundle) => {
                     let folder = entry.file_name().to_string_lossy().into_owned();
-                    self.catalog.insert(folder, path);
+                    self.catalog.insert(
+                        folder,
+                        CatalogEntry {
+                            path,
+                            device_id: bundle.device.id,
+                            name: bundle.device.name,
+                            usb_vid: bundle.device.usb_vid,
+                            usb_pid: bundle.device.usb_pid,
+                            midi_name_contains: bundle.device.midi_name_contains,
+                        },
+                    );
                 }
                 Err(err) => {
                     log::warn!("skip invalid mapping {}: {err}", path.display());
@@ -227,17 +249,17 @@ impl ControllerEngine {
 
     pub fn list_mappings(&self) -> Result<Vec<MappingInfo>, EngineError> {
         let attached_id = self.attached.as_ref().map(|a| a.mapping_id.as_str());
-        let mut out = Vec::new();
-        for (id, path) in &self.catalog {
-            let bundle = load_bundle(path)?;
-            out.push(MappingInfo {
+        let mut out: Vec<MappingInfo> = self
+            .catalog
+            .iter()
+            .map(|(id, entry)| MappingInfo {
                 id: id.clone(),
-                device_id: bundle.device.id,
-                name: bundle.device.name,
-                midi_name_contains: bundle.device.midi_name_contains,
+                device_id: entry.device_id.clone(),
+                name: entry.name.clone(),
+                midi_name_contains: entry.midi_name_contains.clone(),
                 attached: attached_id == Some(id.as_str()),
-            });
-        }
+            })
+            .collect();
         out.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(out)
     }
@@ -274,17 +296,9 @@ impl ControllerEngine {
     }
 
     /// Diff input ports; push [`ControllerEvent::MappingOffer`] for new matches.
-    pub fn poll_devices(&mut self) -> Result<(), EngineError> {
-        let input = MidiInput::new("rust-mixer-controller-poll")
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
-        let mut current = HashSet::new();
-        for port in input.ports() {
-            let name = input
-                .port_name(&port)
-                .map_err(|e| EngineError::Midi(e.to_string()))?;
-            current.insert(name);
-        }
-
+    ///
+    /// Call with names enumerated **outside** the engine lock — `MidiInput::new` is slow on ALSA.
+    pub fn apply_input_ports(&mut self, current: HashSet<String>) {
         for gone in self
             .known_input_ports
             .difference(&current)
@@ -298,7 +312,7 @@ impl ControllerEngine {
                     .as_ref()
                     .map(|a| a.mapping_id.clone())
                     .expect("attached");
-                self.disable_mapping(&id)?;
+                let _ = self.disable_mapping(&id);
             }
         }
 
@@ -316,8 +330,7 @@ impl ControllerEngine {
                 let device_name = self
                     .catalog
                     .get(&mapping_id)
-                    .and_then(|p| load_bundle(p).ok())
-                    .map(|b| b.device.name)
+                    .map(|e| e.name.clone())
                     .unwrap_or_else(|| mapping_id.clone());
                 self.offered_ports.insert(name.clone());
                 self.events.push_back(ControllerEvent::MappingOffer {
@@ -329,11 +342,47 @@ impl ControllerEngine {
         }
 
         self.known_input_ports = current;
+        self.refresh_pending_offers_cache();
+    }
+
+    /// Enumerate + apply. Prefer [`Self::apply_input_ports`] from the host after
+    /// listing ports without holding the engine mutex.
+    pub fn poll_devices(&mut self) -> Result<(), EngineError> {
+        let current = list_input_port_names()?;
+        self.apply_input_ports(current);
         Ok(())
     }
 
     pub fn take_events(&mut self) -> Vec<ControllerEvent> {
         self.events.drain(..).collect()
+    }
+
+    /// Cached unmatched mapped ports — no MIDI I/O (safe for FE hydrate).
+    pub fn pending_offers(&self) -> Vec<ControllerEvent> {
+        self.pending_offers_cache.clone()
+    }
+
+    fn refresh_pending_offers_cache(&mut self) {
+        self.pending_offers_cache.clear();
+        for name in &self.known_input_ports {
+            if self.attached.as_ref().is_some_and(|a| &a.port_name == name) {
+                continue;
+            }
+            let Some(mapping_id) = self.match_port(name) else {
+                continue;
+            };
+            let device_name = self
+                .catalog
+                .get(&mapping_id)
+                .map(|e| e.name.clone())
+                .unwrap_or_else(|| mapping_id.clone());
+            self.pending_offers_cache
+                .push(ControllerEvent::MappingOffer {
+                    mapping_id,
+                    device_name,
+                    port_name: name.clone(),
+                });
+        }
     }
 
     /// Attach mapping to `port_name` (or first matching live input).
@@ -345,7 +394,7 @@ impl ControllerEngine {
         let path = self
             .catalog
             .get(mapping_id)
-            .cloned()
+            .map(|e| e.path.clone())
             .ok_or_else(|| EngineError::UnknownMapping(mapping_id.to_string()))?;
         let bundle = load_bundle(&path)?;
 
@@ -399,6 +448,7 @@ impl ControllerEngine {
             _input: input,
             output,
         });
+        self.refresh_pending_offers_cache();
 
         self.events.push_back(ControllerEvent::MappingAttached {
             mapping_id: mapping_id.to_string(),
@@ -422,6 +472,7 @@ impl ControllerEngine {
         self.events.push_back(ControllerEvent::MappingDetached {
             mapping_id: mapping_id.to_string(),
         });
+        self.refresh_pending_offers_cache();
         Ok(())
     }
 
@@ -430,12 +481,21 @@ impl ControllerEngine {
             match self.midi_rx.try_recv() {
                 Ok(bytes) => {
                     if let Some(attached) = self.attached.as_mut() {
-                        attached.session.handle_midi(&bytes, bus);
+                        let mut sink = MidiSink {
+                            out: &mut attached.output,
+                        };
+                        attached.session.handle_midi(&bytes, bus, &mut sink);
                     }
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => break,
             }
+        }
+        if let Some(attached) = self.attached.as_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+            };
+            attached.session.flush_coalesced(bus, &mut sink);
         }
     }
 
@@ -448,22 +508,30 @@ impl ControllerEngine {
         }
     }
 
+    /// Mirror library hot cues into the attached mapping (pad Trigger vs Save + LEDs).
+    pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; 8]) {
+        if let Some(attached) = self.attached.as_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+            };
+            attached.session.set_deck_hot_cues(deck, cues, &mut sink);
+        }
+    }
+
     fn match_port(&self, port_name: &str) -> Option<String> {
         let identity = MidiIdentity {
             usb_vid: None,
             usb_pid: None,
             port_name: port_name.to_string(),
         };
-        for (id, path) in &self.catalog {
-            if let Ok(bundle) = load_bundle(path) {
-                if match_device(
-                    &identity,
-                    bundle.device.usb_vid,
-                    bundle.device.usb_pid,
-                    &bundle.device.midi_name_contains,
-                ) {
-                    return Some(id.clone());
-                }
+        for (id, entry) in &self.catalog {
+            if match_device(
+                &identity,
+                entry.usb_vid,
+                entry.usb_pid,
+                &entry.midi_name_contains,
+            ) {
+                return Some(id.clone());
             }
         }
         None
@@ -511,6 +579,20 @@ impl ActionPublish for NullPublish {
         _body: library_api::EvtBody,
     ) {
     }
+}
+
+/// Enumerate MIDI input port names. Call **outside** the engine mutex — ALSA open is slow.
+pub fn list_input_port_names() -> Result<HashSet<String>, EngineError> {
+    let input = MidiInput::new("rust-mixer-controller-poll")
+        .map_err(|e| EngineError::Midi(e.to_string()))?;
+    let mut current = HashSet::new();
+    for port in input.ports() {
+        let name = input
+            .port_name(&port)
+            .map_err(|e| EngineError::Midi(e.to_string()))?;
+        current.insert(name);
+    }
+    Ok(current)
 }
 
 fn open_matching_output(

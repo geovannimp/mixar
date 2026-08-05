@@ -7,6 +7,7 @@ import {
   InfoIcon,
   LoaderCircleIcon,
   TriangleAlertIcon,
+  XIcon,
 } from "lucide-react";
 import type React from "react";
 import { cn } from "@/lib/utils";
@@ -68,11 +69,10 @@ function Toasts({
     <Toast.Portal data-slot="toast-portal" {...portalProps}>
       <Toast.Viewport
         className={cn(
-          "fixed z-60 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-inset:--spacing(4)] sm:[--toast-inset:--spacing(8)]",
-          // Vertical positioning
-          "data-[position*=top]:top-(--toast-inset)",
+          // Sit just under the h-12 app title bar (not mid-viewport).
+          "fixed z-60 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-inset:--spacing(3)]",
+          "data-[position*=top]:top-14",
           "data-[position*=bottom]:bottom-(--toast-inset)",
-          // Horizontal positioning
           "data-[position*=left]:left-(--toast-inset)",
           "data-[position*=right]:right-(--toast-inset)",
           "data-[position*=center]:left-1/2 data-[position*=center]:-translate-x-1/2",
@@ -158,6 +158,13 @@ function Toasts({
                     {toast.actionProps.children}
                   </Toast.Action>
                 )}
+                <Toast.Close
+                  aria-label="Close"
+                  className={buttonVariants({ size: "icon-xs", variant: "ghost" })}
+                  data-slot="toast-close"
+                >
+                  <XIcon className="size-3.5" />
+                </Toast.Close>
               </Toast.Content>
             </Toast.Root>
           );

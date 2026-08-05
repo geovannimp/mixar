@@ -16,7 +16,7 @@ function AppLayoutContent() {
 
 export function AppLayout() {
   return (
-    <ToastProvider>
+    <ToastProvider position="top-center">
       <AppLayoutContent />
     </ToastProvider>
   );

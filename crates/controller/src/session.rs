@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, Kind, Origin};
+use engine_api::{CmdBody, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, RoutedAction};
@@ -17,6 +17,15 @@ use crate::script::{ScriptHost, ScriptRuntime};
 
 pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
+
+/// Latest absolute CC waiting for ≤60 Hz flush.
+#[derive(Clone, Debug)]
+struct PendingCc {
+    section: String,
+    alias: String,
+    norm: f32,
+    active: bool,
+}
 
 pub trait ActionPublish {
     fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody);
@@ -59,6 +68,8 @@ pub struct MappingSession {
     soft_latched: HashSet<String>,
     /// Last CC publish time per "section.alias".
     cc_last: HashMap<String, Instant>,
+    /// Latest CC not yet published (rate-limited); flushed by [`Self::flush_coalesced`].
+    cc_pending: HashMap<String, PendingCc>,
     /// 14-bit CC pair state: "section.alias" → (msb, lsb).
     cc14_state: HashMap<String, (Option<u8>, Option<u8>)>,
     /// Last edge state for notes: "section.alias" → active.
@@ -80,6 +91,7 @@ impl MappingSession {
             modifiers: HashSet::new(),
             soft_latched: HashSet::new(),
             cc_last: HashMap::new(),
+            cc_pending: HashMap::new(),
             cc14_state: HashMap::new(),
             note_state: HashMap::new(),
             output_state: HashMap::new(),
@@ -89,6 +101,31 @@ impl MappingSession {
 
     pub fn snapshot(&self) -> &ControlSnapshot {
         &self.snapshot
+    }
+
+    /// Hot-cue pad routing uses these positions; keep in sync with library `HotCuesChanged`.
+    pub fn set_deck_hot_cues(
+        &mut self,
+        deck: u16,
+        cues: [Option<i32>; 8],
+        midi: &mut impl MidiOut,
+    ) {
+        let i = (deck as usize).min(3);
+        self.snapshot.hot_cues[i] = cues;
+        self.refresh_hot_cue_leds(deck, midi);
+    }
+
+    /// Re-send pad LED MIDI for the deck's hot-cue slots (also after pad-mode changes).
+    pub fn refresh_hot_cue_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        let cues = self.snapshot.hot_cues[i];
+        let section = format!("deck_{}", deck + 1);
+        for (slot, pos) in cues.iter().enumerate() {
+            let alias = format!("hot_cue_{}", slot + 1);
+            // Force re-send: HW often clears pad LEDs on mode switch.
+            self.output_state.remove(&format!("{section}.{alias}"));
+            self.apply_output_signal(&section, &alias, pos.is_some(), midi);
+        }
     }
 
     pub fn set_control_value(&mut self, origin: Origin, key: &str, value: f32) {
@@ -150,7 +187,12 @@ impl MappingSession {
         script.call_hook(name, &mut host)
     }
 
-    pub fn handle_midi(&mut self, bytes: &[u8], bus: &mut impl ActionPublish) {
+    pub fn handle_midi(
+        &mut self,
+        bytes: &[u8],
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) {
         let Some(parsed) = parse_short(bytes) else {
             return;
         };
@@ -207,23 +249,99 @@ impl MappingSession {
                 return;
             }
             self.note_state.insert(key.clone(), parsed.active);
-        } else {
-            // Coalesce CC publishes ~60Hz (soft-blocked events do not consume budget).
-            let now = Instant::now();
-            if let Some(last) = self.cc_last.get(&key) {
-                if now.duration_since(*last) < CC_COALESCE {
-                    return;
-                }
-            }
+            self.dispatch_input(
+                &section,
+                &alias,
+                &key,
+                norm,
+                parsed.active,
+                false,
+                bus,
+                midi,
+            );
+            return;
         }
 
-        let bindings = self.bundle.map.bindings_for(&section, &alias);
-        if bindings.is_empty() {
+        // Absolute CCs: keep latest value; publish at ≤60 Hz (flush covers the final move).
+        self.cc_pending.insert(
+            key.clone(),
+            PendingCc {
+                section: section.clone(),
+                alias: alias.clone(),
+                norm,
+                active: parsed.active,
+            },
+        );
+        let now = Instant::now();
+        if let Some(last) = self.cc_last.get(&key) {
+            if now.duration_since(*last) < CC_COALESCE {
+                return;
+            }
+        }
+        self.flush_pending_key(&key, bus, midi);
+    }
+
+    /// Publish any rate-limited CCs whose coalesce window has elapsed (call from MIDI pump).
+    pub fn flush_coalesced(&mut self, bus: &mut impl ActionPublish, midi: &mut impl MidiOut) {
+        let now = Instant::now();
+        let ready: Vec<String> = self
+            .cc_pending
+            .keys()
+            .filter(|key| {
+                self.cc_last
+                    .get(*key)
+                    .map(|last| now.duration_since(*last) >= CC_COALESCE)
+                    .unwrap_or(true)
+            })
+            .cloned()
+            .collect();
+        for key in ready {
+            self.flush_pending_key(&key, bus, midi);
+        }
+    }
+
+    fn flush_pending_key(
+        &mut self,
+        key: &str,
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) {
+        let Some(pending) = self.cc_pending.get(key).cloned() else {
             return;
+        };
+        if self.dispatch_input(
+            &pending.section,
+            &pending.alias,
+            key,
+            pending.norm,
+            pending.active,
+            true,
+            bus,
+            midi,
+        ) {
+            self.cc_pending.remove(key);
+        }
+    }
+
+    /// Resolve binding → soft-takeover → publish. Returns true if a publish was sent.
+    fn dispatch_input(
+        &mut self,
+        section: &str,
+        alias: &str,
+        key: &str,
+        norm: f32,
+        active: bool,
+        is_cc: bool,
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) -> bool {
+        let bindings = self.bundle.map.bindings_for(section, alias);
+        if bindings.is_empty() {
+            return false;
         }
         let binding = select_binding(&bindings, &self.modifiers);
         let Some(binding) = binding else {
-            return;
+            return false;
         };
 
         if let Some(script_fn) = &binding.script {
@@ -240,103 +358,139 @@ impl MappingSession {
                     snapshot: &self.snapshot,
                     modifiers: &self.modifiers,
                 };
-                let _ = script.call_named(script_fn, &mut host, norm, parsed.active);
+                let _ = script.call_named(script_fn, &mut host, norm, active);
             }
-            return;
+            if is_cc {
+                self.cc_last.insert(key.to_string(), Instant::now());
+            }
+            return true;
         }
 
         let action = match &binding.action {
             Some(a) => a.as_str(),
-            None => return,
+            None => return false,
         };
         let Ok((template, leaf)) = parse_action_id(action) else {
-            return;
+            return false;
         };
-        let Ok(bound) = bind_origin(template, &section) else {
-            return;
+        let Ok(bound) = bind_origin(template, section) else {
+            return false;
         };
 
         if binding.soft_takeover_effective() {
             if let BoundOrigin::Engine(origin) = &bound {
                 if let Some(engine_v) = self.snapshot.get_norm_for_action(origin.clone(), leaf) {
-                    let latched = self.soft_latched.contains(&key);
+                    let latched = self.soft_latched.contains(key);
                     if !latched {
                         let dist = (norm - engine_v).abs();
                         if dist > SOFT_TAKEOVER_THRESHOLD {
-                            return;
+                            return false;
                         }
-                        self.soft_latched.insert(key.clone());
+                        self.soft_latched.insert(key.to_string());
                     }
                 }
             }
         }
 
-        if let Some(routed) = resolve_action(action, &section, norm, parsed.active, &self.snapshot)
-        {
-            if is_cc {
-                self.cc_last.insert(key.clone(), Instant::now());
+        let Some(routed) = resolve_action(action, section, norm, active, &self.snapshot) else {
+            return false;
+        };
+
+        if is_cc {
+            self.cc_last.insert(key.to_string(), Instant::now());
+        }
+        match &routed {
+            RoutedAction::EngineCmd {
+                origin: o,
+                kind,
+                body,
+            } => {
+                // Mirror absolute values into snapshot after publish intent
+                match body {
+                    CmdBody::SetVolume { volume } => {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.volume[d as usize] = *volume;
+                        }
+                    }
+                    CmdBody::SetFilter { filter_db } => {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.filter_db[d as usize] = *filter_db;
+                        }
+                    }
+                    CmdBody::SetGainTrim { gain_db } => {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.gain_db[d as usize] = *gain_db;
+                        }
+                    }
+                    CmdBody::SetSpeed { speed } => {
+                        if let Origin::Deck(d) = *o {
+                            self.snapshot.speed[d as usize] = *speed;
+                        }
+                    }
+                    CmdBody::SetEq { low, mid, high } => {
+                        if let Origin::Deck(d) = *o {
+                            let i = d as usize;
+                            self.snapshot.eq_low[i] = *low;
+                            self.snapshot.eq_mid[i] = *mid;
+                            self.snapshot.eq_high[i] = *high;
+                        }
+                    }
+                    CmdBody::SetCrossfader { position } => {
+                        self.snapshot.crossfader = *position;
+                    }
+                    CmdBody::SetCueMix { mix } => {
+                        self.snapshot.cue_mix = *mix;
+                    }
+                    CmdBody::SetHeadphoneCue { enabled } => {
+                        if let Origin::Deck(d) = *o {
+                            let i = (d as usize).min(3);
+                            self.snapshot.headphone_cue[i] = *enabled;
+                            let deck_section = format!("deck_{}", d + 1);
+                            self.apply_output_signal(
+                                &deck_section,
+                                "headphone_cue",
+                                *enabled,
+                                midi,
+                            );
+                        }
+                    }
+                    CmdBody::SetMasterCue { enabled } => {
+                        self.snapshot.master_cue = *enabled;
+                    }
+                    CmdBody::SetPadMode { mode } => {
+                        if let Origin::Deck(d) = *o {
+                            let i = (d as usize).min(3);
+                            self.snapshot.pad_mode[i] = *mode;
+                            if *mode == PadMode::HotCue {
+                                self.refresh_hot_cue_leds(d, midi);
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                if matches!(kind, Kind::Play | Kind::TriggerHotCue) {
+                    if let Origin::Deck(d) = *o {
+                        let i = (d as usize).min(3);
+                        self.snapshot.playing[i] = true;
+                        let deck_section = format!("deck_{}", d + 1);
+                        self.apply_output_signal(&deck_section, "play_pause", true, midi);
+                    }
+                }
+                if matches!(kind, Kind::Pause) {
+                    if let Origin::Deck(d) = *o {
+                        let i = (d as usize).min(3);
+                        self.snapshot.playing[i] = false;
+                        let deck_section = format!("deck_{}", d + 1);
+                        self.apply_output_signal(&deck_section, "play_pause", false, midi);
+                    }
+                }
+                bus.publish_engine(o.clone(), kind.clone(), body.clone());
             }
-            match &routed {
-                RoutedAction::EngineCmd {
-                    origin: o,
-                    kind,
-                    body,
-                } => {
-                    // Mirror absolute values into snapshot after publish intent
-                    match body {
-                        CmdBody::SetVolume { volume } => {
-                            if let Origin::Deck(d) = *o {
-                                self.snapshot.volume[d as usize] = *volume;
-                            }
-                        }
-                        CmdBody::SetFilter { filter_db } => {
-                            if let Origin::Deck(d) = *o {
-                                self.snapshot.filter_db[d as usize] = *filter_db;
-                            }
-                        }
-                        CmdBody::SetGainTrim { gain_db } => {
-                            if let Origin::Deck(d) = *o {
-                                self.snapshot.gain_db[d as usize] = *gain_db;
-                            }
-                        }
-                        CmdBody::SetSpeed { speed } => {
-                            if let Origin::Deck(d) = *o {
-                                self.snapshot.speed[d as usize] = *speed;
-                            }
-                        }
-                        CmdBody::SetEq { low, mid, high } => {
-                            if let Origin::Deck(d) = *o {
-                                let i = d as usize;
-                                self.snapshot.eq_low[i] = *low;
-                                self.snapshot.eq_mid[i] = *mid;
-                                self.snapshot.eq_high[i] = *high;
-                            }
-                        }
-                        CmdBody::SetCrossfader { position } => {
-                            self.snapshot.crossfader = *position;
-                        }
-                        CmdBody::SetCueMix { mix } => {
-                            self.snapshot.cue_mix = *mix;
-                        }
-                        _ => {}
-                    }
-                    if matches!(kind, Kind::Play) {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.playing[d as usize] = true;
-                        }
-                    }
-                    if matches!(kind, Kind::Pause) {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.playing[d as usize] = false;
-                        }
-                    }
-                    bus.publish_engine(o.clone(), kind.clone(), body.clone());
-                }
-                RoutedAction::LibraryEvt { origin, kind, body } => {
-                    bus.publish_library_evt(origin.clone(), kind.clone(), body.clone());
-                }
+            RoutedAction::LibraryEvt { origin, kind, body } => {
+                bus.publish_library_evt(origin.clone(), kind.clone(), body.clone());
             }
         }
+        true
     }
 
     /// Update playing signal and emit mapped LED MIDI if changed.
@@ -420,9 +574,72 @@ fn output_endpoint_bytes(ep: &MidiEndpoint) -> [u8; 3] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
+
+    struct CaptureBus {
+        cmds: Vec<(Origin, Kind, CmdBody)>,
+    }
+
+    impl ActionPublish for CaptureBus {
+        fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
+            self.cmds.push((origin, kind, body));
+        }
+        fn publish_library_evt(
+            &mut self,
+            _origin: LibraryOrigin,
+            _kind: LibraryKind,
+            _body: LibraryEvtBody,
+        ) {
+        }
+    }
+
+    struct NullMidi;
+    impl MidiOut for NullMidi {
+        fn send(&mut self, _bytes: &[u8]) {}
+    }
+
+    fn session() -> MappingSession {
+        let b = crate::load_bundle(Path::new("tests/fixtures/valid-minimal")).unwrap();
+        MappingSession::from_bundle(b).unwrap()
+    }
 
     #[test]
     fn soft_threshold_is_3_of_127() {
         assert!((SOFT_TAKEOVER_THRESHOLD - 3.0 / 127.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn cc_coalesce_keeps_latest_until_flush() {
+        let mut s = session();
+        // Disable soft-takeover distance: engine volume starts at 1.0; latch by matching first.
+        s.set_control_value(Origin::Deck(0), "volume", 0.0);
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // First CC publishes (0 → latch + set).
+        s.handle_midi(&[0xB0, 0x13, 0], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+
+        // Burst within coalesce window — only pending, no extra publishes.
+        s.handle_midi(&[0xB0, 0x13, 32], &mut bus, &mut NullMidi);
+        s.handle_midi(&[0xB0, 0x13, 96], &mut bus, &mut NullMidi);
+        s.handle_midi(&[0xB0, 0x13, 127], &mut bus, &mut NullMidi);
+        assert_eq!(
+            bus.cmds.len(),
+            1,
+            "rate limit must not publish intermediates"
+        );
+
+        // Window elapsed → flush publishes the latest (127).
+        if let Some(t) = s.cc_last.get_mut("deck_1.volume") {
+            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+        }
+        s.flush_coalesced(&mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
+        match &bus.cmds[1].2 {
+            CmdBody::SetVolume { volume } => {
+                assert!((*volume - 1.0).abs() < 1e-5, "volume={volume}");
+            }
+            other => panic!("expected SetVolume, got {other:?}"),
+        }
     }
 }

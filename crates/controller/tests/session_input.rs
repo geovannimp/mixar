@@ -18,6 +18,21 @@ impl controller::ActionPublish for CaptureBus {
     }
 }
 
+struct CaptureMidi {
+    frames: Vec<Vec<u8>>,
+}
+
+impl controller::MidiOut for CaptureMidi {
+    fn send(&mut self, bytes: &[u8]) {
+        self.frames.push(bytes.to_vec());
+    }
+}
+
+struct NullMidi;
+impl controller::MidiOut for NullMidi {
+    fn send(&mut self, _bytes: &[u8]) {}
+}
+
 fn session() -> controller::MappingSession {
     let b = controller::load_bundle(Path::new("tests/fixtures/valid-minimal")).unwrap();
     controller::MappingSession::from_bundle(b).unwrap()
@@ -27,8 +42,9 @@ fn session() -> controller::MappingSession {
 fn note_toggle_play_publishes_play_when_stopped() {
     let mut s = session();
     let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = NullMidi;
     // note on play_pause ch1 note 0x0B
-    s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus);
+    s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].0, Origin::Deck(0));
     assert_eq!(bus.cmds[0].1, Kind::Play);
@@ -38,11 +54,12 @@ fn note_toggle_play_publishes_play_when_stopped() {
 fn modifier_shift_selects_set_filter() {
     let mut s = session();
     let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = NullMidi;
     // hold shift
-    s.handle_midi(&[0x90, 0x3F, 0x7F], &mut bus);
+    s.handle_midi(&[0x90, 0x3F, 0x7F], &mut bus, &mut midi);
     assert!(bus.cmds.is_empty());
     // CC volume with shift → set_filter
-    s.handle_midi(&[0xB0, 0x13, 64], &mut bus);
+    s.handle_midi(&[0xB0, 0x13, 64], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].1, Kind::SetFilter);
 }
@@ -52,11 +69,67 @@ fn soft_takeover_blocks_then_latches() {
     let mut s = session();
     s.set_control_value(Origin::Deck(0), "volume", 0.9);
     let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = NullMidi;
     // HW at ~0.1 — far from 0.9
-    s.handle_midi(&[0xB0, 0x13, 13], &mut bus);
+    s.handle_midi(&[0xB0, 0x13, 13], &mut bus, &mut midi);
     assert!(bus.cmds.is_empty(), "should soft-takeover block");
     // HW near 0.9 (114/127 ≈ 0.897)
-    s.handle_midi(&[0xB0, 0x13, 114], &mut bus);
+    s.handle_midi(&[0xB0, 0x13, 114], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].1, Kind::SetVolume);
+}
+
+#[test]
+fn headphone_cue_toggles_and_lights_led() {
+    let mut s = session();
+    let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = CaptureMidi { frames: vec![] };
+
+    // note on headphone_cue ch1 note 0x54
+    s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].1, Kind::SetHeadphoneCue);
+    match &bus.cmds[0].2 {
+        CmdBody::SetHeadphoneCue { enabled } => assert!(*enabled),
+        other => panic!("expected SetHeadphoneCue, got {other:?}"),
+    }
+    assert_eq!(midi.frames.len(), 1, "PFL LED should turn on");
+    assert_eq!(midi.frames[0], vec![0x90, 0x54, 0x7F]);
+
+    // release + press again → disable
+    s.handle_midi(&[0x80, 0x54, 0x00], &mut bus, &mut midi);
+    s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 2);
+    match &bus.cmds[1].2 {
+        CmdBody::SetHeadphoneCue { enabled } => assert!(!*enabled, "second press must disable"),
+        other => panic!("expected SetHeadphoneCue, got {other:?}"),
+    }
+    assert_eq!(midi.frames.len(), 2, "PFL LED should turn off");
+    assert_eq!(midi.frames[1], vec![0x90, 0x54, 0x00]);
+}
+
+#[test]
+fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
+    let mut s = session();
+    let mut cues = [None; 8];
+    cues[0] = Some(1_000);
+    let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = CaptureMidi { frames: vec![] };
+    s.set_deck_hot_cues(0, cues, &mut midi);
+    assert!(s.snapshot().playing[0] == false);
+    assert_eq!(midi.frames.len(), 1, "filled hot cue should light pad LED");
+    assert_eq!(midi.frames[0], vec![0x90, 0x2E, 0x7F]);
+
+    // pad_1 → TriggerHotCue (engine would start playback)
+    s.handle_midi(&[0x90, 0x2E, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].1, Kind::TriggerHotCue);
+    assert!(s.snapshot().playing[0], "hot cue must mark deck playing");
+
+    bus.cmds.clear();
+    s.handle_midi(&[0x80, 0x2E, 0x00], &mut bus, &mut midi);
+    // play_pause should Pause on first press (not a no-op Play)
+    s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].1, Kind::Pause);
 }

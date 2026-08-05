@@ -13,11 +13,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
+use crate::controller_host::SharedController;
 use crate::deck_sampler::{SamplerPlayModeSetting, SamplerStatus};
 use crate::deck_sync::PadMode;
-use crate::{AppState, DeckInfo, NUM_DECKS};
+use crate::{AppState, DeckInfo, SharedAppState, NUM_DECKS};
+use library_core::TrackId;
 
 pub const ENGINE_BUS_EVENT: &str = "engine://bus";
 
@@ -28,8 +30,12 @@ pub struct EvtForwarder {
     thread: Option<JoinHandle<()>>,
 }
 
-fn is_high_rate(kind: &Kind) -> bool {
-    matches!(kind, Kind::Position | Kind::Levels)
+/// Continuous / replaceable evts: keep only the latest per (origin, kind) when draining.
+fn is_coalescible(kind: &Kind) -> bool {
+    matches!(
+        kind,
+        Kind::Position | Kind::Levels | Kind::Updated | Kind::Status
+    )
 }
 
 impl EvtForwarder {
@@ -45,13 +51,13 @@ impl EvtForwarder {
                     Err(_) => break,
                 };
 
-                // Drain the queue: keep every discrete evt, coalesce high-rate by origin+kind.
-                // Prevents Position/Levels from starving Pause/Updated when emit is slow.
+                // Drain the queue: keep every discrete evt; coalesce replaceable kinds
+                // (Position/Levels/Updated/Status) by origin+kind — latest wins.
                 let mut discrete: Vec<Arc<Evt>> = Vec::new();
-                let mut high_rate: HashMap<(Origin, Kind), Arc<Evt>> = HashMap::new();
+                let mut coalesced: HashMap<(Origin, Kind), Arc<Evt>> = HashMap::new();
                 let mut push = |ev: Arc<Evt>| {
-                    if is_high_rate(ev.kind()) {
-                        high_rate.insert((ev.origin().clone(), ev.kind().clone()), ev);
+                    if is_coalescible(ev.kind()) {
+                        coalesced.insert((ev.origin().clone(), ev.kind().clone()), ev);
                     } else {
                         discrete.push(ev);
                     }
@@ -65,7 +71,7 @@ impl EvtForwarder {
                     }
                 }
 
-                for ev in discrete.into_iter().chain(high_rate.into_values()) {
+                for ev in discrete.into_iter().chain(coalesced.into_values()) {
                     let Ok(data) = encode_wire(&WireMessage {
                         origin: ev.origin().clone(),
                         kind: ev.kind().clone(),
@@ -111,6 +117,48 @@ pub fn install_session(holder: &SharedSession, session: Arc<EngineSession>) {
 
 pub fn clear_session(holder: &SharedSession) {
     *holder.lock().expect("shared session lock") = None;
+}
+
+/// Keep controller pad Trigger/Save routing aligned with library cues for a deck.
+fn sync_controller_hot_cues(app: &AppHandle, deck: u16, track_id: Option<&str>) {
+    let Some(controller) = app.try_state::<SharedController>() else {
+        return;
+    };
+    let controller = Arc::clone(&controller);
+    let slots = match track_id {
+        None => [None; 8],
+        Some(tid) => {
+            let Some(app_state) = app.try_state::<SharedAppState>() else {
+                return;
+            };
+            let app_state = Arc::clone(&app_state);
+            let Ok(state) = app_state.lock() else {
+                return;
+            };
+            let Ok(lib) = state.library.lock() else {
+                return;
+            };
+            match lib.list_track_hot_cues(&TrackId::new(tid.to_string())) {
+                Ok(rows) => {
+                    let mut slots = [None; 8];
+                    for row in rows {
+                        let idx = row.slot_index as usize;
+                        if idx < 8 {
+                            slots[idx] = Some(row.position_ms);
+                        }
+                    }
+                    slots
+                }
+                Err(_) => [None; 8],
+            }
+        }
+    };
+    {
+        let Ok(mut eng) = controller.lock() else {
+            return;
+        };
+        eng.set_deck_hot_cues(deck, slots);
+    }
 }
 
 #[tauri::command]
@@ -230,11 +278,13 @@ pub fn engine_publish(
                     std::path::Path::new(&path),
                 )
                 .map_err(|e| e.to_string())?;
-                {
+                let track_id = {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
                     publish_deck_updated(&state, deck_id);
-                }
+                    state.decks[deck_id].track_id.clone()
+                };
+                sync_controller_hot_cues(&app, deck_id as u16, track_id.as_deref());
                 // Sampler bank after first Updated so UI isn't starved during bank slot loads.
                 {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
@@ -270,11 +320,13 @@ pub fn engine_publish(
                     .path()
                     .to_string_lossy()
                     .into_owned();
-                {
+                let loaded_track_id = {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     crate::load_prepared_to_deck_inner(&mut state, deck_id, path, prepared)?;
                     publish_deck_updated(&state, deck_id);
-                }
+                    state.decks[deck_id].track_id.clone()
+                };
+                sync_controller_hot_cues(&app, deck_id as u16, loaded_track_id.as_deref());
                 {
                     let mut state = app_state.lock().map_err(|e| e.to_string())?;
                     let track_id = state.decks[deck_id].track_id.clone();
@@ -339,6 +391,8 @@ pub fn engine_publish(
         if deck_id < crate::NUM_DECKS {
             let mut state = app_state.lock().map_err(|e| e.to_string())?;
             crate::clear_deck_info(&mut state.decks[deck_id]);
+            drop(state);
+            sync_controller_hot_cues(&app, deck_id as u16, None);
         }
     }
     // ponytail: AppState.pad_mode still mirrors for leftover sampler bank/assign invokes.

@@ -41,7 +41,7 @@ use library_bus::{LibraryEvtForwarder, SharedLibrarySession};
 
 const NUM_DECKS: usize = 2;
 
-type SharedAppState = Arc<Mutex<AppState>>;
+pub(crate) type SharedAppState = Arc<Mutex<AppState>>;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct DeckInfo {
@@ -1088,6 +1088,7 @@ pub fn run() {
             library_bus::library_publish,
             controller_host::controller_list_mappings,
             controller_host::controller_list_devices,
+            controller_host::controller_pending_offers,
             controller_host::controller_enable_mapping,
             controller_host::controller_disable_mapping,
             controller_host::controller_update_mapping,

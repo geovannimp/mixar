@@ -18,6 +18,7 @@ pub struct ControlSnapshot {
     pub eq_high: [f32; 4],
     pub headphone_cue: [bool; 4],
     pub quantize: [bool; 4],
+    pub pad_mode: [PadMode; 4],
     pub crossfader: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
@@ -33,11 +34,12 @@ impl Default for ControlSnapshot {
             filter_db: [0.0; 4],
             gain_db: [0.0; 4],
             speed: [1.0; 4],
-            eq_low: [1.0; 4],
-            eq_mid: [1.0; 4],
-            eq_high: [1.0; 4],
+            eq_low: [0.0; 4],
+            eq_mid: [0.0; 4],
+            eq_high: [0.0; 4],
             headphone_cue: [false; 4],
             quantize: [false; 4],
+            pad_mode: [PadMode::HotCue; 4],
             crossfader: 0.5,
             cue_mix: 0.5,
             master_cue: false,
@@ -68,6 +70,14 @@ impl ControlSnapshot {
                     "playing" => self.playing[i] = value > 0.5,
                     "headphone_cue" => self.headphone_cue[i] = value > 0.5,
                     "quantize" => self.quantize[i] = value > 0.5,
+                    "pad_mode" => {
+                        self.pad_mode[i] = match value as u8 {
+                            1 => PadMode::LoopRoll,
+                            2 => PadMode::BeatJump,
+                            3 => PadMode::Sampler,
+                            _ => PadMode::HotCue,
+                        };
+                    }
                     _ => {}
                 }
             }
@@ -86,7 +96,6 @@ impl ControlSnapshot {
                 let i = deck_idx(d);
                 match leaf {
                     "set_volume" => Some(self.volume[i]),
-                    // filter_db mirrored as normalized -1..1 mapped externally; store as 0..1-ish
                     "set_filter" => Some(filter_db_to_norm(self.filter_db[i])),
                     "set_gain" => Some(gain_db_to_norm(self.gain_db[i])),
                     "set_speed" => Some(speed_to_norm(self.speed[i])),
@@ -105,30 +114,42 @@ fn deck_idx(d: u16) -> usize {
     (d as usize).min(3)
 }
 
-/// Map filter_db (-1..+1 typical) to 0..1 for soft-takeover compare.
+/// Match `engine-dsp` / GUI ±24 dB strip range.
+const STRIP_DB_MIN: f32 = -24.0;
+const STRIP_DB_MAX: f32 = 24.0;
+
+fn db_to_norm(db: f32) -> f32 {
+    ((db - STRIP_DB_MIN) / (STRIP_DB_MAX - STRIP_DB_MIN)).clamp(0.0, 1.0)
+}
+
+fn norm_to_db(n: f32) -> f32 {
+    // Match GUI EQ_STEP_DB (0.1) so MIDI center detents land on 0.
+    let db = n.clamp(0.0, 1.0) * (STRIP_DB_MAX - STRIP_DB_MIN) + STRIP_DB_MIN;
+    (db * 10.0).round() / 10.0
+}
+
 fn filter_db_to_norm(db: f32) -> f32 {
-    ((db + 1.0) * 0.5).clamp(0.0, 1.0)
+    db_to_norm(db)
 }
 
 fn norm_to_filter_db(n: f32) -> f32 {
-    n.clamp(0.0, 1.0) * 2.0 - 1.0
+    norm_to_db(n)
 }
 
 fn gain_db_to_norm(db: f32) -> f32 {
-    // ponytail: ±12 dB span → 0..1; widen if engine range differs
-    ((db + 12.0) / 24.0).clamp(0.0, 1.0)
+    db_to_norm(db)
 }
 
 fn norm_to_gain_db(n: f32) -> f32 {
-    n.clamp(0.0, 1.0) * 24.0 - 12.0
+    norm_to_db(n)
 }
 
-fn eq_to_norm(g: f32) -> f32 {
-    ((g + 1.0) * 0.5).clamp(0.0, 1.0)
+fn eq_to_norm(db: f32) -> f32 {
+    db_to_norm(db)
 }
 
 fn norm_to_eq(n: f32) -> f32 {
-    n.clamp(0.0, 1.0) * 2.0 - 1.0
+    norm_to_db(n)
 }
 
 /// Pioneer tempo fader: top = slow. Map engine speed (~0.84..1.16) ↔ MIDI 0..1 inverted.
@@ -450,6 +471,17 @@ pub fn resolve_action(
                 mode: PadMode::Sampler,
             },
         )),
+        a if a.starts_with("pad_") => {
+            let slot: u8 = a.strip_prefix("pad_")?.parse().ok()?;
+            if !(1..=8).contains(&slot) {
+                return None;
+            }
+            let Origin::Deck(d) = origin else {
+                return None;
+            };
+            let mode = snap.pad_mode[deck_idx(d)];
+            resolve_pad_slot(origin, slot, active, mode, snap)
+        }
         a if a.starts_with("trigger_sampler_") => {
             if !active {
                 return None;
@@ -465,7 +497,212 @@ pub fn resolve_action(
     }
 }
 
+/// Match GUI pad grid (`LOOP_ROLL_BEATS` / beat-jump layout).
+const LOOP_ROLL_BEATS: [u32; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
+const BEAT_JUMP_BEATS: [i32; 8] = [1, 2, 4, 8, -1, -2, -4, -8];
+
+fn resolve_pad_slot(
+    origin: Origin,
+    slot: u8,
+    active: bool,
+    mode: PadMode,
+    snap: &ControlSnapshot,
+) -> Option<RoutedAction> {
+    let idx = (slot - 1) as usize;
+    match mode {
+        PadMode::HotCue => {
+            if !active {
+                return None;
+            }
+            let Origin::Deck(d) = origin else {
+                return None;
+            };
+            match snap.hot_cues[deck_idx(d)][idx] {
+                Some(pos) => Some(engine_cmd(
+                    origin,
+                    Kind::TriggerHotCue,
+                    CmdBody::TriggerHotCue { position_ms: pos },
+                )),
+                None => Some(engine_cmd(
+                    origin,
+                    Kind::SaveHotCue,
+                    CmdBody::SaveHotCue { slot: slot - 1 },
+                )),
+            }
+        }
+        PadMode::LoopRoll => {
+            let beats = LOOP_ROLL_BEATS[idx];
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::BeginLoopRoll,
+                    CmdBody::BeginLoopRoll { beats },
+                ))
+            } else {
+                Some(engine_cmd(origin, Kind::EndLoopRoll, CmdBody::Empty))
+            }
+        }
+        PadMode::BeatJump => {
+            if !active {
+                return None;
+            }
+            let beats = BEAT_JUMP_BEATS[idx];
+            Some(engine_cmd(
+                origin,
+                Kind::BeatJump,
+                CmdBody::BeatJump { beats },
+            ))
+        }
+        PadMode::Sampler => {
+            if !active {
+                return None;
+            }
+            Some(engine_cmd(
+                origin,
+                Kind::TriggerSampler,
+                CmdBody::TriggerSampler { slot: slot - 1 },
+            ))
+        }
+    }
+}
+
 #[allow(dead_code)]
 pub fn _jog_mode_placeholder() -> JogMode {
     JogMode::Vinyl
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eq_knob_max_maps_to_plus_24_db() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetEq { low, mid, high },
+                ..
+            } => {
+                assert!((low - 24.0).abs() < 1e-5, "low={low}");
+                assert_eq!(mid, 0.0);
+                assert_eq!(high, 0.0);
+            }
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn eq_knob_center_maps_to_0_db() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetEq { mid, .. },
+                ..
+            } => assert!((mid - 0.0).abs() < 1e-5, "mid={mid}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn filter_knob_max_maps_to_plus_24_db() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetFilter { filter_db },
+                ..
+            } => assert!((filter_db - 24.0).abs() < 1e-5, "filter_db={filter_db}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn gain_knob_max_maps_to_plus_24_db() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetGainTrim { gain_db },
+                ..
+            } => assert!((gain_db - 24.0).abs() < 1e-5, "gain_db={gain_db}"),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pad_routes_by_software_pad_mode() {
+        let mut snap = ControlSnapshot::default();
+        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SaveHotCue { slot },
+                ..
+            } => assert_eq!(slot, 0),
+            other => panic!("expected SaveHotCue, got {other:?}"),
+        }
+
+        snap.hot_cues[0][0] = Some(12_500);
+        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::TriggerHotCue { position_ms },
+                ..
+            } => assert_eq!(position_ms, 12_500),
+            other => panic!("expected TriggerHotCue, got {other:?}"),
+        }
+
+        snap.pad_mode[0] = PadMode::BeatJump;
+        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::BeatJump { beats },
+                ..
+            } => assert_eq!(beats, 1),
+            other => panic!("expected BeatJump +1, got {other:?}"),
+        }
+
+        snap.pad_mode[0] = PadMode::LoopRoll;
+        let begin = resolve_action("Deck(_)::pad_3", "deck_1", 1.0, true, &snap).unwrap();
+        match begin {
+            RoutedAction::EngineCmd {
+                body: CmdBody::BeginLoopRoll { beats },
+                ..
+            } => assert_eq!(beats, 4),
+            other => panic!("expected BeginLoopRoll 4, got {other:?}"),
+        }
+        let end = resolve_action("Deck(_)::pad_3", "deck_1", 0.0, false, &snap).unwrap();
+        assert!(matches!(
+            end,
+            RoutedAction::EngineCmd {
+                kind: Kind::EndLoopRoll,
+                ..
+            }
+        ));
+
+        snap.pad_mode[0] = PadMode::Sampler;
+        let routed = resolve_action("Deck(_)::pad_2", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::TriggerSampler { slot },
+                ..
+            } => assert_eq!(slot, 1),
+            other => panic!("expected TriggerSampler, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pad_mode_button_sets_mode() {
+        let snap = ControlSnapshot::default();
+        let routed =
+            resolve_action("Deck(_)::pad_mode_loop_roll", "deck_1", 1.0, true, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetPadMode { mode },
+                ..
+            } => assert_eq!(mode, PadMode::LoopRoll),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
 }

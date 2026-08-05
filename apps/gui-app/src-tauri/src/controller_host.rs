@@ -6,7 +6,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use controller::{ActionPublish, ControllerEngine, DeviceInfo, MappingInfo};
+use controller::{
+    list_input_port_names, ActionPublish, ControllerEngine, ControllerEvent, DeviceInfo,
+    MappingInfo,
+};
 use engine_api::{encode_cmd_body, CmdBody, Kind, Origin};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -15,6 +18,11 @@ use crate::bus_bridge::SharedSession;
 use crate::library_bus::SharedLibrarySession;
 
 pub const CONTROLLER_EVENT: &str = "controller://event";
+
+/// MIDI pump cadence — never blocks on ALSA port enumeration.
+const PUMP_INTERVAL: Duration = Duration::from_millis(5);
+/// Hotplug / offer scan — MidiInput::new is expensive on Linux; own thread.
+const DEVICE_POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 pub type SharedController = Arc<Mutex<ControllerEngine>>;
 
@@ -53,9 +61,17 @@ impl ActionPublish for HostPublish {
     }
 }
 
+fn emit_events(app: &AppHandle, events: Vec<ControllerEvent>) {
+    for ev in events {
+        if let Err(err) = app.emit(CONTROLLER_EVENT, &ev) {
+            log::warn!("failed to emit {CONTROLLER_EVENT}: {err}");
+        }
+    }
+}
+
 pub struct ControllerHost {
     stop: Arc<AtomicBool>,
-    thread: Option<JoinHandle<()>>,
+    threads: Vec<JoinHandle<()>>,
 }
 
 impl ControllerHost {
@@ -66,39 +82,70 @@ impl ControllerHost {
         library: SharedLibrarySession,
     ) -> Self {
         let stop = Arc::new(AtomicBool::new(false));
-        let stop_flag = Arc::clone(&stop);
-        let thread = thread::spawn(move || {
-            while !stop_flag.load(Ordering::Relaxed) {
-                {
+        let mut threads = Vec::with_capacity(2);
+
+        // Port scan thread — ALSA open stays off the MIDI pump path.
+        {
+            let stop_flag = Arc::clone(&stop);
+            let engine = Arc::clone(&engine);
+            let app = app.clone();
+            threads.push(thread::spawn(move || {
+                // First scan immediately (may take seconds on cold ALSA); pump runs in parallel.
+                loop {
+                    match list_input_port_names() {
+                        Ok(ports) => {
+                            let events = if let Ok(mut eng) = engine.lock() {
+                                eng.apply_input_ports(ports);
+                                eng.take_events()
+                            } else {
+                                Vec::new()
+                            };
+                            emit_events(&app, events);
+                        }
+                        Err(err) => log::debug!("controller poll_devices: {err}"),
+                    }
+                    // Sleep in slices so shutdown is responsive.
+                    let mut waited = Duration::ZERO;
+                    while waited < DEVICE_POLL_INTERVAL {
+                        if stop_flag.load(Ordering::Relaxed) {
+                            return;
+                        }
+                        thread::sleep(Duration::from_millis(100));
+                        waited += Duration::from_millis(100);
+                    }
+                }
+            }));
+        }
+
+        // MIDI pump thread.
+        {
+            let stop_flag = Arc::clone(&stop);
+            let engine = Arc::clone(&engine);
+            let app = app.clone();
+            threads.push(thread::spawn(move || {
+                while !stop_flag.load(Ordering::Relaxed) {
                     let mut bus = HostPublish {
                         session: Arc::clone(&session),
                         library: Arc::clone(&library),
                     };
-                    if let Ok(mut eng) = engine.lock() {
-                        if let Err(err) = eng.poll_devices() {
-                            log::debug!("controller poll_devices: {err}");
-                        }
+                    let events = if let Ok(mut eng) = engine.lock() {
                         eng.pump(&mut bus);
-                        let events = eng.take_events();
-                        for ev in events {
-                            if let Err(err) = app.emit(CONTROLLER_EVENT, &ev) {
-                                log::warn!("failed to emit {CONTROLLER_EVENT}: {err}");
-                            }
-                        }
-                    }
+                        eng.take_events()
+                    } else {
+                        Vec::new()
+                    };
+                    emit_events(&app, events);
+                    thread::sleep(PUMP_INTERVAL);
                 }
-                thread::sleep(Duration::from_millis(20));
-            }
-        });
-        Self {
-            stop,
-            thread: Some(thread),
+            }));
         }
+
+        Self { stop, threads }
     }
 
     pub fn stop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        if let Some(handle) = self.thread.take() {
+        for handle in self.threads.drain(..) {
             let _ = handle.join();
         }
     }
@@ -159,6 +206,13 @@ pub fn controller_list_devices(
 }
 
 #[tauri::command]
+pub fn controller_pending_offers(
+    engine: State<'_, SharedController>,
+) -> Result<Vec<ControllerEvent>, String> {
+    Ok(engine.lock().map_err(|e| e.to_string())?.pending_offers())
+}
+
+#[tauri::command]
 pub fn controller_enable_mapping(
     engine: State<'_, SharedController>,
     mapping_id: String,
@@ -196,9 +250,7 @@ pub fn controller_update_mapping(
 }
 
 #[tauri::command]
-pub fn controller_update_all_mappings(
-    engine: State<'_, SharedController>,
-) -> Result<(), String> {
+pub fn controller_update_all_mappings(engine: State<'_, SharedController>) -> Result<(), String> {
     engine
         .lock()
         .map_err(|e| e.to_string())?
