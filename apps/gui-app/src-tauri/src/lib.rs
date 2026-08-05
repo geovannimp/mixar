@@ -1012,15 +1012,15 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            let app_data = app
+            let app_data_dir = app
                 .path()
                 .app_data_dir()
                 .map_err(|err| format!("app data dir unavailable: {err}"))?;
-            std::fs::create_dir_all(&app_data).map_err(|err| err.to_string())?;
+            std::fs::create_dir_all(&app_data_dir).map_err(|err| err.to_string())?;
 
             let engine_config = default_engine_config();
             let library_session = Arc::new(
-                LibrarySession::open(app_data.join("library.db"), LibraryConfig::default())
+                LibrarySession::open(app_data_dir.join("library.db"), LibraryConfig::default())
                     .map_err(|err| err.to_string())?,
             );
             library_session.set_analysis_duration(engine_config.analysis_duration);
@@ -1030,10 +1030,13 @@ pub fn run() {
             app.manage(shared_session.clone());
             app.manage(Arc::clone(&library_session));
 
-            let shipped_mappings = controller_host::resolve_shipped_mappings(app.handle());
+            let shipped_mappings_dir = controller_host::resolve_shipped_mappings(app.handle());
             let controller = Arc::new(Mutex::new(
-                controller_host::open_engine(&app_data, &shipped_mappings)
-                    .map_err(|err| err.to_string())?,
+                controller::ControllerEngine::open(
+                    app_data_dir.join("mappings"),
+                    &shipped_mappings_dir,
+                )
+                .map_err(|err| err.to_string())?,
             ));
             app.manage(Arc::clone(&controller));
             let controller_host = Some(controller_host::ControllerHost::start(

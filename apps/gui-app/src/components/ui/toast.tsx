@@ -69,9 +69,8 @@ function Toasts({
     <Toast.Portal data-slot="toast-portal" {...portalProps}>
       <Toast.Viewport
         className={cn(
-          // Sit just under the h-12 app title bar (not mid-viewport).
-          "fixed z-60 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-inset:--spacing(3)]",
-          "data-[position*=top]:top-14",
+          "absolute z-60 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-inset:--spacing(3)]",
+          "data-[position*=top]:top-(--toast-inset)",
           "data-[position*=bottom]:bottom-(--toast-inset)",
           "data-[position*=left]:left-(--toast-inset)",
           "data-[position*=right]:right-(--toast-inset)",

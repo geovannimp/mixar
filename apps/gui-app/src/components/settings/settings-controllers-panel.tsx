@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { toastManager } from "@/components/ui/toast";
-import { buttonBase } from "@/lib/ui";
 import {
-  disableControllerMapping,
-  enableControllerMapping,
-  listControllerDevices,
-  listControllerMappings,
-  updateAllControllerMappings,
-  updateControllerMapping,
+  getControllerTransport,
   type ControllerDeviceInfo,
   type ControllerMappingInfo,
-} from "@/lib/controller";
+} from "@/lib/controller/transport";
 import { SettingsField, SettingsSectionHeader } from "./settings-field";
 
 export function SettingsControllersPanel() {
@@ -22,9 +17,10 @@ export function SettingsControllersPanel() {
   const refresh = useCallback(async () => {
     setError(null);
     try {
+      const transport = getControllerTransport();
       const [nextMappings, nextDevices] = await Promise.all([
-        listControllerMappings(),
-        listControllerDevices(),
+        transport.listMappings(),
+        transport.listDevices(),
       ]);
       setMappings(nextMappings);
       setDevices(nextDevices);
@@ -52,6 +48,8 @@ export function SettingsControllersPanel() {
     }
   }
 
+  const transport = getControllerTransport();
+
   return (
     <div className="space-y-5">
       <SettingsSectionHeader
@@ -62,17 +60,17 @@ export function SettingsControllersPanel() {
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
-          className={buttonBase}
+          variant="outline"
           disabled={busy}
-          onClick={() => void run(() => updateAllControllerMappings())}
+          onClick={() => void run(() => transport.updateAllMappings())}
         >
           Update all mappings
-        </button>
-        <button type="button" className={buttonBase} disabled={busy} onClick={() => void refresh()}>
+        </Button>
+        <Button type="button" variant="outline" disabled={busy} onClick={() => void refresh()}>
           Refresh
-        </button>
+        </Button>
       </div>
 
       <SettingsField label="Mappings">
@@ -98,32 +96,35 @@ export function SettingsControllersPanel() {
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 {mapping.attached ? (
-                  <button
+                  <Button
                     type="button"
-                    className={buttonBase}
+                    variant="outline"
+                    size="sm"
                     disabled={busy}
-                    onClick={() => void run(() => disableControllerMapping(mapping.id))}
+                    onClick={() => void run(() => transport.disableMapping(mapping.id))}
                   >
                     Disable
-                  </button>
+                  </Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
-                    className={buttonBase}
+                    variant="outline"
+                    size="sm"
                     disabled={busy}
-                    onClick={() => void run(() => enableControllerMapping(mapping.id))}
+                    onClick={() => void run(() => transport.enableMapping(mapping.id))}
                   >
                     Enable
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
-                  className={buttonBase}
+                  variant="outline"
+                  size="sm"
                   disabled={busy}
-                  onClick={() => void run(() => updateControllerMapping(mapping.id))}
+                  onClick={() => void run(() => transport.updateMapping(mapping.id))}
                 >
                   Update
-                </button>
+                </Button>
               </div>
             </div>
           ))}

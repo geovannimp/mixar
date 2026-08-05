@@ -40,8 +40,7 @@ fn ensure_seeded_copies_missing_only() {
     let id_dir = shipped.join("test-map");
     write_minimal_bundle(&id_dir, "test.map", "Test Map");
 
-    let mut engine = ControllerEngine::open(&app, &shipped);
-    engine.ensure_seeded().unwrap();
+    let mut engine = ControllerEngine::open(&app, &shipped).unwrap();
     assert!(app.join("test-map").join("device.toml").is_file());
 
     // Mutate app-data; seed again must not overwrite.
@@ -60,8 +59,7 @@ fn update_mapping_overwrites_app_data() {
     let app = root.path().join("app");
     write_minimal_bundle(&shipped.join("test-map"), "test.map", "Test Map");
 
-    let mut engine = ControllerEngine::open(&app, &shipped);
-    engine.ensure_seeded().unwrap();
+    let mut engine = ControllerEngine::open(&app, &shipped).unwrap();
     fs::write(app.join("test-map").join("marker"), "old").unwrap();
 
     // Change shipped name and update.

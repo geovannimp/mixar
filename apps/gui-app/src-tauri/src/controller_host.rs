@@ -1,6 +1,6 @@
 //! Tauri glue for [`controller::ControllerEngine`].
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -77,7 +77,7 @@ pub struct ControllerHost {
 impl ControllerHost {
     pub fn start(
         app: AppHandle,
-        engine: SharedController,
+        controller_engine: SharedController,
         session: SharedSession,
         library: SharedLibrarySession,
     ) -> Self {
@@ -87,14 +87,14 @@ impl ControllerHost {
         // Port scan thread — ALSA open stays off the MIDI pump path.
         {
             let stop_flag = Arc::clone(&stop);
-            let engine = Arc::clone(&engine);
+            let controller_engine = Arc::clone(&controller_engine);
             let app = app.clone();
             threads.push(thread::spawn(move || {
                 // First scan immediately (may take seconds on cold ALSA); pump runs in parallel.
                 loop {
                     match list_input_port_names() {
                         Ok(ports) => {
-                            let events = if let Ok(mut eng) = engine.lock() {
+                            let events = if let Ok(mut eng) = controller_engine.lock() {
                                 eng.apply_input_ports(ports);
                                 eng.take_events()
                             } else {
@@ -117,10 +117,10 @@ impl ControllerHost {
             }));
         }
 
-        // MIDI pump thread.
+        // MIDI pump: drain midir + session ticks (CC coalesce, idle heartbeat).
         {
             let stop_flag = Arc::clone(&stop);
-            let engine = Arc::clone(&engine);
+            let controller_engine = Arc::clone(&controller_engine);
             let app = app.clone();
             threads.push(thread::spawn(move || {
                 while !stop_flag.load(Ordering::Relaxed) {
@@ -128,7 +128,7 @@ impl ControllerHost {
                         session: Arc::clone(&session),
                         library: Arc::clone(&library),
                     };
-                    let events = if let Ok(mut eng) = engine.lock() {
+                    let events = if let Ok(mut eng) = controller_engine.lock() {
                         eng.pump(&mut bus);
                         eng.take_events()
                     } else {
@@ -177,17 +177,11 @@ pub fn resolve_shipped_mappings(app: &AppHandle) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../mappings")
 }
 
-pub fn open_engine(app_data: &Path, shipped: &Path) -> Result<ControllerEngine, String> {
-    let mut engine = ControllerEngine::open(app_data.join("mappings"), shipped);
-    engine.ensure_seeded().map_err(|e| e.to_string())?;
-    Ok(engine)
-}
-
 #[tauri::command]
 pub fn controller_list_mappings(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
 ) -> Result<Vec<MappingInfo>, String> {
-    engine
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .list_mappings()
@@ -196,9 +190,9 @@ pub fn controller_list_mappings(
 
 #[tauri::command]
 pub fn controller_list_devices(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
 ) -> Result<Vec<DeviceInfo>, String> {
-    engine
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .list_devices()
@@ -207,18 +201,21 @@ pub fn controller_list_devices(
 
 #[tauri::command]
 pub fn controller_pending_offers(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
 ) -> Result<Vec<ControllerEvent>, String> {
-    Ok(engine.lock().map_err(|e| e.to_string())?.pending_offers())
+    Ok(controller_engine
+        .lock()
+        .map_err(|e| e.to_string())?
+        .pending_offers())
 }
 
 #[tauri::command]
 pub fn controller_enable_mapping(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
     mapping_id: String,
     port_name: Option<String>,
 ) -> Result<(), String> {
-    engine
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .enable_mapping(&mapping_id, port_name.as_deref())
@@ -227,10 +224,10 @@ pub fn controller_enable_mapping(
 
 #[tauri::command]
 pub fn controller_disable_mapping(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
     mapping_id: String,
 ) -> Result<(), String> {
-    engine
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .disable_mapping(&mapping_id)
@@ -239,10 +236,10 @@ pub fn controller_disable_mapping(
 
 #[tauri::command]
 pub fn controller_update_mapping(
-    engine: State<'_, SharedController>,
+    controller_engine: State<'_, SharedController>,
     mapping_id: String,
 ) -> Result<(), String> {
-    engine
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .update_mapping(&mapping_id)
@@ -250,8 +247,10 @@ pub fn controller_update_mapping(
 }
 
 #[tauri::command]
-pub fn controller_update_all_mappings(engine: State<'_, SharedController>) -> Result<(), String> {
-    engine
+pub fn controller_update_all_mappings(
+    controller_engine: State<'_, SharedController>,
+) -> Result<(), String> {
+    controller_engine
         .lock()
         .map_err(|e| e.to_string())?
         .update_all_mappings()

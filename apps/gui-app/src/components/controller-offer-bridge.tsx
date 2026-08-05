@@ -1,18 +1,13 @@
-import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import { toastManager } from "@/components/ui/toast";
-import {
-  CONTROLLER_EVENT,
-  enableControllerMapping,
-  listControllerPendingOffers,
-  type ControllerBusEvent,
-} from "@/lib/controller";
+import { getControllerTransport, type ControllerBusEvent } from "@/lib/controller/transport";
 
 function showMappingOffer(payload: { mapping_id: string; device_name: string; port_name: string }) {
+  const transport = getControllerTransport();
   const toastId = toastManager.add({
     id: `controller-offer:${payload.port_name}`,
-    title: `Controller: ${payload.device_name}`,
-    description: `Enable mapping for ${payload.port_name}?`,
+    title: `${payload.device_name} connected`,
+    description: "Do you want to use this controller?",
     type: "info",
     // Stay until Enable or Close — connect consent should not auto-dismiss.
     timeout: 0,
@@ -20,7 +15,7 @@ function showMappingOffer(payload: { mapping_id: string; device_name: string; po
       children: "Enable",
       onClick: () => {
         toastManager.close(toastId);
-        void enableControllerMapping(payload.mapping_id, payload.port_name).catch((err) => {
+        void transport.enableMapping(payload.mapping_id, payload.port_name).catch((err) => {
           toastManager.add({
             title: err instanceof Error ? err.message : String(err),
             type: "error",
@@ -45,9 +40,11 @@ export function ControllerOfferBridge() {
     let cancelled = false;
     let unlisten: (() => void) | undefined;
     let retryTimer: ReturnType<typeof setInterval> | undefined;
+    const transport = getControllerTransport();
 
     const hydrate = () =>
-      listControllerPendingOffers()
+      transport
+        .pendingOffers()
         .then((events) => {
           if (cancelled || events.length === 0) {
             return events.length;
@@ -79,17 +76,19 @@ export function ControllerOfferBridge() {
       }, 250);
     });
 
-    void listen<ControllerBusEvent>(CONTROLLER_EVENT, (event) => {
-      if (event.payload.type === "mapping_offer") {
-        showMappingOffer(event.payload);
-      }
-    }).then((fn) => {
-      if (cancelled) {
-        fn();
-        return;
-      }
-      unlisten = fn;
-    });
+    void transport
+      .subscribe((event) => {
+        if (event.type === "mapping_offer") {
+          showMappingOffer(event);
+        }
+      })
+      .then((fn) => {
+        if (cancelled) {
+          fn();
+          return;
+        }
+        unlisten = fn;
+      });
 
     return () => {
       cancelled = true;

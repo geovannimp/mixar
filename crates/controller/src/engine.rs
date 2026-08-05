@@ -121,12 +121,13 @@ pub struct ControllerEngine {
 }
 
 impl ControllerEngine {
+    /// Open and seed app-data mappings from the shipped catalog when missing.
     pub fn open(
         app_mappings_dir: impl Into<PathBuf>,
         shipped_mappings_dir: impl Into<PathBuf>,
-    ) -> Self {
+    ) -> Result<Self, EngineError> {
         let (midi_tx, midi_rx) = mpsc::channel();
-        Self {
+        let mut this = Self {
             app_dir: app_mappings_dir.into(),
             shipped_dir: shipped_mappings_dir.into(),
             catalog: HashMap::new(),
@@ -137,7 +138,9 @@ impl ControllerEngine {
             midi_tx,
             midi_rx,
             attached: None,
-        }
+        };
+        this.ensure_seeded()?;
+        Ok(this)
     }
 
     pub fn app_dir(&self) -> &Path {
