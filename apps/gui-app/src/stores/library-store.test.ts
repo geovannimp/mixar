@@ -1,8 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeEvtBody, encodeWire } from "@/lib/library/wire";
 import { applyLibraryBusBytesForTests, useLibraryStore } from "@/stores/library-store";
 
+const mocks = vi.hoisted(() => ({
+  loadLibraryTrackToDeck: vi.fn((_deckId: number, _trackId: string) => Promise.resolve()),
+  loadPathToDeck: vi.fn((_deckId: number, _path: string) => Promise.resolve()),
+}));
+
+vi.mock("@/stores/engine-store", () => ({
+  engineActions: {
+    loadLibraryTrackToDeck: mocks.loadLibraryTrackToDeck,
+    loadPathToDeck: mocks.loadPathToDeck,
+  },
+}));
+
 describe("libraryStore", () => {
+  beforeEach(() => {
+    mocks.loadLibraryTrackToDeck.mockClear();
+    mocks.loadPathToDeck.mockClear();
+  });
+
   it("applies track_updated and hot_cues_changed for one track", () => {
     useLibraryStore.setState({ tracks: {} });
 
@@ -77,5 +94,39 @@ describe("libraryStore", () => {
     );
 
     expect(useLibraryStore.getState().focusedTrackRowIndex).toBe(1);
+  });
+
+  it("load_focused_to_deck loads library track id", () => {
+    useLibraryStore.setState({ focusedLoad: { trackId: "t1" } });
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "load_focused_to_deck",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "load_focused_to_deck", deck: 0 }),
+      }),
+    );
+
+    expect(mocks.loadLibraryTrackToDeck).toHaveBeenCalledWith(0, "t1");
+    expect(mocks.loadPathToDeck).not.toHaveBeenCalled();
+  });
+
+  it("load_focused_to_deck loads filesystem path", () => {
+    useLibraryStore.setState({ focusedLoad: { path: "/music/b.wav" } });
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "load_focused_to_deck",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "load_focused_to_deck", deck: 1 }),
+      }),
+    );
+
+    expect(mocks.loadPathToDeck).toHaveBeenCalledWith(1, "/music/b.wav");
+    expect(mocks.loadLibraryTrackToDeck).not.toHaveBeenCalled();
   });
 });

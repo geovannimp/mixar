@@ -308,6 +308,20 @@ impl MappingSession {
         }
 
         // Absolute CCs: keep latest value; publish at ≤60 Hz (flush covers the final move).
+        // Relative library browse must not coalesce — each tick is a discrete row step.
+        if self.is_relative_library_nav(&section, &alias) {
+            self.dispatch_input(
+                &section,
+                &alias,
+                &key,
+                norm,
+                parsed.active,
+                false,
+                bus,
+                midi,
+            );
+            return;
+        }
         self.cc_pending.insert(
             key.clone(),
             PendingCc {
@@ -324,6 +338,15 @@ impl MappingSession {
             }
         }
         self.flush_pending_key(&key, bus, midi);
+    }
+
+    /// Relative select-knob bindings (e.g. `LibraryNavigation::navigate`) skip CC coalesce.
+    fn is_relative_library_nav(&self, section: &str, alias: &str) -> bool {
+        self.bundle
+            .map
+            .bindings_for(section, alias)
+            .iter()
+            .any(|b| b.action.as_deref() == Some("LibraryNavigation::navigate"))
     }
 
     /// Publish any rate-limited CCs whose coalesce window has elapsed (call from MIDI pump).

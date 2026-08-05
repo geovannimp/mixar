@@ -73,6 +73,7 @@ export function LibraryPanel() {
   const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
   const focusedTrackRowIndex = useLibraryStore((state) => state.focusedTrackRowIndex);
   const setTrackFocusRowCount = useLibraryStore((state) => state.setTrackFocusRowCount);
+  const setFocusedLoad = useLibraryStore((state) => state.setFocusedLoad);
 
   const collectionIdsKey = collections.map((collection) => collection.id).join("\0");
 
@@ -172,6 +173,23 @@ export function LibraryPanel() {
     },
     [loadPathToDeck, loadLibraryTrackToDeck],
   );
+
+  useEffect(() => {
+    const row = tableRows[focusedTrackRowIndex];
+    if (!row) {
+      setFocusedLoad(null);
+      return;
+    }
+    if (row.source === "library") {
+      setFocusedLoad({ trackId: row.track.id });
+      return;
+    }
+    if (row.libraryTrack) {
+      setFocusedLoad({ trackId: row.libraryTrack.id });
+      return;
+    }
+    setFocusedLoad({ path: row.file.path });
+  }, [focusedTrackRowIndex, setFocusedLoad, tableRows]);
 
   const handleAnalyze = useCallback(
     (trackId: string) => {

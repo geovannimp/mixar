@@ -187,6 +187,11 @@ hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, dir
 [master]
 crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
 cue_mix = { type = "cc14", channel = 7, cc = { msb = 0x0C, lsb = 0x2C } }
+# Browse encoder (Mixxx SelectKnob): relative CC ch7 / 0x40
+browse = { type = "cc", channel = 7, cc = 0x40 }
+# LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
+load_deck_1 = { type = "note", channel = 7, note = 0x46 }
+load_deck_2 = { type = "note", channel = 7, note = 0x47 }
 
 [custom]
 shift_deck1 = { type = "note", channel = 1, note = 0x3F }

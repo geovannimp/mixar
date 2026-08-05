@@ -138,3 +138,18 @@ fn library_navigation_origin_and_navigate_kinds_roundtrip() {
         Kind::NavigatePrev
     );
 }
+
+#[test]
+fn load_focused_to_deck_kind_and_body_roundtrip() {
+    let body = EvtBody::LoadFocusedToDeck { deck: 1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::LoadFocusedToDeck,
+        revision: 3,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&body).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.kind, Kind::LoadFocusedToDeck);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
+}

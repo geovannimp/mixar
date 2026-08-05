@@ -16,6 +16,7 @@ pub enum Kind {
     LoopsChanged,
     NavigateNext,
     NavigatePrev,
+    LoadFocusedToDeck,
     Error,
     Notice,
 }

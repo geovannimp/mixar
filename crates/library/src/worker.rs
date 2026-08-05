@@ -65,6 +65,7 @@ fn handle_cmd(
         | Kind::LoopsChanged
         | Kind::NavigateNext
         | Kind::NavigatePrev
+        | Kind::LoadFocusedToDeck
         | Kind::Error
         | Kind::Notice => {
             // Ignore evt kinds published onto cmd by mistake.

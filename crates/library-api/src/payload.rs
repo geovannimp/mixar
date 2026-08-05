@@ -105,4 +105,8 @@ pub enum EvtBody {
     Notice {
         message: String,
     },
+    /// UI-only: load the focused library table row onto `deck` (0-based).
+    LoadFocusedToDeck {
+        deck: u16,
+    },
 }

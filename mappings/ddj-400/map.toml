@@ -139,6 +139,9 @@ sampler_pad_8 = "Deck(_)::pad_8"
 [inputs.master]
 crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
 cue_mix = { action = "Mixer::set_cue_mix", soft_takeover = true }
+browse = "LibraryNavigation::navigate"
+load_deck_1 = "LibraryNavigation::load_to_deck_1"
+load_deck_2 = "LibraryNavigation::load_to_deck_2"
 
 [outputs.deck_1]
 play_pause = { on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }

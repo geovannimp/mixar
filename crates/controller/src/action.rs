@@ -194,12 +194,49 @@ pub fn resolve_action(
     let bound = bind_origin(template, section).ok()?;
 
     if let BoundOrigin::LibraryNavigation = bound {
-        if !active {
-            return None;
-        }
         let kind = match leaf {
-            "navigate_next" => LibraryKind::NavigateNext,
-            "navigate_prev" => LibraryKind::NavigatePrev,
+            "navigate_next" => {
+                if !active {
+                    return None;
+                }
+                LibraryKind::NavigateNext
+            }
+            "navigate_prev" => {
+                if !active {
+                    return None;
+                }
+                LibraryKind::NavigatePrev
+            }
+            // Relative select-knob CC (Pioneer: +1..=+63 / 127..=64 as signed 7-bit).
+            "navigate" => {
+                let value = (norm * 127.0).round() as i32;
+                let delta = if value == 0 {
+                    0
+                } else if value < 64 {
+                    value
+                } else {
+                    value - 128
+                };
+                if delta == 0 {
+                    return None;
+                }
+                if delta > 0 {
+                    LibraryKind::NavigateNext
+                } else {
+                    LibraryKind::NavigatePrev
+                }
+            }
+            "load_to_deck_1" | "load_to_deck_2" => {
+                if !active {
+                    return None;
+                }
+                let deck = if leaf == "load_to_deck_1" { 0 } else { 1 };
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::LoadFocusedToDeck,
+                    body: LibraryEvtBody::LoadFocusedToDeck { deck },
+                });
+            }
             _ => return None,
         };
         return Some(RoutedAction::LibraryEvt {
@@ -704,5 +741,64 @@ mod tests {
             } => assert_eq!(mode, PadMode::LoopRoll),
             other => panic!("unexpected {other:?}"),
         }
+    }
+
+    #[test]
+    fn relative_browse_navigate_maps_signed_cc() {
+        let snap = ControlSnapshot::default();
+        // Pioneer SelectKnob: +1 → value 1, −1 → value 127
+        let next = resolve_action(
+            "LibraryNavigation::navigate",
+            "master",
+            1.0 / 127.0,
+            true,
+            &snap,
+        )
+        .unwrap();
+        match next {
+            RoutedAction::LibraryEvt {
+                kind: LibraryKind::NavigateNext,
+                ..
+            } => {}
+            other => panic!("expected NavigateNext, got {other:?}"),
+        }
+        let prev =
+            resolve_action("LibraryNavigation::navigate", "master", 1.0, true, &snap).unwrap();
+        match prev {
+            RoutedAction::LibraryEvt {
+                kind: LibraryKind::NavigatePrev,
+                ..
+            } => {}
+            other => panic!("expected NavigatePrev, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_to_deck_publishes_focused_load_evt() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "LibraryNavigation::load_to_deck_2",
+            "master",
+            1.0,
+            true,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::LibraryEvt {
+                kind: LibraryKind::LoadFocusedToDeck,
+                body: LibraryEvtBody::LoadFocusedToDeck { deck },
+                ..
+            } => assert_eq!(deck, 1),
+            other => panic!("expected LoadFocusedToDeck deck 1, got {other:?}"),
+        }
+        assert!(resolve_action(
+            "LibraryNavigation::load_to_deck_1",
+            "master",
+            1.0,
+            false,
+            &snap
+        )
+        .is_none());
     }
 }

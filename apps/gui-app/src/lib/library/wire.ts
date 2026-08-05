@@ -16,6 +16,7 @@ export const KindSchema = z.enum([
   "loops_changed",
   "navigate_next",
   "navigate_prev",
+  "load_focused_to_deck",
   "error",
   "notice",
 ]);
@@ -122,6 +123,10 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     track_id: z.string().nullable().optional(),
   }),
   z.object({ type: z.literal("notice"), message: z.string() }),
+  z.object({
+    type: z.literal("load_focused_to_deck"),
+    deck: z.number().int().nonnegative(),
+  }),
 ]);
 export type EvtBody = z.infer<typeof EvtBodySchema>;
 

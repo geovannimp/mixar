@@ -103,6 +103,9 @@ const MASTER_ALIASES: &[&str] = &[
     "crossfader",
     "cue_mix",
     "master_cue",
+    "browse",
+    "load_deck_1",
+    "load_deck_2",
     "headphone_cue_1",
     "headphone_cue_2",
     "headphone_cue_3",
@@ -220,7 +223,13 @@ const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
-const LIBRARY_NAV_LEAVES: &[&str] = &["navigate_next", "navigate_prev"];
+const LIBRARY_NAV_LEAVES: &[&str] = &[
+    "navigate",
+    "navigate_next",
+    "navigate_prev",
+    "load_to_deck_1",
+    "load_to_deck_2",
+];
 
 pub fn is_known_action(name: &str) -> bool {
     let Ok((template, leaf)) = parse_action_id(name) else {

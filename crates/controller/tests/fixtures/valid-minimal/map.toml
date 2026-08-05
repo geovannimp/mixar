@@ -13,3 +13,6 @@ volume = [
 play_pause = { on = "pause_led", off = "play_led" }
 headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
 hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 1, note = 0x2E, velocity = 0x00 } }
+
+[inputs.master]
+browse = "LibraryNavigation::navigate"

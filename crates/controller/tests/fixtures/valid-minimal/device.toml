@@ -14,5 +14,8 @@ pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction 
 hot_cue_1_led = { type = "note", channel = 1, note = 0x2E, velocity = 0x7F, direction = "out" }
 vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
 
+[master]
+browse = { type = "cc", channel = 7, cc = 0x40 }
+
 [custom]
 shift = { type = "note", channel = 1, note = 0x3F }

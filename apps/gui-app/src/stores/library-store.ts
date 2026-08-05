@@ -8,6 +8,7 @@ import {
   type WireSavedLoop,
   type WireTrackSummary,
 } from "@/lib/library/wire";
+import { engineActions } from "@/stores/engine-store";
 import type {
   AddFolderCollectionResult,
   CollectionSummary,
@@ -15,6 +16,11 @@ import type {
   DeckSavedLoop,
   TrackSummary,
 } from "@/types";
+
+/** Focused table row target for MIDI LOAD (collection id or filesystem path). */
+export type FocusedLoadTarget =
+  | { trackId: string; path?: undefined }
+  | { path: string; trackId?: undefined };
 
 export type LibraryTrack = {
   id: string;
@@ -128,8 +134,11 @@ type LibraryState = {
   focusedTrackRowIndex: number;
   /** Visible row count for clamp; panel updates when table rows change. */
   trackFocusRowCount: number;
+  /** Synced from the library panel for MIDI LOAD. */
+  focusedLoad: FocusedLoadTarget | null;
 
   setTrackFocusRowCount: (count: number) => void;
+  setFocusedLoad: (target: FocusedLoadTarget | null) => void;
   navigateTrackFocus: (delta: 1 | -1) => void;
 
   refreshCollections: () => Promise<void>;
@@ -142,7 +151,9 @@ type LibrarySet = (
   partial: LibraryState | Partial<LibraryState> | ((state: LibraryState) => Partial<LibraryState>),
 ) => void;
 
-function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
+type LibraryGet = () => LibraryState;
+
+function applyBusBytes(set: LibrarySet, get: LibraryGet, bytes: Uint8Array): void {
   let wire;
   let body;
   try {
@@ -171,6 +182,18 @@ function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
           -1,
         ),
       }));
+      return;
+    }
+    if (wire.kind === "load_focused_to_deck" && body.type === "load_focused_to_deck") {
+      const target = get().focusedLoad;
+      if (!target) {
+        return;
+      }
+      if (target.trackId) {
+        void engineActions.loadLibraryTrackToDeck(body.deck, target.trackId);
+      } else if (target.path) {
+        void engineActions.loadPathToDeck(body.deck, target.path);
+      }
       return;
     }
     return;
@@ -234,6 +257,7 @@ function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
     }
     case "notice":
     case "empty":
+    case "load_focused_to_deck":
       return;
     default: {
       const _exhaustive: never = body;
@@ -261,7 +285,7 @@ const libraryBusImpl: LibraryBusImpl = (f) => (set, get, store) => {
     }
     started = true;
     void getLibraryTransport().subscribe((bytes) => {
-      applyBusBytes(set as LibrarySet, bytes);
+      applyBusBytes(set as LibrarySet, get as LibraryGet, bytes);
     });
   };
   queueMicrotask(start);
@@ -272,7 +296,7 @@ export const libraryBus = libraryBusImpl as unknown as LibraryBus;
 
 /** Test helper: apply a bus evt without going through the transport. */
 export function applyLibraryBusBytesForTests(bytes: Uint8Array): void {
-  applyBusBytes(useLibraryStore.setState as LibrarySet, bytes);
+  applyBusBytes(useLibraryStore.setState as LibrarySet, () => useLibraryStore.getState(), bytes);
 }
 
 const transport = getLibraryTransport();
@@ -288,6 +312,7 @@ export const useLibraryStore = create<LibraryState>()(
     lastAnalyzedTrackId: null,
     focusedTrackRowIndex: 0,
     trackFocusRowCount: 0,
+    focusedLoad: null,
 
     setTrackFocusRowCount: (count) => {
       set((state) => ({
@@ -295,6 +320,10 @@ export const useLibraryStore = create<LibraryState>()(
         focusedTrackRowIndex:
           count <= 0 ? 0 : Math.min(state.focusedTrackRowIndex, Math.max(0, count - 1)),
       }));
+    },
+
+    setFocusedLoad: (target) => {
+      set({ focusedLoad: target });
     },
 
     navigateTrackFocus: (delta) => {
