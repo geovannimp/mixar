@@ -6,7 +6,28 @@ import {
   trace as tauriTrace,
   warn as tauriWarn,
 } from "@tauri-apps/plugin-log";
-import { formatLogRecordForSink } from "@/lib/logging";
+
+function serializePropertyValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return { name: value.name, message: value.message, stack: value.stack };
+  }
+  return value;
+}
+
+export function formatLogRecordForSink(record: LogRecord): string {
+  const category = record.category.join(".");
+  const parts: string[] = [];
+  for (let i = 0; i < record.message.length; i += 1) {
+    const part = record.message[i];
+    parts.push(typeof part === "string" ? part : String(part));
+  }
+  const message = parts.join("");
+  const props =
+    record.properties && Object.keys(record.properties).length > 0
+      ? ` ${JSON.stringify(record.properties, (_key, value) => serializePropertyValue(value))}`
+      : "";
+  return `[${category}] ${message}${props}`;
+}
 
 function writeToTauri(record: LogRecord): void {
   const message = formatLogRecordForSink(record);

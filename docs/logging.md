@@ -40,4 +40,4 @@ Files use the application name by default (e.g. `gui-app.log`) (plus rotations w
 
 ## Frontend entrypoint
 
-`logging.ts` calls `configureSync()` at import time (LogTape SPA pattern). `main.tsx` imports it first. When `ENVIRONMENT === "TAURI"`, it lazy-imports `@/lib/tauri-sink` so JS logs also reach Stdout/LogDir; DevTools stays on the console sink (Rust host logs remain on Stdout/LogDir).
+`logging.ts` calls `configureSync()` at import time (LogTape SPA pattern). `main.tsx` imports it first. When `APP_ENVIRONMENT === "TAURI"`, it lazy-imports `@/lib/tauri-sink` so JS logs also reach Stdout/LogDir; DevTools stays on the console sink (Rust host logs remain on Stdout/LogDir).

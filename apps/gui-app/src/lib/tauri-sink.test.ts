@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LogRecord } from "@logtape/logtape";
-import { formatLogRecordForSink } from "@/lib/logging";
+import { formatLogRecordForSink } from "@/lib/tauri-sink";
 
 describe("formatLogRecordForSink", () => {
   it("joins category, message, and properties", () => {
