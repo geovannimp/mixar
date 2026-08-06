@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useCollectionTracks } from "@/hooks/library/use-collection-tracks";
@@ -10,6 +10,7 @@ import { useTrack } from "@/hooks/library/use-track";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/library-table";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/library-table";
 import { normalizeAppSettings } from "@/lib/bus-settings";
+import { setFocusedLoadResolver } from "@/lib/library/focused-load";
 import { buttonIcon } from "@/lib/ui";
 import { toTrackSummaryView, useLibraryStore } from "@/stores/library-store";
 import type { LibrarySourceTab, LibraryTableRow } from "@/types";
@@ -73,7 +74,6 @@ export function LibraryPanel() {
   const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
   const focusedTrackRowIndex = useLibraryStore((state) => state.focusedTrackRowIndex);
   const setTrackFocusRowCount = useLibraryStore((state) => state.setTrackFocusRowCount);
-  const setFocusedLoad = useLibraryStore((state) => state.setFocusedLoad);
 
   const collectionIdsKey = collections.map((collection) => collection.id).join("\0");
 
@@ -174,22 +174,27 @@ export function LibraryPanel() {
     [loadPathToDeck, loadLibraryTrackToDeck],
   );
 
+  const tableRowsRef = useRef(tableRows);
+  const focusedTrackRowIndexRef = useRef(focusedTrackRowIndex);
+  tableRowsRef.current = tableRows;
+  focusedTrackRowIndexRef.current = focusedTrackRowIndex;
+
   useEffect(() => {
-    const row = tableRows[focusedTrackRowIndex];
-    if (!row) {
-      setFocusedLoad(null);
-      return;
-    }
-    if (row.source === "library") {
-      setFocusedLoad({ trackId: row.track.id });
-      return;
-    }
-    if (row.libraryTrack) {
-      setFocusedLoad({ trackId: row.libraryTrack.id });
-      return;
-    }
-    setFocusedLoad({ path: row.file.path });
-  }, [focusedTrackRowIndex, setFocusedLoad, tableRows]);
+    setFocusedLoadResolver(() => {
+      const row = tableRowsRef.current[focusedTrackRowIndexRef.current];
+      if (!row) {
+        return null;
+      }
+      if (row.source === "library") {
+        return { trackId: row.track.id };
+      }
+      if (row.libraryTrack) {
+        return { trackId: row.libraryTrack.id };
+      }
+      return { path: row.file.path };
+    });
+    return () => setFocusedLoadResolver(null);
+  }, []);
 
   const handleAnalyze = useCallback(
     (trackId: string) => {

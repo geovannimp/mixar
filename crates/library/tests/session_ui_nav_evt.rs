@@ -11,14 +11,14 @@ fn publish_ui_nav_evt_reaches_subscriber() {
     session
         .publish_evt(
             Origin::LibraryNavigation,
-            Kind::NavigateNext,
-            EvtBody::Empty,
+            Kind::Navigate,
+            EvtBody::Navigate { delta: 1 },
         )
         .unwrap();
     let event = rx
         .recv_timeout(Duration::from_secs(1))
         .expect("evt bus alive")
-        .expect("NavigateNext evt");
+        .expect("Navigate evt");
     assert_eq!(event.origin(), &Origin::LibraryNavigation);
-    assert_eq!(event.kind(), &Kind::NavigateNext);
+    assert_eq!(event.kind(), &Kind::Navigate);
 }

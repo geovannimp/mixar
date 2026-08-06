@@ -1,4 +1,5 @@
 import { create, type StateCreator, type StoreMutatorIdentifier } from "zustand";
+import { resolveFocusedLoad } from "@/lib/library/focused-load";
 import { getLibraryTransport } from "@/lib/library/transport";
 import {
   decodeEvtBody,
@@ -16,11 +17,6 @@ import type {
   DeckSavedLoop,
   TrackSummary,
 } from "@/types";
-
-/** Focused table row target for MIDI LOAD (collection id or filesystem path). */
-export type FocusedLoadTarget =
-  | { trackId: string; path?: undefined }
-  | { path: string; trackId?: undefined };
 
 export type LibraryTrack = {
   id: string;
@@ -99,7 +95,7 @@ function toSavedLoop(loop: WireSavedLoop): DeckSavedLoop {
   };
 }
 
-function navigateIndex(current: number, count: number, delta: 1 | -1): number {
+function navigateIndex(current: number, count: number, delta: number): number {
   if (count <= 0) {
     return 0;
   }
@@ -134,12 +130,9 @@ type LibraryState = {
   focusedTrackRowIndex: number;
   /** Visible row count for clamp; panel updates when table rows change. */
   trackFocusRowCount: number;
-  /** Synced from the library panel for MIDI LOAD. */
-  focusedLoad: FocusedLoadTarget | null;
 
   setTrackFocusRowCount: (count: number) => void;
-  setFocusedLoad: (target: FocusedLoadTarget | null) => void;
-  navigateTrackFocus: (delta: 1 | -1) => void;
+  navigateTrackFocus: (delta: number) => void;
 
   refreshCollections: () => Promise<void>;
   loadCollectionTracks: (collectionId: string) => Promise<void>;
@@ -151,9 +144,7 @@ type LibrarySet = (
   partial: LibraryState | Partial<LibraryState> | ((state: LibraryState) => Partial<LibraryState>),
 ) => void;
 
-type LibraryGet = () => LibraryState;
-
-function applyBusBytes(set: LibrarySet, get: LibraryGet, bytes: Uint8Array): void {
+function applyBusBytes(set: LibrarySet, bytes: Uint8Array): void {
   let wire;
   let body;
   try {
@@ -164,28 +155,18 @@ function applyBusBytes(set: LibrarySet, get: LibraryGet, bytes: Uint8Array): voi
   }
 
   if (wire.origin === "library_navigation") {
-    if (wire.kind === "navigate_next") {
+    if (wire.kind === "navigate" && body.type === "navigate") {
       set((state) => ({
         focusedTrackRowIndex: navigateIndex(
           state.focusedTrackRowIndex,
           state.trackFocusRowCount,
-          1,
+          body.delta,
         ),
       }));
       return;
     }
-    if (wire.kind === "navigate_prev") {
-      set((state) => ({
-        focusedTrackRowIndex: navigateIndex(
-          state.focusedTrackRowIndex,
-          state.trackFocusRowCount,
-          -1,
-        ),
-      }));
-      return;
-    }
-    if (wire.kind === "load_focused_to_deck" && body.type === "load_focused_to_deck") {
-      const target = get().focusedLoad;
+    if (wire.kind === "load" && body.type === "load") {
+      const target = resolveFocusedLoad();
       if (!target) {
         return;
       }
@@ -257,7 +238,8 @@ function applyBusBytes(set: LibrarySet, get: LibraryGet, bytes: Uint8Array): voi
     }
     case "notice":
     case "empty":
-    case "load_focused_to_deck":
+    case "navigate":
+    case "load":
       return;
     default: {
       const _exhaustive: never = body;
@@ -285,7 +267,7 @@ const libraryBusImpl: LibraryBusImpl = (f) => (set, get, store) => {
     }
     started = true;
     void getLibraryTransport().subscribe((bytes) => {
-      applyBusBytes(set as LibrarySet, get as LibraryGet, bytes);
+      applyBusBytes(set as LibrarySet, bytes);
     });
   };
   queueMicrotask(start);
@@ -296,7 +278,7 @@ export const libraryBus = libraryBusImpl as unknown as LibraryBus;
 
 /** Test helper: apply a bus evt without going through the transport. */
 export function applyLibraryBusBytesForTests(bytes: Uint8Array): void {
-  applyBusBytes(useLibraryStore.setState as LibrarySet, () => useLibraryStore.getState(), bytes);
+  applyBusBytes(useLibraryStore.setState as LibrarySet, bytes);
 }
 
 const transport = getLibraryTransport();
@@ -312,7 +294,6 @@ export const useLibraryStore = create<LibraryState>()(
     lastAnalyzedTrackId: null,
     focusedTrackRowIndex: 0,
     trackFocusRowCount: 0,
-    focusedLoad: null,
 
     setTrackFocusRowCount: (count) => {
       set((state) => ({
@@ -320,10 +301,6 @@ export const useLibraryStore = create<LibraryState>()(
         focusedTrackRowIndex:
           count <= 0 ? 0 : Math.min(state.focusedTrackRowIndex, Math.max(0, count - 1)),
       }));
-    },
-
-    setFocusedLoad: (target) => {
-      set({ focusedLoad: target });
     },
 
     navigateTrackFocus: (delta) => {

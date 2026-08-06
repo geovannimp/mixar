@@ -14,9 +14,8 @@ export const KindSchema = z.enum([
   "delete_loop",
   "hot_cues_changed",
   "loops_changed",
-  "navigate_next",
-  "navigate_prev",
-  "load_focused_to_deck",
+  "navigate",
+  "load",
   "error",
   "notice",
 ]);
@@ -124,7 +123,11 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("notice"), message: z.string() }),
   z.object({
-    type: z.literal("load_focused_to_deck"),
+    type: z.literal("navigate"),
+    delta: z.number().int(),
+  }),
+  z.object({
+    type: z.literal("load"),
     deck: z.number().int().nonnegative(),
   }),
 ]);

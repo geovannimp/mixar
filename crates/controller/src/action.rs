@@ -194,18 +194,26 @@ pub fn resolve_action(
     let bound = bind_origin(template, section).ok()?;
 
     if let BoundOrigin::LibraryNavigation = bound {
-        let kind = match leaf {
+        match leaf {
             "navigate_next" => {
                 if !active {
                     return None;
                 }
-                LibraryKind::NavigateNext
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::Navigate,
+                    body: LibraryEvtBody::Navigate { delta: 1 },
+                });
             }
             "navigate_prev" => {
                 if !active {
                     return None;
                 }
-                LibraryKind::NavigatePrev
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::Navigate,
+                    body: LibraryEvtBody::Navigate { delta: -1 },
+                });
             }
             // Relative select-knob CC (Pioneer: +1..=+63 / 127..=64 as signed 7-bit).
             "navigate" => {
@@ -220,11 +228,11 @@ pub fn resolve_action(
                 if delta == 0 {
                     return None;
                 }
-                if delta > 0 {
-                    LibraryKind::NavigateNext
-                } else {
-                    LibraryKind::NavigatePrev
-                }
+                return Some(RoutedAction::LibraryEvt {
+                    origin: LibraryOrigin::LibraryNavigation,
+                    kind: LibraryKind::Navigate,
+                    body: LibraryEvtBody::Navigate { delta },
+                });
             }
             "load_to_deck_1" | "load_to_deck_2" => {
                 if !active {
@@ -233,17 +241,12 @@ pub fn resolve_action(
                 let deck = if leaf == "load_to_deck_1" { 0 } else { 1 };
                 return Some(RoutedAction::LibraryEvt {
                     origin: LibraryOrigin::LibraryNavigation,
-                    kind: LibraryKind::LoadFocusedToDeck,
-                    body: LibraryEvtBody::LoadFocusedToDeck { deck },
+                    kind: LibraryKind::Load,
+                    body: LibraryEvtBody::Load { deck },
                 });
             }
             _ => return None,
-        };
-        return Some(RoutedAction::LibraryEvt {
-            origin: LibraryOrigin::LibraryNavigation,
-            kind,
-            body: LibraryEvtBody::Empty,
-        });
+        }
     }
 
     let BoundOrigin::Engine(origin) = bound else {
@@ -757,19 +760,21 @@ mod tests {
         .unwrap();
         match next {
             RoutedAction::LibraryEvt {
-                kind: LibraryKind::NavigateNext,
+                kind: LibraryKind::Navigate,
+                body: LibraryEvtBody::Navigate { delta },
                 ..
-            } => {}
-            other => panic!("expected NavigateNext, got {other:?}"),
+            } => assert_eq!(delta, 1),
+            other => panic!("expected Navigate +1, got {other:?}"),
         }
         let prev =
             resolve_action("LibraryNavigation::navigate", "master", 1.0, true, &snap).unwrap();
         match prev {
             RoutedAction::LibraryEvt {
-                kind: LibraryKind::NavigatePrev,
+                kind: LibraryKind::Navigate,
+                body: LibraryEvtBody::Navigate { delta },
                 ..
-            } => {}
-            other => panic!("expected NavigatePrev, got {other:?}"),
+            } => assert_eq!(delta, -1),
+            other => panic!("expected Navigate -1, got {other:?}"),
         }
     }
 
@@ -786,11 +791,11 @@ mod tests {
         .unwrap();
         match routed {
             RoutedAction::LibraryEvt {
-                kind: LibraryKind::LoadFocusedToDeck,
-                body: LibraryEvtBody::LoadFocusedToDeck { deck },
+                kind: LibraryKind::Load,
+                body: LibraryEvtBody::Load { deck },
                 ..
             } => assert_eq!(deck, 1),
-            other => panic!("expected LoadFocusedToDeck deck 1, got {other:?}"),
+            other => panic!("expected Load deck 1, got {other:?}"),
         }
         assert!(resolve_action(
             "LibraryNavigation::load_to_deck_1",

@@ -3,7 +3,7 @@ use std::path::Path;
 
 struct CaptureBus {
     cmds: Vec<(Origin, Kind, CmdBody)>,
-    library: Vec<(library_api::Origin, library_api::Kind)>,
+    library: Vec<(library_api::Origin, library_api::Kind, library_api::EvtBody)>,
 }
 
 impl controller::ActionPublish for CaptureBus {
@@ -14,9 +14,9 @@ impl controller::ActionPublish for CaptureBus {
         &mut self,
         origin: library_api::Origin,
         kind: library_api::Kind,
-        _body: library_api::EvtBody,
+        body: library_api::EvtBody,
     ) {
-        self.library.push((origin, kind));
+        self.library.push((origin, kind, body));
     }
 }
 
@@ -177,9 +177,17 @@ fn browse_relative_cc_publishes_library_navigation() {
     s.handle_midi(&[0xB6, 0x40, 0x01], &mut bus, &mut midi);
     assert_eq!(bus.library.len(), 1);
     assert_eq!(bus.library[0].0, library_api::Origin::LibraryNavigation);
-    assert_eq!(bus.library[0].1, library_api::Kind::NavigateNext);
+    assert_eq!(bus.library[0].1, library_api::Kind::Navigate);
+    assert!(matches!(
+        bus.library[0].2,
+        library_api::EvtBody::Navigate { delta: 1 }
+    ));
     // −1
     s.handle_midi(&[0xB6, 0x40, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.library.len(), 2);
-    assert_eq!(bus.library[1].1, library_api::Kind::NavigatePrev);
+    assert_eq!(bus.library[1].1, library_api::Kind::Navigate);
+    assert!(matches!(
+        bus.library[1].2,
+        library_api::EvtBody::Navigate { delta: -1 }
+    ));
 }

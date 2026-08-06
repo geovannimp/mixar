@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setFocusedLoadResolver } from "@/lib/library/focused-load";
 import { encodeEvtBody, encodeWire } from "@/lib/library/wire";
 import { applyLibraryBusBytesForTests, useLibraryStore } from "@/stores/library-store";
 
@@ -18,6 +19,7 @@ describe("libraryStore", () => {
   beforeEach(() => {
     mocks.loadLibraryTrackToDeck.mockClear();
     mocks.loadPathToDeck.mockClear();
+    setFocusedLoadResolver(null);
   });
 
   it("applies track_updated and hot_cues_changed for one track", () => {
@@ -77,35 +79,35 @@ describe("libraryStore", () => {
     ]);
   });
 
-  it("navigate_next advances focusedTrackRowIndex", () => {
+  it("navigate advances focusedTrackRowIndex by delta", () => {
     useLibraryStore.setState({
       focusedTrackRowIndex: 0,
-      trackFocusRowCount: 3,
+      trackFocusRowCount: 5,
     });
 
     applyLibraryBusBytesForTests(
       encodeWire({
         origin: "library_navigation",
-        kind: "navigate_next",
+        kind: "navigate",
         revision: 1,
         action_timestamp_ms: 0,
-        body: encodeEvtBody({ type: "empty" }),
+        body: encodeEvtBody({ type: "navigate", delta: 2 }),
       }),
     );
 
-    expect(useLibraryStore.getState().focusedTrackRowIndex).toBe(1);
+    expect(useLibraryStore.getState().focusedTrackRowIndex).toBe(2);
   });
 
-  it("load_focused_to_deck loads library track id", () => {
-    useLibraryStore.setState({ focusedLoad: { trackId: "t1" } });
+  it("load resolves focused library track id", () => {
+    setFocusedLoadResolver(() => ({ trackId: "t1" }));
 
     applyLibraryBusBytesForTests(
       encodeWire({
         origin: "library_navigation",
-        kind: "load_focused_to_deck",
+        kind: "load",
         revision: 1,
         action_timestamp_ms: 0,
-        body: encodeEvtBody({ type: "load_focused_to_deck", deck: 0 }),
+        body: encodeEvtBody({ type: "load", deck: 0 }),
       }),
     );
 
@@ -113,16 +115,16 @@ describe("libraryStore", () => {
     expect(mocks.loadPathToDeck).not.toHaveBeenCalled();
   });
 
-  it("load_focused_to_deck loads filesystem path", () => {
-    useLibraryStore.setState({ focusedLoad: { path: "/music/b.wav" } });
+  it("load resolves focused filesystem path", () => {
+    setFocusedLoadResolver(() => ({ path: "/music/b.wav" }));
 
     applyLibraryBusBytesForTests(
       encodeWire({
         origin: "library_navigation",
-        kind: "load_focused_to_deck",
+        kind: "load",
         revision: 1,
         action_timestamp_ms: 0,
-        body: encodeEvtBody({ type: "load_focused_to_deck", deck: 1 }),
+        body: encodeEvtBody({ type: "load", deck: 1 }),
       }),
     );
 

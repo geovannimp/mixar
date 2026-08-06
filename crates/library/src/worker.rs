@@ -63,9 +63,8 @@ fn handle_cmd(
         | Kind::TrackUpdated
         | Kind::HotCuesChanged
         | Kind::LoopsChanged
-        | Kind::NavigateNext
-        | Kind::NavigatePrev
-        | Kind::LoadFocusedToDeck
+        | Kind::Navigate
+        | Kind::Load
         | Kind::Error
         | Kind::Notice => {
             // Ignore evt kinds published onto cmd by mistake.
