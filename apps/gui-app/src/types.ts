@@ -94,7 +94,8 @@ export interface DeckStatus {
 export interface WaveformFrame {
   width: number;
   height: number;
-  rgba_base64: string;
+  /** Uncompressed RGBA (`width * height * 4`), from binary IPC — not base64. */
+  rgba: Uint8ClampedArray<ArrayBuffer>;
   center_ms: number;
   cover_start_ms: number;
   cover_end_ms: number;

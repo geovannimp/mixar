@@ -127,12 +127,7 @@ export function DeckOverviewPreview({
     }
 
     try {
-      const binary = atob(frame.rgba_base64);
-      const rgba = new Uint8ClampedArray(binary.length) as Uint8ClampedArray<ArrayBuffer>;
-      for (let i = 0; i < binary.length; i += 1) {
-        rgba[i] = binary.charCodeAt(i);
-      }
-      const image = new ImageData(rgba, frame.width, frame.height);
+      const image = new ImageData(frame.rgba, frame.width, frame.height);
       const strip = document.createElement("canvas");
       strip.width = frame.width;
       strip.height = frame.height;

@@ -9,12 +9,12 @@ import {
   matchesSubscribeFilter,
   type SubscribeFilter,
 } from "@/lib/library/wire";
+import { decodeWaveformFrame } from "@/lib/waveform-frame";
 import type {
   AddFolderCollectionResult,
   CollectionSummary,
   ResolvedLibraryTrack,
   TrackSummary,
-  WaveformFrame,
 } from "@/types";
 
 export const LIBRARY_BUS_EVENT = "library://bus";
@@ -29,10 +29,13 @@ export function createTauriLibraryTransport(): LibraryTransport {
     resolveTracksForPaths: (paths) =>
       invoke<ResolvedLibraryTrack[]>("resolve_library_tracks_for_paths", { paths }),
     // Tauri commands take flat camelCase args, not a nested `request` object.
-    renderWaveformLane: (request) =>
-      invoke<WaveformFrame>("render_waveform_lane", {
+    // `ipc::Response` returns raw bytes (ArrayBuffer / Uint8Array / number[]).
+    renderWaveformLane: async (request) => {
+      const raw = await invoke<ArrayBuffer | Uint8Array | number[]>("render_waveform_lane", {
         ...toTauriRenderWaveformLaneArgs(request),
-      }),
+      });
+      return decodeWaveformFrame(raw);
+    },
     getTrackArtwork: (request) => invoke<string | null>("get_track_artwork", { ...request }),
     publish: (origin, kind, fields = {}) =>
       invoke("library_publish", {

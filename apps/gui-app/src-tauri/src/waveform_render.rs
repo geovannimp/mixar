@@ -417,6 +417,40 @@ fn blend_vertical_line(rgba: &mut [u8], width: usize, height: usize, x: usize, c
     }
 }
 
+/// Binary IPC layout for `render_waveform_lane` (`tauri::ipc::Response`).
+///
+/// ```text
+/// magic "WFR1" (4) | width u32 | height u32 | center_ms i32
+/// | cover_start_ms i32 | cover_end_ms i32 | visible_ms i32 | rgba…
+/// ```
+/// All integers little-endian. RGBA length = width * height * 4.
+pub const WAVEFORM_FRAME_MAGIC: &[u8; 4] = b"WFR1";
+pub const WAVEFORM_FRAME_HEADER_LEN: usize = 28;
+
+pub fn pack_waveform_frame(
+    width: u32,
+    height: u32,
+    center_ms: i32,
+    cover_start_ms: i32,
+    cover_end_ms: i32,
+    visible_ms: i32,
+    rgba: Vec<u8>,
+) -> Vec<u8> {
+    let expected = (width as usize).saturating_mul(height as usize).saturating_mul(4);
+    debug_assert_eq!(rgba.len(), expected);
+
+    let mut out = Vec::with_capacity(WAVEFORM_FRAME_HEADER_LEN + rgba.len());
+    out.extend_from_slice(WAVEFORM_FRAME_MAGIC);
+    out.extend_from_slice(&width.to_le_bytes());
+    out.extend_from_slice(&height.to_le_bytes());
+    out.extend_from_slice(&center_ms.to_le_bytes());
+    out.extend_from_slice(&cover_start_ms.to_le_bytes());
+    out.extend_from_slice(&cover_end_ms.to_le_bytes());
+    out.extend_from_slice(&visible_ms.to_le_bytes());
+    out.extend_from_slice(&rgba);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -457,5 +491,17 @@ mod tests {
             false,
         );
         assert_eq!(rgba.len(), 120 * 40 * 4);
+    }
+
+    #[test]
+    fn pack_waveform_frame_header_and_payload() {
+        let rgba = vec![1u8, 2, 3, 255, 4, 5, 6, 255];
+        let packed = pack_waveform_frame(2, 1, 100, 0, 200, 200, rgba.clone());
+        assert_eq!(&packed[..4], WAVEFORM_FRAME_MAGIC);
+        assert_eq!(packed.len(), WAVEFORM_FRAME_HEADER_LEN + rgba.len());
+        assert_eq!(&packed[WAVEFORM_FRAME_HEADER_LEN..], rgba.as_slice());
+        assert_eq!(u32::from_le_bytes(packed[4..8].try_into().unwrap()), 2);
+        assert_eq!(u32::from_le_bytes(packed[8..12].try_into().unwrap()), 1);
+        assert_eq!(i32::from_le_bytes(packed[12..16].try_into().unwrap()), 100);
     }
 }

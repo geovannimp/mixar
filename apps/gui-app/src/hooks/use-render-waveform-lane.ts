@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckEq, WaveformFrame } from "@/types";
-import { WaveformTrackCache } from "@/lib/waveform-track-cache";
+import { type TileQuality, WaveformTrackCache } from "@/lib/waveform-track-cache";
 import { waveformVisibleSourceMs } from "@/lib/spectral-color";
 import { normToStripDb } from "@/lib/eq";
 import { asError, waveformLogger } from "@/lib/logging";
@@ -46,6 +46,7 @@ export function useRenderWaveformLane({
   const cacheRef = useRef<WaveformTrackCache | null>(null);
   const inFlightRef = useRef(0);
   const requestIdRef = useRef(0);
+  const revisionRafRef = useRef(0);
 
   const getPositionRef = useRef(getPosition);
   const isScrubbingRef = useRef(isScrubbing);
@@ -69,9 +70,28 @@ export function useRenderWaveformLane({
 
   const duration = durationMs != null && durationMs > 0 ? durationMs : null;
 
+  const bumpTileRevision = useCallback(() => {
+    // Coalesce rapid L0/L1 tile blits into one React update per frame.
+    if (revisionRafRef.current !== 0) {
+      return;
+    }
+    revisionRafRef.current = window.requestAnimationFrame(() => {
+      revisionRafRef.current = 0;
+      const cache = cacheRef.current;
+      if (cache) {
+        setTileRevision(cache.tileRevision);
+      }
+    });
+  }, []);
+
   const fetchTile = useCallback(
-    async (cache: WaveformTrackCache, tileIndex: number, requestId: number) => {
-      if ((!trackId && !path) || !cache.tryMarkPending(tileIndex)) {
+    async (
+      cache: WaveformTrackCache,
+      tileIndex: number,
+      quality: TileQuality,
+      requestId: number,
+    ) => {
+      if ((!trackId && !path) || !cache.tryMarkPending(tileIndex, quality)) {
         return;
       }
 
@@ -90,7 +110,7 @@ export function useRenderWaveformLane({
           positionMs: start + tileDuration / 2,
           visibleMs: tileDuration,
           bufferRatio: 0,
-          includeDetail: true,
+          includeDetail: quality === "detail",
           includeBeatGrid: true,
           eqLowDb: normToStripDb(eqRef.current.low),
           eqMidDb: normToStripDb(eqRef.current.mid),
@@ -102,8 +122,8 @@ export function useRenderWaveformLane({
           return;
         }
 
-        cache.blitTile(frame, tileIndex);
-        setTileRevision(cache.tileRevision);
+        cache.blitTile(frame, tileIndex, quality);
+        bumpTileRevision();
       } catch (err) {
         waveformLogger.error("render_waveform_lane tile failed", asError(err));
         cache.clearPending(tileIndex);
@@ -114,7 +134,7 @@ export function useRenderWaveformLane({
         }
       }
     },
-    [trackId, path, height],
+    [trackId, path, height, bumpTileRevision],
   );
 
   const ensureVisibleTiles = useCallback(
@@ -128,16 +148,35 @@ export function useRenderWaveformLane({
       const halfWindow = visibleSourceMsRef.current / 2;
       const viewStart = position - halfWindow;
       const viewEnd = position + halfWindow;
-      const missing = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin);
       const requestId = requestIdRef.current;
 
+      // Prefer L0 (overview) so first paint wins over detail upgrades.
+      const needOverview = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin, "overview");
+      const needDetail = cache.missingTileIndices(viewStart, viewEnd, prefetchMargin, "detail");
+
       let started = 0;
-      for (const tileIndex of missing) {
+      const startFetch = (tileIndex: number, quality: TileQuality) => {
         if (inFlightRef.current + started >= MAX_CONCURRENT_TILE_FETCHES) {
-          break;
+          return false;
         }
         started += 1;
-        void fetchTile(cache, tileIndex, requestId);
+        void fetchTile(cache, tileIndex, quality, requestId);
+        return true;
+      };
+
+      for (const tileIndex of needOverview) {
+        if (!startFetch(tileIndex, "overview")) {
+          return;
+        }
+      }
+      for (const tileIndex of needDetail) {
+        // Skip tiles still waiting on overview — they'll upgrade after L0 lands.
+        if (cache.qualityOf(tileIndex) == null) {
+          continue;
+        }
+        if (!startFetch(tileIndex, "detail")) {
+          return;
+        }
       }
     },
     [duration, fetchTile],
@@ -148,6 +187,10 @@ export function useRenderWaveformLane({
     cacheRef.current = null;
     setTrackCache(null);
     setTileRevision(0);
+    if (revisionRafRef.current !== 0) {
+      window.cancelAnimationFrame(revisionRafRef.current);
+      revisionRafRef.current = 0;
+    }
 
     if ((!trackId && !path) || width <= 0 || height <= 0 || !duration) {
       return;
@@ -161,10 +204,10 @@ export function useRenderWaveformLane({
     const viewStart = position - cache.visibleMs / 2;
     const viewEnd = position + cache.visibleMs / 2;
     const requestId = requestIdRef.current;
-    const initialTiles = cache.missingTileIndices(viewStart, viewEnd, 0);
+    const initialTiles = cache.missingTileIndices(viewStart, viewEnd, 0, "overview");
 
     for (const tileIndex of initialTiles.slice(0, MAX_CONCURRENT_TILE_FETCHES)) {
-      void fetchTile(cache, tileIndex, requestId);
+      void fetchTile(cache, tileIndex, "overview", requestId);
     }
   }, [
     trackId,
@@ -183,7 +226,7 @@ export function useRenderWaveformLane({
       return;
     }
     ensureVisibleTiles(0);
-  }, [playing, positionMs, ensureVisibleTiles]);
+  }, [playing, positionMs, tileRevision, ensureVisibleTiles]);
 
   useEffect(() => {
     if (!playing) {
@@ -191,8 +234,13 @@ export function useRenderWaveformLane({
     }
 
     let frameId = 0;
-    const tick = () => {
-      ensureVisibleTiles(1);
+    let lastCheck = 0;
+    const tick = (now: number) => {
+      // Tile fetch is not frame-critical; ~10 Hz is enough while playing.
+      if (now - lastCheck >= 100) {
+        lastCheck = now;
+        ensureVisibleTiles(1);
+      }
       frameId = window.requestAnimationFrame(tick);
     };
     frameId = window.requestAnimationFrame(tick);
