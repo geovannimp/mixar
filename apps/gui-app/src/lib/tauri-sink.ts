@@ -1,4 +1,4 @@
-import type { LogRecord, Sink } from "@logtape/logtape";
+import { fromAsyncSink, type LogRecord, type Sink } from "@logtape/logtape";
 import {
   debug as tauriDebug,
   error as tauriError,
@@ -29,36 +29,34 @@ export function formatLogRecordForSink(record: LogRecord): string {
   return `[${category}] ${message}${props}`;
 }
 
-function writeToTauri(record: LogRecord): void {
+async function writeToTauri(record: LogRecord): Promise<void> {
   const message = formatLogRecordForSink(record);
   switch (record.level) {
     case "trace":
-      void tauriTrace(message);
+      await tauriTrace(message);
       break;
     case "debug":
-      void tauriDebug(message);
+      await tauriDebug(message);
       break;
     case "info":
-      void tauriInfo(message);
+      await tauriInfo(message);
       break;
     case "warning":
-      void tauriWarn(message);
+      await tauriWarn(message);
       break;
     case "error":
     case "fatal":
-      void tauriError(message);
+      await tauriError(message);
       break;
     default: {
       const _exhaustive: never = record.level;
       void _exhaustive;
-      void tauriInfo(message);
+      await tauriInfo(message);
       break;
     }
   }
 }
 
 export function getTauriSink(): Sink {
-  return (record) => {
-    writeToTauri(record);
-  };
+  return fromAsyncSink(writeToTauri);
 }

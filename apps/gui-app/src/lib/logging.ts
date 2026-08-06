@@ -1,4 +1,4 @@
-import { configureSync, getConsoleSink, getLogger } from "@logtape/logtape";
+import { configure, configureSync, getConsoleSink, getLogger } from "@logtape/logtape";
 import { APP_ENVIRONMENT } from "@/lib/tauri-app";
 
 const isDev = import.meta.env.DEV;
@@ -12,11 +12,12 @@ const tauriSink =
   APP_ENVIRONMENT === "TAURI" ? (await import("@/lib/tauri-sink")).getTauriSink() : undefined;
 
 /**
- * Sync LogTape setup for SPA entry (see LogTape browser/SPA guidance).
- * Runs at module evaluation so `main.tsx` can `import` this module first.
+ * LogTape SPA entry setup. Runs at module evaluation so `main.tsx` can import
+ * this module first. Tauri uses `configure()` because `fromAsyncSink` needs it;
+ * browser-only stays on `configureSync()`.
  */
 if (tauriSink) {
-  configureSync({
+  await configure({
     sinks: {
       console: getConsoleSink(),
       tauri: tauriSink,
