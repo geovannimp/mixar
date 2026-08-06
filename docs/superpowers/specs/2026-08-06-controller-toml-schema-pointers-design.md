@@ -48,14 +48,17 @@ Later: replace `location` with a GitHub raw/HTTPS URL; no Rust change required i
 
 ## Rust ignore field
 
-`DeviceFile` and `MapFile` gain an optional field (names illustrative):
+`DeviceFile` and `MapFile` each gain:
 
 ```rust
 #[serde(default, rename = "toml-schema")]
 toml_schema: Option<TomlSchemaRef>,
 
+#[derive(Deserialize)]
 struct TomlSchemaRef {
+    #[serde(default)]
     version: Option<String>,
+    #[serde(default)]
     location: Option<String>,
 }
 ```
