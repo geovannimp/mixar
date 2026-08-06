@@ -1,5 +1,6 @@
 import type { WaveformFrame } from "@/types";
 import { WAVEFORM_VISIBLE_MS } from "./spectral-color";
+import { waveformLog } from "@/lib/logging";
 
 const MIN_TILES = 1;
 const MAX_TILES = 48;
@@ -158,7 +159,9 @@ export class WaveformTrackCache {
       const rgba = decodeBase64Rgba(frame.rgba_base64);
       const expected = frame.width * frame.height * 4;
       if (rgba.length !== expected) {
-        console.error(`waveform tile rgba size mismatch: got ${rgba.length}, expected ${expected}`);
+        waveformLog.error(
+          `waveform tile rgba size mismatch: got ${rgba.length}, expected ${expected}`,
+        );
         return;
       }
 
@@ -177,7 +180,7 @@ export class WaveformTrackCache {
         this.revision += 1;
       }
     } catch (err) {
-      console.error("failed to blit waveform tile", err);
+      waveformLog.error("failed to blit waveform tile", { err: String(err) });
     } finally {
       this.pendingTiles.delete(tileIndex);
     }

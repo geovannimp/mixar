@@ -985,11 +985,31 @@ fn get_supported_audio_extensions() -> Vec<&'static str> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+    let log_level = if cfg!(debug_assertions) {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log_level)
+                .level_for("sqlx", log::LevelFilter::Warn)
+                .level_for("sea_orm", log::LevelFilter::Warn)
+                .level_for("tracing", log::LevelFilter::Warn)
+                .timezone_strategy(tauri_plugin_log::TimezoneStrategy::UseLocal)
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                        file_name: Some("gui-app".into()),
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .build(),
+        )
         .setup(|app| {
             let app_data = app
                 .path()

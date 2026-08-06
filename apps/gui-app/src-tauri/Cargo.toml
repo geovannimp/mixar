@@ -16,13 +16,13 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 strum = { version = "0.28", features = ["derive"] }
 base64 = "0.22"
 anyhow = "1"
 log = "0.4"
-env_logger = "0.10"
 audio-core = { path = "../../../crates/audio-core" }
 engine-api = { path = "../../../crates/engine-api" }
 engine-core = { path = "../../../crates/engine-core", features = ["backend-cpal"] }

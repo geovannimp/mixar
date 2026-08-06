@@ -6,6 +6,8 @@ A modular, high-performance Rust audio engine for DJ applications.
 
 Headless Rust library providing a reusable audio engine for DJ apps. It features runtime-selectable audio backends, modular decks, pluggable audio loading via `AudioSource`, and a producer/consumer threading model with lock-free ring buffers.
 
+GUI logging (Tauri plugin + LogTape, log file locations, verbosity): see [docs/logging.md](docs/logging.md).
+
 ## Architecture
 
 Cargo + npm workspace layout:
