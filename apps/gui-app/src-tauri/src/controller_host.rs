@@ -7,8 +7,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use controller::{
-    list_input_port_names, ActionPublish, ControllerEngine, ControllerEvent, DeviceInfo,
-    MappingInfo,
+    ActionPublish, ControllerEngine, ControllerEvent, DeviceInfo, MappingInfo,
 };
 use engine_api::{encode_cmd_body, CmdBody, Kind, Origin};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
@@ -84,26 +83,23 @@ impl ControllerHost {
         let stop = Arc::new(AtomicBool::new(false));
         let mut threads = Vec::with_capacity(2);
 
-        // Port scan thread — ALSA open stays off the MIDI pump path.
+        // Port scan thread — uses ControllerEngine's long-lived enum MidiInput (no MidiInput::new).
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&controller_engine);
             let app = app.clone();
             threads.push(thread::spawn(move || {
-                // First scan immediately (may take seconds on cold ALSA); pump runs in parallel.
+                // First scan immediately; MIDI pump runs in parallel.
                 loop {
-                    match list_input_port_names() {
-                        Ok(ports) => {
-                            let events = if let Ok(mut eng) = controller_engine.lock() {
-                                eng.apply_input_ports(ports);
-                                eng.take_events()
-                            } else {
-                                Vec::new()
-                            };
-                            emit_events(&app, events);
+                    let events = if let Ok(mut eng) = controller_engine.lock() {
+                        if let Err(err) = eng.poll_devices() {
+                            log::debug!("controller poll_devices: {err}");
                         }
-                        Err(err) => log::debug!("controller poll_devices: {err}"),
-                    }
+                        eng.take_events()
+                    } else {
+                        Vec::new()
+                    };
+                    emit_events(&app, events);
                     // Sleep in slices so shutdown is responsive.
                     let mut waited = Duration::ZERO;
                     while waited < DEVICE_POLL_INTERVAL {

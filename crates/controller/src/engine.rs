@@ -104,7 +104,12 @@ struct CatalogEntry {
 }
 
 /// Glue midir + app-data mapping bundles for a host (Tauri / WASM).
+///
+/// Port listing uses long-lived [`Self::enum_in`] / [`Self::enum_out`].
+/// Each attach still opens its own midir clients — `connect` consumes them —
+/// so multiple controllers can each own a connection pair later.
 pub struct ControllerEngine {
+    app_name: String,
     app_dir: PathBuf,
     shipped_dir: PathBuf,
     /// mapping folder id → cached device identity + path
@@ -117,17 +122,24 @@ pub struct ControllerEngine {
     events: VecDeque<ControllerEvent>,
     midi_tx: Sender<Vec<u8>>,
     midi_rx: Receiver<Vec<u8>>,
+    /// Enumeration-only midir clients (never `connect`ed). Lazy so seed/open works without ALSA.
+    enum_in: Option<MidiInput>,
+    enum_out: Option<MidiOutput>,
     attached: Option<Attached>,
 }
 
 impl ControllerEngine {
     /// Open and seed app-data mappings from the shipped catalog when missing.
+    ///
+    /// `app_name` labels midir clients in the system MIDI list (e.g. `"Rust DJ"`).
     pub fn open(
+        app_name: impl Into<String>,
         app_mappings_dir: impl Into<PathBuf>,
         shipped_mappings_dir: impl Into<PathBuf>,
     ) -> Result<Self, EngineError> {
         let (midi_tx, midi_rx) = mpsc::channel();
         let mut this = Self {
+            app_name: app_name.into(),
             app_dir: app_mappings_dir.into(),
             shipped_dir: shipped_mappings_dir.into(),
             catalog: HashMap::new(),
@@ -137,10 +149,29 @@ impl ControllerEngine {
             events: VecDeque::new(),
             midi_tx,
             midi_rx,
+            enum_in: None,
+            enum_out: None,
             attached: None,
         };
         this.ensure_seeded()?;
         Ok(this)
+    }
+
+    fn ensure_enum_clients(&mut self) -> Result<(), EngineError> {
+        if self.enum_in.is_none() {
+            self.enum_in =
+                Some(MidiInput::new(&self.app_name).map_err(|e| EngineError::Midi(e.to_string()))?);
+        }
+        if self.enum_out.is_none() {
+            let name = format!("{} out", self.app_name);
+            self.enum_out =
+                Some(MidiOutput::new(&name).map_err(|e| EngineError::Midi(e.to_string()))?);
+        }
+        Ok(())
+    }
+
+    pub fn app_name(&self) -> &str {
+        &self.app_name
     }
 
     pub fn app_dir(&self) -> &Path {
@@ -267,12 +298,13 @@ impl ControllerEngine {
         Ok(out)
     }
 
-    pub fn list_devices(&self) -> Result<Vec<DeviceInfo>, EngineError> {
+    pub fn list_devices(&mut self) -> Result<Vec<DeviceInfo>, EngineError> {
+        self.ensure_enum_clients()?;
+        let enum_in = self.enum_in.as_ref().expect("enum_in after ensure");
+        let enum_out = self.enum_out.as_ref().expect("enum_out after ensure");
         let mut out = Vec::new();
-        let input = MidiInput::new("rust-mixer-controller-in")
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
-        for port in input.ports() {
-            let port_name = input
+        for port in enum_in.ports() {
+            let port_name = enum_in
                 .port_name(&port)
                 .map_err(|e| EngineError::Midi(e.to_string()))?;
             let matched = self.match_port(&port_name);
@@ -282,10 +314,8 @@ impl ControllerEngine {
                 matched_mapping_id: matched,
             });
         }
-        let output = MidiOutput::new("rust-mixer-controller-out")
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
-        for port in output.ports() {
-            let port_name = output
+        for port in enum_out.ports() {
+            let port_name = enum_out
                 .port_name(&port)
                 .map_err(|e| EngineError::Midi(e.to_string()))?;
             let matched = self.match_port(&port_name);
@@ -298,9 +328,21 @@ impl ControllerEngine {
         Ok(out)
     }
 
+    /// Input port names via the long-lived enumeration client (created once).
+    pub fn list_input_port_names(&mut self) -> Result<HashSet<String>, EngineError> {
+        self.ensure_enum_clients()?;
+        let enum_in = self.enum_in.as_ref().expect("enum_in after ensure");
+        let mut current = HashSet::new();
+        for port in enum_in.ports() {
+            let name = enum_in
+                .port_name(&port)
+                .map_err(|e| EngineError::Midi(e.to_string()))?;
+            current.insert(name);
+        }
+        Ok(current)
+    }
+
     /// Diff input ports; push [`ControllerEvent::MappingOffer`] for new matches.
-    ///
-    /// Call with names enumerated **outside** the engine lock — `MidiInput::new` is slow on ALSA.
     pub fn apply_input_ports(&mut self, current: HashSet<String>) {
         for gone in self
             .known_input_ports
@@ -348,10 +390,9 @@ impl ControllerEngine {
         self.refresh_pending_offers_cache();
     }
 
-    /// Enumerate + apply. Prefer [`Self::apply_input_ports`] from the host after
-    /// listing ports without holding the engine mutex.
+    /// Enumerate + apply using the shared enumeration client.
     pub fn poll_devices(&mut self) -> Result<(), EngineError> {
-        let current = list_input_port_names()?;
+        let current = self.list_input_port_names()?;
         self.apply_input_ports(current);
         Ok(())
     }
@@ -416,8 +457,9 @@ impl ControllerEngine {
             self.disable_mapping(&old)?;
         }
 
-        let midi_in = MidiInput::new("rust-mixer-controller-in")
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
+        // Fresh client: midir `connect` consumes MidiInput (one per attached controller).
+        let map_name = format!("{} map", self.app_name);
+        let midi_in = MidiInput::new(&map_name).map_err(|e| EngineError::Midi(e.to_string()))?;
         let mut midi_in = midi_in;
         midi_in.ignore(Ignore::None);
         let port = midi_in
@@ -430,7 +472,7 @@ impl ControllerEngine {
         let input = midi_in
             .connect(
                 &port,
-                "rust-mixer-map",
+                "in",
                 move |_stamp, message, _| {
                     let _ = tx.send(message.to_vec());
                 },
@@ -438,7 +480,9 @@ impl ControllerEngine {
             )
             .map_err(|e| EngineError::Midi(e.to_string()))?;
 
-        let mut output = open_matching_output(&bundle, &port_name).ok().flatten();
+        let mut output = open_matching_output(&self.app_name, &bundle, &port_name)
+            .ok()
+            .flatten();
         let mut session = MappingSession::from_bundle(bundle)?;
         {
             let mut sink = MidiSink { out: &mut output };
@@ -551,11 +595,11 @@ impl ControllerEngine {
         None
     }
 
-    fn find_matching_input_port(&self, bundle: &Bundle) -> Result<Option<String>, EngineError> {
-        let input = MidiInput::new("rust-mixer-controller-find")
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
-        for port in input.ports() {
-            let name = input
+    fn find_matching_input_port(&mut self, bundle: &Bundle) -> Result<Option<String>, EngineError> {
+        self.ensure_enum_clients()?;
+        let enum_in = self.enum_in.as_ref().expect("enum_in after ensure");
+        for port in enum_in.ports() {
+            let name = enum_in
                 .port_name(&port)
                 .map_err(|e| EngineError::Midi(e.to_string()))?;
             let identity = MidiIdentity {
@@ -595,26 +639,14 @@ impl ActionPublish for NullPublish {
     }
 }
 
-/// Enumerate MIDI input port names. Call **outside** the engine mutex — ALSA open is slow.
-pub fn list_input_port_names() -> Result<HashSet<String>, EngineError> {
-    let input = MidiInput::new("rust-mixer-controller-poll")
-        .map_err(|e| EngineError::Midi(e.to_string()))?;
-    let mut current = HashSet::new();
-    for port in input.ports() {
-        let name = input
-            .port_name(&port)
-            .map_err(|e| EngineError::Midi(e.to_string()))?;
-        current.insert(name);
-    }
-    Ok(current)
-}
-
 fn open_matching_output(
+    app_name: &str,
     bundle: &Bundle,
     input_port_name: &str,
 ) -> Result<Option<MidiOutputConnection>, EngineError> {
-    let output = MidiOutput::new("rust-mixer-controller-out")
-        .map_err(|e| EngineError::Midi(e.to_string()))?;
+    // Fresh client: midir `connect` consumes MidiOutput (one per attached controller).
+    let name = format!("{app_name} map out");
+    let output = MidiOutput::new(&name).map_err(|e| EngineError::Midi(e.to_string()))?;
     let ports = output.ports();
     let mut chosen = None;
     for p in &ports {
@@ -651,7 +683,7 @@ fn open_matching_output(
         return Ok(None);
     };
     let conn = output
-        .connect(&port, "rust-mixer-map-out")
+        .connect(&port, "out")
         .map_err(|e| EngineError::Midi(e.to_string()))?;
     Ok(Some(conn))
 }

@@ -25,8 +25,7 @@ pub use device::{
     AudioHints, DeviceFile, SectionName, SECTION_CUSTOM, SECTION_MASTER, SECTION_SAMPLER,
 };
 pub use engine::{
-    list_input_port_names, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo,
-    EngineError, MappingInfo,
+    ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,
 };
 pub use error::{LoadError, MidiPortError, RuntimeError};
 pub use map_file::{
