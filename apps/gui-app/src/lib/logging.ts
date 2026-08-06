@@ -53,9 +53,9 @@ configureSync({
 });
 
 /**
- * When running under Tauri, swap to the plugin sink (Stdout/LogDir/Webview) and
- * attach DevTools forwarding in dev. Lazy-imported so non-Tauri/wasm builds do
- * not pull `@tauri-apps/plugin-log` into the module graph.
+ * When running under Tauri, add the plugin sink so JS logs also hit Stdout/LogDir.
+ * Console sink stays for DevTools. Lazy-imported so non-Tauri/wasm builds do not
+ * pull `@tauri-apps/plugin-log` into the module graph.
  */
 export async function attachTauriLogging(): Promise<void> {
   if (!isTauriApp()) {
@@ -63,25 +63,22 @@ export async function attachTauriLogging(): Promise<void> {
   }
 
   // Dynamic import keeps the Tauri plugin out of the browser/wasm bundle graph.
-  const { attachConsole, createTauriSink } = await import("@/lib/logging-tauri");
+  const { getTauriSink } = await import("@/lib/logging-tauri");
 
   await configure({
     reset: true,
     sinks: {
-      tauri: createTauriSink(),
+      console: getConsoleSink(),
+      tauri: getTauriSink(),
     },
     loggers: [
       {
         category: ["app"],
         lowestLevel: isDev ? "debug" : "info",
-        sinks: ["tauri"],
+        sinks: ["console", "tauri"],
       },
     ],
   });
-
-  if (isDev) {
-    await attachConsole();
-  }
 }
 
 export const appLogger = getLogger(["app"]);

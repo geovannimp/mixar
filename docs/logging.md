@@ -16,8 +16,7 @@ The GUI app uses one logging pipeline for Rust (Tauri host) and the React fronte
 Configured in `apps/gui-app/src-tauri/src/lib.rs`:
 
 - **Stdout** — terminal output for `tauri dev` / CI
-- **LogDir** — persisted files under the platform log directory (default file name (application name))
-- **Webview** — Rust (and forwarded JS) logs visible in DevTools when the frontend calls `attachConsole()` (dev only)
+- **LogDir** — persisted files under the platform log directory (default file name = application name)
 
 Default max level: **Debug** in debug builds, **Info** in release. Noisy crates (`sqlx`, `sea_orm`, `tracing`) are capped at **Warn**.
 
@@ -41,4 +40,4 @@ Files use the application name by default (e.g. `gui-app.log`) (plus rotations w
 
 ## Frontend entrypoint
 
-`logging.ts` calls `configureSync()` at import time (LogTape SPA pattern). `main.tsx` imports it first, then `attachTauriLogging()` lazy-loads the Tauri sink when running under Tauri; in dev that also `attachConsole()`s for DevTools.
+`logging.ts` calls `configureSync()` at import time (LogTape SPA pattern). `main.tsx` imports it first, then `attachTauriLogging()` lazy-loads the Tauri sink so JS logs also reach Stdout/LogDir. DevTools visibility for JS stays on LogTape’s console sink (Rust host logs remain on Stdout/LogDir).

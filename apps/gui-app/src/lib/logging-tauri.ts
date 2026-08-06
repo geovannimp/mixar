@@ -1,6 +1,5 @@
 import type { LogRecord, Sink } from "@logtape/logtape";
 import {
-  attachConsole,
   debug as tauriDebug,
   error as tauriError,
   info as tauriInfo,
@@ -37,10 +36,8 @@ function writeToTauri(record: LogRecord): void {
   }
 }
 
-export function createTauriSink(): Sink {
+export function getTauriSink(): Sink {
   return (record) => {
     writeToTauri(record);
   };
 }
-
-export { attachConsole };
