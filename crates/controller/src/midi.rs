@@ -190,12 +190,37 @@ pub enum ShortMsg {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParsedMidi {
     pub msg: ShortMsg,
-    pub match_key: MatchKey,
-    /// Normalized 0..1 from velocity/value (note-off → 0). 7-bit CC only;
-    /// session replaces this for cc14 after pairing.
-    pub norm: f32,
-    /// True for note-on with vel>0 or CC; false for note-off / note-on vel0.
-    pub active: bool,
+}
+
+impl ParsedMidi {
+    /// Lookup key shared by note-on and note-off (same channel/note).
+    pub fn match_key(self) -> MatchKey {
+        match self.msg {
+            ShortMsg::NoteOn { channel, note, .. } | ShortMsg::NoteOff { channel, note, .. } => {
+                MatchKey::Note { channel, note }
+            }
+            ShortMsg::Cc { channel, cc, .. } => MatchKey::Cc { channel, cc },
+        }
+    }
+
+    /// 0..1 control value: note velocity, or 7-bit CC value (note-off → 0).
+    /// Session replaces this for cc14 after MSB+LSB pairing.
+    pub fn value_01(self) -> f32 {
+        match self.msg {
+            ShortMsg::NoteOn { velocity, .. } => velocity as f32 / 127.0,
+            ShortMsg::NoteOff { .. } => 0.0,
+            ShortMsg::Cc { value, .. } => value as f32 / 127.0,
+        }
+    }
+
+    /// Note-on with vel>0 or CC with value>0; false for note-off / note-on vel0.
+    pub fn active(self) -> bool {
+        match self.msg {
+            ShortMsg::NoteOn { velocity, .. } => velocity > 0,
+            ShortMsg::NoteOff { .. } => false,
+            ShortMsg::Cc { value, .. } => value > 0,
+        }
+    }
 }
 
 /// Parse a short MIDI message (2–3 bytes). Returns None for unsupported/sysex/etc.
@@ -219,9 +244,6 @@ pub fn parse_short(bytes: &[u8]) -> Option<ParsedMidi> {
                     note,
                     velocity,
                 },
-                match_key: MatchKey::Note { channel, note },
-                norm: 0.0,
-                active: false,
             })
         }
         0x90 => {
@@ -237,9 +259,6 @@ pub fn parse_short(bytes: &[u8]) -> Option<ParsedMidi> {
                         note,
                         velocity: 0,
                     },
-                    match_key: MatchKey::Note { channel, note },
-                    norm: 0.0,
-                    active: false,
                 })
             } else {
                 Some(ParsedMidi {
@@ -248,9 +267,6 @@ pub fn parse_short(bytes: &[u8]) -> Option<ParsedMidi> {
                         note,
                         velocity,
                     },
-                    match_key: MatchKey::Note { channel, note },
-                    norm: velocity as f32 / 127.0,
-                    active: true,
                 })
             }
         }
@@ -262,9 +278,6 @@ pub fn parse_short(bytes: &[u8]) -> Option<ParsedMidi> {
             let value = bytes[2] & 0x7F;
             Some(ParsedMidi {
                 msg: ShortMsg::Cc { channel, cc, value },
-                match_key: MatchKey::Cc { channel, cc },
-                norm: value as f32 / 127.0,
-                active: value > 0,
             })
         }
         _ => None,
@@ -316,9 +329,9 @@ mod tests {
     #[test]
     fn parses_note_on_and_cc() {
         let n = parse_short(&[0x90, 0x0B, 0x7F]).unwrap();
-        assert!(n.active);
+        assert!(n.active());
         assert_eq!(
-            n.match_key,
+            n.match_key(),
             MatchKey::Note {
                 channel: 1,
                 note: 0x0B
@@ -326,13 +339,13 @@ mod tests {
         );
 
         let c = parse_short(&[0xB0, 0x13, 64]).unwrap();
-        assert!((c.norm - 64.0 / 127.0).abs() < 1e-6);
+        assert!((c.value_01() - 64.0 / 127.0).abs() < 1e-6);
     }
 
     #[test]
     fn note_on_vel0_is_off() {
         let n = parse_short(&[0x90, 0x0B, 0x00]).unwrap();
-        assert!(!n.active);
+        assert!(!n.active());
     }
 
     #[test]

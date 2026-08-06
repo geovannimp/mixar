@@ -236,7 +236,7 @@ impl MappingSession {
         let Some(parsed) = parse_short(bytes) else {
             return;
         };
-        let Some((section, alias, ep)) = self.bundle.device.find_input_match(parsed.match_key)
+        let Some((section, alias, ep)) = self.bundle.device.find_input_match(parsed.match_key())
         else {
             return;
         };
@@ -249,7 +249,7 @@ impl MappingSession {
 
         if section == SECTION_CUSTOM {
             let mod_key = format!("custom.{alias}");
-            if parsed.active {
+            if parsed.active() {
                 self.modifiers.insert(mod_key);
             } else {
                 self.modifiers.remove(&mod_key);
@@ -258,8 +258,8 @@ impl MappingSession {
             return;
         }
 
-        // Resolve normalized value (cc14 pairs MSB+LSB).
-        let mut norm = parsed.norm;
+        // Resolve 0..1 value (cc14 pairs MSB+LSB).
+        let mut value_01 = parsed.value_01();
         let is_cc = matches!(parsed.msg, ShortMsg::Cc { .. });
         if is_cc14 {
             let ShortMsg::Cc { cc, value, .. } = parsed.msg else {
@@ -279,22 +279,22 @@ impl MappingSession {
             let (Some(msb), Some(lsb)) = *entry else {
                 return; // wait until both bytes seen
             };
-            norm = norm_from_cc14(msb, lsb);
+            value_01 = norm_from_cc14(msb, lsb);
         }
 
         // Edge for notes: only process transitions for button-like msgs.
         if !is_cc {
             let prev = self.note_state.get(&key).copied().unwrap_or(false);
-            if prev == parsed.active {
+            if prev == parsed.active() {
                 return;
             }
-            self.note_state.insert(key.clone(), parsed.active);
+            self.note_state.insert(key.clone(), parsed.active());
             self.dispatch_input(
                 &section,
                 &alias,
                 &key,
-                norm,
-                parsed.active,
+                value_01,
+                parsed.active(),
                 false,
                 bus,
                 midi,
@@ -309,8 +309,8 @@ impl MappingSession {
                 &section,
                 &alias,
                 &key,
-                norm,
-                parsed.active,
+                value_01,
+                parsed.active(),
                 false,
                 bus,
                 midi,
@@ -322,8 +322,8 @@ impl MappingSession {
             PendingCc {
                 section: section.clone(),
                 alias: alias.clone(),
-                norm,
-                active: parsed.active,
+                norm: value_01,
+                active: parsed.active(),
             },
         );
         let now = Instant::now();

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use engine_api::{CmdBody, Kind, Origin};
-use rhai::{Dynamic, Engine, Scope, AST};
+use rhai::{Dynamic, Engine, Module, Scope, AST};
 
 use crate::action::ControlSnapshot;
 use crate::error::{LoadError, RuntimeError};
@@ -51,9 +51,10 @@ impl ScriptRuntime {
             modifiers: Vec::new(),
         }));
 
+        let mut module = Module::new();
         {
             let b = Arc::clone(&bridge);
-            engine.register_fn("midi_out", move |bytes: Vec<Dynamic>| {
+            module.set_native_fn("midi_out", move |bytes: Vec<Dynamic>| {
                 let mut raw = Vec::with_capacity(bytes.len());
                 for v in bytes {
                     if let Ok(n) = v.as_int() {
@@ -63,39 +64,45 @@ impl ScriptRuntime {
                 if let Ok(mut g) = b.lock() {
                     g.midi_queue.push(raw);
                 }
+                Ok::<(), Box<rhai::EvalAltResult>>(())
             });
         }
         {
             let b = Arc::clone(&bridge);
-            engine.register_fn(
+            module.set_native_fn(
                 "publish",
                 move |origin: &str, kind: &str, _payload: &str| {
                     if let Ok(mut g) = b.lock() {
                         g.publish_queue
                             .push((origin.to_string(), kind.to_string(), String::new()));
                     }
+                    Ok::<(), Box<rhai::EvalAltResult>>(())
                 },
             );
         }
         {
             let b = Arc::clone(&bridge);
-            engine.register_fn("get_snapshot", move || -> String {
+            module.set_native_fn("get_snapshot", move || {
                 let g = b.lock().ok();
                 let playing = g.as_ref().map(|g| g.snapshot_playing).unwrap_or([false; 4]);
-                format!(
+                Ok::<_, Box<rhai::EvalAltResult>>(format!(
                     "playing0={} playing1={} playing2={} playing3={}",
                     playing[0] as u8, playing[1] as u8, playing[2] as u8, playing[3] as u8
-                )
+                ))
             });
         }
         {
             let b = Arc::clone(&bridge);
-            engine.register_fn("modifier_active", move |name: &str| -> bool {
-                b.lock()
-                    .map(|g| g.modifiers.iter().any(|m| m == name))
-                    .unwrap_or(false)
+            module.set_native_fn("modifier_active", move |name: &str| {
+                Ok::<_, Box<rhai::EvalAltResult>>(
+                    b.lock()
+                        .map(|g| g.modifiers.iter().any(|m| m == name))
+                        .unwrap_or(false),
+                )
             });
         }
+        // Global module keeps flat call sites (`midi_out(...)`) while grouping host fns.
+        engine.register_global_module(module.into());
 
         let ast = engine
             .compile(source)
@@ -127,6 +134,8 @@ impl ScriptRuntime {
             return;
         };
         for (origin_s, kind_s, _) in pubs {
+            // Scripts pass flat strings (`engine`, `deck1`); wire Origin for Deck is
+            // `{"deck":n}`, so serde alone isn't enough for the Rhai publish API.
             let origin = parse_origin(&origin_s).unwrap_or(Origin::Engine);
             let kind = parse_kind(&kind_s).unwrap_or(Kind::Notice);
             host.bus.publish_engine(origin, kind, CmdBody::Empty);
@@ -160,14 +169,14 @@ impl ScriptRuntime {
         &mut self,
         name: &str,
         host: &mut ScriptHost<'_>,
-        norm: f32,
+        value_01: f32,
         active: bool,
     ) -> Result<(), RuntimeError> {
         self.prepare_scratch(host);
         let mut scope = Scope::new();
         let result = self
             .engine
-            .call_fn::<()>(&mut scope, &self.ast, name, (norm as f64, active));
+            .call_fn::<()>(&mut scope, &self.ast, name, (value_01 as f64, active));
         self.flush_scratch(host);
         result.map_err(|e| RuntimeError::Script(e.to_string()))
     }
