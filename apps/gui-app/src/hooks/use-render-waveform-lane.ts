@@ -3,6 +3,7 @@ import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckEq, WaveformFrame } from "@/types";
 import { WaveformTrackCache } from "@/lib/waveform-track-cache";
 import { waveformVisibleSourceMs } from "@/lib/spectral-color";
+import { asError, waveformLogger } from "@/lib/logging";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
 const libraryTransport = getLibraryTransport();
@@ -91,7 +92,7 @@ export function useRenderWaveformLane({
         cache.blitTile(frame, tileIndex);
         setTileRevision(cache.tileRevision);
       } catch (err) {
-        console.error("render_waveform_lane tile failed", err);
+        waveformLogger.error("render_waveform_lane tile failed", asError(err));
         cache.clearPending(tileIndex);
       } finally {
         inFlightRef.current = Math.max(0, inFlightRef.current - 1);

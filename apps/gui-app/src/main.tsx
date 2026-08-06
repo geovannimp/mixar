@@ -1,3 +1,5 @@
+// LogTape must be configured before the rest of the app (SPA entry pattern).
+import "@/lib/logging";
 import { scan } from "react-scan"; // must be imported before React and React DOM
 import React from "react";
 import ReactDOM from "react-dom/client";
