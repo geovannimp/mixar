@@ -1,11 +1,5 @@
-import {
-  configure,
-  configureSync,
-  getConsoleSink,
-  getLogger,
-  type LogRecord,
-} from "@logtape/logtape";
-import { isTauriApp } from "@/lib/tauri-app";
+import { configureSync, getConsoleSink, getLogger, type LogRecord } from "@logtape/logtape";
+import { ENVIRONMENT } from "@/lib/tauri-app";
 
 const isDev = import.meta.env.DEV;
 
@@ -35,47 +29,38 @@ export function formatLogRecordForSink(record: LogRecord): string {
   return `[${category}] ${message}${props}`;
 }
 
+// Dynamic import keeps `@tauri-apps/plugin-log` out of the browser/wasm graph.
+const tauriSink =
+  ENVIRONMENT === "TAURI" ? (await import("@/lib/tauri-sink")).getTauriSink() : undefined;
+
 /**
  * Sync LogTape setup for SPA entry (see LogTape browser/SPA guidance).
  * Runs at module evaluation so `main.tsx` can `import` this module first.
  */
-configureSync({
-  sinks: {
-    console: getConsoleSink(),
-  },
-  loggers: [
-    {
-      category: ["app"],
-      lowestLevel: isDev ? "debug" : "info",
-      sinks: ["console"],
-    },
-  ],
-});
-
-/**
- * When running under Tauri, add the plugin sink so JS logs also hit Stdout/LogDir.
- * Console sink stays for DevTools. Lazy-imported so non-Tauri/wasm builds do not
- * pull `@tauri-apps/plugin-log` into the module graph.
- */
-export async function attachTauriLogging(): Promise<void> {
-  if (!isTauriApp()) {
-    return;
-  }
-
-  // Dynamic import keeps the Tauri plugin out of the browser/wasm bundle graph.
-  const { getTauriSink } = await import("@/lib/logging-tauri");
-
-  await configure({
-    reset: true,
+if (tauriSink) {
+  configureSync({
     sinks: {
       console: getConsoleSink(),
-      tauri: getTauriSink(),
+      tauri: tauriSink,
     },
     loggers: [
       {
         category: ["app"],
         lowestLevel: isDev ? "debug" : "info",
         sinks: ["console", "tauri"],
+      },
+    ],
+  });
+} else {
+  configureSync({
+    sinks: {
+      console: getConsoleSink(),
+    },
+    loggers: [
+      {
+        category: ["app"],
+        lowestLevel: isDev ? "debug" : "info",
+        sinks: ["console"],
       },
     ],
   });
