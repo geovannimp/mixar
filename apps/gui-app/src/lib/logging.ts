@@ -16,6 +16,10 @@ function serializePropertyValue(value: unknown): unknown {
   return value;
 }
 
+export function asError(err: unknown): Error {
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 export function formatLogRecordForSink(record: LogRecord): string {
   const category = record.category.join(".");
   const parts: string[] = [];

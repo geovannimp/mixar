@@ -1,6 +1,6 @@
 import type { WaveformFrame } from "@/types";
 import { WAVEFORM_VISIBLE_MS } from "./spectral-color";
-import { waveformLogger } from "@/lib/logging";
+import { asError, waveformLogger } from "@/lib/logging";
 
 const MIN_TILES = 1;
 const MAX_TILES = 48;
@@ -180,7 +180,7 @@ export class WaveformTrackCache {
         this.revision += 1;
       }
     } catch (err) {
-      waveformLogger.error("failed to blit waveform tile", { err });
+      waveformLogger.error("failed to blit waveform tile", asError(err));
     } finally {
       this.pendingTiles.delete(tileIndex);
     }

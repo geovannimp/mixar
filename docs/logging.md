@@ -37,7 +37,7 @@ Files use the application name by default (e.g. `gui-app.log`) (plus rotations w
 
 - **Rust / plugin:** rebuild in debug for Debug-level host logs, or temporarily change `.level(...)` / `.level_for(...)` on the plugin builder in `lib.rs`.
 - **Headless example:** `RUST_LOG=debug,sqlx=warn cargo run -p app-example` (uses `env_logger`).
-- **Frontend (LogTape):** categories under `["app", …]` use Debug in Vite/Tauri **dev**, Info in production builds. Prefer `engineLogger` / `libraryLogger` / `waveformLogger` / `controllerLogger` from `apps/gui-app/src/lib/logging.ts` over raw `console.*`.
+- **Frontend (LogTape):** categories under `["app", …]` use Debug in Vite/Tauri **dev**, Info in production builds. Prefer `engineLogger` / `libraryLogger` / `waveformLogger` / `controllerLogger` from `apps/gui-app/src/lib/logging.ts` over raw `console.*`. Pass `Error` values with LogTape’s `(message, error)` overloads (use `asError(unknown)` at catch boundaries).
 
 ## Frontend entrypoint
 
