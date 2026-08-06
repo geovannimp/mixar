@@ -16,6 +16,10 @@ vendor_name = "Test"
 product_name = "{product_name}"
 midi_name_contains = ["TestDev"]
 
+[toml-schema]
+version = "1.0.0"
+location = "../../../../schemas/device.tosd"
+
 [deck_1]
 play_pause = {{ type = "note", channel = 1, note = 0x0B }}
 "#
@@ -25,6 +29,10 @@ play_pause = {{ type = "note", channel = 1, note = 0x0B }}
     fs::write(
         dir.join("map.toml"),
         r#"schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../schemas/map.tosd"
 
 [inputs.deck_1]
 play_pause = "Deck(_)::toggle_play"

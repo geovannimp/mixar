@@ -6,7 +6,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::catalog::{is_absolute_action, is_closed_input_alias, is_known_action};
-use crate::device::{is_section_key, DeviceFile, SECTION_CUSTOM};
+use crate::device::{is_section_key, DeviceFile, TomlSchemaRef, SECTION_CUSTOM};
 use crate::error::LoadError;
 use crate::midi::MidiEndpoint;
 
@@ -89,6 +89,10 @@ pub struct OutputBinding {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct MapFile {
     pub schema_version: u32,
+    /// Editor schema pointer; never used after deserialize.
+    /// Populated in [`Self::parse`] after peeling `[toml-schema]` off the table.
+    #[serde(default, skip)]
+    pub toml_schema: Option<TomlSchemaRef>,
     #[serde(default)]
     pub inputs: BTreeMap<String, BTreeMap<String, RawBinding>>,
     #[serde(default)]
@@ -97,10 +101,23 @@ pub struct MapFile {
 
 impl MapFile {
     pub fn parse(text: &str, path: &Path) -> Result<Self, LoadError> {
-        let map: MapFile = toml::from_str(text).map_err(|source| LoadError::Parse {
+        let mut table: toml::Table = toml::from_str(text).map_err(|source| LoadError::Parse {
             path: path.to_path_buf(),
             source,
         })?;
+        let toml_schema = table
+            .remove("toml-schema")
+            .map(TomlSchemaRef::try_from_value)
+            .transpose()
+            .map_err(|source| LoadError::Parse {
+                path: path.to_path_buf(),
+                source,
+            })?;
+        let mut map: MapFile = table.try_into().map_err(|source| LoadError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        map.toml_schema = toml_schema;
         if map.schema_version != 1 {
             return Err(LoadError::Schema {
                 version: map.schema_version,

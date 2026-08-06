@@ -4,6 +4,10 @@ vendor_name = "Example"
 product_name = "Generic Controller"
 midi_name_contains = ["Example Generic"]
 
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/device.tosd"
+
 [audio]
 output_name_contains = ["Example Generic"]
 

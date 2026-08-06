@@ -4,6 +4,10 @@ vendor_name = "Test"
 product_name = "Minimal"
 midi_name_contains = ["Minimal"]
 
+[toml-schema]
+version = "1.0.0"
+location = "../../../../schemas/device.tosd"
+
 [deck_1]
 play_pause = { type = "note", channel = 1, note = 0x0B }
 volume = { type = "cc", channel = 1, cc = 0x13 }

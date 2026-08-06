@@ -1,78 +1,118 @@
 # TOML Schema for controller device.toml (editor aid; runtime validation is Rust).
 # See https://toml-schema.org/
 
-title = "rust-mixer controller device.toml"
-schema_version = "1.0.0"
+[toml-schema]
+version = "1.0.0"
 
-[[properties]]
-name = "schema_version"
+[types.midi_endpoint]
+type = "table"
+
+[types.midi_endpoint.type]
+type = "string"
+allowedvalues = ["note", "cc", "cc14"]
+
+[types.midi_endpoint.channel]
 type = "integer"
-required = true
+min = 1
+max = 16
+
+[types.midi_endpoint.note]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.cc]
+type = "any"
+optional = true
+
+[types.midi_endpoint.velocity]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.value]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.direction]
+type = "string"
+optional = true
+allowedvalues = ["in", "out", "inout"]
+
+[types.audio_hints]
+type = "table"
+
+[types.audio_hints.output_name_contains]
+type = "array"
+arraytype = "string"
+optional = true
+
+[types.section_aliases]
+type = "collection"
+typeof = "types.midi_endpoint"
+
+[elements.schema_version]
+type = "integer"
 allowedvalues = [1]
 
-[[properties]]
-name = "id"
+[elements.id]
 type = "string"
-required = true
 
-[[properties]]
-name = "name"
+[elements.vendor_name]
 type = "string"
-required = true
 
-[[properties]]
-name = "usb_vid"
+[elements.product_name]
+type = "string"
+
+[elements.description]
+type = "string"
+optional = true
+
+[elements.usb_vid]
 type = "integer"
+optional = true
 
-[[properties]]
-name = "usb_pid"
+[elements.usb_pid]
 type = "integer"
+optional = true
 
-[[properties]]
-name = "midi_name_contains"
+[elements.midi_name_contains]
 type = "array"
+arraytype = "string"
+optional = true
 
-[[properties]]
-name = "audio"
-type = "table"
+[elements.audio]
+typeof = "types.audio_hints"
+optional = true
 
-[[properties]]
-name = "deck_1"
-type = "table"
+[elements.deck_1]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "deck_2"
-type = "table"
+[elements.deck_2]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "deck_3"
-type = "table"
+[elements.deck_3]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "deck_4"
-type = "table"
+[elements.deck_4]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "master"
-type = "table"
+[elements.master]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "sampler"
-type = "table"
+[elements.sampler]
+typeof = "types.section_aliases"
+optional = true
 
-[[properties]]
-name = "custom"
-type = "table"
-
-# Closed deck input aliases (watch / inputs catalog)
-# play_pause, cue, cue_hold, sync, quantize, volume, gain, eq_high, eq_mid, eq_low,
-# filter, jog_touch, jog_turn, hot_cue_1..8, pad_1..8, loop_in, loop_out, exit_loop,
-# auto_loop, beat_jump_fwd, beat_jump_back, pad_mode_*
-
-# MIDI endpoint shape:
-# type = "note" | "cc" | "cc14"
-# channel = 1..=16
-# note = 0..=127
-# cc = 0..=127                    # when type = "cc"
-# cc = { msb = …, lsb = … }       # when type = "cc14"
-# optional velocity / value / direction = "in" | "out" | "inout"
+[elements.custom]
+typeof = "types.section_aliases"
+optional = true

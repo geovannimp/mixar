@@ -22,7 +22,8 @@ pub use bundle::{load_bundle, MappingBundle};
 pub use catalog::{is_closed_input_alias, is_known_action, ActionName};
 pub use check::check_bundle_dir;
 pub use device::{
-    AudioHints, DeviceFile, SectionName, SECTION_CUSTOM, SECTION_MASTER, SECTION_SAMPLER,
+    AudioHints, DeviceFile, SectionName, TomlSchemaRef, SECTION_CUSTOM, SECTION_MASTER,
+    SECTION_SAMPLER,
 };
 pub use engine::{
     ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,

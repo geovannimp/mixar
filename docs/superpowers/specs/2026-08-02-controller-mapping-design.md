@@ -225,9 +225,11 @@ Engine evt bus
 | File | Purpose |
 |------|---------|
 | `schemas/device.tosd` | Identity, audio hints, sectioned aliases, MIDI message shapes |
-| `schemas/map.tosd` | inputs/outputs, actions, modifiers, soft_takeover, alias-or-inline unions |
+| `schemas/map.tosd` | inputs/outputs, bindings, soft_takeover, alias-or-inline unions |
 
-Editors use these for validation and autocomplete. Closed catalogs / actions appear as `allowedvalues` (or equivalent) where the schema language allows.
+Data files point at these via reserved `[toml-schema]` (`version` + relative `location`). See `docs/superpowers/specs/2026-08-06-controller-toml-schema-pointers-design.md`.
+
+Editors use these for validation and autocomplete. Closed catalogs / actions appear as comments or stay in Rust `map-check`.
 
 ### `map-check` (controller crate)
 

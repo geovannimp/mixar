@@ -1,30 +1,114 @@
 # TOML Schema for controller map.toml (editor aid; runtime validation is Rust).
 # See https://toml-schema.org/
+# Closed action / alias catalogs stay in Rust map-check.
 
-title = "rust-mixer controller map.toml"
-schema_version = "1.0.0"
+[toml-schema]
+version = "1.0.0"
 
-[[properties]]
-name = "schema_version"
+[types.binding_table]
+type = "table"
+
+[types.binding_table.action]
+type = "string"
+optional = true
+
+[types.binding_table.modifier]
+type = "string"
+optional = true
+
+[types.binding_table.soft_takeover]
+type = "boolean"
+optional = true
+
+[types.binding_table.script]
+type = "string"
+optional = true
+
+[types.binding]
+oneof = [
+  { type = "string" },
+  { typeof = "types.binding_table" },
+  { type = "array", arraytype = "types.binding_table" },
+]
+
+[types.section_inputs]
+type = "collection"
+typeof = "types.binding"
+
+[types.output_target]
+oneof = [
+  { type = "string" },
+  { typeof = "types.midi_endpoint" },
+]
+
+[types.midi_endpoint]
+type = "table"
+
+[types.midi_endpoint.type]
+type = "string"
+allowedvalues = ["note", "cc", "cc14"]
+
+[types.midi_endpoint.channel]
 type = "integer"
-required = true
+min = 1
+max = 16
+
+[types.midi_endpoint.note]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.cc]
+type = "any"
+optional = true
+
+[types.midi_endpoint.velocity]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.value]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.direction]
+type = "string"
+optional = true
+allowedvalues = ["in", "out", "inout"]
+
+[types.output_binding]
+type = "table"
+
+[types.output_binding.on]
+typeof = "types.output_target"
+
+[types.output_binding.off]
+typeof = "types.output_target"
+
+[types.section_outputs]
+type = "collection"
+typeof = "types.output_binding"
+
+[types.inputs_root]
+type = "collection"
+typeof = "types.section_inputs"
+
+[types.outputs_root]
+type = "collection"
+typeof = "types.section_outputs"
+
+[elements.schema_version]
+type = "integer"
 allowedvalues = [1]
 
-[[properties]]
-name = "inputs"
-type = "table"
+[elements.inputs]
+typeof = "types.inputs_root"
+optional = true
 
-[[properties]]
-name = "outputs"
-type = "table"
-
-# Action vocabulary (closed; must map to engine_api Kind + CmdBody):
-# toggle_play, play, pause, cue, begin_cue_hold, end_cue_hold, toggle_sync,
-# set_quantize, set_volume, set_filter, set_gain, set_eq_high, set_eq_mid, set_eq_low,
-# set_crossfader, set_cue_mix, set_master_cue, set_headphone_cue, jog_touch, jog_turn,
-# trigger_hot_cue_1..8, loop_in, loop_out, exit_loop, auto_loop_4,
-# beat_jump_fwd_4, beat_jump_back_4, pad_mode_*, trigger_sampler_1..8
-
-# Binding: action string | { action, modifier?, soft_takeover?, script? } | array of tables
-# modifier must be custom.*
-# Output: { on = alias|inline, off = alias|inline }
+[elements.outputs]
+typeof = "types.outputs_root"
+optional = true

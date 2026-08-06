@@ -12,6 +12,10 @@ usb_vid = 0x2b73
 usb_pid = 0x0026
 midi_name_contains = ["DDJ-400"]
 
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/device.tosd"
+
 [audio]
 output_name_contains = ["DDJ-400"]
 

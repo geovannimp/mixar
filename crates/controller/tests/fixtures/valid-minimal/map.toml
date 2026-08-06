@@ -1,5 +1,9 @@
 schema_version = 1
 
+[toml-schema]
+version = "1.0.0"
+location = "../../../../schemas/map.tosd"
+
 [inputs.deck_1]
 play_pause = "Deck(_)::toggle_play"
 headphone_cue = "Deck(_)::set_headphone_cue"

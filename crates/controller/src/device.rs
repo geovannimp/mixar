@@ -21,6 +21,21 @@ pub struct AudioHints {
     pub output_name_contains: Vec<String>,
 }
 
+/// Reserved `[toml-schema]` metadata (editor aid). Ignored at runtime.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+pub struct TomlSchemaRef {
+    #[serde(default)]
+    pub version: Option<String>,
+    #[serde(default)]
+    pub location: Option<String>,
+}
+
+impl TomlSchemaRef {
+    pub(crate) fn try_from_value(value: toml::Value) -> Result<Self, toml::de::Error> {
+        value.try_into()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct DeviceFile {
     pub schema_version: u32,
@@ -37,6 +52,11 @@ pub struct DeviceFile {
     pub midi_name_contains: Vec<String>,
     #[serde(default)]
     pub audio: AudioHints,
+    /// Editor schema pointer; never used after deserialize.
+    /// Populated in [`Self::parse`] after peeling `[toml-schema]` off the table
+    /// (avoid serde flatten ordering issues). Not deserialized in-place.
+    #[serde(default, skip)]
+    pub toml_schema: Option<TomlSchemaRef>,
     /// Section → alias → endpoint. Keys: `deck_1`..`deck_4`, `master`, `sampler`, `custom`.
     #[serde(flatten)]
     pub sections: BTreeMap<String, BTreeMap<String, MidiEndpoint>>,
@@ -53,10 +73,27 @@ impl DeviceFile {
     }
 
     pub fn parse(text: &str, path: &Path) -> Result<Self, LoadError> {
-        let mut device: DeviceFile = toml::from_str(text).map_err(|source| LoadError::Parse {
+        let mut table: toml::Table = toml::from_str(text).map_err(|source| LoadError::Parse {
             path: path.to_path_buf(),
             source,
         })?;
+        // Flatten + `[toml-schema]` before scalars confuses toml/serde; peel it off first.
+        let toml_schema = table
+            .remove("toml-schema")
+            .map(TomlSchemaRef::try_from_value)
+            .transpose()
+            .map_err(|source| LoadError::Parse {
+                path: path.to_path_buf(),
+                source,
+            })?;
+        let mut device: DeviceFile =
+            table
+                .try_into()
+                .map_err(|source| LoadError::Parse {
+                    path: path.to_path_buf(),
+                    source,
+                })?;
+        device.toml_schema = toml_schema;
         // Flatten may swallow known top-level keys if mistyped; strip non-section maps.
         device.sections.retain(|k, _| is_section_key(k));
         if device.schema_version != 1 {

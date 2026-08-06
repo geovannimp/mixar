@@ -3,7 +3,7 @@
 Date: 2026-08-06  
 PR: [#132](https://github.com/geovannimp/rust-dj-engine/pull/132) (review thread on `device.toml` `[toml-schema]`)  
 Related: `docs/superpowers/specs/2026-08-02-controller-mapping-design.md` § Validation & tooling  
-Status: approved design (not yet implemented)
+Status: implemented
 
 ## Goal
 
@@ -24,12 +24,19 @@ Wire mapping data files to editor-facing [TOML Schema](https://toml-schema.org/)
 
 ## Pointers
 
-Every data file includes:
+Every data file includes (after root scalars, before section tables — TOML would otherwise
+absorb following keyvals into `[toml-schema]`):
 
 ```toml
+schema_version = 1
+# ... other root keys ...
+
 [toml-schema]
 version = "1.0.0"
 location = "<path-relative-to-this-file>"
+
+[deck_1]
+# ...
 ```
 
 | `version` | TOML Schema **language** SemVer (not `schema_version = 1`) |
@@ -48,24 +55,9 @@ Later: replace `location` with a GitHub raw/HTTPS URL; no Rust change required i
 
 ## Rust ignore field
 
-`DeviceFile` and `MapFile` each gain:
+`DeviceFile` and `MapFile` each gain `toml_schema: Option<TomlSchemaRef>` (`version` / `location` optional strings).
 
-```rust
-#[serde(default, rename = "toml-schema")]
-toml_schema: Option<TomlSchemaRef>,
-
-#[derive(Deserialize)]
-struct TomlSchemaRef {
-    #[serde(default)]
-    version: Option<String>,
-    #[serde(default)]
-    location: Option<String>,
-}
-```
-
-Never read after deserialize. Without this, `[toml-schema]` lands in `sections` (or fails untagged MIDI endpoint decode) and breaks load.
-
-`DeviceFile::parse` already retains only known section keys; the typed field is still required so serde does not attempt to parse `version`/`location` as `MidiEndpoint`.
+`parse` peels `[toml-schema]` off the TOML table before serde deserialize (avoids flatten issues), then stores it on the skipped field. Never read afterward.
 
 ## `.tosd` rewrite
 
