@@ -63,6 +63,11 @@ fn parse_origin_template(s: &str) -> Result<OriginTemplate, LoadError> {
             let id: u16 = rest.parse().map_err(|_| {
                 LoadError::Validation(format!("invalid deck index in origin template `{s}`"))
             })?;
+            if id > 3 {
+                return Err(LoadError::Validation(format!(
+                    "deck index `{id}` out of range (0..=3) in origin template `{s}`"
+                )));
+            }
             Ok(OriginTemplate::Deck(Some(id)))
         }
     }
@@ -74,7 +79,14 @@ pub fn bind_origin(template: OriginTemplate, section: &str) -> Result<BoundOrigi
         OriginTemplate::Mixer => Ok(BoundOrigin::Engine(EngineOrigin::Mixer)),
         OriginTemplate::Engine => Ok(BoundOrigin::Engine(EngineOrigin::Engine)),
         OriginTemplate::LibraryNavigation => Ok(BoundOrigin::LibraryNavigation),
-        OriginTemplate::Deck(Some(id)) => Ok(BoundOrigin::Engine(EngineOrigin::Deck(id))),
+        OriginTemplate::Deck(Some(id)) => {
+            if id > 3 {
+                return Err(LoadError::Validation(format!(
+                    "deck index `{id}` out of range (0..=3)"
+                )));
+            }
+            Ok(BoundOrigin::Engine(EngineOrigin::Deck(id)))
+        }
         OriginTemplate::Deck(None) => {
             let Some(id) = origin_deck_id(section) else {
                 return Err(LoadError::Validation(format!(
@@ -129,5 +141,10 @@ mod tests {
             bind_origin(t, "master").unwrap(),
             BoundOrigin::LibraryNavigation
         );
+    }
+
+    #[test]
+    fn deck_index_out_of_range_rejected() {
+        assert!(parse_action_id("Deck(4)::set_volume").is_err());
     }
 }

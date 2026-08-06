@@ -20,6 +20,11 @@ const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Snapshot / LED array slot for a deck origin (defense if an OOR index slips past load).
+fn deck_slot(d: u16) -> usize {
+    (d as usize).min(3)
+}
+
 /// Latest absolute CC waiting for ≤60 Hz flush.
 #[derive(Clone, Debug)]
 struct PendingCc {
@@ -472,27 +477,27 @@ impl MappingSession {
                 match body {
                     CmdBody::SetVolume { volume } => {
                         if let Origin::Deck(d) = *o {
-                            self.snapshot.volume[d as usize] = *volume;
+                            self.snapshot.volume[deck_slot(d)] = *volume;
                         }
                     }
                     CmdBody::SetFilter { filter_db } => {
                         if let Origin::Deck(d) = *o {
-                            self.snapshot.filter_db[d as usize] = *filter_db;
+                            self.snapshot.filter_db[deck_slot(d)] = *filter_db;
                         }
                     }
                     CmdBody::SetGainTrim { gain_db } => {
                         if let Origin::Deck(d) = *o {
-                            self.snapshot.gain_db[d as usize] = *gain_db;
+                            self.snapshot.gain_db[deck_slot(d)] = *gain_db;
                         }
                     }
                     CmdBody::SetSpeed { speed } => {
                         if let Origin::Deck(d) = *o {
-                            self.snapshot.speed[d as usize] = *speed;
+                            self.snapshot.speed[deck_slot(d)] = *speed;
                         }
                     }
                     CmdBody::SetEq { low, mid, high } => {
                         if let Origin::Deck(d) = *o {
-                            let i = d as usize;
+                            let i = deck_slot(d);
                             self.snapshot.eq_low[i] = *low;
                             self.snapshot.eq_mid[i] = *mid;
                             self.snapshot.eq_high[i] = *high;
@@ -506,7 +511,7 @@ impl MappingSession {
                     }
                     CmdBody::SetHeadphoneCue { enabled } => {
                         if let Origin::Deck(d) = *o {
-                            let i = (d as usize).min(3);
+                            let i = deck_slot(d);
                             self.snapshot.headphone_cue[i] = *enabled;
                             let deck_section = format!("deck_{}", d + 1);
                             self.apply_output_signal(
@@ -522,7 +527,7 @@ impl MappingSession {
                     }
                     CmdBody::SetPadMode { mode } => {
                         if let Origin::Deck(d) = *o {
-                            let i = (d as usize).min(3);
+                            let i = deck_slot(d);
                             self.snapshot.pad_mode[i] = *mode;
                             if *mode == PadMode::HotCue {
                                 self.refresh_hot_cue_leds(d, midi);
@@ -533,7 +538,7 @@ impl MappingSession {
                 }
                 if matches!(kind, Kind::Play | Kind::TriggerHotCue) {
                     if let Origin::Deck(d) = *o {
-                        let i = (d as usize).min(3);
+                        let i = deck_slot(d);
                         self.snapshot.playing[i] = true;
                         let deck_section = format!("deck_{}", d + 1);
                         self.apply_output_signal(&deck_section, "play_pause", true, midi);
@@ -541,7 +546,7 @@ impl MappingSession {
                 }
                 if matches!(kind, Kind::Pause) {
                     if let Origin::Deck(d) = *o {
-                        let i = (d as usize).min(3);
+                        let i = deck_slot(d);
                         self.snapshot.playing[i] = false;
                         let deck_section = format!("deck_{}", d + 1);
                         self.apply_output_signal(&deck_section, "play_pause", false, midi);
