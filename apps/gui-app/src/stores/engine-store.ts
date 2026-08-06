@@ -6,7 +6,7 @@ import { applyBusEvent } from "@/lib/engine/apply-bus-event";
 import { getEngineTransport } from "@/lib/engine/transport";
 import { getDeckOrigin, type CmdKind, type Origin } from "@/lib/engine/wire";
 import { getLibraryTransport } from "@/lib/library/transport";
-import { engineLog } from "@/lib/logging";
+import { engineLogger } from "@/lib/logging";
 import { patchDeckPosition } from "@/lib/engine-events";
 import { cyclePadMode } from "@/lib/pad-modes";
 import {
@@ -178,7 +178,7 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
         }
         return { status: patch.status, revision: patch.revision };
       } catch (err) {
-        engineLog.error("engine bus event decode failed", { err: String(err) });
+        engineLogger.error("engine bus event decode failed", { err });
         return current;
       }
     });

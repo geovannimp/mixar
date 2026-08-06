@@ -16,7 +16,7 @@ The GUI app uses one logging pipeline for Rust (Tauri host) and the React fronte
 Configured in `apps/gui-app/src-tauri/src/lib.rs`:
 
 - **Stdout** — terminal output for `tauri dev` / CI
-- **LogDir** — persisted files under the platform log directory (file name `gui-app`)
+- **LogDir** — persisted files under the platform log directory (default file name (application name))
 - **Webview** — Rust (and forwarded JS) logs visible in DevTools when the frontend calls `attachConsole()` (dev only)
 
 Default max level: **Debug** in debug builds, **Info** in release. Noisy crates (`sqlx`, `sea_orm`, `tracing`) are capped at **Warn**.
@@ -31,14 +31,14 @@ Bundle identifier: `com.geovanni.gui-app` (see `tauri.conf.json`).
 | macOS | `~/Library/Logs/com.geovanni.gui-app` |
 | Windows | `%LocalAppData%\com.geovanni.gui-app\logs` |
 
-Files are named like `gui-app.log` (plus rotations when size limits apply).
+Files use the application name by default (e.g. `gui-app.log`) (plus rotations when size limits apply).
 
 ## Raising verbosity
 
 - **Rust / plugin:** rebuild in debug for Debug-level host logs, or temporarily change `.level(...)` / `.level_for(...)` on the plugin builder in `lib.rs`.
 - **Headless example:** `RUST_LOG=debug,sqlx=warn cargo run -p app-example` (uses `env_logger`).
-- **Frontend (LogTape):** categories under `["gui", …]` use Debug in Vite/Tauri **dev**, Info in production builds. Prefer `engineLog` / `libraryLog` / `waveformLog` / `controllerLog` from `apps/gui-app/src/lib/logging.ts` over raw `console.*`.
+- **Frontend (LogTape):** categories under `["app", …]` use Debug in Vite/Tauri **dev**, Info in production builds. Prefer `engineLogger` / `libraryLogger` / `waveformLogger` / `controllerLogger` from `apps/gui-app/src/lib/logging.ts` over raw `console.*`.
 
 ## Frontend entrypoint
 
-`configureAppLogging()` runs from `main.tsx` before React mounts. In Tauri dev it also `attachConsole()` so the Webview target shows in DevTools.
+`logging.ts` calls `configureSync()` at import time (LogTape SPA pattern). `main.tsx` imports it first, then `attachTauriLogging()` lazy-loads the Tauri sink when running under Tauri; in dev that also `attachConsole()`s for DevTools.

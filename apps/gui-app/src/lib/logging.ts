@@ -1,15 +1,20 @@
-import { configure, getConsoleSink, getLogger, type LogRecord, type Sink } from "@logtape/logtape";
 import {
-  attachConsole,
-  debug as tauriDebug,
-  error as tauriError,
-  info as tauriInfo,
-  trace as tauriTrace,
-  warn as tauriWarn,
-} from "@tauri-apps/plugin-log";
+  configure,
+  configureSync,
+  getConsoleSink,
+  getLogger,
+  type LogRecord,
+} from "@logtape/logtape";
 import { isTauriApp } from "@/lib/tauri-app";
 
 const isDev = import.meta.env.DEV;
+
+function serializePropertyValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return { name: value.name, message: value.message, stack: value.stack };
+  }
+  return value;
+}
 
 export function formatLogRecordForSink(record: LogRecord): string {
   const category = record.category.join(".");
@@ -21,92 +26,62 @@ export function formatLogRecordForSink(record: LogRecord): string {
   const message = parts.join("");
   const props =
     record.properties && Object.keys(record.properties).length > 0
-      ? ` ${JSON.stringify(record.properties)}`
+      ? ` ${JSON.stringify(record.properties, (_key, value) => serializePropertyValue(value))}`
       : "";
   return `[${category}] ${message}${props}`;
 }
 
-function writeToTauri(record: LogRecord): void {
-  const message = formatLogRecordForSink(record);
-  switch (record.level) {
-    case "trace":
-      void tauriTrace(message);
-      break;
-    case "debug":
-      void tauriDebug(message);
-      break;
-    case "info":
-      void tauriInfo(message);
-      break;
-    case "warning":
-      void tauriWarn(message);
-      break;
-    case "error":
-    case "fatal":
-      void tauriError(message);
-      break;
-    default: {
-      const _exhaustive: never = record.level;
-      void _exhaustive;
-      void tauriInfo(message);
-      break;
-    }
-  }
-}
-
-function tauriSink(): Sink {
-  return (record) => {
-    writeToTauri(record);
-  };
-}
+/**
+ * Sync LogTape setup for SPA entry (see LogTape browser/SPA guidance).
+ * Runs at module evaluation so `main.tsx` can `import` this module first.
+ */
+configureSync({
+  sinks: {
+    console: getConsoleSink(),
+  },
+  loggers: [
+    {
+      category: ["app"],
+      lowestLevel: isDev ? "debug" : "info",
+      sinks: ["console"],
+    },
+  ],
+});
 
 /**
- * Configure LogTape once at app startup (before React mounts).
- *
- * Under Tauri: JS logs go through `@tauri-apps/plugin-log` so they share Stdout /
- * LogDir (and Webview) with Rust. In dev, `attachConsole()` prints that pipeline
- * in DevTools — no separate console sink, to avoid duplicates.
- *
- * Browser-only (`vite` without Tauri): console sink only.
+ * When running under Tauri, swap to the plugin sink (Stdout/LogDir/Webview) and
+ * attach DevTools forwarding in dev. Lazy-imported so non-Tauri/wasm builds do
+ * not pull `@tauri-apps/plugin-log` into the module graph.
  */
-export async function configureAppLogging(): Promise<void> {
-  const tauri = isTauriApp();
-
-  if (tauri) {
-    await configure({
-      sinks: {
-        tauri: tauriSink(),
-      },
-      loggers: [
-        {
-          category: ["gui"],
-          lowestLevel: isDev ? "debug" : "info",
-          sinks: ["tauri"],
-        },
-      ],
-    });
-    if (isDev) {
-      await attachConsole();
-    }
+export async function attachTauriLogging(): Promise<void> {
+  if (!isTauriApp()) {
     return;
   }
 
+  // Dynamic import keeps the Tauri plugin out of the browser/wasm bundle graph.
+  const { attachConsole, createTauriSink } = await import("@/lib/logging-tauri");
+
   await configure({
+    reset: true,
     sinks: {
-      console: getConsoleSink(),
+      tauri: createTauriSink(),
     },
     loggers: [
       {
-        category: ["gui"],
+        category: ["app"],
         lowestLevel: isDev ? "debug" : "info",
-        sinks: ["console"],
+        sinks: ["tauri"],
       },
     ],
   });
+
+  if (isDev) {
+    await attachConsole();
+  }
 }
 
-export const guiLog = getLogger(["gui"]);
-export const engineLog = getLogger(["gui", "engine"]);
-export const libraryLog = getLogger(["gui", "library"]);
-export const waveformLog = getLogger(["gui", "waveform"]);
-export const controllerLog = getLogger(["gui", "controller"]);
+export const appLogger = getLogger(["app"]);
+export const engineLogger = getLogger(["app", "engine"]);
+export const libraryLogger = getLogger(["app", "library"]);
+export const waveformLogger = getLogger(["app", "waveform"]);
+export const controllerLogger = getLogger(["app", "controller"]);
