@@ -6,15 +6,16 @@ use crate::device::DeviceFile;
 use crate::error::LoadError;
 use crate::map_file::MapFile;
 
+/// Loaded mapping directory: device + map + optional script.
 #[derive(Clone, Debug)]
-pub struct Bundle {
+pub struct MappingBundle {
     pub device: DeviceFile,
     pub map: MapFile,
     pub script_source: Option<String>,
     pub root: PathBuf,
 }
 
-pub fn load_bundle(dir: &Path) -> Result<Bundle, LoadError> {
+pub fn load_bundle(dir: &Path) -> Result<MappingBundle, LoadError> {
     let device_path = dir.join("device.toml");
     let map_path = dir.join("map.toml");
     if !device_path.is_file() {
@@ -50,10 +51,7 @@ pub fn load_bundle(dir: &Path) -> Result<Bundle, LoadError> {
 
     map.validate_against(&device, script_source.is_some())?;
 
-    // Collect script fn names referenced; missing file already checked.
-    // Compile happens in MappingSession / check when script present.
-
-    Ok(Bundle {
+    Ok(MappingBundle {
         device,
         map,
         script_source,

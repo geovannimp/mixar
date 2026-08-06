@@ -5,7 +5,9 @@ import { createTauriControllerTransport } from "@/lib/controller/tauri-transport
 export type ControllerMappingInfo = {
   id: string;
   device_id: string;
-  name: string;
+  vendor_name: string;
+  product_name: string;
+  description?: string | null;
   midi_name_contains: string[];
   attached: boolean;
 };

@@ -1,6 +1,7 @@
 schema_version = 1
 id = "test.cc14"
-name = "CC14 fixture"
+vendor_name = "CC14"
+product_name = "fixture"
 midi_name_contains = ["cc14"]
 
 [deck_1]

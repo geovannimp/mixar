@@ -20,7 +20,6 @@ members = [
     "controller",
 ]
 # Standalone midir probe — optional debug tool (own workspace; not required for gui-app).
-exclude = ["midi-map-probe"]
 resolver = "2"
 
 [workspace.package]

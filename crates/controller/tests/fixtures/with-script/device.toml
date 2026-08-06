@@ -1,6 +1,7 @@
 schema_version = 1
 id = "test.script"
-name = "Script Test"
+vendor_name = "Script"
+product_name = "Test"
 midi_name_contains = ["Script"]
 
 [deck_1]

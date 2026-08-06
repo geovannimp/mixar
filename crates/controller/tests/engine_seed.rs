@@ -5,14 +5,15 @@ use std::path::PathBuf;
 
 use controller::ControllerEngine;
 
-fn write_minimal_bundle(dir: &PathBuf, id: &str, name: &str) {
+fn write_minimal_bundle(dir: &PathBuf, id: &str, product_name: &str) {
     fs::create_dir_all(dir).unwrap();
     fs::write(
         dir.join("device.toml"),
         format!(
             r#"schema_version = 1
 id = "{id}"
-name = "{name}"
+vendor_name = "Test"
+product_name = "{product_name}"
 midi_name_contains = ["TestDev"]
 
 [deck_1]
@@ -69,5 +70,5 @@ fn update_mapping_overwrites_app_data() {
     let list = engine.list_mappings().unwrap();
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].id, "test-map");
-    assert_eq!(list[0].name, "Updated Map");
+    assert_eq!(list[0].product_name, "Updated Map");
 }

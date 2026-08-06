@@ -9,7 +9,7 @@ use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnec
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::bundle::{load_bundle, Bundle};
+use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut};
@@ -38,7 +38,10 @@ pub struct MappingInfo {
     pub id: String,
     /// `device.toml` id (e.g. `pioneer.ddj-400`).
     pub device_id: String,
-    pub name: String,
+    pub vendor_name: String,
+    pub product_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub midi_name_contains: Vec<String>,
     pub attached: bool,
 }
@@ -97,10 +100,22 @@ impl MidiOut for MidiSink<'_> {
 struct CatalogEntry {
     path: PathBuf,
     device_id: String,
-    name: String,
+    vendor_name: String,
+    product_name: String,
+    description: Option<String>,
     usb_vid: Option<u16>,
     usb_pid: Option<u16>,
     midi_name_contains: Vec<String>,
+}
+
+impl CatalogEntry {
+    fn display_name(&self) -> String {
+        [self.vendor_name.as_str(), self.product_name.as_str()]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }
 
 /// Glue midir + app-data mapping bundles for a host (Tauri / WASM).
@@ -111,7 +126,7 @@ struct CatalogEntry {
 pub struct ControllerEngine {
     app_name: String,
     app_dir: PathBuf,
-    shipped_dir: PathBuf,
+    shipped_mappings_dir: PathBuf,
     /// mapping folder id → cached device identity + path
     catalog: HashMap<String, CatalogEntry>,
     known_input_ports: HashSet<String>,
@@ -141,7 +156,7 @@ impl ControllerEngine {
         let mut this = Self {
             app_name: app_name.into(),
             app_dir: app_mappings_dir.into(),
-            shipped_dir: shipped_mappings_dir.into(),
+            shipped_mappings_dir: shipped_mappings_dir.into(),
             catalog: HashMap::new(),
             known_input_ports: HashSet::new(),
             offered_ports: HashSet::new(),
@@ -178,18 +193,18 @@ impl ControllerEngine {
         &self.app_dir
     }
 
-    pub fn shipped_dir(&self) -> &Path {
-        &self.shipped_dir
+    pub fn shipped_mappings_dir(&self) -> &Path {
+        &self.shipped_mappings_dir
     }
 
     /// Copy each shipped mapping into app-data when the destination id is missing.
     pub fn ensure_seeded(&mut self) -> Result<(), EngineError> {
         fs::create_dir_all(&self.app_dir)?;
-        if !self.shipped_dir.is_dir() {
+        if !self.shipped_mappings_dir.is_dir() {
             self.rescan_catalog()?;
             return Ok(());
         }
-        for entry in fs::read_dir(&self.shipped_dir)? {
+        for entry in fs::read_dir(&self.shipped_mappings_dir)? {
             let entry = entry?;
             if !entry.file_type()?.is_dir() {
                 continue;
@@ -205,7 +220,7 @@ impl ControllerEngine {
     }
 
     pub fn update_mapping(&mut self, mapping_id: &str) -> Result<(), EngineError> {
-        let src = self.shipped_dir.join(mapping_id);
+        let src = self.shipped_mappings_dir.join(mapping_id);
         if !src.is_dir() {
             return Err(EngineError::UnknownShipped(mapping_id.to_string()));
         }
@@ -232,10 +247,10 @@ impl ControllerEngine {
     }
 
     pub fn update_all_mappings(&mut self) -> Result<(), EngineError> {
-        if !self.shipped_dir.is_dir() {
+        if !self.shipped_mappings_dir.is_dir() {
             return Ok(());
         }
-        let ids: Vec<String> = fs::read_dir(&self.shipped_dir)?
+        let ids: Vec<String> = fs::read_dir(&self.shipped_mappings_dir)?
             .filter_map(|e| e.ok())
             .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
             .map(|e| e.file_name().to_string_lossy().into_owned())
@@ -266,7 +281,9 @@ impl ControllerEngine {
                         CatalogEntry {
                             path,
                             device_id: bundle.device.id,
-                            name: bundle.device.name,
+                            vendor_name: bundle.device.vendor_name,
+                            product_name: bundle.device.product_name,
+                            description: bundle.device.description,
                             usb_vid: bundle.device.usb_vid,
                             usb_pid: bundle.device.usb_pid,
                             midi_name_contains: bundle.device.midi_name_contains,
@@ -289,7 +306,9 @@ impl ControllerEngine {
             .map(|(id, entry)| MappingInfo {
                 id: id.clone(),
                 device_id: entry.device_id.clone(),
-                name: entry.name.clone(),
+                vendor_name: entry.vendor_name.clone(),
+                product_name: entry.product_name.clone(),
+                description: entry.description.clone(),
                 midi_name_contains: entry.midi_name_contains.clone(),
                 attached: attached_id == Some(id.as_str()),
             })
@@ -375,7 +394,7 @@ impl ControllerEngine {
                 let device_name = self
                     .catalog
                     .get(&mapping_id)
-                    .map(|e| e.name.clone())
+                    .map(CatalogEntry::display_name)
                     .unwrap_or_else(|| mapping_id.clone());
                 self.offered_ports.insert(name.clone());
                 self.events.push_back(ControllerEvent::MappingOffer {
@@ -418,7 +437,7 @@ impl ControllerEngine {
             let device_name = self
                 .catalog
                 .get(&mapping_id)
-                .map(|e| e.name.clone())
+                .map(CatalogEntry::display_name)
                 .unwrap_or_else(|| mapping_id.clone());
             self.pending_offers_cache
                 .push(ControllerEvent::MappingOffer {
@@ -595,7 +614,10 @@ impl ControllerEngine {
         None
     }
 
-    fn find_matching_input_port(&mut self, bundle: &Bundle) -> Result<Option<String>, EngineError> {
+    fn find_matching_input_port(
+        &mut self,
+        bundle: &MappingBundle,
+    ) -> Result<Option<String>, EngineError> {
         self.ensure_enum_clients()?;
         let enum_in = self.enum_in.as_ref().expect("enum_in after ensure");
         for port in enum_in.ports() {
@@ -630,7 +652,7 @@ impl ActionPublish for NullPublish {
         _body: engine_api::CmdBody,
     ) {
     }
-    fn publish_library_evt(
+    fn publish_library(
         &mut self,
         _origin: library_api::Origin,
         _kind: library_api::Kind,
@@ -641,7 +663,7 @@ impl ActionPublish for NullPublish {
 
 fn open_matching_output(
     app_name: &str,
-    bundle: &Bundle,
+    bundle: &MappingBundle,
     input_port_name: &str,
 ) -> Result<Option<MidiOutputConnection>, EngineError> {
     // Fresh client: midir `connect` consumes MidiOutput (one per attached controller).

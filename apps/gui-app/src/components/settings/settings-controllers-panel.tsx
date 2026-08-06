@@ -85,7 +85,7 @@ export function SettingsControllersPanel() {
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-zinc-100">
-                  {mapping.name}
+                  {[mapping.vendor_name, mapping.product_name].filter(Boolean).join(" ")}
                   {mapping.attached ? (
                     <span className="ml-2 text-xs font-normal text-emerald-400">attached</span>
                   ) : null}

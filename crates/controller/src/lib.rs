@@ -18,7 +18,7 @@ pub use action::{resolve_action, RoutedAction};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, BoundOrigin, OriginTemplate,
 };
-pub use bundle::{load_bundle, Bundle};
+pub use bundle::{load_bundle, MappingBundle};
 pub use catalog::{is_closed_input_alias, is_known_action, ActionName};
 pub use check::check_bundle_dir;
 pub use device::{

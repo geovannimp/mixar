@@ -12,7 +12,7 @@ impl ActionPublish for Capture {
     fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
         self.cmds.push((origin, kind, body));
     }
-    fn publish_library_evt(
+    fn publish_library(
         &mut self,
         _origin: library_api::Origin,
         _kind: library_api::Kind,

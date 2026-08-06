@@ -8,7 +8,7 @@ use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as Libr
 
 use crate::action::{resolve_action, ControlSnapshot, RoutedAction};
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
-use crate::bundle::Bundle;
+use crate::bundle::MappingBundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
 use crate::map_file::{InputBinding, OutputTarget};
@@ -31,12 +31,7 @@ struct PendingCc {
 
 pub trait ActionPublish {
     fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody);
-    fn publish_library_evt(
-        &mut self,
-        origin: LibraryOrigin,
-        kind: LibraryKind,
-        body: LibraryEvtBody,
-    );
+    fn publish_library(&mut self, origin: LibraryOrigin, kind: LibraryKind, body: LibraryEvtBody);
 }
 
 /// Compatibility alias for engine-only hosts/tests.
@@ -62,7 +57,7 @@ impl<T: MidiOut + ?Sized> MidiOut for &mut T {
 }
 
 pub struct MappingSession {
-    pub bundle: Bundle,
+    pub bundle: MappingBundle,
     snapshot: ControlSnapshot,
     /// Active custom.* modifiers (held).
     modifiers: HashSet<String>,
@@ -86,7 +81,7 @@ pub struct MappingSession {
 }
 
 impl MappingSession {
-    pub fn from_bundle(bundle: Bundle) -> Result<Self, LoadError> {
+    pub fn from_bundle(bundle: MappingBundle) -> Result<Self, LoadError> {
         let script = match &bundle.script_source {
             Some(src) => Some(ScriptRuntime::compile(src)?),
             None => None,
@@ -555,7 +550,7 @@ impl MappingSession {
                 bus.publish_engine(o.clone(), kind.clone(), body.clone());
             }
             RoutedAction::LibraryEvt { origin, kind, body } => {
-                bus.publish_library_evt(origin.clone(), kind.clone(), body.clone());
+                bus.publish_library(origin.clone(), kind.clone(), body.clone());
             }
         }
         true
@@ -652,7 +647,7 @@ mod tests {
         fn publish_engine(&mut self, origin: Origin, kind: Kind, body: CmdBody) {
             self.cmds.push((origin, kind, body));
         }
-        fn publish_library_evt(
+        fn publish_library(
             &mut self,
             _origin: LibraryOrigin,
             _kind: LibraryKind,

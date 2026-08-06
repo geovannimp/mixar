@@ -1,6 +1,7 @@
 schema_version = 1
 id = "example.generic"
-name = "Example Generic Controller"
+vendor_name = "Example"
+product_name = "Generic Controller"
 midi_name_contains = ["Example Generic"]
 
 [audio]

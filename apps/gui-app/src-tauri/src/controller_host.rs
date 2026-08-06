@@ -48,7 +48,7 @@ impl ActionPublish for HostPublish {
         }
     }
 
-    fn publish_library_evt(
+    fn publish_library(
         &mut self,
         origin: LibraryOrigin,
         kind: LibraryKind,

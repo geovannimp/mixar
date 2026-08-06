@@ -1,6 +1,7 @@
 schema_version = 1
 id = "test.minimal"
-name = "Test Minimal"
+vendor_name = "Test"
+product_name = "Minimal"
 midi_name_contains = ["Minimal"]
 
 [deck_1]

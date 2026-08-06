@@ -25,7 +25,10 @@ pub struct AudioHints {
 pub struct DeviceFile {
     pub schema_version: u32,
     pub id: String,
-    pub name: String,
+    pub vendor_name: String,
+    pub product_name: String,
+    #[serde(default)]
+    pub description: Option<String>,
     #[serde(default)]
     pub usb_vid: Option<u16>,
     #[serde(default)]
@@ -40,6 +43,15 @@ pub struct DeviceFile {
 }
 
 impl DeviceFile {
+    /// UI / offer label: `"Vendor Product"` (skips empty parts).
+    pub fn display_name(&self) -> String {
+        [self.vendor_name.as_str(), self.product_name.as_str()]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
     pub fn parse(text: &str, path: &Path) -> Result<Self, LoadError> {
         let mut device: DeviceFile = toml::from_str(text).map_err(|source| LoadError::Parse {
             path: path.to_path_buf(),
@@ -59,6 +71,11 @@ impl DeviceFile {
     pub fn validate(&self) -> Result<(), LoadError> {
         if self.id.is_empty() {
             return Err(LoadError::Validation("device.id must be non-empty".into()));
+        }
+        if self.product_name.is_empty() {
+            return Err(LoadError::Validation(
+                "device.product_name must be non-empty".into(),
+            ));
         }
         let mut input_keys: BTreeMap<MatchKey, String> = BTreeMap::new();
         for (section, aliases) in &self.sections {

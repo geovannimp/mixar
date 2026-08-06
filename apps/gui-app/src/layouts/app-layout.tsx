@@ -11,14 +11,19 @@ export function AppLayout() {
   return (
     <WindowResizeBorder className="flex flex-col bg-zinc-950 text-zinc-100">
       <AppHeader />
-      <div ref={setToastRoot} className="relative min-h-0 flex-1">
+      {/* flex-col so MixerPage/Settings `flex-1` fills height (Outlet parent must be a flex container). */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <ToastProvider
           position="top-center"
           portalProps={toastRoot ? { container: toastRoot } : { container: null }}
         >
-          <ControllerOfferBridge />
-          <Outlet />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ControllerOfferBridge />
+            <Outlet />
+          </div>
         </ToastProvider>
+        {/* Overlay portal target: absolute so it does not steal flex space from the page. */}
+        <div ref={setToastRoot} className="pointer-events-none absolute inset-0 z-60" aria-hidden />
       </div>
     </WindowResizeBorder>
   );
