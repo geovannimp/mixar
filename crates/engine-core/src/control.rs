@@ -352,7 +352,10 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             let key = soft_takeover::key_deck(deck_id, "volume");
-            let current = eng.deck_strip_norms(deck_id).map(|s| s.volume).unwrap_or(0.0);
+            let current = eng
+                .deck_strip_norms(deck_id)
+                .map(|s| s.volume)
+                .unwrap_or(0.0);
             if !eng
                 .soft_takeover_mut()
                 .allow(&key, soft_takeover, current, volume)
@@ -426,8 +429,7 @@ fn dispatch_deck_cmd(
             {
                 return Ok(CmdOutcome::Silent);
             }
-            let updated =
-                eng.set_deck_speed(deck_id, crate::control_norm::norm_to_speed_ratio(speed))?;
+            let updated = eng.set_deck_speed(deck_id, speed.clamp(0.0, 1.0))?;
             Ok(CmdOutcome::DecksUpdated(updated))
         }
         Kind::SetFilter => {

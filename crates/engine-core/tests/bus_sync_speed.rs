@@ -85,9 +85,8 @@ fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     };
     assert_eq!(id, 1);
     assert_eq!(sync_mode, SyncMode::Tempo);
-    // Master 120 @ 1.0 → slave 100 needs 1.2×; wire speed is fader position (±16% map saturates).
-    let expected = 1.0 - (1.16f32 - 0.84) / 0.32;
-    assert!((speed - expected).abs() < 0.01, "speed={speed}");
+    // Master 120 @ center → slave 100 needs 1.2×; ±8 BPM fader saturates (120 BPM needed vs ±8).
+    assert!((speed - 0.0).abs() < 0.01, "speed={speed}");
 }
 
 #[test]
@@ -112,8 +111,8 @@ fn master_speed_change_updates_synced_slave() {
             Origin::Deck(0),
             Kind::SetSpeed,
             encode_cmd_body(&CmdBody::SetSpeed {
-                // Position for ~1.05× (Pioneer ±16% map).
-                speed: 1.0 - (1.05 - 0.84) / 0.32,
+                // At 120 BPM ±8: n = 0.5 - (126-120)/(16) = 0.125 → ~1.05×.
+                speed: 0.125,
                 soft_takeover: false,
             })
             .unwrap(),
@@ -143,11 +142,10 @@ fn master_speed_change_updates_synced_slave() {
         }
     }
     let slave_speed = slave_speed.expect("slave Updated");
-    // Master effective 120 * 1.05 = 126 → slave 100 → 1.26×; position saturates at map max (0).
-    let expected = 1.0 - (1.16 - 0.84) / 0.32; // clamp 1.26→1.16 → norm 0
+    // Master effective 126 BPM → slave 100 needs 1.26×; ±8 BPM fader saturates at 0.
     assert!(
-        (slave_speed - expected).abs() < 0.01,
-        "slave_speed={slave_speed} expected≈{expected}"
+        (slave_speed - 0.0).abs() < 0.01,
+        "slave_speed={slave_speed}"
     );
 }
 

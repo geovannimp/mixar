@@ -43,7 +43,7 @@ export function DeckTempoPanel({
           {formatBpm(liveBpm)}
         </span>
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
-          {formatPitchOffset(deck.speed)}
+          {formatPitchOffset(deck.speed, deck.bpm)}
         </span>
         <DeckButton
           type="button"

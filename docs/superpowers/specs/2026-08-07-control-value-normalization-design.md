@@ -46,7 +46,7 @@ Controller: MIDI → `0..1` → optional invert → publish cmd with that norm (
 
 - Store strip controls as `0..1`.
 - Soft-takeover: `|incoming - current| ≤ 3/127` in that space; latch unchanged.
-- On apply: convert once into DSP (`±24` dB strip; tempo `±16%` from position — same curves as today’s controller helpers, moved into engine-core).
+- On apply: convert once into DSP where needed (`±24` dB strip). Tempo fader stays `0..1` on the deck; DSP derives playback ratio from track BPM ± `tempo_range` (BPM, default ±8).
 - Sync that computes playback ratios stays internal (ratio), but `SetSpeed` / snapshot `speed` are positions. When sync changes tempo, update stored position from the new ratio via the inverse map.
 
 ## UI

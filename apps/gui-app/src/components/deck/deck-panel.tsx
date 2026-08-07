@@ -126,19 +126,18 @@ function DeckJog({
   jogTouching: boolean;
 }) {
   const transport = useDeckTransport(deckId);
-  const speedRatio = normToSpeedRatio(speed);
 
   return (
     <JogPlatter
       accent={accentKey}
       playing={transport.playing}
-      bpm={bpm != null ? bpm * speedRatio : bpm}
+      bpm={bpm}
       hasTrack={hasTrack}
       enabled={!transportDisabled}
       jogTouching={jogTouching}
       positionMs={transport.position_ms ?? 0}
       durationMs={transport.duration_ms}
-      speed={speedRatio}
+      speed={normToSpeedRatio(speed, bpm)}
       onJogTouch={(touching) => {
         void engineActions.jogTouch(deckId, touching);
       }}

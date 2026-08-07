@@ -212,13 +212,7 @@ impl MappingSession {
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        let Some(fn_name) = self
-            .bundle
-            .map
-            .lifecycle
-            .fn_for(event)
-            .map(str::to_string)
-        else {
+        let Some(fn_name) = self.bundle.map.lifecycle.fn_for(event).map(str::to_string) else {
             return Ok(());
         };
         let Some(script) = self.script.as_mut() else {
@@ -515,12 +509,7 @@ impl MappingSession {
     }
 
     /// Update playing signal and emit mapped LED MIDI if changed.
-    pub fn on_deck_playing(
-        &mut self,
-        deck: u16,
-        playing: bool,
-        midi: &mut impl MidiOut,
-    ) {
+    pub fn on_deck_playing(&mut self, deck: u16, playing: bool, midi: &mut impl MidiOut) {
         self.set_playing_deck(deck, playing);
         let deck_section = format!("deck_{}", deck.min(3) + 1);
         self.apply_output_signal(&deck_section, "play_pause", playing, midi);

@@ -311,3 +311,26 @@ fn validate_output_target(
 
 /// Marker for docs / tests around soft-takeover defaults.
 pub struct SoftTakeoverDefault;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invert_effective_defaults_false() {
+        let b = InputBinding::from_action("Deck(_)::set_speed");
+        assert!(!b.invert_effective());
+    }
+
+    #[test]
+    fn invert_effective_when_set() {
+        let b = InputBinding {
+            action: Some("Deck(_)::set_speed".into()),
+            modifier: None,
+            soft_takeover: None,
+            invert: Some(true),
+            script: None,
+        };
+        assert!(b.invert_effective());
+    }
+}

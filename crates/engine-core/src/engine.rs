@@ -437,9 +437,11 @@ impl Engine {
             audio
         };
 
-        dsp.deck_mut(deck_id)
-            .expect("validated above")
-            .load(audio)?;
+        {
+            let deck = dsp.deck_mut(deck_id).expect("validated above");
+            deck.load(audio)?;
+            deck.set_track_bpm(bpm);
+        }
         dsp.mixer_mut()
             .channel_mut(deck_id)
             .expect("validated above")
@@ -477,9 +479,11 @@ impl Engine {
             loudness_from_metadata(prepared.source.metadata()).or(prepared.loudness_lufs);
         let audio = prepared.audio;
 
-        dsp.deck_mut(deck_id)
-            .expect("validated above")
-            .load(audio)?;
+        {
+            let deck = dsp.deck_mut(deck_id).expect("validated above");
+            deck.load(audio)?;
+            deck.set_track_bpm(bpm);
+        }
         dsp.mixer_mut()
             .channel_mut(deck_id)
             .expect("validated above")
@@ -600,13 +604,13 @@ impl Engine {
         self.set_deck_eq(deck_id, DeckEqGains::clamped(low_db, mid_db, high_db))
     }
 
-    /// Set playback speed for a deck (1.0 = normal tempo).
+    /// Set tempo fader position for a deck (`0..1`, center = track BPM).
     ///
     /// When the deck is master, synced slaves follow tempo (not beat phase).
     /// Returns every deck whose speed changed (master first).
     pub fn set_deck_speed(&mut self, deck_id: usize, speed: f32) -> Result<Vec<usize>> {
-        if !(0.0..=2.0).contains(&speed) || speed <= 0.0 {
-            return Err(anyhow::anyhow!("Speed must be between 0 and 2."));
+        if !(0.0..=1.0).contains(&speed) {
+            return Err(anyhow::anyhow!("Speed must be between 0 and 1."));
         }
         self.set_deck_speed_raw(deck_id, speed)?;
         let mut updated = vec![deck_id];
@@ -633,6 +637,20 @@ impl Engine {
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.set_speed(speed)?;
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+        }
+    }
+
+    fn set_deck_playback_ratio_raw(&mut self, deck_id: usize, ratio: f32) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        if let Some(deck) = dsp.deck_mut(deck_id) {
+            deck.set_playback_ratio(ratio)?;
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -697,7 +715,7 @@ impl Engine {
             .get(master_id)
             .and_then(|d| d.bpm)
             .ok_or_else(|| anyhow::anyhow!("Master deck BPM is required for sync."))?;
-        let master_speed = {
+        let master_ratio = {
             let dsp = self
                 .dsp_engine
                 .as_ref()
@@ -706,10 +724,10 @@ impl Engine {
                 .unwrap();
             dsp.deck(master_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid master deck ID: {master_id}"))?
-                .speed()
+                .playback_ratio()
         };
-        let target = target_sync_speed(master_bpm, master_speed, slave_bpm);
-        self.set_deck_speed_raw(slave_id, target)
+        let target = target_sync_speed(master_bpm, master_ratio, slave_bpm);
+        self.set_deck_playback_ratio_raw(slave_id, target)
     }
 
     fn align_beat_phase(&mut self, slave_id: usize, master_id: usize) -> Result<()> {
@@ -1348,7 +1366,7 @@ impl Engine {
             eq_low: crate::control_norm::strip_db_to_norm(eq.low_db),
             eq_mid: crate::control_norm::strip_db_to_norm(eq.mid_db),
             eq_high: crate::control_norm::strip_db_to_norm(eq.high_db),
-            speed: crate::control_norm::speed_ratio_to_norm(deck.speed()),
+            speed: deck.speed(),
             headphone_cue: channel.headphone_cue(),
         })
     }
@@ -1637,7 +1655,7 @@ fn deck_snapshot_from_dsp(
         key: None,
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
-        speed: crate::control_norm::speed_ratio_to_norm(deck.speed()),
+        speed: deck.speed(),
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),
