@@ -39,4 +39,4 @@ done
 if [[ ${#files[@]} -eq 0 ]]; then
   exit 0
 fi
-exec rustfmt --edition 2021 "${files[@]}"
+exec rustfmt --edition 2021 -- "${files[@]}"
