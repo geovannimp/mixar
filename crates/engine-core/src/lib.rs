@@ -12,6 +12,7 @@ mod engine;
 mod producer;
 mod routing;
 mod session;
+mod soft_takeover;
 mod sync;
 mod transport;
 

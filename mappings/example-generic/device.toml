@@ -1,0 +1,32 @@
+schema_version = 1
+id = "example.generic"
+vendor_name = "Example"
+product_name = "Generic Controller"
+midi_name_contains = ["Example Generic"]
+
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/device.tosd"
+
+[audio]
+output_name_contains = ["Example Generic"]
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }
+cue = { type = "note", channel = 1, note = 0x0C }
+volume = { type = "cc", channel = 1, cc = 0x13 }
+filter = { type = "cc", channel = 1, cc = 0x14 }
+jog_touch = { type = "note", channel = 1, note = 0x36 }
+jog_turn = { type = "cc", channel = 1, cc = 0x21 }
+play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+pause_led = { type = "note", channel = 1, note = 0x0D, velocity = 0x7F, direction = "out" }
+
+[deck_2]
+play_pause = { type = "note", channel = 2, note = 0x0B }
+volume = { type = "cc", channel = 2, cc = 0x13 }
+
+[master]
+crossfader = { type = "cc", channel = 1, cc = 0x1F }
+
+[custom]
+shift = { type = "note", channel = 1, note = 0x3F }

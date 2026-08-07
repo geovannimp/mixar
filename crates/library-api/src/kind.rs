@@ -14,6 +14,8 @@ pub enum Kind {
     DeleteLoop,
     HotCuesChanged,
     LoopsChanged,
+    Navigate,
+    Load,
     Error,
     Notice,
 }

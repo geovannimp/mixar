@@ -105,4 +105,12 @@ pub enum EvtBody {
     Notice {
         message: String,
     },
+    /// UI-only: move library table focus by `delta` (signed row steps).
+    Navigate {
+        delta: i32,
+    },
+    /// UI-only: load the focused library table row onto `deck` (0-based).
+    Load {
+        deck: u16,
+    },
 }

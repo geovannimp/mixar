@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MessageBanner } from "@/components/library/message-banner";
 import { SettingsAudioPanel } from "@/components/settings/settings-audio-panel";
+import { SettingsControllersPanel } from "@/components/settings/settings-controllers-panel";
 import { SettingsLibraryPanel } from "@/components/settings/settings-library-panel";
 import { SettingsSidebar } from "@/components/settings/settings-sidebar";
 import { useAudioDevices } from "@/hooks/use-audio-devices";
@@ -34,6 +35,8 @@ function SettingsSectionPanel({
       );
     case "library":
       return <SettingsLibraryPanel draft={draft} onChange={onChange} />;
+    case "controllers":
+      return <SettingsControllersPanel />;
     default: {
       const exhaustive: never = section;
       return exhaustive;

@@ -6,16 +6,20 @@ import { z } from "zod";
 export const KindSchema = z.enum([
   "play",
   "pause",
+  "toggle_play",
   "seek",
   "set_volume",
   "set_eq",
+  "set_eq_band",
   "set_speed",
   "set_filter",
   "set_gain_trim",
   "set_headphone_cue",
+  "toggle_headphone_cue",
   "set_crossfader",
   "set_cue_mix",
   "set_master_cue",
+  "toggle_master_cue",
   "toggle_sync",
   "set_master_deck",
   "unload",
@@ -23,6 +27,7 @@ export const KindSchema = z.enum([
   "begin_cue_hold",
   "end_cue_hold",
   "set_quantize",
+  "toggle_quantize",
   "set_auto_loop",
   "loop_in",
   "loop_out",
@@ -60,6 +65,9 @@ export const KindSchema = z.enum([
   "notice",
 ]);
 export type Kind = z.infer<typeof KindSchema>;
+
+export const EqBandSchema = z.enum(["low", "mid", "high"]);
+export type EqBand = z.infer<typeof EqBandSchema>;
 
 export const OriginSchema = z.union([
   z.literal("engine"),
@@ -183,22 +191,33 @@ export const EngineStatusPayloadSchema = z.object({
 });
 export type EngineStatusPayload = z.infer<typeof EngineStatusPayloadSchema>;
 
+/** Absolute MIDI soft-takeover flag; omit for UI hard sets (Rust `#[serde(default)]`). */
+const SoftTakeoverField = {
+  soft_takeover: z.boolean().optional(),
+};
+
 export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
   z.object({ type: z.literal("seek"), position_ms: z.number() }),
-  z.object({ type: z.literal("set_volume"), volume: z.number() }),
+  z.object({ type: z.literal("set_volume"), volume: z.number(), ...SoftTakeoverField }),
   z.object({
     type: z.literal("set_eq"),
     low: z.number(),
     mid: z.number(),
     high: z.number(),
   }),
-  z.object({ type: z.literal("set_speed"), speed: z.number() }),
-  z.object({ type: z.literal("set_filter"), filter_db: z.number() }),
-  z.object({ type: z.literal("set_gain_trim"), gain_db: z.number() }),
+  z.object({
+    type: z.literal("set_eq_band"),
+    band: EqBandSchema,
+    gain_db: z.number(),
+    ...SoftTakeoverField,
+  }),
+  z.object({ type: z.literal("set_speed"), speed: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_filter"), filter_db: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_gain_trim"), gain_db: z.number(), ...SoftTakeoverField }),
   z.object({ type: z.literal("set_headphone_cue"), enabled: z.boolean() }),
-  z.object({ type: z.literal("set_crossfader"), position: z.number() }),
-  z.object({ type: z.literal("set_cue_mix"), mix: z.number() }),
+  z.object({ type: z.literal("set_crossfader"), position: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_cue_mix"), mix: z.number(), ...SoftTakeoverField }),
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
   z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
@@ -401,16 +420,20 @@ export function encodeWireCmd(
 export type CmdKind =
   | "play"
   | "pause"
+  | "toggle_play"
   | "seek"
   | "set_volume"
   | "set_eq"
+  | "set_eq_band"
   | "set_speed"
   | "set_filter"
   | "set_gain_trim"
   | "set_headphone_cue"
+  | "toggle_headphone_cue"
   | "set_crossfader"
   | "set_cue_mix"
   | "set_master_cue"
+  | "toggle_master_cue"
   | "toggle_sync"
   | "set_master_deck"
   | "unload"
@@ -418,6 +441,7 @@ export type CmdKind =
   | "begin_cue_hold"
   | "end_cue_hold"
   | "set_quantize"
+  | "toggle_quantize"
   | "set_auto_loop"
   | "loop_in"
   | "loop_out"

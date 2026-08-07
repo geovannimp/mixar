@@ -3,6 +3,7 @@ import type { SettingsSection } from "@/types";
 const SECTIONS: { id: SettingsSection; label: string }[] = [
   { id: "audio", label: "Audio" },
   { id: "library", label: "Library" },
+  { id: "controllers", label: "Controllers" },
 ];
 
 interface SettingsSidebarProps {

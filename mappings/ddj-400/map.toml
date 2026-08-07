@@ -1,0 +1,181 @@
+# Pioneer DDJ-400 mapping.
+# All HW pad note banks → Deck(_)::pad(n:N); mode buttons → pad_mode(mode:…).
+# Software pad_mode selects hot cue / loop roll / beat jump / sampler.
+
+schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/map.tosd"
+
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+
+[inputs.deck_1]
+play_pause = "Deck(_)::toggle_play"
+cue = "Deck(_)::cue_default"
+sync = "Deck(_)::toggle_sync"
+quantize = "Deck(_)::set_quantize"
+headphone_cue = "Deck(_)::set_headphone_cue"
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+gain = { action = "Deck(_)::set_gain", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
+eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
+eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }
+filter = { action = "Deck(_)::set_filter", soft_takeover = true }
+jog_touch = "Deck(_)::jog_touch"
+jog_touch_shift = "Deck(_)::jog_touch"
+jog_turn = "Deck(_)::jog_turn"
+jog_side = "Deck(_)::jog_turn"
+jog_search = "Deck(_)::jog_turn"
+loop_in = "Deck(_)::loop_in"
+loop_out = "Deck(_)::loop_out"
+exit_loop = "Deck(_)::exit_loop"
+pad_mode_hot_cue = "Deck(_)::pad_mode(mode:hot_cue)"
+pad_mode_loop_roll = "Deck(_)::pad_mode(mode:loop_roll)"
+pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
+pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
+hot_cue_1 = "Deck(_)::pad(n:1)"
+hot_cue_2 = "Deck(_)::pad(n:2)"
+hot_cue_3 = "Deck(_)::pad(n:3)"
+hot_cue_4 = "Deck(_)::pad(n:4)"
+hot_cue_5 = "Deck(_)::pad(n:5)"
+hot_cue_6 = "Deck(_)::pad(n:6)"
+hot_cue_7 = "Deck(_)::pad(n:7)"
+hot_cue_8 = "Deck(_)::pad(n:8)"
+delete_hot_cue_1 = "Deck(_)::delete_hot_cue(slot:1)"
+delete_hot_cue_2 = "Deck(_)::delete_hot_cue(slot:2)"
+delete_hot_cue_3 = "Deck(_)::delete_hot_cue(slot:3)"
+delete_hot_cue_4 = "Deck(_)::delete_hot_cue(slot:4)"
+delete_hot_cue_5 = "Deck(_)::delete_hot_cue(slot:5)"
+delete_hot_cue_6 = "Deck(_)::delete_hot_cue(slot:6)"
+delete_hot_cue_7 = "Deck(_)::delete_hot_cue(slot:7)"
+delete_hot_cue_8 = "Deck(_)::delete_hot_cue(slot:8)"
+loop_pad_1 = "Deck(_)::pad(n:1)"
+loop_pad_2 = "Deck(_)::pad(n:2)"
+loop_pad_3 = "Deck(_)::pad(n:3)"
+loop_pad_4 = "Deck(_)::pad(n:4)"
+loop_pad_5 = "Deck(_)::pad(n:5)"
+loop_pad_6 = "Deck(_)::pad(n:6)"
+loop_pad_7 = "Deck(_)::pad(n:7)"
+loop_pad_8 = "Deck(_)::pad(n:8)"
+jump_pad_1 = "Deck(_)::pad(n:1)"
+jump_pad_2 = "Deck(_)::pad(n:2)"
+jump_pad_3 = "Deck(_)::pad(n:3)"
+jump_pad_4 = "Deck(_)::pad(n:4)"
+jump_pad_5 = "Deck(_)::pad(n:5)"
+jump_pad_6 = "Deck(_)::pad(n:6)"
+jump_pad_7 = "Deck(_)::pad(n:7)"
+jump_pad_8 = "Deck(_)::pad(n:8)"
+sampler_pad_1 = "Deck(_)::pad(n:1)"
+sampler_pad_2 = "Deck(_)::pad(n:2)"
+sampler_pad_3 = "Deck(_)::pad(n:3)"
+sampler_pad_4 = "Deck(_)::pad(n:4)"
+sampler_pad_5 = "Deck(_)::pad(n:5)"
+sampler_pad_6 = "Deck(_)::pad(n:6)"
+sampler_pad_7 = "Deck(_)::pad(n:7)"
+sampler_pad_8 = "Deck(_)::pad(n:8)"
+
+[inputs.deck_2]
+play_pause = "Deck(_)::toggle_play"
+cue = "Deck(_)::cue_default"
+sync = "Deck(_)::toggle_sync"
+quantize = "Deck(_)::set_quantize"
+headphone_cue = "Deck(_)::set_headphone_cue"
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+gain = { action = "Deck(_)::set_gain", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
+eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
+eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }
+filter = { action = "Deck(_)::set_filter", soft_takeover = true }
+jog_touch = "Deck(_)::jog_touch"
+jog_touch_shift = "Deck(_)::jog_touch"
+jog_turn = "Deck(_)::jog_turn"
+jog_side = "Deck(_)::jog_turn"
+jog_search = "Deck(_)::jog_turn"
+loop_in = "Deck(_)::loop_in"
+loop_out = "Deck(_)::loop_out"
+exit_loop = "Deck(_)::exit_loop"
+pad_mode_hot_cue = "Deck(_)::pad_mode(mode:hot_cue)"
+pad_mode_loop_roll = "Deck(_)::pad_mode(mode:loop_roll)"
+pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
+pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
+hot_cue_1 = "Deck(_)::pad(n:1)"
+hot_cue_2 = "Deck(_)::pad(n:2)"
+hot_cue_3 = "Deck(_)::pad(n:3)"
+hot_cue_4 = "Deck(_)::pad(n:4)"
+hot_cue_5 = "Deck(_)::pad(n:5)"
+hot_cue_6 = "Deck(_)::pad(n:6)"
+hot_cue_7 = "Deck(_)::pad(n:7)"
+hot_cue_8 = "Deck(_)::pad(n:8)"
+delete_hot_cue_1 = "Deck(_)::delete_hot_cue(slot:1)"
+delete_hot_cue_2 = "Deck(_)::delete_hot_cue(slot:2)"
+delete_hot_cue_3 = "Deck(_)::delete_hot_cue(slot:3)"
+delete_hot_cue_4 = "Deck(_)::delete_hot_cue(slot:4)"
+delete_hot_cue_5 = "Deck(_)::delete_hot_cue(slot:5)"
+delete_hot_cue_6 = "Deck(_)::delete_hot_cue(slot:6)"
+delete_hot_cue_7 = "Deck(_)::delete_hot_cue(slot:7)"
+delete_hot_cue_8 = "Deck(_)::delete_hot_cue(slot:8)"
+loop_pad_1 = "Deck(_)::pad(n:1)"
+loop_pad_2 = "Deck(_)::pad(n:2)"
+loop_pad_3 = "Deck(_)::pad(n:3)"
+loop_pad_4 = "Deck(_)::pad(n:4)"
+loop_pad_5 = "Deck(_)::pad(n:5)"
+loop_pad_6 = "Deck(_)::pad(n:6)"
+loop_pad_7 = "Deck(_)::pad(n:7)"
+loop_pad_8 = "Deck(_)::pad(n:8)"
+jump_pad_1 = "Deck(_)::pad(n:1)"
+jump_pad_2 = "Deck(_)::pad(n:2)"
+jump_pad_3 = "Deck(_)::pad(n:3)"
+jump_pad_4 = "Deck(_)::pad(n:4)"
+jump_pad_5 = "Deck(_)::pad(n:5)"
+jump_pad_6 = "Deck(_)::pad(n:6)"
+jump_pad_7 = "Deck(_)::pad(n:7)"
+jump_pad_8 = "Deck(_)::pad(n:8)"
+sampler_pad_1 = "Deck(_)::pad(n:1)"
+sampler_pad_2 = "Deck(_)::pad(n:2)"
+sampler_pad_3 = "Deck(_)::pad(n:3)"
+sampler_pad_4 = "Deck(_)::pad(n:4)"
+sampler_pad_5 = "Deck(_)::pad(n:5)"
+sampler_pad_6 = "Deck(_)::pad(n:6)"
+sampler_pad_7 = "Deck(_)::pad(n:7)"
+sampler_pad_8 = "Deck(_)::pad(n:8)"
+
+[inputs.master]
+crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+cue_mix = { action = "Mixer::set_cue_mix", soft_takeover = true }
+browse = "LibraryNavigation::navigate"
+load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
+load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
+
+[outputs.deck_1]
+play_pause = { on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }
+cue = { on = "cue_led", off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
+sync = { on = "sync_led", off = { type = "note", channel = 1, note = 0x58, velocity = 0x00 } }
+headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
+hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 8, note = 0x00, velocity = 0x00 } }
+hot_cue_2 = { on = "hot_cue_2_led", off = { type = "note", channel = 8, note = 0x01, velocity = 0x00 } }
+hot_cue_3 = { on = "hot_cue_3_led", off = { type = "note", channel = 8, note = 0x02, velocity = 0x00 } }
+hot_cue_4 = { on = "hot_cue_4_led", off = { type = "note", channel = 8, note = 0x03, velocity = 0x00 } }
+hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 8, note = 0x04, velocity = 0x00 } }
+hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 8, note = 0x05, velocity = 0x00 } }
+hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 8, note = 0x06, velocity = 0x00 } }
+hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 8, note = 0x07, velocity = 0x00 } }
+
+[outputs.deck_2]
+play_pause = { on = "play_led", off = { type = "note", channel = 2, note = 0x0B, velocity = 0x00 } }
+cue = { on = "cue_led", off = { type = "note", channel = 2, note = 0x0C, velocity = 0x00 } }
+sync = { on = "sync_led", off = { type = "note", channel = 2, note = 0x58, velocity = 0x00 } }
+headphone_cue = { on = "pfl_led", off = { type = "note", channel = 2, note = 0x54, velocity = 0x00 } }
+hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 10, note = 0x00, velocity = 0x00 } }
+hot_cue_2 = { on = "hot_cue_2_led", off = { type = "note", channel = 10, note = 0x01, velocity = 0x00 } }
+hot_cue_3 = { on = "hot_cue_3_led", off = { type = "note", channel = 10, note = 0x02, velocity = 0x00 } }
+hot_cue_4 = { on = "hot_cue_4_led", off = { type = "note", channel = 10, note = 0x03, velocity = 0x00 } }
+hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 10, note = 0x04, velocity = 0x00 } }
+hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 10, note = 0x05, velocity = 0x00 } }
+hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 10, note = 0x06, velocity = 0x00 } }
+hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 10, note = 0x07, velocity = 0x00 } }

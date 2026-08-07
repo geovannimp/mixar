@@ -1,6 +1,6 @@
 import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
+import { EQ_MAX_DB, EQ_MIN_DB, EQ_STEP_DB } from "@/lib/eq";
 
 interface RotaryKnobProps {
   label: string;
@@ -24,12 +24,30 @@ function valueToAngle(value: number, min: number, max: number): number {
   return t * 270 - 135;
 }
 
+function snapToStep(value: number, step: number): number {
+  if (step <= 0) {
+    return value;
+  }
+  const snapped = Math.round(value / step) * step;
+  return Object.is(snapped, -0) ? 0 : snapped;
+}
+
+function defaultFormatValue(value: number, step: number): string {
+  const snapped = snapToStep(value, step);
+  const decimals = step >= 1 ? 0 : Math.min(4, Math.max(0, Math.ceil(-Math.log10(step))));
+  const text = decimals === 0 ? `${Math.round(snapped)}` : snapped.toFixed(decimals);
+  if (snapped > 0) {
+    return `+${text}`;
+  }
+  return text;
+}
+
 export function RotaryKnob({
   label,
   value,
   min = EQ_MIN_DB,
   max = EQ_MAX_DB,
-  step = 1,
+  step = EQ_STEP_DB,
   disabled,
   ariaLabel,
   accentClass,
@@ -40,7 +58,8 @@ export function RotaryKnob({
   onValueChange,
 }: RotaryKnobProps) {
   const dragRef = useRef<{ startY: number; startValue: number } | null>(null);
-  const angle = valueToAngle(value, min, max);
+  const displayValue = formatValue ? formatValue(value) : defaultFormatValue(value, step);
+  const angle = valueToAngle(snapToStep(value, step), min, max);
   const dialSizeClass = size === "sm" ? "size-6" : "size-8";
   const labelClass =
     size === "sm"
@@ -110,8 +129,6 @@ export function RotaryKnob({
       onValueChange(max);
     }
   };
-
-  const displayValue = formatValue ? formatValue(value) : value > 0 ? `+${value}` : `${value}`;
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>

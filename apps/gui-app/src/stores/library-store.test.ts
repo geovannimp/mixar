@@ -1,8 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setFocusedLoadResolver } from "@/lib/library/focused-load";
 import { encodeEvtBody, encodeWire } from "@/lib/library/wire";
 import { applyLibraryBusBytesForTests, useLibraryStore } from "@/stores/library-store";
 
+const mocks = vi.hoisted(() => ({
+  loadLibraryTrackToDeck: vi.fn((_deckId: number, _trackId: string) => Promise.resolve()),
+  loadPathToDeck: vi.fn((_deckId: number, _path: string) => Promise.resolve()),
+}));
+
+vi.mock("@/stores/engine-store", () => ({
+  engineActions: {
+    loadLibraryTrackToDeck: mocks.loadLibraryTrackToDeck,
+    loadPathToDeck: mocks.loadPathToDeck,
+  },
+}));
+
 describe("libraryStore", () => {
+  beforeEach(() => {
+    mocks.loadLibraryTrackToDeck.mockClear();
+    mocks.loadPathToDeck.mockClear();
+    setFocusedLoadResolver(null);
+  });
+
   it("applies track_updated and hot_cues_changed for one track", () => {
     useLibraryStore.setState({ tracks: {} });
 
@@ -58,5 +77,73 @@ describe("libraryStore", () => {
     expect(track?.hot_cues).toEqual([
       { slot: 1, position_ms: 500, loop_length_beats: null, color: null, label: null },
     ]);
+  });
+
+  it("navigate advances focusedTrackRowIndex by delta", () => {
+    useLibraryStore.setState({
+      focusedTrackRowIndex: 0,
+      trackFocusRowCount: 5,
+    });
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "navigate",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "navigate", delta: 2 }),
+      }),
+    );
+
+    expect(useLibraryStore.getState().focusedTrackRowIndex).toBe(2);
+  });
+
+  it("load resolves focused library track id", () => {
+    setFocusedLoadResolver(() => ({ trackId: "t1" }));
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "load",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "load", deck: 0 }),
+      }),
+    );
+
+    expect(mocks.loadLibraryTrackToDeck).toHaveBeenCalledWith(0, "t1");
+    expect(mocks.loadPathToDeck).not.toHaveBeenCalled();
+  });
+
+  it("load after navigate uses updated focus index in the same turn", () => {
+    useLibraryStore.setState({
+      focusedTrackRowIndex: 0,
+      trackFocusRowCount: 5,
+    });
+    setFocusedLoadResolver(() => {
+      const index = useLibraryStore.getState().focusedTrackRowIndex;
+      return { trackId: `t${index}` };
+    });
+
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "navigate",
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "navigate", delta: 2 }),
+      }),
+    );
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "load",
+        revision: 2,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "load", deck: 0 }),
+      }),
+    );
+
+    expect(mocks.loadLibraryTrackToDeck).toHaveBeenCalledWith(0, "t2");
   });
 });

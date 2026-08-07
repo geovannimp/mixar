@@ -104,7 +104,7 @@ fn set_crossfader_publishes_status() {
         .subscribe(Filter::Any, Filter::Any)
         .expect("sub");
     session.with_engine(|engine| engine.start()).expect("start");
-    let body = encode_cmd_body(&CmdBody::SetCrossfader { position: 0.75 }).unwrap();
+    let body = encode_cmd_body(&CmdBody::SetCrossfader { position: 0.75, soft_takeover: false }).unwrap();
     session
         .publish_cmd(Origin::Mixer, Kind::SetCrossfader, body)
         .expect("publish");

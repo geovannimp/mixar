@@ -14,12 +14,18 @@ export const KindSchema = z.enum([
   "delete_loop",
   "hot_cues_changed",
   "loops_changed",
+  "navigate",
+  "load",
   "error",
   "notice",
 ]);
 export type Kind = z.infer<typeof KindSchema>;
 
-export const OriginSchema = z.union([z.literal("library"), z.object({ track: z.string() })]);
+export const OriginSchema = z.union([
+  z.literal("library"),
+  z.literal("library_navigation"),
+  z.object({ track: z.string() }),
+]);
 export type Origin = z.infer<typeof OriginSchema>;
 
 export const TrackSummarySchema = z.object({
@@ -116,6 +122,14 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     track_id: z.string().nullable().optional(),
   }),
   z.object({ type: z.literal("notice"), message: z.string() }),
+  z.object({
+    type: z.literal("navigate"),
+    delta: z.number().int(),
+  }),
+  z.object({
+    type: z.literal("load"),
+    deck: z.number().int().nonnegative(),
+  }),
 ]);
 export type EvtBody = z.infer<typeof EvtBodySchema>;
 
@@ -213,7 +227,7 @@ export type SubscribeFilter = {
 };
 
 export function originsEqual(a: Origin, b: Origin): boolean {
-  if (a === "library" || b === "library") {
+  if (typeof a === "string" || typeof b === "string") {
     return a === b;
   }
   return a.track === b.track;

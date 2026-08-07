@@ -1,0 +1,11 @@
+# cargo-audit config for the crates workspace (`cargo audit` cwd = crates/).
+# Path must be crates/.cargo/audit.toml (not crates/audit.toml).
+# Prefer bumping deps; ignore only when a clean bump is not feasible yet.
+
+[advisories]
+ignore = [
+    # Transitive via sea-orm-sync → rust_decimal (optional rkyv feature).
+    # rust_decimal 1.42 still pulls rkyv 0.7; advisory wants >=0.8.17.
+    # Track with sea-orm / rust_decimal; not introduced by controller/midir.
+    "RUSTSEC-2026-0235",
+]

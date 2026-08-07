@@ -1,0 +1,118 @@
+# TOML Schema for controller device.toml (editor aid; runtime validation is Rust).
+# See https://toml-schema.org/
+
+[toml-schema]
+version = "1.0.0"
+
+[types.midi_endpoint]
+type = "table"
+
+[types.midi_endpoint.type]
+type = "string"
+allowedvalues = ["note", "cc", "cc14"]
+
+[types.midi_endpoint.channel]
+type = "integer"
+min = 1
+max = 16
+
+[types.midi_endpoint.note]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.cc]
+type = "any"
+optional = true
+
+[types.midi_endpoint.velocity]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.value]
+type = "integer"
+optional = true
+min = 0
+max = 127
+
+[types.midi_endpoint.direction]
+type = "string"
+optional = true
+allowedvalues = ["in", "out", "inout"]
+
+[types.audio_hints]
+type = "table"
+
+[types.audio_hints.output_name_contains]
+type = "array"
+arraytype = "string"
+optional = true
+
+[types.section_aliases]
+type = "collection"
+typeof = "types.midi_endpoint"
+
+[elements.schema_version]
+type = "integer"
+allowedvalues = [1]
+
+[elements.id]
+type = "string"
+
+[elements.vendor_name]
+type = "string"
+
+[elements.product_name]
+type = "string"
+
+[elements.description]
+type = "string"
+optional = true
+
+[elements.usb_vid]
+type = "integer"
+optional = true
+
+[elements.usb_pid]
+type = "integer"
+optional = true
+
+[elements.midi_name_contains]
+type = "array"
+arraytype = "string"
+optional = true
+
+[elements.audio]
+typeof = "types.audio_hints"
+optional = true
+
+[elements.deck_1]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.deck_2]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.deck_3]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.deck_4]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.master]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.sampler]
+typeof = "types.section_aliases"
+optional = true
+
+[elements.custom]
+typeof = "types.section_aliases"
+optional = true

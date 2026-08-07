@@ -23,6 +23,11 @@ Reference: `docs/deck-spec.md`, `docs/tech-spec.md`. App root: `apps/gui-app` (T
 - Prefer minimal, focused UI diffs; match existing deck visual language.
 - Pad mode grids: wrap pad buttons in `PadGridContainer`; mode components live under `src/components/deck/pads/` as kebab files (e.g. `hot-cue-pads.tsx`; no barrels).
 
+## Host I/O (transports)
+
+- **Never call Tauri `invoke` / `listen` from React components or stores.** Go through a transport (`EngineTransport`, `LibraryTransport`, `ControllerTransport`) so WASM / memory backends stay swappable and UI stays host-agnostic.
+- New host surfaces get a transport under `src/lib/<domain>/` (e.g. `tauri-transport.ts` + `transport.ts`), same pattern as engine/library/controller.
+
 ## State & exhaustiveness
 
 - Engine state syncs via engine events (e.g. MIDI); subscribe and render — do not invent a second source of truth.

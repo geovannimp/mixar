@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useCollectionTracks } from "@/hooks/library/use-collection-tracks";
@@ -10,6 +10,7 @@ import { useTrack } from "@/hooks/library/use-track";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/library-table";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/library-table";
 import { normalizeAppSettings } from "@/lib/bus-settings";
+import { setFocusedLoadResolver, focusedLoadTargetFromRow } from "@/lib/library/focused-load";
 import { buttonIcon } from "@/lib/ui";
 import { toTrackSummaryView, useLibraryStore } from "@/stores/library-store";
 import type { LibrarySourceTab, LibraryTableRow } from "@/types";
@@ -71,6 +72,8 @@ export function LibraryPanel() {
   const { tracks } = useCollectionTracks(selectedCollectionId);
   const { analyse } = useTrack(null);
   const analyzingTrackId = useLibraryStore((state) => state.analyzingTrackId);
+  const focusedTrackRowIndex = useLibraryStore((state) => state.focusedTrackRowIndex);
+  const setTrackFocusRowCount = useLibraryStore((state) => state.setTrackFocusRowCount);
 
   const collectionIdsKey = collections.map((collection) => collection.id).join("\0");
 
@@ -170,6 +173,27 @@ export function LibraryPanel() {
     },
     [loadPathToDeck, loadLibraryTrackToDeck],
   );
+
+  // Visible (filtered+sorted) rows — MIDI focus index and LOAD resolve against this list.
+  const visibleRowsRef = useRef<LibraryTableRow[]>([]);
+
+  const handleVisibleRowsChange = useCallback(
+    (rows: LibraryTableRow[]) => {
+      visibleRowsRef.current = rows;
+      setTrackFocusRowCount(rows.length);
+    },
+    [setTrackFocusRowCount],
+  );
+
+  useEffect(() => {
+    setFocusedLoadResolver(() => {
+      // Read focus from the store so navigate→load in one turn sees the new index
+      // (a React ref would still hold the pre-commit value).
+      const index = useLibraryStore.getState().focusedTrackRowIndex;
+      return focusedLoadTargetFromRow(visibleRowsRef.current[index]);
+    });
+    return () => setFocusedLoadResolver(null);
+  }, []);
 
   const handleAnalyze = useCallback(
     (trackId: string) => {
@@ -296,6 +320,8 @@ export function LibraryPanel() {
               engineRunning={engineRunning}
               busy={panelBusy}
               analyzingTrackId={analyzingTrackId}
+              focusedRowIndex={focusedTrackRowIndex}
+              onVisibleRowsChange={handleVisibleRowsChange}
               onLoadToDeck={handleLoadRow}
               onAnalyze={handleAnalyze}
             />

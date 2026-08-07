@@ -2,9 +2,12 @@
 
 use crate::bus::EngineBus;
 use crate::engine::Engine;
+use crate::soft_takeover;
 use crate::transport::TransportEvent;
 use anyhow::{anyhow, Result};
-use engine_api::{decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EvtBody, Kind, Origin};
+use engine_api::{
+    decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EqBand, EvtBody, Kind, Origin,
+};
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -259,6 +262,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         (
             Kind::Play
             | Kind::Pause
+            | Kind::TogglePlay
+            | Kind::ToggleQuantize
+            | Kind::ToggleHeadphoneCue
+            | Kind::ToggleMasterCue
             | Kind::SetMasterDeck
             | Kind::Unload
             | Kind::SetCuePoint
@@ -273,6 +280,7 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         (Kind::Seek, CmdBody::Seek { .. })
         | (Kind::SetVolume, CmdBody::SetVolume { .. })
         | (Kind::SetEq, CmdBody::SetEq { .. })
+        | (Kind::SetEqBand, CmdBody::SetEqBand { .. })
         | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
@@ -316,6 +324,18 @@ fn dispatch_deck_cmd(
             eng.pause(deck_id)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
+        Kind::TogglePlay => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            if eng.deck_is_playing(deck_id).unwrap_or(false) {
+                eng.pause(deck_id)?;
+            } else {
+                if !eng.deck_has_audio_loaded(deck_id).unwrap_or(false) {
+                    return Err(anyhow!("No track loaded"));
+                }
+                eng.play(deck_id)?;
+            }
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
         Kind::Seek => {
             let CmdBody::Seek { position_ms } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
@@ -324,9 +344,21 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetVolume => {
-            let CmdBody::SetVolume { volume } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetVolume {
+                volume,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_deck(deck_id, "volume");
+            let current = eng.deck_strip_norms(deck_id).map(|s| s.volume).unwrap_or(0.0);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, volume)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_deck_volume(deck_id, volume)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
@@ -337,24 +369,104 @@ fn dispatch_deck_cmd(
             eng.set_deck_eq_bands(deck_id, low, mid, high)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
-        Kind::SetSpeed => {
-            let CmdBody::SetSpeed { speed } = decode_cmd_body_for(kind, payload)? else {
+        Kind::SetEqBand => {
+            let CmdBody::SetEqBand {
+                band,
+                gain_db,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let strip = eng.deck_strip_norms(deck_id);
+            let (ctrl, current_db, low, mid, high) = match (band, strip) {
+                (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, gain_db, s.eq_mid, s.eq_high),
+                (EqBand::Mid, Some(s)) => ("eq_mid", s.eq_mid, s.eq_low, gain_db, s.eq_high),
+                (EqBand::High, Some(s)) => ("eq_high", s.eq_high, s.eq_low, s.eq_mid, gain_db),
+                (EqBand::Low, None) => ("eq_low", 0.0, gain_db, 0.0, 0.0),
+                (EqBand::Mid, None) => ("eq_mid", 0.0, 0.0, gain_db, 0.0),
+                (EqBand::High, None) => ("eq_high", 0.0, 0.0, 0.0, gain_db),
+            };
+            let key = soft_takeover::key_deck(deck_id, ctrl);
+            if !eng.soft_takeover_mut().allow(
+                &key,
+                soft_takeover,
+                soft_takeover::db_to_norm(current_db),
+                soft_takeover::db_to_norm(gain_db),
+            ) {
+                return Ok(CmdOutcome::Silent);
+            }
+            eng.set_deck_eq_bands(deck_id, low, mid, high)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetSpeed => {
+            let CmdBody::SetSpeed {
+                speed,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            let key = soft_takeover::key_deck(deck_id, "speed");
+            let current = eng
+                .deck_strip_norms(deck_id)
+                .map(|s| soft_takeover::speed_to_norm(s.speed))
+                .unwrap_or(0.5);
+            let incoming = soft_takeover::speed_to_norm(speed);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, incoming)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
             let updated = eng.set_deck_speed(deck_id, speed)?;
             Ok(CmdOutcome::DecksUpdated(updated))
         }
         Kind::SetFilter => {
-            let CmdBody::SetFilter { filter_db } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetFilter {
+                filter_db,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_deck(deck_id, "filter");
+            let current = eng
+                .deck_strip_norms(deck_id)
+                .map(|s| soft_takeover::db_to_norm(s.filter_db))
+                .unwrap_or(0.5);
+            if !eng.soft_takeover_mut().allow(
+                &key,
+                soft_takeover,
+                current,
+                soft_takeover::db_to_norm(filter_db),
+            ) {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_deck_filter_db(deck_id, filter_db)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetGainTrim => {
-            let CmdBody::SetGainTrim { gain_db } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetGainTrim {
+                gain_db,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_deck(deck_id, "gain");
+            let current = eng
+                .deck_strip_norms(deck_id)
+                .map(|s| soft_takeover::db_to_norm(s.gain_db))
+                .unwrap_or(0.5);
+            if !eng.soft_takeover_mut().allow(
+                &key,
+                soft_takeover,
+                current,
+                soft_takeover::db_to_norm(gain_db),
+            ) {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_deck_gain_trim_db(deck_id, gain_db)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
@@ -362,6 +474,15 @@ fn dispatch_deck_cmd(
             let CmdBody::SetHeadphoneCue { enabled } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
+            eng.set_deck_headphone_cue(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::ToggleHeadphoneCue => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            let enabled = !eng
+                .deck_strip_norms(deck_id)
+                .map(|s| s.headphone_cue)
+                .unwrap_or(false);
             eng.set_deck_headphone_cue(deck_id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
@@ -402,6 +523,12 @@ fn dispatch_deck_cmd(
             let CmdBody::SetQuantize { enabled } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
+            eng.set_deck_quantize(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::ToggleQuantize => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            let enabled = !eng.deck_quantize(deck_id).unwrap_or(true);
             eng.set_deck_quantize(deck_id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
@@ -521,16 +648,37 @@ fn dispatch_mixer_cmd(
 ) -> Result<CmdOutcome> {
     with_engine_mut(engine, |eng| match kind {
         Kind::SetCrossfader => {
-            let CmdBody::SetCrossfader { position } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetCrossfader {
+                position,
+                soft_takeover,
+            } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_mixer("crossfader");
+            let current = eng.crossfader().unwrap_or(0.5);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, position)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_crossfader(position)?;
             Ok(CmdOutcome::EngineStatus)
         }
         Kind::SetCueMix => {
-            let CmdBody::SetCueMix { mix } = decode_cmd_body_for(kind, payload)? else {
+            let CmdBody::SetCueMix { mix, soft_takeover } = decode_cmd_body_for(kind, payload)?
+            else {
                 unreachable!()
             };
+            let key = soft_takeover::key_mixer("cue_mix");
+            let current = eng.cue_mix().unwrap_or(0.5);
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, mix)
+            {
+                return Ok(CmdOutcome::Silent);
+            }
             eng.set_cue_mix(mix)?;
             Ok(CmdOutcome::EngineStatus)
         }
@@ -538,6 +686,12 @@ fn dispatch_mixer_cmd(
             let CmdBody::SetMasterCue { enabled } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
+            eng.set_master_cue(enabled)?;
+            Ok(CmdOutcome::EngineStatus)
+        }
+        Kind::ToggleMasterCue => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            let enabled = !eng.master_cue().unwrap_or(false);
             eng.set_master_cue(enabled)?;
             Ok(CmdOutcome::EngineStatus)
         }

@@ -17,7 +17,9 @@ members = [
     "analyzer-stratum",
     "analyzer",
     "app-example",
+    "controller",
 ]
+# Standalone midir probe — optional debug tool (own workspace; not required for gui-app).
 resolver = "2"
 
 [workspace.package]

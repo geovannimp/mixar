@@ -6,4 +6,6 @@ use serde::{Deserialize, Serialize};
 pub enum Origin {
     Library,
     Track(String),
+    /// UI navigation signals (evt bus → frontend); not handled by the library worker.
+    LibraryNavigation,
 }

@@ -111,3 +111,47 @@ fn cmd_and_evt_bodies_roundtrip() {
         loops
     );
 }
+
+#[test]
+fn library_navigation_origin_and_navigate_kind_roundtrip() {
+    let body = EvtBody::Navigate { delta: 1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::Navigate,
+        revision: 1,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&body).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.origin, Origin::LibraryNavigation);
+    assert_eq!(decoded.kind, Kind::Navigate);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
+
+    let prev = EvtBody::Navigate { delta: -1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::Navigate,
+        revision: 2,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&prev).unwrap(),
+    };
+    assert_eq!(
+        decode_evt_body(&decode_wire(&encode_wire(&msg).unwrap()).unwrap().body).unwrap(),
+        prev
+    );
+}
+
+#[test]
+fn load_kind_and_body_roundtrip() {
+    let body = EvtBody::Load { deck: 1 };
+    let msg = WireMessage {
+        origin: Origin::LibraryNavigation,
+        kind: Kind::Load,
+        revision: 3,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&body).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.kind, Kind::Load);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
+}

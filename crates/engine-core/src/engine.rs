@@ -50,6 +50,20 @@ pub struct Engine {
     decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,
     master_deck: usize,
     deck_control: Vec<DeckControlState>,
+    soft_takeover: crate::soft_takeover::SoftTakeoverState,
+}
+
+/// Absolute-control readback for soft-takeover compares.
+#[derive(Clone, Copy, Debug)]
+pub struct DeckStripNorms {
+    pub volume: f32,
+    pub filter_db: f32,
+    pub gain_db: f32,
+    pub eq_low: f32,
+    pub eq_mid: f32,
+    pub eq_high: f32,
+    pub speed: f32,
+    pub headphone_cue: bool,
 }
 
 impl Engine {
@@ -101,6 +115,7 @@ impl Engine {
                     ..Default::default()
                 })
                 .collect(),
+            soft_takeover: crate::soft_takeover::SoftTakeoverState::default(),
         })
     }
 
@@ -870,6 +885,10 @@ impl Engine {
         Ok(())
     }
 
+    pub fn deck_quantize(&self, deck_id: usize) -> Option<bool> {
+        self.deck_control.get(deck_id).map(|c| c.quantize)
+    }
+
     fn decode_source(&mut self, source: &AudioSource) -> Result<Arc<LoadedAudio>> {
         let track_id = source.id().clone();
         if let Some(cached) = self.decode_cache.get(&track_id) {
@@ -1310,6 +1329,30 @@ impl Engine {
         Some((deck.cue_point_ms(), deck.loop_region_ms()))
     }
 
+    /// Soft-takeover latch table (absolute MIDI controls).
+    pub fn soft_takeover_mut(&mut self) -> &mut crate::soft_takeover::SoftTakeoverState {
+        &mut self.soft_takeover
+    }
+
+    /// Channel strip + tempo readbacks for soft-takeover compares.
+    pub fn deck_strip_norms(&self, deck_id: usize) -> Option<DeckStripNorms> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        let channel = dsp.mixer().channel(deck_id)?;
+        let eq = channel.eq_gains();
+        Some(DeckStripNorms {
+            volume: channel.volume(),
+            filter_db: channel.filter_db(),
+            gain_db: channel.gain_trim_db(),
+            eq_low: eq.low_db,
+            eq_mid: eq.mid_db,
+            eq_high: eq.high_db,
+            speed: deck.speed(),
+            headphone_cue: channel.headphone_cue(),
+        })
+    }
+
     /// Whether a deck is currently playing.
     pub fn deck_is_playing(&self, deck_id: usize) -> Option<bool> {
         let dsp_engine = self.dsp_engine.as_ref()?;
@@ -1326,6 +1369,12 @@ impl Engine {
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         dsp.mixer_mut().set_crossfader(position)
+    }
+
+    pub fn crossfader(&self) -> Option<f32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        Some(dsp.mixer().crossfader())
     }
 
     /// Set cue blend (0.0 = PFL only, 1.0 = master tap only when `master_cue`).

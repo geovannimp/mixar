@@ -1,0 +1,26 @@
+schema_version = 1
+id = "test.minimal"
+vendor_name = "Test"
+product_name = "Minimal"
+midi_name_contains = ["Minimal"]
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/device.tosd"
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }
+volume = { type = "cc", channel = 1, cc = 0x13 }
+headphone_cue = { type = "note", channel = 1, note = 0x54 }
+pad_1 = { type = "note", channel = 1, note = 0x2E }
+play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+pause_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
+pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction = "out" }
+hot_cue_1_led = { type = "note", channel = 1, note = 0x2E, velocity = 0x7F, direction = "out" }
+vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
+
+[master]
+browse = { type = "cc", channel = 7, cc = 0x40 }
+
+[custom]
+shift = { type = "note", channel = 1, note = 0x3F }

@@ -1,0 +1,27 @@
+schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/map.tosd"
+
+[inputs.deck_1]
+play_pause = "Deck(_)::toggle_play"
+cue = "Deck(_)::cue"
+volume = [
+  { action = "Deck(_)::set_volume", soft_takeover = true },
+  { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },
+]
+filter = { action = "Deck(_)::set_filter", soft_takeover = true }
+jog_touch = "Deck(_)::jog_touch"
+jog_turn = "Deck(_)::jog_turn"
+
+[inputs.deck_2]
+play_pause = "Deck(_)::toggle_play"
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+
+[inputs.master]
+crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+
+[outputs.deck_1]
+play_pause = { on = "pause_led", off = "play_led" }
+cue = { on = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F }, off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }

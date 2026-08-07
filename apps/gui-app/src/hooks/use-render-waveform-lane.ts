@@ -6,6 +6,8 @@ import { waveformVisibleSourceMs } from "@/lib/spectral-color";
 import { asError, waveformLogger } from "@/lib/logging";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
+/** Settle EQ before rebuilding tiles — every CC must not nuke the cache. */
+const EQ_WAVEFORM_DEBOUNCE_MS = 120;
 const libraryTransport = getLibraryTransport();
 
 interface UseRenderWaveformLaneOptions {
@@ -38,6 +40,7 @@ export function useRenderWaveformLane({
   const [trackCache, setTrackCache] = useState<WaveformTrackCache | null>(null);
   const [tileRevision, setTileRevision] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [eqForRender, setEqForRender] = useState(eq);
 
   const cacheRef = useRef<WaveformTrackCache | null>(null);
   const inFlightRef = useRef(0);
@@ -45,14 +48,23 @@ export function useRenderWaveformLane({
 
   const getPositionRef = useRef(getPosition);
   const isScrubbingRef = useRef(isScrubbing);
-  const eqRef = useRef(eq);
+  const eqRef = useRef(eqForRender);
   const visibleSourceMs = waveformVisibleSourceMs(speed);
   const visibleSourceMsRef = useRef(visibleSourceMs);
 
   getPositionRef.current = getPosition;
   isScrubbingRef.current = isScrubbing;
-  eqRef.current = eq;
+  eqRef.current = eqForRender;
   visibleSourceMsRef.current = visibleSourceMs;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setEqForRender((prev) =>
+        prev.low === eq.low && prev.mid === eq.mid && prev.high === eq.high ? prev : eq,
+      );
+    }, EQ_WAVEFORM_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [eq, eq.low, eq.mid, eq.high]);
 
   const duration = durationMs != null && durationMs > 0 ? durationMs : null;
 
@@ -153,7 +165,17 @@ export function useRenderWaveformLane({
     for (const tileIndex of initialTiles.slice(0, MAX_CONCURRENT_TILE_FETCHES)) {
       void fetchTile(cache, tileIndex, requestId);
     }
-  }, [trackId, path, width, height, duration, eq.low, eq.mid, eq.high, fetchTile]);
+  }, [
+    trackId,
+    path,
+    width,
+    height,
+    duration,
+    eqForRender.low,
+    eqForRender.mid,
+    eqForRender.high,
+    fetchTile,
+  ]);
 
   useEffect(() => {
     if (playing) {

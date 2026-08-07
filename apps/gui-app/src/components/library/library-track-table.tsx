@@ -42,6 +42,9 @@ interface LibraryTrackTableProps {
   engineRunning: boolean;
   busy: boolean;
   analyzingTrackId: string | null;
+  focusedRowIndex?: number;
+  /** Filtered + sorted rows currently shown (MIDI focus / LOAD index into this). */
+  onVisibleRowsChange?: (rows: LibraryTableRow[]) => void;
   onLoadToDeck: (deckId: number, row: LibraryTableRow) => void;
   onAnalyze: (trackId: string) => void;
 }
@@ -54,6 +57,8 @@ export function LibraryTrackTable({
   engineRunning,
   busy,
   analyzingTrackId,
+  focusedRowIndex = 0,
+  onVisibleRowsChange,
   onLoadToDeck,
   onAnalyze,
 }: LibraryTrackTableProps) {
@@ -130,6 +135,10 @@ export function LibraryTrackTable({
   const dragEnabled = engineRunning && !busy;
   const filteredRows = table.getRowModel().rows;
 
+  useEffect(() => {
+    onVisibleRowsChange?.(filteredRows.map((row) => row.original));
+  }, [filteredRows, onVisibleRowsChange]);
+
   if (rows.length === 0) {
     return (
       <p className="rounded border border-dashed border-white/10 px-4 py-8 text-center text-sm text-zinc-500">
@@ -199,6 +208,7 @@ export function LibraryTrackTable({
             analyzingTrackId={analyzingTrackId}
             busy={busy}
             engineRunning={engineRunning}
+            focusedRowIndex={focusedRowIndex}
             onLoadToDeck={onLoadToDeck}
             onAnalyze={onAnalyze}
           />
@@ -216,6 +226,7 @@ interface LibraryTrackTableBodyProps {
   analyzingTrackId: string | null;
   busy: boolean;
   engineRunning: boolean;
+  focusedRowIndex: number;
   onLoadToDeck: (deckId: number, row: LibraryTableRow) => void;
   onAnalyze: (trackId: string) => void;
 }
@@ -228,6 +239,7 @@ function LibraryTrackTableBody({
   analyzingTrackId,
   busy,
   engineRunning,
+  focusedRowIndex,
   onLoadToDeck,
   onAnalyze,
 }: LibraryTrackTableBodyProps) {
@@ -258,6 +270,7 @@ function LibraryTrackTableBody({
             analyzingTrackId={analyzingTrackId}
             busy={busy}
             engineRunning={engineRunning}
+            focused={virtualRow.index === focusedRowIndex}
             onLoadToDeck={onLoadToDeck}
             onAnalyze={onAnalyze}
           />
@@ -275,6 +288,7 @@ interface LibraryTrackTableRowProps {
   analyzingTrackId: string | null;
   busy: boolean;
   engineRunning: boolean;
+  focused: boolean;
   onLoadToDeck: (deckId: number, row: LibraryTableRow) => void;
   onAnalyze: (trackId: string) => void;
 }
@@ -287,6 +301,7 @@ function LibraryTrackTableRow({
   analyzingTrackId,
   busy,
   engineRunning,
+  focused,
   onLoadToDeck,
   onAnalyze,
 }: LibraryTrackTableRowProps) {
@@ -312,6 +327,7 @@ function LibraryTrackTableRow({
       aria-busy={isAnalyzing}
       className={cn(
         "absolute flex w-full border-b border-white/5 transition",
+        focused && "bg-emerald-500/10 ring-1 ring-inset ring-emerald-500/35",
         isDragging && "opacity-40",
         !isAnalyzing &&
           (dragEnabled
