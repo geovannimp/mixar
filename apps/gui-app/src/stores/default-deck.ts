@@ -1,4 +1,5 @@
 import { DEFAULT_DECK_EQ, ZERO_DECK_LEVELS, type DeckStatus } from "@/types";
+import { DEFAULT_TEMPO_RANGE } from "@/lib/format";
 
 const EMPTY_HOT_CUES: DeckStatus["hot_cues"] = [];
 const EMPTY_SAVED_LOOPS: DeckStatus["saved_loops"] = [];
@@ -14,6 +15,7 @@ export const DEFAULT_DECK_A: DeckStatus = {
   playing: false,
   volume: 1,
   speed: 0.5,
+  tempo_range: DEFAULT_TEMPO_RANGE,
   eq: DEFAULT_DECK_EQ,
   position_ms: null,
   duration_ms: null,

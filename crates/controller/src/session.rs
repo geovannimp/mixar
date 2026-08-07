@@ -463,6 +463,12 @@ impl MappingSession {
                             }
                         }
                     }
+                    CmdBody::SetTempoRange { tempo_range } => {
+                        if let Origin::Deck(d) = *o {
+                            let i = deck_slot(d);
+                            self.snapshot.tempo_range[i] = *tempo_range;
+                        }
+                    }
                     CmdBody::SetHeadphoneCue { enabled } => {
                         if let Origin::Deck(d) = *o {
                             let i = deck_slot(d);

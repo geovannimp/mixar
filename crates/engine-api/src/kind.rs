@@ -12,6 +12,7 @@ pub enum Kind {
     SetEq,
     SetEqBand,
     SetSpeed,
+    SetTempoRange,
     SetFilter,
     SetGainTrim,
     SetHeadphoneCue,

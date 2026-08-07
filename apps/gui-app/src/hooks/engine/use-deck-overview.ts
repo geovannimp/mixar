@@ -12,7 +12,7 @@ export function useDeckOverview(deckId: number) {
         track_id: deck.track_id,
         track: deck.track,
         playing: deck.playing,
-        speed: normToSpeedRatio(deck.speed, deck.bpm),
+        speed: normToSpeedRatio(deck.speed, null, deck.tempo_range),
         duration_ms: deck.duration_ms,
         hot_cues: deck.hot_cues,
       };

@@ -68,6 +68,8 @@ export interface DeckStatus {
   playing: boolean;
   volume: number;
   speed: number;
+  /** Pitch fraction half-span (`0.06` = ±6%). */
+  tempo_range: number;
   eq: DeckEq;
   position_ms: number | null;
   duration_ms: number | null;

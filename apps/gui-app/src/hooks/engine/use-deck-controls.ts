@@ -16,6 +16,7 @@ export function useDeckControls(deckId: number) {
         key: deck.key,
         playing: deck.playing,
         speed: deck.speed,
+        tempo_range: deck.tempo_range,
         quantize: deck.quantize,
         cue_point_ms: deck.cue_point_ms,
         hot_cues: deck.hot_cues,

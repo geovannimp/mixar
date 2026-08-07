@@ -131,7 +131,7 @@ impl Deck {
             position_frames: 0,
             position_frac: 0.0,
             speed: 0.5,
-            tempo_range: 8.0,
+            tempo_range: crate::tempo::DEFAULT_TEMPO_RANGE,
             track_bpm: None,
             ratio_override: None,
             jog_rate: 1.0,
@@ -224,15 +224,17 @@ impl Deck {
         self.speed
     }
 
-    /// Tempo fader half-span in BPM.
+    /// Tempo fader half-span as pitch fraction (e.g. `0.06` = ±6%).
     pub fn tempo_range(&self) -> f32 {
         self.tempo_range
     }
 
-    pub fn set_tempo_range(&mut self, range_bpm: f32) {
-        self.tempo_range = range_bpm.max(0.0);
-        // Fader still applies; drop sync override so UI/HW own the ratio again.
-        self.ratio_override = None;
+    pub fn set_tempo_range(&mut self, range: f32) {
+        self.tempo_range = range.max(0.0);
+        // Keep fader position; if synced, remap displayed speed from override.
+        if let Some(ratio) = self.ratio_override {
+            self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.tempo_range);
+        }
     }
 
     pub fn set_track_bpm(&mut self, bpm: Option<f64>) {
@@ -246,7 +248,7 @@ impl Deck {
         if let Some(ratio) = self.ratio_override {
             return ratio.max(0.01);
         }
-        crate::tempo::norm_to_playback_ratio(self.speed, self.track_bpm, self.tempo_range)
+        crate::tempo::norm_to_playback_ratio(self.speed, self.tempo_range)
     }
 
     /// Set tempo fader position `0..1` (clears sync ratio override).
@@ -265,7 +267,7 @@ impl Deck {
             return Err(anyhow::anyhow!("Playback ratio must be positive"));
         }
         self.ratio_override = Some(ratio);
-        self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.track_bpm, self.tempo_range);
+        self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.tempo_range);
         Ok(())
     }
 
@@ -931,7 +933,7 @@ mod tests {
         assert_eq!(deck.state(), &DeckState::Stopped);
         assert_eq!(deck.position_frames(), 0);
         assert_eq!(deck.speed(), 0.5);
-        assert_eq!(deck.tempo_range(), 8.0);
+        assert_eq!(deck.tempo_range(), crate::tempo::DEFAULT_TEMPO_RANGE);
         assert!((deck.playback_ratio() - 1.0).abs() < 1e-5);
     }
 

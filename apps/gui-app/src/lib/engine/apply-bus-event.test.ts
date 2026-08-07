@@ -27,6 +27,7 @@ function deckUpdated(overrides: Record<string, unknown> = {}) {
     playing: false,
     volume: 1,
     speed: 0.5,
+    tempo_range: 0.06,
     eq: { low: 0.5, mid: 0.5, high: 0.5 },
     filter: 0.5,
     gain_trim: 0.5,
