@@ -51,6 +51,10 @@ fn no_lifecycle_skips_hooks_even_with_script() {
         midi.frames.is_empty(),
         "absent [lifecycle] must not call Rhai hooks"
     );
+    assert!(
+        bus.cmds.is_empty(),
+        "absent [lifecycle] must not publish engine cmds"
+    );
 }
 
 #[test]

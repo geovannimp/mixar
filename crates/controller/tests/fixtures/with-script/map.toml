@@ -2,7 +2,7 @@ schema_version = 1
 
 [toml-schema]
 version = "1.0.0"
-location = "../../../../schemas/map.tosd"
+location = "../../../../../schemas/map.tosd"
 
 [lifecycle]
 on_init = "on_init"

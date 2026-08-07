@@ -27,10 +27,10 @@
 **Interfaces:**
 - Produces: `TomlSchemaRef { version: Option<String>, location: Option<String> }` on both parsers via `#[serde(default, rename = "toml-schema")] toml_schema: Option<TomlSchemaRef>`
 
-- [ ] **Step 1:** Add failing test: parse minimal device/map TOML that includes `[toml-schema]` with version+location; expect Ok
-- [ ] **Step 2:** Add `TomlSchemaRef` + field on `DeviceFile` and `MapFile`
-- [ ] **Step 3:** Run `cargo test -p controller --manifest-path crates/Cargo.toml`
-- [ ] **Step 4:** Commit
+- [x] **Step 1:** Add failing test: parse minimal device/map TOML that includes `[toml-schema]` with version+location; expect Ok
+- [x] **Step 2:** Add `TomlSchemaRef` + field on `DeviceFile` and `MapFile`
+- [x] **Step 3:** Run `cargo test -p controller --manifest-path crates/Cargo.toml`
+- [x] **Step 4:** Commit
 
 ### Task 2: Rewrite `.tosd` + add pointers
 
@@ -40,7 +40,7 @@
 - Modify: `crates/controller/tests/engine_seed.rs` writer if it emits device/map TOML
 - Docs: one-line pointer in `docs/superpowers/specs/2026-08-02-controller-mapping-design.md`
 
-- [ ] **Step 1:** Write structural `device.tosd` / `map.tosd` per design
-- [ ] **Step 2:** Insert `[toml-schema]` blocks with correct relative paths
-- [ ] **Step 3:** `cargo test -p controller` + `cargo run -p controller --bin map-check -- --all ../mappings`
-- [ ] **Step 4:** Commit, resolve PR thread `PRRT_kwDORVdnwc6XGrHk`
+- [x] **Step 1:** Write structural `device.tosd` / `map.tosd` per design
+- [x] **Step 2:** Insert `[toml-schema]` blocks with correct relative paths
+- [x] **Step 3:** `cargo test -p controller` + `cargo run -p controller --bin map-check -- --all ../mappings`
+- [x] **Step 4:** Commit, resolve PR thread `PRRT_kwDORVdnwc6XGrHk`

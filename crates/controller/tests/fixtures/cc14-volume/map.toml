@@ -2,7 +2,7 @@ schema_version = 1
 
 [toml-schema]
 version = "1.0.0"
-location = "../../../../schemas/map.tosd"
+location = "../../../../../schemas/map.tosd"
 
 [inputs.deck_1]
 volume = { action = "Deck(_)::set_volume", soft_takeover = false }

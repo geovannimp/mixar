@@ -98,3 +98,22 @@ idle_heartbeat = "pulse"
     assert!(map.lifecycle.on_shutdown.is_none());
 }
 
+#[test]
+fn rejects_whitespace_only_lifecycle_name() {
+    let err = controller::MapFile::parse(
+        r#"
+schema_version = 1
+
+[lifecycle]
+on_init = "   "
+"#,
+        Path::new("map.toml"),
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("non-empty") || msg.contains("lifecycle"),
+        "unexpected error: {msg}"
+    );
+}
+

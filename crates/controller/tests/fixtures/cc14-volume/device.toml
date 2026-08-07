@@ -6,7 +6,7 @@ midi_name_contains = ["cc14"]
 
 [toml-schema]
 version = "1.0.0"
-location = "../../../../schemas/device.tosd"
+location = "../../../../../schemas/device.tosd"
 
 [deck_1]
 volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }

@@ -105,7 +105,7 @@ impl LifecycleHooks {
             "idle_heartbeat" => self.idle_heartbeat.as_deref(),
             _ => None,
         }?;
-        if name.is_empty() {
+        if name.trim().is_empty() {
             None
         } else {
             Some(name)
@@ -119,7 +119,7 @@ impl LifecycleHooks {
             ("idle_heartbeat", &self.idle_heartbeat),
         ] {
             if let Some(name) = value {
-                if name.is_empty() {
+                if name.trim().is_empty() {
                     return Err(LoadError::Validation(format!(
                         "lifecycle.{key}: function name must be non-empty"
                     )));
@@ -169,6 +169,7 @@ impl MapFile {
                 version: map.schema_version,
             });
         }
+        map.lifecycle.validate()?;
         Ok(map)
     }
 

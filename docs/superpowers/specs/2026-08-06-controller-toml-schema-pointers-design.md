@@ -48,8 +48,8 @@ Examples:
 |------|------------|
 | `mappings/<id>/device.toml` | `../../schemas/device.tosd` |
 | `mappings/<id>/map.toml` | `../../schemas/map.tosd` |
-| `crates/controller/tests/fixtures/<id>/device.toml` | `../../../../schemas/device.tosd` |
-| `crates/controller/tests/fixtures/<id>/map.toml` | `../../../../schemas/map.tosd` |
+| `crates/controller/tests/fixtures/<id>/device.toml` | `../../../../../schemas/device.tosd` |
+| `crates/controller/tests/fixtures/<id>/map.toml` | `../../../../../schemas/map.tosd` |
 
 Later: replace `location` with a GitHub raw/HTTPS URL; no Rust change required if the field remains an opaque string.
 
