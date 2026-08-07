@@ -10,7 +10,7 @@ import { useTrack } from "@/hooks/library/use-track";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/library-table";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/library-table";
 import { normalizeAppSettings } from "@/lib/bus-settings";
-import { setFocusedLoadResolver } from "@/lib/library/focused-load";
+import { setFocusedLoadResolver, focusedLoadTargetFromRow } from "@/lib/library/focused-load";
 import { buttonIcon } from "@/lib/ui";
 import { toTrackSummaryView, useLibraryStore } from "@/stores/library-store";
 import type { LibrarySourceTab, LibraryTableRow } from "@/types";
@@ -174,24 +174,23 @@ export function LibraryPanel() {
     [loadPathToDeck, loadLibraryTrackToDeck],
   );
 
-  const tableRowsRef = useRef(tableRows);
-  const focusedTrackRowIndexRef = useRef(focusedTrackRowIndex);
-  tableRowsRef.current = tableRows;
-  focusedTrackRowIndexRef.current = focusedTrackRowIndex;
+  // Visible (filtered+sorted) rows — MIDI focus index and LOAD resolve against this list.
+  const visibleRowsRef = useRef<LibraryTableRow[]>([]);
+
+  const handleVisibleRowsChange = useCallback(
+    (rows: LibraryTableRow[]) => {
+      visibleRowsRef.current = rows;
+      setTrackFocusRowCount(rows.length);
+    },
+    [setTrackFocusRowCount],
+  );
 
   useEffect(() => {
     setFocusedLoadResolver(() => {
-      const row = tableRowsRef.current[focusedTrackRowIndexRef.current];
-      if (!row) {
-        return null;
-      }
-      if (row.source === "library") {
-        return { trackId: row.track.id };
-      }
-      if (row.libraryTrack) {
-        return { trackId: row.libraryTrack.id };
-      }
-      return { path: row.file.path };
+      // Read focus from the store so navigate→load in one turn sees the new index
+      // (a React ref would still hold the pre-commit value).
+      const index = useLibraryStore.getState().focusedTrackRowIndex;
+      return focusedLoadTargetFromRow(visibleRowsRef.current[index]);
     });
     return () => setFocusedLoadResolver(null);
   }, []);
@@ -322,7 +321,7 @@ export function LibraryPanel() {
               busy={panelBusy}
               analyzingTrackId={analyzingTrackId}
               focusedRowIndex={focusedTrackRowIndex}
-              onVisibleRowCountChange={setTrackFocusRowCount}
+              onVisibleRowsChange={handleVisibleRowsChange}
               onLoadToDeck={handleLoadRow}
               onAnalyze={handleAnalyze}
             />

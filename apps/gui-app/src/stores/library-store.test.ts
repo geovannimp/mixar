@@ -115,20 +115,35 @@ describe("libraryStore", () => {
     expect(mocks.loadPathToDeck).not.toHaveBeenCalled();
   });
 
-  it("load resolves focused filesystem path", () => {
-    setFocusedLoadResolver(() => ({ path: "/music/b.wav" }));
+  it("load after navigate uses updated focus index in the same turn", () => {
+    useLibraryStore.setState({
+      focusedTrackRowIndex: 0,
+      trackFocusRowCount: 5,
+    });
+    setFocusedLoadResolver(() => {
+      const index = useLibraryStore.getState().focusedTrackRowIndex;
+      return { trackId: `t${index}` };
+    });
 
     applyLibraryBusBytesForTests(
       encodeWire({
         origin: "library_navigation",
-        kind: "load",
+        kind: "navigate",
         revision: 1,
         action_timestamp_ms: 0,
-        body: encodeEvtBody({ type: "load", deck: 1 }),
+        body: encodeEvtBody({ type: "navigate", delta: 2 }),
+      }),
+    );
+    applyLibraryBusBytesForTests(
+      encodeWire({
+        origin: "library_navigation",
+        kind: "load",
+        revision: 2,
+        action_timestamp_ms: 0,
+        body: encodeEvtBody({ type: "load", deck: 0 }),
       }),
     );
 
-    expect(mocks.loadPathToDeck).toHaveBeenCalledWith(1, "/music/b.wav");
-    expect(mocks.loadLibraryTrackToDeck).not.toHaveBeenCalled();
+    expect(mocks.loadLibraryTrackToDeck).toHaveBeenCalledWith(0, "t2");
   });
 });

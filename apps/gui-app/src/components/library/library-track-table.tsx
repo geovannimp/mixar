@@ -43,7 +43,8 @@ interface LibraryTrackTableProps {
   busy: boolean;
   analyzingTrackId: string | null;
   focusedRowIndex?: number;
-  onVisibleRowCountChange?: (count: number) => void;
+  /** Filtered + sorted rows currently shown (MIDI focus / LOAD index into this). */
+  onVisibleRowsChange?: (rows: LibraryTableRow[]) => void;
   onLoadToDeck: (deckId: number, row: LibraryTableRow) => void;
   onAnalyze: (trackId: string) => void;
 }
@@ -57,7 +58,7 @@ export function LibraryTrackTable({
   busy,
   analyzingTrackId,
   focusedRowIndex = 0,
-  onVisibleRowCountChange,
+  onVisibleRowsChange,
   onLoadToDeck,
   onAnalyze,
 }: LibraryTrackTableProps) {
@@ -135,8 +136,8 @@ export function LibraryTrackTable({
   const filteredRows = table.getRowModel().rows;
 
   useEffect(() => {
-    onVisibleRowCountChange?.(filteredRows.length);
-  }, [filteredRows.length, onVisibleRowCountChange]);
+    onVisibleRowsChange?.(filteredRows.map((row) => row.original));
+  }, [filteredRows, onVisibleRowsChange]);
 
   if (rows.length === 0) {
     return (
