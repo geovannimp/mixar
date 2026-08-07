@@ -386,6 +386,8 @@ impl MappingSession {
     }
 
     /// Resolve binding → soft-takeover → publish. Returns true if a publish was sent.
+    // ponytail: internal MIDI dispatch; packing into a struct is noise for CI threshold (7).
+    #[allow(clippy::too_many_arguments)]
     fn dispatch_input(
         &mut self,
         section: &str,
