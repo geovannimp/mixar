@@ -71,7 +71,7 @@ Map/catalog action ids:
 
 Rules:
 
-- Exactly one `::` separator between origin template and leaf. Leaf may still be parameterized (`trigger_hot_cue_1`, `auto_loop_4`).
+- Exactly one `::` separator between origin template and leaf. Leaves may take named args (`pad(n:1)`, `auto_loop(beats:4)`); see `2026-08-06-controller-action-args-design.md`.
 - `_` only where the section can supply that origin (e.g. `Deck(_)` under `deck_*`). Invalid combo → `map-check` / load validation error.
 - Short names (`set_volume`) are removed from `catalog::ACTIONS`; fixtures and any shipped maps migrate.
 - Parsing lives in `controller` (catalog + resolve). FE does not parse these strings for engine traffic.

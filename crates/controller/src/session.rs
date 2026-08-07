@@ -450,7 +450,7 @@ impl MappingSession {
             Some(a) => a.as_str(),
             None => return false,
         };
-        let Ok((template, leaf)) = parse_action_id(action) else {
+        let Ok((template, leaf, _)) = parse_action_id(action) else {
             return false;
         };
         let Ok(bound) = bind_origin(template, section) else {

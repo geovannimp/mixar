@@ -1,6 +1,7 @@
 //! Closed alias + action vocabularies (single source of truth).
 
 use crate::action_id::{parse_action_id, OriginTemplate};
+use crate::error::LoadError;
 
 /// Action name as written in `map.toml` (`OriginTemplate::leaf`).
 pub type ActionName = str;
@@ -164,87 +165,98 @@ const DECK_LEAVES: &[&str] = &[
     "set_headphone_cue",
     "jog_touch",
     "jog_turn",
-    "trigger_hot_cue_1",
-    "trigger_hot_cue_2",
-    "trigger_hot_cue_3",
-    "trigger_hot_cue_4",
-    "trigger_hot_cue_5",
-    "trigger_hot_cue_6",
-    "trigger_hot_cue_7",
-    "trigger_hot_cue_8",
-    "delete_hot_cue_1",
-    "delete_hot_cue_2",
-    "delete_hot_cue_3",
-    "delete_hot_cue_4",
-    "delete_hot_cue_5",
-    "delete_hot_cue_6",
-    "delete_hot_cue_7",
-    "delete_hot_cue_8",
+    "trigger_hot_cue",
+    "delete_hot_cue",
     "loop_in",
     "loop_out",
     "exit_loop",
-    "auto_loop_1",
-    "auto_loop_2",
-    "auto_loop_4",
-    "auto_loop_8",
-    "auto_loop_16",
-    "auto_loop_32",
-    "beat_jump_fwd_1",
-    "beat_jump_back_1",
-    "beat_jump_fwd_2",
-    "beat_jump_back_2",
-    "beat_jump_fwd_4",
-    "beat_jump_back_4",
-    "beat_jump_fwd_8",
-    "beat_jump_back_8",
-    "pad_mode_hot_cue",
-    "pad_mode_loop_roll",
-    "pad_mode_beat_jump",
-    "pad_mode_sampler",
-    "pad_1",
-    "pad_2",
-    "pad_3",
-    "pad_4",
-    "pad_5",
-    "pad_6",
-    "pad_7",
-    "pad_8",
-    "trigger_sampler_1",
-    "trigger_sampler_2",
-    "trigger_sampler_3",
-    "trigger_sampler_4",
-    "trigger_sampler_5",
-    "trigger_sampler_6",
-    "trigger_sampler_7",
-    "trigger_sampler_8",
+    "auto_loop",
+    "beat_jump",
+    "pad_mode",
+    "pad",
+    "trigger_sampler",
 ];
 
 const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
-const LIBRARY_NAV_LEAVES: &[&str] = &[
-    "navigate",
-    "navigate_next",
-    "navigate_prev",
-    "load_to_deck_1",
-    "load_to_deck_2",
-];
+const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_prev", "load_to_deck"];
+
+const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler"];
+
+/// Validate leaf-specific named args (after parse).
+pub fn validate_leaf_args(leaf: &str, args: &crate::action_id::ActionArgs) -> Result<(), LoadError> {
+    match leaf {
+        "pad" => {
+            args.expect_keys_exactly(&["n"])?;
+            let n = args.require_int("n")?;
+            if n < 1 {
+                return Err(LoadError::Validation("arg `n` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        "trigger_hot_cue" | "delete_hot_cue" | "trigger_sampler" => {
+            args.expect_keys_exactly(&["slot"])?;
+            let slot = args.require_int("slot")?;
+            if slot < 1 {
+                return Err(LoadError::Validation("arg `slot` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        "load_to_deck" => {
+            args.expect_keys_exactly(&["deck"])?;
+            let deck = args.require_int("deck")?;
+            if deck < 1 {
+                return Err(LoadError::Validation("arg `deck` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        "auto_loop" => {
+            args.expect_keys_exactly(&["beats"])?;
+            let beats = args.require_int("beats")?;
+            if beats < 1 {
+                return Err(LoadError::Validation("arg `beats` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        "beat_jump" => {
+            args.expect_keys_exactly(&["beats"])?;
+            let beats = args.require_int("beats")?;
+            if beats == 0 {
+                return Err(LoadError::Validation("arg `beats` must be non-zero".into()));
+            }
+            Ok(())
+        }
+        "pad_mode" => {
+            args.expect_keys_exactly(&["mode"])?;
+            let mode = args.require_ident("mode")?;
+            if !PAD_MODES.contains(&mode) {
+                return Err(LoadError::Validation(format!(
+                    "unknown pad_mode `{mode}`"
+                )));
+            }
+            Ok(())
+        }
+        _ => args.expect_empty(),
+    }
+}
 
 pub fn is_known_action(name: &str) -> bool {
-    let Ok((template, leaf)) = parse_action_id(name) else {
+    let Ok((template, leaf, args)) = parse_action_id(name) else {
         return false;
     };
-    match template {
+    let known = match template {
         OriginTemplate::Deck(_) => DECK_LEAVES.contains(&leaf),
         OriginTemplate::Mixer => MIXER_LEAVES.contains(&leaf),
         OriginTemplate::Engine => ENGINE_LEAVES.contains(&leaf),
         OriginTemplate::LibraryNavigation => LIBRARY_NAV_LEAVES.contains(&leaf),
-    }
+    };
+    known && validate_leaf_args(leaf, &args).is_ok()
 }
 
 pub fn is_absolute_action(name: &str) -> bool {
-    let Ok((_, leaf)) = parse_action_id(name) else {
+    let Ok((_, leaf, _)) = parse_action_id(name) else {
         // Allow leaf-only checks for internal soft-takeover defaults.
         return ABSOLUTE_LEAVES.contains(&name);
     };

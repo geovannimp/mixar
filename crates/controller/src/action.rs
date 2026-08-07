@@ -190,7 +190,7 @@ pub fn resolve_action(
     active: bool,
     snap: &ControlSnapshot,
 ) -> Option<RoutedAction> {
-    let (template, leaf) = parse_action_id(action).ok()?;
+    let (template, leaf, args) = parse_action_id(action).ok()?;
     let bound = bind_origin(template, section).ok()?;
 
     if let BoundOrigin::LibraryNavigation = bound {
@@ -234,11 +234,15 @@ pub fn resolve_action(
                     body: LibraryEvtBody::Navigate { delta },
                 });
             }
-            "load_to_deck_1" | "load_to_deck_2" => {
+            "load_to_deck" => {
                 if !active {
                     return None;
                 }
-                let deck = if leaf == "load_to_deck_1" { 0 } else { 1 };
+                let deck_1based = args.require_int("deck").ok()?;
+                if deck_1based < 1 {
+                    return None;
+                }
+                let deck = (deck_1based - 1) as u16;
                 return Some(RoutedAction::LibraryEvt {
                     origin: LibraryOrigin::LibraryNavigation,
                     kind: LibraryKind::Load,
@@ -397,7 +401,6 @@ pub fn resolve_action(
             CmdBody::JogTouch { touching: active },
         )),
         "jog_turn" => {
-            // CC relative-ish: map 0..1 around center to delta ticks
             let delta = ((norm - 0.5) * 128.0).round() as i32;
             if delta == 0 {
                 return None;
@@ -408,19 +411,28 @@ pub fn resolve_action(
                 CmdBody::JogTurn { delta },
             ))
         }
-        a if a.starts_with("trigger_hot_cue_") => {
+        "trigger_hot_cue" => {
             if !active {
                 return None;
             }
-            let slot: u8 = a.strip_prefix("trigger_hot_cue_")?.parse().ok()?;
-            if !(1..=8).contains(&slot) {
+            let slot = args.require_int("slot").ok()?;
+            if slot < 1 {
                 return None;
             }
+            let slot_u = slot as u8;
             let Origin::Deck(d) = origin else {
                 return None;
             };
-            let idx = (slot - 1) as usize;
-            match snap.hot_cues[deck_idx(d)][idx] {
+            let idx = (slot_u - 1) as usize;
+            let cues = &snap.hot_cues[deck_idx(d)];
+            if idx >= cues.len() {
+                return Some(engine_cmd(
+                    origin,
+                    Kind::SaveHotCue,
+                    CmdBody::SaveHotCue { slot: slot_u - 1 },
+                ));
+            }
+            match cues[idx] {
                 Some(pos) => Some(engine_cmd(
                     origin,
                     Kind::TriggerHotCue,
@@ -429,108 +441,105 @@ pub fn resolve_action(
                 None => Some(engine_cmd(
                     origin,
                     Kind::SaveHotCue,
-                    CmdBody::SaveHotCue { slot: slot - 1 },
+                    CmdBody::SaveHotCue { slot: slot_u - 1 },
                 )),
             }
         }
-        a if a.starts_with("delete_hot_cue_") => {
+        "delete_hot_cue" => {
             if !active {
                 return None;
             }
-            let slot: u8 = a.strip_prefix("delete_hot_cue_")?.parse().ok()?;
-            if !(1..=8).contains(&slot) {
+            let slot = args.require_int("slot").ok()?;
+            if slot < 1 {
                 return None;
             }
             Some(engine_cmd(
                 origin,
                 Kind::DeleteHotCue,
-                CmdBody::DeleteHotCue { slot: slot - 1 },
+                CmdBody::DeleteHotCue {
+                    slot: (slot as u8) - 1,
+                },
             ))
         }
         "loop_in" => active.then_some(engine_cmd(origin, Kind::LoopIn, CmdBody::Empty)),
         "loop_out" => active.then_some(engine_cmd(origin, Kind::LoopOut, CmdBody::Empty)),
         "exit_loop" => active.then_some(engine_cmd(origin, Kind::ExitLoop, CmdBody::Empty)),
-        a if a.starts_with("auto_loop_") => {
+        "auto_loop" => {
             if !active {
                 return None;
             }
-            let beats: u32 = a.strip_prefix("auto_loop_")?.parse().ok()?;
+            let beats = args.require_int("beats").ok()?;
+            if beats < 1 {
+                return None;
+            }
             Some(engine_cmd(
                 origin,
                 Kind::SetAutoLoop,
-                CmdBody::SetAutoLoop { beats },
+                CmdBody::SetAutoLoop {
+                    beats: beats as u32,
+                },
             ))
         }
-        a if a.starts_with("beat_jump_fwd_") => {
+        "beat_jump" => {
             if !active {
                 return None;
             }
-            let beats: i32 = a.strip_prefix("beat_jump_fwd_")?.parse().ok()?;
+            let beats = args.require_int("beats").ok()?;
+            if beats == 0 {
+                return None;
+            }
             Some(engine_cmd(
                 origin,
                 Kind::BeatJump,
-                CmdBody::BeatJump { beats },
+                CmdBody::BeatJump {
+                    beats: beats as i32,
+                },
             ))
         }
-        a if a.starts_with("beat_jump_back_") => {
+        "pad_mode" => {
             if !active {
                 return None;
             }
-            let beats: i32 = a.strip_prefix("beat_jump_back_")?.parse().ok()?;
+            let mode = args.require_ident("mode").ok()?;
+            let mode = match mode {
+                "hot_cue" => PadMode::HotCue,
+                "loop_roll" => PadMode::LoopRoll,
+                "beat_jump" => PadMode::BeatJump,
+                "sampler" => PadMode::Sampler,
+                _ => return None,
+            };
             Some(engine_cmd(
                 origin,
-                Kind::BeatJump,
-                CmdBody::BeatJump { beats: -beats },
+                Kind::SetPadMode,
+                CmdBody::SetPadMode { mode },
             ))
         }
-        "pad_mode_hot_cue" => active.then_some(engine_cmd(
-            origin,
-            Kind::SetPadMode,
-            CmdBody::SetPadMode {
-                mode: PadMode::HotCue,
-            },
-        )),
-        "pad_mode_loop_roll" => active.then_some(engine_cmd(
-            origin,
-            Kind::SetPadMode,
-            CmdBody::SetPadMode {
-                mode: PadMode::LoopRoll,
-            },
-        )),
-        "pad_mode_beat_jump" => active.then_some(engine_cmd(
-            origin,
-            Kind::SetPadMode,
-            CmdBody::SetPadMode {
-                mode: PadMode::BeatJump,
-            },
-        )),
-        "pad_mode_sampler" => active.then_some(engine_cmd(
-            origin,
-            Kind::SetPadMode,
-            CmdBody::SetPadMode {
-                mode: PadMode::Sampler,
-            },
-        )),
-        a if a.starts_with("pad_") => {
-            let slot: u8 = a.strip_prefix("pad_")?.parse().ok()?;
-            if !(1..=8).contains(&slot) {
+        "pad" => {
+            let n = args.require_int("n").ok()?;
+            if n < 1 {
                 return None;
             }
+            let slot = n as u8;
             let Origin::Deck(d) = origin else {
                 return None;
             };
             let mode = snap.pad_mode[deck_idx(d)];
             resolve_pad_slot(origin, slot, active, mode, snap)
         }
-        a if a.starts_with("trigger_sampler_") => {
+        "trigger_sampler" => {
             if !active {
                 return None;
             }
-            let slot: u8 = a.strip_prefix("trigger_sampler_")?.parse().ok()?;
+            let slot = args.require_int("slot").ok()?;
+            if slot < 1 {
+                return None;
+            }
             Some(engine_cmd(
                 origin,
                 Kind::TriggerSampler,
-                CmdBody::TriggerSampler { slot: slot - 1 },
+                CmdBody::TriggerSampler {
+                    slot: (slot as u8) - 1,
+                },
             ))
         }
         _ => None,
@@ -548,6 +557,9 @@ fn resolve_pad_slot(
     mode: PadMode,
     snap: &ControlSnapshot,
 ) -> Option<RoutedAction> {
+    if slot < 1 {
+        return None;
+    }
     let idx = (slot - 1) as usize;
     match mode {
         PadMode::HotCue => {
@@ -557,7 +569,15 @@ fn resolve_pad_slot(
             let Origin::Deck(d) = origin else {
                 return None;
             };
-            match snap.hot_cues[deck_idx(d)][idx] {
+            let cues = &snap.hot_cues[deck_idx(d)];
+            if idx >= cues.len() {
+                return Some(engine_cmd(
+                    origin,
+                    Kind::SaveHotCue,
+                    CmdBody::SaveHotCue { slot: slot - 1 },
+                ));
+            }
+            match cues[idx] {
                 Some(pos) => Some(engine_cmd(
                     origin,
                     Kind::TriggerHotCue,
@@ -571,7 +591,7 @@ fn resolve_pad_slot(
             }
         }
         PadMode::LoopRoll => {
-            let beats = LOOP_ROLL_BEATS[idx];
+            let beats = *LOOP_ROLL_BEATS.get(idx)?;
             if active {
                 Some(engine_cmd(
                     origin,
@@ -586,7 +606,7 @@ fn resolve_pad_slot(
             if !active {
                 return None;
             }
-            let beats = BEAT_JUMP_BEATS[idx];
+            let beats = *BEAT_JUMP_BEATS.get(idx)?;
             Some(engine_cmd(
                 origin,
                 Kind::BeatJump,
@@ -674,7 +694,7 @@ mod tests {
     #[test]
     fn pad_routes_by_software_pad_mode() {
         let mut snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SaveHotCue { slot },
@@ -684,7 +704,7 @@ mod tests {
         }
 
         snap.hot_cues[0][0] = Some(12_500);
-        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerHotCue { position_ms },
@@ -694,7 +714,7 @@ mod tests {
         }
 
         snap.pad_mode[0] = PadMode::BeatJump;
-        let routed = resolve_action("Deck(_)::pad_1", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeatJump { beats },
@@ -704,7 +724,7 @@ mod tests {
         }
 
         snap.pad_mode[0] = PadMode::LoopRoll;
-        let begin = resolve_action("Deck(_)::pad_3", "deck_1", 1.0, true, &snap).unwrap();
+        let begin = resolve_action("Deck(_)::pad(n:3)", "deck_1", 1.0, true, &snap).unwrap();
         match begin {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeginLoopRoll { beats },
@@ -712,7 +732,7 @@ mod tests {
             } => assert_eq!(beats, 4),
             other => panic!("expected BeginLoopRoll 4, got {other:?}"),
         }
-        let end = resolve_action("Deck(_)::pad_3", "deck_1", 0.0, false, &snap).unwrap();
+        let end = resolve_action("Deck(_)::pad(n:3)", "deck_1", 0.0, false, &snap).unwrap();
         assert!(matches!(
             end,
             RoutedAction::EngineCmd {
@@ -722,7 +742,7 @@ mod tests {
         ));
 
         snap.pad_mode[0] = PadMode::Sampler;
-        let routed = resolve_action("Deck(_)::pad_2", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerSampler { slot },
@@ -736,7 +756,7 @@ mod tests {
     fn pad_mode_button_sets_mode() {
         let snap = ControlSnapshot::default();
         let routed =
-            resolve_action("Deck(_)::pad_mode_loop_roll", "deck_1", 1.0, true, &snap).unwrap();
+            resolve_action("Deck(_)::pad_mode(mode:loop_roll)", "deck_1", 1.0, true, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SetPadMode { mode },
@@ -782,7 +802,7 @@ mod tests {
     fn load_to_deck_publishes_focused_load_evt() {
         let snap = ControlSnapshot::default();
         let routed = resolve_action(
-            "LibraryNavigation::load_to_deck_2",
+            "LibraryNavigation::load_to_deck(deck:2)",
             "master",
             1.0,
             true,
@@ -798,7 +818,7 @@ mod tests {
             other => panic!("expected Load deck 1, got {other:?}"),
         }
         assert!(resolve_action(
-            "LibraryNavigation::load_to_deck_1",
+            "LibraryNavigation::load_to_deck(deck:1)",
             "master",
             1.0,
             false,

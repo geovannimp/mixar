@@ -16,7 +16,8 @@ pub mod script;
 
 pub use action::{resolve_action, RoutedAction};
 pub use action_id::{
-    bind_origin, format_bound_action, parse_action_id, BoundOrigin, OriginTemplate,
+    bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
+    OriginTemplate,
 };
 pub use bundle::{load_bundle, MappingBundle};
 pub use catalog::{is_closed_input_alias, is_known_action, ActionName};
