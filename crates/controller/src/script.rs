@@ -162,9 +162,9 @@ impl ScriptRuntime {
     ) -> Result<(), RuntimeError> {
         self.prepare_scratch(host);
         let mut scope = Scope::new();
-        let result = self
-            .engine
-            .call_fn::<()>(&mut scope, &self.ast, name, (value_01 as f64, active));
+        let result =
+            self.engine
+                .call_fn::<()>(&mut scope, &self.ast, name, (value_01 as f64, active));
         self.flush_scratch(host);
         result.map_err(|e| RuntimeError::Script(e.to_string()))
     }

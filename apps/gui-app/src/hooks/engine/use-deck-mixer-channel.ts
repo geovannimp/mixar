@@ -10,8 +10,8 @@ export function useDeckMixerChannel(deckId: number) {
       return {
         volume: deck.volume,
         eq: deck.eq,
-        filter_db: deck.filter_db,
-        gain_trim_db: deck.gain_trim_db,
+        filter: deck.filter,
+        gain_trim: deck.gain_trim,
         headphone_cue: deck.headphone_cue,
       };
     }),

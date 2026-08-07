@@ -53,9 +53,15 @@ pub struct Deck {
     position_frames: i64,
     /// Sub-frame source position for tempo / loop accuracy (signed; source of truth).
     position_frac: f64,
-    /// Playback speed (1.0 = normal speed)
+    /// Tempo fader position `0..1` (center = track BPM).
     speed: f32,
-    /// Transient platter multiplier on top of `speed` (scratch / bend).
+    /// Half-span of the tempo fader in BPM (default ±8).
+    tempo_range: f32,
+    /// Track BPM for fader→ratio; `None` uses a fallback inside ratio math.
+    track_bpm: Option<f64>,
+    /// When set (tempo sync), DSP uses this ratio instead of fader-derived.
+    ratio_override: Option<f32>,
+    /// Transient platter multiplier on top of playback ratio (scratch / bend).
     jog_rate: f32,
     top_jog_mode: JogMode,
     outer_jog_mode: JogMode,
@@ -124,7 +130,10 @@ impl Deck {
             state: DeckState::Stopped,
             position_frames: 0,
             position_frac: 0.0,
-            speed: 1.0,
+            speed: 0.5,
+            tempo_range: 8.0,
+            track_bpm: None,
+            ratio_override: None,
             jog_rate: 1.0,
             top_jog_mode: JogMode::Vinyl,
             outer_jog_mode: JogMode::PitchBend,
@@ -210,9 +219,54 @@ impl Deck {
         })
     }
 
-    /// Get the current playback speed
+    /// Tempo fader position `0..1`.
     pub fn speed(&self) -> f32 {
         self.speed
+    }
+
+    /// Tempo fader half-span in BPM.
+    pub fn tempo_range(&self) -> f32 {
+        self.tempo_range
+    }
+
+    pub fn set_tempo_range(&mut self, range_bpm: f32) {
+        self.tempo_range = range_bpm.max(0.0);
+        // Fader still applies; drop sync override so UI/HW own the ratio again.
+        self.ratio_override = None;
+    }
+
+    pub fn set_track_bpm(&mut self, bpm: Option<f64>) {
+        self.track_bpm = bpm.filter(|b| b.is_finite() && *b > 0.0);
+        // Load clears sync ownership; fader position drives ratio again.
+        self.ratio_override = None;
+    }
+
+    /// Playback ratio used by the resampler (1.0 = normal), before jog.
+    pub fn playback_ratio(&self) -> f32 {
+        if let Some(ratio) = self.ratio_override {
+            return ratio.max(0.01);
+        }
+        crate::tempo::norm_to_playback_ratio(self.speed, self.track_bpm, self.tempo_range)
+    }
+
+    /// Set tempo fader position `0..1` (clears sync ratio override).
+    pub fn set_speed(&mut self, speed: f32) -> Result<()> {
+        if !(0.0..=1.0).contains(&speed) {
+            return Err(anyhow::anyhow!("Speed must be between 0.0 and 1.0"));
+        }
+        self.speed = speed;
+        self.ratio_override = None;
+        Ok(())
+    }
+
+    /// Set absolute playback ratio (tempo sync). Updates fader position (clamped) for UI.
+    pub fn set_playback_ratio(&mut self, ratio: f32) -> Result<()> {
+        if ratio <= 0.0 {
+            return Err(anyhow::anyhow!("Playback ratio must be positive"));
+        }
+        self.ratio_override = Some(ratio);
+        self.speed = crate::tempo::playback_ratio_to_norm(ratio, self.track_bpm, self.tempo_range);
+        Ok(())
     }
 
     /// Start playback
@@ -239,15 +293,6 @@ impl Deck {
         self.position_frac = 0.0;
         self.cue_hold_return = None;
         self.reset_resampler_state();
-        Ok(())
-    }
-
-    /// Set playback speed
-    pub fn set_speed(&mut self, speed: f32) -> Result<()> {
-        if speed < 0.0 {
-            return Err(anyhow::anyhow!("Speed cannot be negative"));
-        }
-        self.speed = speed;
         Ok(())
     }
 
@@ -397,7 +442,7 @@ impl Deck {
     }
 
     fn effective_speed(&self) -> f32 {
-        self.speed * self.jog_rate
+        self.playback_ratio() * self.jog_rate
     }
 
     fn jog_driving_audio(&self) -> bool {
@@ -438,6 +483,8 @@ impl Deck {
         self.loop_region = None;
         self.cue_point_ms = None;
         self.cue_hold_return = None;
+        self.track_bpm = None;
+        self.ratio_override = None;
         self.buffer.clear();
         Ok(())
     }
@@ -883,7 +930,9 @@ mod tests {
         assert_eq!(deck.id(), 0);
         assert_eq!(deck.state(), &DeckState::Stopped);
         assert_eq!(deck.position_frames(), 0);
-        assert_eq!(deck.speed(), 1.0);
+        assert_eq!(deck.speed(), 0.5);
+        assert_eq!(deck.tempo_range(), 8.0);
+        assert!((deck.playback_ratio() - 1.0).abs() < 1e-5);
     }
 
     #[test]
@@ -908,12 +957,12 @@ mod tests {
     fn test_deck_speed_control() {
         let mut deck = new_deck(CHUNK);
 
-        // Test valid speed
-        deck.set_speed(1.5).unwrap();
-        assert_eq!(deck.speed(), 1.5);
-
-        // Test invalid speed
-        assert!(deck.set_speed(-1.0).is_err());
+        deck.set_track_bpm(Some(150.0));
+        deck.set_speed(0.0).unwrap();
+        assert_eq!(deck.speed(), 0.0);
+        assert!((deck.playback_ratio() - 158.0 / 150.0).abs() < 1e-5);
+        assert!(deck.set_speed(-0.1).is_err());
+        assert!(deck.set_speed(1.1).is_err());
     }
 
     #[test]

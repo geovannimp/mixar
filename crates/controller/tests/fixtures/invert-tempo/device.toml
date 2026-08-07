@@ -1,0 +1,12 @@
+schema_version = 1
+id = "test.invert-tempo"
+vendor_name = "Test"
+product_name = "InvertTempo"
+midi_name_contains = ["InvertTempo"]
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/device.tosd"
+
+[deck_1]
+tempo = { type = "cc", channel = 1, cc = 0x14 }

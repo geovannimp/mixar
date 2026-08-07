@@ -85,8 +85,8 @@ fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     };
     assert_eq!(id, 1);
     assert_eq!(sync_mode, SyncMode::Tempo);
-    // Master 120 @ 1.0 → slave 100 needs 1.2×
-    assert!((speed - 1.2).abs() < 0.01);
+    // Master 120 @ center → slave 100 needs 1.2×; ±8 BPM fader saturates (120 BPM needed vs ±8).
+    assert!((speed - 0.0).abs() < 0.01, "speed={speed}");
 }
 
 #[test]
@@ -110,7 +110,12 @@ fn master_speed_change_updates_synced_slave() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetSpeed,
-            encode_cmd_body(&CmdBody::SetSpeed { speed: 1.05, soft_takeover: false }).unwrap(),
+            encode_cmd_body(&CmdBody::SetSpeed {
+                // At 120 BPM ±8: n = 0.5 - (126-120)/(16) = 0.125 → ~1.05×.
+                speed: 0.125,
+                soft_takeover: false,
+            })
+            .unwrap(),
         )
         .expect("speed");
 
@@ -137,8 +142,11 @@ fn master_speed_change_updates_synced_slave() {
         }
     }
     let slave_speed = slave_speed.expect("slave Updated");
-    // Master effective 120 * 1.05 = 126 → slave 100 → 1.26×
-    assert!((slave_speed - 1.26).abs() < 0.01);
+    // Master effective 126 BPM → slave 100 needs 1.26×; ±8 BPM fader saturates at 0.
+    assert!(
+        (slave_speed - 0.0).abs() < 0.01,
+        "slave_speed={slave_speed}"
+    );
 }
 
 #[test]

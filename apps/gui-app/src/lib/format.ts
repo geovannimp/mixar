@@ -53,9 +53,49 @@ export function formatDeckTotalDisplay(durationMs: number | null | undefined): s
   return formatDeckTimeTenth(durationMs);
 }
 
-export function effectiveBpm(bpm: number | null | undefined, speed: number): number | null {
-  if (bpm == null || !Number.isFinite(bpm)) return null;
-  return bpm * speed;
+/** Default tempo fader half-span in BPM (matches engine `tempo_range`). */
+export const DEFAULT_TEMPO_RANGE_BPM = 8;
+
+function usableBpm(trackBpm: number | null | undefined): number {
+  return trackBpm != null && Number.isFinite(trackBpm) && trackBpm > 0 ? trackBpm : 120;
+}
+
+function usableTempoRange(tempoRange: number): number {
+  return Number.isFinite(tempoRange) && tempoRange > 0 ? tempoRange : 0;
+}
+
+/** Tempo fader `0..1` → playback ratio (track BPM ± tempo_range). */
+export function normToSpeedRatio(
+  norm: number,
+  trackBpm: number | null | undefined = null,
+  tempoRange: number = DEFAULT_TEMPO_RANGE_BPM,
+): number {
+  const b = usableBpm(trackBpm);
+  const n = Math.min(1, Math.max(0, norm));
+  const effective = b + (0.5 - n) * 2 * usableTempoRange(tempoRange);
+  return Math.max(0.01, effective / b);
+}
+
+/** Playback ratio → tempo fader `0..1` (saturates outside ±tempo_range). */
+export function speedRatioToNorm(
+  ratio: number,
+  trackBpm: number | null | undefined = null,
+  tempoRange: number = DEFAULT_TEMPO_RANGE_BPM,
+): number {
+  const b = usableBpm(trackBpm);
+  const range = Math.max(1e-6, usableTempoRange(tempoRange));
+  const n = 0.5 - (ratio * b - b) / (2 * range);
+  return Math.min(1, Math.max(0, n));
+}
+
+export function effectiveBpm(
+  bpm: number | null | undefined,
+  speedNorm: number,
+  tempoRange: number = DEFAULT_TEMPO_RANGE_BPM,
+): number | null {
+  if (bpm == null || !Number.isFinite(bpm) || bpm <= 0) return null;
+  const n = Math.min(1, Math.max(0, speedNorm));
+  return bpm + (0.5 - n) * 2 * usableTempoRange(tempoRange);
 }
 
 /** Default DJ time signature: 4/4. */
@@ -121,42 +161,50 @@ export function getBarCycleDurationSecs(bpm: number): number | null {
   return ms == null ? null : ms / 1000;
 }
 
+/** @deprecated Prefer {@link DEFAULT_TEMPO_RANGE_BPM}; kept for callers that still assume ±8% UI. */
 export const PITCH_RANGE_PERCENT = 8;
 
-function clampSpeedToPitchRange(speed: number): number {
-  const min = 1 - PITCH_RANGE_PERCENT / 100;
-  const max = 1 + PITCH_RANGE_PERCENT / 100;
-  return Math.min(max, Math.max(min, speed));
+/** Map tempo fader position `0..1` to slider 0–100. */
+export function speedToPitchSlider(speedNorm: number): number {
+  const n = Math.min(1, Math.max(0, speedNorm));
+  return Math.round(n * 10000) / 100;
 }
 
-/** Map speed to slider 0–100 (center = 50, ±8%). */
-export function speedToPitchSlider(speed: number): number {
-  const pitch = (clampSpeedToPitchRange(speed) - 1) * 100;
-  const clamped = Math.min(PITCH_RANGE_PERCENT, Math.max(-PITCH_RANGE_PERCENT, pitch));
-  const raw = ((clamped + PITCH_RANGE_PERCENT) / (2 * PITCH_RANGE_PERCENT)) * 100;
-  // Keep sub-step precision so the fader does not quantize to 0.16% pitch jumps.
-  return Math.round(raw * 100) / 100;
-}
-
+/** Map slider 0–100 to tempo fader position `0..1`. */
 export function pitchSliderToSpeed(value: number): number {
-  const clamped = Math.min(100, Math.max(0, value));
-  const pitch = (clamped / 100) * (2 * PITCH_RANGE_PERCENT) - PITCH_RANGE_PERCENT;
-  return clampSpeedToPitchRange(1 + pitch / 100);
+  return Math.min(1, Math.max(0, value / 100));
 }
 
-export function nudgeSpeed(speed: number, deltaPercent: number): number {
-  return clampSpeedToPitchRange(speed + deltaPercent / 100);
+/** Nudge tempo position by pitch percent of track BPM. */
+export function nudgeSpeed(
+  speedNorm: number,
+  deltaPercent: number,
+  trackBpm: number | null | undefined = null,
+): number {
+  const ratio = normToSpeedRatio(speedNorm, trackBpm) + deltaPercent / 100;
+  return speedRatioToNorm(ratio, trackBpm);
 }
 
-/** Mixxx-style pitch readout (e.g. 0.00, -1.25). */
-export function formatPitchOffset(speed: number): string {
-  const percent = (speed - 1) * 100;
+/** Tempo fader offset in BPM (e.g. +0.00, +8.00) — matches `tempo_range`. */
+export function formatPitchOffset(
+  speedNorm: number,
+  _trackBpm: number | null | undefined = null,
+  tempoRange: number = DEFAULT_TEMPO_RANGE_BPM,
+): string {
+  const n = Math.min(1, Math.max(0, speedNorm));
+  const offset = (0.5 - n) * 2 * usableTempoRange(tempoRange);
+  const sign = offset >= 0 ? "+" : "";
+  return `${sign}${offset.toFixed(2)}`;
+}
+
+/** Playback-ratio percent offset (e.g. +7.29%). */
+export function formatPitchPercent(
+  speedNorm: number,
+  trackBpm: number | null | undefined = null,
+): string {
+  const percent = (normToSpeedRatio(speedNorm, trackBpm) - 1) * 100;
   const sign = percent >= 0 ? "+" : "";
-  return `${sign}${percent.toFixed(2)}`;
-}
-
-export function formatPitchPercent(speed: number): string {
-  return `${formatPitchOffset(speed)}%`;
+  return `${sign}${percent.toFixed(2)}%`;
 }
 
 /** @deprecated use formatDeckTimeTenth */

@@ -212,13 +212,7 @@ impl MappingSession {
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        let Some(fn_name) = self
-            .bundle
-            .map
-            .lifecycle
-            .fn_for(event)
-            .map(str::to_string)
-        else {
+        let Some(fn_name) = self.bundle.map.lifecycle.fn_for(event).map(str::to_string) else {
             return Ok(());
         };
         let Some(script) = self.script.as_mut() else {
@@ -392,6 +386,8 @@ impl MappingSession {
     }
 
     /// Resolve binding → soft-takeover → publish. Returns true if a publish was sent.
+    // ponytail: internal MIDI dispatch; packing into a struct is noise for CI threshold (7).
+    #[allow(clippy::too_many_arguments)]
     fn dispatch_input(
         &mut self,
         section: &str,
@@ -438,6 +434,10 @@ impl MappingSession {
             None => return false,
         };
         let soft = binding.soft_takeover_effective();
+        let mut norm = norm;
+        if binding.invert_effective() {
+            norm = 1.0 - norm;
+        }
         let Some(routed) = resolve_action(action, section, norm, active, soft, &self.snapshot)
         else {
             return false;
@@ -511,12 +511,7 @@ impl MappingSession {
     }
 
     /// Update playing signal and emit mapped LED MIDI if changed.
-    pub fn on_deck_playing(
-        &mut self,
-        deck: u16,
-        playing: bool,
-        midi: &mut impl MidiOut,
-    ) {
+    pub fn on_deck_playing(&mut self, deck: u16, playing: bool, midi: &mut impl MidiOut) {
         self.set_playing_deck(deck, playing);
         let deck_section = format!("deck_{}", deck.min(3) + 1);
         self.apply_output_signal(&deck_section, "play_pause", playing, midi);
@@ -622,6 +617,44 @@ mod tests {
     fn session() -> MappingSession {
         let b = crate::load_bundle(Path::new("tests/fixtures/valid-minimal")).unwrap();
         MappingSession::from_bundle(b).unwrap()
+    }
+
+    fn invert_session() -> MappingSession {
+        let b = crate::load_bundle(Path::new("tests/fixtures/invert-tempo")).unwrap();
+        MappingSession::from_bundle(b).unwrap()
+    }
+
+    #[test]
+    fn invert_tempo_cc_flips_set_speed_norm() {
+        let mut s = invert_session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // CC 0 → inverted → 1.0
+        s.handle_midi(&[0xB0, 0x14, 0], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+        match &bus.cmds[0].2 {
+            CmdBody::SetSpeed {
+                speed,
+                soft_takeover: false,
+            } => assert!((*speed - 1.0).abs() < 1e-5, "speed={speed}"),
+            other => panic!("expected SetSpeed, got {other:?}"),
+        }
+
+        // Age coalesce window so the max CC publishes immediately.
+        if let Some(t) = s.cc_last.get_mut("deck_1.tempo") {
+            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+        }
+
+        // CC 127 → inverted → 0.0
+        s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
+        match &bus.cmds[1].2 {
+            CmdBody::SetSpeed {
+                speed,
+                soft_takeover: false,
+            } => assert!((*speed - 0.0).abs() < 1e-5, "speed={speed}"),
+            other => panic!("expected SetSpeed, got {other:?}"),
+        }
     }
 
     #[test]

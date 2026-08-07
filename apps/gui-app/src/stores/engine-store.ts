@@ -140,8 +140,8 @@ interface EngineStoreState {
   beatJumpDeck: (deckId: number, beats: number) => Promise<void>;
   cycleDeckPadMode: (deckId: number, direction: number) => Promise<void>;
   setDeckPadMode: (deckId: number, mode: PadMode) => Promise<void>;
-  setDeckFilter: (deckId: number, filterDb: number) => Promise<void>;
-  setDeckGainTrim: (deckId: number, gainDb: number) => Promise<void>;
+  setDeckFilter: (deckId: number, filter: number) => Promise<void>;
+  setDeckGainTrim: (deckId: number, gainTrim: number) => Promise<void>;
   setDeckHeadphoneCue: (deckId: number, enabled: boolean) => Promise<void>;
   beginLoopRoll: (deckId: number, beats: number) => Promise<void>;
   endLoopRoll: (deckId: number) => Promise<void>;
@@ -421,15 +421,15 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
     await publishCmd(getDeckOrigin(deckId), "set_pad_mode", { mode });
   },
 
-  setDeckFilter: async (deckId, filterDb) => {
+  setDeckFilter: async (deckId, filter) => {
     await publishCmd(getDeckOrigin(deckId), "set_filter", {
-      filter_db: filterDb,
+      filter,
     });
   },
 
-  setDeckGainTrim: async (deckId, gainDb) => {
+  setDeckGainTrim: async (deckId, gainTrim) => {
     await publishCmd(getDeckOrigin(deckId), "set_gain_trim", {
-      gain_db: gainDb,
+      gain_trim: gainTrim,
     });
   },
 
@@ -543,10 +543,10 @@ export const engineActions = {
     useEngineStore.getState().cycleDeckPadMode(deckId, direction),
   setDeckPadMode: (deckId: number, mode: PadMode) =>
     useEngineStore.getState().setDeckPadMode(deckId, mode),
-  setDeckFilter: (deckId: number, filterDb: number) =>
-    useEngineStore.getState().setDeckFilter(deckId, filterDb),
-  setDeckGainTrim: (deckId: number, gainDb: number) =>
-    useEngineStore.getState().setDeckGainTrim(deckId, gainDb),
+  setDeckFilter: (deckId: number, filter: number) =>
+    useEngineStore.getState().setDeckFilter(deckId, filter),
+  setDeckGainTrim: (deckId: number, gainTrim: number) =>
+    useEngineStore.getState().setDeckGainTrim(deckId, gainTrim),
   setDeckHeadphoneCue: (deckId: number, enabled: boolean) =>
     useEngineStore.getState().setDeckHeadphoneCue(deckId, enabled),
   beginLoopRoll: (deckId: number, beats: number) =>

@@ -164,8 +164,8 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         volume: snap.volume,
         speed: snap.speed,
         eq: snap.eq,
-        filter_db: snap.filter_db,
-        gain_trim_db: snap.gain_trim_db,
+        filter: snap.filter,
+        gain_trim: snap.gain_trim,
         headphone_cue: snap.headphone_cue,
         sync_mode: snap.sync_mode,
         cue_point_ms: snap.cue_point_ms,
@@ -352,7 +352,10 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             let key = soft_takeover::key_deck(deck_id, "volume");
-            let current = eng.deck_strip_norms(deck_id).map(|s| s.volume).unwrap_or(0.0);
+            let current = eng
+                .deck_strip_norms(deck_id)
+                .map(|s| s.volume)
+                .unwrap_or(0.0);
             if !eng
                 .soft_takeover_mut()
                 .allow(&key, soft_takeover, current, volume)
@@ -366,37 +369,45 @@ fn dispatch_deck_cmd(
             let CmdBody::SetEq { low, mid, high } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
-            eng.set_deck_eq_bands(deck_id, low, mid, high)?;
+            eng.set_deck_eq_bands(
+                deck_id,
+                crate::control_norm::norm_to_strip_db(low),
+                crate::control_norm::norm_to_strip_db(mid),
+                crate::control_norm::norm_to_strip_db(high),
+            )?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetEqBand => {
             let CmdBody::SetEqBand {
                 band,
-                gain_db,
+                gain,
                 soft_takeover,
             } = decode_cmd_body_for(kind, payload)?
             else {
                 unreachable!()
             };
             let strip = eng.deck_strip_norms(deck_id);
-            let (ctrl, current_db, low, mid, high) = match (band, strip) {
-                (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, gain_db, s.eq_mid, s.eq_high),
-                (EqBand::Mid, Some(s)) => ("eq_mid", s.eq_mid, s.eq_low, gain_db, s.eq_high),
-                (EqBand::High, Some(s)) => ("eq_high", s.eq_high, s.eq_low, s.eq_mid, gain_db),
-                (EqBand::Low, None) => ("eq_low", 0.0, gain_db, 0.0, 0.0),
-                (EqBand::Mid, None) => ("eq_mid", 0.0, 0.0, gain_db, 0.0),
-                (EqBand::High, None) => ("eq_high", 0.0, 0.0, 0.0, gain_db),
+            let (ctrl, current, low, mid, high) = match (band, strip) {
+                (EqBand::Low, Some(s)) => ("eq_low", s.eq_low, gain, s.eq_mid, s.eq_high),
+                (EqBand::Mid, Some(s)) => ("eq_mid", s.eq_mid, s.eq_low, gain, s.eq_high),
+                (EqBand::High, Some(s)) => ("eq_high", s.eq_high, s.eq_low, s.eq_mid, gain),
+                (EqBand::Low, None) => ("eq_low", 0.5, gain, 0.5, 0.5),
+                (EqBand::Mid, None) => ("eq_mid", 0.5, 0.5, gain, 0.5),
+                (EqBand::High, None) => ("eq_high", 0.5, 0.5, 0.5, gain),
             };
             let key = soft_takeover::key_deck(deck_id, ctrl);
-            if !eng.soft_takeover_mut().allow(
-                &key,
-                soft_takeover,
-                soft_takeover::db_to_norm(current_db),
-                soft_takeover::db_to_norm(gain_db),
-            ) {
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, gain)
+            {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_eq_bands(deck_id, low, mid, high)?;
+            eng.set_deck_eq_bands(
+                deck_id,
+                crate::control_norm::norm_to_strip_db(low),
+                crate::control_norm::norm_to_strip_db(mid),
+                crate::control_norm::norm_to_strip_db(high),
+            )?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetSpeed => {
@@ -410,21 +421,20 @@ fn dispatch_deck_cmd(
             let key = soft_takeover::key_deck(deck_id, "speed");
             let current = eng
                 .deck_strip_norms(deck_id)
-                .map(|s| soft_takeover::speed_to_norm(s.speed))
+                .map(|s| s.speed)
                 .unwrap_or(0.5);
-            let incoming = soft_takeover::speed_to_norm(speed);
             if !eng
                 .soft_takeover_mut()
-                .allow(&key, soft_takeover, current, incoming)
+                .allow(&key, soft_takeover, current, speed)
             {
                 return Ok(CmdOutcome::Silent);
             }
-            let updated = eng.set_deck_speed(deck_id, speed)?;
+            let updated = eng.set_deck_speed(deck_id, speed.clamp(0.0, 1.0))?;
             Ok(CmdOutcome::DecksUpdated(updated))
         }
         Kind::SetFilter => {
             let CmdBody::SetFilter {
-                filter_db,
+                filter,
                 soft_takeover,
             } = decode_cmd_body_for(kind, payload)?
             else {
@@ -433,22 +443,20 @@ fn dispatch_deck_cmd(
             let key = soft_takeover::key_deck(deck_id, "filter");
             let current = eng
                 .deck_strip_norms(deck_id)
-                .map(|s| soft_takeover::db_to_norm(s.filter_db))
+                .map(|s| s.filter)
                 .unwrap_or(0.5);
-            if !eng.soft_takeover_mut().allow(
-                &key,
-                soft_takeover,
-                current,
-                soft_takeover::db_to_norm(filter_db),
-            ) {
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, filter)
+            {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_filter_db(deck_id, filter_db)?;
+            eng.set_deck_filter_db(deck_id, crate::control_norm::norm_to_strip_db(filter))?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetGainTrim => {
             let CmdBody::SetGainTrim {
-                gain_db,
+                gain_trim,
                 soft_takeover,
             } = decode_cmd_body_for(kind, payload)?
             else {
@@ -457,17 +465,15 @@ fn dispatch_deck_cmd(
             let key = soft_takeover::key_deck(deck_id, "gain");
             let current = eng
                 .deck_strip_norms(deck_id)
-                .map(|s| soft_takeover::db_to_norm(s.gain_db))
+                .map(|s| s.gain_trim)
                 .unwrap_or(0.5);
-            if !eng.soft_takeover_mut().allow(
-                &key,
-                soft_takeover,
-                current,
-                soft_takeover::db_to_norm(gain_db),
-            ) {
+            if !eng
+                .soft_takeover_mut()
+                .allow(&key, soft_takeover, current, gain_trim)
+            {
                 return Ok(CmdOutcome::Silent);
             }
-            eng.set_deck_gain_trim_db(deck_id, gain_db)?;
+            eng.set_deck_gain_trim_db(deck_id, crate::control_norm::norm_to_strip_db(gain_trim))?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetHeadphoneCue => {

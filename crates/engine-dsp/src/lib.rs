@@ -20,6 +20,7 @@ pub mod mixer;
 pub mod mixer_channel;
 pub mod mixer_lane;
 pub mod sampler;
+pub mod tempo;
 pub mod transport;
 
 pub use deck::{Deck, DeckState, JogMode};

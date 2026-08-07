@@ -52,7 +52,9 @@ impl ActionArgs {
             Some(_) => Err(LoadError::Validation(format!(
                 "arg `{key}` must be an integer"
             ))),
-            None => Err(LoadError::Validation(format!("missing required arg `{key}`"))),
+            None => Err(LoadError::Validation(format!(
+                "missing required arg `{key}`"
+            ))),
         }
     }
 
@@ -62,7 +64,9 @@ impl ActionArgs {
             Some(_) => Err(LoadError::Validation(format!(
                 "arg `{key}` must be an identifier"
             ))),
-            None => Err(LoadError::Validation(format!("missing required arg `{key}`"))),
+            None => Err(LoadError::Validation(format!(
+                "missing required arg `{key}`"
+            ))),
         }
     }
 
@@ -165,9 +169,7 @@ fn parse_arg_list(inner: &str, action: &str) -> Result<ActionArgs, LoadError> {
             )));
         }
         let parsed = parse_arg_value(value).ok_or_else(|| {
-            LoadError::Validation(format!(
-                "action `{action}`: invalid arg value `{value}`"
-            ))
+            LoadError::Validation(format!("action `{action}`: invalid arg value `{value}`"))
         })?;
         map.insert(key.to_string(), parsed);
     }

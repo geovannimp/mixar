@@ -186,7 +186,10 @@ const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_pre
 const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler"];
 
 /// Validate leaf-specific named args (after parse).
-pub fn validate_leaf_args(leaf: &str, args: &crate::action_id::ActionArgs) -> Result<(), LoadError> {
+pub fn validate_leaf_args(
+    leaf: &str,
+    args: &crate::action_id::ActionArgs,
+) -> Result<(), LoadError> {
     match leaf {
         "pad" => {
             args.expect_keys_exactly(&["n"])?;
@@ -232,9 +235,7 @@ pub fn validate_leaf_args(leaf: &str, args: &crate::action_id::ActionArgs) -> Re
             args.expect_keys_exactly(&["mode"])?;
             let mode = args.require_ident("mode")?;
             if !PAD_MODES.contains(&mode) {
-                return Err(LoadError::Validation(format!(
-                    "unknown pad_mode `{mode}`"
-                )));
+                return Err(LoadError::Validation(format!("unknown pad_mode `{mode}`")));
             }
             Ok(())
         }

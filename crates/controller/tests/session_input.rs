@@ -126,7 +126,7 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     };
     let mut midi = CaptureMidi { frames: vec![] };
     s.set_deck_hot_cues(0, cues, &mut midi);
-    assert!(s.snapshot().playing[0] == false);
+    assert!(!s.snapshot().playing[0]);
     assert_eq!(midi.frames.len(), 1, "filled hot cue should light pad LED");
     assert_eq!(midi.frames[0], vec![0x90, 0x2E, 0x7F]);
 

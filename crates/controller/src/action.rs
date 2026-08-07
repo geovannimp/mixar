@@ -5,13 +5,14 @@ use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as Libr
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 
-/// Engine control values mirrored for soft-takeover / action context.
+/// Local mirrors still needed for pad routing + LED (not soft-takeover).
+/// Absolute values are wire `0..1` when present.
 #[derive(Clone, Debug)]
 pub struct ControlSnapshot {
     pub playing: [bool; 4],
     pub volume: [f32; 4],
-    pub filter_db: [f32; 4],
-    pub gain_db: [f32; 4],
+    pub filter: [f32; 4],
+    pub gain_trim: [f32; 4],
     pub speed: [f32; 4],
     pub eq_low: [f32; 4],
     pub eq_mid: [f32; 4],
@@ -31,12 +32,12 @@ impl Default for ControlSnapshot {
         Self {
             playing: [false; 4],
             volume: [1.0; 4],
-            filter_db: [0.0; 4],
-            gain_db: [0.0; 4],
-            speed: [1.0; 4],
-            eq_low: [0.0; 4],
-            eq_mid: [0.0; 4],
-            eq_high: [0.0; 4],
+            filter: [0.5; 4],
+            gain_trim: [0.5; 4],
+            speed: [0.5; 4],
+            eq_low: [0.5; 4],
+            eq_mid: [0.5; 4],
+            eq_high: [0.5; 4],
             headphone_cue: [false; 4],
             quantize: [false; 4],
             pad_mode: [PadMode::HotCue; 4],
@@ -61,8 +62,8 @@ impl ControlSnapshot {
                 let i = deck_idx(d);
                 match key {
                     "volume" => self.volume[i] = value,
-                    "filter" | "filter_db" => self.filter_db[i] = value,
-                    "gain" | "gain_db" => self.gain_db[i] = value,
+                    "filter" | "filter_db" => self.filter[i] = value,
+                    "gain" | "gain_db" | "gain_trim" => self.gain_trim[i] = value,
                     "speed" | "tempo" => self.speed[i] = value,
                     "eq_low" => self.eq_low[i] = value,
                     "eq_mid" => self.eq_mid[i] = value,
@@ -84,83 +85,10 @@ impl ControlSnapshot {
             Origin::Engine => {}
         }
     }
-
-    pub fn get_norm_for_action(&self, origin: Origin, leaf: &str) -> Option<f32> {
-        match origin {
-            Origin::Mixer => match leaf {
-                "set_crossfader" => Some(self.crossfader),
-                "set_cue_mix" => Some(self.cue_mix),
-                _ => None,
-            },
-            Origin::Deck(d) => {
-                let i = deck_idx(d);
-                match leaf {
-                    "set_volume" => Some(self.volume[i]),
-                    "set_filter" => Some(filter_db_to_norm(self.filter_db[i])),
-                    "set_gain" => Some(gain_db_to_norm(self.gain_db[i])),
-                    "set_speed" => Some(speed_to_norm(self.speed[i])),
-                    "set_eq_low" => Some(eq_to_norm(self.eq_low[i])),
-                    "set_eq_mid" => Some(eq_to_norm(self.eq_mid[i])),
-                    "set_eq_high" => Some(eq_to_norm(self.eq_high[i])),
-                    _ => None,
-                }
-            }
-            Origin::Engine => None,
-        }
-    }
 }
 
 fn deck_idx(d: u16) -> usize {
     (d as usize).min(3)
-}
-
-/// Match `engine-dsp` / GUI ±24 dB strip range.
-const STRIP_DB_MIN: f32 = -24.0;
-const STRIP_DB_MAX: f32 = 24.0;
-
-fn db_to_norm(db: f32) -> f32 {
-    ((db - STRIP_DB_MIN) / (STRIP_DB_MAX - STRIP_DB_MIN)).clamp(0.0, 1.0)
-}
-
-fn norm_to_db(n: f32) -> f32 {
-    // Match GUI EQ_STEP_DB (0.1) so MIDI center detents land on 0.
-    let db = n.clamp(0.0, 1.0) * (STRIP_DB_MAX - STRIP_DB_MIN) + STRIP_DB_MIN;
-    (db * 10.0).round() / 10.0
-}
-
-fn filter_db_to_norm(db: f32) -> f32 {
-    db_to_norm(db)
-}
-
-fn norm_to_filter_db(n: f32) -> f32 {
-    norm_to_db(n)
-}
-
-fn gain_db_to_norm(db: f32) -> f32 {
-    db_to_norm(db)
-}
-
-fn norm_to_gain_db(n: f32) -> f32 {
-    norm_to_db(n)
-}
-
-fn eq_to_norm(db: f32) -> f32 {
-    db_to_norm(db)
-}
-
-fn norm_to_eq(n: f32) -> f32 {
-    norm_to_db(n)
-}
-
-/// Pioneer tempo fader: top = slow. Map engine speed (~0.84..1.16) ↔ MIDI 0..1 inverted.
-fn speed_to_norm(speed: f32) -> f32 {
-    let s = speed.clamp(0.84, 1.16);
-    (1.0 - (s - 0.84) / 0.32).clamp(0.0, 1.0)
-}
-
-fn norm_to_speed(n: f32) -> f32 {
-    // inverted: MIDI 0 (top) → 1.16, MIDI 1 (bottom) → 0.84
-    1.16 - n.clamp(0.0, 1.0) * 0.32
 }
 
 /// Resolved mapping publish target.
@@ -260,9 +188,7 @@ pub fn resolve_action(
 
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
-        "toggle_play" => {
-            active.then_some(engine_cmd(origin, Kind::TogglePlay, CmdBody::Empty))
-        }
+        "toggle_play" => active.then_some(engine_cmd(origin, Kind::TogglePlay, CmdBody::Empty)),
         "play" => active.then_some(engine_cmd(origin, Kind::Play, CmdBody::Empty)),
         "pause" => active.then_some(engine_cmd(origin, Kind::Pause, CmdBody::Empty)),
         "cue" => active.then_some(engine_cmd(origin, Kind::SetCuePoint, CmdBody::Empty)),
@@ -297,7 +223,7 @@ pub fn resolve_action(
             origin,
             Kind::SetFilter,
             CmdBody::SetFilter {
-                filter_db: norm_to_filter_db(norm),
+                filter: norm.clamp(0.0, 1.0),
                 soft_takeover,
             },
         )),
@@ -305,7 +231,7 @@ pub fn resolve_action(
             origin,
             Kind::SetGainTrim,
             CmdBody::SetGainTrim {
-                gain_db: norm_to_gain_db(norm),
+                gain_trim: norm.clamp(0.0, 1.0),
                 soft_takeover,
             },
         )),
@@ -313,7 +239,7 @@ pub fn resolve_action(
             origin,
             Kind::SetSpeed,
             CmdBody::SetSpeed {
-                speed: norm_to_speed(norm),
+                speed: norm.clamp(0.0, 1.0),
                 soft_takeover,
             },
         )),
@@ -329,7 +255,7 @@ pub fn resolve_action(
                 Kind::SetEqBand,
                 CmdBody::SetEqBand {
                     band,
-                    gain_db: norm_to_eq(norm),
+                    gain: norm.clamp(0.0, 1.0),
                     soft_takeover,
                 },
             ))
@@ -350,13 +276,11 @@ pub fn resolve_action(
                 soft_takeover,
             },
         )),
-        "set_master_cue" => {
-            active.then_some(engine_cmd(
-                Origin::Mixer,
-                Kind::ToggleMasterCue,
-                CmdBody::Empty,
-            ))
-        }
+        "set_master_cue" => active.then_some(engine_cmd(
+            Origin::Mixer,
+            Kind::ToggleMasterCue,
+            CmdBody::Empty,
+        )),
         "set_headphone_cue" => {
             active.then_some(engine_cmd(origin, Kind::ToggleHeadphoneCue, CmdBody::Empty))
         }
@@ -601,61 +525,75 @@ mod tests {
     use super::*;
 
     #[test]
-    fn eq_knob_max_maps_to_plus_24_db() {
+    fn eq_knob_max_maps_to_full_norm() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetEqBand {
-                    band: engine_api::EqBand::Low,
-                    gain_db,
-                    soft_takeover: false,
-                },
+                body:
+                    CmdBody::SetEqBand {
+                        band: engine_api::EqBand::Low,
+                        gain,
+                        soft_takeover: false,
+                    },
                 ..
-            } => assert!((gain_db - 24.0).abs() < 1e-5, "gain_db={gain_db}"),
+            } => assert!((gain - 1.0).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }
 
     #[test]
-    fn eq_knob_center_maps_to_0_db() {
+    fn eq_knob_center_maps_to_half_norm() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetEqBand {
-                    band: engine_api::EqBand::Mid,
-                    gain_db,
-                    soft_takeover: false,
-                },
+                body:
+                    CmdBody::SetEqBand {
+                        band: engine_api::EqBand::Mid,
+                        gain,
+                        soft_takeover: false,
+                    },
                 ..
-            } => assert!((gain_db - 0.0).abs() < 1e-5, "gain_db={gain_db}"),
+            } => assert!((gain - 0.5).abs() < 1e-5, "gain={gain}"),
             other => panic!("unexpected {other:?}"),
         }
     }
 
     #[test]
-    fn filter_knob_max_maps_to_plus_24_db() {
+    fn filter_knob_passes_norm() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetFilter { filter_db, soft_takeover: false },
+                body:
+                    CmdBody::SetFilter {
+                        filter,
+                        soft_takeover: false,
+                    },
                 ..
-            } => assert!((filter_db - 24.0).abs() < 1e-5, "filter_db={filter_db}"),
+            } => assert!((filter - 1.0).abs() < 1e-5, "filter={filter}"),
             other => panic!("unexpected {other:?}"),
         }
     }
 
     #[test]
-    fn gain_knob_max_maps_to_plus_24_db() {
+    fn gain_knob_passes_norm() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetGainTrim { gain_db, soft_takeover: false },
+                body:
+                    CmdBody::SetGainTrim {
+                        gain_trim,
+                        soft_takeover: false,
+                    },
                 ..
-            } => assert!((gain_db - 24.0).abs() < 1e-5, "gain_db={gain_db}"),
+            } => assert!((gain_trim - 1.0).abs() < 1e-5, "gain_trim={gain_trim}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -663,7 +601,8 @@ mod tests {
     #[test]
     fn pad_routes_by_software_pad_mode() {
         let mut snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SaveHotCue { slot },
@@ -673,7 +612,8 @@ mod tests {
         }
 
         snap.hot_cues[0][0] = Some(12_500);
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerHotCue { position_ms },
@@ -683,7 +623,8 @@ mod tests {
         }
 
         snap.pad_mode[0] = PadMode::BeatJump;
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeatJump { beats },
@@ -711,7 +652,8 @@ mod tests {
         ));
 
         snap.pad_mode[0] = PadMode::Sampler;
-        let routed = resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed =
+            resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerSampler { slot },
@@ -724,8 +666,15 @@ mod tests {
     #[test]
     fn pad_mode_button_sets_mode() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::pad_mode(mode:loop_roll)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::pad_mode(mode:loop_roll)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SetPadMode { mode },
@@ -756,8 +705,15 @@ mod tests {
             } => assert_eq!(delta, 1),
             other => panic!("expected Navigate +1, got {other:?}"),
         }
-        let prev =
-            resolve_action("LibraryNavigation::navigate", "master", 1.0, true, false, &snap).unwrap();
+        let prev = resolve_action(
+            "LibraryNavigation::navigate",
+            "master",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match prev {
             RoutedAction::LibraryEvt {
                 kind: LibraryKind::Navigate,
@@ -778,7 +734,6 @@ mod tests {
             true,
             false,
             &snap,
-
         )
         .unwrap();
         match routed {

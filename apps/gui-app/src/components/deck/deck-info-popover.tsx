@@ -7,6 +7,7 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { normToStripDb } from "@/lib/eq";
 import { buttonIcon } from "@/lib/ui";
 import type { DeckStatus } from "@/types";
 
@@ -47,7 +48,8 @@ export function DeckInfoPopover({
   accentClass = "text-zinc-400",
 }: DeckInfoPopoverProps): ReactElement {
   const hasLoudness = deck.loudness_lufs != null && Number.isFinite(deck.loudness_lufs);
-  const totalGainDb = deck.auto_gain_db + deck.gain_trim_db;
+  const gainTrimDb = normToStripDb(deck.gain_trim);
+  const totalGainDb = deck.auto_gain_db + gainTrimDb;
 
   return (
     <Popover>
@@ -67,7 +69,7 @@ export function DeckInfoPopover({
             value={hasLoudness ? replayGainEquivalentDb(deck.loudness_lufs as number) : "—"}
           />
           <InfoRow label="Auto gain" value={formatGainDb(deck.auto_gain_db)} />
-          <InfoRow label="Gain trim" value={formatGainDb(deck.gain_trim_db)} />
+          <InfoRow label="Gain trim" value={formatGainDb(gainTrimDb)} />
           <InfoRow label="Total gain" value={formatGainDb(totalGainDb)} />
         </PopoverDescription>
       </PopoverPopup>

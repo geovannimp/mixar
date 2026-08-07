@@ -26,7 +26,7 @@ export function useDeckControls(deckId: number) {
         pad_mode: deck.pad_mode,
         loudness_lufs: deck.loudness_lufs,
         auto_gain_db: deck.auto_gain_db,
-        gain_trim_db: deck.gain_trim_db,
+        gain_trim: deck.gain_trim,
         active_sampler_bank_id: deck.active_sampler_bank_id,
         top_jog_mode: deck.top_jog_mode,
         outer_jog_mode: deck.outer_jog_mode,

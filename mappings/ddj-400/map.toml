@@ -21,7 +21,7 @@ quantize = "Deck(_)::set_quantize"
 headphone_cue = "Deck(_)::set_headphone_cue"
 volume = { action = "Deck(_)::set_volume", soft_takeover = true }
 gain = { action = "Deck(_)::set_gain", soft_takeover = true }
-tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
 eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
 eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
 eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }
@@ -87,7 +87,7 @@ quantize = "Deck(_)::set_quantize"
 headphone_cue = "Deck(_)::set_headphone_cue"
 volume = { action = "Deck(_)::set_volume", soft_takeover = true }
 gain = { action = "Deck(_)::set_gain", soft_takeover = true }
-tempo = { action = "Deck(_)::set_speed", soft_takeover = true }
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
 eq_high = { action = "Deck(_)::set_eq_high", soft_takeover = true }
 eq_mid = { action = "Deck(_)::set_eq_mid", soft_takeover = true }
 eq_low = { action = "Deck(_)::set_eq_low", soft_takeover = true }

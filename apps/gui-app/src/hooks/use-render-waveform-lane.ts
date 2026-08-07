@@ -3,6 +3,7 @@ import { getLibraryTransport } from "@/lib/library/transport";
 import type { DeckEq, WaveformFrame } from "@/types";
 import { WaveformTrackCache } from "@/lib/waveform-track-cache";
 import { waveformVisibleSourceMs } from "@/lib/spectral-color";
+import { normToStripDb } from "@/lib/eq";
 import { asError, waveformLogger } from "@/lib/logging";
 
 const MAX_CONCURRENT_TILE_FETCHES = 3;
@@ -91,9 +92,9 @@ export function useRenderWaveformLane({
           bufferRatio: 0,
           includeDetail: true,
           includeBeatGrid: true,
-          eqLowDb: eqRef.current.low,
-          eqMidDb: eqRef.current.mid,
-          eqHighDb: eqRef.current.high,
+          eqLowDb: normToStripDb(eqRef.current.low),
+          eqMidDb: normToStripDb(eqRef.current.mid),
+          eqHighDb: normToStripDb(eqRef.current.high),
         });
 
         if (requestId !== requestIdRef.current) {

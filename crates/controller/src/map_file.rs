@@ -26,6 +26,9 @@ pub struct InputBinding {
     pub modifier: Option<String>,
     #[serde(default)]
     pub soft_takeover: Option<bool>,
+    /// Flip MIDI `0..1` before publish (`norm = 1 - norm`). For Pioneer tempo, etc.
+    #[serde(default)]
+    pub invert: Option<bool>,
     #[serde(default)]
     pub script: Option<String>,
 }
@@ -36,6 +39,7 @@ impl InputBinding {
             action: Some(action.to_string()),
             modifier: None,
             soft_takeover: None,
+            invert: None,
             script: None,
         }
     }
@@ -70,6 +74,10 @@ impl InputBinding {
             return v;
         }
         self.action.as_deref().is_some_and(is_absolute_action)
+    }
+
+    pub fn invert_effective(&self) -> bool {
+        self.invert.unwrap_or(false)
     }
 }
 
@@ -303,3 +311,26 @@ fn validate_output_target(
 
 /// Marker for docs / tests around soft-takeover defaults.
 pub struct SoftTakeoverDefault;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invert_effective_defaults_false() {
+        let b = InputBinding::from_action("Deck(_)::set_speed");
+        assert!(!b.invert_effective());
+    }
+
+    #[test]
+    fn invert_effective_when_set() {
+        let b = InputBinding {
+            action: Some("Deck(_)::set_speed".into()),
+            modifier: None,
+            soft_takeover: None,
+            invert: Some(true),
+            script: None,
+        };
+        assert!(b.invert_effective());
+    }
+}

@@ -86,13 +86,10 @@ impl DeviceFile {
                 path: path.to_path_buf(),
                 source,
             })?;
-        let mut device: DeviceFile =
-            table
-                .try_into()
-                .map_err(|source| LoadError::Parse {
-                    path: path.to_path_buf(),
-                    source,
-                })?;
+        let mut device: DeviceFile = table.try_into().map_err(|source| LoadError::Parse {
+            path: path.to_path_buf(),
+            source,
+        })?;
         device.toml_schema = toml_schema;
         // Flatten may swallow known top-level keys if mistyped; strip non-section maps.
         device.sections.retain(|k, _| is_section_key(k));

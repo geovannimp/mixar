@@ -77,11 +77,14 @@ export const OriginSchema = z.union([
 export type Origin = z.infer<typeof OriginSchema>;
 
 export const DeckEqSchema = z.object({
-  low: z.number(),
-  mid: z.number(),
-  high: z.number(),
+  low: z.number().min(0).max(1),
+  mid: z.number().min(0).max(1),
+  high: z.number().min(0).max(1),
 });
 export type DeckEq = z.infer<typeof DeckEqSchema>;
+
+/** Absolute control position on the wire (`0..1`). */
+const UnitNorm = z.number().min(0).max(1);
 
 export const SyncModeSchema = z.enum(["off", "tempo", "beat"]);
 export type SyncMode = z.infer<typeof SyncModeSchema>;
@@ -155,11 +158,11 @@ export const DeckSnapshotSchema = z.object({
   bpm: z.number().nullable(),
   key: z.string().nullable(),
   playing: z.boolean(),
-  volume: z.number(),
-  speed: z.number(),
+  volume: UnitNorm,
+  speed: UnitNorm,
   eq: DeckEqSchema,
-  filter_db: z.number(),
-  gain_trim_db: z.number(),
+  filter: UnitNorm,
+  gain_trim: UnitNorm,
   headphone_cue: z.boolean(),
   sync_mode: SyncModeSchema,
   cue_point_ms: z.number().nullable(),
@@ -182,8 +185,8 @@ export type DeckSnapshot = z.infer<typeof DeckSnapshotSchema>;
 export const EngineStatusPayloadSchema = z.object({
   running: z.boolean(),
   sample_rate: z.number().int().nonnegative(),
-  crossfader: z.number(),
-  cue_mix: z.number(),
+  crossfader: UnitNorm,
+  cue_mix: UnitNorm,
   master_cue: z.boolean(),
   master_deck: z.number().int().nonnegative(),
   decks: z.array(DeckSnapshotSchema),
@@ -199,25 +202,25 @@ const SoftTakeoverField = {
 export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("empty") }),
   z.object({ type: z.literal("seek"), position_ms: z.number() }),
-  z.object({ type: z.literal("set_volume"), volume: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_volume"), volume: UnitNorm, ...SoftTakeoverField }),
   z.object({
     type: z.literal("set_eq"),
-    low: z.number(),
-    mid: z.number(),
-    high: z.number(),
+    low: UnitNorm,
+    mid: UnitNorm,
+    high: UnitNorm,
   }),
   z.object({
     type: z.literal("set_eq_band"),
     band: EqBandSchema,
-    gain_db: z.number(),
+    gain: UnitNorm,
     ...SoftTakeoverField,
   }),
-  z.object({ type: z.literal("set_speed"), speed: z.number(), ...SoftTakeoverField }),
-  z.object({ type: z.literal("set_filter"), filter_db: z.number(), ...SoftTakeoverField }),
-  z.object({ type: z.literal("set_gain_trim"), gain_db: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_speed"), speed: UnitNorm, ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_filter"), filter: UnitNorm, ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_gain_trim"), gain_trim: UnitNorm, ...SoftTakeoverField }),
   z.object({ type: z.literal("set_headphone_cue"), enabled: z.boolean() }),
-  z.object({ type: z.literal("set_crossfader"), position: z.number(), ...SoftTakeoverField }),
-  z.object({ type: z.literal("set_cue_mix"), mix: z.number(), ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_crossfader"), position: UnitNorm, ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_cue_mix"), mix: UnitNorm, ...SoftTakeoverField }),
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
   z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
@@ -288,11 +291,11 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     bpm: z.number().nullable(),
     key: z.string().nullable(),
     playing: z.boolean(),
-    volume: z.number(),
-    speed: z.number(),
+    volume: UnitNorm,
+    speed: UnitNorm,
     eq: DeckEqSchema,
-    filter_db: z.number(),
-    gain_trim_db: z.number(),
+    filter: UnitNorm,
+    gain_trim: UnitNorm,
     headphone_cue: z.boolean(),
     sync_mode: SyncModeSchema,
     cue_point_ms: z.number().nullable(),
@@ -311,6 +314,7 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     jog_touching: z.boolean(),
   }),
   z.object({ type: z.literal("position"), position_ms: z.number() }),
+
   z.object({
     type: z.literal("levels"),
     peak_l: z.number(),
