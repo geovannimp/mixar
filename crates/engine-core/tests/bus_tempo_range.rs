@@ -14,12 +14,14 @@ fn recv_evt_kind(
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == kind {
-            return (*event).clone();
+        match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) => {
+                if *event.kind() == kind {
+                    return (*event).clone();
+                }
+            }
+            Ok(None) => {}
+            Err(e) => panic!("recv: {e}"),
         }
     }
     panic!("timeout waiting for evt kind {kind:?}");
@@ -29,8 +31,7 @@ fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
 }
 
-#[test]
-fn set_tempo_range_keeps_speed_and_publishes_fraction() {
+fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
         backend: "null".to_string(),
         ..Default::default()
@@ -52,7 +53,12 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
             )
         })
         .expect("load");
+    session
+}
 
+#[test]
+fn set_tempo_range_keeps_speed_and_publishes_fraction() {
+    let session = null_session_with_loaded_deck();
     let evt = session
         .evt_bus()
         .subscribe(Filter::Any, Filter::Any)
@@ -91,6 +97,40 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
     else {
         panic!("expected DeckUpdated");
     };
-    assert!((tempo_range - 0.10).abs() < 1e-5, "tempo_range={tempo_range}");
+    assert!(
+        (tempo_range - 0.10).abs() < 1e-5,
+        "tempo_range={tempo_range}"
+    );
     assert!((speed - 0.25).abs() < 1e-5, "speed={speed}");
+}
+
+#[test]
+fn set_tempo_range_rejects_non_positive_and_non_finite() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    for bad in [0.0_f32, -0.06, f32::NAN, f32::INFINITY] {
+        session
+            .publish_cmd(
+                Origin::Deck(0),
+                Kind::SetTempoRange,
+                encode_cmd_body(&CmdBody::SetTempoRange {
+                    tempo_range: bad,
+                })
+                .unwrap(),
+            )
+            .expect("publish");
+        let event = recv_evt_kind(&evt, Kind::Error);
+        assert_eq!(*event.kind(), Kind::Error);
+        let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+            panic!("expected Error body for {bad}");
+        };
+        assert!(
+            message.contains("tempo_range"),
+            "message={message} bad={bad}"
+        );
+    }
 }

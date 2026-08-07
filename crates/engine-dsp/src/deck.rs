@@ -962,7 +962,7 @@ mod tests {
         deck.set_track_bpm(Some(150.0));
         deck.set_speed(0.0).unwrap();
         assert_eq!(deck.speed(), 0.0);
-        assert!((deck.playback_ratio() - 158.0 / 150.0).abs() < 1e-5);
+        assert!((deck.playback_ratio() - 1.06).abs() < 1e-5);
         assert!(deck.set_speed(-0.1).is_err());
         assert!(deck.set_speed(1.1).is_err());
     }

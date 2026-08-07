@@ -49,15 +49,16 @@ export function DeckTempoPanel({
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
           {formatPitchPercent(deck.speed, deck.tempo_range)}
         </span>
-        <button
+        <DeckButton
           type="button"
-          className="text-[10px] font-semibold tabular-nums text-zinc-400 hover:text-zinc-200 disabled:opacity-40"
+          size="toggle"
           disabled={disabled}
           title="Cycle tempo range"
+          className="w-full tabular-nums tracking-normal normal-case"
           onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range))}
         >
           {formatTempoRange(deck.tempo_range)}
-        </button>
+        </DeckButton>
         <DeckButton
           type="button"
           size="sync"
