@@ -33,7 +33,7 @@ mod waveform_render;
 use audio_cache::{get_or_compute_detail, get_or_compute_overview, AudioCache};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use fs_browser::{browse_directory, list_volumes, DirectoryListing, VolumeInfo};
-use waveform_render::{render_scrolling_lane, WaveformDisplayGains};
+use waveform_render::{pack_waveform_frame, render_scrolling_lane, WaveformDisplayGains};
 
 use bus_bridge::{clear_session, install_session, EvtForwarder, SharedSession};
 use bus_bridge::publish_engine_status;
@@ -360,23 +360,6 @@ fn default_engine_config() -> EngineConfig {
         &default_master_bus_route(),
     )];
     config
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct WaveformFrame {
-    /// Full strip pixel width (may be wider than the viewport).
-    width: u32,
-    height: u32,
-    /// Base64-encoded RGBA bytes (width * height * 4).
-    rgba_base64: String,
-    /// Playhead time the strip was centered on when rendered.
-    center_ms: i32,
-    /// Absolute timeline start covered by the strip.
-    cover_start_ms: i32,
-    /// Absolute timeline end covered by the strip.
-    cover_end_ms: i32,
-    /// Milliseconds shown in the viewport (center playhead window).
-    visible_ms: i32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -816,7 +799,7 @@ async fn render_waveform_lane(
     eq_mid_db: f32,
     eq_high_db: f32,
     state: State<'_, SharedAppState>,
-) -> Result<WaveformFrame, String> {
+) -> Result<tauri::ipc::Response, String> {
     let viewport_width = width.max(1) as usize;
     let height = height.max(1) as usize;
     let visible_ms = visible_ms.max(100);
@@ -934,15 +917,16 @@ async fn render_waveform_lane(
     );
 
     let half_cover_ms = secs_to_ms(cover_secs / 2.0);
-    Ok(WaveformFrame {
-        width: strip_width as u32,
-        height: height as u32,
-        rgba_base64: BASE64.encode(rgba),
-        center_ms: position_ms,
-        cover_start_ms: position_ms - half_cover_ms,
-        cover_end_ms: position_ms + half_cover_ms,
+    let packed = pack_waveform_frame(
+        strip_width as u32,
+        height as u32,
+        position_ms,
+        position_ms - half_cover_ms,
+        position_ms + half_cover_ms,
         visible_ms,
-    })
+        rgba,
+    );
+    Ok(tauri::ipc::Response::new(packed))
 }
 
 #[tauri::command]

@@ -8,13 +8,19 @@ const MAX_TILES = 48;
 /** Common browser/GPU 2D canvas width ceiling (Chrome often caps at 16384). */
 export const MAX_WAVEFORM_CANVAS_WIDTH = 16384;
 
-function decodeBase64Rgba(base64: string): Uint8ClampedArray<ArrayBuffer> {
-  const binary = atob(base64);
-  const bytes = new Uint8ClampedArray(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
+/** Progressive tile resolution: overview (L0) then detail (L1). */
+export type TileQuality = "overview" | "detail";
+
+const QUALITY_RANK: Record<TileQuality, number> = {
+  overview: 1,
+  detail: 2,
+};
+
+function qualityAtLeast(have: TileQuality | null, want: TileQuality): boolean {
+  if (have == null) {
+    return false;
   }
-  return bytes;
+  return QUALITY_RANK[have] >= QUALITY_RANK[want];
 }
 
 /** Pick tile duration from track length (not a fixed window size). */
@@ -42,7 +48,7 @@ export function computePxPerMs(
   return Math.min(ideal, capped);
 }
 
-/** Full-track strip filled incrementally; never re-fetches completed tiles. */
+/** Full-track strip filled incrementally; overview tiles can upgrade to detail. */
 export class WaveformTrackCache {
   readonly canvas: HTMLCanvasElement;
   readonly visibleMs: number;
@@ -51,7 +57,7 @@ export class WaveformTrackCache {
   readonly durationMs: number;
   readonly height: number;
 
-  private readonly filledTiles = new Set<number>();
+  private readonly tileQuality = new Map<number, TileQuality>();
   private readonly pendingTiles = new Set<number>();
   private readonly tileCount: number;
   private revision = 0;
@@ -100,6 +106,11 @@ export class WaveformTrackCache {
     return this.revision;
   }
 
+  /** Test helper — current quality for a tile, or null if empty. */
+  qualityOf(index: number): TileQuality | null {
+    return this.tileQuality.get(index) ?? null;
+  }
+
   tileRange(index: number): { start: number; end: number; duration: number } {
     const start = index * this.tileMs;
     const end = Math.min(this.durationMs, start + this.tileMs);
@@ -111,13 +122,15 @@ export class WaveformTrackCache {
     return Math.max(1, Math.round(duration * this.pxPerMs));
   }
 
-  tryMarkPending(index: number): boolean {
-    if (
-      index < 0 ||
-      index >= this.tileCount ||
-      this.filledTiles.has(index) ||
-      this.pendingTiles.has(index)
-    ) {
+  /**
+   * Mark a tile pending for a fetch aiming at `want` quality.
+   * Allows overview → detail upgrades; rejects if already at/above `want` or pending.
+   */
+  tryMarkPending(index: number, want: TileQuality): boolean {
+    if (index < 0 || index >= this.tileCount || this.pendingTiles.has(index)) {
+      return false;
+    }
+    if (qualityAtLeast(this.tileQuality.get(index) ?? null, want)) {
       return false;
     }
     this.pendingTiles.add(index);
@@ -128,16 +141,29 @@ export class WaveformTrackCache {
     this.pendingTiles.delete(index);
   }
 
-  missingTileIndices(viewStart: number, viewEnd: number, prefetchMargin = 1): number[] {
+  /**
+   * Tiles in the view range (plus prefetch) that are below `want` quality and not pending.
+   * Sorted nearest to view center first.
+   */
+  missingTileIndices(
+    viewStart: number,
+    viewEnd: number,
+    prefetchMargin = 1,
+    want: TileQuality = "overview",
+  ): number[] {
     const first = Math.floor(viewStart / this.tileMs) - prefetchMargin;
     const last = Math.floor(viewEnd / this.tileMs) + prefetchMargin;
     const center = (viewStart + viewEnd) / 2;
 
     const indices: number[] = [];
     for (let index = Math.max(0, first); index <= Math.min(this.tileCount - 1, last); index += 1) {
-      if (!this.filledTiles.has(index) && !this.pendingTiles.has(index)) {
-        indices.push(index);
+      if (this.pendingTiles.has(index)) {
+        continue;
       }
+      if (qualityAtLeast(this.tileQuality.get(index) ?? null, want)) {
+        continue;
+      }
+      indices.push(index);
     }
 
     indices.sort((a, b) => {
@@ -149,34 +175,35 @@ export class WaveformTrackCache {
     return indices;
   }
 
-  blitTile(frame: WaveformFrame, tileIndex: number): void {
+  blitTile(frame: WaveformFrame, tileIndex: number, quality: TileQuality): void {
     const ctx = this.canvas.getContext("2d");
     if (!ctx || frame.width <= 0 || frame.height <= 0) {
+      this.pendingTiles.delete(tileIndex);
       return;
     }
 
     try {
-      const rgba = decodeBase64Rgba(frame.rgba_base64);
+      const current = this.tileQuality.get(tileIndex) ?? null;
+      // Ignore stale lower-quality responses that finish after a detail upgrade.
+      if (current != null && QUALITY_RANK[current] > QUALITY_RANK[quality]) {
+        return;
+      }
+
       const expected = frame.width * frame.height * 4;
-      if (rgba.length !== expected) {
+      if (frame.rgba.length !== expected) {
         waveformLogger.error(
-          `waveform tile rgba size mismatch: got ${rgba.length}, expected ${expected}`,
+          `waveform tile rgba size mismatch: got ${frame.rgba.length}, expected ${expected}`,
         );
         return;
       }
 
-      const image = new ImageData(rgba, frame.width, frame.height);
-      const tile = document.createElement("canvas");
-      tile.width = frame.width;
-      tile.height = frame.height;
-      tile.getContext("2d")?.putImageData(image, 0, 0);
-
+      const image = new ImageData(frame.rgba, frame.width, frame.height);
       const { start } = this.tileRange(tileIndex);
-      const destX = start * this.pxPerMs;
-      ctx.drawImage(tile, destX, 0);
+      const destX = Math.round(start * this.pxPerMs);
+      ctx.putImageData(image, destX, 0);
 
       if (tileIndex >= 0 && tileIndex < this.tileCount) {
-        this.filledTiles.add(tileIndex);
+        this.tileQuality.set(tileIndex, quality);
         this.revision += 1;
       }
     } catch (err) {
