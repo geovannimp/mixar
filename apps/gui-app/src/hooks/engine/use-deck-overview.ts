@@ -1,4 +1,5 @@
 import { useShallow } from "zustand/react/shallow";
+import { normToSpeedRatio } from "@/lib/format";
 import { getDefaultDeck } from "@/stores/default-deck";
 import { useEngineStore } from "@/stores/engine-store";
 
@@ -11,7 +12,7 @@ export function useDeckOverview(deckId: number) {
         track_id: deck.track_id,
         track: deck.track,
         playing: deck.playing,
-        speed: deck.speed,
+        speed: normToSpeedRatio(deck.speed),
         duration_ms: deck.duration_ms,
         hot_cues: deck.hot_cues,
       };

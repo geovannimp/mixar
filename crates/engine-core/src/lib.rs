@@ -8,6 +8,7 @@ mod bus;
 mod callback;
 mod config;
 mod control;
+mod control_norm;
 mod engine;
 mod producer;
 mod routing;

@@ -1,7 +1,13 @@
 import { Headphones } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { EQ_MAX_DB, EQ_MIN_DB } from "@/lib/eq";
+import {
+  CONTROL_NORM_CENTER,
+  CONTROL_NORM_MAX,
+  CONTROL_NORM_MIN,
+  CONTROL_NORM_STEP,
+  formatStripNormDb,
+} from "@/lib/eq";
 import { buttonIcon, DECK_ACCENTS, type DeckAccent } from "@/lib/ui";
 import { DEFAULT_DECK_EQ, type DeckEq, type LevelMeterMode } from "@/types";
 import { useCrossfader } from "@/hooks/engine/use-crossfader";
@@ -27,21 +33,21 @@ interface MixerKnobProps {
   value: number;
   accent: (typeof DECK_ACCENTS)[DeckAccent];
   disabled?: boolean;
-  min?: number;
-  max?: number;
   onValueChange: (value: number) => void;
 }
 
-function MixerKnob({ label, value, accent, disabled, min, max, onValueChange }: MixerKnobProps) {
+function MixerKnob({ label, value, accent, disabled, onValueChange }: MixerKnobProps) {
   return (
     <RotaryKnob
       label={label}
       value={value}
-      min={min}
-      max={max}
+      min={CONTROL_NORM_MIN}
+      max={CONTROL_NORM_MAX}
+      step={CONTROL_NORM_STEP}
       disabled={disabled}
       accentClass={accent.text}
       ringClass={accent.ring}
+      formatValue={formatStripNormDb}
       onValueChange={onValueChange}
     />
   );
@@ -50,16 +56,16 @@ function MixerKnob({ label, value, accent, disabled, min, max, onValueChange }: 
 interface DeckEqColumnProps {
   accent: (typeof DECK_ACCENTS)[DeckAccent];
   eq: DeckEq;
-  filterDb: number;
+  filter: number;
   disabled?: boolean;
   onEqChange: (eq: DeckEq) => void;
-  onFilterChange: (filterDb: number) => void;
+  onFilterChange: (filter: number) => void;
 }
 
 function DeckEqColumn({
   accent,
   eq,
-  filterDb,
+  filter,
   disabled,
   onEqChange,
   onFilterChange,
@@ -80,11 +86,9 @@ function DeckEqColumn({
       ))}
       <MixerKnob
         label="FLT"
-        value={filterDb}
+        value={filter}
         accent={accent}
         disabled={disabled}
-        min={EQ_MIN_DB}
-        max={EQ_MAX_DB}
         onValueChange={onFilterChange}
       />
     </div>
@@ -94,11 +98,11 @@ function DeckEqColumn({
 interface DeckVolumeFaderProps {
   channelAccent: DeckAccent;
   accent: (typeof DECK_ACCENTS)[DeckAccent];
-  gainDb: number;
+  gainTrim: number;
   volume: number;
   cue: boolean;
   disabled?: boolean;
-  onGainChange: (gainDb: number) => void;
+  onGainChange: (gainTrim: number) => void;
   onVolumeChange: (volume: number) => void;
   onCueChange: (cue: boolean) => void;
 }
@@ -106,7 +110,7 @@ interface DeckVolumeFaderProps {
 function DeckVolumeFader({
   channelAccent,
   accent,
-  gainDb,
+  gainTrim,
   volume,
   cue,
   disabled,
@@ -120,11 +124,9 @@ function DeckVolumeFader({
     <div className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
       <MixerKnob
         label="GAIN"
-        value={gainDb}
+        value={gainTrim}
         accent={accent}
         disabled={disabled}
-        min={EQ_MIN_DB}
-        max={EQ_MAX_DB}
         onValueChange={onGainChange}
       />
 
@@ -177,7 +179,12 @@ function LevelMetersColumn({ levelMeterMode }: { levelMeterMode: LevelMeterMode 
   return (
     <div className="flex h-full shrink-0 flex-col items-center gap-1">
       <div className="invisible shrink-0" aria-hidden>
-        <MixerKnob label="GAIN" value={0} accent={DECK_ACCENTS.a} onValueChange={() => undefined} />
+        <MixerKnob
+          label="GAIN"
+          value={CONTROL_NORM_CENTER}
+          accent={DECK_ACCENTS.a}
+          onValueChange={() => undefined}
+        />
       </div>
       <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-0.5 border-t border-transparent px-0.5 py-1">
         <LevelMeter deckId={0} mode={levelMeterMode} />
@@ -247,12 +254,12 @@ function MixerEqColumn({
     <DeckEqColumn
       accent={accent}
       eq={channel.eq ?? DEFAULT_DECK_EQ}
-      filterDb={channel.filter_db}
+      filter={channel.filter}
       onEqChange={(eq) => {
         void engineActions.setDeckEq(deckId, eq);
       }}
-      onFilterChange={(filterDb) => {
-        void engineActions.setDeckFilter(deckId, filterDb);
+      onFilterChange={(filter) => {
+        void engineActions.setDeckFilter(deckId, filter);
       }}
     />
   );
@@ -272,11 +279,11 @@ function MixerVolumeColumn({
     <DeckVolumeFader
       channelAccent={channelAccent}
       accent={accent}
-      gainDb={channel.gain_trim_db}
+      gainTrim={channel.gain_trim}
       volume={channel.volume}
       cue={channel.headphone_cue}
-      onGainChange={(gainDb) => {
-        void engineActions.setDeckGainTrim(deckId, gainDb);
+      onGainChange={(gainTrim) => {
+        void engineActions.setDeckGainTrim(deckId, gainTrim);
       }}
       onVolumeChange={(volume) => {
         void engineActions.setDeckVolume(deckId, volume);

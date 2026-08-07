@@ -53,12 +53,12 @@ pub struct Engine {
     soft_takeover: crate::soft_takeover::SoftTakeoverState,
 }
 
-/// Absolute-control readback for soft-takeover compares.
+/// Absolute-control readback as wire `0..1` (for soft-takeover compares).
 #[derive(Clone, Copy, Debug)]
 pub struct DeckStripNorms {
     pub volume: f32,
-    pub filter_db: f32,
-    pub gain_db: f32,
+    pub filter: f32,
+    pub gain_trim: f32,
     pub eq_low: f32,
     pub eq_mid: f32,
     pub eq_high: f32,
@@ -1334,7 +1334,7 @@ impl Engine {
         &mut self.soft_takeover
     }
 
-    /// Channel strip + tempo readbacks for soft-takeover compares.
+    /// Channel strip + tempo readbacks as wire `0..1` for soft-takeover compares.
     pub fn deck_strip_norms(&self, deck_id: usize) -> Option<DeckStripNorms> {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
@@ -1343,12 +1343,12 @@ impl Engine {
         let eq = channel.eq_gains();
         Some(DeckStripNorms {
             volume: channel.volume(),
-            filter_db: channel.filter_db(),
-            gain_db: channel.gain_trim_db(),
-            eq_low: eq.low_db,
-            eq_mid: eq.mid_db,
-            eq_high: eq.high_db,
-            speed: deck.speed(),
+            filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
+            gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
+            eq_low: crate::control_norm::strip_db_to_norm(eq.low_db),
+            eq_mid: crate::control_norm::strip_db_to_norm(eq.mid_db),
+            eq_high: crate::control_norm::strip_db_to_norm(eq.high_db),
+            speed: crate::control_norm::speed_ratio_to_norm(deck.speed()),
             headphone_cue: channel.headphone_cue(),
         })
     }
@@ -1637,14 +1637,14 @@ fn deck_snapshot_from_dsp(
         key: None,
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
-        speed: deck.speed(),
+        speed: crate::control_norm::speed_ratio_to_norm(deck.speed()),
         eq: DeckEq {
-            low: eq.low_db,
-            mid: eq.mid_db,
-            high: eq.high_db,
+            low: crate::control_norm::strip_db_to_norm(eq.low_db),
+            mid: crate::control_norm::strip_db_to_norm(eq.mid_db),
+            high: crate::control_norm::strip_db_to_norm(eq.high_db),
         },
-        filter_db: channel.filter_db(),
-        gain_trim_db: channel.gain_trim_db(),
+        filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
+        gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
         headphone_cue: channel.headphone_cue(),
         sync_mode,
         cue_point_ms: deck.cue_point_ms(),

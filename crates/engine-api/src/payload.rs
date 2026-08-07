@@ -9,7 +9,7 @@ pub enum EqBand {
     High,
 }
 
-/// Three-band deck EQ gains.
+/// Three-band deck EQ as fader positions `0..1` (center `0.5` = 0 dB).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckEq {
     pub low: f32,
@@ -123,11 +123,15 @@ pub struct DeckSnapshot {
     pub bpm: Option<f64>,
     pub key: Option<String>,
     pub playing: bool,
+    /// Channel fader `0..1`.
     pub volume: f32,
+    /// Tempo fader position `0..1` (not playback ratio).
     pub speed: f32,
     pub eq: DeckEq,
-    pub filter_db: f32,
-    pub gain_trim_db: f32,
+    /// Filter knob `0..1` (center `0.5` = flat).
+    pub filter: f32,
+    /// Gain trim knob `0..1` (center `0.5` = 0 dB).
+    pub gain_trim: f32,
     pub headphone_cue: bool,
     pub sync_mode: SyncMode,
     pub cue_point_ms: Option<i32>,
@@ -172,6 +176,7 @@ pub enum CmdBody {
         #[serde(default)]
         soft_takeover: bool,
     },
+    /// EQ bands as `0..1` positions (center `0.5` = 0 dB).
     SetEq {
         low: f32,
         mid: f32,
@@ -179,22 +184,26 @@ pub enum CmdBody {
     },
     SetEqBand {
         band: EqBand,
-        gain_db: f32,
+        /// Band gain as `0..1` (center `0.5` = 0 dB).
+        gain: f32,
         #[serde(default)]
         soft_takeover: bool,
     },
+    /// Tempo fader position `0..1` (not playback ratio).
     SetSpeed {
         speed: f32,
         #[serde(default)]
         soft_takeover: bool,
     },
     SetFilter {
-        filter_db: f32,
+        /// Filter knob `0..1`.
+        filter: f32,
         #[serde(default)]
         soft_takeover: bool,
     },
     SetGainTrim {
-        gain_db: f32,
+        /// Gain trim knob `0..1`.
+        gain_trim: f32,
         #[serde(default)]
         soft_takeover: bool,
     },
@@ -318,8 +327,8 @@ pub enum EvtBody {
         volume: f32,
         speed: f32,
         eq: DeckEq,
-        filter_db: f32,
-        gain_trim_db: f32,
+        filter: f32,
+        gain_trim: f32,
         headphone_cue: bool,
         sync_mode: SyncMode,
         cue_point_ms: Option<i32>,

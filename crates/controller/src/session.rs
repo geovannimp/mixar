@@ -438,6 +438,10 @@ impl MappingSession {
             None => return false,
         };
         let soft = binding.soft_takeover_effective();
+        let mut norm = norm;
+        if binding.invert_effective() {
+            norm = 1.0 - norm;
+        }
         let Some(routed) = resolve_action(action, section, norm, active, soft, &self.snapshot)
         else {
             return false;

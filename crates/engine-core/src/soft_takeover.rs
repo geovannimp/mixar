@@ -2,21 +2,8 @@
 
 use std::collections::HashMap;
 
-/// Match controller’s former threshold (3/127 of full scale).
+/// Match MIDI catch distance (3/127 of full scale) in `0..1` space.
 pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
-
-const STRIP_DB_MIN: f32 = -24.0;
-const STRIP_DB_MAX: f32 = 24.0;
-
-pub fn db_to_norm(db: f32) -> f32 {
-    ((db - STRIP_DB_MIN) / (STRIP_DB_MAX - STRIP_DB_MIN)).clamp(0.0, 1.0)
-}
-
-/// Pioneer tempo fader mapping (matches controller).
-pub fn speed_to_norm(speed: f32) -> f32 {
-    let s = speed.clamp(0.84, 1.16);
-    (1.0 - (s - 0.84) / 0.32).clamp(0.0, 1.0)
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct SoftTakeoverState {

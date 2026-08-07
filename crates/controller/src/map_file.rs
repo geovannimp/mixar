@@ -26,6 +26,9 @@ pub struct InputBinding {
     pub modifier: Option<String>,
     #[serde(default)]
     pub soft_takeover: Option<bool>,
+    /// Flip MIDI `0..1` before publish (`norm = 1 - norm`). For Pioneer tempo, etc.
+    #[serde(default)]
+    pub invert: Option<bool>,
     #[serde(default)]
     pub script: Option<String>,
 }
@@ -36,6 +39,7 @@ impl InputBinding {
             action: Some(action.to_string()),
             modifier: None,
             soft_takeover: None,
+            invert: None,
             script: None,
         }
     }
@@ -70,6 +74,10 @@ impl InputBinding {
             return v;
         }
         self.action.as_deref().is_some_and(is_absolute_action)
+    }
+
+    pub fn invert_effective(&self) -> bool {
+        self.invert.unwrap_or(false)
     }
 }
 

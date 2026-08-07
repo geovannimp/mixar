@@ -26,10 +26,10 @@ function deckUpdated(overrides: Record<string, unknown> = {}) {
     key: null,
     playing: false,
     volume: 1,
-    speed: 1,
-    eq: { low: 0, mid: 0, high: 0 },
-    filter_db: 0,
-    gain_trim_db: 0,
+    speed: 0.5,
+    eq: { low: 0.5, mid: 0.5, high: 0.5 },
+    filter: 0.5,
+    gain_trim: 0.5,
     headphone_cue: false,
     sync_mode: "off",
     cue_point_ms: null,
@@ -127,14 +127,14 @@ describe("applyBusEvent", () => {
       "updated",
       2,
       deckUpdated({
-        filter_db: 3.5,
-        gain_trim_db: -1.25,
+        filter: 0.7,
+        gain_trim: 0.4,
         headphone_cue: true,
       }),
     );
     const patch = applyBusEvent(current, 1, bytes);
-    expect(patch.status?.decks[0]?.filter_db).toBe(3.5);
-    expect(patch.status?.decks[0]?.gain_trim_db).toBe(-1.25);
+    expect(patch.status?.decks[0]?.filter).toBe(0.7);
+    expect(patch.status?.decks[0]?.gain_trim).toBe(0.4);
     expect(patch.status?.decks[0]?.headphone_cue).toBe(true);
   });
 
@@ -284,13 +284,13 @@ describe("applyBusEvent", () => {
       2,
       deckUpdated({
         id: 1,
-        speed: 1.2,
+        speed: 0.25,
         sync_mode: "tempo",
       }),
     );
     const afterSync = applyBusEvent(current, 1, updated);
     expect(afterSync.status?.decks[1]?.sync_mode).toBe("tempo");
-    expect(afterSync.status?.decks[1]?.speed).toBe(1.2);
+    expect(afterSync.status?.decks[1]?.speed).toBe(0.25);
 
     const statusBytes = packWire("mixer", "status", 3, {
       type: "engine_status",

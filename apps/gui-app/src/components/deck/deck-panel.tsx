@@ -3,7 +3,7 @@ import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeckButton } from "@/components/ui/deck-button";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
-import { formatDeckRemainingDisplay, formatDeckTotalDisplay } from "@/lib/format";
+import { formatDeckRemainingDisplay, formatDeckTotalDisplay, normToSpeedRatio } from "@/lib/format";
 import { useDeckBusy } from "@/hooks/engine/use-deck-busy";
 import { useDeckControls } from "@/hooks/engine/use-deck-controls";
 import { useDeckOverview } from "@/hooks/engine/use-deck-overview";
@@ -126,18 +126,19 @@ function DeckJog({
   jogTouching: boolean;
 }) {
   const transport = useDeckTransport(deckId);
+  const speedRatio = normToSpeedRatio(speed);
 
   return (
     <JogPlatter
       accent={accentKey}
       playing={transport.playing}
-      bpm={bpm != null ? bpm * speed : bpm}
+      bpm={bpm != null ? bpm * speedRatio : bpm}
       hasTrack={hasTrack}
       enabled={!transportDisabled}
       jogTouching={jogTouching}
       positionMs={transport.position_ms ?? 0}
       durationMs={transport.duration_ms}
-      speed={speed}
+      speed={speedRatio}
       onJogTouch={(touching) => {
         void engineActions.jogTouch(deckId, touching);
       }}

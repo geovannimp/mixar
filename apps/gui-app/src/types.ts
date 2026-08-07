@@ -32,7 +32,7 @@ export interface DeckEq {
   high: number;
 }
 
-export const DEFAULT_DECK_EQ: DeckEq = { low: 0, mid: 0, high: 0 };
+export const DEFAULT_DECK_EQ: DeckEq = { low: 0.5, mid: 0.5, high: 0.5 };
 
 export type LevelMeterMode = "mono" | "stereo";
 
@@ -76,8 +76,8 @@ export interface DeckStatus {
   hot_cues: DeckHotCueMarker[];
   saved_loops: DeckSavedLoop[];
   active_loop: DeckActiveLoop | null;
-  filter_db: number;
-  gain_trim_db: number;
+  filter: number;
+  gain_trim: number;
   loudness_lufs: number | null;
   auto_gain_db: number;
   sync_mode: SyncMode;

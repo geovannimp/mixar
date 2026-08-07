@@ -53,9 +53,25 @@ export function formatDeckTotalDisplay(durationMs: number | null | undefined): s
   return formatDeckTimeTenth(durationMs);
 }
 
-export function effectiveBpm(bpm: number | null | undefined, speed: number): number | null {
+/** Pioneer-style tempo span matching engine `control_norm` (±16%). */
+export const SPEED_RATIO_MIN = 0.84;
+export const SPEED_RATIO_MAX = 1.16;
+
+/** Tempo fader position `0..1` → playback ratio. */
+export function normToSpeedRatio(norm: number): number {
+  const n = Math.min(1, Math.max(0, norm));
+  return SPEED_RATIO_MAX - n * (SPEED_RATIO_MAX - SPEED_RATIO_MIN);
+}
+
+/** Playback ratio → tempo fader position `0..1`. */
+export function speedRatioToNorm(speed: number): number {
+  const s = Math.min(SPEED_RATIO_MAX, Math.max(SPEED_RATIO_MIN, speed));
+  return Math.min(1, Math.max(0, 1 - (s - SPEED_RATIO_MIN) / (SPEED_RATIO_MAX - SPEED_RATIO_MIN)));
+}
+
+export function effectiveBpm(bpm: number | null | undefined, speedNorm: number): number | null {
   if (bpm == null || !Number.isFinite(bpm)) return null;
-  return bpm * speed;
+  return bpm * normToSpeedRatio(speedNorm);
 }
 
 /** Default DJ time signature: 4/4. */
@@ -121,42 +137,35 @@ export function getBarCycleDurationSecs(bpm: number): number | null {
   return ms == null ? null : ms / 1000;
 }
 
+/** @deprecated Engine pitch span is ±16%; kept for callers that still assume ±8% UI. */
 export const PITCH_RANGE_PERCENT = 8;
 
-function clampSpeedToPitchRange(speed: number): number {
-  const min = 1 - PITCH_RANGE_PERCENT / 100;
-  const max = 1 + PITCH_RANGE_PERCENT / 100;
-  return Math.min(max, Math.max(min, speed));
+/** Map tempo fader position `0..1` to slider 0–100. */
+export function speedToPitchSlider(speedNorm: number): number {
+  const n = Math.min(1, Math.max(0, speedNorm));
+  return Math.round(n * 10000) / 100;
 }
 
-/** Map speed to slider 0–100 (center = 50, ±8%). */
-export function speedToPitchSlider(speed: number): number {
-  const pitch = (clampSpeedToPitchRange(speed) - 1) * 100;
-  const clamped = Math.min(PITCH_RANGE_PERCENT, Math.max(-PITCH_RANGE_PERCENT, pitch));
-  const raw = ((clamped + PITCH_RANGE_PERCENT) / (2 * PITCH_RANGE_PERCENT)) * 100;
-  // Keep sub-step precision so the fader does not quantize to 0.16% pitch jumps.
-  return Math.round(raw * 100) / 100;
-}
-
+/** Map slider 0–100 to tempo fader position `0..1`. */
 export function pitchSliderToSpeed(value: number): number {
-  const clamped = Math.min(100, Math.max(0, value));
-  const pitch = (clamped / 100) * (2 * PITCH_RANGE_PERCENT) - PITCH_RANGE_PERCENT;
-  return clampSpeedToPitchRange(1 + pitch / 100);
+  return Math.min(1, Math.max(0, value / 100));
 }
 
-export function nudgeSpeed(speed: number, deltaPercent: number): number {
-  return clampSpeedToPitchRange(speed + deltaPercent / 100);
+/** Nudge tempo position by pitch percent (engine ±16% map). */
+export function nudgeSpeed(speedNorm: number, deltaPercent: number): number {
+  const ratio = normToSpeedRatio(speedNorm) + deltaPercent / 100;
+  return speedRatioToNorm(ratio);
 }
 
-/** Mixxx-style pitch readout (e.g. 0.00, -1.25). */
-export function formatPitchOffset(speed: number): string {
-  const percent = (speed - 1) * 100;
+/** Mixxx-style pitch readout from tempo position (e.g. +0.00, -1.25). */
+export function formatPitchOffset(speedNorm: number): string {
+  const percent = (normToSpeedRatio(speedNorm) - 1) * 100;
   const sign = percent >= 0 ? "+" : "";
   return `${sign}${percent.toFixed(2)}`;
 }
 
-export function formatPitchPercent(speed: number): string {
-  return `${formatPitchOffset(speed)}%`;
+export function formatPitchPercent(speedNorm: number): string {
+  return `${formatPitchOffset(speedNorm)}%`;
 }
 
 /** @deprecated use formatDeckTimeTenth */
