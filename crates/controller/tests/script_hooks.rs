@@ -38,6 +38,22 @@ fn on_init_calls_midi_out() {
 }
 
 #[test]
+fn no_lifecycle_skips_hooks_even_with_script() {
+    let mut b = controller::load_bundle(Path::new("tests/fixtures/with-script")).unwrap();
+    b.map.lifecycle = controller::LifecycleHooks::default();
+    let mut s = controller::MappingSession::from_bundle(b).unwrap();
+    let mut bus = CaptureBus { cmds: vec![] };
+    let mut midi = CaptureMidi { frames: vec![] };
+    s.on_init(&mut bus, &mut midi).unwrap();
+    s.idle_heartbeat(&mut bus, &mut midi).unwrap();
+    s.on_shutdown(&mut bus, &mut midi).unwrap();
+    assert!(
+        midi.frames.is_empty(),
+        "absent [lifecycle] must not call Rhai hooks"
+    );
+}
+
+#[test]
 fn idle_heartbeat_rate_limits_and_skips_when_playing() {
     let b = controller::load_bundle(Path::new("tests/fixtures/with-script")).unwrap();
     let mut s = controller::MappingSession::from_bundle(b).unwrap();

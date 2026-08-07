@@ -86,6 +86,50 @@ pub struct OutputBinding {
     pub off: OutputTarget,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LifecycleHooks {
+    #[serde(default)]
+    pub on_init: Option<String>,
+    #[serde(default)]
+    pub on_shutdown: Option<String>,
+    #[serde(default)]
+    pub idle_heartbeat: Option<String>,
+}
+
+impl LifecycleHooks {
+    pub fn fn_for(&self, event: &str) -> Option<&str> {
+        let name = match event {
+            "on_init" => self.on_init.as_deref(),
+            "on_shutdown" => self.on_shutdown.as_deref(),
+            "idle_heartbeat" => self.idle_heartbeat.as_deref(),
+            _ => None,
+        }?;
+        if name.is_empty() {
+            None
+        } else {
+            Some(name)
+        }
+    }
+
+    fn validate(&self) -> Result<(), LoadError> {
+        for (key, value) in [
+            ("on_init", &self.on_init),
+            ("on_shutdown", &self.on_shutdown),
+            ("idle_heartbeat", &self.idle_heartbeat),
+        ] {
+            if let Some(name) = value {
+                if name.is_empty() {
+                    return Err(LoadError::Validation(format!(
+                        "lifecycle.{key}: function name must be non-empty"
+                    )));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct MapFile {
     pub schema_version: u32,
@@ -93,6 +137,8 @@ pub struct MapFile {
     /// Populated in [`Self::parse`] after peeling `[toml-schema]` off the table.
     #[serde(default, skip)]
     pub toml_schema: Option<TomlSchemaRef>,
+    #[serde(default)]
+    pub lifecycle: LifecycleHooks,
     #[serde(default)]
     pub inputs: BTreeMap<String, BTreeMap<String, RawBinding>>,
     #[serde(default)]
@@ -141,6 +187,16 @@ impl MapFile {
     }
 
     pub fn validate_against(&self, device: &DeviceFile, has_script: bool) -> Result<(), LoadError> {
+        self.lifecycle.validate()?;
+        if (self.lifecycle.on_init.is_some()
+            || self.lifecycle.on_shutdown.is_some()
+            || self.lifecycle.idle_heartbeat.is_some())
+            && !has_script
+        {
+            return Err(LoadError::Validation(
+                "[lifecycle] requires script.rhai in the mapping bundle".into(),
+            ));
+        }
         for (section, aliases) in &self.inputs {
             if !is_section_key(section) {
                 return Err(LoadError::Validation(format!(

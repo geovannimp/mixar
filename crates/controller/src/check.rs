@@ -10,11 +10,24 @@ use crate::script::ScriptRuntime;
 pub fn check_bundle_dir(dir: &Path) -> Result<(), LoadError> {
     let bundle = load_bundle(dir)?;
     if let Some(src) = &bundle.script_source {
-        ScriptRuntime::compile(src)?;
-        // Ensure referenced script fns exist (best-effort: compile is enough for v1).
-        let _ = src;
+        let rt = ScriptRuntime::compile(src)?;
+        for (key, name) in [
+            ("on_init", bundle.map.lifecycle.on_init.as_deref()),
+            ("on_shutdown", bundle.map.lifecycle.on_shutdown.as_deref()),
+            (
+                "idle_heartbeat",
+                bundle.map.lifecycle.idle_heartbeat.as_deref(),
+            ),
+        ] {
+            if let Some(name) = name {
+                if !rt.has_fn(name) {
+                    return Err(LoadError::Validation(format!(
+                        "lifecycle.{key}: function `{name}` not found in script.rhai"
+                    )));
+                }
+            }
+        }
     }
-    // Re-check script refs already done in map.validate_against.
     Ok(())
 }
 

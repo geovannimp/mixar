@@ -145,6 +145,10 @@ impl ScriptRuntime {
         }
     }
 
+    pub fn has_fn(&self, name: &str) -> bool {
+        self.ast.iter_functions().any(|f| f.name == name)
+    }
+
     pub fn call_hook(&mut self, name: &str, host: &mut ScriptHost<'_>) -> Result<(), RuntimeError> {
         self.prepare_scratch(host);
         let mut scope = Scope::new();

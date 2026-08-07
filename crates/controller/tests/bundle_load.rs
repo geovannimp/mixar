@@ -60,3 +60,41 @@ play_pause = "Deck(_)::toggle_play"
     assert_eq!(meta.location.as_deref(), Some("../../schemas/map.tosd"));
 }
 
+#[test]
+fn rejects_unknown_lifecycle_key() {
+    let err = controller::MapFile::parse(
+        r#"
+schema_version = 1
+
+[lifecycle]
+on_init = "on_init"
+every_frame = "tick"
+"#,
+        Path::new("map.toml"),
+    )
+    .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("every_frame") || msg.contains("unknown"),
+        "unexpected error: {msg}"
+    );
+}
+
+#[test]
+fn parses_lifecycle_hooks() {
+    let map = controller::MapFile::parse(
+        r#"
+schema_version = 1
+
+[lifecycle]
+on_init = "boot"
+idle_heartbeat = "pulse"
+"#,
+        Path::new("map.toml"),
+    )
+    .unwrap();
+    assert_eq!(map.lifecycle.on_init.as_deref(), Some("boot"));
+    assert_eq!(map.lifecycle.idle_heartbeat.as_deref(), Some("pulse"));
+    assert!(map.lifecycle.on_shutdown.is_none());
+}
+

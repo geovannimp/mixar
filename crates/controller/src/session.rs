@@ -166,7 +166,7 @@ impl MappingSession {
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        self.run_hook("on_init", bus, midi)
+        self.run_lifecycle("on_init", bus, midi)
     }
 
     pub fn on_shutdown(
@@ -174,7 +174,7 @@ impl MappingSession {
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        self.run_hook("on_shutdown", bus, midi)
+        self.run_lifecycle("on_shutdown", bus, midi)
     }
 
     /// Drive continuous `vu_meter` CC out (Mixxx scale: level×150, clamp 127).
@@ -198,6 +198,9 @@ impl MappingSession {
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
+        if self.bundle.map.lifecycle.fn_for("idle_heartbeat").is_none() {
+            return Ok(());
+        }
         if self.script.is_none() {
             return Ok(());
         }
@@ -211,15 +214,24 @@ impl MappingSession {
             return Ok(());
         }
         self.last_idle_heartbeat = Some(Instant::now());
-        self.run_hook("idle_heartbeat", bus, midi)
+        self.run_lifecycle("idle_heartbeat", bus, midi)
     }
 
-    fn run_hook(
+    fn run_lifecycle(
         &mut self,
-        name: &str,
+        event: &str,
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
+        let Some(fn_name) = self
+            .bundle
+            .map
+            .lifecycle
+            .fn_for(event)
+            .map(str::to_string)
+        else {
+            return Ok(());
+        };
         let Some(script) = self.script.as_mut() else {
             return Ok(());
         };
@@ -229,7 +241,7 @@ impl MappingSession {
             snapshot: &self.snapshot,
             modifiers: &self.modifiers,
         };
-        script.call_hook(name, &mut host)
+        script.call_hook(&fn_name, &mut host)
     }
 
     pub fn handle_midi(

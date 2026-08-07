@@ -101,9 +101,28 @@ typeof = "types.section_inputs"
 type = "collection"
 typeof = "types.section_outputs"
 
+[types.lifecycle]
+type = "table"
+
+[types.lifecycle.on_init]
+type = "string"
+optional = true
+
+[types.lifecycle.on_shutdown]
+type = "string"
+optional = true
+
+[types.lifecycle.idle_heartbeat]
+type = "string"
+optional = true
+
 [elements.schema_version]
 type = "integer"
 allowedvalues = [1]
+
+[elements.lifecycle]
+typeof = "types.lifecycle"
+optional = true
 
 [elements.inputs]
 typeof = "types.inputs_root"

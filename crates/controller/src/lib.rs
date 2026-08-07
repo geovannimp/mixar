@@ -30,7 +30,8 @@ pub use engine::{
 };
 pub use error::{LoadError, MidiPortError, RuntimeError};
 pub use map_file::{
-    InputBinding, MapFile, OutputBinding, OutputTarget, RawBinding, SoftTakeoverDefault,
+    InputBinding, LifecycleHooks, MapFile, OutputBinding, OutputTarget, RawBinding,
+    SoftTakeoverDefault,
 };
 pub use midi::{
     match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint, MidiIdentity,
