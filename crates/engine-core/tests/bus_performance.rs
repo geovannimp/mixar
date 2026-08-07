@@ -68,7 +68,7 @@ fn set_auto_loop_publishes_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4.0 }).unwrap(),
         )
         .expect("auto loop");
 
@@ -138,7 +138,7 @@ fn set_quantize_and_cue_point_roundtrip() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeatJump,
-            encode_cmd_body(&CmdBody::BeatJump { beats: 1 }).unwrap(),
+            encode_cmd_body(&CmdBody::BeatJump { beats: 1.0 }).unwrap(),
         )
         .expect("jump");
     let _ = recv_evt_kind(&evt, Kind::Updated);

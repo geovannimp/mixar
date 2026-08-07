@@ -25,14 +25,15 @@ pub enum BoundOrigin {
 }
 
 /// Named leaf argument value.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ArgValue {
     Int(i64),
+    Float(f32),
     Ident(String),
 }
 
 /// Named args from `leaf(key:value,…)`.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ActionArgs {
     map: BTreeMap<String, ArgValue>,
 }
@@ -51,6 +52,19 @@ impl ActionArgs {
             Some(ArgValue::Int(v)) => Ok(*v),
             Some(_) => Err(LoadError::Validation(format!(
                 "arg `{key}` must be an integer"
+            ))),
+            None => Err(LoadError::Validation(format!(
+                "missing required arg `{key}`"
+            ))),
+        }
+    }
+
+    pub fn require_f32(&self, key: &str) -> Result<f32, LoadError> {
+        match self.map.get(key) {
+            Some(ArgValue::Float(v)) => Ok(*v),
+            Some(ArgValue::Int(v)) => Ok(*v as f32),
+            Some(_) => Err(LoadError::Validation(format!(
+                "arg `{key}` must be a number"
             ))),
             None => Err(LoadError::Validation(format!(
                 "missing required arg `{key}`"
@@ -180,6 +194,12 @@ fn parse_arg_value(value: &str) -> Option<ArgValue> {
     if let Ok(n) = value.parse::<i64>() {
         return Some(ArgValue::Int(n));
     }
+    if let Ok(n) = value.parse::<f32>() {
+        if n.is_finite() {
+            return Some(ArgValue::Float(n));
+        }
+        return None;
+    }
     if is_ident(value) {
         return Some(ArgValue::Ident(value.to_string()));
     }
@@ -290,6 +310,15 @@ mod tests {
         let (_, leaf, args) = parse_action_id("Deck(_)::beat_jump(beats:-2)").unwrap();
         assert_eq!(leaf, "beat_jump");
         assert_eq!(args.require_int("beats").unwrap(), -2);
+        assert_eq!(args.require_f32("beats").unwrap(), -2.0);
+    }
+
+    #[test]
+    fn decimal_beats_parse() {
+        let (_, leaf, args) = parse_action_id("Deck(_)::auto_loop(beats:0.25)").unwrap();
+        assert_eq!(leaf, "auto_loop");
+        assert!((args.require_f32("beats").unwrap() - 0.25).abs() < 1e-6);
+        assert!(args.require_int("beats").is_err());
     }
 
     #[test]

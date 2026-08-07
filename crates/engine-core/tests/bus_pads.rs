@@ -95,7 +95,7 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 4 }).unwrap(),
+            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 4.0 }).unwrap(),
         )
         .expect("begin roll");
 
@@ -138,7 +138,7 @@ fn end_loop_roll_restores_prior_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 8 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 8.0 }).unwrap(),
         )
         .expect("auto loop");
     let event = recv_evt_kind(&evt, Kind::Updated);
@@ -153,7 +153,7 @@ fn end_loop_roll_restores_prior_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 1 }).unwrap(),
+            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 1.0 }).unwrap(),
         )
         .expect("begin roll");
     let _ = recv_evt_kind(&evt, Kind::Updated);

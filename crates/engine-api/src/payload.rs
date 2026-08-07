@@ -230,16 +230,16 @@ pub enum CmdBody {
         enabled: bool,
     },
     SetAutoLoop {
-        beats: u32,
+        beats: f32,
     },
     BeatJump {
-        beats: i32,
+        beats: f32,
     },
     SetPadMode {
         mode: PadMode,
     },
     BeginLoopRoll {
-        beats: u32,
+        beats: f32,
     },
     TriggerHotCue {
         position_ms: i32,
