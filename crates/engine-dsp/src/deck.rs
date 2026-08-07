@@ -237,6 +237,8 @@ impl Deck {
 
     pub fn set_track_bpm(&mut self, bpm: Option<f64>) {
         self.track_bpm = bpm.filter(|b| b.is_finite() && *b > 0.0);
+        // Load clears sync ownership; fader position drives ratio again.
+        self.ratio_override = None;
     }
 
     /// Playback ratio used by the resampler (1.0 = normal), before jog.

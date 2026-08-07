@@ -617,6 +617,44 @@ mod tests {
         MappingSession::from_bundle(b).unwrap()
     }
 
+    fn invert_session() -> MappingSession {
+        let b = crate::load_bundle(Path::new("tests/fixtures/invert-tempo")).unwrap();
+        MappingSession::from_bundle(b).unwrap()
+    }
+
+    #[test]
+    fn invert_tempo_cc_flips_set_speed_norm() {
+        let mut s = invert_session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // CC 0 → inverted → 1.0
+        s.handle_midi(&[0xB0, 0x14, 0], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+        match &bus.cmds[0].2 {
+            CmdBody::SetSpeed {
+                speed,
+                soft_takeover: false,
+            } => assert!((*speed - 1.0).abs() < 1e-5, "speed={speed}"),
+            other => panic!("expected SetSpeed, got {other:?}"),
+        }
+
+        // Age coalesce window so the max CC publishes immediately.
+        if let Some(t) = s.cc_last.get_mut("deck_1.tempo") {
+            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+        }
+
+        // CC 127 → inverted → 0.0
+        s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
+        match &bus.cmds[1].2 {
+            CmdBody::SetSpeed {
+                speed,
+                soft_takeover: false,
+            } => assert!((*speed - 0.0).abs() < 1e-5, "speed={speed}"),
+            other => panic!("expected SetSpeed, got {other:?}"),
+        }
+    }
+
     #[test]
     fn cc_coalesce_keeps_latest_until_flush() {
         let mut s = session();

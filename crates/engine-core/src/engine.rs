@@ -450,6 +450,8 @@ impl Engine {
             control.reset_for_load(bpm);
             control.track_id = Some(track_id);
         }
+        drop(dsp);
+        self.resync_followers_after_load(deck_id)?;
         log::info!("Track loaded into deck {}", deck_id);
         Ok(())
     }
@@ -492,7 +494,29 @@ impl Engine {
             control.reset_for_load(bpm);
             control.track_id = Some(track_id);
         }
+        drop(dsp);
+        self.resync_followers_after_load(deck_id)?;
         log::info!("Library-prepared track loaded into deck {}", deck_id);
+        Ok(())
+    }
+
+    /// When the master deck's BPM changes on load, refresh synced slaves' ratios.
+    fn resync_followers_after_load(&mut self, loaded_deck_id: usize) -> Result<()> {
+        if loaded_deck_id != self.master_deck {
+            return Ok(());
+        }
+        for slave_id in 0..self.deck_control.len() {
+            if slave_id == loaded_deck_id {
+                continue;
+            }
+            if self.deck_control[slave_id].sync_mode == SyncMode::Off {
+                continue;
+            }
+            // BPM may be missing on a follower; skip rather than fail the load.
+            if self.apply_tempo_sync(slave_id, loaded_deck_id).is_err() {
+                continue;
+            }
+        }
         Ok(())
     }
 

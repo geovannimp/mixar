@@ -1,0 +1,8 @@
+schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/map.tosd"
+
+[inputs.deck_1]
+tempo = { action = "Deck(_)::set_speed", invert = true, soft_takeover = false }

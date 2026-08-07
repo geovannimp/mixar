@@ -58,10 +58,18 @@ impl AudioBackend {
     /// Returns the list of available backend names (e.g. `["null", "miniaudio", "cpal"]`).
     /// Use one of these with `AudioBackend::new()` and for `EngineConfig::backend` (or use `"auto"` for config).
     pub fn list_names() -> Vec<String> {
-        let mut backends = vec!["null".to_string(), "miniaudio".to_string()];
         #[cfg(feature = "backend-cpal")]
-        backends.push("cpal".to_string());
-        backends
+        {
+            vec![
+                "null".to_string(),
+                "miniaudio".to_string(),
+                "cpal".to_string(),
+            ]
+        }
+        #[cfg(not(feature = "backend-cpal"))]
+        {
+            vec!["null".to_string(), "miniaudio".to_string()]
+        }
     }
 
     /// Creates a backend instance by name. Use `list_names()` for valid names.

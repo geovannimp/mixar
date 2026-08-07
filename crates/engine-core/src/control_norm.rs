@@ -1,13 +1,9 @@
-//! Absolute control `0..1` ↔ DSP helpers.
+//! Absolute strip-control `0..1` ↔ dB for EQ / filter / gain.
+//!
+//! Tempo fader math lives in `engine_dsp::tempo` (deck owns `tempo_range` + track BPM).
 
 const STRIP_DB_MIN: f32 = -24.0;
 const STRIP_DB_MAX: f32 = 24.0;
-
-/// Default tempo fader half-span in BPM (track BPM ± this).
-pub const DEFAULT_TEMPO_RANGE_BPM: f32 = 8.0;
-
-/// Fallback BPM when none is loaded (keeps the fader audible).
-const FALLBACK_BPM: f64 = 120.0;
 
 pub fn strip_db_to_norm(db: f32) -> f32 {
     ((db - STRIP_DB_MIN) / (STRIP_DB_MAX - STRIP_DB_MIN)).clamp(0.0, 1.0)
@@ -15,31 +11,6 @@ pub fn strip_db_to_norm(db: f32) -> f32 {
 
 pub fn norm_to_strip_db(norm: f32) -> f32 {
     STRIP_DB_MIN + norm.clamp(0.0, 1.0) * (STRIP_DB_MAX - STRIP_DB_MIN)
-}
-
-fn usable_bpm(track_bpm: Option<f64>) -> f64 {
-    track_bpm
-        .filter(|b| b.is_finite() && *b > 0.0)
-        .unwrap_or(FALLBACK_BPM)
-}
-
-/// Tempo fader `0..1` → playback ratio using track BPM ± `tempo_range` (BPM).
-/// Position `0` = +range (faster), `0.5` = 1.0, `1` = −range (slower).
-pub fn norm_to_playback_ratio(norm: f32, track_bpm: Option<f64>, tempo_range: f32) -> f32 {
-    let b = usable_bpm(track_bpm);
-    let range = f64::from(tempo_range.max(0.0));
-    let n = f64::from(norm.clamp(0.0, 1.0));
-    let effective = b + (0.5 - n) * 2.0 * range;
-    (effective / b).max(0.01) as f32
-}
-
-/// Playback ratio → clamped tempo fader `0..1` (saturates outside ±tempo_range).
-pub fn playback_ratio_to_norm(ratio: f32, track_bpm: Option<f64>, tempo_range: f32) -> f32 {
-    let b = usable_bpm(track_bpm);
-    let range = f64::from(tempo_range.max(1e-6));
-    let effective = f64::from(ratio) * b;
-    let n = 0.5 - (effective - b) / (2.0 * range);
-    n.clamp(0.0, 1.0) as f32
 }
 
 #[cfg(test)]
@@ -51,17 +22,5 @@ mod tests {
         assert!((norm_to_strip_db(0.5) - 0.0).abs() < 1e-5);
         assert!((strip_db_to_norm(0.0) - 0.5).abs() < 1e-5);
         assert!((norm_to_strip_db(1.0) - 24.0).abs() < 1e-5);
-    }
-
-    #[test]
-    fn tempo_bpm_range_at_150() {
-        let bpm = Some(150.0);
-        let range = 8.0;
-        assert!((norm_to_playback_ratio(0.5, bpm, range) - 1.0).abs() < 1e-5);
-        // +8 BPM → 158/150
-        assert!((norm_to_playback_ratio(0.0, bpm, range) - 158.0 / 150.0).abs() < 1e-5);
-        // −8 BPM → 142/150
-        assert!((norm_to_playback_ratio(1.0, bpm, range) - 142.0 / 150.0).abs() < 1e-5);
-        assert!((playback_ratio_to_norm(1.0, bpm, range) - 0.5).abs() < 1e-5);
     }
 }
