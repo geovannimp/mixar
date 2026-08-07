@@ -1252,9 +1252,7 @@ impl Engine {
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let out_ms = secs_to_ms(
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
-        );
+        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
@@ -1307,9 +1305,7 @@ impl Engine {
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let out_ms = secs_to_ms(
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
-        );
+        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
