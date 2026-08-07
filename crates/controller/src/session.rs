@@ -238,7 +238,6 @@ impl MappingSession {
         let mut host = ScriptHost {
             bus,
             midi,
-            snapshot: &self.snapshot,
             modifiers: &self.modifiers,
         };
         script.call_hook(&fn_name, &mut host)
@@ -435,7 +434,6 @@ impl MappingSession {
                 let mut host = ScriptHost {
                     bus,
                     midi: &mut null,
-                    snapshot: &self.snapshot,
                     modifiers: &self.modifiers,
                 };
                 let _ = script.call_named(script_fn, &mut host, norm, active);

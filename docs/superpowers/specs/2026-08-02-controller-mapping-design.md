@@ -183,7 +183,7 @@ Closed strings in `map.toml` (e.g. `toggle_play`, `set_volume`, `set_filter`, `j
 
 - Lifecycle hooks are declared in `map.toml` `[lifecycle]` (`on_init` / `on_shutdown` / `idle_heartbeat` → Rhai fn names). No section ⇒ no hooks, even if the script defines them. See `2026-08-06-controller-lifecycle-map-toml-design.md`.
 - Named functions for `script = "..."` bindings.
-- v1 host API: `publish(origin, kind, payload)`, `midi_out(bytes)`, `get_snapshot()` (last Status/Updated cache), script-local vars.
+- v1 host API: `publish(origin, kind, payload)`, `midi_out(bytes)`, `modifier_active(name)`, script-local vars.
 - `custom.*` state (e.g. shift held) is readable for complex logic; declarative modifiers cover the common case without script.
 
 ## Runtime data flow

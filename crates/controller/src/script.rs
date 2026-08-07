@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex};
 use engine_api::{CmdBody, Kind, Origin};
 use rhai::{Dynamic, Engine, Module, Scope, AST};
 
-use crate::action::ControlSnapshot;
 use crate::error::{LoadError, RuntimeError};
 use crate::session::{ActionPublish, MidiOut};
 
@@ -20,7 +19,6 @@ pub struct ScriptBridge {
 pub struct ScriptHost<'a> {
     pub bus: &'a mut dyn ActionPublish,
     pub midi: &'a mut dyn MidiOut,
-    pub snapshot: &'a ControlSnapshot,
     pub modifiers: &'a HashSet<String>,
 }
 
@@ -34,7 +32,6 @@ pub struct ScriptRuntime {
 struct ScriptScratch {
     publish_queue: Vec<(String, String, String)>,
     midi_queue: Vec<Vec<u8>>,
-    snapshot_playing: [bool; 4],
     modifiers: Vec<String>,
 }
 
@@ -47,7 +44,6 @@ impl ScriptRuntime {
         let bridge: Arc<Mutex<ScriptScratch>> = Arc::new(Mutex::new(ScriptScratch {
             publish_queue: Vec::new(),
             midi_queue: Vec::new(),
-            snapshot_playing: [false; 4],
             modifiers: Vec::new(),
         }));
 
@@ -82,17 +78,6 @@ impl ScriptRuntime {
         }
         {
             let b = Arc::clone(&bridge);
-            module.set_native_fn("get_snapshot", move || {
-                let g = b.lock().ok();
-                let playing = g.as_ref().map(|g| g.snapshot_playing).unwrap_or([false; 4]);
-                Ok::<_, Box<rhai::EvalAltResult>>(format!(
-                    "playing0={} playing1={} playing2={} playing3={}",
-                    playing[0] as u8, playing[1] as u8, playing[2] as u8, playing[3] as u8
-                ))
-            });
-        }
-        {
-            let b = Arc::clone(&bridge);
             module.set_native_fn("modifier_active", move |name: &str| {
                 Ok::<_, Box<rhai::EvalAltResult>>(
                     b.lock()
@@ -119,7 +104,6 @@ impl ScriptRuntime {
         if let Ok(mut g) = self.bridge.lock() {
             g.publish_queue.clear();
             g.midi_queue.clear();
-            g.snapshot_playing = host.snapshot.playing;
             g.modifiers = host.modifiers.iter().cloned().collect();
         }
     }

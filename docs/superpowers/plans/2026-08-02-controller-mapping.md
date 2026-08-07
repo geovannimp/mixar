@@ -203,7 +203,7 @@ git commit -m "feat(controller): map engine state to MIDI outputs"
 - Test: `crates/controller/tests/script_hooks.rs`
 
 **Interfaces:**
-- Produces: compile `script.rhai` at load; call `on_init` / `on_shutdown`; `script = "fn"` bindings; host fns `publish` / `midi_out` / `get_snapshot` registered on engine (snapshot as simple map or string for v1)
+- Produces: compile `script.rhai` at load; call `on_init` / `on_shutdown`; `script = "fn"` bindings; host fns `publish` / `midi_out` / `modifier_active` registered on engine
 - Runtime script errors → return/log `RuntimeError`, do not panic
 
 - [ ] **Step 1: Test on_init calls midi_out**
