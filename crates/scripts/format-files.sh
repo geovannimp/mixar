@@ -4,6 +4,32 @@
 # another `bash -c`, which leaves $@ empty inside an inline -c body and skips
 # rustfmt while still exiting 0.
 set -euo pipefail
+
+if [[ "${1:-}" == "--self-check" ]]; then
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  mkdir -p "$tmp/bin"
+  existing="$tmp/exists.rs"
+  : >"$existing"
+  missing="$tmp/missing.rs"
+  args_out="$tmp/rustfmt-args"
+  cat >"$tmp/bin/rustfmt" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$RUSTFMT_ARGS_OUT"
+EOF
+  chmod +x "$tmp/bin/rustfmt"
+  RUSTFMT_ARGS_OUT="$args_out" PATH="$tmp/bin:$PATH" "$0" "$existing" "$missing"
+  mapfile -t got <"$args_out"
+  rs=()
+  for a in "${got[@]}"; do
+    if [[ "$a" == *.rs ]]; then
+      rs+=("$a")
+    fi
+  done
+  [[ ${#rs[@]} -eq 1 && "${rs[0]}" == "$existing" ]]
+  exit 0
+fi
+
 files=()
 for f in "$@"; do
   if [[ -f "$f" ]]; then
