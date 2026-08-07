@@ -46,7 +46,7 @@ fn cc14_waits_for_both_bytes_then_publishes_volume() {
     session.handle_midi(&[0xB0, 0x33, 0x00], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].1, Kind::SetVolume);
-    let CmdBody::SetVolume { volume } = &bus.cmds[0].2 else {
+    let CmdBody::SetVolume { volume, soft_takeover: false } = &bus.cmds[0].2 else {
         panic!("expected SetVolume");
     };
     let expected = (0x40u16 << 7) as f32 / 16383.0;

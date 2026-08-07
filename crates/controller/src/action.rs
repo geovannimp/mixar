@@ -188,6 +188,7 @@ pub fn resolve_action(
     section: &str,
     norm: f32,
     active: bool,
+    soft_takeover: bool,
     snap: &ControlSnapshot,
 ) -> Option<RoutedAction> {
     let (template, leaf, args) = parse_action_id(action).ok()?;
@@ -260,18 +261,7 @@ pub fn resolve_action(
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
         "toggle_play" => {
-            if !active {
-                return None;
-            }
-            let playing = match origin {
-                Origin::Deck(d) => snap.playing[deck_idx(d)],
-                _ => false,
-            };
-            if playing {
-                Some(engine_cmd(origin, Kind::Pause, CmdBody::Empty))
-            } else {
-                Some(engine_cmd(origin, Kind::Play, CmdBody::Empty))
-            }
+            active.then_some(engine_cmd(origin, Kind::TogglePlay, CmdBody::Empty))
         }
         "play" => active.then_some(engine_cmd(origin, Kind::Play, CmdBody::Empty)),
         "pause" => active.then_some(engine_cmd(origin, Kind::Pause, CmdBody::Empty)),
@@ -293,24 +283,14 @@ pub fn resolve_action(
             CmdBody::ToggleSync { beat_sync: false },
         )),
         "set_quantize" => {
-            if !active {
-                return None;
-            }
-            let enabled = match origin {
-                Origin::Deck(d) => !snap.quantize[deck_idx(d)],
-                _ => true,
-            };
-            Some(engine_cmd(
-                origin,
-                Kind::SetQuantize,
-                CmdBody::SetQuantize { enabled },
-            ))
+            active.then_some(engine_cmd(origin, Kind::ToggleQuantize, CmdBody::Empty))
         }
         "set_volume" => Some(engine_cmd(
             origin,
             Kind::SetVolume,
             CmdBody::SetVolume {
                 volume: norm.clamp(0.0, 1.0),
+                soft_takeover,
             },
         )),
         "set_filter" => Some(engine_cmd(
@@ -318,6 +298,7 @@ pub fn resolve_action(
             Kind::SetFilter,
             CmdBody::SetFilter {
                 filter_db: norm_to_filter_db(norm),
+                soft_takeover,
             },
         )),
         "set_gain" => Some(engine_cmd(
@@ -325,6 +306,7 @@ pub fn resolve_action(
             Kind::SetGainTrim,
             CmdBody::SetGainTrim {
                 gain_db: norm_to_gain_db(norm),
+                soft_takeover,
             },
         )),
         "set_speed" => Some(engine_cmd(
@@ -332,27 +314,24 @@ pub fn resolve_action(
             Kind::SetSpeed,
             CmdBody::SetSpeed {
                 speed: norm_to_speed(norm),
+                soft_takeover,
             },
         )),
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
-            let Origin::Deck(d) = origin else {
-                return None;
+            let band = match leaf {
+                "set_eq_low" => engine_api::EqBand::Low,
+                "set_eq_mid" => engine_api::EqBand::Mid,
+                "set_eq_high" => engine_api::EqBand::High,
+                _ => return None,
             };
-            let i = deck_idx(d);
-            let mut low = snap.eq_low[i];
-            let mut mid = snap.eq_mid[i];
-            let mut high = snap.eq_high[i];
-            let v = norm_to_eq(norm);
-            match leaf {
-                "set_eq_low" => low = v,
-                "set_eq_mid" => mid = v,
-                "set_eq_high" => high = v,
-                _ => {}
-            }
             Some(engine_cmd(
                 origin,
-                Kind::SetEq,
-                CmdBody::SetEq { low, mid, high },
+                Kind::SetEqBand,
+                CmdBody::SetEqBand {
+                    band,
+                    gain_db: norm_to_eq(norm),
+                    soft_takeover,
+                },
             ))
         }
         "set_crossfader" => Some(engine_cmd(
@@ -360,6 +339,7 @@ pub fn resolve_action(
             Kind::SetCrossfader,
             CmdBody::SetCrossfader {
                 position: norm.clamp(0.0, 1.0),
+                soft_takeover,
             },
         )),
         "set_cue_mix" => Some(engine_cmd(
@@ -367,33 +347,18 @@ pub fn resolve_action(
             Kind::SetCueMix,
             CmdBody::SetCueMix {
                 mix: norm.clamp(0.0, 1.0),
+                soft_takeover,
             },
         )),
         "set_master_cue" => {
-            if !active {
-                return None;
-            }
-            Some(engine_cmd(
+            active.then_some(engine_cmd(
                 Origin::Mixer,
-                Kind::SetMasterCue,
-                CmdBody::SetMasterCue {
-                    enabled: !snap.master_cue,
-                },
+                Kind::ToggleMasterCue,
+                CmdBody::Empty,
             ))
         }
         "set_headphone_cue" => {
-            if !active {
-                return None;
-            }
-            let Origin::Deck(d) = origin else {
-                return None;
-            };
-            let enabled = !snap.headphone_cue[deck_idx(d)];
-            Some(engine_cmd(
-                origin,
-                Kind::SetHeadphoneCue,
-                CmdBody::SetHeadphoneCue { enabled },
-            ))
+            active.then_some(engine_cmd(origin, Kind::ToggleHeadphoneCue, CmdBody::Empty))
         }
         "jog_touch" => Some(engine_cmd(
             origin,
@@ -638,16 +603,16 @@ mod tests {
     #[test]
     fn eq_knob_max_maps_to_plus_24_db() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetEq { low, mid, high },
+                body: CmdBody::SetEqBand {
+                    band: engine_api::EqBand::Low,
+                    gain_db,
+                    soft_takeover: false,
+                },
                 ..
-            } => {
-                assert!((low - 24.0).abs() < 1e-5, "low={low}");
-                assert_eq!(mid, 0.0);
-                assert_eq!(high, 0.0);
-            }
+            } => assert!((gain_db - 24.0).abs() < 1e-5, "gain_db={gain_db}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -655,12 +620,16 @@ mod tests {
     #[test]
     fn eq_knob_center_maps_to_0_db() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetEq { mid, .. },
+                body: CmdBody::SetEqBand {
+                    band: engine_api::EqBand::Mid,
+                    gain_db,
+                    soft_takeover: false,
+                },
                 ..
-            } => assert!((mid - 0.0).abs() < 1e-5, "mid={mid}"),
+            } => assert!((gain_db - 0.0).abs() < 1e-5, "gain_db={gain_db}"),
             other => panic!("unexpected {other:?}"),
         }
     }
@@ -668,10 +637,10 @@ mod tests {
     #[test]
     fn filter_knob_max_maps_to_plus_24_db() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetFilter { filter_db },
+                body: CmdBody::SetFilter { filter_db, soft_takeover: false },
                 ..
             } => assert!((filter_db - 24.0).abs() < 1e-5, "filter_db={filter_db}"),
             other => panic!("unexpected {other:?}"),
@@ -681,10 +650,10 @@ mod tests {
     #[test]
     fn gain_knob_max_maps_to_plus_24_db() {
         let snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::SetGainTrim { gain_db },
+                body: CmdBody::SetGainTrim { gain_db, soft_takeover: false },
                 ..
             } => assert!((gain_db - 24.0).abs() < 1e-5, "gain_db={gain_db}"),
             other => panic!("unexpected {other:?}"),
@@ -694,7 +663,7 @@ mod tests {
     #[test]
     fn pad_routes_by_software_pad_mode() {
         let mut snap = ControlSnapshot::default();
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SaveHotCue { slot },
@@ -704,7 +673,7 @@ mod tests {
         }
 
         snap.hot_cues[0][0] = Some(12_500);
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerHotCue { position_ms },
@@ -714,7 +683,7 @@ mod tests {
         }
 
         snap.pad_mode[0] = PadMode::BeatJump;
-        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeatJump { beats },
@@ -724,7 +693,7 @@ mod tests {
         }
 
         snap.pad_mode[0] = PadMode::LoopRoll;
-        let begin = resolve_action("Deck(_)::pad(n:3)", "deck_1", 1.0, true, &snap).unwrap();
+        let begin = resolve_action("Deck(_)::pad(n:3)", "deck_1", 1.0, true, false, &snap).unwrap();
         match begin {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeginLoopRoll { beats },
@@ -732,7 +701,7 @@ mod tests {
             } => assert_eq!(beats, 4),
             other => panic!("expected BeginLoopRoll 4, got {other:?}"),
         }
-        let end = resolve_action("Deck(_)::pad(n:3)", "deck_1", 0.0, false, &snap).unwrap();
+        let end = resolve_action("Deck(_)::pad(n:3)", "deck_1", 0.0, false, false, &snap).unwrap();
         assert!(matches!(
             end,
             RoutedAction::EngineCmd {
@@ -742,7 +711,7 @@ mod tests {
         ));
 
         snap.pad_mode[0] = PadMode::Sampler;
-        let routed = resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, &snap).unwrap();
+        let routed = resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::TriggerSampler { slot },
@@ -756,7 +725,7 @@ mod tests {
     fn pad_mode_button_sets_mode() {
         let snap = ControlSnapshot::default();
         let routed =
-            resolve_action("Deck(_)::pad_mode(mode:loop_roll)", "deck_1", 1.0, true, &snap).unwrap();
+            resolve_action("Deck(_)::pad_mode(mode:loop_roll)", "deck_1", 1.0, true, false, &snap).unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::SetPadMode { mode },
@@ -775,6 +744,7 @@ mod tests {
             "master",
             1.0 / 127.0,
             true,
+            false,
             &snap,
         )
         .unwrap();
@@ -787,7 +757,7 @@ mod tests {
             other => panic!("expected Navigate +1, got {other:?}"),
         }
         let prev =
-            resolve_action("LibraryNavigation::navigate", "master", 1.0, true, &snap).unwrap();
+            resolve_action("LibraryNavigation::navigate", "master", 1.0, true, false, &snap).unwrap();
         match prev {
             RoutedAction::LibraryEvt {
                 kind: LibraryKind::Navigate,
@@ -806,7 +776,9 @@ mod tests {
             "master",
             1.0,
             true,
+            false,
             &snap,
+
         )
         .unwrap();
         match routed {
@@ -821,6 +793,7 @@ mod tests {
             "LibraryNavigation::load_to_deck(deck:1)",
             "master",
             1.0,
+            false,
             false,
             &snap
         )

@@ -40,7 +40,7 @@ fn set_filter_publishes_updated_with_filter_db() {
         .evt_bus()
         .subscribe(Filter::Any, Filter::Any)
         .expect("sub");
-    let body = encode_cmd_body(&CmdBody::SetFilter { filter_db: 4.5 }).unwrap();
+    let body = encode_cmd_body(&CmdBody::SetFilter { filter_db: 4.5, soft_takeover: false }).unwrap();
     session
         .publish_cmd(Origin::Deck(0), Kind::SetFilter, body)
         .expect("publish");
@@ -65,7 +65,7 @@ fn set_gain_trim_and_headphone_cue_roundtrip() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetGainTrim,
-            encode_cmd_body(&CmdBody::SetGainTrim { gain_db: 1.5 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetGainTrim { gain_db: 1.5, soft_takeover: false }).unwrap(),
         )
         .expect("gain");
     let gain_evt = recv_evt_kind(&evt, Kind::Updated);

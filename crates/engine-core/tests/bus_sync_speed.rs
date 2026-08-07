@@ -110,7 +110,7 @@ fn master_speed_change_updates_synced_slave() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetSpeed,
-            encode_cmd_body(&CmdBody::SetSpeed { speed: 1.05 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetSpeed { speed: 1.05, soft_takeover: false }).unwrap(),
         )
         .expect("speed");
 

@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+/// Which EQ band a single-band set targets (MIDI soft-takeover).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EqBand {
+    Low,
+    Mid,
+    High,
+}
+
 /// Three-band deck EQ gains.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeckEq {
@@ -160,29 +169,47 @@ pub enum CmdBody {
     },
     SetVolume {
         volume: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetEq {
         low: f32,
         mid: f32,
         high: f32,
     },
+    SetEqBand {
+        band: EqBand,
+        gain_db: f32,
+        #[serde(default)]
+        soft_takeover: bool,
+    },
     SetSpeed {
         speed: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetFilter {
         filter_db: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetGainTrim {
         gain_db: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetHeadphoneCue {
         enabled: bool,
     },
     SetCrossfader {
         position: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetCueMix {
         mix: f32,
+        #[serde(default)]
+        soft_takeover: bool,
     },
     SetMasterCue {
         enabled: bool,

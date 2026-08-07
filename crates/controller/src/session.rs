@@ -7,7 +7,6 @@ use engine_api::{CmdBody, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, RoutedAction};
-use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 use crate::bundle::MappingBundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
@@ -15,7 +14,6 @@ use crate::map_file::{InputBinding, OutputTarget};
 use crate::midi::{norm_from_cc14, parse_short, MidiEndpoint, ShortMsg};
 use crate::script::{ScriptHost, ScriptRuntime};
 
-pub const SOFT_TAKEOVER_THRESHOLD: f32 = 3.0 / 127.0;
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
@@ -66,8 +64,8 @@ pub struct MappingSession {
     snapshot: ControlSnapshot,
     /// Active custom.* modifiers (held).
     modifiers: HashSet<String>,
-    /// Soft-takeover latched keys: "section.alias".
-    soft_latched: HashSet<String>,
+    /// Per-deck playing (idempotent ++/-- for idle heartbeat).
+    playing_decks: [bool; 4],
     /// Last CC publish time per "section.alias".
     cc_last: HashMap<String, Instant>,
     /// Latest CC not yet published (rate-limited); flushed by [`Self::flush_coalesced`].
@@ -95,7 +93,7 @@ impl MappingSession {
             bundle,
             snapshot: ControlSnapshot::default(),
             modifiers: HashSet::new(),
-            soft_latched: HashSet::new(),
+            playing_decks: [false; 4],
             cc_last: HashMap::new(),
             cc_pending: HashMap::new(),
             cc14_state: HashMap::new(),
@@ -137,28 +135,19 @@ impl MappingSession {
     }
 
     pub fn set_control_value(&mut self, origin: Origin, key: &str, value: f32) {
-        self.snapshot.set_value(origin, key, value);
-        // Engine moved under the hand → drop latch so soft-takeover re-engages.
-        if matches!(
-            key,
-            "volume"
-                | "filter"
-                | "filter_db"
-                | "gain"
-                | "gain_db"
-                | "speed"
-                | "tempo"
-                | "eq_low"
-                | "eq_mid"
-                | "eq_high"
-                | "crossfader"
-                | "cue_mix"
-        ) {
-            self.soft_latched
-                .retain(|k| !k.ends_with(&format!(".{key}")) && !k.contains(key));
-            // Clear all latches for absolute controls on this origin — simple & correct.
-            self.soft_latched.clear();
+        if key == "playing" {
+            if let Origin::Deck(d) = &origin {
+                self.set_playing_deck(*d, value > 0.5);
+                return;
+            }
         }
+        self.snapshot.set_value(origin, key, value);
+    }
+
+    fn set_playing_deck(&mut self, deck: u16, playing: bool) {
+        let i = (deck as usize).min(3);
+        self.playing_decks[i] = playing;
+        self.snapshot.playing[i] = playing;
     }
 
     pub fn on_init(
@@ -204,7 +193,7 @@ impl MappingSession {
         if self.script.is_none() {
             return Ok(());
         }
-        if self.snapshot.playing.iter().any(|&p| p) {
+        if self.playing_decks.iter().any(|&p| p) {
             return Ok(());
         }
         if self
@@ -448,29 +437,9 @@ impl MappingSession {
             Some(a) => a.as_str(),
             None => return false,
         };
-        let Ok((template, leaf, _)) = parse_action_id(action) else {
-            return false;
-        };
-        let Ok(bound) = bind_origin(template, section) else {
-            return false;
-        };
-
-        if binding.soft_takeover_effective() {
-            if let BoundOrigin::Engine(origin) = &bound {
-                if let Some(engine_v) = self.snapshot.get_norm_for_action(origin.clone(), leaf) {
-                    let latched = self.soft_latched.contains(key);
-                    if !latched {
-                        let dist = (norm - engine_v).abs();
-                        if dist > SOFT_TAKEOVER_THRESHOLD {
-                            return false;
-                        }
-                        self.soft_latched.insert(key.to_string());
-                    }
-                }
-            }
-        }
-
-        let Some(routed) = resolve_action(action, section, norm, active, &self.snapshot) else {
+        let soft = binding.soft_takeover_effective();
+        let Some(routed) = resolve_action(action, section, norm, active, soft, &self.snapshot)
+        else {
             return false;
         };
 
@@ -483,41 +452,16 @@ impl MappingSession {
                 kind,
                 body,
             } => {
-                // Mirror absolute values into snapshot after publish intent
+                // Local mirrors still needed for pad routing + LED until Status is wired fully.
                 match body {
-                    CmdBody::SetVolume { volume } => {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.volume[deck_slot(d)] = *volume;
-                        }
-                    }
-                    CmdBody::SetFilter { filter_db } => {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.filter_db[deck_slot(d)] = *filter_db;
-                        }
-                    }
-                    CmdBody::SetGainTrim { gain_db } => {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.gain_db[deck_slot(d)] = *gain_db;
-                        }
-                    }
-                    CmdBody::SetSpeed { speed } => {
-                        if let Origin::Deck(d) = *o {
-                            self.snapshot.speed[deck_slot(d)] = *speed;
-                        }
-                    }
-                    CmdBody::SetEq { low, mid, high } => {
+                    CmdBody::SetPadMode { mode } => {
                         if let Origin::Deck(d) = *o {
                             let i = deck_slot(d);
-                            self.snapshot.eq_low[i] = *low;
-                            self.snapshot.eq_mid[i] = *mid;
-                            self.snapshot.eq_high[i] = *high;
+                            self.snapshot.pad_mode[i] = *mode;
+                            if *mode == PadMode::HotCue {
+                                self.refresh_hot_cue_leds(d, midi);
+                            }
                         }
-                    }
-                    CmdBody::SetCrossfader { position } => {
-                        self.snapshot.crossfader = *position;
-                    }
-                    CmdBody::SetCueMix { mix } => {
-                        self.snapshot.cue_mix = *mix;
                     }
                     CmdBody::SetHeadphoneCue { enabled } => {
                         if let Origin::Deck(d) = *o {
@@ -532,32 +476,27 @@ impl MappingSession {
                             );
                         }
                     }
-                    CmdBody::SetMasterCue { enabled } => {
-                        self.snapshot.master_cue = *enabled;
-                    }
-                    CmdBody::SetPadMode { mode } => {
-                        if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.pad_mode[i] = *mode;
-                            if *mode == PadMode::HotCue {
-                                self.refresh_hot_cue_leds(d, midi);
-                            }
-                        }
-                    }
                     _ => {}
+                }
+                if matches!(kind, Kind::ToggleHeadphoneCue) {
+                    if let Origin::Deck(d) = *o {
+                        let i = deck_slot(d);
+                        let enabled = !self.snapshot.headphone_cue[i];
+                        self.snapshot.headphone_cue[i] = enabled;
+                        let deck_section = format!("deck_{}", d + 1);
+                        self.apply_output_signal(&deck_section, "headphone_cue", enabled, midi);
+                    }
                 }
                 if matches!(kind, Kind::Play | Kind::TriggerHotCue) {
                     if let Origin::Deck(d) = *o {
-                        let i = deck_slot(d);
-                        self.snapshot.playing[i] = true;
+                        self.set_playing_deck(d, true);
                         let deck_section = format!("deck_{}", d + 1);
                         self.apply_output_signal(&deck_section, "play_pause", true, midi);
                     }
                 }
                 if matches!(kind, Kind::Pause) {
                     if let Origin::Deck(d) = *o {
-                        let i = deck_slot(d);
-                        self.snapshot.playing[i] = false;
+                        self.set_playing_deck(d, false);
                         let deck_section = format!("deck_{}", d + 1);
                         self.apply_output_signal(&deck_section, "play_pause", false, midi);
                     }
@@ -572,11 +511,15 @@ impl MappingSession {
     }
 
     /// Update playing signal and emit mapped LED MIDI if changed.
-    pub fn on_deck_playing(&mut self, deck: u16, playing: bool, midi: &mut impl MidiOut) {
-        let i = (deck as usize).min(3);
-        self.snapshot.playing[i] = playing;
-        let section = format!("deck_{}", deck + 1);
-        self.apply_output_signal(&section, "play_pause", playing, midi);
+    pub fn on_deck_playing(
+        &mut self,
+        deck: u16,
+        playing: bool,
+        midi: &mut impl MidiOut,
+    ) {
+        self.set_playing_deck(deck, playing);
+        let deck_section = format!("deck_{}", deck.min(3) + 1);
+        self.apply_output_signal(&deck_section, "play_pause", playing, midi);
     }
 
     pub fn apply_output_signal(
@@ -682,18 +625,11 @@ mod tests {
     }
 
     #[test]
-    fn soft_threshold_is_3_of_127() {
-        assert!((SOFT_TAKEOVER_THRESHOLD - 3.0 / 127.0).abs() < 1e-9);
-    }
-
-    #[test]
     fn cc_coalesce_keeps_latest_until_flush() {
         let mut s = session();
-        // Disable soft-takeover distance: engine volume starts at 1.0; latch by matching first.
-        s.set_control_value(Origin::Deck(0), "volume", 0.0);
         let mut bus = CaptureBus { cmds: vec![] };
 
-        // First CC publishes (0 → latch + set).
+        // First CC publishes immediately.
         s.handle_midi(&[0xB0, 0x13, 0], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1);
 
@@ -714,7 +650,10 @@ mod tests {
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1].2 {
-            CmdBody::SetVolume { volume } => {
+            CmdBody::SetVolume {
+                volume,
+                soft_takeover: true,
+            } => {
                 assert!((*volume - 1.0).abs() < 1e-5, "volume={volume}");
             }
             other => panic!("expected SetVolume, got {other:?}"),

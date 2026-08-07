@@ -41,7 +41,7 @@ fn session() -> controller::MappingSession {
 }
 
 #[test]
-fn note_toggle_play_publishes_play_when_stopped() {
+fn note_toggle_play_publishes_toggle_play() {
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
@@ -52,7 +52,7 @@ fn note_toggle_play_publishes_play_when_stopped() {
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].0, Origin::Deck(0));
-    assert_eq!(bus.cmds[0].1, Kind::Play);
+    assert_eq!(bus.cmds[0].1, Kind::TogglePlay);
 }
 
 #[test]
@@ -73,21 +73,23 @@ fn modifier_shift_selects_set_filter() {
 }
 
 #[test]
-fn soft_takeover_blocks_then_latches() {
+fn soft_takeover_flag_passed_on_absolute_volume() {
     let mut s = session();
-    s.set_control_value(Origin::Deck(0), "volume", 0.9);
     let mut bus = CaptureBus {
         cmds: vec![],
         library: vec![],
     };
     let mut midi = NullMidi;
-    // HW at ~0.1 — far from 0.9
     s.handle_midi(&[0xB0, 0x13, 13], &mut bus, &mut midi);
-    assert!(bus.cmds.is_empty(), "should soft-takeover block");
-    // HW near 0.9 (114/127 ≈ 0.897)
-    s.handle_midi(&[0xB0, 0x13, 114], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
     assert_eq!(bus.cmds[0].1, Kind::SetVolume);
+    match &bus.cmds[0].2 {
+        CmdBody::SetVolume {
+            soft_takeover: true,
+            ..
+        } => {}
+        other => panic!("expected soft_takeover volume, got {other:?}"),
+    }
 }
 
 #[test]
@@ -99,25 +101,16 @@ fn headphone_cue_toggles_and_lights_led() {
     };
     let mut midi = CaptureMidi { frames: vec![] };
 
-    // note on headphone_cue ch1 note 0x54
     s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::SetHeadphoneCue);
-    match &bus.cmds[0].2 {
-        CmdBody::SetHeadphoneCue { enabled } => assert!(*enabled),
-        other => panic!("expected SetHeadphoneCue, got {other:?}"),
-    }
+    assert_eq!(bus.cmds[0].1, Kind::ToggleHeadphoneCue);
     assert_eq!(midi.frames.len(), 1, "PFL LED should turn on");
     assert_eq!(midi.frames[0], vec![0x90, 0x54, 0x7F]);
 
-    // release + press again → disable
     s.handle_midi(&[0x80, 0x54, 0x00], &mut bus, &mut midi);
     s.handle_midi(&[0x90, 0x54, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 2);
-    match &bus.cmds[1].2 {
-        CmdBody::SetHeadphoneCue { enabled } => assert!(!*enabled, "second press must disable"),
-        other => panic!("expected SetHeadphoneCue, got {other:?}"),
-    }
+    assert_eq!(bus.cmds[1].1, Kind::ToggleHeadphoneCue);
     assert_eq!(midi.frames.len(), 2, "PFL LED should turn off");
     assert_eq!(midi.frames[1], vec![0x90, 0x54, 0x00]);
 }
@@ -145,10 +138,10 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
 
     bus.cmds.clear();
     s.handle_midi(&[0x80, 0x2E, 0x00], &mut bus, &mut midi);
-    // play_pause should Pause on first press (not a no-op Play)
+    // play_pause always publishes TogglePlay; engine owns play/pause decision
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::Pause);
+    assert_eq!(bus.cmds[0].1, Kind::TogglePlay);
 }
 
 #[test]

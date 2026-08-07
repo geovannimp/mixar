@@ -12,7 +12,7 @@ mod wire;
 pub use kind::Kind;
 pub use origin::Origin;
 pub use payload::{
-    CmdBody, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus, EvtBody, JogMode,
+    CmdBody, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus, EqBand, EvtBody, JogMode,
     LoopRegion, PadMode, SamplerBankInfo, SamplerPlayMode, SamplerSlotInfo, SamplerStatus,
     SyncMode,
 };

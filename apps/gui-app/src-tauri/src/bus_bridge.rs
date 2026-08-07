@@ -81,6 +81,13 @@ impl EvtForwarder {
                             }
                         }
                     }
+                    if *ev.kind() == Kind::Updated {
+                        if let Ok(EvtBody::DeckUpdated { id, playing, .. }) =
+                            decode_evt_body(ev.payload())
+                        {
+                            mirror_playing_to_controller(&app, id as u16, playing);
+                        }
+                    }
                     let Ok(data) = encode_wire(&WireMessage {
                         origin: ev.origin().clone(),
                         kind: ev.kind().clone(),
@@ -138,6 +145,19 @@ fn mirror_levels_to_controller(app: &AppHandle, deck: u16, level: f32) {
             return;
         };
         eng.set_deck_vu(deck, level);
+    }
+}
+
+fn mirror_playing_to_controller(app: &AppHandle, deck: u16, playing: bool) {
+    let Some(controller) = app.try_state::<SharedController>() else {
+        return;
+    };
+    let controller = Arc::clone(&controller);
+    {
+        let Ok(mut eng) = controller.lock() else {
+            return;
+        };
+        eng.on_deck_playing(deck, playing);
     }
 }
 
