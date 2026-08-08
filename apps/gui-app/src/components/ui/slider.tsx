@@ -30,7 +30,8 @@ interface FaderTick {
 /** Hierarchical ticks every 10%: major at ends+center, otherwise minor. */
 const FADER_TICKS: FaderTick[] = Array.from({ length: 11 }, (_, i) => {
   const pos = i * 10;
-  const size: TickSize = pos === 0 || pos === 50 || pos === 100 ? "major" : "minor";
+  const size: TickSize =
+    pos === 0 || pos === 50 || pos === 100 ? "major" : "minor";
   return { pos, size };
 });
 
@@ -175,12 +176,21 @@ export function Slider({
     return [min];
   }, [value, defaultValue, min]);
 
-  const channelFader = channelAccent ? DECK_ACCENTS[channelAccent].fader : NEUTRAL_FADER_TRACK;
+  const channelFader = channelAccent
+    ? DECK_ACCENTS[channelAccent].fader
+    : NEUTRAL_FADER_TRACK;
   const faderLane =
-    thumbVariant === "fader" ? (crossfaderTrack ? CROSSFADER_TRACK : channelFader.trackBg) : null;
+    thumbVariant === "fader"
+      ? crossfaderTrack
+        ? CROSSFADER_TRACK
+        : channelFader.trackBg
+      : null;
   const markedFader = thumbVariant === "fader" && showMarkers;
 
-  const handleValueChange: SliderPrimitive.Root.Props["onValueChange"] = (next, eventDetails) => {
+  const handleValueChange: SliderPrimitive.Root.Props["onValueChange"] = (
+    next,
+    eventDetails,
+  ) => {
     if (!onValueChange) {
       return;
     }
@@ -199,7 +209,10 @@ export function Slider({
 
   return (
     <SliderPrimitive.Root
-      className={cn("group/slider relative data-[orientation=horizontal]:w-full", className)}
+      className={cn(
+        "group/slider relative flex flex-col data-[orientation=horizontal]:w-full data-[orientation=vertical]:min-h-44 data-[orientation=horizontal]:min-w-44",
+        className,
+      )}
       defaultValue={defaultValue}
       max={max}
       min={min}
@@ -212,7 +225,7 @@ export function Slider({
     >
       {children}
       <SliderPrimitive.Control
-        className="relative z-1 flex touch-none select-none overflow-visible data-disabled:pointer-events-none data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=horizontal]:w-full data-[orientation=horizontal]:min-w-44 data-[orientation=vertical]:flex-col data-disabled:opacity-64"
+        className="relative z-1 flex min-h-0 min-w-0 flex-1 touch-none items-center overflow-visible select-none data-disabled:pointer-events-none data-[orientation=vertical]:h-full data-[orientation=vertical]:flex-col data-[orientation=horizontal]:w-full data-disabled:opacity-64"
         data-slot="slider-control"
       >
         {markedFader ? (
@@ -248,7 +261,9 @@ export function Slider({
           {showIndicator ? (
             <SliderPrimitive.Indicator
               className={cn(
-                "relative z-1 select-none rounded-full data-[orientation=horizontal]:ms-0.5 data-[orientation=vertical]:mb-0.5",
+                "relative z-1 select-none rounded-full",
+                "data-[orientation=horizontal]:ms-1.5 data-[orientation=horizontal]:rounded-r-none",
+                "data-[orientation=vertical]:-mb-1.5 data-[orientation=vertical]:rounded-t-none",
                 thumbVariant === "fader" && channelAccent
                   ? DECK_ACCENTS[channelAccent].fader.indicator
                   : "bg-primary",
@@ -262,7 +277,7 @@ export function Slider({
                 "relative z-2 block shrink-0 select-none outline-none transition-[box-shadow,scale] has-focus-visible:ring-[3px] has-focus-visible:ring-ring/24 dark:has-focus-visible:ring-ring/48 data-dragging:scale-105",
                 thumbVariant === "fader"
                   ? cn(
-                      "rounded-[2px] after:pointer-events-none after:absolute after:content-['']",
+                      "rounded-xs after:absolute",
                       FADER_THUMB_SIZE,
                       FADER_GRIP_POSITION,
                       FADER_KNOB.thumb,

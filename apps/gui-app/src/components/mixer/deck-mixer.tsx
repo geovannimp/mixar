@@ -139,7 +139,7 @@ function DeckVolumeFader({
         onValueChange={onGainChange}
       />
 
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center border-t border-white/6 py-1 **:data-[slot=slider-control]:h-full **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:items-center">
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center py-1">
         <Slider
           orientation="vertical"
           thumbAlignment="center"
@@ -152,10 +152,7 @@ function DeckVolumeFader({
           value={percent}
           disabled={disabled}
           aria-label="Volume"
-          className={cn(
-            FADER_COLUMN_CLASS,
-            "h-full min-h-0 data-[orientation=vertical]:min-h-0",
-          )}
+          className={cn(FADER_COLUMN_CLASS, "h-full min-h-0")}
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onVolumeChange(next / 100);
@@ -252,7 +249,7 @@ function Crossfader({
           value={percent}
           disabled={disabled}
           aria-label="Crossfader"
-          className="min-h-0 min-w-0 flex-1 overflow-visible **:data-[slot=slider-control]:min-h-0 **:data-[slot=slider-control]:min-w-0"
+          className="min-h-0 min-w-0 flex-1 overflow-visible"
           onValueChange={(value) => {
             const next = Array.isArray(value) ? (value[0] ?? 0) : value;
             onPositionChange(next / 100);
