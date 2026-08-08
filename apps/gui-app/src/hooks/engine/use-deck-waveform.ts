@@ -13,7 +13,7 @@ export function useDeckWaveform(deckId: number) {
         track: deck.track,
         track_id: deck.track_id,
         playing: deck.playing,
-        speed: normToSpeedRatio(deck.speed, null, deck.tempo_range),
+        speed: normToSpeedRatio(deck.speed, deck.tempo_range),
         eq: deck.eq,
         hot_cues: deck.hot_cues,
         active_loop: deck.active_loop,

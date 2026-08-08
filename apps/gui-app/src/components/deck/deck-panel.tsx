@@ -139,7 +139,7 @@ function DeckJog({
       jogTouching={jogTouching}
       positionMs={transport.position_ms ?? 0}
       durationMs={transport.duration_ms}
-      speed={normToSpeedRatio(speed, null, tempoRange)}
+      speed={normToSpeedRatio(speed, tempoRange)}
       onJogTouch={(touching) => {
         void engineActions.jogTouch(deckId, touching);
       }}

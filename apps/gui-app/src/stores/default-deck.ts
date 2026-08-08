@@ -1,5 +1,5 @@
 import { DEFAULT_DECK_EQ, ZERO_DECK_LEVELS, type DeckStatus } from "@/types";
-import { DEFAULT_TEMPO_RANGE } from "@/lib/format";
+import { DEFAULT_TEMPO_RANGE } from "@/lib/bus-settings";
 
 const EMPTY_HOT_CUES: DeckStatus["hot_cues"] = [];
 const EMPTY_SAVED_LOOPS: DeckStatus["saved_loops"] = [];

@@ -155,9 +155,9 @@ git commit -m "feat(controller): cycle_tempo_range + DDJ-400 Shift+SYNC"
 ### Task 4: GUI percent + cycle
 
 **Files:**
-- Modify: `apps/gui-app/src/lib/format.ts`, `wire.ts`, `types.ts`, `apply-bus-event.ts`, `deck-tempo-panel.tsx`, deck parent that sends cmds
+- Modify: `apps/gui-app/src/lib/bus-settings.ts`, `format.ts`, `wire.ts`, `types.ts`, `apply-bus-event.ts`, `deck-tempo-panel.tsx`, deck parent that sends cmds
 
-- [ ] **Step 1:** `DEFAULT_TEMPO_RANGE = 0.06`, `TEMPO_RANGE_STEPS`, `nextTempoRange`, percent-based `normToSpeedRatio` / `effectiveBpm` / use `formatPitchPercent` in panel; remove BPM-offset display.
+- [ ] **Step 1:** Put `DEFAULT_TEMPO_RANGE = 0.06` and `TEMPO_RANGE_STEPS` in `bus-settings.ts`; `nextTempoRange` + percent-based `normToSpeedRatio` / `effectiveBpm` / `formatPitchPercent` in `format.ts` (no unused BPM args); remove BPM-offset display.
 
 - [ ] **Step 2:** Wire schema + `DeckStatus.tempo_range`; cycle button publishes `set_tempo_range`.
 

@@ -1,3 +1,7 @@
+import { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS } from "./bus-settings";
+
+export { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS };
+
 export function fileName(path: string | null): string {
   if (!path) return "No track loaded";
   const parts = path.split(/[/\\]/);
@@ -53,12 +57,6 @@ export function formatDeckTotalDisplay(durationMs: number | null | undefined): s
   return formatDeckTimeTenth(durationMs);
 }
 
-/** Default tempo fader half-span as pitch fraction (`0.06` = ±6%). */
-export const DEFAULT_TEMPO_RANGE = 0.06;
-
-/** Pioneer / Mixxx DDJ-400 cycle steps. */
-export const TEMPO_RANGE_STEPS = [0.06, 0.1, 0.16, 0.25] as const;
-
 /** @deprecated Use {@link DEFAULT_TEMPO_RANGE}. */
 export const DEFAULT_TEMPO_RANGE_BPM = DEFAULT_TEMPO_RANGE;
 
@@ -74,21 +72,13 @@ function usableTempoRange(tempoRange: number): number {
 }
 
 /** Tempo fader `0..1` → playback ratio (±`tempoRange` fraction). */
-export function normToSpeedRatio(
-  norm: number,
-  _trackBpm: number | null | undefined = null,
-  tempoRange: number = DEFAULT_TEMPO_RANGE,
-): number {
+export function normToSpeedRatio(norm: number, tempoRange: number = DEFAULT_TEMPO_RANGE): number {
   const n = Math.min(1, Math.max(0, norm));
   return Math.max(0.01, 1 + (0.5 - n) * 2 * usableTempoRange(tempoRange));
 }
 
 /** Playback ratio → tempo fader `0..1` (saturates outside ±tempo_range). */
-export function speedRatioToNorm(
-  ratio: number,
-  _trackBpm: number | null | undefined = null,
-  tempoRange: number = DEFAULT_TEMPO_RANGE,
-): number {
+export function speedRatioToNorm(ratio: number, tempoRange: number = DEFAULT_TEMPO_RANGE): number {
   const range = Math.max(1e-6, usableTempoRange(tempoRange));
   const n = 0.5 - (ratio - 1) / (2 * range);
   return Math.min(1, Math.max(0, n));
@@ -100,7 +90,7 @@ export function effectiveBpm(
   tempoRange: number = DEFAULT_TEMPO_RANGE,
 ): number | null {
   if (bpm == null || !Number.isFinite(bpm) || bpm <= 0) return null;
-  return bpm * normToSpeedRatio(speedNorm, null, tempoRange);
+  return bpm * normToSpeedRatio(speedNorm, tempoRange);
 }
 
 /** Default DJ time signature: 4/4. */
@@ -186,14 +176,13 @@ export function nudgeSpeed(
   deltaPercent: number,
   tempoRange: number = DEFAULT_TEMPO_RANGE,
 ): number {
-  const ratio = normToSpeedRatio(speedNorm, null, tempoRange) + deltaPercent / 100;
-  return speedRatioToNorm(ratio, null, tempoRange);
+  const ratio = normToSpeedRatio(speedNorm, tempoRange) + deltaPercent / 100;
+  return speedRatioToNorm(ratio, tempoRange);
 }
 
 /** @deprecated Prefer {@link formatPitchPercent}. */
 export function formatPitchOffset(
   speedNorm: number,
-  _trackBpm: number | null | undefined = null,
   tempoRange: number = DEFAULT_TEMPO_RANGE,
 ): string {
   return formatPitchPercent(speedNorm, tempoRange);
@@ -204,7 +193,7 @@ export function formatPitchPercent(
   speedNorm: number,
   tempoRange: number = DEFAULT_TEMPO_RANGE,
 ): string {
-  const percent = (normToSpeedRatio(speedNorm, null, tempoRange) - 1) * 100;
+  const percent = (normToSpeedRatio(speedNorm, tempoRange) - 1) * 100;
   const sign = percent >= 0 ? "+" : "";
   return `${sign}${percent.toFixed(2)}%`;
 }
