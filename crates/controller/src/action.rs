@@ -357,32 +357,28 @@ pub fn resolve_action(
             if !active {
                 return None;
             }
-            let beats = args.require_int("beats").ok()?;
-            if beats < 1 {
+            let beats = args.require_f32("beats").ok()?;
+            if !beats.is_finite() || beats <= 0.0 {
                 return None;
             }
             Some(engine_cmd(
                 origin,
                 Kind::SetAutoLoop,
-                CmdBody::SetAutoLoop {
-                    beats: beats as u32,
-                },
+                CmdBody::SetAutoLoop { beats },
             ))
         }
         "beat_jump" => {
             if !active {
                 return None;
             }
-            let beats = args.require_int("beats").ok()?;
-            if beats == 0 {
+            let beats = args.require_f32("beats").ok()?;
+            if !beats.is_finite() || beats == 0.0 {
                 return None;
             }
             Some(engine_cmd(
                 origin,
                 Kind::BeatJump,
-                CmdBody::BeatJump {
-                    beats: beats as i32,
-                },
+                CmdBody::BeatJump { beats },
             ))
         }
         "pad_mode" => {
@@ -436,8 +432,8 @@ pub fn resolve_action(
 }
 
 /// Match GUI pad grid (`LOOP_ROLL_BEATS` / beat-jump layout).
-const LOOP_ROLL_BEATS: [u32; 8] = [1, 2, 4, 8, 16, 32, 64, 128];
-const BEAT_JUMP_BEATS: [i32; 8] = [1, 2, 4, 8, -1, -2, -4, -8];
+const LOOP_ROLL_BEATS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0];
+const BEAT_JUMP_BEATS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, -1.0, -2.0, -4.0, -8.0];
 
 fn resolve_pad_slot(
     origin: Origin,
@@ -629,7 +625,7 @@ mod tests {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeatJump { beats },
                 ..
-            } => assert_eq!(beats, 1),
+            } => assert_eq!(beats, 1.0),
             other => panic!("expected BeatJump +1, got {other:?}"),
         }
 
@@ -639,7 +635,7 @@ mod tests {
             RoutedAction::EngineCmd {
                 body: CmdBody::BeginLoopRoll { beats },
                 ..
-            } => assert_eq!(beats, 4),
+            } => assert_eq!(beats, 4.0),
             other => panic!("expected BeginLoopRoll 4, got {other:?}"),
         }
         let end = resolve_action("Deck(_)::pad(n:3)", "deck_1", 0.0, false, false, &snap).unwrap();
@@ -681,6 +677,27 @@ mod tests {
                 ..
             } => assert_eq!(mode, PadMode::LoopRoll),
             other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn auto_loop_accepts_decimal_beats() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "Deck(_)::auto_loop(beats:0.25)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetAutoLoop { beats },
+                ..
+            } => assert!((beats - 0.25).abs() < 1e-6),
+            other => panic!("expected SetAutoLoop 0.25, got {other:?}"),
         }
     }
 

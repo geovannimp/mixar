@@ -1234,9 +1234,11 @@ impl Engine {
     }
 
     /// Begin a temporary loop roll; stashes the prior active loop for restore.
-    pub fn begin_deck_loop_roll(&mut self, deck_id: usize, beats: u32) -> Result<()> {
-        if beats == 0 {
-            return Err(anyhow::anyhow!("Loop roll requires at least 1 beat."));
+    pub fn begin_deck_loop_roll(&mut self, deck_id: usize, beats: f32) -> Result<()> {
+        if !beats.is_finite() || beats <= 0.0 {
+            return Err(anyhow::anyhow!(
+                "Loop roll requires a positive finite beat length."
+            ));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for loop roll."))?;
@@ -1252,9 +1254,7 @@ impl Engine {
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let out_ms = secs_to_ms(
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
-        );
+        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
@@ -1296,9 +1296,11 @@ impl Engine {
     }
 
     /// Auto-loop `beats` from the snapped playhead.
-    pub fn set_deck_auto_loop(&mut self, deck_id: usize, beats: u32) -> Result<()> {
-        if beats == 0 {
-            return Err(anyhow::anyhow!("Loop length must be at least 1 beat."));
+    pub fn set_deck_auto_loop(&mut self, deck_id: usize, beats: f32) -> Result<()> {
+        if !beats.is_finite() || beats <= 0.0 {
+            return Err(anyhow::anyhow!(
+                "Loop length must be a positive finite beat count."
+            ));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
@@ -1307,9 +1309,7 @@ impl Engine {
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let out_ms = secs_to_ms(
-            (in_secs + beat_len * f64::from(beats)).min(duration.max(in_secs + beat_len)),
-        );
+        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
@@ -1342,9 +1342,11 @@ impl Engine {
     }
 
     /// Jump playhead by `beats` (negative = backward), optionally snapped.
-    pub fn beat_jump_deck(&mut self, deck_id: usize, beats: i32) -> Result<()> {
-        if beats == 0 {
-            return Err(anyhow::anyhow!("Beat jump requires a non-zero beat count."));
+    pub fn beat_jump_deck(&mut self, deck_id: usize, beats: f32) -> Result<()> {
+        if !beats.is_finite() || beats == 0.0 {
+            return Err(anyhow::anyhow!(
+                "Beat jump requires a non-zero finite beat count."
+            ));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for beat jump."))?;

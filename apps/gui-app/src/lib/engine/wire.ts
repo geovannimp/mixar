@@ -224,12 +224,21 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("set_master_cue"), enabled: z.boolean() }),
   z.object({ type: z.literal("toggle_sync"), beat_sync: z.boolean() }),
   z.object({ type: z.literal("set_quantize"), enabled: z.boolean() }),
-  z.object({ type: z.literal("set_auto_loop"), beats: z.number().int().nonnegative() }),
-  z.object({ type: z.literal("beat_jump"), beats: z.number().int() }),
+  z.object({
+    type: z.literal("set_auto_loop"),
+    beats: z.number().finite().positive(),
+  }),
+  z.object({
+    type: z.literal("beat_jump"),
+    beats: z
+      .number()
+      .finite()
+      .refine((n) => n !== 0, { message: "beats must be non-zero" }),
+  }),
   z.object({ type: z.literal("set_pad_mode"), mode: PadModeSchema }),
   z.object({
     type: z.literal("begin_loop_roll"),
-    beats: z.number().int().positive(),
+    beats: z.number().finite().positive(),
   }),
   z.object({ type: z.literal("trigger_hot_cue"), position_ms: z.number() }),
   z.object({

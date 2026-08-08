@@ -95,7 +95,7 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 4 }).unwrap(),
+            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 4.0 }).unwrap(),
         )
         .expect("begin roll");
 
@@ -127,6 +127,39 @@ fn begin_and_end_loop_roll_clears_when_no_prior() {
 }
 
 #[test]
+fn auto_loop_quarter_beat_preserves_length() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetAutoLoop,
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 0.25 }).unwrap(),
+        )
+        .expect("auto loop");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("loop");
+    let len_ms = region.out_ms - region.in_ms;
+    // 120 BPM => 1 beat = 500ms; 0.25 beat = 125ms
+    assert!(
+        (len_ms - 125).abs() <= 2,
+        "expected ~125ms loop, got {len_ms}ms (in={}, out={})",
+        region.in_ms,
+        region.out_ms
+    );
+}
+
+#[test]
 fn end_loop_roll_restores_prior_active_loop() {
     let session = null_session_loaded();
     let evt = session
@@ -138,7 +171,7 @@ fn end_loop_roll_restores_prior_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 8 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 8.0 }).unwrap(),
         )
         .expect("auto loop");
     let event = recv_evt_kind(&evt, Kind::Updated);
@@ -153,7 +186,7 @@ fn end_loop_roll_restores_prior_active_loop() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::BeginLoopRoll,
-            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 1 }).unwrap(),
+            encode_cmd_body(&CmdBody::BeginLoopRoll { beats: 1.0 }).unwrap(),
         )
         .expect("begin roll");
     let _ = recv_evt_kind(&evt, Kind::Updated);

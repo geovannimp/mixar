@@ -217,17 +217,21 @@ pub fn validate_leaf_args(
         }
         "auto_loop" => {
             args.expect_keys_exactly(&["beats"])?;
-            let beats = args.require_int("beats")?;
-            if beats < 1 {
-                return Err(LoadError::Validation("arg `beats` must be >= 1".into()));
+            let beats = args.require_f32("beats")?;
+            if !beats.is_finite() || beats <= 0.0 {
+                return Err(LoadError::Validation(
+                    "arg `beats` must be a positive finite number".into(),
+                ));
             }
             Ok(())
         }
         "beat_jump" => {
             args.expect_keys_exactly(&["beats"])?;
-            let beats = args.require_int("beats")?;
-            if beats == 0 {
-                return Err(LoadError::Validation("arg `beats` must be non-zero".into()));
+            let beats = args.require_f32("beats")?;
+            if !beats.is_finite() || beats == 0.0 {
+                return Err(LoadError::Validation(
+                    "arg `beats` must be a non-zero finite number".into(),
+                ));
             }
             Ok(())
         }
