@@ -25,9 +25,3 @@ export function normToStripDb(norm: number): number {
   const n = Math.min(1, Math.max(0, norm));
   return EQ_MIN_DB + n * (EQ_MAX_DB - EQ_MIN_DB);
 }
-
-export function formatStripNormDb(norm: number): string {
-  const db = snapEqDb(normToStripDb(norm));
-  const sign = db > 0 ? "+" : "";
-  return `${sign}${db.toFixed(1)}`;
-}
