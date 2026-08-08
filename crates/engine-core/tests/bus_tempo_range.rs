@@ -81,24 +81,19 @@ fn set_tempo_range_keeps_speed_and_publishes_fraction() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetTempoRange,
-            encode_cmd_body(&CmdBody::SetTempoRange {
-                tempo_range: 0.10,
-            })
-            .unwrap(),
+            encode_cmd_body(&CmdBody::SetTempoRange { tempo_range: 0.123 }).unwrap(),
         )
         .expect("set range");
 
     let event = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
-        tempo_range,
-        speed,
-        ..
+        tempo_range, speed, ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
     assert!(
-        (tempo_range - 0.10).abs() < 1e-5,
+        (tempo_range - 0.123).abs() < 1e-5,
         "tempo_range={tempo_range}"
     );
     assert!((speed - 0.25).abs() < 1e-5, "speed={speed}");
@@ -117,10 +112,7 @@ fn set_tempo_range_rejects_non_positive_and_non_finite() {
             .publish_cmd(
                 Origin::Deck(0),
                 Kind::SetTempoRange,
-                encode_cmd_body(&CmdBody::SetTempoRange {
-                    tempo_range: bad,
-                })
-                .unwrap(),
+                encode_cmd_body(&CmdBody::SetTempoRange { tempo_range: bad }).unwrap(),
             )
             .expect("publish");
         let event = recv_evt_kind(&evt, Kind::Error);

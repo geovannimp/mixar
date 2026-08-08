@@ -274,9 +274,7 @@ pub fn resolve_action(
             Some(engine_cmd(
                 origin,
                 Kind::SetTempoRange,
-                CmdBody::SetTempoRange {
-                    tempo_range: next,
-                },
+                CmdBody::SetTempoRange { tempo_range: next },
             ))
         }
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
