@@ -210,7 +210,7 @@ export function Slider({
   return (
     <SliderPrimitive.Root
       className={cn(
-        "group/slider relative flex flex-col data-[orientation=horizontal]:w-full data-[orientation=vertical]:min-h-44 data-[orientation=horizontal]:min-w-44",
+        "group/slider relative flex flex-col data-[orientation=horizontal]:w-full",
         className,
       )}
       defaultValue={defaultValue}

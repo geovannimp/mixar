@@ -160,15 +160,11 @@ function DeckVolumeFader({
         />
       </div>
 
-      <span className="w-full shrink-0 text-center text-[9px] tabular-nums text-zinc-500">
-        {percent}%
-      </span>
-
       <button
         type="button"
         className={cn(
           buttonIcon,
-          "size-7 shrink-0 border-white/10 text-zinc-400 hover:bg-zinc-800/90",
+          "mt-2 size-7 shrink-0 border-white/10 text-zinc-400 hover:bg-zinc-800/90",
           cue &&
             "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
         )}
@@ -227,7 +223,7 @@ function Crossfader({
   const percent = Math.round(position * 10000) / 100;
 
   return (
-    <div className="flex w-full shrink-0 flex-col gap-1 border-t border-white/6 pt-2">
+    <div className="flex w-full shrink-0 flex-col gap-1 border-t border-white/6 py-1.5">
       <span className="text-center text-[8px] font-semibold uppercase tracking-widest text-zinc-600">
         Crossfader
       </span>
