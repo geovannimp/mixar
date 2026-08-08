@@ -145,9 +145,9 @@ function Toasts({
                   )}
 
                   <div className="flex flex-col gap-0.5">
-                    <Toast.Title className="font-medium" data-slot="toast-title" />
+                    <Toast.Title className="font-bold font-serif" data-slot="toast-title" />
                     <Toast.Description
-                      className="text-muted-foreground"
+                      className="text-muted-foreground text-xs"
                       data-slot="toast-description"
                     />
                   </div>
@@ -159,7 +159,10 @@ function Toasts({
                 )}
                 <Toast.Close
                   aria-label="Close"
-                  className={buttonVariants({ size: "icon-xs", variant: "ghost" })}
+                  className={buttonVariants({
+                    size: "icon-xs",
+                    variant: "ghost",
+                  })}
                   data-slot="toast-close"
                 >
                   <XIcon className="size-3.5" />

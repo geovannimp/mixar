@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/noto-sans-mono";
+@import "@fontsource-variable/outfit";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,9 +16,13 @@
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-serif);
 
-  --font-sans: "Geist Variable", sans-serif;
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --font-serif: "Space Grotesk Variable", ui-serif, Georgia, serif;
+
+  --font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
 
   --color-sidebar-ring: var(--sidebar-ring);
 
@@ -96,13 +102,16 @@
 
   --color-destructive-foreground: var(--destructive-foreground);
 
-  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-odd: toast-success-odd 0.32s
+    cubic-bezier(0.5, 1, 0.89, 1);
 
-  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s
+    cubic-bezier(0.5, 1, 0.89, 1);
 
   --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
 
-  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s
+    cubic-bezier(0.5, 1, 0.89, 1);
   @keyframes toast-success-odd {
     0% {
       scale: 1;
@@ -310,5 +319,10 @@
   }
   html {
     @apply font-sans;
+    font-feature-settings:
+      "ss01" 1,
+      "case" 1,
+      "tnum" 1,
+      "zero" 1;
   }
 }
