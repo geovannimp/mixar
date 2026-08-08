@@ -178,6 +178,10 @@ export interface AppSettings {
   deck_default_sampler_bank_id: [string | null, string | null];
   default_top_jog_mode: JogMode;
   default_outer_jog_mode: JogMode;
+  /** Default tempo fader half-span as pitch fraction (`0.06` = ±6%). */
+  default_tempo_range: number;
+  /** Cycle steps for tempo-range controls (pitch fractions). */
+  tempo_range_steps: number[];
 }
 
 export type LibraryTableColumn =

@@ -8,7 +8,7 @@ use deck_sampler::{
 use deck_sync::PadMode;
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
-    EngineSession, SamplerStripRouteSetting,
+    EngineSession, SamplerStripRouteSetting, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
 };
 use library::{LibraryConfig, LibraryManager, LibrarySession, NewCollection, WritableLibrary};
 use library_core::{
@@ -159,10 +159,22 @@ struct AppSettings {
     default_top_jog_mode: engine_api::JogMode,
     #[serde(default = "default_outer_jog_mode")]
     default_outer_jog_mode: engine_api::JogMode,
+    #[serde(default = "default_tempo_range")]
+    default_tempo_range: f32,
+    #[serde(default = "default_tempo_range_steps")]
+    tempo_range_steps: Vec<f32>,
 }
 
 fn default_outer_jog_mode() -> engine_api::JogMode {
     engine_api::JogMode::PitchBend
+}
+
+fn default_tempo_range() -> f32 {
+    DEFAULT_TEMPO_RANGE
+}
+
+fn default_tempo_range_steps() -> Vec<f32> {
+    DEFAULT_TEMPO_RANGE_STEPS.to_vec()
 }
 
 fn default_volume_normalizer_enabled() -> bool {
@@ -285,6 +297,8 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         deck_default_sampler_bank_id: state.deck_default_sampler_bank_id.clone(),
         default_top_jog_mode: state.default_top_jog_mode,
         default_outer_jog_mode: state.default_outer_jog_mode,
+        default_tempo_range: config.default_tempo_range(),
+        tempo_range_steps: config.tempo_range_steps(),
     }
 }
 
@@ -301,6 +315,8 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     config.audio = Some(AudioConfig {
         resampler_quality: Some(settings.resampler_quality.clone()),
         sampler_strip_route: Some(settings.sampler_strip_route),
+        default_tempo_range: Some(settings.default_tempo_range),
+        tempo_range_steps: Some(settings.tempo_range_steps.clone()),
     });
 
     state.library.lock().unwrap().set_config(LibraryConfig {
@@ -321,6 +337,7 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     state.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
     state.default_top_jog_mode = settings.default_top_jog_mode;
     state.default_outer_jog_mode = settings.default_outer_jog_mode;
+    config.validate().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -353,6 +370,8 @@ fn default_engine_config() -> EngineConfig {
     config.audio = Some(AudioConfig {
         resampler_quality: Some("medium".to_string()),
         sampler_strip_route: Some(SamplerStripRouteSetting::Before),
+        default_tempo_range: Some(DEFAULT_TEMPO_RANGE),
+        tempo_range_steps: Some(DEFAULT_TEMPO_RANGE_STEPS.to_vec()),
     });
     config.buses = vec![bus_config(
         MASTER_BUS_ID,

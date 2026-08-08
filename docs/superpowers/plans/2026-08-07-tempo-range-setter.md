@@ -21,15 +21,16 @@
 
 | File | Role |
 |------|------|
-| `crates/engine-dsp/src/tempo.rs` | Percent fader ↔ ratio math + step consts |
+| `crates/engine-core/src/config.rs` | `DEFAULT_TEMPO_RANGE` / steps + `AudioConfig` fields |
+| `crates/engine-dsp/src/tempo.rs` | Percent fader ↔ ratio math + DSP fallback consts |
 | `crates/engine-dsp/src/deck.rs` | Default range; `set_tempo_range` sync-safe |
 | `crates/engine-api/src/kind.rs` | `SetTempoRange` |
 | `crates/engine-api/src/payload.rs` | Cmd + snapshot/event field |
 | `crates/engine-core/src/control.rs` | Dispatch + publish |
-| `crates/engine-core/src/engine.rs` | `set_deck_tempo_range` + snapshot field |
+| `crates/engine-core/src/engine.rs` | `set_deck_tempo_range` + apply config default on start |
 | `crates/controller/src/catalog.rs` + `action.rs` | `cycle_tempo_range` |
 | `mappings/ddj-400/device.toml` + `map.toml` | Note `0x60` bind |
-| `apps/gui-app/src/lib/format.ts` + `wire.ts` + types + tempo panel | Percent UI + cycle |
+| `apps/gui-app` settings + `format.ts` + tempo panel | AppSettings ↔ config; percent UI + cycle |
 
 ---
 
@@ -157,7 +158,7 @@ git commit -m "feat(controller): cycle_tempo_range + DDJ-400 Shift+SYNC"
 **Files:**
 - Modify: `apps/gui-app/src/lib/bus-settings.ts`, `format.ts`, `wire.ts`, `types.ts`, `apply-bus-event.ts`, `deck-tempo-panel.tsx`, deck parent that sends cmds
 
-- [ ] **Step 1:** Put `DEFAULT_TEMPO_RANGE = 0.06` and `TEMPO_RANGE_STEPS` in `bus-settings.ts`; `nextTempoRange` + percent-based `normToSpeedRatio` / `effectiveBpm` / `formatPitchPercent` in `format.ts` (no unused BPM args); remove BPM-offset display.
+- [ ] **Step 1:** Put `DEFAULT_TEMPO_RANGE` / `DEFAULT_TEMPO_RANGE_STEPS` in `engine-core` `config.rs` (`AudioConfig` + getters); mirror in GUI `AppSettings` / `bus-settings.ts`; `nextTempoRange` + percent helpers in `format.ts`; settings UI default-range select; remove BPM-offset display.
 
 - [ ] **Step 2:** Wire schema + `DeckStatus.tempo_range`; cycle button publishes `set_tempo_range`.
 

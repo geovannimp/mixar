@@ -60,11 +60,15 @@ export function formatDeckTotalDisplay(durationMs: number | null | undefined): s
 /** @deprecated Use {@link DEFAULT_TEMPO_RANGE}. */
 export const DEFAULT_TEMPO_RANGE_BPM = DEFAULT_TEMPO_RANGE;
 
-export function nextTempoRange(current: number): number {
+export function nextTempoRange(
+  current: number,
+  steps: readonly number[] = TEMPO_RANGE_STEPS,
+): number {
+  const list = steps.length > 0 ? steps : TEMPO_RANGE_STEPS;
   const eps = 1e-4;
-  const idx = TEMPO_RANGE_STEPS.findIndex((s) => Math.abs(s - current) < eps);
-  if (idx < 0) return TEMPO_RANGE_STEPS[0];
-  return TEMPO_RANGE_STEPS[(idx + 1) % TEMPO_RANGE_STEPS.length]!;
+  const idx = list.findIndex((s) => Math.abs(s - current) < eps);
+  if (idx < 0) return list[0]!;
+  return list[(idx + 1) % list.length]!;
 }
 
 function usableTempoRange(tempoRange: number): number {

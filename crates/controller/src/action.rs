@@ -95,7 +95,7 @@ fn deck_idx(d: u16) -> usize {
     (d as usize).min(3)
 }
 
-/// Matches `engine_dsp::tempo::DEFAULT_TEMPO_RANGE` / `TEMPO_RANGE_STEPS`.
+/// Matches `engine_core::config::DEFAULT_TEMPO_RANGE` / `DEFAULT_TEMPO_RANGE_STEPS`.
 const DEFAULT_TEMPO_RANGE: f32 = 0.06;
 const TEMPO_RANGE_STEPS: &[f32] = &[0.06, 0.10, 0.16, 0.25];
 

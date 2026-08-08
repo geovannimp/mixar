@@ -1,5 +1,6 @@
 import { Slider } from "@/components/ui/slider";
 import { DeckButton } from "@/components/ui/deck-button";
+import { useSettings } from "@/hooks/use-settings";
 import type { DeckAccent } from "@/lib/ui";
 import { DECK_ACCENTS } from "@/lib/ui";
 import {
@@ -32,6 +33,8 @@ export function DeckTempoPanel({
   onToggleSync,
   onSetMaster,
 }: DeckTempoPanelProps) {
+  const { settings } = useSettings();
+  const tempoSteps = settings?.tempo_range_steps;
   const accentStyles = DECK_ACCENTS[accent];
   const liveBpm = effectiveBpm(deck.bpm, deck.speed, deck.tempo_range);
   const sliderValue = speedToPitchSlider(deck.speed);
@@ -55,7 +58,7 @@ export function DeckTempoPanel({
           disabled={disabled}
           title="Cycle tempo range"
           className="w-full tabular-nums tracking-normal normal-case"
-          onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range))}
+          onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range, tempoSteps))}
         >
           {formatTempoRange(deck.tempo_range)}
         </DeckButton>

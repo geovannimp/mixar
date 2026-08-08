@@ -136,6 +136,8 @@ export function LibraryPanel() {
       deck_default_sampler_bank_id: [null, null],
       default_top_jog_mode: "vinyl",
       default_outer_jog_mode: "pitch_bend",
+      default_tempo_range: 0.06,
+      tempo_range_steps: [0.06, 0.1, 0.16, 0.25],
     },
   );
 

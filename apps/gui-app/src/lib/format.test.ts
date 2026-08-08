@@ -22,6 +22,7 @@ describe("tempo range helpers", () => {
     expect(nextTempoRange(0.16)).toBe(0.25);
     expect(nextTempoRange(0.25)).toBe(0.06);
     expect(nextTempoRange(0.08)).toBe(0.06);
+    expect(nextTempoRange(0.08, [0.08, 0.16])).toBe(0.16);
   });
 
   it("maps fader ends to ±range and clamps", () => {

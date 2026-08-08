@@ -294,6 +294,15 @@ impl Engine {
             &self.config.resampler_quality(),
             self.config.sampler_strip_route(),
         )));
+        {
+            let default_range = self.config.default_tempo_range();
+            let mut dsp = dsp_engine.lock().unwrap();
+            for deck_id in 0..dsp.num_decks() {
+                if let Some(deck) = dsp.deck_mut(deck_id) {
+                    deck.set_tempo_range(default_range);
+                }
+            }
+        }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         let running = self.running.clone();
