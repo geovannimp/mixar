@@ -27,17 +27,17 @@ tasks:
 
   # Pre-commit only (lefthook → moon --affected --status staged).
   # Inputs are .rs-only so this task is skipped when no Rust sources are staged
-  # (avoids rustfmt hanging on empty stdin). Skip deleted paths — moon still
-  # passes them and rustfmt errors on missing files.
-  # Use a script file, not `bash -c '… "$@" …'`: moon may wrap the command in
-  # another shell -c, which empties $@ and makes the hook a silent no-op.
+  # (avoids rustfmt hanging on empty stdin). `passDotWhenNoResults: false` skips
+  # the task when the filter matches nothing. Deleted staged paths can still make
+  # rustfmt fail — rare; re-stage without them.
   format-files:
-    command: 'bash'
+    command: 'rustfmt'
     args:
-      - 'scripts/format-files.sh'
+      - '--edition'
+      - '2021'
+      - '--'
     inputs:
       - '**/*.rs'
-      - 'scripts/format-files.sh'
     options:
       cache: false
       runInCI: false
