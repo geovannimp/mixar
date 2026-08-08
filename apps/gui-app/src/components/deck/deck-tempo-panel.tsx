@@ -43,7 +43,7 @@ export function DeckTempoPanel({
 
   return (
     <div className="flex h-full min-h-0 w-18 shrink-0 flex-col overflow-hidden rounded-md border border-white/10 bg-zinc-950/80 shadow-inner sm:w-20">
-      <div className="flex shrink-0 flex-col items-center gap-0.5 border-b border-white/8 px-1.5 py-1.5">
+      <div className="flex shrink-0 flex-col items-center gap-0.5 border-b border-white/8 px-1.5 pt-2 pb-1.5">
         <span
           className={`text-base font-bold leading-none tabular-nums tracking-tight sm:text-lg ${accentStyles.text}`}
         >
@@ -52,16 +52,6 @@ export function DeckTempoPanel({
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
           {formatPitchPercent(deck.speed, deck.tempo_range)}
         </span>
-        <DeckButton
-          type="button"
-          size="toggle"
-          disabled={disabled}
-          title="Cycle tempo range"
-          className="w-full tabular-nums tracking-normal normal-case"
-          onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range, tempoSteps))}
-        >
-          {formatTempoRange(deck.tempo_range)}
-        </DeckButton>
         <DeckButton
           type="button"
           size="sync"
@@ -98,7 +88,7 @@ export function DeckTempoPanel({
         )}
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center px-2 py-2">
+      <div className="flex min-h-0 flex-1 items-center justify-center px-2 py-4">
         <Slider
           orientation="vertical"
           thumbAlignment="center"
@@ -119,6 +109,19 @@ export function DeckTempoPanel({
             onSpeedChange(pitchSliderToSpeed(next));
           }}
         />
+      </div>
+
+      <div className="flex shrink-0 flex-col items-center gap-0.5 px-1.5 pb-1.5">
+        <DeckButton
+          type="button"
+          size="toggle"
+          disabled={disabled}
+          title="Cycle tempo range"
+          className="w-full tabular-nums tracking-normal normal-case"
+          onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range, tempoSteps))}
+        >
+          {formatTempoRange(deck.tempo_range)}
+        </DeckButton>
       </div>
     </div>
   );
