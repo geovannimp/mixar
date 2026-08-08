@@ -1,4 +1,4 @@
-import { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS } from "./bus-settings";
+import { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS } from "./tempo-defaults";
 
 export { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS };
 

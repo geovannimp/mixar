@@ -7,6 +7,9 @@ import type {
   SamplerStripRoute,
 } from "@/types";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "./library-table";
+import { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS } from "./tempo-defaults";
+
+export { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS };
 
 export const DEFAULT_DEVICE_ID = "default";
 export const DEFAULT_VOLUME_NORMALIZER_ENABLED = true;
@@ -15,10 +18,6 @@ export const DEFAULT_SAMPLER_PLAY_MODE: SamplerPlayMode = "oneshot";
 export const DEFAULT_SAMPLER_STRIP_ROUTE: SamplerStripRoute = "before";
 export const DEFAULT_TOP_JOG_MODE: JogMode = "vinyl";
 export const DEFAULT_OUTER_JOG_MODE: JogMode = "pitch_bend";
-/** Default tempo fader half-span as pitch fraction (`0.06` = ±6%). */
-export const DEFAULT_TEMPO_RANGE = 0.06;
-/** Pioneer / Mixxx DDJ-400 cycle steps. */
-export const TEMPO_RANGE_STEPS = [0.06, 0.1, 0.16, 0.25] as const;
 export const MIN_TARGET_LUFS = -24;
 export const MAX_TARGET_LUFS = -9;
 
