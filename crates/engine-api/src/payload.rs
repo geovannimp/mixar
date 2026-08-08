@@ -127,6 +127,8 @@ pub struct DeckSnapshot {
     pub volume: f32,
     /// Tempo fader position `0..1` (not playback ratio).
     pub speed: f32,
+    /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
+    pub tempo_range: f32,
     pub eq: DeckEq,
     /// Filter knob `0..1` (center `0.5` = flat).
     pub filter: f32,
@@ -194,6 +196,10 @@ pub enum CmdBody {
         speed: f32,
         #[serde(default)]
         soft_takeover: bool,
+    },
+    /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
+    SetTempoRange {
+        tempo_range: f32,
     },
     SetFilter {
         /// Filter knob `0..1`.
@@ -326,6 +332,7 @@ pub enum EvtBody {
         playing: bool,
         volume: f32,
         speed: f32,
+        tempo_range: f32,
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,

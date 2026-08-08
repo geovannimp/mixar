@@ -4,7 +4,8 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Slider, SliderValue } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { MAX_TARGET_LUFS, MIN_TARGET_LUFS } from "@/lib/bus-settings";
+import { MAX_TARGET_LUFS, MIN_TARGET_LUFS, TEMPO_RANGE_STEPS } from "@/lib/bus-settings";
+import { formatTempoRange } from "@/lib/format";
 import {
   RESAMPLER_QUALITY_STEPS,
   resamplerQualityFromIndex,
@@ -65,6 +66,18 @@ const BUFFER_SIZE_STEP = 64;
 function snapBufferSize(value: number): number {
   const snapped = Math.round(value / BUFFER_SIZE_STEP) * BUFFER_SIZE_STEP;
   return Math.min(BUFFER_SIZE_MAX, Math.max(BUFFER_SIZE_MIN, snapped));
+}
+
+function tempoRangeSelectOptions(draft: AppSettings): { value: string; label: string }[] {
+  const steps =
+    draft.tempo_range_steps.length > 0 ? draft.tempo_range_steps : [...TEMPO_RANGE_STEPS];
+  const values = steps.includes(draft.default_tempo_range)
+    ? steps
+    : [draft.default_tempo_range, ...steps];
+  return values.map((step) => ({
+    value: String(step),
+    label: formatTempoRange(step),
+  }));
 }
 
 interface SettingsAudioPanelProps {
@@ -300,6 +313,24 @@ export function SettingsAudioPanel({
             onValueChange={(default_outer_jog_mode) =>
               onChange({ ...draft, default_outer_jog_mode })
             }
+          />
+        </SettingsField>
+      </section>
+
+      <section className="space-y-5 border-t border-white/8 pt-6">
+        <SettingsSectionHeader
+          title="Tempo range"
+          description="Default pitch span for new decks. Cycle button / Shift+SYNC walk the configured steps."
+        />
+        <SettingsField label="Default range">
+          <SettingsSelect
+            aria-label="Default tempo range"
+            value={String(draft.default_tempo_range)}
+            options={tempoRangeSelectOptions(draft)}
+            onValueChange={(raw) => {
+              const default_tempo_range = Number(raw);
+              onChange({ ...draft, default_tempo_range });
+            }}
           />
         </SettingsField>
       </section>

@@ -1,6 +1,6 @@
 //! Absolute strip-control `0..1` ↔ dB for EQ / filter / gain.
 //!
-//! Tempo fader math lives in `engine_dsp::tempo` (deck owns `tempo_range` + track BPM).
+//! Tempo fader `0..1` ↔ playback ratio lives in `engine_dsp::tempo` (deck owns `tempo_range`).
 
 const STRIP_DB_MIN: f32 = -24.0;
 const STRIP_DB_MAX: f32 = 24.0;

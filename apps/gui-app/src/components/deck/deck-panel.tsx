@@ -113,6 +113,7 @@ function DeckJog({
   accentKey,
   bpm,
   speed,
+  tempoRange,
   hasTrack,
   transportDisabled,
   jogTouching,
@@ -121,6 +122,7 @@ function DeckJog({
   accentKey: DeckAccent;
   bpm: number | null;
   speed: number;
+  tempoRange: number;
   hasTrack: boolean;
   transportDisabled: boolean;
   jogTouching: boolean;
@@ -137,7 +139,7 @@ function DeckJog({
       jogTouching={jogTouching}
       positionMs={transport.position_ms ?? 0}
       durationMs={transport.duration_ms}
-      speed={normToSpeedRatio(speed, bpm)}
+      speed={normToSpeedRatio(speed, tempoRange)}
       onJogTouch={(touching) => {
         void engineActions.jogTouch(deckId, touching);
       }}
@@ -275,6 +277,7 @@ function DeckPerformanceSection({
         accentKey={accentKey}
         bpm={deck.bpm}
         speed={deck.speed}
+        tempoRange={deck.tempo_range}
         hasTrack={Boolean(deck.track)}
         transportDisabled={transportDisabled}
         jogTouching={deck.jog_touching}
@@ -429,6 +432,9 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
       disabled={transportDisabled}
       onSpeedChange={(speed) => {
         void engineActions.setDeckSpeed(deckId, speed);
+      }}
+      onTempoRangeChange={(tempoRange) => {
+        void engineActions.setDeckTempoRange(deckId, tempoRange);
       }}
       onToggleSync={(beatSync) => {
         void engineActions.toggleDeckSync(deckId, beatSync);

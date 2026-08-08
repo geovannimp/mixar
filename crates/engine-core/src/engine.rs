@@ -294,6 +294,15 @@ impl Engine {
             &self.config.resampler_quality(),
             self.config.sampler_strip_route(),
         )));
+        {
+            let default_range = self.config.default_tempo_range();
+            let mut dsp = dsp_engine.lock().unwrap();
+            for deck_id in 0..dsp.num_decks() {
+                if let Some(deck) = dsp.deck_mut(deck_id) {
+                    deck.set_tempo_range(default_range);
+                }
+            }
+        }
         self.dsp_engine = Some(Arc::clone(&dsp_engine));
 
         let running = self.running.clone();
@@ -637,6 +646,41 @@ impl Engine {
             return Err(anyhow::anyhow!("Speed must be between 0 and 1."));
         }
         self.set_deck_speed_raw(deck_id, speed)?;
+        let mut updated = vec![deck_id];
+        if deck_id == self.master_deck {
+            for slave_id in 0..self.deck_control.len() {
+                if slave_id == deck_id {
+                    continue;
+                }
+                if self.deck_control[slave_id].sync_mode == SyncMode::Off {
+                    continue;
+                }
+                self.apply_tempo_sync(slave_id, deck_id)?;
+                updated.push(slave_id);
+            }
+        }
+        Ok(updated)
+    }
+
+    /// Set tempo fader half-span (pitch fraction, e.g. `0.06` = ±6%).
+    ///
+    /// Keeps fader position; remaps displayed speed when synced. If this deck is
+    /// master, re-applies tempo sync so slaves follow the new master ratio.
+    pub fn set_deck_tempo_range(&mut self, deck_id: usize, tempo_range: f32) -> Result<Vec<usize>> {
+        if !tempo_range.is_finite() || tempo_range <= 0.0 {
+            return Err(anyhow::anyhow!("tempo_range must be finite and > 0"));
+        }
+        {
+            let dsp_engine = self
+                .dsp_engine
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+            let mut dsp = dsp_engine.lock().unwrap();
+            let deck = dsp
+                .deck_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            deck.set_tempo_range(tempo_range);
+        }
         let mut updated = vec![deck_id];
         if deck_id == self.master_deck {
             for slave_id in 0..self.deck_control.len() {
@@ -1682,6 +1726,7 @@ fn deck_snapshot_from_dsp(
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
         speed: deck.speed(),
+        tempo_range: deck.tempo_range(),
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),

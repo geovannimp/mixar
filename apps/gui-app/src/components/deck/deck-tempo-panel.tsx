@@ -1,11 +1,14 @@
 import { Slider } from "@/components/ui/slider";
 import { DeckButton } from "@/components/ui/deck-button";
+import { useSettings } from "@/hooks/use-settings";
 import type { DeckAccent } from "@/lib/ui";
 import { DECK_ACCENTS } from "@/lib/ui";
 import {
   effectiveBpm,
   formatBpm,
-  formatPitchOffset,
+  formatPitchPercent,
+  formatTempoRange,
+  nextTempoRange,
   pitchSliderToSpeed,
   speedToPitchSlider,
 } from "@/lib/format";
@@ -16,6 +19,7 @@ interface DeckTempoPanelProps {
   deck: DeckStatus;
   disabled?: boolean;
   onSpeedChange: (speed: number) => void;
+  onTempoRangeChange: (tempoRange: number) => void;
   onToggleSync: (beatSync: boolean) => void;
   onSetMaster: () => void;
 }
@@ -25,11 +29,14 @@ export function DeckTempoPanel({
   deck,
   disabled,
   onSpeedChange,
+  onTempoRangeChange,
   onToggleSync,
   onSetMaster,
 }: DeckTempoPanelProps) {
+  const { settings } = useSettings();
+  const tempoSteps = settings?.tempo_range_steps;
   const accentStyles = DECK_ACCENTS[accent];
-  const liveBpm = effectiveBpm(deck.bpm, deck.speed);
+  const liveBpm = effectiveBpm(deck.bpm, deck.speed, deck.tempo_range);
   const sliderValue = speedToPitchSlider(deck.speed);
   const syncActive = deck.sync_mode !== "off";
   const beatSynced = deck.sync_mode === "beat";
@@ -43,8 +50,18 @@ export function DeckTempoPanel({
           {formatBpm(liveBpm)}
         </span>
         <span className="text-[10px] font-medium tabular-nums text-zinc-500">
-          {formatPitchOffset(deck.speed, deck.bpm)}
+          {formatPitchPercent(deck.speed, deck.tempo_range)}
         </span>
+        <DeckButton
+          type="button"
+          size="toggle"
+          disabled={disabled}
+          title="Cycle tempo range"
+          className="w-full tabular-nums tracking-normal normal-case"
+          onClick={() => onTempoRangeChange(nextTempoRange(deck.tempo_range, tempoSteps))}
+        >
+          {formatTempoRange(deck.tempo_range)}
+        </DeckButton>
         <DeckButton
           type="button"
           size="sync"

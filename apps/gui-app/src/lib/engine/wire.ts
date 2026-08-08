@@ -12,6 +12,7 @@ export const KindSchema = z.enum([
   "set_eq",
   "set_eq_band",
   "set_speed",
+  "set_tempo_range",
   "set_filter",
   "set_gain_trim",
   "set_headphone_cue",
@@ -160,6 +161,7 @@ export const DeckSnapshotSchema = z.object({
   playing: z.boolean(),
   volume: UnitNorm,
   speed: UnitNorm,
+  tempo_range: z.number().positive(),
   eq: DeckEqSchema,
   filter: UnitNorm,
   gain_trim: UnitNorm,
@@ -216,6 +218,7 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     ...SoftTakeoverField,
   }),
   z.object({ type: z.literal("set_speed"), speed: UnitNorm, ...SoftTakeoverField }),
+  z.object({ type: z.literal("set_tempo_range"), tempo_range: z.number().positive() }),
   z.object({ type: z.literal("set_filter"), filter: UnitNorm, ...SoftTakeoverField }),
   z.object({ type: z.literal("set_gain_trim"), gain_trim: UnitNorm, ...SoftTakeoverField }),
   z.object({ type: z.literal("set_headphone_cue"), enabled: z.boolean() }),
@@ -302,6 +305,7 @@ export const EvtBodySchema = z.discriminatedUnion("type", [
     playing: z.boolean(),
     volume: UnitNorm,
     speed: UnitNorm,
+    tempo_range: z.number().positive(),
     eq: DeckEqSchema,
     filter: UnitNorm,
     gain_trim: UnitNorm,
@@ -439,6 +443,7 @@ export type CmdKind =
   | "set_eq"
   | "set_eq_band"
   | "set_speed"
+  | "set_tempo_range"
   | "set_filter"
   | "set_gain_trim"
   | "set_headphone_cue"

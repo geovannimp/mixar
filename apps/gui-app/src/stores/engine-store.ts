@@ -113,6 +113,7 @@ interface EngineStoreState {
   setDeckVolume: (deckId: number, volume: number) => Promise<void>;
   setDeckEq: (deckId: number, eq: DeckEq) => Promise<void>;
   setDeckSpeed: (deckId: number, speed: number) => Promise<void>;
+  setDeckTempoRange: (deckId: number, tempoRange: number) => Promise<void>;
   setCrossfader: (position: number) => Promise<void>;
   setCueMix: (mix: number) => Promise<void>;
   setMasterCue: (enabled: boolean) => Promise<void>;
@@ -282,6 +283,12 @@ export const useEngineStore = create<EngineStoreState>((set, get) => ({
 
   setDeckSpeed: async (deckId, speed) => {
     await publishCmd(getDeckOrigin(deckId), "set_speed", { speed });
+  },
+
+  setDeckTempoRange: async (deckId, tempoRange) => {
+    await publishCmd(getDeckOrigin(deckId), "set_tempo_range", {
+      tempo_range: tempoRange,
+    });
   },
 
   setCrossfader: async (position) => {
@@ -503,6 +510,8 @@ export const engineActions = {
   setDeckEq: (deckId: number, eq: DeckEq) => useEngineStore.getState().setDeckEq(deckId, eq),
   setDeckSpeed: (deckId: number, speed: number) =>
     useEngineStore.getState().setDeckSpeed(deckId, speed),
+  setDeckTempoRange: (deckId: number, tempoRange: number) =>
+    useEngineStore.getState().setDeckTempoRange(deckId, tempoRange),
   setCrossfader: (position: number) => useEngineStore.getState().setCrossfader(position),
   setCueMix: (mix: number) => useEngineStore.getState().setCueMix(mix),
   setMasterCue: (enabled: boolean) => useEngineStore.getState().setMasterCue(enabled),

@@ -9,7 +9,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { useTrack } from "@/hooks/library/use-track";
 import { libraryRowFromFile, libraryRowFromTrack } from "@/lib/library-table";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS } from "@/lib/library-table";
-import { normalizeAppSettings } from "@/lib/bus-settings";
+import { DEFAULT_TEMPO_RANGE, normalizeAppSettings, TEMPO_RANGE_STEPS } from "@/lib/bus-settings";
 import { setFocusedLoadResolver, focusedLoadTargetFromRow } from "@/lib/library/focused-load";
 import { buttonIcon } from "@/lib/ui";
 import { toTrackSummaryView, useLibraryStore } from "@/stores/library-store";
@@ -136,6 +136,8 @@ export function LibraryPanel() {
       deck_default_sampler_bank_id: [null, null],
       default_top_jog_mode: "vinyl",
       default_outer_jog_mode: "pitch_bend",
+      default_tempo_range: DEFAULT_TEMPO_RANGE,
+      tempo_range_steps: [...TEMPO_RANGE_STEPS],
     },
   );
 

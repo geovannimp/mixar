@@ -7,6 +7,9 @@ import type {
   SamplerStripRoute,
 } from "@/types";
 import { DEFAULT_LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "./library-table";
+import { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS } from "./tempo-defaults";
+
+export { DEFAULT_TEMPO_RANGE, TEMPO_RANGE_STEPS };
 
 export const DEFAULT_DEVICE_ID = "default";
 export const DEFAULT_VOLUME_NORMALIZER_ENABLED = true;
@@ -77,5 +80,18 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     deck_default_sampler_bank_id: [defaults[0] ?? null, defaults[1] ?? null],
     default_top_jog_mode: settings.default_top_jog_mode ?? DEFAULT_TOP_JOG_MODE,
     default_outer_jog_mode: settings.default_outer_jog_mode ?? DEFAULT_OUTER_JOG_MODE,
+    default_tempo_range: normalizeTempoRange(settings.default_tempo_range ?? DEFAULT_TEMPO_RANGE),
+    tempo_range_steps: normalizeTempoRangeSteps(settings.tempo_range_steps),
   };
+}
+
+function normalizeTempoRange(value: number): number {
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_TEMPO_RANGE;
+}
+
+function normalizeTempoRangeSteps(steps: number[] | undefined): number[] {
+  const cleaned = (steps ?? [])
+    .map((step) => Number(step))
+    .filter((step) => Number.isFinite(step) && step > 0);
+  return cleaned.length > 0 ? cleaned : [...TEMPO_RANGE_STEPS];
 }

@@ -8,7 +8,7 @@ use deck_sampler::{
 use deck_sync::PadMode;
 use engine_core::{
     create_backend, validate_buffer_size, AnalysisDurationMode, AudioConfig, Engine, EngineConfig,
-    EngineSession, SamplerStripRouteSetting,
+    EngineSession, SamplerStripRouteSetting, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
 };
 use library::{LibraryConfig, LibraryManager, LibrarySession, NewCollection, WritableLibrary};
 use library_core::{
@@ -159,10 +159,22 @@ struct AppSettings {
     default_top_jog_mode: engine_api::JogMode,
     #[serde(default = "default_outer_jog_mode")]
     default_outer_jog_mode: engine_api::JogMode,
+    #[serde(default = "default_tempo_range")]
+    default_tempo_range: f32,
+    #[serde(default = "default_tempo_range_steps")]
+    tempo_range_steps: Vec<f32>,
 }
 
 fn default_outer_jog_mode() -> engine_api::JogMode {
     engine_api::JogMode::PitchBend
+}
+
+fn default_tempo_range() -> f32 {
+    DEFAULT_TEMPO_RANGE
+}
+
+fn default_tempo_range_steps() -> Vec<f32> {
+    DEFAULT_TEMPO_RANGE_STEPS.to_vec()
 }
 
 fn default_volume_normalizer_enabled() -> bool {
@@ -285,24 +297,15 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         deck_default_sampler_bank_id: state.deck_default_sampler_bank_id.clone(),
         default_top_jog_mode: state.default_top_jog_mode,
         default_outer_jog_mode: state.default_outer_jog_mode,
+        default_tempo_range: config.default_tempo_range(),
+        tempo_range_steps: config.tempo_range_steps(),
     }
 }
 
 fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), String> {
-    validate_buffer_size(settings.buffer_size).map_err(|e| e.to_string())?;
-    let config = &mut state.engine_config;
-    config.buses = buses_from_settings(&settings);
-    config.backend = settings.backend;
-    config.sample_rate = settings.sample_rate;
-    config.buffer_size = settings.buffer_size;
-    config.low_latency = settings.low_latency;
-    config.analysis_duration = settings.analysis_duration;
+    let config = engine_config_from_settings(&state.engine_config, &settings)?;
 
-    config.audio = Some(AudioConfig {
-        resampler_quality: Some(settings.resampler_quality.clone()),
-        sampler_strip_route: Some(settings.sampler_strip_route),
-    });
-
+    state.engine_config = config;
     state.library.lock().unwrap().set_config(LibraryConfig {
         scan_folder_tree: settings.scan_folder_tree,
     });
@@ -322,6 +325,28 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     state.default_top_jog_mode = settings.default_top_jog_mode;
     state.default_outer_jog_mode = settings.default_outer_jog_mode;
     Ok(())
+}
+
+fn engine_config_from_settings(
+    base: &EngineConfig,
+    settings: &AppSettings,
+) -> Result<EngineConfig, String> {
+    validate_buffer_size(settings.buffer_size).map_err(|e| e.to_string())?;
+    let mut config = base.clone();
+    config.buses = buses_from_settings(settings);
+    config.backend = settings.backend.clone();
+    config.sample_rate = settings.sample_rate;
+    config.buffer_size = settings.buffer_size;
+    config.low_latency = settings.low_latency;
+    config.analysis_duration = settings.analysis_duration;
+    config.audio = Some(AudioConfig {
+        resampler_quality: Some(settings.resampler_quality.clone()),
+        sampler_strip_route: Some(settings.sampler_strip_route),
+        default_tempo_range: Some(settings.default_tempo_range),
+        tempo_range_steps: Some(settings.tempo_range_steps.clone()),
+    });
+    config.validate().map_err(|e| e.to_string())?;
+    Ok(config)
 }
 
 fn normalizer_target_lufs(enabled: bool, target_lufs: f32) -> Option<f32> {
@@ -353,6 +378,8 @@ fn default_engine_config() -> EngineConfig {
     config.audio = Some(AudioConfig {
         resampler_quality: Some("medium".to_string()),
         sampler_strip_route: Some(SamplerStripRouteSetting::Before),
+        default_tempo_range: Some(DEFAULT_TEMPO_RANGE),
+        tempo_range_steps: Some(DEFAULT_TEMPO_RANGE_STEPS.to_vec()),
     });
     config.buses = vec![bus_config(
         MASTER_BUS_ID,
@@ -1088,7 +1115,36 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::AppSettings;
+    use super::{
+        default_engine_config, default_master_bus_route, default_preview_bus_route,
+        engine_config_from_settings, AnalysisDurationMode, AppSettings,
+    };
+    use engine_core::{DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS};
+
+    fn sample_settings() -> AppSettings {
+        AppSettings {
+            backend: "cpal".to_string(),
+            sample_rate: 48_000,
+            buffer_size: 512,
+            low_latency: false,
+            resampler_quality: "medium".to_string(),
+            master_bus: default_master_bus_route(),
+            preview_enabled: false,
+            preview_bus: default_preview_bus_route(),
+            analysis_duration: AnalysisDurationMode::Fast,
+            scan_folder_tree: true,
+            library_table_columns: super::default_library_table_columns(),
+            volume_normalizer_enabled: true,
+            target_lufs: -18.0,
+            sampler_play_mode: Default::default(),
+            sampler_strip_route: super::default_sampler_strip_route(),
+            deck_default_sampler_bank_id: super::default_deck_sampler_banks(),
+            default_top_jog_mode: engine_api::JogMode::Vinyl,
+            default_outer_jog_mode: engine_api::JogMode::PitchBend,
+            default_tempo_range: DEFAULT_TEMPO_RANGE,
+            tempo_range_steps: DEFAULT_TEMPO_RANGE_STEPS.to_vec(),
+        }
+    }
 
     #[test]
     fn legacy_settings_default_volume_normalizer_values() {
@@ -1116,5 +1172,18 @@ mod tests {
 
         assert!(settings.volume_normalizer_enabled);
         assert_eq!(settings.target_lufs, -18.0);
+    }
+
+    #[test]
+    fn invalid_tempo_settings_leave_base_config_unchanged() {
+        let base = default_engine_config();
+        let before = base.clone();
+        let mut settings = sample_settings();
+        settings.default_tempo_range = 0.0;
+
+        let err = engine_config_from_settings(&base, &settings).expect_err("reject 0 tempo range");
+        assert!(err.contains("default_tempo_range"), "{err}");
+        assert_eq!(base.default_tempo_range(), before.default_tempo_range());
+        assert_eq!(base.tempo_range_steps(), before.tempo_range_steps());
     }
 }

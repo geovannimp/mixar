@@ -14,6 +14,8 @@ pub struct ControlSnapshot {
     pub filter: [f32; 4],
     pub gain_trim: [f32; 4],
     pub speed: [f32; 4],
+    /// Pitch fraction half-span per deck (`0.06` = ±6%).
+    pub tempo_range: [f32; 4],
     pub eq_low: [f32; 4],
     pub eq_mid: [f32; 4],
     pub eq_high: [f32; 4],
@@ -35,6 +37,7 @@ impl Default for ControlSnapshot {
             filter: [0.5; 4],
             gain_trim: [0.5; 4],
             speed: [0.5; 4],
+            tempo_range: [DEFAULT_TEMPO_RANGE; 4],
             eq_low: [0.5; 4],
             eq_mid: [0.5; 4],
             eq_high: [0.5; 4],
@@ -65,6 +68,7 @@ impl ControlSnapshot {
                     "filter" | "filter_db" => self.filter[i] = value,
                     "gain" | "gain_db" | "gain_trim" => self.gain_trim[i] = value,
                     "speed" | "tempo" => self.speed[i] = value,
+                    "tempo_range" => self.tempo_range[i] = value,
                     "eq_low" => self.eq_low[i] = value,
                     "eq_mid" => self.eq_mid[i] = value,
                     "eq_high" => self.eq_high[i] = value,
@@ -89,6 +93,21 @@ impl ControlSnapshot {
 
 fn deck_idx(d: u16) -> usize {
     (d as usize).min(3)
+}
+
+/// Matches `engine_core::config::DEFAULT_TEMPO_RANGE` / `DEFAULT_TEMPO_RANGE_STEPS`.
+const DEFAULT_TEMPO_RANGE: f32 = 0.06;
+const TEMPO_RANGE_STEPS: &[f32] = &[0.06, 0.10, 0.16, 0.25];
+
+fn next_tempo_range(current: f32) -> f32 {
+    const EPS: f32 = 1e-4;
+    if let Some(i) = TEMPO_RANGE_STEPS
+        .iter()
+        .position(|s| (*s - current).abs() < EPS)
+    {
+        return TEMPO_RANGE_STEPS[(i + 1) % TEMPO_RANGE_STEPS.len()];
+    }
+    TEMPO_RANGE_STEPS[0]
 }
 
 /// Resolved mapping publish target.
@@ -243,6 +262,21 @@ pub fn resolve_action(
                 soft_takeover,
             },
         )),
+        "cycle_tempo_range" => {
+            if !active {
+                return None;
+            }
+            let Origin::Deck(d) = origin else {
+                return None;
+            };
+            let i = deck_idx(d);
+            let next = next_tempo_range(snap.tempo_range[i]);
+            Some(engine_cmd(
+                origin,
+                Kind::SetTempoRange,
+                CmdBody::SetTempoRange { tempo_range: next },
+            ))
+        }
         "set_eq_low" | "set_eq_mid" | "set_eq_high" => {
             let band = match leaf {
                 "set_eq_low" => engine_api::EqBand::Low,
@@ -738,6 +772,44 @@ mod tests {
                 ..
             } => assert_eq!(delta, -1),
             other => panic!("expected Navigate -1, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn cycle_tempo_range_advances_steps() {
+        let mut snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "Deck(_)::cycle_tempo_range",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetTempoRange { tempo_range },
+                ..
+            } => assert!((tempo_range - 0.10).abs() < 1e-5),
+            other => panic!("unexpected {other:?}"),
+        }
+        snap.tempo_range[0] = 0.25;
+        let routed = resolve_action(
+            "Deck(_)::cycle_tempo_range",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetTempoRange { tempo_range },
+                ..
+            } => assert!((tempo_range - 0.06).abs() < 1e-5),
+            other => panic!("unexpected {other:?}"),
         }
     }
 

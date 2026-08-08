@@ -540,6 +540,7 @@ fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         playing: snap.playing,
         volume: snap.volume,
         speed: snap.speed,
+        tempo_range: snap.tempo_range,
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
