@@ -21,6 +21,7 @@
   --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
 
   --font-serif: "Space Grotesk Variable", ui-serif, Georgia, serif;
+  --font-serif--font-feature-settings: "ss01", "ss04", "case", "tnum", "zero";
 
   --font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
 
@@ -319,10 +320,5 @@
   }
   html {
     @apply font-sans;
-    font-feature-settings:
-      "ss01" 1,
-      "case" 1,
-      "tnum" 1,
-      "zero" 1;
   }
 }

@@ -1,5 +1,5 @@
 import { RotaryKnob } from "./rotary-knob";
-import { buttonIcon } from "@/lib/ui";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSettings } from "@/hooks/use-settings";
 import { useCueMix } from "@/hooks/engine/use-cue-mix";
@@ -16,8 +16,10 @@ export function HeadphoneMonitorControls() {
 
   return (
     <div className="flex items-center gap-2">
-      <button
+      <Button
         type="button"
+        size="xs"
+        variant="outline"
         disabled={!previewEnabled}
         aria-pressed={masterCue}
         aria-label="Master cue"
@@ -27,10 +29,9 @@ export function HeadphoneMonitorControls() {
             : "Enable Preview bus in Settings to use Master Cue"
         }
         className={cn(
-          buttonIcon,
-          "h-6 w-auto px-2 text-[9px] font-semibold uppercase tracking-wide",
+          "w-auto px-2 text-[9px] font-semibold uppercase tracking-wide",
           masterCue
-            ? "border-amber-500/40 bg-amber-500/20 text-amber-300"
+            ? "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/25 hover:text-amber-300"
             : "border-white/10 text-zinc-500 hover:bg-zinc-800/90",
         )}
         onClick={() => {
@@ -38,7 +39,7 @@ export function HeadphoneMonitorControls() {
         }}
       >
         Master Cue
-      </button>
+      </Button>
       <RotaryKnob
         label="Cue/Mst"
         value={cueMix}

@@ -125,7 +125,7 @@ export function WindowResizeBorder({ children, className }: WindowResizeBorderPr
   return (
     <div
       className={cn(
-        "relative flex h-screen min-h-0 flex-col overflow-hidden shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]",
+        "relative flex h-screen min-h-0 flex-col overflow-hidden border border-white/8",
         className,
       )}
     >

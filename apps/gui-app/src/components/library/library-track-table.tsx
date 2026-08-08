@@ -158,7 +158,7 @@ export function LibraryTrackTable({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={tableContainerRef} className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-sm">
+        <table className="w-full min-w-160 border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-zinc-900/95 text-left text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="flex w-full border-b border-white/8">
