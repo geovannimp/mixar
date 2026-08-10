@@ -21,7 +21,8 @@ rust-dj-engine/
 ├─ .moon/              # moon workspace + toolchains
 ├─ lefthook.yml        # pre-commit: npm run lint + format:check
 ├─ apps/               # npm applications (moon globs: apps/*)
-│  └─ gui-app/         # Tauri + React desktop UI
+│  ├─ gui-app/         # Tauri + React desktop UI (primary)
+│  └─ gui-flutter/     # Experimental Flutter host (flutter_rust_bridge)
 ├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
 ├─ crates/             # Cargo workspace root (Cargo.toml + moon rust project)
 │  ├─ moon.yml
@@ -31,6 +32,7 @@ rust-dj-engine/
 │  ├─ backend-cpal/    # CPAL (native PipeWire on Linux when available)
 │  ├─ engine-core/     # Engine lifecycle, config, producer thread, track loading
 │  ├─ engine-dsp/      # Pure DSP: decks, mixer (no I/O)
+│  ├─ host-flutter/    # FRB API surface for apps/gui-flutter
 │  ├─ codec/           # Decoder wrapper (symphonia)
 │  ├─ resampler/       # Resampler trait + rubato implementation
 │  ├─ library/         # Library manager (collections, tags, analysis)

@@ -1044,7 +1044,7 @@ pub fn run() {
             let shipped_mappings_dir = controller_host::resolve_shipped_mappings(app.handle());
             let controller = Arc::new(Mutex::new(
                 controller::ControllerEngine::open(
-                    "Rust DJ",
+                    engine_api::APP_DISPLAY_NAME,
                     app_data_dir.join("mappings"),
                     &shipped_mappings_dir,
                 )

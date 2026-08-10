@@ -1,0 +1,72 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "other"
+layer: "application"
+stack: "frontend"
+id: "gui-flutter"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+toolchains:
+  default: "system"
+
+fileGroups:
+  sources:
+    - "lib/**/*"
+    - "pubspec.yaml"
+    - "pubspec.lock"
+    - "analysis_options.yaml"
+    - "flutter_rust_bridge.yaml"
+    - "linux/**/*"
+    - "macos/**/*"
+    - "windows/**/*"
+    - "web/**/*"
+  rustBuilder:
+    - "rust_builder/**/*"
+    - "/crates/host-flutter/**/*"
+
+tasks:
+  # Linux-only for now (macOS/Windows/web enabled in Flutter but unverified).
+  # Uses repo mise.toml Flutter pin (not a system install).
+  dev-linux:
+    command: "mise"
+    args: ["exec", "--", "flutter", "run", "-d", "linux"]
+    toolchain: "system"
+    preset: "server"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+
+  build-linux:
+    command: "mise"
+    args: ["exec", "--", "flutter", "build", "linux", "--debug"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+    options:
+      runInCI: false
+
+  analyze:
+    command: "mise"
+    args: ["exec", "--", "flutter", "analyze"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "analysis_options.yaml"
+    options:
+      runInCI: false
+
+  generate:
+    command: "bash"
+    args:
+      - "-c"
+      - 'export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"; flutter_rust_bridge_codegen generate'
+    toolchain: "system"
+    inputs:
+      - "@group(rustBuilder)"
+      - "flutter_rust_bridge.yaml"
+    options:
+      cache: false
+      runInCI: false

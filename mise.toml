@@ -2,3 +2,7 @@
 # Idiomatic version files are off by default in recent mise.
 [settings]
 idiomatic_version_file_enable_tools = ["node", "rust"]
+
+[tools]
+flutter = "3.44.9"
+ninja = "1.13.2"
