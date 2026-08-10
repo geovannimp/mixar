@@ -61,8 +61,10 @@ pub fn start_engine(
         }
     }
 
-    let mut config = EngineConfig::default();
-    config.backend = backend;
+    let mut config = EngineConfig {
+        backend,
+        ..EngineConfig::default()
+    };
     if let Some(sr) = sample_rate {
         config.sample_rate = sr;
     }
@@ -72,7 +74,7 @@ pub fn start_engine(
 
     let session = EngineSession::new(config).map_err(|e| e.to_string())?;
     session
-        .with_engine(|engine| engine.start().map_err(anyhow::Error::from))
+        .with_engine(|engine| engine.start())
         .map_err(|e| e.to_string())?;
 
     let mut slot = SESSION
@@ -80,7 +82,7 @@ pub fn start_engine(
         .map_err(|_| "session lock poisoned".to_string())?;
     if slot.is_some() {
         // Lost a race with another start; keep the existing session.
-        let _ = session.with_engine(|engine| engine.stop().map_err(anyhow::Error::from));
+        let _ = session.with_engine(|engine| engine.stop());
         return Ok(());
     }
     *slot = Some(session);
@@ -96,7 +98,7 @@ pub fn stop_engine() -> Result<(), String> {
         return Ok(());
     };
     session
-        .with_engine(|engine| engine.stop().map_err(anyhow::Error::from))
+        .with_engine(|engine| engine.stop())
         .map_err(|e| e.to_string())?;
     *slot = None;
     Ok(())
