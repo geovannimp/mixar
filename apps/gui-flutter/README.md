@@ -26,13 +26,24 @@ cargo install flutter_rust_bridge_codegen --locked   # once, if missing
 
 ## Develop
 
+From the repo root:
+
 ```sh
-cd apps/gui-flutter
-mise exec -- flutter_rust_bridge_codegen generate   # after Rust API changes
-mise exec -- flutter run -d linux
+npm run flutter:dev
+# or: moon run gui-flutter:dev
+```
+
+Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
+
+After Rust API changes:
+
+```sh
+moon run gui-flutter:generate
 ```
 
 Smoke UI: pick a backend, list devices, start/stop the engine.
+
+The main window is a Forui ([forui.dev](https://forui.dev/)) layout shell: header, waveforms, decks/mixer, library — no engine wiring yet.
 
 ## Rust tests
 

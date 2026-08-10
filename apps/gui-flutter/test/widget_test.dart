@@ -1,30 +1,32 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:gui_flutter/main.dart';
+import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/app_shell.dart';
+import 'package:gui_flutter/shell/desktop.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('mixer shell shows core regions', (tester) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final theme = FTheme.neutral.light.desktop;
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme.toApproximateMaterialTheme(),
+        builder: (context, child) => FTheme(data: theme, child: child!),
+        home: const AppShell(),
+      ),
+    );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('RUST DJ'), findsOneWidget);
+    expect(find.text('Deck A'), findsWidgets);
+    expect(find.text('Deck B'), findsWidgets);
+    expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
+    expect(find.textContaining('Filter tracks'), findsOneWidget);
   });
 }

@@ -1,5 +1,63 @@
-# Experimental Flutter host — tasks live in Flutter/mise, not moon.
-# Kept so `apps/*` glob discovery is intentional.
-language: 'other'
-layer: 'application'
-stack: 'frontend'
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "other"
+layer: "application"
+stack: "frontend"
+id: "gui-flutter"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+toolchains:
+  default: "system"
+
+fileGroups:
+  sources:
+    - "lib/**/*"
+    - "pubspec.yaml"
+    - "pubspec.lock"
+    - "flutter_rust_bridge.yaml"
+    - "linux/**/*"
+    - "macos/**/*"
+    - "windows/**/*"
+    - "web/**/*"
+
+tasks:
+  # Uses repo mise.toml Flutter pin (not a system install).
+  dev:
+    command: "mise"
+    args: ["exec", "--", "flutter", "run", "-d", "linux"]
+    toolchain: "system"
+    preset: "server"
+    inputs:
+      - "@group(sources)"
+      - "/crates/host-flutter/**/*"
+
+  build:
+    command: "mise"
+    args: ["exec", "--", "flutter", "build", "linux", "--debug"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "/crates/host-flutter/**/*"
+    options:
+      runInCI: false
+
+  analyze:
+    command: "mise"
+    args: ["exec", "--", "flutter", "analyze"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+    options:
+      runInCI: false
+
+  generate:
+    command: "bash"
+    args:
+      - "-c"
+      - 'export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"; flutter_rust_bridge_codegen generate'
+    toolchain: "system"
+    options:
+      cache: false
+      runInCI: false
