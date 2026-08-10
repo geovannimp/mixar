@@ -18,6 +18,7 @@ members = [
     "analyzer",
     "app-example",
     "controller",
+    "host-flutter",
 ]
 # Standalone midir probe — optional debug tool (own workspace; not required for gui-app).
 resolver = "2"

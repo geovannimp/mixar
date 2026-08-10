@@ -1,0 +1,5 @@
+# Experimental Flutter host — tasks live in Flutter/mise, not moon.
+# Kept so `apps/*` glob discovery is intentional.
+language: 'other'
+layer: 'application'
+stack: 'frontend'
