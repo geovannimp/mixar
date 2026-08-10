@@ -2197,8 +2197,7 @@ dependencies = [
 [[package]]
 name = "libspa"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2909f3be29d674e7f10604aff18d1bbe1bb03c4cd61c8a8ba19c0b1d162f7d4e"
+source = "git+https://gitlab.freedesktop.org/pipewire/pipewire-rs?rev=9b54509e848e53ffa971ace15d7adf4908c09358#9b54509e848e53ffa971ace15d7adf4908c09358"
 dependencies = [
  "bitflags 2.11.0",
  "cc",
@@ -2213,8 +2212,7 @@ dependencies = [
 [[package]]
 name = "libspa-sys"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69ad52764fca54818486f3cf75afec844d1f1a1568c24dcee25d41b1ab007dda"
+source = "git+https://gitlab.freedesktop.org/pipewire/pipewire-rs?rev=9b54509e848e53ffa971ace15d7adf4908c09358#9b54509e848e53ffa971ace15d7adf4908c09358"
 dependencies = [
  "bindgen",
  "cc",
@@ -2906,8 +2904,7 @@ checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 [[package]]
 name = "pipewire"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8585aba8a52ad74ccc633b8e293c1dc4277976bd5d510b925533f34fd6685f38"
+source = "git+https://gitlab.freedesktop.org/pipewire/pipewire-rs?rev=9b54509e848e53ffa971ace15d7adf4908c09358#9b54509e848e53ffa971ace15d7adf4908c09358"
 dependencies = [
  "bitflags 2.11.0",
  "libc",
@@ -2920,8 +2917,7 @@ dependencies = [
 [[package]]
 name = "pipewire-sys"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2089f245b548723e60325773c27f586b7a2372c79ea941b246cd0d654706adc"
+source = "git+https://gitlab.freedesktop.org/pipewire/pipewire-rs?rev=9b54509e848e53ffa971ace15d7adf4908c09358#9b54509e848e53ffa971ace15d7adf4908c09358"
 dependencies = [
  "bindgen",
  "libspa-sys",
