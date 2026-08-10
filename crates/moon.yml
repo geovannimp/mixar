@@ -47,14 +47,18 @@ tasks:
           - '**/*.rs'
         passDotWhenNoResults: false
 
-  # Pre-commit only. Clippy skipped: clang ≥21 + bindgen drops SPA_ID_INVALID /
-  # PW_ID_ANY (pipewire-rs); default builds still use PipeWire. Full `lint` stays
-  # for CI. Remove this skip when upstream/bindgen is fixed.
+  # Pre-commit only (lefthook → moon --affected --status staged).
+  # Same clippy as CI `lint`. `pass: false` so cargo does not get file path args;
+  # `passDotWhenNoResults: false` skips when no `.rs` is staged.
   lint-files:
-    command: 'bash'
+    command: 'cargo'
     args:
-      - '-c'
-      - 'echo "crates lint-files: skipping clippy (pipewire-rs/clang bindgen)"; exit 0'
+      - 'clippy'
+      - '--all-targets'
+      - '--all-features'
+      - '--'
+      - '-D'
+      - 'warnings'
     inputs:
       - '**/*.rs'
     options:

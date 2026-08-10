@@ -53,3 +53,13 @@ panic = "abort"
 [profile.dev]
 opt-level = 0
 debug = true
+
+# Temporary: clang ≥21 + published pipewire-rs 0.10.0 drops SPA_ID_INVALID / PW_ID_ANY
+# (https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/work_items/118).
+# Fixed in !273; drop this patch when crates.io ships ≥0.10.1.
+# See https://github.com/geovannimp/rust-dj-engine/issues/144
+[patch.crates-io]
+pipewire = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }
+pipewire-sys = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }
+libspa = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }
+libspa-sys = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }

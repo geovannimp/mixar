@@ -4,8 +4,6 @@
 # (add format-files / lint-files task ids in the app moon.yml — do not edit this hook).
 # CI keeps full-package :lint / :format-check via moon.
 # Skip a job: LEFTHOOK_EXCLUDE=format,lint git commit ...
-# Crates clippy in pre-commit is currently a no-op (pipewire-rs/clang bindgen);
-# gui-app oxlint still runs via lint:staged.
 # Disable all hooks: LEFTHOOK=0 git commit ...
 # Emergency bypass: git commit --no-verify
 
