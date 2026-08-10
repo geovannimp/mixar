@@ -9,7 +9,7 @@ Design: [`docs/superpowers/specs/2026-08-10-flutter-desktop-host-design.md`](../
 
 | Path | Role |
 |------|------|
-| `apps/gui-flutter` | Flutter app (linux / macos / windows / web enabled; Linux verified) |
+| `apps/gui-flutter` | Flutter app (linux / macOS / windows / web enabled; Linux verified) |
 | `crates/host-flutter` | FRB Rust host (`host_flutter`) over `engine-core` |
 
 Tauri (`apps/gui-app`) stays the primary UI until this experiment replaces it.
