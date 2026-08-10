@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/shell/desktop_chrome.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:window_manager/window_manager.dart';
@@ -18,6 +19,7 @@ Future<void> main() async {
       size: const Size(1280, 800),
       minimumSize: const Size(960, 640),
       center: true,
+      // Transparent so ClipRRect corners reveal the compositor, not opaque black.
       backgroundColor: Colors.transparent,
       skipTaskbar: false,
       title: appTitle,
@@ -27,6 +29,7 @@ Future<void> main() async {
     );
     await windowManager.waitUntilReadyToShow(options, () async {
       await windowManager.setTitleBarStyle(TitleBarStyle.hidden);
+      await windowManager.setBackgroundColor(Colors.transparent);
       await windowManager.show();
       await windowManager.focus();
     });
@@ -43,14 +46,22 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Transparent Material canvas so desktop rounded corners aren't filled square.
+    final light = FTheme.neutral.light.desktop
+        .toApproximateMaterialTheme()
+        .copyWith(scaffoldBackgroundColor: Colors.transparent);
+    final dark = FTheme.neutral.dark.desktop
+        .toApproximateMaterialTheme()
+        .copyWith(scaffoldBackgroundColor: Colors.transparent);
+
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       supportedLocales: FLocalizations.supportedLocales,
       localizationsDelegates: FLocalizations.localizationsDelegates,
-      theme: FTheme.neutral.light.desktop.toApproximateMaterialTheme(),
-      darkTheme: FTheme.neutral.dark.desktop.toApproximateMaterialTheme(),
+      theme: light,
+      darkTheme: dark,
       builder: (context, child) {
         final platforms = Theme.brightnessOf(context) == Brightness.dark
             ? FTheme.neutral.dark
@@ -63,9 +74,11 @@ class Application extends StatelessWidget {
               final data = context.platformVariant.touch
                   ? platforms.touch
                   : platforms.desktop;
-              return FTheme(
-                data: data,
-                child: FToaster(child: FTooltipGroup(child: child!)),
+              return DesktopChrome(
+                child: FTheme(
+                  data: data,
+                  child: FToaster(child: FTooltipGroup(child: child!)),
+                ),
               );
             },
           ),
