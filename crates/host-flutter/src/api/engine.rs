@@ -2,8 +2,10 @@
 
 use std::sync::Mutex;
 
-use engine_core::{create_backend, AudioBackend, EngineConfig, EngineSession};
+use engine_core::{AudioBackend, EngineConfig, EngineSession};
 
+// ponytail: process-wide Mutex around EngineSession — one engine, FRB calls may wait on the UI isolate.
+// Upgrade: host lifecycle manager that starts/stops off the UI isolate and owns the session.
 static SESSION: Mutex<Option<EngineSession>> = Mutex::new(None);
 
 /// Output device summary for the Flutter smoke UI.
@@ -16,15 +18,19 @@ pub struct OutputDevice {
     pub default_sample_rates: Vec<u32>,
 }
 
-/// Compiled-in backend names (`auto` / `cpal` / `miniaudio` / `null`, …).
+/// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
 #[flutter_rust_bridge::frb(sync)]
 pub fn list_backend_names() -> Vec<String> {
-    AudioBackend::list_names()
+    let mut names = AudioBackend::list_names();
+    if !names.iter().any(|n| n == "auto") {
+        names.insert(0, "auto".into());
+    }
+    names
 }
 
-/// List output devices for a backend (`create_backend` + `list_output_devices`).
+/// List output devices for a backend (`AudioBackend::new` + `list_output_devices`).
 pub fn list_output_devices(backend: String) -> Result<Vec<OutputDevice>, String> {
-    let devices = create_backend(&backend)
+    let devices = AudioBackend::new(&backend)
         .map_err(|e| e.to_string())?
         .list_output_devices()
         .map_err(|e| e.to_string())?;
@@ -46,11 +52,13 @@ pub fn start_engine(
     sample_rate: Option<u32>,
     buffer_size: Option<u32>,
 ) -> Result<(), String> {
-    let mut slot = SESSION
-        .lock()
-        .map_err(|_| "session lock poisoned".to_string())?;
-    if slot.is_some() {
-        return Ok(());
+    {
+        let slot = SESSION
+            .lock()
+            .map_err(|_| "session lock poisoned".to_string())?;
+        if slot.is_some() {
+            return Ok(());
+        }
     }
 
     let mut config = EngineConfig::default();
@@ -66,26 +74,35 @@ pub fn start_engine(
     session
         .with_engine(|engine| engine.start().map_err(anyhow::Error::from))
         .map_err(|e| e.to_string())?;
+
+    let mut slot = SESSION
+        .lock()
+        .map_err(|_| "session lock poisoned".to_string())?;
+    if slot.is_some() {
+        // Lost a race with another start; keep the existing session.
+        let _ = session.with_engine(|engine| engine.stop().map_err(anyhow::Error::from));
+        return Ok(());
+    }
     *slot = Some(session);
     Ok(())
 }
 
-/// Stop the engine and drop the session.
+/// Stop the engine and drop the session (only after a successful stop).
 pub fn stop_engine() -> Result<(), String> {
     let mut slot = SESSION
         .lock()
         .map_err(|_| "session lock poisoned".to_string())?;
-    if let Some(session) = slot.take() {
-        session
-            .with_engine(|engine| engine.stop().map_err(anyhow::Error::from))
-            .map_err(|e| e.to_string())?;
-        drop(session);
-    }
+    let Some(session) = slot.as_mut() else {
+        return Ok(());
+    };
+    session
+        .with_engine(|engine| engine.stop().map_err(anyhow::Error::from))
+        .map_err(|e| e.to_string())?;
+    *slot = None;
     Ok(())
 }
 
-/// Whether a session is currently held.
-#[flutter_rust_bridge::frb(sync)]
+/// Whether a session is currently held (async FRB — avoids blocking the UI isolate on sync dispatch).
 pub fn engine_is_running() -> bool {
     SESSION.lock().map(|s| s.is_some()).unwrap_or(false)
 }

@@ -19,11 +19,11 @@ void main() {
       MaterialApp(
         theme: theme.toApproximateMaterialTheme(),
         builder: (context, child) => FTheme(data: theme, child: child!),
-        home: const AppShell(),
+        home: const AppShell(appTitle: 'Rust DJ'),
       ),
     );
 
-    expect(find.text('RUST DJ'), findsOneWidget);
+    expect(find.text('Rust DJ'), findsOneWidget);
     expect(find.text('Deck A'), findsWidgets);
     expect(find.text('Deck B'), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);

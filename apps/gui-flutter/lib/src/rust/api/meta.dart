@@ -6,5 +6,5 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-String greet({required String name}) =>
-    RustLib.instance.api.crateApiSimpleGreet(name: name);
+/// Product display name — same string Tauri / other hosts should use ([`engine_api::APP_DISPLAY_NAME`]).
+String appDisplayName() => RustLib.instance.api.crateApiMetaAppDisplayName();

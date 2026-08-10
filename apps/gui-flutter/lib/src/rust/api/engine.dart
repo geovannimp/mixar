@@ -8,11 +8,11 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
-/// Compiled-in backend names (`auto` / `cpal` / `miniaudio` / `null`, …).
+/// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
 List<String> listBackendNames() =>
     RustLib.instance.api.crateApiEngineListBackendNames();
 
-/// List output devices for a backend (`create_backend` + `list_output_devices`).
+/// List output devices for a backend (`AudioBackend::new` + `list_output_devices`).
 Future<List<OutputDevice>> listOutputDevices({required String backend}) =>
     RustLib.instance.api.crateApiEngineListOutputDevices(backend: backend);
 
@@ -27,11 +27,12 @@ Future<void> startEngine({
   bufferSize: bufferSize,
 );
 
-/// Stop the engine and drop the session.
+/// Stop the engine and drop the session (only after a successful stop).
 Future<void> stopEngine() => RustLib.instance.api.crateApiEngineStopEngine();
 
-/// Whether a session is currently held.
-bool engineIsRunning() => RustLib.instance.api.crateApiEngineEngineIsRunning();
+/// Whether a session is currently held (async FRB — avoids blocking the UI isolate on sync dispatch).
+Future<bool> engineIsRunning() =>
+    RustLib.instance.api.crateApiEngineEngineIsRunning();
 
 /// Output device summary for the Flutter smoke UI.
 class OutputDevice {

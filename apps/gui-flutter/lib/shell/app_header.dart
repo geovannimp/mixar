@@ -8,11 +8,13 @@ import 'package:window_manager/window_manager.dart';
 /// Brand | tabs | drag region | status | window controls (desktop).
 class AppHeader extends StatelessWidget {
   const AppHeader({
+    required this.appTitle,
     required this.tab,
     required this.onTabChanged,
     super.key,
   });
 
+  final String appTitle;
   final ShellTab tab;
   final ValueChanged<ShellTab> onTabChanged;
 
@@ -33,7 +35,7 @@ class AppHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(
                   child: Text(
-                    'RUST DJ',
+                    appTitle,
                     style: theme.typography.body.sm.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

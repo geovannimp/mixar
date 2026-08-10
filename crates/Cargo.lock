@@ -1694,6 +1694,7 @@ name = "host_flutter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "engine-api",
  "engine-core",
  "flutter_rust_bridge",
 ]

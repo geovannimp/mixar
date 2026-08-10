@@ -12,7 +12,7 @@ Add an experimental Flutter desktop host that talks to the Rust engine via [flut
 
 ## Non-goals (this milestone)
 
-- Deck / mixer / library / controller UI
+- Full deck / mixer / library / controller behavior (layout shell placeholders only)
 - MessagePack omnibus bus parity with Tauri (`engine_publish` / evt stream)
 - Extracting shared `host-core` from Tauri
 - Verifying macOS, Windows, or Web (targets enabled only)
@@ -70,17 +70,18 @@ Process-local session behind a mutex / `OnceLock`.
 
 | Function | Behavior |
 |----------|----------|
-| `list_backend_names() -> Vec<String>` | `AudioBackend::list_names()` |
-| `list_output_devices(backend: String) -> Vec<OutputDevice>` | `create_backend` → `list_output_devices`; map fields |
-| `start_engine(backend, sample_rate?, buffer_size?) -> ()` | Build `EngineConfig` (default 48 kHz / 512), `EngineSession::new` + `engine.start()`. **Idempotent:** if already running, return `Ok(())` without restart |
-| `stop_engine() -> ()` | Stop engine and drop session |
-| `engine_is_running() -> bool` | Whether a session exists |
+| `list_backend_names() -> Vec<String>` | `"auto"` plus `AudioBackend::list_names()` |
+| `list_output_devices(backend: String) -> Result<Vec<OutputDevice>, String>` | `AudioBackend::new` → `list_output_devices`; map fields |
+| `start_engine(backend, sample_rate?, buffer_size?) -> Result<(), String>` | Build `EngineConfig` (default 48 kHz / 512), `EngineSession::new` + `engine.start()`. **Idempotent:** if already running, return `Ok(())` without restart |
+| `stop_engine() -> Result<(), String>` | Stop engine; clear session only after successful stop |
+| `engine_is_running() -> bool` | Whether a session exists (async FRB) |
+| `app_display_name() -> String` | Shared [`engine_api::APP_DISPLAY_NAME`] (`"Rust DJ"`) |
 
 **`OutputDevice` fields:** `id: String`, `name: String`, `is_default: bool`, `max_channels: u16`, `default_sample_rates: Vec<u32>`.
 
-Errors return as FRB/`anyhow`-style failures to Dart; the Flutter process stays alive. Surface failures in the smoke UI.
+Errors return as FRB/`Result<_, String>` failures to Dart; the Flutter process stays alive. Surface failures in the smoke UI.
 
-Default backend for start when unspecified: `"auto"`.
+Default backend for start when unspecified: `"auto"` (listed first by `list_backend_names`; not part of `AudioBackend::list_names()`).
 
 ## Flutter smoke UI
 
@@ -103,14 +104,14 @@ No decks, waveforms, or settings persistence.
 ## Testing / acceptance
 
 1. `mise install` provides `flutter`
-2. `flutter_rust_bridge_codegen generate` succeeds for the host
-3. `cargo test -p host-flutter` covers list backends / start-stop with `"null"` backend (no real device required)
-4. On Linux: `flutter run -d linux` shows backends, devices, and can start/stop engine with a real or auto backend
+2. `cd apps/gui-flutter && mise exec -- flutter_rust_bridge_codegen generate` succeeds for the host
+3. `cargo test --manifest-path crates/Cargo.toml -p host_flutter` covers list backends / start-stop with `"null"` backend (no real device required)
+4. On Linux: `npm run flutter:dev` (or `moon run gui-flutter:dev-linux`) shows the mixer shell; engine smoke APIs remain available via FRB
 
 ## Follow-ups (out of scope)
 
 - Omnibus MessagePack bridge (Tauri parity)
 - Shared host extraction
-- Deck UI / library
-- Flutter CI + moon tasks
+- Wire mixer shell to engine/library
+- Flutter CI
 - Hard-exit on engine failure when Flutter becomes primary

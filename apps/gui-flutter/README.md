@@ -9,10 +9,12 @@ Design: [`docs/superpowers/specs/2026-08-10-flutter-desktop-host-design.md`](../
 
 | Path | Role |
 |------|------|
-| `apps/gui-flutter` | Flutter app (linux / macos / windows / web enabled) |
+| `apps/gui-flutter` | Flutter app (linux / macos / windows / web enabled; Linux verified) |
 | `crates/host-flutter` | FRB Rust host (`host_flutter`) over `engine-core` |
 
 Tauri (`apps/gui-app`) stays the primary UI until this experiment replaces it.
+
+Generated FRB outputs under `lib/src/rust/` and `crates/host-flutter/src/frb_generated.rs` are **committed** (FRB’s usual workflow so clones build without running codegen first). Regenerate after Rust API changes.
 
 ## Prerequisites
 
@@ -30,7 +32,7 @@ From the repo root:
 
 ```sh
 npm run flutter:dev
-# or: moon run gui-flutter:dev
+# or: moon run gui-flutter:dev-linux
 ```
 
 Desktop uses [`window_manager`](https://pub.dev/packages/window_manager) with `TitleBarStyle.hidden` and in-app min/max/close controls (drag empty header regions to move; double-click to maximize).
@@ -41,9 +43,7 @@ After Rust API changes:
 moon run gui-flutter:generate
 ```
 
-Smoke UI: pick a backend, list devices, start/stop the engine.
-
-The main window is a Forui ([forui.dev](https://forui.dev/)) layout shell: header, waveforms, decks/mixer, library — no engine wiring yet.
+The main window is a Forui ([forui.dev](https://forui.dev/)) layout shell: header, waveforms, decks/mixer, library — engine/library not wired into the shell yet. Display name comes from Rust (`engine_api::APP_DISPLAY_NAME` / `appDisplayName()`).
 
 ## Rust tests
 

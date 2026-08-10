@@ -238,11 +238,11 @@ pub fn start_engine(
 
 pub fn stop_engine() -> anyhow::Result<()> {
     let mut slot = SESSION.lock().map_err(|_| anyhow::anyhow!("session lock poisoned"))?;
-    if let Some(session) = slot.take() {
-        session.with_engine(|engine| engine.stop().map_err(anyhow::Error::from))?;
-        // drop session after stop
-        drop(session);
-    }
+    let Some(session) = slot.as_mut() else {
+        return Ok(());
+    };
+    session.with_engine(|engine| engine.stop().map_err(anyhow::Error::from))?;
+    *slot = None;
     Ok(())
 }
 

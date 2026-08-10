@@ -6,7 +6,9 @@ import 'package:gui_flutter/shell/shell_tab.dart';
 
 /// Top-level shell: header + Mixer / Settings body (no backend wiring).
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({required this.appTitle, super.key});
+
+  final String appTitle;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -20,6 +22,7 @@ class _AppShellState extends State<AppShell> {
     return FScaffold(
       childPad: false,
       header: AppHeader(
+        appTitle: widget.appTitle,
         tab: _tab,
         onTabChanged: (tab) => setState(() => _tab = tab),
       ),

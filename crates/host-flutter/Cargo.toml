@@ -8,6 +8,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
+engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }
 flutter_rust_bridge = "=2.12.0"
 

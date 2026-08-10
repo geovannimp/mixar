@@ -1,12 +1,13 @@
 //! Smoke checks for the Flutter host API (null backend — no real audio device).
 
 #[test]
-fn list_backends_includes_null() {
+fn list_backends_includes_null_and_auto() {
     let names = host_flutter::api::engine::list_backend_names();
     assert!(
         names.iter().any(|n| n == "null"),
         "expected null backend in {names:?}"
     );
+    assert_eq!(names.first().map(String::as_str), Some("auto"));
 }
 
 #[test]
