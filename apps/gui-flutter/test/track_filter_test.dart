@@ -1,15 +1,17 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 LibraryTrackSummary _track({
   required String id,
-  required String title,
+  required String displayName,
+  String? title,
   String? artist,
 }) {
   return LibraryTrackSummary(
     id: id,
-    displayName: title,
+    displayName: displayName,
     artist: artist,
     title: title,
     album: null,
@@ -22,26 +24,61 @@ LibraryTrackSummary _track({
 }
 
 void main() {
-  test('trackTitleLabel falls back when title is empty', () {
-    final t = LibraryTrackSummary(
+  late ProviderContainer container;
+  final tracks = [
+    _track(
       id: '1',
+      displayName: 'palawan',
+      title: 'Palawan by SKIRK Vlog Music [xXRDR-ycleo]',
+    ),
+    _track(
+      id: '2',
+      displayName: 'elegy',
+      title: 'Z8phyR - Nameless Elegy (Second Mix)',
+    ),
+    _track(
+      id: '3',
       displayName: 'stem-name',
-      artist: null,
       title: '',
-      album: null,
-      genre: null,
-      bpm: null,
-      key: null,
-      durationMs: 1,
-      path: '/tmp/1.wav',
+      artist: 'Solo Artist',
+    ),
+  ];
+
+  setUp(() async {
+    container = ProviderContainer(
+      overrides: [
+        collectionTracksProvider.overrideWith((ref) async => tracks),
+      ],
     );
-    expect(trackTitleLabel(t), 'stem-name');
+    addTearDown(container.dispose);
+    await container.read(collectionTracksProvider.future);
   });
 
-  test('mid-title substring would match via contains', () {
-    final title = 'Palawan by SKIRK Vlog Music [xXRDR-ycleo]';
-    expect(title.toLowerCase().contains('vlog'), isTrue);
-    expect(trackTitleLabel(_track(id: '1', title: title)).toLowerCase(),
-        contains('skirk'));
+  List<String> filteredIds() {
+    return container
+        .read(filteredTracksProvider)
+        .requireValue
+        .map((t) => t.id)
+        .toList();
+  }
+
+  test('filteredTracksProvider matches mid-title Vlog', () {
+    container.read(trackFilterProvider.notifier).state = 'Vlog';
+    expect(filteredIds(), ['1']);
+  });
+
+  test('filteredTracksProvider matches mid-title SKIRK', () {
+    container.read(trackFilterProvider.notifier).state = 'SKIRK';
+    expect(filteredIds(), ['1']);
+  });
+
+  test('filteredTracksProvider matches artist', () {
+    container.read(trackFilterProvider.notifier).state = 'Solo';
+    expect(filteredIds(), ['3']);
+  });
+
+  test('filteredTracksProvider uses displayName when title is empty', () {
+    container.read(trackFilterProvider.notifier).state = 'stem-name';
+    expect(filteredIds(), ['3']);
   });
 }
