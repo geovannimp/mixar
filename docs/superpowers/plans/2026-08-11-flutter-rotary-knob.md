@@ -35,7 +35,7 @@
   - `({double from, double to}) valueFillAngles(double value, double min, double max, {double? center})`
   - `double snapToStep(double value, double step)`
   - `double valueFromVerticalDrag({required double startValue, required double startY, required double clientY, required double min, required double max, required double step})`
-  - `class RotaryKnob extends StatelessWidget` with props: `label`, `value`, `onValueChange`, optional `min`/`max`/`step`/`center`/`disabled`/`size`/`accentColor`/`ringColor`
+  - `class RotaryKnob extends StatefulWidget` with props: `label`, `value`, `onValueChange`, optional `min`/`max`/`step`/`center`/`disabled`/`size`/`accentColor`/`ringColor`
 
 - [ ] **Step 1: Write failing math tests**
 

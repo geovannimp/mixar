@@ -19,7 +19,18 @@ const _dragPixelsPerRange = 72.0;
 
 enum RotaryKnobSize { md, sm }
 
+void _requireValidRange(double min, double max) {
+  if (!(min.isFinite && max.isFinite && min < max)) {
+    throw ArgumentError.value(
+      (min: min, max: max),
+      'min/max',
+      'expected finite min < max',
+    );
+  }
+}
+
 double valueToAngle(double value, double min, double max) {
+  _requireValidRange(min, max);
   final t = (value - min) / (max - min);
   return t * _angleSpanDeg + _angleMinDeg;
 }
@@ -42,11 +53,11 @@ double valueToAngle(double value, double min, double max) {
   return (from: valueAngle, to: zeroAngle);
 }
 
-double snapToStep(double value, double step) {
+double snapToStep(double value, double step, {double origin = 0.0}) {
   if (step <= 0) {
     return value;
   }
-  final snapped = (value / step).round() * step;
+  final snapped = origin + ((value - origin) / step).round() * step;
   return snapped == 0 ? 0.0 : snapped;
 }
 
@@ -58,16 +69,17 @@ double valueFromVerticalDrag({
   required double max,
   required double step,
 }) {
+  _requireValidRange(min, max);
   final range = max - min;
   final deltaY = startY - clientY;
   final raw = startValue + (deltaY / _dragPixelsPerRange) * range;
-  final snapped = snapToStep(raw, step);
-  return snapped.clamp(min, max);
+  final snapped = snapToStep(raw, step, origin: min);
+  return snapped.clamp(min, max).toDouble();
 }
 
 /// DJ-style rotary control: 270° travel arc, vertical drag, center detent fill.
 class RotaryKnob extends StatefulWidget {
-  const RotaryKnob({
+  RotaryKnob({
     required this.label,
     required this.value,
     required this.onValueChange,
@@ -80,7 +92,9 @@ class RotaryKnob extends StatefulWidget {
     this.accentColor,
     this.ringColor,
     super.key,
-  });
+  }) {
+    _requireValidRange(min, max);
+  }
 
   final String label;
   final double value;
@@ -109,7 +123,7 @@ class _RotaryKnobState extends State<RotaryKnob> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final snapped = snapToStep(widget.value, widget.step);
+    final snapped = snapToStep(widget.value, widget.step, origin: widget.min);
     final angle = valueToAngle(snapped, widget.min, widget.max);
     final fill = valueFillAngles(
       snapped,

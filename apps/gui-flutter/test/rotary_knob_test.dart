@@ -32,6 +32,17 @@ void main() {
     expect(next, closeTo(1.0, kControlNormStep));
   });
 
+  test('snapToStep keeps non-zero min on the step grid', () {
+    expect(snapToStep(0.25, 0.1, origin: 0.25), 0.25);
+    expect(snapToStep(0.29, 0.1, origin: 0.25), 0.25);
+    expect(snapToStep(0.31, 0.1, origin: 0.25), closeTo(0.35, 1e-12));
+  });
+
+  test('valueToAngle rejects invalid ranges', () {
+    expect(() => valueToAngle(0, 1, 1), throwsArgumentError);
+    expect(() => valueToAngle(0, double.nan, 1), throwsArgumentError);
+  });
+
   testWidgets('drag updates value via onValueChange', (tester) async {
     final theme = FTheme.neutral.dark.desktop;
     var value = 0.5;
