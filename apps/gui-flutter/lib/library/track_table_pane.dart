@@ -217,7 +217,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       for (final t in tracks)
         TrinaRow(
           cells: {
-            'title': TrinaCell(value: t.title ?? t.displayName),
+            'title': TrinaCell(value: trackTitleLabel(t)),
             'artist': TrinaCell(value: t.artist ?? ''),
             'bpm': TrinaCell(
               value: t.bpm == null ? '' : t.bpm!.toStringAsFixed(1),

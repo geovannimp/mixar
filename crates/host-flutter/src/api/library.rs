@@ -33,6 +33,8 @@ pub struct LibraryTrackSummary {
 /// Host-owned library handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct LibraryTransport {
+    // ponytail: Mutex serializes browse calls per transport. Upgrade to a
+    // read-capable manager / connection pool if concurrent queries matter.
     inner: Mutex<LibraryManager>,
 }
 

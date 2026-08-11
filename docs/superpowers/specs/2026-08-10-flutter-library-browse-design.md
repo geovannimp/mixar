@@ -24,7 +24,7 @@ Wire the Flutter mixer library panel to the real library for **browse-only**: fl
 
 ## Architecture
 
-```
+```text
 main: RustLib.init → path_provider support dir → LibraryTransport.open(dbPath)
 Riverpod: transport / collections / selectedId / tracks / filter
 LibraryPanel: FItemGroup | filter + TrinaGrid

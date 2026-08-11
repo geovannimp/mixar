@@ -44,10 +44,7 @@ void main() {
           collectionsProvider.overrideWith((ref) async => [collection]),
           collectionTracksProvider.overrideWith((ref) async {
             final id = ref.watch(activeCollectionIdProvider);
-            if (id == null) {
-              return const [];
-            }
-            return [track];
+            return id == collection.id ? [track] : const [];
           }),
         ],
         child: MaterialApp(

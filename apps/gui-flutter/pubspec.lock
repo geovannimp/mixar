@@ -242,6 +242,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  fuzzy_bolt:
+    dependency: "direct main"
+    description:
+      name: fuzzy_bolt
+      sha256: "606cfb9b90ddc66fdaa5f22c5655471cac78fc0760f3586f196672b0d9da9f4b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.2"
   hooks:
     dependency: transitive
     description:

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fuzzy_bolt/fuzzy_bolt.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -44,19 +46,20 @@ final collectionTracksProvider =
 
 final trackFilterProvider = StateProvider<String>((ref) => '');
 
-final filteredTracksProvider = Provider<AsyncValue<List<LibraryTrackSummary>>>((
-  ref,
-) {
-  final filter = ref.watch(trackFilterProvider).trim().toLowerCase();
-  final tracks = ref.watch(collectionTracksProvider);
-  return tracks.whenData((list) {
-    if (filter.isEmpty) {
-      return list;
-    }
-    return list.where((t) {
-      final title = (t.title ?? t.displayName).toLowerCase();
-      final artist = (t.artist ?? '').toLowerCase();
-      return title.contains(filter) || artist.contains(filter);
-    }).toList();
-  });
-});
+String trackTitleLabel(LibraryTrackSummary t) =>
+    (t.title?.isNotEmpty ?? false) ? t.title! : t.displayName;
+
+final filteredTracksProvider =
+    FutureProvider<List<LibraryTrackSummary>>((ref) async {
+      final filter = ref.watch(trackFilterProvider).trim();
+      final tracks = await ref.watch(collectionTracksProvider.future);
+      if (filter.isEmpty) {
+        return tracks;
+      }
+      return FuzzyBolt.search<LibraryTrackSummary>(
+        tracks,
+        filter,
+        selectors: [trackTitleLabel, (t) => t.artist ?? ''],
+        skipIsolate: kIsWeb,
+      );
+    });

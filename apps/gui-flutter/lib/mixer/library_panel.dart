@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/collections_pane.dart';
@@ -9,28 +10,38 @@ class LibraryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
     return Padding(
       padding: const EdgeInsets.all(8),
       child: FCard(
         clipBehavior: Clip.antiAlias,
-        child: FResizable(
-          axis: .horizontal,
-          divider: .dividerWithThumb,
-          children: [
-            .fixed(
-              minExtent: 100,
-              extent: 200,
-              builder: _fill,
-              child: const CollectionsPane(),
-            ),
-            .flex(
-              flex: 3,
-              minFlex: 1,
-              builder: _fill,
-              child: const TrackTablePane(),
-            ),
-          ],
-        ),
+        child: kIsWeb
+            ? Center(
+                child: Text(
+                  'Library browse is desktop-only',
+                  style: theme.typography.body.sm.copyWith(
+                    color: theme.colors.mutedForeground,
+                  ),
+                ),
+              )
+            : FResizable(
+                axis: .horizontal,
+                divider: .dividerWithThumb,
+                children: [
+                  .fixed(
+                    minExtent: 100,
+                    extent: 200,
+                    builder: _fill,
+                    child: const CollectionsPane(),
+                  ),
+                  .flex(
+                    flex: 3,
+                    minFlex: 1,
+                    builder: _fill,
+                    child: const TrackTablePane(),
+                  ),
+                ],
+              ),
       ),
     );
   }

@@ -14,7 +14,7 @@ Design: [`docs/superpowers/specs/2026-08-10-flutter-desktop-host-design.md`](../
 
 Tauri (`apps/gui-app`) stays the primary UI until this experiment replaces it.
 
-Library browse opens `{getApplicationSupportDirectory()}/library.db` (app id `com.geovanni.gui-app`, shared with Tauri). UI: Forui `FItemGroup` collections + [trina_grid](https://github.com/doonfrs/trina_grid) tracks ([design](../../docs/superpowers/specs/2026-08-10-flutter-library-browse-design.md)).
+Library browse opens `{getApplicationSupportDirectory()}/library.db` (app id `com.geovanni.gui-app`, shared with Tauri; desktop only — web shows a placeholder). UI: Forui `FItemGroup` collections + [trina_grid](https://github.com/doonfrs/trina_grid) tracks ([design](../../docs/superpowers/specs/2026-08-10-flutter-library-browse-design.md)).
 
 Generated FRB outputs under `lib/src/rust/` and `crates/host-flutter/src/frb_generated.rs` are **committed** (FRB’s usual workflow so clones build without running codegen first). Regenerate after Rust API changes.
 
