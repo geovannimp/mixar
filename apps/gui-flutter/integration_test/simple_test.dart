@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/main.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -13,7 +14,9 @@ void main() {
   });
   testWidgets('shows shared app title from Rust', (WidgetTester tester) async {
     final title = appDisplayName();
-    await tester.pumpWidget(Application(appTitle: title));
+    await tester.pumpWidget(
+      ProviderScope(child: Application(appTitle: title)),
+    );
     expect(find.text(title), findsWidgets);
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -35,7 +36,7 @@ Future<void> main() async {
     });
   }
 
-  runApp(Application(appTitle: appTitle));
+  runApp(ProviderScope(child: Application(appTitle: appTitle)));
 }
 
 /// Root app: [Forui](https://forui.dev/) light/dark themes + mixer shell.

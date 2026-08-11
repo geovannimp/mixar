@@ -13,5 +13,8 @@
   "[typescript]": {
     "editor.defaultFormatter": "oxc.oxc-vscode",
     "editor.formatOnSave": true
-  }
+  },
+  "dart.flutterHotReloadOnSave": "all",
+  "cmake.sourceDirectory": "/home/geovanni/Projects/rust-mixer/apps/gui-flutter/linux",
+  "cSpell.words": ["forui"]
 }
