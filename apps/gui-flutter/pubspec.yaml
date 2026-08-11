@@ -39,7 +39,7 @@ dependencies:
   flutter_rust_bridge: 2.12.0
   forui: ^0.25.0
   window_manager: ^0.5.2
-  flutter_riverpod: ^2.6.1
+  flutter_riverpod: ^3.4.2
   path_provider: ^2.1.6
   trina_grid: ^2.3.0
   path: ^1.9.1

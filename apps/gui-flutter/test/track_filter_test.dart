@@ -63,22 +63,22 @@ void main() {
   }
 
   test('filteredTracksProvider matches mid-title Vlog', () {
-    container.read(trackFilterProvider.notifier).state = 'Vlog';
+    container.read(trackFilterProvider.notifier).set('Vlog');
     expect(filteredIds(), ['1']);
   });
 
   test('filteredTracksProvider matches mid-title SKIRK', () {
-    container.read(trackFilterProvider.notifier).state = 'SKIRK';
+    container.read(trackFilterProvider.notifier).set('SKIRK');
     expect(filteredIds(), ['1']);
   });
 
   test('filteredTracksProvider matches artist', () {
-    container.read(trackFilterProvider.notifier).state = 'Solo';
+    container.read(trackFilterProvider.notifier).set('Solo');
     expect(filteredIds(), ['3']);
   });
 
   test('filteredTracksProvider uses displayName when title is empty', () {
-    container.read(trackFilterProvider.notifier).state = 'stem-name';
+    container.read(trackFilterProvider.notifier).set('stem-name');
     expect(filteredIds(), ['3']);
   });
 }
