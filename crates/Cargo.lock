@@ -1697,6 +1697,9 @@ dependencies = [
  "engine-api",
  "engine-core",
  "flutter_rust_bridge",
+ "library",
+ "library-core",
+ "tempfile",
 ]
 
 [[package]]
