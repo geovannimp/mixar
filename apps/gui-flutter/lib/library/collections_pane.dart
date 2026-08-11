@@ -34,7 +34,7 @@ class CollectionsPane extends ConsumerWidget {
     );
 
     void onItemPress(LibraryCollectionSummary c) {
-      ref.read(selectedCollectionIdProvider.notifier).state = c.id;
+      ref.read(selectedCollectionIdProvider.notifier).set(c.id);
     }
 
     return Padding(

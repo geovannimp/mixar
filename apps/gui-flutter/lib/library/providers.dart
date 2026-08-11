@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -18,7 +17,15 @@ final collectionsProvider =
     });
 
 /// Explicit user selection; `null` means “use the first collection”.
-final selectedCollectionIdProvider = StateProvider<String?>((ref) => null);
+class SelectedCollectionId extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void set(String? id) => state = id;
+}
+
+final selectedCollectionIdProvider =
+    NotifierProvider<SelectedCollectionId, String?>(SelectedCollectionId.new);
 
 /// Resolved selection: user pick if still present, otherwise the first collection.
 final activeCollectionIdProvider = Provider<String?>((ref) {
@@ -43,7 +50,15 @@ final collectionTracksProvider =
       return transport.listCollectionTracks(collectionId: id);
     });
 
-final trackFilterProvider = StateProvider<String>((ref) => '');
+class TrackFilter extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String value) => state = value;
+}
+
+final trackFilterProvider =
+    NotifierProvider<TrackFilter, String>(TrackFilter.new);
 
 String trackTitleLabel(LibraryTrackSummary t) =>
     (t.title?.isNotEmpty ?? false) ? t.title! : t.displayName;

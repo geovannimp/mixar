@@ -45,7 +45,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
             hint: 'Filter tracks…',
             control: FTextFieldManagedControl(
               onChange: (value) =>
-                  ref.read(trackFilterProvider.notifier).state = value.text,
+                  ref.read(trackFilterProvider.notifier).set(value.text),
             ),
           ),
           const SizedBox(height: 8),
