@@ -41,8 +41,8 @@ pub struct LibraryTransport {
 impl LibraryTransport {
     /// Open (or create) a SQLite library at `db_path`.
     pub fn open(db_path: String) -> Result<Self, String> {
-        let manager = LibraryManager::open(db_path, LibraryConfig::default())
-            .map_err(|e| e.to_string())?;
+        let manager =
+            LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
         Ok(Self {
             inner: Mutex::new(manager),
         })

@@ -26,23 +26,21 @@ tasks:
       runInCI: true
 
   # Pre-commit only (lefthook → moon --affected --status staged).
-  # Inputs are .rs-only so this task is skipped when no Rust sources are staged
-  # (avoids rustfmt hanging on empty stdin). `passDotWhenNoResults: false` skips
-  # the task when the filter matches nothing. Skip deleted staged paths (rustfmt
-  # errors if a path is missing).
+  # Inputs are .rs-only so this task is skipped when no Rust sources are staged.
+  # `pass: false` runs full `cargo fmt` (same as CI format-check) whenever any
+  # `.rs` is staged — do not pass paths through `bash -c "...$@..."`; the Rust
+  # toolchain wraps the task in another `bash -c`, which expands `$@` empty and
+  # silently skips rustfmt. `passDotWhenNoResults: false` skips when none match.
   format-files:
-    command: 'bash'
-    args:
-      - '-c'
-      - 'files=(); for f in "$@"; do [ -f "$f" ] && files+=("$f"); done; [ "${#files[@]}" -eq 0 ] && exit 0; exec rustfmt --edition 2021 -- "${files[@]}"'
-      - '_'
+    command: 'cargo'
+    args: ['fmt']
     inputs:
       - '**/*.rs'
     options:
       cache: false
       runInCI: false
       affectedFiles:
-        pass: 'args'
+        pass: false
         filter:
           - '**/*.rs'
         passDotWhenNoResults: false
