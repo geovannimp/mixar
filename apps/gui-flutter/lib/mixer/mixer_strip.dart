@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/rotary_knob.dart';
 
 /// Center mixer placeholder: EQ columns, faders, crossfader.
 class MixerStrip extends StatelessWidget {
@@ -18,14 +19,14 @@ class MixerStrip extends StatelessWidget {
             children: [
               Text(
                 'Mixer',
-                style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.w700),
+                style: theme.typography.body.sm.copyWith(fontWeight: .w700),
               ),
               const SizedBox(height: 8),
-              Expanded(
+              const Expanded(
                 child: Row(
                   children: [
                     Expanded(child: _ChannelColumn(label: 'A')),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8),
                     Expanded(child: _ChannelColumn(label: 'B')),
                   ],
                 ),
@@ -33,7 +34,9 @@ class MixerStrip extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 'Crossfader',
-                style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
               ),
               const SizedBox(height: 4),
               const _CrossfaderPlaceholder(),
@@ -45,30 +48,38 @@ class MixerStrip extends StatelessWidget {
   }
 }
 
-class _ChannelColumn extends StatelessWidget {
+class _ChannelColumn extends StatefulWidget {
   const _ChannelColumn({required this.label});
 
   final String label;
+
+  @override
+  State<_ChannelColumn> createState() => _ChannelColumnState();
+}
+
+class _ChannelColumnState extends State<_ChannelColumn> {
+  static const _bands = ['Gain', 'Hi', 'Mid', 'Low'];
+
+  late final Map<String, double> _values = {
+    for (final name in _bands) name: kControlNormCenter,
+  };
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     return Column(
       children: [
-        Text(label, style: theme.typography.body.xs),
+        Text(widget.label, style: theme.typography.body.xs),
         const SizedBox(height: 6),
-        for (final name in ['Gain', 'Hi', 'Mid', 'Low']) ...[
-          Text(
-            name,
-            style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
-          ),
-          const SizedBox(height: 2),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: theme.colors.border),
-            ),
-            child: const SizedBox(width: 28, height: 28),
+        for (final name in _bands) ...[
+          RotaryKnob(
+            label: name,
+            value: _values[name]!,
+            min: kControlNormMin,
+            max: kControlNormMax,
+            step: kControlNormStep,
+            center: kControlNormCenter,
+            onValueChange: (next) => setState(() => _values[name] = next),
           ),
           const SizedBox(height: 6),
         ],
