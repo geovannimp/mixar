@@ -132,7 +132,8 @@ class _RotaryKnobState extends State<RotaryKnob> {
       center: widget.center,
     );
     final labelColor = widget.accentColor ?? theme.colors.mutedForeground;
-    final ringColor = widget.ringColor ?? theme.colors.primary;
+    // Face uses primary so the dial reads first; arc/track stay secondary (quieter).
+    final ringColor = widget.ringColor ?? theme.colors.secondary;
     final opacity = widget.disabled ? 0.45 : 1.0;
 
     return Opacity(
@@ -195,10 +196,10 @@ class _RotaryKnobState extends State<RotaryKnob> {
                   fillToDeg: fill.to,
                   angleDeg: angle,
                   strokeWidth: _strokeWidth,
-                  trackColor: theme.colors.border.withValues(alpha: 0.35),
+                  trackColor: theme.colors.secondary.withValues(alpha: 0.45),
                   fillColor: ringColor,
-                  faceColor: theme.colors.secondary,
-                  tickColor: theme.colors.foreground,
+                  faceColor: theme.colors.primary,
+                  tickColor: theme.colors.primaryForeground,
                   size: widget.size,
                 ),
               ),
