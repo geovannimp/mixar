@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a Forui-themed Tauri-parity loop panel shell to the Flutter deck between pads and jog (local state only).
+**Goal:** Add a Forui-themed Tauri-parity loop panel shell behind an exclusive Pads/Loop performance rail (local state only).
 
-**Architecture:** Extract beat-step helpers + `DeckLoopPanel` StatefulWidget; mount in `DeckPanel`. No engine wiring.
+**Architecture:** Extract beat-step helpers + `DeckLoopPanel`; host it in `DeckPerformancePanel` (left rail + `IndexedStack`); mount that from `DeckPanel`. No engine wiring.
 
 **Tech Stack:** Flutter, Forui (`FButton`, `context.theme`), flutter_test.
 
@@ -72,7 +72,8 @@ int autoLoopBeatIndex(int beats) {
 
 int stepAutoLoopBeats(int beats, int delta) {
   final next = (autoLoopBeatIndex(beats) + delta)
-      .clamp(0, kAutoLoopBeats.length - 1);
+      .clamp(0, kAutoLoopBeats.length - 1)
+      .toInt();
   return kAutoLoopBeats[next];
 }
 ```
@@ -91,55 +92,58 @@ git commit -m "feat(gui-flutter): add auto-loop beat step helpers"
 
 ---
 
-### Task 2: `DeckLoopPanel` widget + mount in `DeckPanel`
+### Task 2: `DeckLoopPanel` + `DeckPerformancePanel` mount
 
 **Files:**
 - Modify: `apps/gui-flutter/lib/mixer/deck_loop_panel.dart`
+- Create: `apps/gui-flutter/lib/mixer/performance_modes.dart`
+- Create: `apps/gui-flutter/lib/mixer/deck_performance_panel.dart`
+- Modify: `apps/gui-flutter/lib/mixer/deck_pads_panel.dart` (`bordered` flag)
 - Modify: `apps/gui-flutter/lib/mixer/deck_panel.dart`
 
 **Interfaces:**
 - Consumes: helpers from Task 1
 - Produces:
-  - `class DeckLoopPanel extends StatefulWidget { final bool hasTrack; final bool disabled; }`
+  - `enum DeckPerformanceMode { pads, loop }` + `kDeckPerformanceModes`
+  - `class DeckPerformancePanel` — left rail + `IndexedStack` of Pads / Loop
+  - `class DeckLoopPanel extends StatefulWidget { final bool hasTrack; final bool disabled; final bool bordered; }`
   - Local state: `bool _loopActive`, `int _loopBeats` (default 4)
 
-- [ ] **Step 1: Implement panel UI**
+- [ ] **Step 1: Implement loop panel UI**
 
-Layout (column, padding ~6):
-1. Full-width `FButton` "Loop" — toggles `_loopActive`
-2. Row of three equal `FButton`s: `‹`, beats text, `›` — step via `stepAutoLoopBeats`
-3. Row of two: `IN` / `OUT` — set `_loopActive = true`
-4. Row of two: `-4` / `+4` — no-op callbacks
+Centered vertical stack:
+1. `FButton` "Loop" — toggles `_loopActive`
+2. Row: `‹`, beats text, `›` — step via `stepAutoLoopBeats`
+3. Row: `IN` / `OUT` — set `_loopActive = true`
 
-Chrome:
-- `SizedBox(width: 92)` + `DecoratedBox` with `theme.colors.border`, `theme.style.borderRadius.md`, `theme.colors.background.withValues(alpha: 0.8)`
-- When `_loopActive`: border `theme.colors.primary.withValues(alpha: 0.45)`, fill `theme.colors.primary.withValues(alpha: 0.12)` (or secondary if primary reads poorly — stay on theme tokens)
+Chrome (when `bordered`):
+- Forui border / radius / background; active tint via `theme.colors.primary`
 - `controlsDisabled = disabled || !hasTrack`
-- Active buttons: `variant: .secondary`; inactive: `.ghost` or `.outline` matching tempo/pads density (`size: .sm` / `.xs`, compact padding)
+- Active buttons: `variant: .secondary`; inactive: `.outline`
 
-- [ ] **Step 2: Mount in `DeckPanel`**
-
-In the Expanded `Row` that currently is `pads | jog`, change to:
+- [ ] **Step 2: Implement performance panel + mount in `DeckPanel`**
 
 ```dart
-const Expanded(child: DeckPadsPanel(hasTrack: false)),
-const SizedBox(width: 8),
-const DeckLoopPanel(hasTrack: false),
+const Expanded(child: DeckPerformancePanel(hasTrack: false)),
 const SizedBox(width: 8),
 const Expanded(child: _PlaceholderBox(...jog...)),
 ```
 
-Import `deck_loop_panel.dart`.
+`DeckPerformancePanel` owns the Pads/Loop rail (`FButton` items for keyboard focus) and embeds `DeckPadsPanel(bordered: false)` / `DeckLoopPanel(bordered: false)`.
 
 - [ ] **Step 3: Analyze**
 
-Run: `cd apps/gui-flutter && dart analyze lib/mixer/deck_loop_panel.dart lib/mixer/deck_panel.dart`  
+Run: `cd apps/gui-flutter && dart analyze lib/mixer/deck_loop_panel.dart lib/mixer/deck_performance_panel.dart lib/mixer/deck_panel.dart`  
 Expected: no issues
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add apps/gui-flutter/lib/mixer/deck_loop_panel.dart apps/gui-flutter/lib/mixer/deck_panel.dart
+git add apps/gui-flutter/lib/mixer/deck_loop_panel.dart \
+  apps/gui-flutter/lib/mixer/deck_performance_panel.dart \
+  apps/gui-flutter/lib/mixer/performance_modes.dart \
+  apps/gui-flutter/lib/mixer/deck_pads_panel.dart \
+  apps/gui-flutter/lib/mixer/deck_panel.dart
 git commit -m "feat(gui-flutter): add deck loop panel shell"
 ```
 
@@ -163,7 +167,7 @@ Body: summary of shell scope, Forui-only chrome, non-goals (engine, shift-save),
 
 | Spec item | Task |
 |-----------|------|
-| Placement between pads and jog | 2 |
+| Pads/Loop performance rail | 2 |
 | Forui chrome / active tint | 2 |
 | Controls + local state | 2 |
 | No shift-save/delete | 2 (omitted) |

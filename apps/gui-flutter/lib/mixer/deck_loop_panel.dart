@@ -12,10 +12,9 @@ int autoLoopBeatIndex(int beats) {
 
 /// Step [beats] by [delta] slots within [kAutoLoopBeats], clamped.
 int stepAutoLoopBeats(int beats, int delta) {
-  final next = (autoLoopBeatIndex(beats) + delta).clamp(
-    0,
-    kAutoLoopBeats.length - 1,
-  );
+  final next = (autoLoopBeatIndex(beats) + delta)
+      .clamp(0, kAutoLoopBeats.length - 1)
+      .toInt();
   return kAutoLoopBeats[next];
 }
 

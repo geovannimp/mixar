@@ -126,13 +126,14 @@ class _RailItem extends StatelessWidget {
         ? theme.colors.foreground
         : theme.colors.mutedForeground;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: disabled ? null : onPress,
-      child: ColoredBox(
-        color: active
-            ? theme.colors.secondary.withValues(alpha: 0.55)
-            : const Color(0x00000000),
+    return SizedBox.expand(
+      child: FButton(
+        variant: active ? .secondary : .ghost,
+        size: .sm,
+        style: .delta(
+          contentStyle: .delta(padding: .value(EdgeInsets.zero)),
+        ),
+        onPress: disabled ? null : onPress,
         child: Center(
           child: RotatedBox(
             quarterTurns: 3,
