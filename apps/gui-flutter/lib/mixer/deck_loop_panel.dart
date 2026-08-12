@@ -21,9 +21,17 @@ int stepAutoLoopBeats(int beats, int delta) {
 
 /// Tauri-shaped deck loop controls (local state shell).
 ///
-/// Mounted under the pads panel as a full-width strip.
+/// Mounted under the pads panel as a full-width strip:
+/// ```
+/// Loop | ‹ beats ›
+/// IN OUT | -4 +4
+/// ```
 class DeckLoopPanel extends StatefulWidget {
-  const DeckLoopPanel({this.hasTrack = false, this.disabled = false, super.key});
+  const DeckLoopPanel({
+    this.hasTrack = false,
+    this.disabled = false,
+    super.key,
+  });
 
   /// When false, controls are disabled (Tauri `!deck.track`).
   final bool hasTrack;
@@ -92,79 +100,91 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
         padding: const EdgeInsets.all(6),
         child: Column(
           mainAxisSize: .min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-              SizedBox(
-                width: double.infinity,
-                child: FButton(
-                  variant: activeVariant(active),
-                  size: .sm,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
+            Row(
+              children: [
+                Expanded(
+                  child: FButton(
+                    variant: activeVariant(active),
+                    size: .sm,
+                    style: .delta(
+                      contentStyle: .delta(padding: .value(compactPad)),
+                    ),
+                    onPress: disabled
+                        ? null
+                        : () => setState(() => _loopActive = !_loopActive),
+                    child: Text('Loop', style: chipStyle),
                   ),
-                  onPress: disabled
-                      ? null
-                      : () => setState(() => _loopActive = !_loopActive),
-                  child: Text('Loop', style: chipStyle),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  cellButton(
-                    label: '‹',
-                    lit: active,
-                    forceDisabled: beatIndex <= 0,
-                    onPress: () => _setLoopLength(
-                      stepAutoLoopBeats(_loopBeats, -1),
-                    ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Row(
+                    children: [
+                      cellButton(
+                        label: '‹',
+                        lit: active,
+                        forceDisabled: beatIndex <= 0,
+                        onPress: () => _setLoopLength(
+                          stepAutoLoopBeats(_loopBeats, -1),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      cellButton(
+                        label: '$_loopBeats',
+                        onPress: null,
+                        style: chipStyle.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      cellButton(
+                        label: '›',
+                        lit: active,
+                        forceDisabled: beatIndex >= kAutoLoopBeats.length - 1,
+                        onPress: () => _setLoopLength(
+                          stepAutoLoopBeats(_loopBeats, 1),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  cellButton(
-                    label: '$_loopBeats',
-                    onPress: null,
-                    style: chipStyle.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      cellButton(
+                        label: 'IN',
+                        lit: active,
+                        onPress: () => setState(() => _loopActive = true),
+                      ),
+                      const SizedBox(width: 4),
+                      cellButton(
+                        label: 'OUT',
+                        lit: active,
+                        onPress: () => setState(() => _loopActive = true),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  cellButton(
-                    label: '›',
-                    lit: active,
-                    forceDisabled: beatIndex >= kAutoLoopBeats.length - 1,
-                    onPress: () => _setLoopLength(
-                      stepAutoLoopBeats(_loopBeats, 1),
-                    ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Row(
+                    children: [
+                      cellButton(label: '-4', onPress: () {}),
+                      const SizedBox(width: 4),
+                      cellButton(label: '+4', onPress: () {}),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  cellButton(
-                    label: 'IN',
-                    lit: active,
-                    onPress: () => setState(() => _loopActive = true),
-                  ),
-                  const SizedBox(width: 4),
-                  cellButton(
-                    label: 'OUT',
-                    lit: active,
-                    onPress: () => setState(() => _loopActive = true),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  cellButton(label: '-4', onPress: () {}),
-                  const SizedBox(width: 4),
-                  cellButton(label: '+4', onPress: () {}),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
-      );
+      ),
+    );
   }
 }
