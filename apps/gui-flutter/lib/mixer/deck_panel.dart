@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
-import 'package:gui_flutter/mixer/deck_pads_panel.dart';
+import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 
@@ -52,7 +52,7 @@ class DeckPanel extends StatelessWidget {
           child: Row(
             children: [
               const Expanded(
-                child: DeckPadsPanel(hasTrack: false),
+                child: DeckPerformancePanel(hasTrack: false),
               ),
               const SizedBox(width: 8),
               const Expanded(

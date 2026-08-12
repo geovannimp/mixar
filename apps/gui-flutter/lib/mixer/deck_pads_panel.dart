@@ -8,13 +8,21 @@ import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 
 /// Tauri-shaped deck pads panel (mode tabs + per-mode grids). Local state only.
 class DeckPadsPanel extends StatefulWidget {
-  const DeckPadsPanel({this.hasTrack = false, this.disabled = false, super.key});
+  const DeckPadsPanel({
+    this.hasTrack = false,
+    this.disabled = false,
+    this.bordered = true,
+    super.key,
+  });
 
   /// When false, pad actions are disabled (Tauri `!deck.track`).
   final bool hasTrack;
 
   /// Disables mode tabs (and pads).
   final bool disabled;
+
+  /// When false, skips the outer bordered chrome (parent supplies it).
+  final bool bordered;
 
   @override
   State<DeckPadsPanel> createState() => _DeckPadsPanelState();
@@ -66,36 +74,42 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
   Widget build(BuildContext context) {
     final theme = context.theme;
 
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: theme.colors.border)),
+          ),
+          child: Row(
+            children: [
+              for (final mode in kPadModes)
+                Expanded(
+                  child: _PadModeTab(
+                    label: padModeShortLabel(mode),
+                    active: _padMode == mode,
+                    disabled: widget.disabled,
+                    onPress: () => setState(() => _padMode = mode),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: _modeBody()),
+      ],
+    );
+
+    if (!widget.bordered) {
+      return body;
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: theme.colors.border),
         borderRadius: BorderRadius.circular(8),
         color: theme.colors.background.withValues(alpha: 0.8),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: theme.colors.border)),
-            ),
-            child: Row(
-              children: [
-                for (final mode in kPadModes)
-                  Expanded(
-                    child: _PadModeTab(
-                      label: padModeShortLabel(mode),
-                      active: _padMode == mode,
-                      disabled: widget.disabled,
-                      onPress: () => setState(() => _padMode = mode),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(child: _modeBody()),
-        ],
-      ),
+      child: body,
     );
   }
 
