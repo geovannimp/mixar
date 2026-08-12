@@ -21,7 +21,6 @@ int stepAutoLoopBeats(int beats, int delta) {
 
 /// Tauri-shaped deck loop controls (local state shell).
 ///
-/// Mounted under the pads panel as a full-width strip:
 /// ```
 /// Loop | ‹ beats ›
 /// IN OUT | -4 +4
@@ -30,6 +29,7 @@ class DeckLoopPanel extends StatefulWidget {
   const DeckLoopPanel({
     this.hasTrack = false,
     this.disabled = false,
+    this.bordered = true,
     super.key,
   });
 
@@ -37,6 +37,9 @@ class DeckLoopPanel extends StatefulWidget {
   final bool hasTrack;
 
   final bool disabled;
+
+  /// When false, skips the outer bordered chrome (parent supplies it).
+  final bool bordered;
 
   @override
   State<DeckLoopPanel> createState() => _DeckLoopPanelState();
@@ -90,18 +93,12 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
       );
     }
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: borderColor),
-        borderRadius: theme.style.borderRadius.md,
-        color: fillColor,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Column(
-          mainAxisSize: .min,
-          children: [
-            Row(
+    final body = Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
               children: [
                 Expanded(
                   child: FButton(
@@ -150,8 +147,10 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Row(
+          ),
+          const SizedBox(height: 4),
+          Expanded(
+            child: Row(
               children: [
                 Expanded(
                   child: Row(
@@ -182,9 +181,25 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+
+    if (!widget.bordered) {
+      return ColoredBox(
+        color: active ? fillColor : const Color(0x00000000),
+        child: body,
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor),
+        borderRadius: theme.style.borderRadius.md,
+        color: fillColor,
+      ),
+      child: body,
     );
   }
 }
