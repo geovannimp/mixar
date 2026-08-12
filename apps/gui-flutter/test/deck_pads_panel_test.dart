@@ -4,7 +4,11 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 
 void main() {
-  Future<void> pumpPanel(WidgetTester tester, {required bool hasTrack}) async {
+  Future<void> pumpPanel(
+    WidgetTester tester, {
+    required bool hasTrack,
+    bool disabled = false,
+  }) async {
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
       MaterialApp(
@@ -14,7 +18,7 @@ void main() {
           body: SizedBox(
             width: 360,
             height: 320,
-            child: DeckPadsPanel(hasTrack: hasTrack),
+            child: DeckPadsPanel(hasTrack: hasTrack, disabled: disabled),
           ),
         ),
       ),
@@ -68,5 +72,18 @@ void main() {
     await tester.tap(find.text('ROLL'));
     await tester.pumpAndSettle();
     expect(find.text('roll'), findsWidgets);
+  });
+
+  testWidgets('disabled panel blocks mode tabs and pad actions', (tester) async {
+    await pumpPanel(tester, hasTrack: true, disabled: true);
+
+    await tester.tap(find.text('JUMP'));
+    await tester.pumpAndSettle();
+    expect(find.text('+1'), findsNothing);
+    expect(find.text('0:12.5'), findsOneWidget);
+
+    await tester.tap(find.text('2'));
+    await tester.pumpAndSettle();
+    expect(find.text('0:01.0'), findsNothing);
   });
 }

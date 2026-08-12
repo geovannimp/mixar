@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
@@ -39,16 +41,30 @@ class PadGrid extends StatelessWidget {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 const gap = 8.0;
+                const cols = 4;
+                const rows = 2;
+                final maxSideW =
+                    (constraints.maxWidth - gap * (cols - 1)) / cols;
+                final maxSideH =
+                    (constraints.maxHeight - gap * (rows - 1)) / rows;
+                final side = math.min(maxSideW, maxSideH);
+                if (side <= 0 || !side.isFinite) {
+                  return const SizedBox.shrink();
+                }
+
                 return Center(
-                  child: GridView.count(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: gap,
-                    crossAxisSpacing: gap,
-                    childAspectRatio: 1,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    children: children,
+                  child: SizedBox(
+                    width: side * cols + gap * (cols - 1),
+                    height: side * rows + gap * (rows - 1),
+                    child: GridView.count(
+                      crossAxisCount: cols,
+                      mainAxisSpacing: gap,
+                      crossAxisSpacing: gap,
+                      childAspectRatio: 1,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      children: children,
+                    ),
                   ),
                 );
               },

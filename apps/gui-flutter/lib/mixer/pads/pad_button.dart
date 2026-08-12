@@ -158,6 +158,20 @@ class _HoldPadButtonState extends State<HoldPadButton> {
   }
 
   @override
+  void didUpdateWidget(covariant HoldPadButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.disabled && widget.disabled) {
+      _end();
+    }
+  }
+
+  @override
+  void dispose() {
+    _end();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return PadButton(
       disabled: widget.disabled,
