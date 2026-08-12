@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
@@ -48,19 +49,25 @@ class Application extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Transparent Material canvas so desktop rounded corners aren't filled square.
-    final light = FTheme.neutral.light.desktop
-        .toApproximateMaterialTheme()
-        .copyWith(scaffoldBackgroundColor: Colors.transparent);
-    final dark = FTheme.neutral.dark.desktop
-        .toApproximateMaterialTheme()
-        .copyWith(scaffoldBackgroundColor: Colors.transparent);
+    final light = materialUiThemeFromForui(
+      FTheme.neutral.light.desktop,
+      scaffoldBackgroundColor: Colors.transparent,
+    );
+    final dark = materialUiThemeFromForui(
+      FTheme.neutral.dark.desktop,
+      scaffoldBackgroundColor: Colors.transparent,
+    );
 
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       supportedLocales: FLocalizations.supportedLocales,
-      localizationsDelegates: FLocalizations.localizationsDelegates,
+      // Forui ships SDK flutter_localizations delegates; material_ui needs its own.
+      localizationsDelegates: [
+        FLocalizations.delegate,
+        ...GlobalMaterialLocalizations.delegates,
+      ],
       theme: light,
       darkTheme: dark,
       builder: (context, child) {
@@ -69,19 +76,22 @@ class Application extends StatelessWidget {
             : FTheme.neutral.light;
         // Resolve touch vs desktop via Forui's platformVariant:
         // https://forui.dev/docs/concepts/responsive
-        return FAdaptiveScope(
-          child: Builder(
-            builder: (context) {
-              final data = context.platformVariant.touch
-                  ? platforms.touch
-                  : platforms.desktop;
-              return DesktopChrome(
-                child: FTheme(
-                  data: data,
-                  child: FToaster(child: FTooltipGroup(child: child!)),
-                ),
-              );
-            },
+        // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
+        return MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+          child: FAdaptiveScope(
+            child: Builder(
+              builder: (context) {
+                final data = context.platformVariant.touch
+                    ? platforms.touch
+                    : platforms.desktop;
+                return DesktopChrome(
+                  child: FTheme(
+                    data: data,
+                    child: FToaster(child: FTooltipGroup(child: child!)),
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
