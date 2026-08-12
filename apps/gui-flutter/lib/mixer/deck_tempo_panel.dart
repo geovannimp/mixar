@@ -68,9 +68,11 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
       fontWeight: .w600,
       fontSize: 10,
     );
+    // Default FButton sm content pad is h:10 → only ~48px left in this column ("Set master" overflows).
+    const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 80,
+      width: 84,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
@@ -78,7 +80,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
           color: theme.colors.background.withValues(alpha: 0.8),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(6, 8, 6, 6),
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
           child: Column(
             children: [
               Text(
@@ -106,6 +108,9 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                 child: FButton(
                   variant: _syncActive || isMaster ? .secondary : .ghost,
                   size: .sm,
+                  style: .delta(
+                    contentStyle: .delta(padding: .value(compactPad)),
+                  ),
                   onPress: isMaster ? null : _toggleSync,
                   child: Text(
                     isMaster
@@ -125,6 +130,9 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                 child: FButton(
                   variant: isMaster ? .secondary : .ghost,
                   size: .sm,
+                  style: .delta(
+                    contentStyle: .delta(padding: .value(compactPad)),
+                  ),
                   onPress: () {
                     if (isMaster) {
                       widget.onMasterChanged(false);
@@ -135,12 +143,12 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   },
                   child: Text(
                     isMaster ? 'Master' : 'Set master',
+                    textAlign: .center,
                     style: theme.typography.body.xs.copyWith(
                       color: isMaster
                           ? const Color(0xe634d399) // emerald-400
                           : theme.colors.mutedForeground,
                       fontWeight: .w600,
-                      letterSpacing: 0.4,
                       fontSize: 9,
                     ),
                   ),
@@ -149,7 +157,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
               const SizedBox(height: 14),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: FaderSlider(
                     orientation: .vertical,
                     accent: widget.accent,
@@ -174,6 +182,9 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                 child: FButton(
                   variant: .secondary,
                   size: .sm,
+                  style: .delta(
+                    contentStyle: .delta(padding: .value(compactPad)),
+                  ),
                   onPress: () => setState(() {
                     _tempoRange = nextTempoRange(_tempoRange);
                   }),
