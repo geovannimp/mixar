@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 
 const _eqColumnWidth = 52.0;
@@ -38,37 +39,13 @@ class _MixerStripState extends State<MixerStrip> {
           padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: .center,
-                children: [
-                  Text(
-                    'Mixer',
-                    style: theme.typography.body.xs.copyWith(
-                      color: theme.colors.mutedForeground,
-                      fontWeight: .w600,
-                      letterSpacing: 1.6,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  FButton(
-                    variant: .outline,
-                    size: .xs,
-                    mainAxisSize: .min,
-                    selected: _meterMono,
-                    semanticsLabel: _meterMono
-                        ? 'Level meters: mono. Switch to stereo.'
-                        : 'Level meters: stereo. Switch to mono.',
-                    onPress: () => setState(() => _meterMono = !_meterMono),
-                    child: Text(
-                      _meterMono ? 'M' : 'S',
-                      style: theme.typography.body.xs.copyWith(
-                        fontSize: 8,
-                        fontWeight: .w600,
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                'Mixer',
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                  fontWeight: .w600,
+                  letterSpacing: 1.6,
+                ),
               ),
               const SizedBox(height: 8),
               Expanded(
@@ -98,7 +75,11 @@ class _MixerStripState extends State<MixerStrip> {
                       onCue: () => setState(() => _a.cue = !_a.cue),
                     ),
                     const SizedBox(width: 4),
-                    _LevelMetersColumn(mono: _meterMono),
+                    _LevelMetersColumn(
+                      mono: _meterMono,
+                      onMonoChanged: (mono) =>
+                          setState(() => _meterMono = mono),
+                    ),
                     const SizedBox(width: 4),
                     _VolumeColumn(
                       accent: .b,
@@ -318,17 +299,15 @@ class _MixerGainHeader extends StatelessWidget {
     required this.gain,
     required this.accentColor,
     required this.onGain,
-    this.spacer = false,
   });
 
   final double gain;
   final Color accentColor;
   final ValueChanged<double> onGain;
-  final bool spacer;
 
   @override
   Widget build(BuildContext context) {
-    final knob = RotaryKnob(
+    return RotaryKnob(
       label: 'GAIN',
       value: gain,
       min: kControlNormMin,
@@ -338,12 +317,6 @@ class _MixerGainHeader extends StatelessWidget {
       size: .md,
       accentColor: accentColor,
       onValueChange: onGain,
-    );
-    if (!spacer) {
-      return knob;
-    }
-    return ExcludeSemantics(
-      child: IgnorePointer(child: Opacity(opacity: 0, child: knob)),
     );
   }
 }
@@ -385,31 +358,75 @@ class _MixerCueFooter extends StatelessWidget {
   }
 }
 
-/// Idle VU ladders (dark segments) — engine levels wire in later.
+/// VU ladders between faders — M/S toggle sits in the GAIN-aligned header.
 class _LevelMetersColumn extends StatelessWidget {
-  const _LevelMetersColumn({required this.mono});
+  const _LevelMetersColumn({
+    required this.mono,
+    required this.onMonoChanged,
+  });
 
   final bool mono;
+  final ValueChanged<bool> onMonoChanged;
 
   @override
   Widget build(BuildContext context) {
+    final theme = context.theme;
+    final mode = mono ? LevelMeterMode.mono : LevelMeterMode.stereo;
+
     return Column(
       children: [
-        _MixerGainHeader(
-          gain: kControlNormCenter,
-          accentColor: FaderColors.a.grip,
-          onGain: (_) {},
-          spacer: true,
+        // Invisible GAIN knob keeps meter track aligned with volume faders;
+        // M/S sits centered on that header slot.
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            ExcludeSemantics(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0,
+                  child: RotaryKnob(
+                    label: 'GAIN',
+                    value: kControlNormCenter,
+                    min: kControlNormMin,
+                    max: kControlNormMax,
+                    step: kControlNormStep,
+                    center: kControlNormCenter,
+                    size: .md,
+                    onValueChange: _noopGain,
+                  ),
+                ),
+              ),
+            ),
+            FButton(
+              variant: .outline,
+              size: .xs,
+              mainAxisSize: .min,
+              selected: mono,
+              semanticsLabel: mono
+                  ? 'Level meters: mono. Switch to stereo.'
+                  : 'Level meters: stereo. Switch to mono.',
+              onPress: () => onMonoChanged(!mono),
+              child: Text(
+                mono ? 'M' : 'S',
+                style: theme.typography.body.xs.copyWith(
+                  fontSize: 8,
+                  fontWeight: .w600,
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+            ),
+          ],
         ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
             child: Row(
               mainAxisAlignment: .center,
+              crossAxisAlignment: .stretch,
               children: [
-                _IdleLevelMeter(stereo: !mono),
+                LevelMeter(levels: zeroDeckLevels, mode: mode),
                 const SizedBox(width: 2),
-                _IdleLevelMeter(stereo: !mono),
+                LevelMeter(levels: zeroDeckLevels, mode: mode),
               ],
             ),
           ),
@@ -420,39 +437,4 @@ class _LevelMetersColumn extends StatelessWidget {
   }
 }
 
-class _IdleLevelMeter extends StatelessWidget {
-  const _IdleLevelMeter({required this.stereo});
-
-  final bool stereo;
-
-  static const _segments = 12;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget ladder() {
-      return SizedBox(
-        width: 6,
-        child: Column(
-          children: [
-            for (var i = 0; i < _segments; i++) ...[
-              if (i > 0) const SizedBox(height: 1),
-              Expanded(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xff27272a), // zinc-800
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }
-
-    if (!stereo) {
-      return ladder();
-    }
-    return Row(children: [ladder(), const SizedBox(width: 1), ladder()]);
-  }
-}
+void _noopGain(double _) {}
