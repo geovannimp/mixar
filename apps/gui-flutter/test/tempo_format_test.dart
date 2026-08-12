@@ -19,6 +19,10 @@ void main() {
     expect(nextTempoRange(0.25), 0.06);
   });
 
+  test('nextTempoRange falls back to the first step', () {
+    expect(nextTempoRange(0.42), 0.06);
+  });
+
   test('slider round-trip', () {
     expect(pitchSliderToSpeed(50), 0.5);
     expect(speedToPitchSlider(0.5), 50);
@@ -28,5 +32,16 @@ void main() {
     expect(effectiveBpm(null, 0.5), isNull);
     expect(effectiveBpm(128, 0.5), 128);
     expect(effectiveBpm(100, 0, 0.06), closeTo(106, 1e-12));
+  });
+
+  test('formatBpm handles unloaded and non-finite input', () {
+    expect(formatBpm(null), '—');
+    expect(formatBpm(double.nan), '—');
+    expect(formatBpm(128), '128.00');
+  });
+
+  test('formatTempoRange renders percent, and clamps invalid input', () {
+    expect(formatTempoRange(0.06), '±6%');
+    expect(formatTempoRange(-1), '±0%');
   });
 }

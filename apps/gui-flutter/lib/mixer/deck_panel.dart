@@ -8,11 +8,15 @@ class DeckPanel extends StatelessWidget {
   const DeckPanel({
     required this.label,
     required this.accent,
+    required this.isMaster,
+    required this.onMasterChanged,
     super.key,
   });
 
   final String label;
   final FaderAccent accent;
+  final bool isMaster;
+  final ValueChanged<bool> onMasterChanged;
 
   bool get _tempoOnRight => accent == FaderAccent.a;
 
@@ -20,7 +24,11 @@ class DeckPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final accentColor = FaderColors.forAccent(accent).grip;
-    final tempo = DeckTempoPanel(accent: accent);
+    final tempo = DeckTempoPanel(
+      accent: accent,
+      isMaster: isMaster,
+      onMasterChanged: onMasterChanged,
+    );
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

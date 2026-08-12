@@ -9,11 +9,15 @@ enum TempoSyncMode { off, tempo, beat }
 class DeckTempoPanel extends StatefulWidget {
   const DeckTempoPanel({
     required this.accent,
+    required this.isMaster,
+    required this.onMasterChanged,
     this.trackBpm,
     super.key,
   });
 
   final FaderAccent accent;
+  final bool isMaster;
+  final ValueChanged<bool> onMasterChanged;
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
@@ -27,13 +31,20 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
   double _speedNorm = 0.5;
   double _tempoRange = kDefaultTempoRange;
   TempoSyncMode _sync = TempoSyncMode.off;
-  bool _isMaster = false;
 
   bool get _syncActive => _sync != TempoSyncMode.off;
   bool get _faderDisabled => _syncActive;
 
+  @override
+  void didUpdateWidget(covariant DeckTempoPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isMaster && !oldWidget.isMaster) {
+      _sync = TempoSyncMode.off;
+    }
+  }
+
   void _toggleSync() {
-    if (_isMaster) {
+    if (widget.isMaster) {
       return;
     }
     setState(() {
@@ -51,6 +62,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
     final accent = FaderColors.forAccent(widget.accent).grip;
     final liveBpm = effectiveBpm(widget.trackBpm, _speedNorm, _tempoRange);
     final sliderValue = speedToPitchSlider(_speedNorm);
+    final isMaster = widget.isMaster;
 
     final chipStyle = theme.typography.body.xs.copyWith(
       fontWeight: .w600,
@@ -92,11 +104,11 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
               SizedBox(
                 width: double.infinity,
                 child: FButton(
-                  variant: _syncActive || _isMaster ? .secondary : .ghost,
+                  variant: _syncActive || isMaster ? .secondary : .ghost,
                   size: .sm,
-                  onPress: _isMaster ? null : _toggleSync,
+                  onPress: isMaster ? null : _toggleSync,
                   child: Text(
-                    _isMaster
+                    isMaster
                         ? 'M'
                         : switch (_sync) {
                             TempoSyncMode.off => 'Sync',
@@ -108,41 +120,32 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                 ),
               ),
               const SizedBox(height: 4),
-              if (_isMaster)
-                SizedBox(
-                  width: double.infinity,
+              SizedBox(
+                width: double.infinity,
+                child: FButton(
+                  variant: isMaster ? .secondary : .ghost,
+                  size: .sm,
+                  onPress: () {
+                    if (isMaster) {
+                      widget.onMasterChanged(false);
+                    } else {
+                      setState(() => _sync = TempoSyncMode.off);
+                      widget.onMasterChanged(true);
+                    }
+                  },
                   child: Text(
-                    'Master',
-                    textAlign: .center,
+                    isMaster ? 'Master' : 'Set master',
                     style: theme.typography.body.xs.copyWith(
-                      color: const Color(0xe634d399), // emerald-400
+                      color: isMaster
+                          ? const Color(0xe634d399) // emerald-400
+                          : theme.colors.mutedForeground,
                       fontWeight: .w600,
-                      letterSpacing: 0.6,
+                      letterSpacing: 0.4,
                       fontSize: 9,
                     ),
                   ),
-                )
-              else
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() {
-                    _isMaster = true;
-                    _sync = TempoSyncMode.off;
-                  }),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      'Set master',
-                      textAlign: .center,
-                      style: theme.typography.body.xs.copyWith(
-                        color: theme.colors.mutedForeground,
-                        fontWeight: .w500,
-                        letterSpacing: 0.4,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ),
                 ),
+              ),
               const SizedBox(height: 14),
               Expanded(
                 child: Padding(

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Soft snap near mid — narrow so centering is optional (Tauri `CENTER_SNAP_THRESHOLD`).
@@ -7,7 +8,7 @@ enum FaderOrientation { vertical, horizontal }
 
 enum FaderAccent { a, b, neutral }
 
-enum _TickSize { major, mid, minor }
+enum _TickSize { major, minor }
 
 class _FaderTick {
   const _FaderTick(this.pos, this.size);
@@ -32,7 +33,6 @@ const _faderTicks = <_FaderTick>[
 
 const _tickLength = {
   _TickSize.major: 10.0,
-  _TickSize.mid: 8.0,
   _TickSize.minor: 6.0,
 };
 
@@ -168,6 +168,11 @@ class FaderSlider extends StatefulWidget {
   State<FaderSlider> createState() => _FaderSliderState();
 }
 
+class _FaderAdjustIntent extends Intent {
+  const _FaderAdjustIntent(this.delta);
+  final double delta;
+}
+
 class _FaderSliderState extends State<FaderSlider> {
   bool _dragging = false;
 
@@ -185,6 +190,21 @@ class _FaderSliderState extends State<FaderSlider> {
     );
   }
 
+  void _nudgeBy(double delta) {
+    if (widget.disabled || delta == 0) {
+      return;
+    }
+    var next = snapFaderToStep(
+      (widget.value + delta).clamp(widget.min, widget.max).toDouble(),
+      widget.step,
+      origin: widget.min,
+    ).clamp(widget.min, widget.max).toDouble();
+    if (widget.centerNotch) {
+      next = snapTowardCenter(next, widget.min, widget.max);
+    }
+    widget.onValueChange(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = FaderColors.forAccent(widget.accent);
@@ -193,45 +213,83 @@ class _FaderSliderState extends State<FaderSlider> {
       0.0,
       1.0,
     );
+    final step = widget.step > 0 ? widget.step : 1.0;
 
     return Opacity(
       opacity: opacity,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = Size(constraints.maxWidth, constraints.maxHeight);
-          return Semantics(
-            label: widget.semanticLabel,
-            slider: true,
-            value: widget.value.toStringAsFixed(2),
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: widget.disabled
-                  ? null
-                  : (event) {
-                      setState(() => _dragging = true);
-                      _emitFromLocal(event.localPosition, size);
+          return Focus(
+            child: Shortcuts(
+              shortcuts: <ShortcutActivator, Intent>{
+                const SingleActivator(LogicalKeyboardKey.arrowUp):
+                    _FaderAdjustIntent(step),
+                const SingleActivator(LogicalKeyboardKey.arrowDown):
+                    _FaderAdjustIntent(-step),
+                const SingleActivator(LogicalKeyboardKey.arrowRight):
+                    _FaderAdjustIntent(step),
+                const SingleActivator(LogicalKeyboardKey.arrowLeft):
+                    _FaderAdjustIntent(-step),
+              },
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  _FaderAdjustIntent: CallbackAction<_FaderAdjustIntent>(
+                    onInvoke: (intent) {
+                      _nudgeBy(intent.delta);
+                      return null;
                     },
-              onPointerMove: widget.disabled
-                  ? null
-                  : (event) {
-                      if (!_dragging) {
-                        return;
-                      }
-                      _emitFromLocal(event.localPosition, size);
-                    },
-              onPointerUp: (_) => setState(() => _dragging = false),
-              onPointerCancel: (_) => setState(() => _dragging = false),
-              child: CustomPaint(
-                size: size,
-                painter: _FaderPainter(
-                  t: t,
-                  orientation: widget.orientation,
-                  colors: colors,
-                  showIndicator: widget.showIndicator,
-                  showMarkers: widget.showMarkers,
-                  centerNotch: widget.centerNotch,
-                  crossfaderTrack: widget.crossfaderTrack,
-                  dragging: _dragging,
+                  ),
+                },
+                child: Semantics(
+                  label: widget.semanticLabel,
+                  slider: true,
+                  enabled: !widget.disabled,
+                  value: widget.value.toStringAsFixed(2),
+                  increasedValue: widget.disabled
+                      ? null
+                      : (widget.value + step)
+                            .clamp(widget.min, widget.max)
+                            .toStringAsFixed(2),
+                  decreasedValue: widget.disabled
+                      ? null
+                      : (widget.value - step)
+                            .clamp(widget.min, widget.max)
+                            .toStringAsFixed(2),
+                  onIncrease: widget.disabled ? null : () => _nudgeBy(step),
+                  onDecrease: widget.disabled ? null : () => _nudgeBy(-step),
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: widget.disabled
+                        ? null
+                        : (event) {
+                            setState(() => _dragging = true);
+                            _emitFromLocal(event.localPosition, size);
+                          },
+                    onPointerMove: widget.disabled
+                        ? null
+                        : (event) {
+                            if (!_dragging) {
+                              return;
+                            }
+                            _emitFromLocal(event.localPosition, size);
+                          },
+                    onPointerUp: (_) => setState(() => _dragging = false),
+                    onPointerCancel: (_) => setState(() => _dragging = false),
+                    child: CustomPaint(
+                      size: size,
+                      painter: _FaderPainter(
+                        t: t,
+                        orientation: widget.orientation,
+                        colors: colors,
+                        showIndicator: widget.showIndicator,
+                        showMarkers: widget.showMarkers,
+                        centerNotch: widget.centerNotch,
+                        crossfaderTrack: widget.crossfaderTrack,
+                        dragging: _dragging,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -316,14 +374,14 @@ class _FaderPainter extends CustomPainter {
       final indicator = vertical
           ? Rect.fromLTRB(
               trackRect.left,
-              trackRect.bottom - trackRect.height * t,
+              size.height * (1 - t),
               trackRect.right,
-              trackRect.bottom,
+              size.height,
             )
           : Rect.fromLTRB(
-              trackRect.left,
+              0,
               trackRect.top,
-              trackRect.left + trackRect.width * t,
+              size.width * t,
               trackRect.bottom,
             );
       canvas.drawRRect(
@@ -332,7 +390,7 @@ class _FaderPainter extends CustomPainter {
           topLeft: vertical ? Radius.zero : const Radius.circular(999),
           bottomLeft: const Radius.circular(999),
           bottomRight: vertical ? const Radius.circular(999) : Radius.zero,
-          topRight: vertical ? Radius.zero : Radius.zero,
+          topRight: Radius.zero,
         ),
         Paint()..color = colors.indicator,
       );

@@ -5,8 +5,8 @@ import 'package:gui_flutter/mixer/rotary_knob.dart';
 
 const _eqColumnWidth = 52.0;
 const _faderColumnWidth = 52.0;
-const _cueButtonSize = 28.0;
-
+/// Matches Forui `FButton(size: .sm)` desktop height used for cue / meter spacer.
+const _columnFooterHeight = 32.0;
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
@@ -48,20 +48,21 @@ class _MixerStripState extends State<MixerStrip> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: FButton(
-                      variant: .ghost,
-                      size: .sm,
-                      onPress: () => setState(() => _meterMono = !_meterMono),
-                      child: Text(
-                        _meterMono ? 'M' : 'S',
-                        style: theme.typography.body.xs.copyWith(
-                          fontSize: 7,
-                          fontWeight: .w600,
-                          color: theme.colors.mutedForeground,
-                        ),
+                  FButton(
+                    variant: .ghost,
+                    size: .sm,
+                    mainAxisSize: .min,
+                    selected: _meterMono,
+                    semanticsLabel: _meterMono
+                        ? 'Level meters: mono. Switch to stereo.'
+                        : 'Level meters: stereo. Switch to mono.',
+                    onPress: () => setState(() => _meterMono = !_meterMono),
+                    child: Text(
+                      _meterMono ? 'M' : 'S',
+                      style: theme.typography.body.xs.copyWith(
+                        fontSize: 7,
+                        fontWeight: .w600,
+                        color: theme.colors.mutedForeground,
                       ),
                     ),
                   ),
@@ -271,24 +272,16 @@ class _VolumeColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
     final accentColor = FaderColors.forAccent(accent).grip;
-    const cueOn = Color(0xbf34d399); // emerald-400 @ ~75%
 
     return SizedBox(
       width: _faderColumnWidth,
       child: Column(
         children: [
-          RotaryKnob(
-            label: 'GAIN',
-            value: gain,
-            min: kControlNormMin,
-            max: kControlNormMax,
-            step: kControlNormStep,
-            center: kControlNormCenter,
-            size: .md,
+          _MixerGainHeader(
+            gain: gain,
             accentColor: accentColor,
-            onValueChange: onGain,
+            onGain: onGain,
           ),
           Expanded(
             child: Padding(
@@ -310,27 +303,85 @@ class _VolumeColumn extends StatelessWidget {
               ),
             ),
           ),
-          Center(
-            child: FButton(
-              variant: cue ? .secondary : .ghost,
-              size: .sm,
-              mainAxisSize: .min,
-              onPress: onCue,
-              child: Icon(
-                FLucideIcons.headphones,
-                size: 14,
-                color: cue ? cueOn : theme.colors.mutedForeground,
-              ),
-            ),
-          ),
+          _MixerCueFooter(cue: cue, onCue: onCue),
         ],
       ),
     );
   }
 }
 
+/// Shared GAIN block so meters and volume columns stay vertically aligned.
+class _MixerGainHeader extends StatelessWidget {
+  const _MixerGainHeader({
+    required this.gain,
+    required this.accentColor,
+    required this.onGain,
+    this.spacer = false,
+  });
+
+  final double gain;
+  final Color accentColor;
+  final ValueChanged<double> onGain;
+  final bool spacer;
+
+  @override
+  Widget build(BuildContext context) {
+    final knob = RotaryKnob(
+      label: 'GAIN',
+      value: gain,
+      min: kControlNormMin,
+      max: kControlNormMax,
+      step: kControlNormStep,
+      center: kControlNormCenter,
+      size: .md,
+      accentColor: accentColor,
+      onValueChange: onGain,
+    );
+    if (!spacer) {
+      return knob;
+    }
+    return ExcludeSemantics(
+      child: IgnorePointer(
+        child: Opacity(opacity: 0, child: knob),
+      ),
+    );
+  }
+}
+
+class _MixerCueFooter extends StatelessWidget {
+  const _MixerCueFooter({required this.cue, required this.onCue, this.spacer = false});
+
+  final bool cue;
+  final VoidCallback onCue;
+  final bool spacer;
+
+  @override
+  Widget build(BuildContext context) {
+    if (spacer) {
+      return const SizedBox(height: _columnFooterHeight);
+    }
+    final theme = context.theme;
+    const cueOn = Color(0xbf34d399); // emerald-400 @ ~75%
+    return SizedBox(
+      height: _columnFooterHeight,
+      child: Center(
+        child: FButton(
+          variant: cue ? .secondary : .ghost,
+          size: .sm,
+          mainAxisSize: .min,
+          onPress: onCue,
+          child: Icon(
+            FLucideIcons.headphones,
+            size: 14,
+            color: cue ? cueOn : theme.colors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Idle VU ladders (dark segments) — engine levels wire in later.
-/// Spacers match GAIN / cue so meters align with the volume tracks.
 class _LevelMetersColumn extends StatelessWidget {
   const _LevelMetersColumn({required this.mono});
 
@@ -340,15 +391,11 @@ class _LevelMetersColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Match GAIN knob block height (label + dial).
-        Opacity(
-          opacity: 0,
-          child: RotaryKnob(
-            label: 'GAIN',
-            value: kControlNormCenter,
-            size: .md,
-            onValueChange: (_) {},
-          ),
+        _MixerGainHeader(
+          gain: kControlNormCenter,
+          accentColor: FaderColors.a.grip,
+          onGain: (_) {},
+          spacer: true,
         ),
         Expanded(
           child: Padding(
@@ -363,8 +410,7 @@ class _LevelMetersColumn extends StatelessWidget {
             ),
           ),
         ),
-        // Match cue button block height.
-        const SizedBox(height: _cueButtonSize),
+        _MixerCueFooter(cue: false, onCue: () {}, spacer: true),
       ],
     );
   }

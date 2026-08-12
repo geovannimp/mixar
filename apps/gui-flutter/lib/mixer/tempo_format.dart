@@ -10,17 +10,12 @@ double _usableTempoRange(double tempoRange) =>
     tempoRange.isFinite && tempoRange > 0 ? tempoRange : 0.0;
 
 /// Cycle to the next range step (wraps).
-double nextTempoRange(
-  double current, [
-  List<double> steps = kTempoRangeSteps,
-]) {
-  final list = steps.isNotEmpty ? steps : kTempoRangeSteps;
+double nextTempoRange(double current) {
   const eps = 1e-4;
-  final idx = list.indexWhere((s) => (s - current).abs() < eps);
-  if (idx < 0) {
-    return list.first;
-  }
-  return list[(idx + 1) % list.length];
+  final idx = kTempoRangeSteps.indexWhere((s) => (s - current).abs() < eps);
+  return idx < 0
+      ? kTempoRangeSteps.first
+      : kTempoRangeSteps[(idx + 1) % kTempoRangeSteps.length];
 }
 
 /// Tempo fader `0..1` → playback ratio (±[tempoRange] fraction).

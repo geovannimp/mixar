@@ -108,6 +108,43 @@ void main() {
     await tester.drag(find.byType(FaderSlider), const Offset(0, 40));
     await tester.pumpAndSettle();
 
-    expect(value, lessThan(80));
+    // Center (y=60) → 50; +40px down (y=100) → ~16.7, snapped to step 1.
+    expect(value, closeTo(17, 1));
+  });
+
+  testWidgets('disabled fader ignores drag', (tester) async {
+    final theme = FTheme.neutral.dark.desktop;
+    var value = 80.0;
+    var calls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: theme.toApproximateMaterialTheme(),
+        builder: (context, child) => FTheme(data: theme, child: child!),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 40,
+              height: 120,
+              child: FaderSlider(
+                value: value,
+                disabled: true,
+                accent: FaderAccent.a,
+                onValueChange: (next) {
+                  calls += 1;
+                  value = next;
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.drag(find.byType(FaderSlider), const Offset(0, 40));
+    await tester.pumpAndSettle();
+
+    expect(calls, 0);
+    expect(value, 80);
   });
 }
