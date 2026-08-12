@@ -29,9 +29,10 @@ fileGroups:
 tasks:
   # Linux-only for now (macOS/Windows/web enabled in Flutter but unverified).
   # Uses repo mise.toml Flutter pin (not a system install).
+  # dashmonx: activated by flutter postinstall in mise.toml; hot-reloads on lib/ changes.
   dev-linux:
     command: "mise"
-    args: ["exec", "--", "flutter", "run", "-d", "linux"]
+    args: ["exec", "--", "dashmonx", "-d", "linux"]
     toolchain: "system"
     preset: "server"
     inputs:
