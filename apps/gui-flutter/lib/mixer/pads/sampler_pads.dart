@@ -90,102 +90,86 @@ class SamplerPads extends StatelessWidget {
       onSelectBank(banks[next].id);
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: theme.colors.border),
+    return PadGrid(
+      bottomChrome: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Row(
+          children: [
+            _BankChromeButton(
+              glyph: '◀',
+              semanticLabel: 'Previous sampler bank',
+              disabled: disabled || banks.length < 2,
+              onPress: () => cycleBank(-1),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-            child: Row(
-              children: [
-                _BankChromeButton(
-                  glyph: '◀',
-                  semanticLabel: 'Previous sampler bank',
-                  disabled: disabled || banks.length < 2,
-                  onPress: () => cycleBank(-1),
-                ),
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Spacer(),
-                      Flexible(
-                        child: Text(
-                          activeBank?.name ?? 'No bank',
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: theme.typography.body.xs.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
+            Expanded(
+              child: Row(
+                children: [
+                  const Spacer(),
+                  Flexible(
+                    child: Text(
+                      activeBank?.name ?? 'No bank',
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: theme.typography.body.xs.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
                       ),
-                      Expanded(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: effectivePlayMode != kDefaultSamplerPlayMode
-                              ? Padding(
-                                  padding: const EdgeInsets.only(left: 6),
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: theme.colors.border,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                      color: theme.colors.secondary
-                                          .withValues(alpha: 0.5),
-                                    ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                        vertical: 1,
-                                      ),
-                                      child: Text(
-                                        effectivePlayMode,
-                                        style: theme.typography.body.xs
-                                            .copyWith(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: effectivePlayMode != kDefaultSamplerPlayMode
+                          ? Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: theme.colors.border,
+                                  ),
+                                  borderRadius: BorderRadius.circular(4),
+                                  color: theme.colors.secondary
+                                      .withValues(alpha: 0.5),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                    vertical: 1,
+                                  ),
+                                  child: Text(
+                                    effectivePlayMode,
+                                    style: theme.typography.body.xs.copyWith(
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                      ),
-                    ],
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ),
-                ),
-                _BankChromeButton(
-                  glyph: '▶',
-                  semanticLabel: 'Next sampler bank',
-                  disabled: disabled || banks.length < 2,
-                  onPress: () => cycleBank(1),
-                ),
-                _BankChromeButton(
-                  glyph: '⚙',
-                  semanticLabel: 'Bank settings',
-                  disabled: disabled || activeBank == null,
-                  onPress: activeBank == null
-                      ? null
-                      : () => _openBankConfig(context, activeBank),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            _BankChromeButton(
+              glyph: '▶',
+              semanticLabel: 'Next sampler bank',
+              disabled: disabled || banks.length < 2,
+              onPress: () => cycleBank(1),
+            ),
+            _BankChromeButton(
+              glyph: '⚙',
+              semanticLabel: 'Bank settings',
+              disabled: disabled || activeBank == null,
+              onPress: activeBank == null
+                  ? null
+                  : () => _openBankConfig(context, activeBank),
+            ),
+          ],
         ),
-        Expanded(
-          child: PadGrid(
-            children: [
-              for (var slot = 0; slot < 8; slot++)
-                _slotPad(theme, slot),
-            ],
-          ),
-        ),
+      ),
+      children: [
+        for (var slot = 0; slot < 8; slot++) _slotPad(theme, slot),
       ],
     );
   }

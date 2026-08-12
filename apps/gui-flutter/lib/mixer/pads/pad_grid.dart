@@ -1,8 +1,17 @@
 import 'package:flutter/widgets.dart';
+import 'package:forui/forui.dart';
+
+/// Reserved height below the pad cluster (sampler bank bar / empty spacer).
+///
+/// Keeps pad vertical position stable when switching to Sample mode.
+const kPadModeBottomChromeHeight = 32.0;
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
+///
+/// Pads are equal squares with uniform gaps, centered above a fixed bottom bar
+/// that is empty on most modes and holds sampler bank chrome on Sample.
 class PadGrid extends StatelessWidget {
-  PadGrid({required this.children, super.key}) {
+  PadGrid({required this.children, this.bottomChrome, super.key}) {
     if (children.length != 8) {
       throw ArgumentError.value(
         children.length,
@@ -14,40 +23,49 @@ class PadGrid extends StatelessWidget {
 
   final List<Widget> children;
 
+  /// Optional content inside the shared bottom bar (e.g. sampler bank controls).
+  final Widget? bottomChrome;
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          const gap = 6.0;
-          final cellW = (constraints.maxWidth - gap * 3) / 4;
-          final cellH = (constraints.maxHeight - gap) / 2;
-          return Column(
-            children: [
-              for (var row = 0; row < 2; row++) ...[
-                if (row > 0) const SizedBox(height: gap),
-                Expanded(
-                  child: Row(
-                    children: [
-                      for (var col = 0; col < 4; col++) ...[
-                        if (col > 0) const SizedBox(width: gap),
-                        Expanded(
-                          child: SizedBox(
-                            width: cellW,
-                            height: cellH,
-                            child: children[row * 4 + col],
-                          ),
-                        ),
-                      ],
-                    ],
+    final theme = context.theme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 8.0;
+                return Center(
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: gap,
+                    crossAxisSpacing: gap,
+                    childAspectRatio: 1,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    children: children,
                   ),
-                ),
-              ],
-            ],
-          );
-        },
-      ),
+                );
+              },
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: theme.colors.border)),
+          ),
+          child: SizedBox(
+            height: kPadModeBottomChromeHeight,
+            width: double.infinity,
+            child: bottomChrome,
+          ),
+        ),
+      ],
     );
   }
 }

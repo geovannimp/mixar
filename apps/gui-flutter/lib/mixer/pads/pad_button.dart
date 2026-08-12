@@ -84,14 +84,13 @@ class PadButton extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: disabled ? null : onPress,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: fill,
-              border: Border.all(color: border),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 44),
+          child: SizedBox.expand(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: fill,
+                border: Border.all(color: border),
+                borderRadius: theme.style.borderRadius.md,
+              ),
               child: DefaultTextStyle.merge(
                 style: TextStyle(color: fg),
                 child: Center(child: child),
