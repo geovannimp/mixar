@@ -117,7 +117,7 @@ class LevelMeter extends StatelessWidget {
 }
 ```
 
-Colors: off `0xff27272a`; emerald `0xff10b981` @ 0.45; amber `0xfffbbf24` @ 0.45; red `0xffef4444` @ 0.50. Ladder width 6, gap 1px, radius 1. Column builds bottom→top by iterating `fromBottom` descending (or `Column` + reverse children) so index 0 is at the bottom.
+Colors: idle Forui `muted`; lit emerald `0xff10b981` @ 0.45, amber `0xfffbbf24` @ 0.45, red `0xffef4444` @ 0.50. Ladder width 6, gap 1px, radius 1. Column builds bottom→top by iterating `fromBottom` descending (or `Column` + reverse children) so index 0 is at the bottom.
 
 - [ ] **Step 4: Run tests — expect PASS**
 

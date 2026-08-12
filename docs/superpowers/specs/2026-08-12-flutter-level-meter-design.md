@@ -51,7 +51,7 @@ const zeroDeckLevels = DeckLevels(
 - Column of 12 equal `Expanded` segments, 1px gaps, `borderRadius: 1`, width 6 (`w-1.5`).
 - Index from bottom (segment 0 = quietest), same as Tauri `flex-col-reverse` + `fromBottom`.
 - `segmentOn(level, i)` / `holdSegment(hold)` — port Tauri thresholds and idle epsilon.
-- Lit segment or peak-hold tick uses band color; otherwise zinc-800.
+- Lit segment or peak-hold tick uses band color; otherwise Forui `muted`.
 
 ### MixerStrip
 
