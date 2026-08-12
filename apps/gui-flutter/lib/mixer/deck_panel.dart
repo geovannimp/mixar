@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
@@ -54,6 +55,8 @@ class DeckPanel extends StatelessWidget {
               const Expanded(
                 child: DeckPadsPanel(hasTrack: false),
               ),
+              const SizedBox(width: 8),
+              const DeckLoopPanel(hasTrack: false),
               const SizedBox(width: 8),
               const Expanded(
                 child: _PlaceholderBox(
