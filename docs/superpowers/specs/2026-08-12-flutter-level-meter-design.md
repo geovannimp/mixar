@@ -15,7 +15,7 @@ Port the Tauri `LevelMeter` UI to Flutter as a reusable widget and wire it into 
 | Scope | Widget + MixerStrip wiring with `zeroDeckLevels` |
 | API | Controlled `LevelMeter({ levels, mode })` (not `deckId` + store) |
 | Look / math | Match Tauri: 12 segments, YELLOW_FROM=8, RED_FROM=10, hold index math |
-| Colors | Off zinc-800; emerald/amber/red at Tauri opacities (~0.45–0.50) |
+| Colors | Idle: Forui `muted`; lit: Tauri emerald/amber/red opacities |
 | Mono | `max(L,R)` for peak and hold |
 | Stereo | Two ladders side-by-side (width 6 each, 1px gap) |
 | Mode toggle | Existing MixerStrip M/S button (local state) |
@@ -23,7 +23,7 @@ Port the Tauri `LevelMeter` UI to Flutter as a reusable widget and wire it into 
 
 ## Architecture
 
-```
+```text
 apps/gui-flutter/lib/mixer/level_meter.dart   # DeckLevels, mode, LevelMeter, ladder math
 apps/gui-flutter/lib/mixer/mixer_strip.dart   # replace _IdleLevelMeter; pass zeros
 apps/gui-flutter/test/level_meter_test.dart   # segment/hold math + mono/stereo smoke

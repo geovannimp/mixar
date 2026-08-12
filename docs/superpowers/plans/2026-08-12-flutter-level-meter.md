@@ -32,6 +32,7 @@
 ```dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 
 void main() {
@@ -50,9 +51,13 @@ void main() {
   });
 
   testWidgets('mono one ladder; stereo two; zeros all off', (tester) async {
+    final theme = FTheme.neutral.dark.desktop;
+
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
+      MaterialApp(
+        theme: theme.toApproximateMaterialTheme(),
+        builder: (context, child) => FTheme(data: theme, child: child!),
+        home: const Scaffold(
           body: SizedBox(
             height: 200,
             child: Row(
@@ -66,7 +71,7 @@ void main() {
       ),
     );
     expect(find.byType(LevelMeter), findsNWidgets(2));
-    // mono: 12 segments; stereo: 24 — all zinc-800 via DecoratedBox
+    // mono: 12 segments; stereo: 24
     expect(find.byType(DecoratedBox), findsNWidgets(12 + 24));
   });
 }

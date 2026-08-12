@@ -41,18 +41,19 @@ int? holdSegment(double hold) {
   return math.min(kLevelMeterSegments - 1, (hold * kLevelMeterSegments).ceil() - 1);
 }
 
-Color _segmentColor(FColors colors, int fromBottom, {required bool lit}) {
-  if (!lit) return colors.muted;
-  if (fromBottom >= kLevelMeterRedFrom) {
-    return colors.destructive.withValues(alpha: 0.5);
-  }
-  if (fromBottom >= kLevelMeterYellowFrom) {
-    return colors.primary.withValues(alpha: 0.55);
-  }
-  return colors.primary.withValues(alpha: 0.35);
+// Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on FCard).
+final _green = const Color(0xff10b981).withValues(alpha: 0.45); // emerald-500/45
+final _amber = const Color(0xfffbbf24).withValues(alpha: 0.45); // amber-400/45
+final _red = const Color(0xffef4444).withValues(alpha: 0.50); // red-500/50
+
+Color _segmentColor(Color off, int fromBottom, {required bool lit}) {
+  if (!lit) return off;
+  if (fromBottom >= kLevelMeterRedFrom) return _red;
+  if (fromBottom >= kLevelMeterYellowFrom) return _amber;
+  return _green;
 }
 
-/// Vertical LED ladder matching Tauri `LevelMeter` / `Ladder` (Forui colors).
+/// Vertical LED ladder matching Tauri `LevelMeter` / `Ladder`.
 class LevelMeter extends StatelessWidget {
   const LevelMeter({required this.levels, required this.mode, super.key});
 
@@ -87,7 +88,7 @@ class _Ladder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.theme.colors;
+    final off = context.theme.colors.muted;
     final holdIdx = holdSegment(hold);
     // Top → bottom visually: high indices first so fromBottom 0 sits at bottom.
     // DecoratedBox with no child sizes to constraints.smallest (width 0) — expand.
@@ -101,7 +102,7 @@ class _Ladder extends StatelessWidget {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: _segmentColor(
-                    colors,
+                    off,
                     fromTop,
                     lit: segmentOn(peak, fromTop) || holdIdx == fromTop,
                   ),

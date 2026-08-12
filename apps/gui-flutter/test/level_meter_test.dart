@@ -18,7 +18,7 @@ void main() {
     expect(holdSegment(1.0), 11);
   });
 
-  testWidgets('mono one ladder; stereo two; segments have width', (tester) async {
+  testWidgets('mono one ladder; stereo two; zeros use muted', (tester) async {
     final theme = FTheme.neutral.dark.desktop;
 
     await tester.pumpWidget(
@@ -46,5 +46,11 @@ void main() {
     final boxes = tester.renderObjectList<RenderBox>(find.byType(DecoratedBox));
     expect(boxes.every((b) => b.size.width >= 6), isTrue);
     expect(boxes.every((b) => b.size.height > 0), isTrue);
+
+    final decorations = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+    expect(
+      decorations.every((d) => (d.decoration as BoxDecoration).color == theme.colors.muted),
+      isTrue,
+    );
   });
 }
