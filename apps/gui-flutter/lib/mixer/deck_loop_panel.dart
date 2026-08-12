@@ -21,12 +21,10 @@ int stepAutoLoopBeats(int beats, int delta) {
 
 /// Tauri-shaped deck loop controls (local state shell).
 ///
-/// Vertical stack (same order as Tauri `DeckLoopPanel`):
 /// ```
 /// Loop
 /// ‹ beats ›
 /// IN  OUT
-/// -4  +4
 /// ```
 class DeckLoopPanel extends StatefulWidget {
   const DeckLoopPanel({
@@ -64,11 +62,10 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
     final active = _loopActive;
     final disabled = _controlsDisabled;
     final beatIndex = autoLoopBeatIndex(_loopBeats);
-    final chipStyle = theme.typography.body.xs.copyWith(
+    final chipStyle = theme.typography.body.sm.copyWith(
       fontWeight: FontWeight.w700,
-      fontSize: 10,
     );
-    const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
+    const buttonPad = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
     final borderColor = active
         ? theme.colors.primary.withValues(alpha: 0.45)
         : theme.colors.border;
@@ -89,28 +86,29 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
         child: FButton(
           variant: activeVariant(lit),
           size: .sm,
-          style: .delta(contentStyle: .delta(padding: .value(compactPad))),
+          style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
           onPress: (disabled || forceDisabled) ? null : onPress,
           child: Text(label, style: style ?? chipStyle),
         ),
       );
     }
 
-    final body = Padding(
-      padding: const EdgeInsets.all(8),
+    final controls = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280),
       child: Column(
+        mainAxisSize: .min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FButton(
             variant: activeVariant(active),
             size: .sm,
-            style: .delta(contentStyle: .delta(padding: .value(compactPad))),
+            style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
             onPress: disabled
                 ? null
                 : () => setState(() => _loopActive = !_loopActive),
             child: Text('Loop', style: chipStyle),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Row(
             children: [
               cellButton(
@@ -120,7 +118,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 onPress: () =>
                     _setLoopLength(stepAutoLoopBeats(_loopBeats, -1)),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               cellButton(
                 label: '$_loopBeats',
                 onPress: null,
@@ -128,7 +126,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               cellButton(
                 label: '›',
                 lit: active,
@@ -138,7 +136,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 12),
           Row(
             children: [
               cellButton(
@@ -146,7 +144,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 lit: active,
                 onPress: () => setState(() => _loopActive = true),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               cellButton(
                 label: 'OUT',
                 lit: active,
@@ -154,16 +152,13 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              cellButton(label: '-4', onPress: () {}),
-              const SizedBox(width: 4),
-              cellButton(label: '+4', onPress: () {}),
-            ],
-          ),
         ],
       ),
+    );
+
+    final body = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(child: controls),
     );
 
     if (!widget.bordered) {
