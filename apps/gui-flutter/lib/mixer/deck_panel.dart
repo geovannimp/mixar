@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 
@@ -50,31 +51,8 @@ class DeckPanel extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              Expanded(
-                child: _PlaceholderBox(
-                  label: 'Pads',
-                  child: GridView.count(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 4,
-                    crossAxisSpacing: 4,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      for (var i = 1; i <= 8; i++)
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: theme.colors.border),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '$i',
-                              style: theme.typography.body.xs,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+              const Expanded(
+                child: DeckPadsPanel(hasTrack: false),
               ),
               const SizedBox(width: 8),
               const Expanded(
