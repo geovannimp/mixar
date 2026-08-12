@@ -76,11 +76,11 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: theme.style.borderRadius.md,
           color: theme.colors.background.withValues(alpha: 0.8),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+          padding: const EdgeInsets.all(8),
           child: Column(
             children: [
               Text(
@@ -106,7 +106,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
               SizedBox(
                 width: double.infinity,
                 child: FButton(
-                  variant: _syncActive || isMaster ? .secondary : .ghost,
+                  variant: .secondary,
                   size: .sm,
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
@@ -124,15 +124,12 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               SizedBox(
                 width: double.infinity,
                 child: FButton(
                   variant: isMaster ? .secondary : .ghost,
-                  size: .sm,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
+                  size: .xs,
                   onPress: () {
                     if (isMaster) {
                       widget.onMasterChanged(false);
@@ -150,11 +147,12 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                           : theme.colors.mutedForeground,
                       fontWeight: .w600,
                       fontSize: 9,
+                      height: 1.1,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -176,19 +174,24 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FButton(
-                  variant: .secondary,
-                  size: .sm,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
+                  variant: .ghost,
+                  size: .xs,
+                  mainAxisSize: .min,
                   onPress: () => setState(() {
                     _tempoRange = nextTempoRange(_tempoRange);
                   }),
-                  child: Text(formatTempoRange(_tempoRange), style: chipStyle),
+                  child: Text(
+                    formatTempoRange(_tempoRange),
+                    style: theme.typography.body.xs.copyWith(
+                      fontSize: 12,
+                      fontWeight: .w600,
+                      color: theme.colors.mutedForeground,
+                    ),
+                  ),
                 ),
               ),
             ],

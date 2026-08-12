@@ -5,8 +5,10 @@ import 'package:gui_flutter/mixer/rotary_knob.dart';
 
 const _eqColumnWidth = 52.0;
 const _faderColumnWidth = 52.0;
+
 /// Matches Forui `FButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
+
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
@@ -49,8 +51,8 @@ class _MixerStripState extends State<MixerStrip> {
                   ),
                   const SizedBox(width: 4),
                   FButton(
-                    variant: .ghost,
-                    size: .sm,
+                    variant: .outline,
+                    size: .xs,
                     mainAxisSize: .min,
                     selected: _meterMono,
                     semanticsLabel: _meterMono
@@ -60,7 +62,7 @@ class _MixerStripState extends State<MixerStrip> {
                     child: Text(
                       _meterMono ? 'M' : 'S',
                       style: theme.typography.body.xs.copyWith(
-                        fontSize: 7,
+                        fontSize: 8,
                         fontWeight: .w600,
                         color: theme.colors.mutedForeground,
                       ),
@@ -341,15 +343,17 @@ class _MixerGainHeader extends StatelessWidget {
       return knob;
     }
     return ExcludeSemantics(
-      child: IgnorePointer(
-        child: Opacity(opacity: 0, child: knob),
-      ),
+      child: IgnorePointer(child: Opacity(opacity: 0, child: knob)),
     );
   }
 }
 
 class _MixerCueFooter extends StatelessWidget {
-  const _MixerCueFooter({required this.cue, required this.onCue, this.spacer = false});
+  const _MixerCueFooter({
+    required this.cue,
+    required this.onCue,
+    this.spacer = false,
+  });
 
   final bool cue;
   final VoidCallback onCue;
