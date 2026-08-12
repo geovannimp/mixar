@@ -23,14 +23,14 @@ Generated FRB outputs under `lib/src/rust/` and `crates/host-flutter/src/frb_gen
 From the repo root (Flutter + ninja are pinned in `mise.toml`):
 
 ```sh
-mise install
+mise install   # Flutter postinstall activates dashmonx (https://github.com/rosenpin/dashmonx)
 export PATH="$HOME/.cargo/bin:$PATH"   # for flutter_rust_bridge_codegen
 cargo install flutter_rust_bridge_codegen --locked   # once, if missing
 ```
 
 ## Develop
 
-From the repo root:
+From the repo root (`dashmonx` wraps `flutter run` and hot-reloads on `lib/` changes):
 
 ```sh
 npm run flutter:dev

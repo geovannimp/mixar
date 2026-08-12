@@ -4,5 +4,9 @@
 idiomatic_version_file_enable_tools = ["node", "rust"]
 
 [tools]
-flutter = "3.44.9"
+flutter = { version = "3.44.9", postinstall = "dart pub global activate dashmonx" }
 ninja = "1.13.2"
+
+# dart pub global binaries (e.g. dashmonx from flutter postinstall)
+[env]
+_.path = ["~/.pub-cache/bin"]
