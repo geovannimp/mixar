@@ -1,81 +1,119 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 
-/// Placeholder deck chrome (track info, pads, jog, transport).
+/// Placeholder deck chrome (track info, pads, jog, transport) + tempo column.
 class DeckPanel extends StatelessWidget {
-  const DeckPanel({required this.label, super.key});
+  const DeckPanel({
+    required this.label,
+    required this.accent,
+    required this.isMaster,
+    required this.onMasterChanged,
+    super.key,
+  });
 
   final String label;
+  final FaderAccent accent;
+  final bool isMaster;
+  final ValueChanged<bool> onMasterChanged;
+
+  bool get _tempoOnRight => accent == FaderAccent.a;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final accentColor = FaderColors.forAccent(accent).grip;
+    final tempo = DeckTempoPanel(
+      accent: accent,
+      isMaster: isMaster,
+      onMasterChanged: onMasterChanged,
+    );
+
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          label,
+          style: theme.typography.body.sm.copyWith(
+            fontWeight: FontWeight.w700,
+            color: accentColor,
+          ),
+        ),
+        Text(
+          'No track loaded',
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: _PlaceholderBox(
+                  label: 'Pads',
+                  child: GridView.count(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 4,
+                    crossAxisSpacing: 4,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      for (var i = 1; i <= 8; i++)
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: theme.colors.border),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$i',
+                              style: theme.typography.body.xs,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: _PlaceholderBox(
+                  label: 'Jog',
+                  child: Center(child: _JogPlaceholder()),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: FButton(
+                variant: .secondary,
+                onPress: () {},
+                child: const Text('Cue'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FButton(onPress: () {}, child: const Text('Play')),
+            ),
+          ],
+        ),
+      ],
+    );
 
     return FCard(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(label, style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.w700)),
-            Text(
-              'No track loaded',
-              style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _PlaceholderBox(
-                      label: 'Pads',
-                      child: GridView.count(
-                        crossAxisCount: 4,
-                        mainAxisSpacing: 4,
-                        crossAxisSpacing: 4,
-                        physics: const NeverScrollableScrollPhysics(),
-                        children: [
-                          for (var i = 1; i <= 8; i++)
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border.all(color: theme.colors.border),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Center(child: Text('$i', style: theme.typography.body.xs)),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: _PlaceholderBox(
-                      label: 'Jog',
-                      child: Center(child: _JogPlaceholder()),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: FButton(
-                    variant: .secondary,
-                    onPress: () {},
-                    child: const Text('Cue'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FButton(
-                    onPress: () {},
-                    child: const Text('Play'),
-                  ),
-                ),
-              ],
-            ),
+            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
+            Expanded(child: body),
+            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
           ],
         ),
       ),
@@ -99,7 +137,9 @@ class _JogPlaceholder extends StatelessWidget {
         child: Center(
           child: Text(
             'JOG',
-            style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
+            style: theme.typography.body.xs.copyWith(
+              color: theme.colors.mutedForeground,
+            ),
           ),
         ),
       ),
@@ -128,7 +168,9 @@ class _PlaceholderBox extends StatelessWidget {
           children: [
             Text(
               label,
-              style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
             ),
             const SizedBox(height: 6),
             Expanded(child: child),
