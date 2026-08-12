@@ -31,10 +31,7 @@ const _faderTicks = <_FaderTick>[
   _FaderTick(100, _TickSize.major),
 ];
 
-const _tickLength = {
-  _TickSize.major: 10.0,
-  _TickSize.minor: 6.0,
-};
+const _tickLength = {_TickSize.major: 10.0, _TickSize.minor: 6.0};
 
 /// Deck A/B / neutral tokens matching Tauri `DECK_ACCENTS` / `NEUTRAL_FADER_TRACK`.
 class FaderColors {
@@ -376,10 +373,10 @@ class _FaderPainter extends CustomPainter {
               trackRect.left,
               size.height * (1 - t),
               trackRect.right,
-              size.height,
+              trackRect.bottom,
             )
           : Rect.fromLTRB(
-              0,
+              trackRect.left,
               trackRect.top,
               size.width * t,
               trackRect.bottom,
