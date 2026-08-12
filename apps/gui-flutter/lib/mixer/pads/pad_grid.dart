@@ -2,13 +2,20 @@ import 'package:flutter/widgets.dart';
 
 /// 4-column, 8-pad grid shell (Tauri `PadGridContainer`).
 class PadGrid extends StatelessWidget {
-  const PadGrid({required this.children, super.key});
+  PadGrid({required this.children, super.key}) {
+    if (children.length != 8) {
+      throw ArgumentError.value(
+        children.length,
+        'children.length',
+        'PadGrid expects exactly 8 children',
+      );
+    }
+  }
 
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    assert(children.length == 8, 'PadGrid expects exactly 8 children');
     return Padding(
       padding: const EdgeInsets.all(8),
       child: LayoutBuilder(

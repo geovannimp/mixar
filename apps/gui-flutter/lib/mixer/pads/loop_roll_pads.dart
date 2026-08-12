@@ -24,13 +24,12 @@ class LoopRollPads extends StatelessWidget {
         for (var slot = 0; slot < 8; slot++)
           () {
             final beats = kLoopRollBeats[slot];
-            return PadButton(
+            return HoldPadButton(
               disabled: disabled,
               tooltip:
                   'Loop roll $beats beat${beats == 1 ? '' : 's'} — hold',
-              onPointerDown: () => onBegin(beats),
-              onPointerUp: onEnd,
-              onPointerCancel: onEnd,
+              onBegin: () => onBegin(beats),
+              onEnd: onEnd,
               child: Column(
                 mainAxisSize: .min,
                 children: [

@@ -37,7 +37,7 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
     super.initState();
     _banks = const [
       SamplerBank(id: 'bank-1', name: 'Bank 1'),
-      SamplerBank(id: 'bank-2', name: 'Bank 2', playMode: 'hold'),
+      SamplerBank(id: 'bank-2', name: 'Bank 2', playMode: kSamplerPlayModeHold),
     ];
     _activeBankId = _banks.first.id;
     _slots = [
@@ -59,7 +59,7 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
 
   bool get _holdLike {
     final mode = _effectivePlayMode;
-    return mode == 'hold' || mode == 'loop';
+    return mode == kSamplerPlayModeHold || mode == kSamplerPlayModeLoop;
   }
 
   @override

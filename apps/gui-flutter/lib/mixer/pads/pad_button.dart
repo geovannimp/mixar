@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
 
 /// Tauri `HOT_CUE_ACCENTS` slot colors (border / fill / text).
 ({Color border, Color fill, Color text}) hotCueAccent(int slot) {
@@ -34,6 +35,7 @@ class PadButton extends StatelessWidget {
     this.onPointerDown,
     this.onPointerUp,
     this.onPointerCancel,
+    this.onPointerExit,
     this.disabled = false,
     this.accentSlot,
     this.tooltip,
@@ -45,6 +47,7 @@ class PadButton extends StatelessWidget {
   final VoidCallback? onPointerDown;
   final VoidCallback? onPointerUp;
   final VoidCallback? onPointerCancel;
+  final VoidCallback? onPointerExit;
   final bool disabled;
   final int? accentSlot;
   final String? tooltip;
@@ -63,31 +66,36 @@ class PadButton extends StatelessWidget {
         ? theme.colors.mutedForeground
         : (accent?.text ?? theme.colors.foreground);
 
-    Widget pad = Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: disabled || onPointerDown == null
+    Widget pad = MouseRegion(
+      onExit: disabled || onPointerExit == null
           ? null
-          : (_) => onPointerDown!(),
-      onPointerUp: disabled || onPointerUp == null
-          ? null
-          : (_) => onPointerUp!(),
-      onPointerCancel: disabled || onPointerCancel == null
-          ? null
-          : (_) => onPointerCancel!(),
-      child: GestureDetector(
+          : (_) => onPointerExit!(),
+      child: Listener(
         behavior: HitTestBehavior.opaque,
-        onTap: disabled ? null : onPress,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: fill,
-            border: Border.all(color: border),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 44),
-            child: DefaultTextStyle.merge(
-              style: TextStyle(color: fg),
-              child: Center(child: child),
+        onPointerDown: disabled || onPointerDown == null
+            ? null
+            : (_) => onPointerDown!(),
+        onPointerUp: disabled || onPointerUp == null
+            ? null
+            : (_) => onPointerUp!(),
+        onPointerCancel: disabled || onPointerCancel == null
+            ? null
+            : (_) => onPointerCancel!(),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: disabled ? null : onPress,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: fill,
+              border: Border.all(color: border),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44),
+              child: DefaultTextStyle.merge(
+                style: TextStyle(color: fg),
+                child: Center(child: child),
+              ),
             ),
           ),
         ),
@@ -98,5 +106,70 @@ class PadButton extends StatelessWidget {
       pad = Semantics(tooltip: tooltip, button: true, child: pad);
     }
     return pad;
+  }
+}
+
+/// Press-hold pad that calls [onEnd] at most once per [onBegin] (up / cancel / exit).
+class HoldPadButton extends StatefulWidget {
+  const HoldPadButton({
+    required this.child,
+    required this.onBegin,
+    required this.onEnd,
+    this.onPress,
+    this.skipBeginWhenShift = false,
+    this.disabled = false,
+    this.accentSlot,
+    this.tooltip,
+    super.key,
+  });
+
+  final Widget child;
+  final VoidCallback onBegin;
+  final VoidCallback onEnd;
+  final VoidCallback? onPress;
+  final bool skipBeginWhenShift;
+  final bool disabled;
+  final int? accentSlot;
+  final String? tooltip;
+
+  @override
+  State<HoldPadButton> createState() => _HoldPadButtonState();
+}
+
+class _HoldPadButtonState extends State<HoldPadButton> {
+  bool _held = false;
+
+  void _begin() {
+    if (widget.disabled || _held) {
+      return;
+    }
+    if (widget.skipBeginWhenShift && shiftKeyPressed()) {
+      return;
+    }
+    _held = true;
+    widget.onBegin();
+  }
+
+  void _end() {
+    if (!_held) {
+      return;
+    }
+    _held = false;
+    widget.onEnd();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PadButton(
+      disabled: widget.disabled,
+      accentSlot: widget.accentSlot,
+      tooltip: widget.tooltip,
+      onPress: widget.onPress,
+      onPointerDown: _begin,
+      onPointerUp: _end,
+      onPointerCancel: _end,
+      onPointerExit: _end,
+      child: widget.child,
+    );
   }
 }

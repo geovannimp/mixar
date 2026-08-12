@@ -68,7 +68,7 @@ void main() {
   });
 
   test('formatDeckTimeTenth', () {
-    expect(formatDeckTimeTenth(null), '0:00.0');
+    expect(formatDeckTimeTenth(null), '—');
     expect(formatDeckTimeTenth(6500), '0:06.5');
     expect(formatDeckTimeTenth(125100), '2:05.1');
   });

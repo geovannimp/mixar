@@ -14,8 +14,21 @@ const kLoopRollBeats = <num>[1, 2, 4, 8, 16, 32, 64, 128];
 const kBeatJumpForward = <num>[1, 2, 4, 8, 16, 32, 64, 128];
 const kBeatJumpBack = <num>[-1, -2, -4, -8, -16, -32, -64, -128];
 
+/// Sampler play-mode wire values (Tauri `SamplerPlayMode`).
+const kSamplerPlayModeOneshot = 'oneshot';
+const kSamplerPlayModeHold = 'hold';
+const kSamplerPlayModeLoop = 'loop';
+
 /// Default sampler play mode (Tauri `DEFAULT_SAMPLER_PLAY_MODE`).
-const kDefaultSamplerPlayMode = 'oneshot';
+const kDefaultSamplerPlayMode = kSamplerPlayModeOneshot;
+
+/// Bank settings dialog options (`default` = inherit settings).
+const kSamplerPlayModeOptions = <String>[
+  'default',
+  kSamplerPlayModeOneshot,
+  kSamplerPlayModeHold,
+  kSamplerPlayModeLoop,
+];
 
 String padModeShortLabel(PadMode mode) => switch (mode) {
   PadMode.hotCue => 'Cue',
