@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/deck_panel.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/mixer_strip.dart';
 
 /// Deck A | Mixer | Deck B.
@@ -13,11 +14,11 @@ class DeckGrid extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: DeckPanel(label: 'Deck A')),
+          Expanded(child: DeckPanel(label: 'Deck A', accent: FaderAccent.a)),
           SizedBox(width: 8),
           MixerStrip(),
           SizedBox(width: 8),
-          Expanded(child: DeckPanel(label: 'Deck B')),
+          Expanded(child: DeckPanel(label: 'Deck B', accent: FaderAccent.b)),
         ],
       ),
     );
