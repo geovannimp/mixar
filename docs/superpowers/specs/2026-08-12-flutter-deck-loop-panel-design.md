@@ -6,7 +6,7 @@ Depends: Flutter deck pads / tempo shells
 
 ## Goal
 
-Port Tauri `DeckLoopPanel` into the Flutter deck as a local-state UI shell between pads and jog. Forui theme/components only. No engine or library wiring.
+Port Tauri `DeckLoopPanel` into the Flutter deck as a local-state UI shell under the pads panel. Forui theme/components only. No engine or library wiring.
 
 ## Decisions
 
@@ -22,9 +22,12 @@ Port Tauri `DeckLoopPanel` into the Flutter deck as a local-state UI shell betwe
 
 In each `DeckPanel` body row:
 
-`pads | loop | jog`
+```
+[ pads ]
+[ loop ]   | jog
+```
 
-- Narrow fixed-width column (~88–96px)
+- Full-width strip under the pads panel (same column as pads; jog stays beside)
 - Bordered / rounded / translucent background like `DeckTempoPanel`
 - When `loopActive`: use Forui primary (or secondary) border/fill tint — **not** hardcoded emerald
 - Disabled when `!hasTrack` or `disabled` (deck currently passes `hasTrack: false`)
@@ -47,7 +50,7 @@ Active Loop / ‹ › / IN / OUT use Forui secondary (pressed) styling when `loo
 
 ```
 apps/gui-flutter/lib/mixer/deck_loop_panel.dart   # panel + beat-step helpers
-apps/gui-flutter/lib/mixer/deck_panel.dart        # mount between pads and jog
+apps/gui-flutter/lib/mixer/deck_panel.dart        # mount under pads
 apps/gui-flutter/test/deck_loop_beats_test.dart   # step list + clamp
 ```
 
@@ -61,7 +64,7 @@ apps/gui-flutter/test/deck_loop_beats_test.dart   # step list + clamp
 
 ## Acceptance
 
-- [ ] Loop column appears between pads and jog
+- [ ] Loop strip appears under the pads panel
 - [ ] Loop / length / IN / OUT update local active + beats state
 - [ ] Controls disabled with no track
 - [ ] Active state uses Forui theme colors

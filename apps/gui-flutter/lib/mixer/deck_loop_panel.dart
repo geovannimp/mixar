@@ -19,7 +19,9 @@ int stepAutoLoopBeats(int beats, int delta) {
   return kAutoLoopBeats[next];
 }
 
-/// Tauri-shaped deck loop column (local state shell).
+/// Tauri-shaped deck loop controls (local state shell).
+///
+/// Mounted under the pads panel as a full-width strip.
 class DeckLoopPanel extends StatefulWidget {
   const DeckLoopPanel({this.hasTrack = false, this.disabled = false, super.key});
 
@@ -80,19 +82,18 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
       );
     }
 
-    return SizedBox(
-      width: 92,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: borderColor),
-          borderRadius: theme.style.borderRadius.md,
-          color: fillColor,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor),
+        borderRadius: theme.style.borderRadius.md,
+        color: fillColor,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisSize: .min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
               SizedBox(
                 width: double.infinity,
                 child: FButton(
@@ -164,7 +165,6 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 }

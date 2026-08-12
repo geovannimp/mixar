@@ -53,10 +53,15 @@ class DeckPanel extends StatelessWidget {
           child: Row(
             children: [
               const Expanded(
-                child: DeckPadsPanel(hasTrack: false),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: DeckPadsPanel(hasTrack: false)),
+                    SizedBox(height: 8),
+                    DeckLoopPanel(hasTrack: false),
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
-              const DeckLoopPanel(hasTrack: false),
               const SizedBox(width: 8),
               const Expanded(
                 child: _PlaceholderBox(
