@@ -69,10 +69,11 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
       fontSize: 10,
     );
     // Default FButton sm content pad is h:10 → only ~48px left in this column ("Set master" overflows).
+    // Flutter 3.47 Inter metrics: "Set master" at 9px is ~90 wide; keep pad tight and column ≥114.
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 84,
+      width: 114,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
@@ -130,6 +131,9 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                 child: FButton(
                   variant: isMaster ? .secondary : .ghost,
                   size: .xs,
+                  style: .delta(
+                    contentStyle: .delta(padding: .value(compactPad)),
+                  ),
                   onPress: () {
                     if (isMaster) {
                       widget.onMasterChanged(false);
@@ -141,6 +145,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   child: Text(
                     isMaster ? 'Master' : 'Set master',
                     textAlign: .center,
+                    maxLines: 1,
                     style: theme.typography.body.xs.copyWith(
                       color: isMaster
                           ? const Color(0xe634d399) // emerald-400

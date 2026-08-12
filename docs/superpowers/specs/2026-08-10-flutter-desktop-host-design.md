@@ -41,7 +41,7 @@ Then rename/move the Flutter directory to `apps/gui-flutter` if the generator us
 
 ## Tooling
 
-- **Flutter:** install and pin via [mise](https://mise.jdx.dev) in repo `mise.toml` (`flutter = "3.44.9"`, plus `ninja` for Linux desktop builds). No system Flutter, no FVM.
+- **Flutter:** install and pin via [mise](https://mise.jdx.dev) in repo `mise.toml` (`flutter = "3.47.0"`, plus `ninja` for Linux desktop builds). No system Flutter, no FVM.
 - **FRB codegen:** `flutter_rust_bridge_codegen` via cargo install / binstall (document version used).
 - **Rust:** existing workspace toolchain (`rust-toolchain.toml`).
 - Run Flutter under mise (`mise exec -- flutter …` or activated shell).

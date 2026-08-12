@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -48,8 +49,10 @@ void main() {
           }),
         ],
         child: MaterialApp(
-          theme: theme.toApproximateMaterialTheme(),
-          builder: (context, child) => FTheme(data: theme, child: child!),
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
           home: const AppShell(appTitle: 'Rust DJ'),
         ),
       ),

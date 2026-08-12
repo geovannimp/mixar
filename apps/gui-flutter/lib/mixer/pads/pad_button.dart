@@ -93,7 +93,11 @@ class PadButton extends StatelessWidget {
               ),
               child: DefaultTextStyle.merge(
                 style: TextStyle(color: fg),
-                child: Center(child: child),
+                // ponytail: Inter metrics + two-line cue labels can exceed the
+                // square cell by <1px on Flutter 3.47; scale down instead of overflow.
+                child: Center(
+                  child: FittedBox(fit: .scaleDown, child: child),
+                ),
               ),
             ),
           ),
