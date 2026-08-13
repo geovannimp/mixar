@@ -1,0 +1,15 @@
+[package]
+name = "fs-browser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Filesystem volume listing and directory browsing for audio file pickers"
+
+[dependencies]
+library-core = { path = "../library-core" }
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

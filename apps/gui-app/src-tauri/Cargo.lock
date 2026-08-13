@@ -1998,6 +1998,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs-browser"
+version = "0.1.0"
+dependencies = [
+ "library-core",
+ "serde",
+]
+
+[[package]]
 name = "funty"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2388,6 +2396,7 @@ dependencies = [
  "controller",
  "engine-api",
  "engine-core",
+ "fs-browser",
  "library",
  "library-api",
  "library-core",

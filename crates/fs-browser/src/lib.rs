@@ -294,8 +294,8 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
         }
     }
 
-    directories.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    audio_files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    directories.sort_by_key(|a| a.name.to_lowercase());
+    audio_files.sort_by_key(|a| a.name.to_lowercase());
 
     Ok(DirectoryListing {
         path: path_str,
@@ -308,10 +308,22 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
-    fn browse_current_directory() {
-        let listing = browse_directory(".").expect("browse current directory");
-        assert!(listing.path.len() > 0);
+    fn browse_directory_splits_dirs_and_audio_files() {
+        let root = tempdir().expect("temp dir");
+        let nested = root.path().join("nested");
+        fs::create_dir(&nested).expect("nested dir");
+        fs::write(root.path().join("track.wav"), b"RIFF").expect("wav file");
+        fs::write(root.path().join("readme.txt"), b"notes").expect("text file");
+
+        let listing = browse_directory(root.path().to_str().unwrap()).expect("browse temp dir");
+
+        assert_eq!(listing.directories.len(), 1);
+        assert_eq!(listing.directories[0].name, "nested");
+        assert_eq!(listing.audio_files.len(), 1);
+        assert_eq!(listing.audio_files[0].name, "track.wav");
     }
 }

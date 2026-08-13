@@ -26,7 +26,6 @@ mod controller_host;
 mod deck_performance;
 mod deck_sampler;
 mod deck_sync;
-mod fs_browser;
 mod library_bus;
 mod waveform_render;
 
