@@ -7,7 +7,8 @@ import 'package:gui_flutter/library/drive_pane.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 
-/// Library panel: collections/drive tabs + track table or drive files.
+/// Library panel: [FTabs](https://forui.dev/docs/widgets/navigation/tabs) for
+/// collections vs drive, plus track/drive file panes.
 class LibraryPanel extends ConsumerWidget {
   const LibraryPanel({super.key});
 
@@ -15,9 +16,7 @@ class LibraryPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(libraryEventsBootstrapProvider);
     final theme = context.theme;
-    final sourceTab = ref.watch(librarySourceTabProvider);
     final message = ref.watch(libraryMessageProvider);
-    final drive = sourceTab == LibrarySourceTab.drive;
 
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -35,31 +34,9 @@ class LibraryPanel extends ConsumerWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                    child: Row(
-                      children: [
-                        _SourceTabButton(
-                          label: 'Collections',
-                          selected: !drive,
-                          onPress: () => ref
-                              .read(librarySourceTabProvider.notifier)
-                              .set(LibrarySourceTab.collections),
-                        ),
-                        const SizedBox(width: 8),
-                        _SourceTabButton(
-                          label: 'Drive',
-                          selected: drive,
-                          onPress: () => ref
-                              .read(librarySourceTabProvider.notifier)
-                              .set(LibrarySourceTab.drive),
-                        ),
-                      ],
-                    ),
-                  ),
                   if (message != null)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
                       child: Text(
                         message,
                         style: theme.typography.body.sm.copyWith(
@@ -68,27 +45,56 @@ class LibraryPanel extends ConsumerWidget {
                       ),
                     ),
                   Expanded(
-                    child: FResizable(
-                      axis: .horizontal,
-                      divider: .dividerWithThumb,
-                      children: [
-                        .fixed(
-                          minExtent: 100,
-                          extent: 200,
-                          builder: _fill,
-                          child: drive
-                              ? const DrivePane()
-                              : const CollectionsPane(),
-                        ),
-                        .flex(
-                          flex: 3,
-                          minFlex: 1,
-                          builder: _fill,
-                          child: drive
-                              ? const DriveFilesPane()
-                              : const TrackTablePane(),
-                        ),
-                      ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: FTabs(
+                        expands: true,
+                        scrollable: true,
+                        children: [
+                          FTabEntry(
+                            label: const Text('Collections'),
+                            child: FResizable(
+                              axis: .horizontal,
+                              divider: .dividerWithThumb,
+                              children: [
+                                .fixed(
+                                  minExtent: 100,
+                                  extent: 200,
+                                  builder: _fill,
+                                  child: const CollectionsPane(),
+                                ),
+                                .flex(
+                                  flex: 3,
+                                  minFlex: 1,
+                                  builder: _fill,
+                                  child: const TrackTablePane(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          FTabEntry(
+                            label: const Text('Drive'),
+                            child: FResizable(
+                              axis: .horizontal,
+                              divider: .dividerWithThumb,
+                              children: [
+                                .fixed(
+                                  minExtent: 100,
+                                  extent: 200,
+                                  builder: _fill,
+                                  child: const DrivePane(),
+                                ),
+                                .flex(
+                                  flex: 3,
+                                  minFlex: 1,
+                                  builder: _fill,
+                                  child: const DriveFilesPane(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -99,26 +105,4 @@ class LibraryPanel extends ConsumerWidget {
 
   static Widget _fill(BuildContext _, FResizableRegionData _, Widget? child) =>
       child!;
-}
-
-class _SourceTabButton extends StatelessWidget {
-  const _SourceTabButton({
-    required this.label,
-    required this.selected,
-    required this.onPress,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    return FButton(
-      size: .sm,
-      variant: selected ? .secondary : .outline,
-      onPress: onPress,
-      child: Text(label),
-    );
-  }
 }
