@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -5,17 +6,44 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Flat collections list ([FItemGroup](https://forui.dev/docs/widgets/data/item-group)).
-class CollectionsPane extends ConsumerWidget {
+class CollectionsPane extends ConsumerStatefulWidget {
   const CollectionsPane({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CollectionsPane> createState() => _CollectionsPaneState();
+}
+
+class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
+  var _adding = false;
+
+  Future<void> _addFolder() async {
+    final path = await FilePicker.platform.getDirectoryPath();
+    if (path == null || !mounted) {
+      return;
+    }
+    setState(() => _adding = true);
+    ref.read(libraryMessageProvider.notifier).clear();
+    try {
+      final transport = await ref.read(libraryTransportProvider.future);
+      final result = await transport.addFolderCollection(folderPath: path);
+      ref.invalidate(collectionsProvider);
+      ref.invalidate(collectionTracksProvider);
+      ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
+    } catch (e) {
+      ref.read(libraryMessageProvider.notifier).setError('$e');
+    } finally {
+      if (mounted) {
+        setState(() => _adding = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = theme.colors;
     final collections = ref.watch(collectionsProvider);
     final selectedId = ref.watch(activeCollectionIdProvider);
-    // Forui items default to colors.background (near-black). Use secondary, and a
-    // slightly lighter fill for hover/selected (muted == secondary in neutral dark).
     final highlight = Color.alphaBlend(
       colors.foreground.withValues(alpha: 0.1),
       colors.secondary,
@@ -42,7 +70,21 @@ class CollectionsPane extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Collections', style: theme.typography.display.sm),
+          Row(
+            children: [
+              Expanded(
+                child: Text('Collections', style: theme.typography.display.sm),
+              ),
+              FButton(
+                size: .sm,
+                variant: .primary,
+                onPress: _adding ? null : _addFolder,
+                child: _adding
+                    ? const FCircularProgress(size: .sm)
+                    : const Text('Add folder'),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Expanded(
             child: collections.when(
