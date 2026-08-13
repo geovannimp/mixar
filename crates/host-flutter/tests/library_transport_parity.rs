@@ -51,6 +51,7 @@ fn add_folder_resolve_and_track_artwork_metadata() {
         .unwrap();
     assert_eq!(tracks.len(), 1);
     assert!(tracks[0].path.ends_with("track_a.wav"));
+    // Minimal WAV has no embedded art.
     assert!(tracks[0].artwork.is_none());
 
     let resolved = transport
@@ -62,7 +63,6 @@ fn add_folder_resolve_and_track_artwork_metadata() {
 
     let full = transport.get_track(tracks[0].id.clone()).unwrap().unwrap();
     assert_eq!(full.id, tracks[0].id);
-    // Minimal WAV has no embedded art.
     assert!(full.artwork.is_none());
 }
 
