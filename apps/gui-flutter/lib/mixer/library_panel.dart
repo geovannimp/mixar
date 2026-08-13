@@ -54,33 +54,38 @@ class LibraryPanel extends ConsumerWidget {
                           minExtent: 240,
                           extent: 240,
                           builder: _fill,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: FTabs(
-                              expands: true,
-                              control: .lifted(
-                                index: drive ? 1 : 0,
-                                onChange: (index) {
-                                  ref
-                                      .read(librarySourceTabProvider.notifier)
-                                      .set(
-                                        index == 1
-                                            ? LibrarySourceTab.drive
-                                            : LibrarySourceTab.collections,
-                                      );
-                                },
+                          child: FTabs(
+                            expands: true,
+                            style: .delta(
+                              spacing: 4,
+                              indicatorSize: .tab,
+                              minHeight: 28,
+                              decoration: DecorationDelta.boxDelta(
+                                borderRadius: BorderRadius.zero,
                               ),
-                              children: const [
-                                FTabEntry(
-                                  label: Text('Collections'),
-                                  child: CollectionsPane(),
-                                ),
-                                FTabEntry(
-                                  label: Text('Drive'),
-                                  child: DrivePane(),
-                                ),
-                              ],
                             ),
+                            control: .lifted(
+                              index: drive ? 1 : 0,
+                              onChange: (index) {
+                                ref
+                                    .read(librarySourceTabProvider.notifier)
+                                    .set(
+                                      index == 1
+                                          ? LibrarySourceTab.drive
+                                          : LibrarySourceTab.collections,
+                                    );
+                              },
+                            ),
+                            children: const [
+                              FTabEntry(
+                                label: Text('Collections'),
+                                child: CollectionsPane(),
+                              ),
+                              FTabEntry(
+                                label: Text('Drive'),
+                                child: DrivePane(),
+                              ),
+                            ],
                           ),
                         ),
                         .flex(
