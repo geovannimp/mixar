@@ -6,6 +6,11 @@ use std::time::Duration;
 
 use host_flutter::api::library::LibraryTransport;
 use library_api::{decode_evt_body, EvtBody, Kind};
+use lofty::config::WriteOptions;
+use lofty::picture::{MimeType, Picture, PictureType};
+use lofty::prelude::*;
+use lofty::probe::Probe;
+use lofty::tag::{Tag, TagType};
 
 fn write_minimal_wav(path: &Path) {
     let sample_rate = 8_000u32;
@@ -29,41 +34,72 @@ fn write_minimal_wav(path: &Path) {
     file.write_all(&pcm).unwrap();
 }
 
+fn write_wav_with_artwork(path: &Path, artwork: &[u8]) {
+    write_minimal_wav(path);
+    let mut tagged = Probe::open(path).unwrap().read().unwrap();
+    if tagged.primary_tag().is_none() {
+        tagged.insert_tag(Tag::new(TagType::Id3v2));
+    }
+    let tag = tagged.primary_tag_mut().expect("id3 tag");
+    tag.set_picture(
+        0,
+        Picture::new_unchecked(
+            PictureType::CoverFront,
+            Some(MimeType::Jpeg),
+            None,
+            artwork.to_vec(),
+        ),
+    );
+    tagged
+        .save_to_path(path, WriteOptions::default())
+        .expect("save artwork tag");
+}
+
 #[test]
 fn add_folder_resolve_and_track_artwork_metadata() {
     let dir = tempfile::tempdir().unwrap();
-    let wav = dir.path().join("track_a.wav");
-    write_minimal_wav(&wav);
+    let bare = dir.path().join("track_a.wav");
+    write_minimal_wav(&bare);
+    let art_bytes: &[u8] = &[0xFF, 0xD8, 0xFF, 0xD9, 0x01, 0x02, 0x03];
+    let with_art = dir.path().join("track_cover.wav");
+    write_wav_with_artwork(&with_art, art_bytes);
 
     let transport = LibraryTransport::open_in_memory().unwrap();
     let added = transport
         .add_folder_collection(dir.path().to_string_lossy().into_owned())
         .unwrap();
-    assert_eq!(added.added, 1);
-    assert_eq!(added.collection.track_count, 1);
+    assert_eq!(added.added, 2);
+    assert_eq!(added.collection.track_count, 2);
 
     let collections = transport.list_collections().unwrap();
     assert_eq!(collections.len(), 1);
-    assert_eq!(collections[0].track_count, 1);
+    assert_eq!(collections[0].track_count, 2);
 
     let tracks = transport
         .list_collection_tracks(collections[0].id.clone())
         .unwrap();
-    assert_eq!(tracks.len(), 1);
-    assert!(tracks[0].path.ends_with("track_a.wav"));
-    // Minimal WAV has no embedded art.
-    assert!(tracks[0].artwork.is_none());
+    assert_eq!(tracks.len(), 2);
+
+    let bare_row = tracks
+        .iter()
+        .find(|t| t.path.ends_with("track_a.wav"))
+        .expect("bare wav");
+    assert!(bare_row.artwork.is_none());
+
+    let cover_row = tracks
+        .iter()
+        .find(|t| t.path.ends_with("track_cover.wav"))
+        .expect("cover wav");
+    assert_eq!(cover_row.artwork.as_deref(), Some(art_bytes));
 
     let resolved = transport
-        .resolve_tracks_for_paths(vec![wav.to_string_lossy().into_owned()])
+        .resolve_tracks_for_paths(vec![bare.to_string_lossy().into_owned()])
         .unwrap();
     assert_eq!(resolved.len(), 1);
-    assert_eq!(resolved[0].track.id, tracks[0].id);
-    assert!(resolved[0].request_path.ends_with("track_a.wav"));
+    assert_eq!(resolved[0].track.id, bare_row.id);
 
-    let full = transport.get_track(tracks[0].id.clone()).unwrap().unwrap();
-    assert_eq!(full.id, tracks[0].id);
-    assert!(full.artwork.is_none());
+    let full_cover = transport.get_track(cover_row.id.clone()).unwrap().unwrap();
+    assert_eq!(full_cover.artwork.as_deref(), Some(art_bytes));
 }
 
 #[test]

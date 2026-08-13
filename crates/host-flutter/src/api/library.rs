@@ -103,11 +103,10 @@ pub struct LibraryTransport {
 
 impl Drop for LibraryTransport {
     fn drop(&mut self) {
-        if let Ok(mut slot) = self.evt_forwarder.lock() {
-            if let Some(fwd) = slot.take() {
-                fwd.shutdown.store(true, Ordering::Relaxed);
-                let _ = fwd.handle.join();
-            }
+        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(fwd) = slot.take() {
+            fwd.shutdown.store(true, Ordering::Relaxed);
+            let _ = fwd.handle.join();
         }
     }
 }
@@ -158,16 +157,16 @@ impl LibraryTransport {
         &self,
         collection_id: String,
     ) -> Result<Vec<LibraryTrackSummary>, String> {
-        let lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-        let tracks = lib
-            .get_collection_tracks(&CollectionId::new(collection_id))
-            .map_err(|e| e.to_string())?;
-        // ponytail: N file artwork reads under the manager lock. Upgrade: cache
-        // artwork bytes in SQLite (or load artwork off-mutex / lazily in UI).
-        Ok(tracks
+        let sources = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.get_collection_tracks(&CollectionId::new(collection_id))
+                .map_err(|e| e.to_string())?
+        };
+        // Artwork file I/O happens after releasing the manager lock.
+        Ok(sources
             .iter()
             .filter_map(|s| track_summary(s, true))
             .collect())
@@ -175,17 +174,15 @@ impl LibraryTransport {
 
     /// Load one track including embedded artwork when present.
     pub fn get_track(&self, track_id: String) -> Result<Option<LibraryTrackSummary>, String> {
-        let lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-        let Some(source) = lib
-            .get_track(&TrackId::new(track_id))
-            .map_err(|e| e.to_string())?
-        else {
-            return Ok(None);
+        let source = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.get_track(&TrackId::new(track_id))
+                .map_err(|e| e.to_string())?
         };
-        Ok(track_summary(&source, true))
+        Ok(source.as_ref().and_then(|s| track_summary(s, true)))
     }
 
     /// Add a folder as a collection and sync its tracks.
@@ -301,10 +298,7 @@ impl LibraryTransport {
             })
             .map_err(|e| e.to_string())?;
 
-        let mut slot = self
-            .evt_forwarder
-            .lock()
-            .map_err(|_| "evt forwarder lock poisoned".to_string())?;
+        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(prev) = slot.take() {
             prev.shutdown.store(true, Ordering::Relaxed);
             let _ = prev.handle.join();

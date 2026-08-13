@@ -1700,6 +1700,7 @@ dependencies = [
  "library",
  "library-api",
  "library-core",
+ "lofty",
  "tempfile",
 ]
 

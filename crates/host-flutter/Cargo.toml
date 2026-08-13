@@ -16,6 +16,7 @@ library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }
 
 [dev-dependencies]
+lofty = "0.22"
 tempfile = "3.0"
 
 [lints.rust]
