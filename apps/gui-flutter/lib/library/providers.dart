@@ -272,3 +272,61 @@ final driveResolvedByPathProvider =
       );
       return {for (final r in resolved) r.requestPath: r.track};
     });
+
+LibraryTrackSummary _driveFileSummary(
+  FsEntry file,
+  Map<String, LibraryTrackSummary> byPath,
+) {
+  return byPath[file.path] ??
+      LibraryTrackSummary(
+        id: file.path,
+        displayName: file.name,
+        path: file.path,
+      );
+}
+
+/// Drive audio files as table rows (library metadata when resolved).
+final driveTableTracksProvider =
+    Provider<AsyncValue<List<LibraryTrackSummary>>>((ref) {
+      final path = ref.watch(driveCurrentPathProvider);
+      if (path == null) {
+        return const AsyncData([]);
+      }
+      final listing = ref.watch(driveListingProvider);
+      final byPath =
+          ref.watch(driveResolvedByPathProvider).asData?.value ??
+          const <String, LibraryTrackSummary>{};
+      final filter = ref.watch(trackFilterProvider).trim().toLowerCase();
+      return listing.when(
+        loading: () => const AsyncLoading(),
+        error: (e, st) => AsyncError(e, st),
+        data: (dir) {
+          if (dir == null) {
+            return const AsyncData([]);
+          }
+          final tracks = [
+            for (final f in dir.audioFiles) _driveFileSummary(f, byPath),
+          ];
+          if (filter.isEmpty) {
+            return AsyncData(tracks);
+          }
+          return AsyncData([
+            for (final t in tracks)
+              if (trackTitleLabel(t).toLowerCase().contains(filter) ||
+                  (t.artist ?? '').toLowerCase().contains(filter))
+                t,
+          ]);
+        },
+      );
+    });
+
+/// Right-pane rows: collection tracks or drive files, depending on the tab.
+final libraryTableTracksProvider =
+    Provider<AsyncValue<List<LibraryTrackSummary>>>((ref) {
+      switch (ref.watch(librarySourceTabProvider)) {
+        case LibrarySourceTab.collections:
+          return ref.watch(filteredTracksProvider);
+        case LibrarySourceTab.drive:
+          return ref.watch(driveTableTracksProvider);
+      }
+    });

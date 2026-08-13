@@ -87,9 +87,7 @@ class LibraryPanel extends ConsumerWidget {
                           flex: 3,
                           minFlex: 1,
                           builder: _fill,
-                          child: drive
-                              ? const DriveFilesPane()
-                              : const TrackTablePane(),
+                          child: const TrackTablePane(),
                         ),
                       ],
                     ),

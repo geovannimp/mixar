@@ -50,11 +50,16 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (_tracks.isEmpty) {
       return;
     }
+    final ids = [
+      for (final t in _tracks)
+        if (t.id != t.path) t.id,
+    ];
+    if (ids.isEmpty) {
+      return;
+    }
     final scroll = manager.scroll.bodyRowsVertical;
     if (scroll == null || !scroll.hasClients) {
-      ref
-          .read(artworkCacheProvider.notifier)
-          .ensureLoaded(_tracks.take(30).map((t) => t.id).toList());
+      ref.read(artworkCacheProvider.notifier).ensureLoaded(ids.take(30).toList());
       return;
     }
     final rowH = manager.rowTotalHeight;
@@ -64,8 +69,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final first = (scroll.offset / rowH).floor().clamp(0, _tracks.length - 1);
     final count = (scroll.position.viewportDimension / rowH).ceil() + 2;
     final last = (first + count).clamp(0, _tracks.length);
-    final ids = [for (var i = first; i < last; i++) _tracks[i].id];
-    ref.read(artworkCacheProvider.notifier).ensureLoaded(ids);
+    final visible = [
+      for (var i = first; i < last; i++)
+        if (_tracks[i].id != _tracks[i].path) _tracks[i].id,
+    ];
+    ref.read(artworkCacheProvider.notifier).ensureLoaded(visible);
   }
 
   @override
@@ -73,7 +81,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ref.watch(libraryEventsBootstrapProvider);
     final theme = context.theme;
     final selectedId = ref.watch(activeCollectionIdProvider);
-    final tracksAsync = ref.watch(filteredTracksProvider);
+    final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
+    final drivePath = ref.watch(driveCurrentPathProvider);
+    final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingId = ref.watch(analyzingTrackIdProvider);
     final artwork = ref.watch(artworkCacheProvider);
     final config = _gridConfig(theme);
@@ -87,7 +97,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       manager.appendRows(_rowsFor(_tracks, next));
     });
 
-    ref.listen(filteredTracksProvider, (_, next) {
+    ref.listen(libraryTableTracksProvider, (_, next) {
       final manager = _manager;
       if (manager == null) {
         return;
@@ -116,10 +126,19 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: selectedId == null
+            child: !drive && selectedId == null
                 ? Center(
                     child: Text(
                       'Select a collection',
+                      style: theme.typography.body.sm.copyWith(
+                        color: theme.colors.mutedForeground,
+                      ),
+                    ),
+                  )
+                : drive && drivePath == null
+                ? Center(
+                    child: Text(
+                      'Select a drive or folder to browse audio files',
                       style: theme.typography.body.sm.copyWith(
                         color: theme.colors.mutedForeground,
                       ),
@@ -138,7 +157,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                       if (tracks.isEmpty) {
                         return Center(
                           child: Text(
-                            'No tracks',
+                            drive ? 'No audio files in this folder' : 'No tracks',
                             style: theme.typography.body.sm.copyWith(
                               color: theme.colors.mutedForeground,
                             ),
@@ -154,7 +173,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                         child: ClipRRect(
                           borderRadius: theme.style.borderRadius.md,
                           child: TrinaGrid(
-                            key: ValueKey(selectedId),
+                            key: ValueKey(drive ? drivePath : selectedId),
                             columns: _columns(theme, artwork, analyzingId),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
@@ -289,6 +308,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
             return const SizedBox.shrink();
           }
           final analyzing = analyzingId == trackId;
+          final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           return Center(
             child: FPopoverMenu(
               menu: [
@@ -296,14 +316,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                   children: [
                     FItem(
                       title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
-                      enabled: !analyzing,
-                      onPress: analyzing
+                      enabled: inLibrary && !analyzing,
+                      onPress: !inLibrary || analyzing
                           ? null
                           : () => analyzeTrackAction(ref, trackId),
                     ),
                     FItem(
                       title: const Text('Refresh'),
-                      onPress: () => refreshTrackAction(ref, trackId),
+                      enabled: inLibrary,
+                      onPress: inLibrary
+                          ? () => refreshTrackAction(ref, trackId)
+                          : null,
                     ),
                   ],
                 ),
@@ -379,6 +402,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         TrinaRow(
           cells: {
             'trackId': TrinaCell(value: t.id),
+            'inLibrary': TrinaCell(value: t.id != t.path),
             'artwork': TrinaCell(value: t.id),
             'title': TrinaCell(
               value: analyzingId == t.id
