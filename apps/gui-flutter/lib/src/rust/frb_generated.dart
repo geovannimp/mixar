@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -602671658;
+  int get rustContentHash => -811136485;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -92,10 +92,9 @@ abstract class RustLibApi extends BaseApi {
     required bool force,
   });
 
-  Future<Uint8List?> crateApiLibraryLibraryTransportGetTrackArtwork({
+  Future<LibraryTrackSummary?> crateApiLibraryLibraryTransportGetTrack({
     required LibraryTransport that,
-    String? trackId,
-    String? path,
+    required String trackId,
   });
 
   Future<List<LibraryTrackSummary>>
@@ -118,11 +117,6 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiLibraryLibraryTransportRefreshTrack({
     required LibraryTransport that,
     required String trackId,
-  });
-
-  Future<Uint8List> crateApiLibraryLibraryTransportRenderWaveformLane({
-    required LibraryTransport that,
-    required RenderWaveformLaneRequest request,
   });
 
   Future<List<ResolvedLibraryTrack>>
@@ -254,10 +248,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Uint8List?> crateApiLibraryLibraryTransportGetTrackArtwork({
+  Future<LibraryTrackSummary?> crateApiLibraryLibraryTransportGetTrack({
     required LibraryTransport that,
-    String? trackId,
-    String? path,
+    required String trackId,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -267,8 +260,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             that,
             serializer,
           );
-          sse_encode_opt_String(trackId, serializer);
-          sse_encode_opt_String(path, serializer);
+          sse_encode_String(trackId, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -277,20 +269,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
         },
         codec: SseCodec(
-          decodeSuccessData: sse_decode_opt_list_prim_u_8_strict,
+          decodeSuccessData: sse_decode_opt_box_autoadd_library_track_summary,
           decodeErrorData: sse_decode_String,
         ),
-        constMeta: kCrateApiLibraryLibraryTransportGetTrackArtworkConstMeta,
-        argValues: [that, trackId, path],
+        constMeta: kCrateApiLibraryLibraryTransportGetTrackConstMeta,
+        argValues: [that, trackId],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiLibraryLibraryTransportGetTrackArtworkConstMeta =>
+  TaskConstMeta get kCrateApiLibraryLibraryTransportGetTrackConstMeta =>
       const TaskConstMeta(
-        debugName: "LibraryTransport_get_track_artwork",
-        argNames: ["that", "trackId", "path"],
+        debugName: "LibraryTransport_get_track",
+        argNames: ["that", "trackId"],
       );
 
   @override
@@ -475,48 +467,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<Uint8List> crateApiLibraryLibraryTransportRenderWaveformLane({
-    required LibraryTransport that,
-    required RenderWaveformLaneRequest request,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
-            that,
-            serializer,
-          );
-          sse_encode_box_autoadd_render_waveform_lane_request(
-            request,
-            serializer,
-          );
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 9,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_list_prim_u_8_strict,
-          decodeErrorData: sse_decode_String,
-        ),
-        constMeta: kCrateApiLibraryLibraryTransportRenderWaveformLaneConstMeta,
-        argValues: [that, request],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiLibraryLibraryTransportRenderWaveformLaneConstMeta =>
-      const TaskConstMeta(
-        debugName: "LibraryTransport_render_waveform_lane",
-        argNames: ["that", "request"],
-      );
-
-  @override
   Future<List<ResolvedLibraryTrack>>
   crateApiLibraryLibraryTransportResolveTracksForPaths({
     required LibraryTransport that,
@@ -534,7 +484,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 9,
             port: port_,
           );
         },
@@ -575,7 +525,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 11,
+              funcId: 10,
               port: port_,
             );
           },
@@ -604,7 +554,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -629,7 +579,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 12,
             port: port_,
           );
         },
@@ -656,7 +606,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 13,
             port: port_,
           );
         },
@@ -680,7 +630,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -708,7 +658,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 15,
             port: port_,
           );
         },
@@ -745,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 16,
             port: port_,
           );
         },
@@ -774,7 +724,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 17,
             port: port_,
           );
         },
@@ -891,23 +841,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RenderWaveformLaneRequest dco_decode_box_autoadd_render_waveform_lane_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_render_waveform_lane_request(raw);
-  }
-
-  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
-  }
-
-  @protected
-  double dco_decode_f_32(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as double;
   }
 
   @protected
@@ -961,8 +897,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return LibraryTrackSummary(
       id: dco_decode_String(arr[0]),
       displayName: dco_decode_String(arr[1]),
@@ -974,6 +910,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: dco_decode_opt_String(arr[7]),
       durationMs: dco_decode_opt_box_autoadd_i_32(arr[8]),
       path: dco_decode_String(arr[9]),
+      artwork: dco_decode_opt_list_prim_u_8_strict(arr[10]),
     );
   }
 
@@ -1081,30 +1018,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isDefault: dco_decode_bool(arr[2]),
       maxChannels: dco_decode_u_16(arr[3]),
       defaultSampleRates: dco_decode_list_prim_u_32_strict(arr[4]),
-    );
-  }
-
-  @protected
-  RenderWaveformLaneRequest dco_decode_render_waveform_lane_request(
-    dynamic raw,
-  ) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
-    return RenderWaveformLaneRequest(
-      trackId: dco_decode_opt_String(arr[0]),
-      path: dco_decode_opt_String(arr[1]),
-      width: dco_decode_u_32(arr[2]),
-      height: dco_decode_u_32(arr[3]),
-      positionMs: dco_decode_i_32(arr[4]),
-      visibleMs: dco_decode_i_32(arr[5]),
-      bufferRatio: dco_decode_f_64(arr[6]),
-      includeDetail: dco_decode_bool(arr[7]),
-      includeBeatGrid: dco_decode_bool(arr[8]),
-      eqLowDb: dco_decode_f_32(arr[9]),
-      eqMidDb: dco_decode_f_32(arr[10]),
-      eqHighDb: dco_decode_f_32(arr[11]),
     );
   }
 
@@ -1254,23 +1167,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RenderWaveformLaneRequest sse_decode_box_autoadd_render_waveform_lane_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_render_waveform_lane_request(deserializer));
-  }
-
-  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_32(deserializer));
-  }
-
-  @protected
-  double sse_decode_f_32(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getFloat32();
   }
 
   @protected
@@ -1343,6 +1242,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_key = sse_decode_opt_String(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_path = sse_decode_String(deserializer);
+    var var_artwork = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return LibraryTrackSummary(
       id: var_id,
       displayName: var_displayName,
@@ -1354,6 +1254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: var_key,
       durationMs: var_durationMs,
       path: var_path,
+      artwork: var_artwork,
     );
   }
 
@@ -1525,39 +1426,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RenderWaveformLaneRequest sse_decode_render_waveform_lane_request(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_trackId = sse_decode_opt_String(deserializer);
-    var var_path = sse_decode_opt_String(deserializer);
-    var var_width = sse_decode_u_32(deserializer);
-    var var_height = sse_decode_u_32(deserializer);
-    var var_positionMs = sse_decode_i_32(deserializer);
-    var var_visibleMs = sse_decode_i_32(deserializer);
-    var var_bufferRatio = sse_decode_f_64(deserializer);
-    var var_includeDetail = sse_decode_bool(deserializer);
-    var var_includeBeatGrid = sse_decode_bool(deserializer);
-    var var_eqLowDb = sse_decode_f_32(deserializer);
-    var var_eqMidDb = sse_decode_f_32(deserializer);
-    var var_eqHighDb = sse_decode_f_32(deserializer);
-    return RenderWaveformLaneRequest(
-      trackId: var_trackId,
-      path: var_path,
-      width: var_width,
-      height: var_height,
-      positionMs: var_positionMs,
-      visibleMs: var_visibleMs,
-      bufferRatio: var_bufferRatio,
-      includeDetail: var_includeDetail,
-      includeBeatGrid: var_includeBeatGrid,
-      eqLowDb: var_eqLowDb,
-      eqMidDb: var_eqMidDb,
-      eqHighDb: var_eqHighDb,
-    );
-  }
-
-  @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
     SseDeserializer deserializer,
   ) {
@@ -1708,24 +1576,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_render_waveform_lane_request(
-    RenderWaveformLaneRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_render_waveform_lane_request(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self, serializer);
-  }
-
-  @protected
-  void sse_encode_f_32(double self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putFloat32(self);
   }
 
   @protected
@@ -1787,6 +1640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.key, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_String(self.path, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.artwork, serializer);
   }
 
   @protected
@@ -1943,26 +1797,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_render_waveform_lane_request(
-    RenderWaveformLaneRequest self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_opt_String(self.trackId, serializer);
-    sse_encode_opt_String(self.path, serializer);
-    sse_encode_u_32(self.width, serializer);
-    sse_encode_u_32(self.height, serializer);
-    sse_encode_i_32(self.positionMs, serializer);
-    sse_encode_i_32(self.visibleMs, serializer);
-    sse_encode_f_64(self.bufferRatio, serializer);
-    sse_encode_bool(self.includeDetail, serializer);
-    sse_encode_bool(self.includeBeatGrid, serializer);
-    sse_encode_f_32(self.eqLowDb, serializer);
-    sse_encode_f_32(self.eqMidDb, serializer);
-    sse_encode_f_32(self.eqHighDb, serializer);
-  }
-
-  @protected
   void sse_encode_resolved_library_track(
     ResolvedLibraryTrack self,
     SseSerializer serializer,
@@ -2033,7 +1867,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
     folderPath: folderPath,
   );
 
-  /// Queue analyze for a track (worker emits `TrackAnalyzed` / `Error`).
+  /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportAnalyzeTrack(
         that: this,
@@ -2041,17 +1875,13 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         force: force,
       );
 
-  /// Embedded artwork bytes for a track id and/or file path.
-  ///
-  /// Returns `Ok(None)` when the file has no artwork (e.g. minimal WAV).
-  Future<Uint8List?> getTrackArtwork({String? trackId, String? path}) =>
-      RustLib.instance.api.crateApiLibraryLibraryTransportGetTrackArtwork(
-        that: this,
-        trackId: trackId,
-        path: path,
-      );
+  /// Load one track including embedded artwork when present.
+  Future<LibraryTrackSummary?> getTrack({required String trackId}) => RustLib
+      .instance
+      .api
+      .crateApiLibraryLibraryTransportGetTrack(that: this, trackId: trackId);
 
-  /// List tracks in a collection.
+  /// List tracks in a collection (artwork left unset for cheap browsing).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   }) =>
@@ -2066,24 +1896,12 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportListCollections(that: this);
 
-  /// Queue metadata refresh for a track (worker emits `TrackUpdated` / `Error`).
+  /// Queue metadata refresh for a track via the library cmd bus only.
   Future<void> refreshTrack({required String trackId}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportRefreshTrack(
         that: this,
         trackId: trackId,
       );
-
-  /// Render a scrolling waveform lane and return Tauri-compatible packed `WFR1` bytes.
-  ///
-  /// Overview peaks come from the library when present; otherwise an empty overview
-  /// yields a valid silent/background frame. Detail windows are skipped this pass
-  /// (no AppState audio cache).
-  Future<Uint8List> renderWaveformLane({
-    required RenderWaveformLaneRequest request,
-  }) => RustLib.instance.api.crateApiLibraryLibraryTransportRenderWaveformLane(
-    that: this,
-    request: request,
-  );
 
   /// Resolve library tracks for the given filesystem paths.
   Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
@@ -2095,6 +1913,8 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       );
 
   /// Forward thin typed library events to Dart via FRB `StreamSink`.
+  ///
+  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<LibraryEvt> subscribeEvents() => RustLib.instance.api
       .crateApiLibraryLibraryTransportSubscribeEvents(that: this);
 }

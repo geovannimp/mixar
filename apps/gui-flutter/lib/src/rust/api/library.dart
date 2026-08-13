@@ -7,7 +7,8 @@ import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
@@ -17,15 +18,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required String folderPath,
   });
 
-  /// Queue analyze for a track (worker emits `TrackAnalyzed` / `Error`).
+  /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
 
-  /// Embedded artwork bytes for a track id and/or file path.
-  ///
-  /// Returns `Ok(None)` when the file has no artwork (e.g. minimal WAV).
-  Future<Uint8List?> getTrackArtwork({String? trackId, String? path});
+  /// Load one track including embedded artwork when present.
+  Future<LibraryTrackSummary?> getTrack({required String trackId});
 
-  /// List tracks in a collection.
+  /// List tracks in a collection (artwork left unset for cheap browsing).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   });
@@ -41,17 +40,8 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   static Future<LibraryTransport> openInMemory() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory();
 
-  /// Queue metadata refresh for a track (worker emits `TrackUpdated` / `Error`).
+  /// Queue metadata refresh for a track via the library cmd bus only.
   Future<void> refreshTrack({required String trackId});
-
-  /// Render a scrolling waveform lane and return Tauri-compatible packed `WFR1` bytes.
-  ///
-  /// Overview peaks come from the library when present; otherwise an empty overview
-  /// yields a valid silent/background frame. Detail windows are skipped this pass
-  /// (no AppState audio cache).
-  Future<Uint8List> renderWaveformLane({
-    required RenderWaveformLaneRequest request,
-  });
 
   /// Resolve library tracks for the given filesystem paths.
   Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
@@ -59,6 +49,8 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   });
 
   /// Forward thin typed library events to Dart via FRB `StreamSink`.
+  ///
+  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<LibraryEvt> subscribeEvents();
 }
 
@@ -181,6 +173,9 @@ class LibraryTrackSummary {
   final int? durationMs;
   final String path;
 
+  /// Embedded artwork bytes when loaded (lists leave this `None` for cheap browsing).
+  final Uint8List? artwork;
+
   const LibraryTrackSummary({
     required this.id,
     required this.displayName,
@@ -192,6 +187,7 @@ class LibraryTrackSummary {
     this.key,
     this.durationMs,
     required this.path,
+    this.artwork,
   });
 
   @override
@@ -205,7 +201,8 @@ class LibraryTrackSummary {
       bpm.hashCode ^
       key.hashCode ^
       durationMs.hashCode ^
-      path.hashCode;
+      path.hashCode ^
+      artwork.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -221,71 +218,8 @@ class LibraryTrackSummary {
           bpm == other.bpm &&
           key == other.key &&
           durationMs == other.durationMs &&
-          path == other.path;
-}
-
-/// Request for a Tauri-compatible packed scrolling waveform lane (`WFR1`).
-class RenderWaveformLaneRequest {
-  final String? trackId;
-  final String? path;
-  final int width;
-  final int height;
-  final int positionMs;
-  final int visibleMs;
-  final double bufferRatio;
-  final bool includeDetail;
-  final bool includeBeatGrid;
-  final double eqLowDb;
-  final double eqMidDb;
-  final double eqHighDb;
-
-  const RenderWaveformLaneRequest({
-    this.trackId,
-    this.path,
-    required this.width,
-    required this.height,
-    required this.positionMs,
-    required this.visibleMs,
-    required this.bufferRatio,
-    required this.includeDetail,
-    required this.includeBeatGrid,
-    required this.eqLowDb,
-    required this.eqMidDb,
-    required this.eqHighDb,
-  });
-
-  @override
-  int get hashCode =>
-      trackId.hashCode ^
-      path.hashCode ^
-      width.hashCode ^
-      height.hashCode ^
-      positionMs.hashCode ^
-      visibleMs.hashCode ^
-      bufferRatio.hashCode ^
-      includeDetail.hashCode ^
-      includeBeatGrid.hashCode ^
-      eqLowDb.hashCode ^
-      eqMidDb.hashCode ^
-      eqHighDb.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RenderWaveformLaneRequest &&
-          runtimeType == other.runtimeType &&
-          trackId == other.trackId &&
           path == other.path &&
-          width == other.width &&
-          height == other.height &&
-          positionMs == other.positionMs &&
-          visibleMs == other.visibleMs &&
-          bufferRatio == other.bufferRatio &&
-          includeDetail == other.includeDetail &&
-          includeBeatGrid == other.includeBeatGrid &&
-          eqLowDb == other.eqLowDb &&
-          eqMidDb == other.eqMidDb &&
-          eqHighDb == other.eqHighDb;
+          artwork == other.artwork;
 }
 
 /// Path lookup hit: original request path + resolved track summary.

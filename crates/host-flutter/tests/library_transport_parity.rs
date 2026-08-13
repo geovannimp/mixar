@@ -1,10 +1,10 @@
-//! LibraryTransport parity: add folder, resolve paths, artwork, analyze/refresh bus.
+//! LibraryTransport parity: add folder, resolve paths, artwork metadata, bus cmds.
 
 use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use host_flutter::api::library::{LibraryTransport, RenderWaveformLaneRequest};
+use host_flutter::api::library::LibraryTransport;
 use library_api::{decode_evt_body, EvtBody, Kind};
 
 fn write_minimal_wav(path: &Path) {
@@ -30,7 +30,7 @@ fn write_minimal_wav(path: &Path) {
 }
 
 #[test]
-fn add_folder_resolve_and_artwork() {
+fn add_folder_resolve_and_track_artwork_metadata() {
     let dir = tempfile::tempdir().unwrap();
     let wav = dir.path().join("track_a.wav");
     write_minimal_wav(&wav);
@@ -51,6 +51,7 @@ fn add_folder_resolve_and_artwork() {
         .unwrap();
     assert_eq!(tracks.len(), 1);
     assert!(tracks[0].path.ends_with("track_a.wav"));
+    assert!(tracks[0].artwork.is_none());
 
     let resolved = transport
         .resolve_tracks_for_paths(vec![wav.to_string_lossy().into_owned()])
@@ -59,15 +60,10 @@ fn add_folder_resolve_and_artwork() {
     assert_eq!(resolved[0].track.id, tracks[0].id);
     assert!(resolved[0].request_path.ends_with("track_a.wav"));
 
-    let artwork = transport
-        .get_track_artwork(Some(tracks[0].id.clone()), None)
-        .unwrap();
-    assert!(artwork.is_none() || artwork.as_ref().is_some_and(|b| !b.is_empty()));
-
-    let artwork_by_path = transport
-        .get_track_artwork(None, Some(wav.to_string_lossy().into_owned()))
-        .unwrap();
-    assert!(artwork_by_path.is_none() || artwork_by_path.as_ref().is_some_and(|b| !b.is_empty()));
+    let full = transport.get_track(tracks[0].id.clone()).unwrap().unwrap();
+    assert_eq!(full.id, tracks[0].id);
+    // Minimal WAV has no embedded art.
+    assert!(full.artwork.is_none());
 }
 
 #[test]
@@ -76,6 +72,26 @@ fn refresh_missing_track_publishes_error_evt() {
     let rx = transport.subscribe_evt_all().unwrap();
 
     transport.refresh_track("missing-track-id".into()).unwrap();
+
+    let event = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("evt bus alive")
+        .expect("Error evt");
+    assert_eq!(event.kind(), &Kind::Error);
+    match decode_evt_body(event.payload()).unwrap() {
+        EvtBody::Error { message, track_id } => {
+            assert!(!message.is_empty());
+            assert_eq!(track_id.as_deref(), Some("missing-track-id"));
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+}
+
+#[test]
+fn analyze_missing_track_publishes_error_evt() {
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+
     transport
         .analyze_track("missing-track-id".into(), false)
         .unwrap();
@@ -124,69 +140,4 @@ fn refresh_existing_track_emits_track_updated() {
         }
         other => panic!("unexpected body {other:?}"),
     }
-}
-
-#[test]
-fn render_waveform_lane_requires_path_or_track_id() {
-    let transport = LibraryTransport::open_in_memory().unwrap();
-    let err = transport
-        .render_waveform_lane(RenderWaveformLaneRequest {
-            track_id: None,
-            path: None,
-            width: 64,
-            height: 32,
-            position_ms: 0,
-            visible_ms: 1_000,
-            buffer_ratio: 0.0,
-            include_detail: false,
-            include_beat_grid: false,
-            eq_low_db: 0.0,
-            eq_mid_db: 0.0,
-            eq_high_db: 0.0,
-        })
-        .unwrap_err();
-    assert!(err.contains("path or track_id"));
-}
-
-#[test]
-fn render_waveform_lane_returns_wfr1_packed_frame() {
-    let dir = tempfile::tempdir().unwrap();
-    let wav = dir.path().join("track_w.wav");
-    write_minimal_wav(&wav);
-
-    let transport = LibraryTransport::open_in_memory().unwrap();
-    let added = transport
-        .add_folder_collection(dir.path().to_string_lossy().into_owned())
-        .unwrap();
-    let tracks = transport
-        .list_collection_tracks(added.collection.id.clone())
-        .unwrap();
-    assert_eq!(tracks.len(), 1);
-
-    let width = 64u32;
-    let height = 32u32;
-    let packed = transport
-        .render_waveform_lane(RenderWaveformLaneRequest {
-            track_id: Some(tracks[0].id.clone()),
-            path: None,
-            width,
-            height,
-            position_ms: 0,
-            visible_ms: 1_000,
-            buffer_ratio: 0.0,
-            include_detail: false,
-            include_beat_grid: false,
-            eq_low_db: 0.0,
-            eq_mid_db: 0.0,
-            eq_high_db: 0.0,
-        })
-        .unwrap();
-
-    assert!(packed.starts_with(b"WFR1"));
-    assert!(packed.len() >= 28);
-    assert_eq!(u32::from_le_bytes(packed[4..8].try_into().unwrap()), width);
-    assert_eq!(
-        u32::from_le_bytes(packed[8..12].try_into().unwrap()),
-        height
-    );
 }

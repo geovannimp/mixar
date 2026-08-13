@@ -3,12 +3,12 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
-use audio_core::{ms_to_secs, secs_to_ms, SpectralPeak};
 use library::{
-    read_artwork, spawn_library_worker, BeatGridSnapshot, Evt, LibraryBuses, LibraryConfig,
-    LibraryManager, LibraryWorker, NewCollection, TrackId, WritableLibrary,
+    read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
+    LibraryWorker, NewCollection, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -17,7 +17,6 @@ use library_api::{
 use library_core::{AudioSource, Collection, CollectionId, Library};
 
 use crate::frb_generated::StreamSink;
-use crate::waveform_render::{pack_waveform_frame, render_scrolling_lane, WaveformDisplayGains};
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
 #[derive(Clone, Debug)]
@@ -42,6 +41,8 @@ pub struct LibraryTrackSummary {
     pub key: Option<String>,
     pub duration_ms: Option<i32>,
     pub path: String,
+    /// Embedded artwork bytes when loaded (lists leave this `None` for cheap browsing).
+    pub artwork: Option<Vec<u8>>,
 }
 
 /// Result of adding a folder collection and syncing it.
@@ -59,23 +60,6 @@ pub struct AddFolderCollectionResult {
 pub struct ResolvedLibraryTrack {
     pub request_path: String,
     pub track: LibraryTrackSummary,
-}
-
-/// Request for a Tauri-compatible packed scrolling waveform lane (`WFR1`).
-#[derive(Clone, Debug)]
-pub struct RenderWaveformLaneRequest {
-    pub track_id: Option<String>,
-    pub path: Option<String>,
-    pub width: u32,
-    pub height: u32,
-    pub position_ms: i32,
-    pub visible_ms: i32,
-    pub buffer_ratio: f64,
-    pub include_detail: bool,
-    pub include_beat_grid: bool,
-    pub eq_low_db: f32,
-    pub eq_mid_db: f32,
-    pub eq_high_db: f32,
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
@@ -98,6 +82,11 @@ pub struct LibraryEvt {
     pub track_id: Option<String>,
 }
 
+struct EvtForwarder {
+    shutdown: Arc<AtomicBool>,
+    handle: JoinHandle<()>,
+}
+
 /// Host-owned library handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct LibraryTransport {
@@ -108,13 +97,18 @@ pub struct LibraryTransport {
     /// Drop joins the worker; must not live inside the manager mutex.
     #[allow(dead_code)]
     worker: LibraryWorker,
-    /// Stops `subscribe_events` forwarder threads on transport drop.
-    evt_forwarder_shutdown: Arc<AtomicBool>,
+    /// Drop stops any active Dart evt forwarder.
+    evt_forwarder: Mutex<Option<EvtForwarder>>,
 }
 
 impl Drop for LibraryTransport {
     fn drop(&mut self) {
-        self.evt_forwarder_shutdown.store(true, Ordering::Relaxed);
+        if let Ok(mut slot) = self.evt_forwarder.lock() {
+            if let Some(fwd) = slot.take() {
+                fwd.shutdown.store(true, Ordering::Relaxed);
+                let _ = fwd.handle.join();
+            }
+        }
     }
 }
 
@@ -142,7 +136,7 @@ impl LibraryTransport {
             library,
             buses,
             worker,
-            evt_forwarder_shutdown: Arc::new(AtomicBool::new(false)),
+            evt_forwarder: Mutex::new(None),
         })
     }
 
@@ -159,7 +153,7 @@ impl LibraryTransport {
             .collect()
     }
 
-    /// List tracks in a collection.
+    /// List tracks in a collection (artwork left unset for cheap browsing).
     pub fn list_collection_tracks(
         &self,
         collection_id: String,
@@ -171,7 +165,25 @@ impl LibraryTransport {
         let tracks = lib
             .get_collection_tracks(&CollectionId::new(collection_id))
             .map_err(|e| e.to_string())?;
-        Ok(tracks.iter().filter_map(track_summary).collect())
+        Ok(tracks
+            .iter()
+            .filter_map(|s| track_summary(s, false))
+            .collect())
+    }
+
+    /// Load one track including embedded artwork when present.
+    pub fn get_track(&self, track_id: String) -> Result<Option<LibraryTrackSummary>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let Some(source) = lib
+            .get_track(&TrackId::new(track_id))
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        Ok(track_summary(&source, true))
     }
 
     /// Add a folder as a collection and sync its tracks.
@@ -179,17 +191,37 @@ impl LibraryTransport {
         &self,
         folder_path: String,
     ) -> Result<AddFolderCollectionResult, String> {
-        let mut lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-        let collection = lib
-            .add_collection(&NewCollection::folder(folder_path))
-            .map_err(|e| e.to_string())?;
-        let scan = lib
-            .sync_collection(Some(&collection.id))
-            .map_err(|e| e.to_string())?;
-        let summary = collection_summary(&lib, collection)?;
+        let collection_id = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.add_collection(&NewCollection::folder(folder_path))
+                .map_err(|e| e.to_string())?
+                .id
+        };
+
+        // ponytail: sync holds the manager mutex for the whole folder walk/import, so
+        // analyze/refresh cmds and other RPCs wait. Upgrade: sync off-mutex with a
+        // per-collection lock, or a background scan job that publishes progress evts.
+        let (scan, summary) = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            let scan = lib
+                .sync_collection(Some(&collection_id))
+                .map_err(|e| e.to_string())?;
+            let collection = lib
+                .list_collections()
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .find(|c| c.id == collection_id)
+                .ok_or_else(|| "collection missing after sync".to_string())?;
+            let summary = collection_summary(&lib, collection)?;
+            (scan, summary)
+        };
+
         Ok(AddFolderCollectionResult {
             collection: summary,
             added: scan.added as u32,
@@ -215,7 +247,7 @@ impl LibraryTransport {
         Ok(resolved
             .into_iter()
             .filter_map(|(request_path, source)| {
-                track_summary(&source).map(|track| ResolvedLibraryTrack {
+                track_summary(&source, false).map(|track| ResolvedLibraryTrack {
                     request_path,
                     track,
                 })
@@ -223,39 +255,7 @@ impl LibraryTransport {
             .collect())
     }
 
-    /// Embedded artwork bytes for a track id and/or file path.
-    ///
-    /// Returns `Ok(None)` when the file has no artwork (e.g. minimal WAV).
-    pub fn get_track_artwork(
-        &self,
-        track_id: Option<String>,
-        path: Option<String>,
-    ) -> Result<Option<Vec<u8>>, String> {
-        let file_path = if let Some(path) = path {
-            path
-        } else if let Some(track_id) = track_id {
-            let lib = self
-                .library
-                .lock()
-                .map_err(|_| "library lock poisoned".to_string())?;
-            let source = lib
-                .get_track(&TrackId::new(track_id))
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| "Track not found in library.".to_string())?;
-            source
-                .file()
-                .ok_or_else(|| "Only file tracks have artwork.".to_string())?
-                .path()
-                .to_string_lossy()
-                .into_owned()
-        } else {
-            return Err("track_id or path is required.".to_string());
-        };
-
-        read_artwork(Path::new(&file_path)).map_err(|e| e.to_string())
-    }
-
-    /// Queue analyze for a track (worker emits `TrackAnalyzed` / `Error`).
+    /// Queue analyze for a track via the library cmd bus only (worker emits evt).
     pub fn analyze_track(&self, track_id: String, force: bool) -> Result<(), String> {
         let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack { track_id, force })
             .map_err(|e| e.to_string())?;
@@ -264,7 +264,7 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
-    /// Queue metadata refresh for a track (worker emits `TrackUpdated` / `Error`).
+    /// Queue metadata refresh for a track via the library cmd bus only.
     pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
         let bytes =
             encode_cmd_body(&CmdBody::RefreshTrack { track_id }).map_err(|e| e.to_string())?;
@@ -274,13 +274,16 @@ impl LibraryTransport {
     }
 
     /// Forward thin typed library events to Dart via FRB `StreamSink`.
+    ///
+    /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
     pub fn subscribe_events(&self, sink: StreamSink<LibraryEvt>) -> Result<(), String> {
         let rx = self.buses.subscribe_evt_all().map_err(|e| e.to_string())?;
-        let shutdown = Arc::clone(&self.evt_forwarder_shutdown);
-        std::thread::Builder::new()
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown_flag = Arc::clone(&shutdown);
+        let handle = std::thread::Builder::new()
             .name("library-evt-forwarder".into())
             .spawn(move || {
-                while !shutdown.load(Ordering::Relaxed) {
+                while !shutdown_flag.load(Ordering::Relaxed) {
                     match rx.recv_timeout(Duration::from_millis(100)) {
                         Ok(Some(ev)) => {
                             if let Some(mapped) = map_library_evt(ev.as_ref()) {
@@ -295,6 +298,16 @@ impl LibraryTransport {
                 }
             })
             .map_err(|e| e.to_string())?;
+
+        let mut slot = self
+            .evt_forwarder
+            .lock()
+            .map_err(|_| "evt forwarder lock poisoned".to_string())?;
+        if let Some(prev) = slot.take() {
+            prev.shutdown.store(true, Ordering::Relaxed);
+            let _ = prev.handle.join();
+        }
+        *slot = Some(EvtForwarder { shutdown, handle });
         Ok(())
     }
 
@@ -302,113 +315,6 @@ impl LibraryTransport {
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
         self.buses.subscribe_evt_all().map_err(|e| e.to_string())
-    }
-
-    /// Render a scrolling waveform lane and return Tauri-compatible packed `WFR1` bytes.
-    ///
-    /// Overview peaks come from the library when present; otherwise an empty overview
-    /// yields a valid silent/background frame. Detail windows are skipped this pass
-    /// (no AppState audio cache).
-    pub fn render_waveform_lane(
-        &self,
-        request: RenderWaveformLaneRequest,
-    ) -> Result<Vec<u8>, String> {
-        let viewport_width = request.width.max(1) as usize;
-        let height = request.height.max(1) as usize;
-        let visible_ms = request.visible_ms.max(100);
-        let buffer_ratio = request.buffer_ratio.clamp(0.0, 4.0);
-        let position_secs = ms_to_secs(request.position_ms);
-        let visible_secs = ms_to_secs(visible_ms);
-        let cover_secs = visible_secs * (1.0 + 2.0 * buffer_ratio);
-        let strip_width = ((viewport_width as f64) * (cover_secs / visible_secs))
-            .round()
-            .max(viewport_width as f64) as usize;
-
-        let lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-
-        let file_path = if let Some(path) = request.path.clone() {
-            path
-        } else if let Some(ref id) = request.track_id {
-            let source = lib
-                .get_track(&TrackId::new(id.clone()))
-                .map_err(|e| e.to_string())?
-                .ok_or_else(|| "Track not found in library.".to_string())?;
-            source
-                .file()
-                .ok_or_else(|| "Only file tracks have waveforms.".to_string())?
-                .path()
-                .to_string_lossy()
-                .into_owned()
-        } else {
-            return Err("path or track_id is required for waveform rendering.".to_string());
-        };
-        let _ = file_path; // resolved for parity / future detail decode
-
-        let beat_grid: Option<BeatGridSnapshot> = if request.include_beat_grid {
-            request.track_id.as_ref().and_then(|id| {
-                lib.get_track_beat_grid(&TrackId::new(id.clone()))
-                    .ok()
-                    .flatten()
-            })
-        } else {
-            None
-        };
-
-        let (overview, track_duration_ms) = if let Some(ref id) = request.track_id {
-            let track_id = TrackId::new(id.clone());
-            let duration = lib
-                .get_track(&track_id)
-                .map_err(|e| e.to_string())?
-                .and_then(|source| source.metadata().duration_ms)
-                .unwrap_or(0);
-            match lib
-                .get_track_waveform_overview(&track_id)
-                .map_err(|e| e.to_string())?
-            {
-                Some(overview_row) if !overview_row.peaks.is_empty() && duration > 0 => {
-                    (overview_row.peaks, duration)
-                }
-                _ => (Vec::<SpectralPeak>::new(), duration),
-            }
-        } else {
-            (Vec::<SpectralPeak>::new(), 0)
-        };
-
-        // ponytail: no AppState detail cache — overview-only frames this pass.
-        let _ = request.include_detail;
-
-        let gains = WaveformDisplayGains::from_eq_db(
-            request.eq_low_db,
-            request.eq_mid_db,
-            request.eq_high_db,
-        );
-        let track_duration_secs = ms_to_secs(track_duration_ms);
-        let rgba = render_scrolling_lane(
-            strip_width,
-            height,
-            &overview,
-            None,
-            track_duration_secs,
-            position_secs,
-            cover_secs,
-            gains,
-            beat_grid.as_ref(),
-            request.include_beat_grid,
-        );
-
-        let half_cover_ms = secs_to_ms(cover_secs / 2.0);
-        Ok(pack_waveform_frame(
-            strip_width as u32,
-            height as u32,
-            request.position_ms,
-            request.position_ms - half_cover_ms,
-            request.position_ms + half_cover_ms,
-            visible_ms,
-            rgba,
-        ))
     }
 }
 
@@ -460,6 +366,7 @@ fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
         key: track.key,
         duration_ms: track.duration_ms,
         path: track.path,
+        artwork: None,
     }
 }
 
@@ -482,9 +389,15 @@ fn collection_summary(
     })
 }
 
-fn track_summary(source: &AudioSource) -> Option<LibraryTrackSummary> {
+fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryTrackSummary> {
     let file = source.file()?;
     let metadata = source.metadata();
+    let path = file.path().to_path_buf();
+    let artwork = if include_artwork {
+        read_artwork(Path::new(&path)).ok().flatten()
+    } else {
+        None
+    };
     Some(LibraryTrackSummary {
         id: source.id().as_str().to_string(),
         display_name: track_display_name(source),
@@ -495,7 +408,8 @@ fn track_summary(source: &AudioSource) -> Option<LibraryTrackSummary> {
         bpm: metadata.bpm,
         key: metadata.key.clone(),
         duration_ms: metadata.duration_ms,
-        path: file.path().to_string_lossy().into_owned(),
+        path: path.to_string_lossy().into_owned(),
+        artwork,
     })
 }
 

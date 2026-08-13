@@ -69,15 +69,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
-  RenderWaveformLaneRequest dco_decode_box_autoadd_render_waveform_lane_request(
-    dynamic raw,
-  );
-
-  @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
-
-  @protected
-  double dco_decode_f_32(dynamic raw);
 
   @protected
   double dco_decode_f_64(dynamic raw);
@@ -146,11 +138,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   OutputDevice dco_decode_output_device(dynamic raw);
 
   @protected
-  RenderWaveformLaneRequest dco_decode_render_waveform_lane_request(
-    dynamic raw,
-  );
-
-  @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
 
   @protected
@@ -217,15 +204,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RenderWaveformLaneRequest sse_decode_box_autoadd_render_waveform_lane_request(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
-
-  @protected
-  double sse_decode_f_32(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_64(SseDeserializer deserializer);
@@ -300,11 +279,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   OutputDevice sse_decode_output_device(SseDeserializer deserializer);
-
-  @protected
-  RenderWaveformLaneRequest sse_decode_render_waveform_lane_request(
-    SseDeserializer deserializer,
-  );
 
   @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
@@ -384,16 +358,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_render_waveform_lane_request(
-    RenderWaveformLaneRequest self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_f_32(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
@@ -487,12 +452,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_output_device(OutputDevice self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_render_waveform_lane_request(
-    RenderWaveformLaneRequest self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_resolved_library_track(

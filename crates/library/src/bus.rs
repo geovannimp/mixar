@@ -21,6 +21,11 @@ pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 /// Hosts create this once, inject clones into [`crate::LibraryManager`] via
 /// `set_buses`, and keep a handle so controller/engine can `publish_evt`
 /// without locking the DB mutex.
+///
+/// `revision` is bumped on every egress publish so hosts can stamp wire messages
+/// (Tauri `library://bus`) with a monotonic library-state counter.
+/// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
+/// does not override duration (shared with engine/settings at session start).
 #[derive(Clone)]
 pub struct LibraryBuses {
     cmd: LibraryBus,
@@ -62,12 +67,16 @@ impl LibraryBuses {
 
     /// Subscribe to every egress event (UI / bridge).
     pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
-        subscribe_evt_all(&self.evt).map_err(omnibus_err)
+        self.evt
+            .subscribe(Filter::Any, Filter::Any)
+            .map_err(omnibus_err)
     }
 
     /// Subscribe to egress events for one track (`Origin::Track`).
     pub fn subscribe_evt_track(&self, track_id: impl Into<String>) -> Result<EvtReceiver> {
-        subscribe_evt_track(&self.evt, track_id).map_err(omnibus_err)
+        self.evt
+            .subscribe(Filter::Is(Origin::Track(track_id.into())), Filter::Any)
+            .map_err(omnibus_err)
     }
 
     /// Update default analysis duration used by AnalyzeTrack cmds.
@@ -121,19 +130,4 @@ pub fn new_buses() -> (LibraryBus, LibraryBus) {
         LibraryBus::with_capacity(4096),
         LibraryBus::with_capacity(2048),
     )
-}
-
-/// Subscribe to every egress event (UI / bridge).
-pub fn subscribe_evt_all(
-    bus: &LibraryBus,
-) -> std::result::Result<EvtReceiver, omnibus::OmnibusError> {
-    bus.subscribe(Filter::Any, Filter::Any)
-}
-
-/// Subscribe to egress events for a single track origin.
-pub fn subscribe_evt_track(
-    bus: &LibraryBus,
-    track_id: impl Into<String>,
-) -> std::result::Result<EvtReceiver, omnibus::OmnibusError> {
-    bus.subscribe(Filter::Is(Origin::Track(track_id.into())), Filter::Any)
 }

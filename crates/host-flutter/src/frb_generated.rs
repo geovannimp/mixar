@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -602671658;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -811136485;
 
 // Section: executor
 
@@ -155,7 +155,7 @@ fn wire__crate__api__library__LibraryTransport_analyze_track_impl(
         },
     )
 }
-fn wire__crate__api__library__LibraryTransport_get_track_artwork_impl(
+fn wire__crate__api__library__LibraryTransport_get_track_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -163,7 +163,7 @@ fn wire__crate__api__library__LibraryTransport_get_track_artwork_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_get_track_artwork",
+            debug_name: "LibraryTransport_get_track",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -180,8 +180,7 @@ fn wire__crate__api__library__LibraryTransport_get_track_artwork_impl(
             let api_that = <RustOpaqueMoi<
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
             >>::sse_decode(&mut deserializer);
-            let api_track_id = <Option<String>>::sse_decode(&mut deserializer);
-            let api_path = <Option<String>>::sse_decode(&mut deserializer);
+            let api_track_id = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -199,10 +198,9 @@ fn wire__crate__api__library__LibraryTransport_get_track_artwork_impl(
                         }
                     }
                     let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::library::LibraryTransport::get_track_artwork(
+                    let output_ok = crate::api::library::LibraryTransport::get_track(
                         &*api_that_guard,
                         api_track_id,
-                        api_path,
                     )?;
                     Ok(output_ok)
                 })())
@@ -424,60 +422,6 @@ fn wire__crate__api__library__LibraryTransport_refresh_track_impl(
                     let output_ok = crate::api::library::LibraryTransport::refresh_track(
                         &*api_that_guard,
                         api_track_id,
-                    )?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__library__LibraryTransport_render_waveform_lane_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_render_waveform_lane",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_that = <RustOpaqueMoi<
-                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
-            >>::sse_decode(&mut deserializer);
-            let api_request =
-                <crate::api::library::RenderWaveformLaneRequest>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, String>((move || {
-                    let mut api_that_guard = None;
-                    let decode_indices_ =
-                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
-                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
-                                &api_that, 0, false,
-                            ),
-                        ]);
-                    for i in decode_indices_ {
-                        match i {
-                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
-                            _ => unreachable!(),
-                        }
-                    }
-                    let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::library::LibraryTransport::render_waveform_lane(
-                        &*api_that_guard,
-                        api_request,
                     )?;
                     Ok(output_ok)
                 })())
@@ -904,13 +848,6 @@ impl SseDecode for bool {
     }
 }
 
-impl SseDecode for f32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_f32::<NativeEndian>().unwrap()
-    }
-}
-
 impl SseDecode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -987,6 +924,7 @@ impl SseDecode for crate::api::library::LibraryTrackSummary {
         let mut var_key = <Option<String>>::sse_decode(deserializer);
         let mut var_durationMs = <Option<i32>>::sse_decode(deserializer);
         let mut var_path = <String>::sse_decode(deserializer);
+        let mut var_artwork = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::library::LibraryTrackSummary {
             id: var_id,
             display_name: var_displayName,
@@ -998,6 +936,7 @@ impl SseDecode for crate::api::library::LibraryTrackSummary {
             key: var_key,
             duration_ms: var_durationMs,
             path: var_path,
+            artwork: var_artwork,
         };
     }
 }
@@ -1178,38 +1117,6 @@ impl SseDecode for crate::api::engine::OutputDevice {
     }
 }
 
-impl SseDecode for crate::api::library::RenderWaveformLaneRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_trackId = <Option<String>>::sse_decode(deserializer);
-        let mut var_path = <Option<String>>::sse_decode(deserializer);
-        let mut var_width = <u32>::sse_decode(deserializer);
-        let mut var_height = <u32>::sse_decode(deserializer);
-        let mut var_positionMs = <i32>::sse_decode(deserializer);
-        let mut var_visibleMs = <i32>::sse_decode(deserializer);
-        let mut var_bufferRatio = <f64>::sse_decode(deserializer);
-        let mut var_includeDetail = <bool>::sse_decode(deserializer);
-        let mut var_includeBeatGrid = <bool>::sse_decode(deserializer);
-        let mut var_eqLowDb = <f32>::sse_decode(deserializer);
-        let mut var_eqMidDb = <f32>::sse_decode(deserializer);
-        let mut var_eqHighDb = <f32>::sse_decode(deserializer);
-        return crate::api::library::RenderWaveformLaneRequest {
-            track_id: var_trackId,
-            path: var_path,
-            width: var_width,
-            height: var_height,
-            position_ms: var_positionMs,
-            visible_ms: var_visibleMs,
-            buffer_ratio: var_bufferRatio,
-            include_detail: var_includeDetail,
-            include_beat_grid: var_includeBeatGrid,
-            eq_low_db: var_eqLowDb,
-            eq_mid_db: var_eqMidDb,
-            eq_high_db: var_eqHighDb,
-        };
-    }
-}
-
 impl SseDecode for crate::api::library::ResolvedLibraryTrack {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -1276,7 +1183,7 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        3 => wire__crate__api__library__LibraryTransport_get_track_artwork_impl(
+        3 => wire__crate__api__library__LibraryTransport_get_track_impl(
             port,
             ptr,
             rust_vec_len,
@@ -1309,29 +1216,23 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        9 => wire__crate__api__library__LibraryTransport_render_waveform_lane_impl(
+        9 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        10 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
+        10 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        11 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
-            port,
-            ptr,
-            rust_vec_len,
-            data_len,
-        ),
-        13 => wire__crate__api__engine__engine_is_running_impl(port, ptr, rust_vec_len, data_len),
-        14 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        16 => wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len),
-        17 => wire__crate__api__engine__start_engine_impl(port, ptr, rust_vec_len, data_len),
-        18 => wire__crate__api__engine__stop_engine_impl(port, ptr, rust_vec_len, data_len),
+        12 => wire__crate__api__engine__engine_is_running_impl(port, ptr, rust_vec_len, data_len),
+        13 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        15 => wire__crate__api__engine__list_output_devices_impl(port, ptr, rust_vec_len, data_len),
+        16 => wire__crate__api__engine__start_engine_impl(port, ptr, rust_vec_len, data_len),
+        17 => wire__crate__api__engine__stop_engine_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1344,8 +1245,8 @@ fn pde_ffi_dispatcher_sync_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartSse {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        12 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
-        15 => wire__crate__api__engine__list_backend_names_impl(ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        14 => wire__crate__api__engine__list_backend_names_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1475,6 +1376,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryTrackSummary 
             self.key.into_into_dart().into_dart(),
             self.duration_ms.into_into_dart().into_dart(),
             self.path.into_into_dart().into_dart(),
+            self.artwork.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -1511,37 +1413,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::OutputDevice>
     for crate::api::engine::OutputDevice
 {
     fn into_into_dart(self) -> crate::api::engine::OutputDevice {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::library::RenderWaveformLaneRequest {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.track_id.into_into_dart().into_dart(),
-            self.path.into_into_dart().into_dart(),
-            self.width.into_into_dart().into_dart(),
-            self.height.into_into_dart().into_dart(),
-            self.position_ms.into_into_dart().into_dart(),
-            self.visible_ms.into_into_dart().into_dart(),
-            self.buffer_ratio.into_into_dart().into_dart(),
-            self.include_detail.into_into_dart().into_dart(),
-            self.include_beat_grid.into_into_dart().into_dart(),
-            self.eq_low_db.into_into_dart().into_dart(),
-            self.eq_mid_db.into_into_dart().into_dart(),
-            self.eq_high_db.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::library::RenderWaveformLaneRequest
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::library::RenderWaveformLaneRequest>
-    for crate::api::library::RenderWaveformLaneRequest
-{
-    fn into_into_dart(self) -> crate::api::library::RenderWaveformLaneRequest {
         self
     }
 }
@@ -1626,13 +1497,6 @@ impl SseEncode for bool {
     }
 }
 
-impl SseEncode for f32 {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_f32::<NativeEndian>(self).unwrap();
-    }
-}
-
 impl SseEncode for f64 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1699,6 +1563,7 @@ impl SseEncode for crate::api::library::LibraryTrackSummary {
         <Option<String>>::sse_encode(self.key, serializer);
         <Option<i32>>::sse_encode(self.duration_ms, serializer);
         <String>::sse_encode(self.path, serializer);
+        <Option<Vec<u8>>>::sse_encode(self.artwork, serializer);
     }
 }
 
@@ -1840,24 +1705,6 @@ impl SseEncode for crate::api::engine::OutputDevice {
         <bool>::sse_encode(self.is_default, serializer);
         <u16>::sse_encode(self.max_channels, serializer);
         <Vec<u32>>::sse_encode(self.default_sample_rates, serializer);
-    }
-}
-
-impl SseEncode for crate::api::library::RenderWaveformLaneRequest {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <Option<String>>::sse_encode(self.track_id, serializer);
-        <Option<String>>::sse_encode(self.path, serializer);
-        <u32>::sse_encode(self.width, serializer);
-        <u32>::sse_encode(self.height, serializer);
-        <i32>::sse_encode(self.position_ms, serializer);
-        <i32>::sse_encode(self.visible_ms, serializer);
-        <f64>::sse_encode(self.buffer_ratio, serializer);
-        <bool>::sse_encode(self.include_detail, serializer);
-        <bool>::sse_encode(self.include_beat_grid, serializer);
-        <f32>::sse_encode(self.eq_low_db, serializer);
-        <f32>::sse_encode(self.eq_mid_db, serializer);
-        <f32>::sse_encode(self.eq_high_db, serializer);
     }
 }
 
