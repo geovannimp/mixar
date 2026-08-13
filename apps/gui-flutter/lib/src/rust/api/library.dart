@@ -6,11 +6,25 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `collection_summary`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `track_display_name`, `track_summary`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 abstract class LibraryTransport implements RustOpaqueInterface {
+  /// Add a folder as a collection and sync its tracks.
+  Future<AddFolderCollectionResult> addFolderCollection({
+    required String folderPath,
+  });
+
+  /// Queue analyze for a track (worker emits `TrackAnalyzed` / `Error`).
+  Future<void> analyzeTrack({required String trackId, required bool force});
+
+  /// Embedded artwork bytes for a track id and/or file path.
+  ///
+  /// Returns `Ok(None)` when the file has no artwork (e.g. minimal WAV).
+  Future<Uint8List?> getTrackArtwork({String? trackId, String? path});
+
   /// List tracks in a collection.
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
@@ -26,6 +40,62 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// In-memory library for tests.
   static Future<LibraryTransport> openInMemory() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory();
+
+  /// Queue metadata refresh for a track (worker emits `TrackUpdated` / `Error`).
+  Future<void> refreshTrack({required String trackId});
+
+  /// Render a scrolling waveform lane and return Tauri-compatible packed `WFR1` bytes.
+  ///
+  /// Overview peaks come from the library when present; otherwise an empty overview
+  /// yields a valid silent/background frame. Detail windows are skipped this pass
+  /// (no AppState audio cache).
+  Future<Uint8List> renderWaveformLane({
+    required RenderWaveformLaneRequest request,
+  });
+
+  /// Resolve library tracks for the given filesystem paths.
+  Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
+    required List<String> paths,
+  });
+
+  /// Forward thin typed library events to Dart via FRB `StreamSink`.
+  Stream<LibraryEvt> subscribeEvents();
+}
+
+/// Result of adding a folder collection and syncing it.
+class AddFolderCollectionResult {
+  final LibraryCollectionSummary collection;
+  final int added;
+  final int updated;
+  final int skipped;
+  final int failed;
+
+  const AddFolderCollectionResult({
+    required this.collection,
+    required this.added,
+    required this.updated,
+    required this.skipped,
+    required this.failed,
+  });
+
+  @override
+  int get hashCode =>
+      collection.hashCode ^
+      added.hashCode ^
+      updated.hashCode ^
+      skipped.hashCode ^
+      failed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AddFolderCollectionResult &&
+          runtimeType == other.runtimeType &&
+          collection == other.collection &&
+          added == other.added &&
+          updated == other.updated &&
+          skipped == other.skipped &&
+          failed == other.failed;
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -63,6 +133,40 @@ class LibraryCollectionSummary {
           path == other.path &&
           trackCount == other.trackCount;
 }
+
+/// Thin typed library egress for Dart (no MessagePack on the Flutter side).
+///
+/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
+class LibraryEvt {
+  final LibraryEvtKind kind;
+  final LibraryTrackSummary? track;
+  final String? message;
+  final String? trackId;
+
+  const LibraryEvt({
+    required this.kind,
+    this.track,
+    this.message,
+    this.trackId,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^ track.hashCode ^ message.hashCode ^ trackId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LibraryEvt &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          track == other.track &&
+          message == other.message &&
+          trackId == other.trackId;
+}
+
+/// Discriminator for thin library egress (unit enum — no freezed on Dart).
+enum LibraryEvtKind { trackAnalyzed, trackUpdated, error, notice }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
 class LibraryTrackSummary {
@@ -118,4 +222,87 @@ class LibraryTrackSummary {
           key == other.key &&
           durationMs == other.durationMs &&
           path == other.path;
+}
+
+/// Request for a Tauri-compatible packed scrolling waveform lane (`WFR1`).
+class RenderWaveformLaneRequest {
+  final String? trackId;
+  final String? path;
+  final int width;
+  final int height;
+  final int positionMs;
+  final int visibleMs;
+  final double bufferRatio;
+  final bool includeDetail;
+  final bool includeBeatGrid;
+  final double eqLowDb;
+  final double eqMidDb;
+  final double eqHighDb;
+
+  const RenderWaveformLaneRequest({
+    this.trackId,
+    this.path,
+    required this.width,
+    required this.height,
+    required this.positionMs,
+    required this.visibleMs,
+    required this.bufferRatio,
+    required this.includeDetail,
+    required this.includeBeatGrid,
+    required this.eqLowDb,
+    required this.eqMidDb,
+    required this.eqHighDb,
+  });
+
+  @override
+  int get hashCode =>
+      trackId.hashCode ^
+      path.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      positionMs.hashCode ^
+      visibleMs.hashCode ^
+      bufferRatio.hashCode ^
+      includeDetail.hashCode ^
+      includeBeatGrid.hashCode ^
+      eqLowDb.hashCode ^
+      eqMidDb.hashCode ^
+      eqHighDb.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RenderWaveformLaneRequest &&
+          runtimeType == other.runtimeType &&
+          trackId == other.trackId &&
+          path == other.path &&
+          width == other.width &&
+          height == other.height &&
+          positionMs == other.positionMs &&
+          visibleMs == other.visibleMs &&
+          bufferRatio == other.bufferRatio &&
+          includeDetail == other.includeDetail &&
+          includeBeatGrid == other.includeBeatGrid &&
+          eqLowDb == other.eqLowDb &&
+          eqMidDb == other.eqMidDb &&
+          eqHighDb == other.eqHighDb;
+}
+
+/// Path lookup hit: original request path + resolved track summary.
+class ResolvedLibraryTrack {
+  final String requestPath;
+  final LibraryTrackSummary track;
+
+  const ResolvedLibraryTrack({required this.requestPath, required this.track});
+
+  @override
+  int get hashCode => requestPath.hashCode ^ track.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResolvedLibraryTrack &&
+          runtimeType == other.runtimeType &&
+          requestPath == other.requestPath &&
+          track == other.track;
 }

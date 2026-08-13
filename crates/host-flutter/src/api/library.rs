@@ -16,7 +16,7 @@ use library_api::{
 };
 use library_core::{AudioSource, Collection, CollectionId, Library};
 
-use crate::frb_generated::{SseEncode, StreamSink};
+use crate::frb_generated::StreamSink;
 use crate::waveform_render::{pack_waveform_frame, render_scrolling_lane, WaveformDisplayGains};
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -78,22 +78,24 @@ pub struct RenderWaveformLaneRequest {
     pub eq_high_db: f32,
 }
 
+/// Discriminator for thin library egress (unit enum — no freezed on Dart).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LibraryEvtKind {
+    TrackAnalyzed,
+    TrackUpdated,
+    Error,
+    Notice,
+}
+
 /// Thin typed library egress for Dart (no MessagePack on the Flutter side).
+///
+/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
 #[derive(Clone, Debug)]
-pub enum LibraryEvt {
-    TrackAnalyzed {
-        track: LibraryTrackSummary,
-    },
-    TrackUpdated {
-        track: LibraryTrackSummary,
-    },
-    Error {
-        message: String,
-        track_id: Option<String>,
-    },
-    Notice {
-        message: String,
-    },
+pub struct LibraryEvt {
+    pub kind: LibraryEvtKind,
+    pub track: Option<LibraryTrackSummary>,
+    pub message: Option<String>,
+    pub track_id: Option<String>,
 }
 
 /// Host-owned library handle exposed to Dart via FRB methods.
@@ -410,18 +412,34 @@ impl LibraryTransport {
     }
 }
 
-/// Map omnibus library egress to the thin Dart-facing enum (ignores Navigate/Load/cues/…).
+/// Map omnibus library egress to the thin Dart-facing evt (ignores Navigate/Load/cues/…).
 pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
     let body = decode_evt_body(ev.payload()).ok()?;
     match body {
-        EvtBody::TrackAnalyzed { track } => Some(LibraryEvt::TrackAnalyzed {
-            track: api_track_summary(track),
+        EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
+            kind: LibraryEvtKind::TrackAnalyzed,
+            track: Some(api_track_summary(track)),
+            message: None,
+            track_id: None,
         }),
-        EvtBody::TrackUpdated { track } => Some(LibraryEvt::TrackUpdated {
-            track: api_track_summary(track),
+        EvtBody::TrackUpdated { track } => Some(LibraryEvt {
+            kind: LibraryEvtKind::TrackUpdated,
+            track: Some(api_track_summary(track)),
+            message: None,
+            track_id: None,
         }),
-        EvtBody::Error { message, track_id } => Some(LibraryEvt::Error { message, track_id }),
-        EvtBody::Notice { message } => Some(LibraryEvt::Notice { message }),
+        EvtBody::Error { message, track_id } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Error,
+            track: None,
+            message: Some(message),
+            track_id,
+        }),
+        EvtBody::Notice { message } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Notice,
+            track: None,
+            message: Some(message),
+            track_id: None,
+        }),
         EvtBody::Empty
         | EvtBody::HotCuesChanged { .. }
         | EvtBody::LoopsChanged { .. }
@@ -496,31 +514,6 @@ fn track_display_name(source: &AudioSource) -> String {
         .unwrap_or_else(|| source.id().as_str().to_string())
 }
 
-// Temporary until Task 5 FRB codegen emits `SseEncode` for `LibraryEvt` (remove this impl then).
-impl SseEncode for LibraryEvt {
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            Self::TrackAnalyzed { track } => {
-                <i32>::sse_encode(0, serializer);
-                <LibraryTrackSummary>::sse_encode(track, serializer);
-            }
-            Self::TrackUpdated { track } => {
-                <i32>::sse_encode(1, serializer);
-                <LibraryTrackSummary>::sse_encode(track, serializer);
-            }
-            Self::Error { message, track_id } => {
-                <i32>::sse_encode(2, serializer);
-                <String>::sse_encode(message, serializer);
-                <Option<String>>::sse_encode(track_id, serializer);
-            }
-            Self::Notice { message } => {
-                <i32>::sse_encode(3, serializer);
-                <String>::sse_encode(message, serializer);
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -558,13 +551,10 @@ mod tests {
             )
             .unwrap();
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        match map_library_evt(ev.as_ref()).expect("Error maps") {
-            LibraryEvt::Error { message, track_id } => {
-                assert_eq!(message, "missing");
-                assert_eq!(track_id.as_deref(), Some("t1"));
-            }
-            other => panic!("unexpected {other:?}"),
-        }
+        let mapped = map_library_evt(ev.as_ref()).expect("Error maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::Error);
+        assert_eq!(mapped.message.as_deref(), Some("missing"));
+        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
 
         buses
             .publish_evt(
@@ -576,14 +566,12 @@ mod tests {
             )
             .unwrap();
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        match map_library_evt(ev.as_ref()).expect("TrackUpdated maps") {
-            LibraryEvt::TrackUpdated { track } => {
-                assert_eq!(track.id, "t1");
-                assert_eq!(track.display_name, "Track One");
-                assert_eq!(track.bpm, Some(128.0));
-            }
-            other => panic!("unexpected {other:?}"),
-        }
+        let mapped = map_library_evt(ev.as_ref()).expect("TrackUpdated maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::TrackUpdated);
+        let track = mapped.track.expect("track");
+        assert_eq!(track.id, "t1");
+        assert_eq!(track.display_name, "Track One");
+        assert_eq!(track.bpm, Some(128.0));
 
         buses
             .publish_evt(
