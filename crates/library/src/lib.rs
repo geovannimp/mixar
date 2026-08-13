@@ -35,6 +35,8 @@ use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
 #[cfg(feature = "analysis")]
 use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 
+use library_api::{EvtBody, Kind, Origin};
+use library_core::AnalysisDurationMode;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -47,7 +49,7 @@ pub use library_core::{
     TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
-pub use bus::{Evt, EvtReceiver, LibraryBus};
+pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
 pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
@@ -61,6 +63,7 @@ pub use sampler_data::{
 pub use session::LibrarySession;
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
+pub use worker::{spawn_library_worker, LibraryWorker};
 
 /// Library-owned playback handoff for engine/sampler consumers.
 #[derive(Clone)]
@@ -76,6 +79,8 @@ pub struct LibraryManager {
     db: db::Db,
     config: LibraryConfig,
     decode_cache: Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
+    /// Host-injected omnibus buses (None until [`Self::set_buses`]).
+    buses: Option<LibraryBuses>,
 }
 
 impl LibraryManager {
@@ -85,6 +90,7 @@ impl LibraryManager {
             db: db::open(db_path.as_ref())?,
             config,
             decode_cache: Mutex::new(HashMap::new()),
+            buses: None,
         })
     }
 
@@ -94,11 +100,60 @@ impl LibraryManager {
             db: db::open_in_memory()?,
             config,
             decode_cache: Mutex::new(HashMap::new()),
+            buses: None,
         })
     }
 
     fn store(&self) -> store::Store<'_> {
         store::Store::new(&self.db)
+    }
+
+    /// Attach host-owned omnibus buses (clones stored on the manager).
+    pub fn set_buses(&mut self, buses: LibraryBuses) {
+        self.buses = Some(buses);
+    }
+
+    /// Clone of attached buses, if any.
+    pub fn buses(&self) -> Option<LibraryBuses> {
+        self.buses.clone()
+    }
+
+    fn require_buses(&self) -> Result<&LibraryBuses> {
+        self.buses.as_ref().ok_or_else(|| LibraryError::Backend {
+            backend: "library",
+            message: "library buses not attached; call set_buses first".into(),
+        })
+    }
+
+    /// Fire-and-forget publish of a command (nested `CmdBody` bytes in payload).
+    pub fn publish_cmd(&self, origin: Origin, kind: Kind, body: impl AsRef<[u8]>) -> Result<()> {
+        self.require_buses()?.publish_cmd(origin, kind, body)
+    }
+
+    /// Encode `EvtBody`, bump revision, publish on the evt bus.
+    pub fn publish_evt(&self, origin: Origin, kind: Kind, body: EvtBody) -> Result<()> {
+        self.require_buses()?.publish_evt(origin, kind, body)
+    }
+
+    /// Subscribe to all egress events (host bridge).
+    pub fn subscribe_evt_all(&self) -> Result<EvtReceiver> {
+        self.require_buses()?.subscribe_evt_all()
+    }
+
+    /// Subscribe to egress events for one track (`Origin::Track`).
+    pub fn subscribe_evt_track(&self, track_id: impl Into<String>) -> Result<EvtReceiver> {
+        self.require_buses()?.subscribe_evt_track(track_id)
+    }
+
+    /// Update default analysis duration used by AnalyzeTrack cmds.
+    pub fn set_analysis_duration(&self, duration: AnalysisDurationMode) -> Result<()> {
+        self.require_buses()?.set_analysis_duration(duration);
+        Ok(())
+    }
+
+    /// Monotonic revision bumped when discrete library state changes.
+    pub fn revision(&self) -> Result<u64> {
+        Ok(self.require_buses()?.revision())
     }
 
     /// Borrow the library configuration.

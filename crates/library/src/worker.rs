@@ -1,7 +1,7 @@
 //! Library worker thread: drains cmd bus and publishes evt.
 
 use crate::bus::LibraryBus;
-use crate::{HotCueRecord, LibraryManager, LoopRecord};
+use crate::{HotCueRecord, LibraryError, LibraryManager, LoopRecord};
 use library_api::{
     decode_cmd_body, encode_evt_body, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
     TrackSummary,
@@ -12,9 +12,69 @@ use library_core::{
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 const RECV_TIMEOUT: Duration = Duration::from_millis(100);
+
+/// Host-owned library cmd worker (JoinHandle must not live inside `Mutex<LibraryManager>`).
+pub struct LibraryWorker {
+    shutdown: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Drop for LibraryWorker {
+    fn drop(&mut self) {
+        self.shutdown.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Spawn the cmd-draining worker using buses attached to `library`.
+///
+/// Errors if [`LibraryManager::set_buses`] was not called, or if the worker
+/// fails to subscribe to the cmd bus.
+pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Result<LibraryWorker> {
+    let buses = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.buses().ok_or_else(|| LibraryError::Backend {
+            backend: "library",
+            message: "library buses not attached; call set_buses before spawn_library_worker"
+                .into(),
+        })?
+    };
+
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let cmd = buses.cmd_bus();
+    let evt = buses.evt_bus();
+    let duration_handle = buses.analysis_duration_arc();
+    let revision_handle = buses.revision_arc();
+    let library_handle = Arc::clone(&library);
+    let shutdown_flag = Arc::clone(&shutdown);
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
+    let handle = thread::spawn(move || {
+        worker_thread_loop(
+            cmd,
+            evt,
+            library_handle,
+            duration_handle,
+            revision_handle,
+            shutdown_flag,
+            ready_tx,
+        );
+    });
+    ready_rx
+        .recv()
+        .map_err(|_| LibraryError::Io(std::io::Error::other("library worker failed to start")))?
+        .map_err(|e| LibraryError::Io(std::io::Error::other(e)))?;
+
+    Ok(LibraryWorker {
+        shutdown,
+        handle: Some(handle),
+    })
+}
 
 pub(crate) fn worker_thread_loop(
     cmd_bus: LibraryBus,

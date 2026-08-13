@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 773945274;
+  int get rustContentHash => -811136485;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -80,6 +80,23 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
+  Future<AddFolderCollectionResult>
+  crateApiLibraryLibraryTransportAddFolderCollection({
+    required LibraryTransport that,
+    required String folderPath,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
+    required LibraryTransport that,
+    required String trackId,
+    required bool force,
+  });
+
+  Future<LibraryTrackSummary?> crateApiLibraryLibraryTransportGetTrack({
+    required LibraryTransport that,
+    required String trackId,
+  });
+
   Future<List<LibraryTrackSummary>>
   crateApiLibraryLibraryTransportListCollectionTracks({
     required LibraryTransport that,
@@ -96,6 +113,21 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<LibraryTransport> crateApiLibraryLibraryTransportOpenInMemory();
+
+  Future<void> crateApiLibraryLibraryTransportRefreshTrack({
+    required LibraryTransport that,
+    required String trackId,
+  });
+
+  Future<List<ResolvedLibraryTrack>>
+  crateApiLibraryLibraryTransportResolveTracksForPaths({
+    required LibraryTransport that,
+    required List<String> paths,
+  });
+
+  Stream<LibraryEvt> crateApiLibraryLibraryTransportSubscribeEvents({
+    required LibraryTransport that,
+  });
 
   String crateApiMetaAppDisplayName();
 
@@ -136,6 +168,124 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
+  Future<AddFolderCollectionResult>
+  crateApiLibraryLibraryTransportAddFolderCollection({
+    required LibraryTransport that,
+    required String folderPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(folderPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 1,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_add_folder_collection_result,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta,
+        argValues: [that, folderPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_add_folder_collection",
+        argNames: ["that", "folderPath"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
+    required LibraryTransport that,
+    required String trackId,
+    required bool force,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(trackId, serializer);
+          sse_encode_bool(force, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 2,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportAnalyzeTrackConstMeta,
+        argValues: [that, trackId, force],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportAnalyzeTrackConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_analyze_track",
+        argNames: ["that", "trackId", "force"],
+      );
+
+  @override
+  Future<LibraryTrackSummary?> crateApiLibraryLibraryTransportGetTrack({
+    required LibraryTransport that,
+    required String trackId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(trackId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 3,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_opt_box_autoadd_library_track_summary,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportGetTrackConstMeta,
+        argValues: [that, trackId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportGetTrackConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_get_track",
+        argNames: ["that", "trackId"],
+      );
+
+  @override
   Future<List<LibraryTrackSummary>>
   crateApiLibraryLibraryTransportListCollectionTracks({
     required LibraryTransport that,
@@ -153,7 +303,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 1,
+            funcId: 4,
             port: port_,
           );
         },
@@ -192,7 +342,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 2,
+            funcId: 5,
             port: port_,
           );
         },
@@ -225,7 +375,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 3,
+            funcId: 6,
             port: port_,
           );
         },
@@ -256,7 +406,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 7,
             port: port_,
           );
         },
@@ -279,12 +429,132 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportRefreshTrack({
+    required LibraryTransport that,
+    required String trackId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(trackId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportRefreshTrackConstMeta,
+        argValues: [that, trackId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportRefreshTrackConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_refresh_track",
+        argNames: ["that", "trackId"],
+      );
+
+  @override
+  Future<List<ResolvedLibraryTrack>>
+  crateApiLibraryLibraryTransportResolveTracksForPaths({
+    required LibraryTransport that,
+    required List<String> paths,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_list_String(paths, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_resolved_library_track,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportResolveTracksForPathsConstMeta,
+        argValues: [that, paths],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportResolveTracksForPathsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_resolve_tracks_for_paths",
+        argNames: ["that", "paths"],
+      );
+
+  @override
+  Stream<LibraryEvt> crateApiLibraryLibraryTransportSubscribeEvents({
+    required LibraryTransport that,
+  }) {
+    final sink = RustStreamSink<LibraryEvt>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_library_evt_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 10,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: sse_decode_String,
+          ),
+          constMeta: kCrateApiLibraryLibraryTransportSubscribeEventsConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportSubscribeEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_subscribe_events",
+        argNames: ["that", "sink"],
+      );
+
+  @override
   String crateApiMetaAppDisplayName() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -309,7 +579,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 12,
             port: port_,
           );
         },
@@ -336,7 +606,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 13,
             port: port_,
           );
         },
@@ -360,7 +630,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -388,7 +658,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 15,
             port: port_,
           );
         },
@@ -425,7 +695,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 16,
             port: port_,
           );
         },
@@ -454,7 +724,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 17,
             port: port_,
           );
         },
@@ -479,6 +749,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustArcDecrementStrongCountFnType
   get rust_arc_decrement_strong_count_LibraryTransport => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport;
+
+  @protected
+  AnyhowException dco_decode_AnyhowException(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnyhowException(raw as String);
+  }
 
   @protected
   LibraryTransport
@@ -508,9 +784,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<LibraryEvt> dco_decode_StreamSink_library_evt_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
+  }
+
+  @protected
   String dco_decode_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as String;
+  }
+
+  @protected
+  AddFolderCollectionResult dco_decode_add_folder_collection_result(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    return AddFolderCollectionResult(
+      collection: dco_decode_library_collection_summary(arr[0]),
+      added: dco_decode_u_32(arr[1]),
+      updated: dco_decode_u_32(arr[2]),
+      skipped: dco_decode_u_32(arr[3]),
+      failed: dco_decode_u_32(arr[4]),
+    );
   }
 
   @protected
@@ -529,6 +830,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_library_track_summary(raw);
   }
 
   @protected
@@ -565,11 +874,31 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryEvt dco_decode_library_evt(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return LibraryEvt(
+      kind: dco_decode_library_evt_kind(arr[0]),
+      track: dco_decode_opt_box_autoadd_library_track_summary(arr[1]),
+      message: dco_decode_opt_String(arr[2]),
+      trackId: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  LibraryEvtKind dco_decode_library_evt_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryEvtKind.values[raw as int];
+  }
+
+  @protected
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
     return LibraryTrackSummary(
       id: dco_decode_String(arr[0]),
       displayName: dco_decode_String(arr[1]),
@@ -581,6 +910,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: dco_decode_opt_String(arr[7]),
       durationMs: dco_decode_opt_box_autoadd_i_32(arr[8]),
       path: dco_decode_String(arr[9]),
+      artwork: dco_decode_opt_list_prim_u_8_strict(arr[10]),
     );
   }
 
@@ -627,6 +957,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ResolvedLibraryTrack> dco_decode_list_resolved_library_track(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_resolved_library_track)
+        .toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -645,9 +985,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryTrackSummary? dco_decode_opt_box_autoadd_library_track_summary(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_library_track_summary(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_32(raw);
+  }
+
+  @protected
+  Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
   }
 
   @protected
@@ -662,6 +1018,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       isDefault: dco_decode_bool(arr[2]),
       maxChannels: dco_decode_u_16(arr[3]),
       defaultSampleRates: dco_decode_list_prim_u_32_strict(arr[4]),
+    );
+  }
+
+  @protected
+  ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ResolvedLibraryTrack(
+      requestPath: dco_decode_String(arr[0]),
+      track: dco_decode_library_track_summary(arr[1]),
     );
   }
 
@@ -693,6 +1061,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_String(deserializer);
+    return AnyhowException(inner);
   }
 
   @protected
@@ -732,10 +1107,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  RustStreamSink<LibraryEvt> sse_decode_StreamSink_library_evt_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
+  }
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
+  }
+
+  @protected
+  AddFolderCollectionResult sse_decode_add_folder_collection_result(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_collection = sse_decode_library_collection_summary(deserializer);
+    var var_added = sse_decode_u_32(deserializer);
+    var var_updated = sse_decode_u_32(deserializer);
+    var var_skipped = sse_decode_u_32(deserializer);
+    var var_failed = sse_decode_u_32(deserializer);
+    return AddFolderCollectionResult(
+      collection: var_collection,
+      added: var_added,
+      updated: var_updated,
+      skipped: var_skipped,
+      failed: var_failed,
+    );
   }
 
   @protected
@@ -754,6 +1156,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  LibraryTrackSummary sse_decode_box_autoadd_library_track_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_library_track_summary(deserializer));
   }
 
   @protected
@@ -794,6 +1204,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryEvt sse_decode_library_evt(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_library_evt_kind(deserializer);
+    var var_track = sse_decode_opt_box_autoadd_library_track_summary(
+      deserializer,
+    );
+    var var_message = sse_decode_opt_String(deserializer);
+    var var_trackId = sse_decode_opt_String(deserializer);
+    return LibraryEvt(
+      kind: var_kind,
+      track: var_track,
+      message: var_message,
+      trackId: var_trackId,
+    );
+  }
+
+  @protected
+  LibraryEvtKind sse_decode_library_evt_kind(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryEvtKind.values[inner];
+  }
+
+  @protected
   LibraryTrackSummary sse_decode_library_track_summary(
     SseDeserializer deserializer,
   ) {
@@ -808,6 +1242,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_key = sse_decode_opt_String(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_path = sse_decode_String(deserializer);
+    var var_artwork = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return LibraryTrackSummary(
       id: var_id,
       displayName: var_displayName,
@@ -819,6 +1254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: var_key,
       durationMs: var_durationMs,
       path: var_path,
+      artwork: var_artwork,
     );
   }
 
@@ -891,6 +1327,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<ResolvedLibraryTrack> sse_decode_list_resolved_library_track(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ResolvedLibraryTrack>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_resolved_library_track(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -924,11 +1374,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryTrackSummary? sse_decode_opt_box_autoadd_library_track_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_library_track_summary(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_u_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_prim_u_8_strict(deserializer));
     } else {
       return null;
     }
@@ -949,6 +1423,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       maxChannels: var_maxChannels,
       defaultSampleRates: var_defaultSampleRates,
     );
+  }
+
+  @protected
+  ResolvedLibraryTrack sse_decode_resolved_library_track(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_requestPath = sse_decode_String(deserializer);
+    var var_track = sse_decode_library_track_summary(deserializer);
+    return ResolvedLibraryTrack(requestPath: var_requestPath, track: var_track);
   }
 
   @protected
@@ -978,6 +1462,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.message, serializer);
   }
 
   @protected
@@ -1020,9 +1513,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_StreamSink_library_evt_Sse(
+    RustStreamSink<LibraryEvt> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_library_evt,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_u_8_strict(utf8.encoder.convert(self), serializer);
+  }
+
+  @protected
+  void sse_encode_add_folder_collection_result(
+    AddFolderCollectionResult self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_library_collection_summary(self.collection, serializer);
+    sse_encode_u_32(self.added, serializer);
+    sse_encode_u_32(self.updated, serializer);
+    sse_encode_u_32(self.skipped, serializer);
+    sse_encode_u_32(self.failed, serializer);
   }
 
   @protected
@@ -1041,6 +1564,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_library_track_summary(
+    LibraryTrackSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_library_track_summary(self, serializer);
   }
 
   @protected
@@ -1075,6 +1607,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_library_evt(LibraryEvt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_library_evt_kind(self.kind, serializer);
+    sse_encode_opt_box_autoadd_library_track_summary(self.track, serializer);
+    sse_encode_opt_String(self.message, serializer);
+    sse_encode_opt_String(self.trackId, serializer);
+  }
+
+  @protected
+  void sse_encode_library_evt_kind(
+    LibraryEvtKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -1090,6 +1640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.key, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_String(self.path, serializer);
+    sse_encode_opt_list_prim_u_8_strict(self.artwork, serializer);
   }
 
   @protected
@@ -1158,6 +1709,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_resolved_library_track(
+    List<ResolvedLibraryTrack> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_resolved_library_track(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -1188,12 +1751,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_library_track_summary(
+    LibraryTrackSummary? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_library_track_summary(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_u_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_prim_u_8_strict(
+    Uint8List? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_prim_u_8_strict(self, serializer);
     }
   }
 
@@ -1205,6 +1794,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.isDefault, serializer);
     sse_encode_u_16(self.maxChannels, serializer);
     sse_encode_list_prim_u_32_strict(self.defaultSampleRates, serializer);
+  }
+
+  @protected
+  void sse_encode_resolved_library_track(
+    ResolvedLibraryTrack self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.requestPath, serializer);
+    sse_encode_library_track_summary(self.track, serializer);
   }
 
   @protected
@@ -1260,7 +1859,29 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         .rust_arc_decrement_strong_count_LibraryTransportPtr,
   );
 
-  /// List tracks in a collection.
+  /// Add a folder as a collection and sync its tracks.
+  Future<AddFolderCollectionResult> addFolderCollection({
+    required String folderPath,
+  }) => RustLib.instance.api.crateApiLibraryLibraryTransportAddFolderCollection(
+    that: this,
+    folderPath: folderPath,
+  );
+
+  /// Queue analyze for a track via the library cmd bus only (worker emits evt).
+  Future<void> analyzeTrack({required String trackId, required bool force}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportAnalyzeTrack(
+        that: this,
+        trackId: trackId,
+        force: force,
+      );
+
+  /// Load one track including embedded artwork when present.
+  Future<LibraryTrackSummary?> getTrack({required String trackId}) => RustLib
+      .instance
+      .api
+      .crateApiLibraryLibraryTransportGetTrack(that: this, trackId: trackId);
+
+  /// List tracks in a collection (artwork left unset for cheap browsing).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   }) =>
@@ -1274,4 +1895,26 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .instance
       .api
       .crateApiLibraryLibraryTransportListCollections(that: this);
+
+  /// Queue metadata refresh for a track via the library cmd bus only.
+  Future<void> refreshTrack({required String trackId}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportRefreshTrack(
+        that: this,
+        trackId: trackId,
+      );
+
+  /// Resolve library tracks for the given filesystem paths.
+  Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
+    required List<String> paths,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportResolveTracksForPaths(
+        that: this,
+        paths: paths,
+      );
+
+  /// Forward thin typed library events to Dart via FRB `StreamSink`.
+  ///
+  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
+  Stream<LibraryEvt> subscribeEvents() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportSubscribeEvents(that: this);
 }

@@ -1,9 +1,22 @@
 //! FRB `LibraryTransport`: browse collections + tracks (shared Tauri `library.db`).
 
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+use std::time::Duration;
 
-use library::{LibraryConfig, LibraryManager};
+use library::{
+    read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
+    LibraryWorker, NewCollection, TrackId, WritableLibrary,
+};
+use library_api::{
+    decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
+    TrackSummary as ApiTrackSummary,
+};
 use library_core::{AudioSource, Collection, CollectionId, Library};
+
+use crate::frb_generated::StreamSink;
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
 #[derive(Clone, Debug)]
@@ -28,6 +41,51 @@ pub struct LibraryTrackSummary {
     pub key: Option<String>,
     pub duration_ms: Option<i32>,
     pub path: String,
+    /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
+    /// Lists leave this `None` until artwork is persisted in the library DB.
+    pub artwork: Option<Vec<u8>>,
+}
+
+/// Result of adding a folder collection and syncing it.
+#[derive(Clone, Debug)]
+pub struct AddFolderCollectionResult {
+    pub collection: LibraryCollectionSummary,
+    pub added: u32,
+    pub updated: u32,
+    pub skipped: u32,
+    pub failed: u32,
+}
+
+/// Path lookup hit: original request path + resolved track summary.
+#[derive(Clone, Debug)]
+pub struct ResolvedLibraryTrack {
+    pub request_path: String,
+    pub track: LibraryTrackSummary,
+}
+
+/// Discriminator for thin library egress (unit enum — no freezed on Dart).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LibraryEvtKind {
+    TrackAnalyzed,
+    TrackUpdated,
+    Error,
+    Notice,
+}
+
+/// Thin typed library egress for Dart (no MessagePack on the Flutter side).
+///
+/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
+#[derive(Clone, Debug)]
+pub struct LibraryEvt {
+    pub kind: LibraryEvtKind,
+    pub track: Option<LibraryTrackSummary>,
+    pub message: Option<String>,
+    pub track_id: Option<String>,
+}
+
+struct EvtForwarder {
+    shutdown: Arc<AtomicBool>,
+    handle: JoinHandle<()>,
 }
 
 /// Host-owned library handle exposed to Dart via FRB methods.
@@ -35,7 +93,23 @@ pub struct LibraryTrackSummary {
 pub struct LibraryTransport {
     // ponytail: Mutex serializes browse calls per transport. Upgrade to a
     // read-capable manager / connection pool if concurrent queries matter.
-    inner: Mutex<LibraryManager>,
+    library: Arc<Mutex<LibraryManager>>,
+    buses: LibraryBuses,
+    /// Drop joins the worker; must not live inside the manager mutex.
+    #[allow(dead_code)]
+    worker: LibraryWorker,
+    /// Drop stops any active Dart evt forwarder.
+    evt_forwarder: Mutex<Option<EvtForwarder>>,
+}
+
+impl Drop for LibraryTransport {
+    fn drop(&mut self) {
+        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(fwd) = slot.take() {
+            fwd.shutdown.store(true, Ordering::Relaxed);
+            let _ = fwd.handle.join();
+        }
+    }
 }
 
 impl LibraryTransport {
@@ -43,24 +117,33 @@ impl LibraryTransport {
     pub fn open(db_path: String) -> Result<Self, String> {
         let manager =
             LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
-        Ok(Self {
-            inner: Mutex::new(manager),
-        })
+        Self::from_manager(manager)
     }
 
     /// In-memory library for tests.
     pub fn open_in_memory() -> Result<Self, String> {
         let manager =
             LibraryManager::open_in_memory(LibraryConfig::default()).map_err(|e| e.to_string())?;
+        Self::from_manager(manager)
+    }
+
+    fn from_manager(mut manager: LibraryManager) -> Result<Self, String> {
+        let buses = LibraryBuses::new();
+        manager.set_buses(buses.clone());
+        let library = Arc::new(Mutex::new(manager));
+        let worker = spawn_library_worker(Arc::clone(&library)).map_err(|e| e.to_string())?;
         Ok(Self {
-            inner: Mutex::new(manager),
+            library,
+            buses,
+            worker,
+            evt_forwarder: Mutex::new(None),
         })
     }
 
     /// List all collections with track counts.
     pub fn list_collections(&self) -> Result<Vec<LibraryCollectionSummary>, String> {
         let lib = self
-            .inner
+            .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         let collections = lib.list_collections().map_err(|e| e.to_string())?;
@@ -70,19 +153,216 @@ impl LibraryTransport {
             .collect()
     }
 
-    /// List tracks in a collection.
+    /// List tracks in a collection (artwork left unset — not stored in DB yet).
     pub fn list_collection_tracks(
         &self,
         collection_id: String,
     ) -> Result<Vec<LibraryTrackSummary>, String> {
+        let sources = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.get_collection_tracks(&CollectionId::new(collection_id))
+                .map_err(|e| e.to_string())?
+        };
+        Ok(sources
+            .iter()
+            .filter_map(|s| track_summary(s, false))
+            .collect())
+    }
+
+    /// Load one track including embedded artwork when present.
+    pub fn get_track(&self, track_id: String) -> Result<Option<LibraryTrackSummary>, String> {
+        let source = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.get_track(&TrackId::new(track_id))
+                .map_err(|e| e.to_string())?
+        };
+        Ok(source.as_ref().and_then(|s| track_summary(s, true)))
+    }
+
+    /// Add a folder as a collection and sync its tracks.
+    pub fn add_folder_collection(
+        &self,
+        folder_path: String,
+    ) -> Result<AddFolderCollectionResult, String> {
+        let collection_id = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.add_collection(&NewCollection::folder(folder_path))
+                .map_err(|e| e.to_string())?
+                .id
+        };
+
+        // ponytail: sync holds the manager mutex for the whole folder walk/import, so
+        // analyze/refresh cmds and other RPCs wait. Upgrade: sync off-mutex with a
+        // per-collection lock, or a background scan job that publishes progress evts.
+        let (scan, summary) = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            let scan = lib
+                .sync_collection(Some(&collection_id))
+                .map_err(|e| e.to_string())?;
+            let collection = lib
+                .list_collections()
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .find(|c| c.id == collection_id)
+                .ok_or_else(|| "collection missing after sync".to_string())?;
+            let summary = collection_summary(&lib, collection)?;
+            (scan, summary)
+        };
+
+        Ok(AddFolderCollectionResult {
+            collection: summary,
+            added: scan.added as u32,
+            updated: scan.updated as u32,
+            skipped: scan.skipped as u32,
+            failed: scan.failed as u32,
+        })
+    }
+
+    /// Resolve library tracks for the given filesystem paths.
+    pub fn resolve_tracks_for_paths(
+        &self,
+        paths: Vec<String>,
+    ) -> Result<Vec<ResolvedLibraryTrack>, String> {
         let lib = self
-            .inner
+            .library
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
-        let tracks = lib
-            .get_collection_tracks(&CollectionId::new(collection_id))
+        let path_bufs: Vec<PathBuf> = paths.into_iter().map(PathBuf::from).collect();
+        let resolved = lib
+            .lookup_file_tracks_at_paths(&path_bufs)
             .map_err(|e| e.to_string())?;
-        Ok(tracks.iter().filter_map(track_summary).collect())
+        Ok(resolved
+            .into_iter()
+            .filter_map(|(request_path, source)| {
+                track_summary(&source, false).map(|track| ResolvedLibraryTrack {
+                    request_path,
+                    track,
+                })
+            })
+            .collect())
+    }
+
+    /// Queue analyze for a track via the library cmd bus only (worker emits evt).
+    pub fn analyze_track(&self, track_id: String, force: bool) -> Result<(), String> {
+        let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack { track_id, force })
+            .map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Queue metadata refresh for a track via the library cmd bus only.
+    pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
+        let bytes =
+            encode_cmd_body(&CmdBody::RefreshTrack { track_id }).map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::RefreshTrack, bytes)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Forward thin typed library events to Dart via FRB `StreamSink`.
+    ///
+    /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
+    pub fn subscribe_events(&self, sink: StreamSink<LibraryEvt>) -> Result<(), String> {
+        let rx = self.buses.subscribe_evt_all().map_err(|e| e.to_string())?;
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown_flag = Arc::clone(&shutdown);
+        let handle = std::thread::Builder::new()
+            .name("library-evt-forwarder".into())
+            .spawn(move || {
+                while !shutdown_flag.load(Ordering::Relaxed) {
+                    match rx.recv_timeout(Duration::from_millis(100)) {
+                        Ok(Some(ev)) => {
+                            if let Some(mapped) = map_library_evt(ev.as_ref()) {
+                                if sink.add(mapped).is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                        Ok(None) => continue,
+                        Err(_) => break,
+                    }
+                }
+            })
+            .map_err(|e| e.to_string())?;
+
+        let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(prev) = slot.take() {
+            prev.shutdown.store(true, Ordering::Relaxed);
+            let _ = prev.handle.join();
+        }
+        *slot = Some(EvtForwarder { shutdown, handle });
+        Ok(())
+    }
+
+    /// Raw evt subscription for host/tests. Prefer [`Self::subscribe_events`] for Dart.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
+        self.buses.subscribe_evt_all().map_err(|e| e.to_string())
+    }
+}
+
+/// Map omnibus library egress to the thin Dart-facing evt (ignores Navigate/Load/cues/…).
+pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
+    let body = decode_evt_body(ev.payload()).ok()?;
+    match body {
+        EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
+            kind: LibraryEvtKind::TrackAnalyzed,
+            track: Some(api_track_summary(track)),
+            message: None,
+            track_id: None,
+        }),
+        EvtBody::TrackUpdated { track } => Some(LibraryEvt {
+            kind: LibraryEvtKind::TrackUpdated,
+            track: Some(api_track_summary(track)),
+            message: None,
+            track_id: None,
+        }),
+        EvtBody::Error { message, track_id } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Error,
+            track: None,
+            message: Some(message),
+            track_id,
+        }),
+        EvtBody::Notice { message } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Notice,
+            track: None,
+            message: Some(message),
+            track_id: None,
+        }),
+        EvtBody::Empty
+        | EvtBody::HotCuesChanged { .. }
+        | EvtBody::LoopsChanged { .. }
+        | EvtBody::Navigate { .. }
+        | EvtBody::Load { .. } => None,
+    }
+}
+
+fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
+    LibraryTrackSummary {
+        id: track.id,
+        display_name: track.display_name,
+        artist: track.artist,
+        title: track.title,
+        album: track.album,
+        genre: track.genre,
+        bpm: track.bpm,
+        key: track.key,
+        duration_ms: track.duration_ms,
+        path: track.path,
+        artwork: None,
     }
 }
 
@@ -105,9 +385,15 @@ fn collection_summary(
     })
 }
 
-fn track_summary(source: &AudioSource) -> Option<LibraryTrackSummary> {
+fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryTrackSummary> {
     let file = source.file()?;
     let metadata = source.metadata();
+    let path = file.path().to_path_buf();
+    let artwork = if include_artwork {
+        read_artwork(Path::new(&path)).ok().flatten()
+    } else {
+        None
+    };
     Some(LibraryTrackSummary {
         id: source.id().as_str().to_string(),
         display_name: track_display_name(source),
@@ -118,7 +404,8 @@ fn track_summary(source: &AudioSource) -> Option<LibraryTrackSummary> {
         bpm: metadata.bpm,
         key: metadata.key.clone(),
         duration_ms: metadata.duration_ms,
-        path: file.path().to_string_lossy().into_owned(),
+        path: path.to_string_lossy().into_owned(),
+        artwork,
     })
 }
 
@@ -135,4 +422,75 @@ fn track_display_name(source: &AudioSource) -> String {
                 .map(|s| s.to_string_lossy().into_owned())
         })
         .unwrap_or_else(|| source.id().as_str().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use library_api::EvtBody;
+    use std::time::Duration;
+
+    fn sample_api_track() -> ApiTrackSummary {
+        ApiTrackSummary {
+            id: "t1".into(),
+            display_name: "Track One".into(),
+            artist: Some("Artist".into()),
+            title: Some("Title".into()),
+            album: None,
+            genre: None,
+            bpm: Some(128.0),
+            key: Some("Am".into()),
+            duration_ms: Some(60_000),
+            path: "/music/one.wav".into(),
+        }
+    }
+
+    #[test]
+    fn map_library_evt_maps_thin_kinds_and_ignores_navigate() {
+        let buses = LibraryBuses::new();
+        let rx = buses.subscribe_evt_all().unwrap();
+
+        buses
+            .publish_evt(
+                Origin::Library,
+                Kind::Error,
+                EvtBody::Error {
+                    message: "missing".into(),
+                    track_id: Some("t1".into()),
+                },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("Error maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::Error);
+        assert_eq!(mapped.message.as_deref(), Some("missing"));
+        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
+
+        buses
+            .publish_evt(
+                Origin::Library,
+                Kind::TrackUpdated,
+                EvtBody::TrackUpdated {
+                    track: sample_api_track(),
+                },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("TrackUpdated maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::TrackUpdated);
+        let track = mapped.track.expect("track");
+        assert_eq!(track.id, "t1");
+        assert_eq!(track.display_name, "Track One");
+        assert_eq!(track.bpm, Some(128.0));
+
+        buses
+            .publish_evt(
+                Origin::LibraryNavigation,
+                Kind::Navigate,
+                EvtBody::Navigate { delta: 1 },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        assert!(map_library_evt(ev.as_ref()).is_none());
+    }
 }

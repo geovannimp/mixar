@@ -12,9 +12,11 @@ engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }
 flutter_rust_bridge = "=2.12.0"
 library = { path = "../library" }
+library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }
 
 [dev-dependencies]
+lofty = "0.22"
 tempfile = "3.0"
 
 [lints.rust]

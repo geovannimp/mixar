@@ -6,12 +6,25 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `collection_summary`, `track_display_name`, `track_summary`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `track_display_name`, `track_summary`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
 abstract class LibraryTransport implements RustOpaqueInterface {
-  /// List tracks in a collection.
+  /// Add a folder as a collection and sync its tracks.
+  Future<AddFolderCollectionResult> addFolderCollection({
+    required String folderPath,
+  });
+
+  /// Queue analyze for a track via the library cmd bus only (worker emits evt).
+  Future<void> analyzeTrack({required String trackId, required bool force});
+
+  /// Load one track including embedded artwork when present.
+  Future<LibraryTrackSummary?> getTrack({required String trackId});
+
+  /// List tracks in a collection (artwork left unset for cheap browsing).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   });
@@ -26,6 +39,55 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// In-memory library for tests.
   static Future<LibraryTransport> openInMemory() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportOpenInMemory();
+
+  /// Queue metadata refresh for a track via the library cmd bus only.
+  Future<void> refreshTrack({required String trackId});
+
+  /// Resolve library tracks for the given filesystem paths.
+  Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
+    required List<String> paths,
+  });
+
+  /// Forward thin typed library events to Dart via FRB `StreamSink`.
+  ///
+  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
+  Stream<LibraryEvt> subscribeEvents();
+}
+
+/// Result of adding a folder collection and syncing it.
+class AddFolderCollectionResult {
+  final LibraryCollectionSummary collection;
+  final int added;
+  final int updated;
+  final int skipped;
+  final int failed;
+
+  const AddFolderCollectionResult({
+    required this.collection,
+    required this.added,
+    required this.updated,
+    required this.skipped,
+    required this.failed,
+  });
+
+  @override
+  int get hashCode =>
+      collection.hashCode ^
+      added.hashCode ^
+      updated.hashCode ^
+      skipped.hashCode ^
+      failed.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AddFolderCollectionResult &&
+          runtimeType == other.runtimeType &&
+          collection == other.collection &&
+          added == other.added &&
+          updated == other.updated &&
+          skipped == other.skipped &&
+          failed == other.failed;
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -64,6 +126,40 @@ class LibraryCollectionSummary {
           trackCount == other.trackCount;
 }
 
+/// Thin typed library egress for Dart (no MessagePack on the Flutter side).
+///
+/// Struct + unit kind avoids FRB's freezed dependency for fielded enums.
+class LibraryEvt {
+  final LibraryEvtKind kind;
+  final LibraryTrackSummary? track;
+  final String? message;
+  final String? trackId;
+
+  const LibraryEvt({
+    required this.kind,
+    this.track,
+    this.message,
+    this.trackId,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^ track.hashCode ^ message.hashCode ^ trackId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LibraryEvt &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          track == other.track &&
+          message == other.message &&
+          trackId == other.trackId;
+}
+
+/// Discriminator for thin library egress (unit enum — no freezed on Dart).
+enum LibraryEvtKind { trackAnalyzed, trackUpdated, error, notice }
+
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
 class LibraryTrackSummary {
   final String id;
@@ -77,6 +173,9 @@ class LibraryTrackSummary {
   final int? durationMs;
   final String path;
 
+  /// Embedded artwork bytes when loaded (lists leave this `None` for cheap browsing).
+  final Uint8List? artwork;
+
   const LibraryTrackSummary({
     required this.id,
     required this.displayName,
@@ -88,6 +187,7 @@ class LibraryTrackSummary {
     this.key,
     this.durationMs,
     required this.path,
+    this.artwork,
   });
 
   @override
@@ -101,7 +201,8 @@ class LibraryTrackSummary {
       bpm.hashCode ^
       key.hashCode ^
       durationMs.hashCode ^
-      path.hashCode;
+      path.hashCode ^
+      artwork.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -117,5 +218,25 @@ class LibraryTrackSummary {
           bpm == other.bpm &&
           key == other.key &&
           durationMs == other.durationMs &&
-          path == other.path;
+          path == other.path &&
+          artwork == other.artwork;
+}
+
+/// Path lookup hit: original request path + resolved track summary.
+class ResolvedLibraryTrack {
+  final String requestPath;
+  final LibraryTrackSummary track;
+
+  const ResolvedLibraryTrack({required this.requestPath, required this.track});
+
+  @override
+  int get hashCode => requestPath.hashCode ^ track.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ResolvedLibraryTrack &&
+          runtimeType == other.runtimeType &&
+          requestPath == other.requestPath &&
+          track == other.track;
 }
