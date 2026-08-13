@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
 class DrivePane extends ConsumerWidget {
@@ -43,24 +42,7 @@ class DrivePane extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (currentPath != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 4, 4, 8),
-            child: Row(
-              children: [
-                const LibraryPaneLabel('Browse'),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _VolumeChip(
-                    volume: selectedVolume,
-                    path: currentPath,
-                    onPress: () =>
-                        ref.read(driveCurrentPathProvider.notifier).set(null),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (currentPath != null) const _DriveBrowseHeader(),
         Expanded(
           child: currentPath == null
               ? volumes.when(
@@ -161,68 +143,75 @@ class DrivePane extends ConsumerWidget {
   }
 }
 
-/// Tapping returns to the volume list (no Forui select overlay — that froze GTK).
-class _VolumeChip extends StatelessWidget {
-  const _VolumeChip({
-    required this.volume,
-    required this.path,
-    required this.onPress,
-  });
-
-  final FsVolumeInfo? volume;
-  final String path;
-  final VoidCallback onPress;
+/// Volume [FSelect](https://forui.dev/docs/widgets/form/select); isolated from
+/// listing rebuilds so the popover does not remount mid-browse.
+class _DriveBrowseHeader extends ConsumerWidget {
+  const _DriveBrowseHeader();
 
   @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final colors = theme.colors;
-    final label = volume?.name ?? path;
-    return FTappable(
-      semanticsLabel: 'Choose drive',
-      onPress: onPress,
-      builder: (context, variants, _) {
-        final hovered = variants.contains(FTappableVariant.hovered);
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: theme.style.borderRadius.sm,
-            border: Border.all(color: colors.border),
-            color: hovered
-                ? colors.foreground.withValues(alpha: 0.05)
-                : colors.secondary,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                Icon(
-                  volume?.isRemovable == true
-                      ? FLucideIcons.usb
-                      : FLucideIcons.hardDrive,
-                  size: 14,
-                  color: colors.mutedForeground,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.typography.body.sm.copyWith(
-                      color: colors.foreground,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final volumes = ref.watch(driveVolumesProvider).asData?.value ?? [];
+    final selected = ref.watch(driveActiveVolumeProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 4, 8),
+      child: Row(
+        children: [
+          const LibraryPaneLabel('Browse'),
+          const SizedBox(width: 8),
+          Expanded(
+            child: volumes.isEmpty
+                ? const SizedBox.shrink()
+                : FSelect<String>.rich(
+                    size: .sm,
+                    hint: 'Select drive',
+                    contentCutout: false,
+                    format: (path) {
+                      for (final v in volumes) {
+                        if (v.path == path) {
+                          return v.name;
+                        }
+                      }
+                      return path;
+                    },
+                    control: .lifted(
+                      value: selected?.path,
+                      onChange: (path) {
+                        if (path == null) {
+                          return;
+                        }
+                        ref.read(driveCurrentPathProvider.notifier).set(path);
+                      },
                     ),
+                    prefixBuilder: (context, style, variants) {
+                      final removable = selected?.isRemovable == true;
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Icon(
+                          removable
+                              ? FLucideIcons.usb
+                              : FLucideIcons.hardDrive,
+                          size: 14,
+                          color: context.theme.colors.mutedForeground,
+                        ),
+                      );
+                    },
+                    children: [
+                      for (final v in volumes)
+                        FSelectItem(
+                          value: v.path,
+                          prefix: Icon(
+                            v.isRemovable
+                                ? FLucideIcons.usb
+                                : FLucideIcons.hardDrive,
+                            size: 16,
+                          ),
+                          title: Text(v.name),
+                        ),
+                    ],
                   ),
-                ),
-                Icon(
-                  FLucideIcons.chevronsUpDown,
-                  size: 14,
-                  color: colors.mutedForeground,
-                ),
-              ],
-            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
