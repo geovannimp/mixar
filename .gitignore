@@ -3,6 +3,9 @@ target/
 **/*.rs.bk
 *.pdb
 
+# CMake / local build output
+/build/
+
 # Cargo lock file (uncomment if this is a library crate)
 # Cargo.lock
 
