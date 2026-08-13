@@ -219,7 +219,12 @@ class DriveCurrentPath extends Notifier<String?> {
   @override
   String? build() => null;
 
-  void set(String? path) => state = path;
+  void set(String? path) {
+    if (state == path) {
+      return;
+    }
+    state = path;
+  }
 }
 
 final driveCurrentPathProvider =

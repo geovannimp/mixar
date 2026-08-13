@@ -52,14 +52,11 @@ class DrivePane extends ConsumerWidget {
                 const LibraryPaneLabel('Browse'),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: volumes.when(
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, _) => const SizedBox.shrink(),
-                    data: (items) => _VolumeSelect(
-                      volumes: items,
-                      selected: selectedVolume,
-                      onSelect: openPath,
-                    ),
+                  child: _VolumeChip(
+                    volume: selectedVolume,
+                    path: currentPath,
+                    onPress: () =>
+                        ref.read(driveCurrentPathProvider.notifier).set(null),
                   ),
                 ),
               ],
@@ -165,52 +162,68 @@ class DrivePane extends ConsumerWidget {
   }
 }
 
-class _VolumeSelect extends StatelessWidget {
-  const _VolumeSelect({
-    required this.volumes,
-    required this.selected,
-    required this.onSelect,
+/// Tapping returns to the volume list (no Forui select overlay — that froze GTK).
+class _VolumeChip extends StatelessWidget {
+  const _VolumeChip({
+    required this.volume,
+    required this.path,
+    required this.onPress,
   });
 
-  final List<FsVolumeInfo> volumes;
-  final FsVolumeInfo? selected;
-  final ValueChanged<String> onSelect;
+  final FsVolumeInfo? volume;
+  final String path;
+  final VoidCallback onPress;
 
   @override
   Widget build(BuildContext context) {
-    if (volumes.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return FSelect<String>.rich(
-      size: .sm,
-      hint: 'Select drive',
-      format: (path) {
-        for (final v in volumes) {
-          if (v.path == path) {
-            return v.name;
-          }
-        }
-        return path;
-      },
-      control: .lifted(
-        value: selected?.path,
-        onChange: (path) {
-          if (path != null) {
-            onSelect(path);
-          }
-        },
-      ),
-      children: [
-        for (final v in volumes)
-          FSelectItem(
-            value: v.path,
-            prefix: Icon(
-              v.isRemovable ? FLucideIcons.usb : FLucideIcons.hardDrive,
-              size: 16,
-            ),
-            title: Text(v.name),
+    final theme = context.theme;
+    final colors = theme.colors;
+    final label = volume?.name ?? path;
+    return FTappable(
+      semanticsLabel: 'Choose drive',
+      onPress: onPress,
+      builder: (context, variants, _) {
+        final hovered = variants.contains(FTappableVariant.hovered);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: theme.style.borderRadius.sm,
+            border: Border.all(color: colors.border),
+            color: hovered
+                ? colors.foreground.withValues(alpha: 0.05)
+                : colors.secondary,
           ),
-      ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                Icon(
+                  volume?.isRemovable == true
+                      ? FLucideIcons.usb
+                      : FLucideIcons.hardDrive,
+                  size: 14,
+                  color: colors.mutedForeground,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.typography.body.sm.copyWith(
+                      color: colors.foreground,
+                    ),
+                  ),
+                ),
+                Icon(
+                  FLucideIcons.chevronsUpDown,
+                  size: 14,
+                  color: colors.mutedForeground,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
