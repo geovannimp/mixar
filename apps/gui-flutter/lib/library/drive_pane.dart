@@ -1,11 +1,12 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
-/// Drive volume + directory navigation (left pane).
+/// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
 class DrivePane extends ConsumerWidget {
   const DrivePane({super.key});
 
@@ -16,105 +17,222 @@ class DrivePane extends ConsumerWidget {
     final volumes = ref.watch(driveVolumesProvider);
     final currentPath = ref.watch(driveCurrentPathProvider);
     final listing = ref.watch(driveListingProvider);
-
-    final highlight = Color.alphaBlend(
-      colors.foreground.withValues(alpha: 0.1),
-      colors.secondary,
-    );
-    final itemStyle = FItemStyleDelta.delta(
-      backgroundColor: .delta([
-        .base(colors.background.withValues(alpha: 0.00)),
-      ]),
-      padding: .value(EdgeInsets.zero),
-      contentDecoration: .delta([
-        .base(.shapeDelta(color: colors.secondary)),
-        .match({.hovered}, .shapeDelta(color: highlight)),
-        .match({.pressed}, .shapeDelta(color: highlight)),
-      ]),
-    );
+    final selectedVolume = ref.watch(driveActiveVolumeProvider);
 
     void openPath(String path) {
       ref.read(driveCurrentPathProvider.notifier).set(path);
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: currentPath == null
-                ? volumes.when(
-                    loading: () => const Center(child: FCircularProgress()),
-                    error: (e, _) => Text(
+    Future<void> createCollection(String folderPath) async {
+      ref.read(libraryMessageProvider.notifier).clear();
+      try {
+        final transport = await ref.read(libraryTransportProvider.future);
+        final result = await transport.addFolderCollection(
+          folderPath: folderPath,
+        );
+        ref.invalidate(collectionsProvider);
+        ref.invalidate(collectionTracksProvider);
+        ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
+        ref
+            .read(librarySourceTabProvider.notifier)
+            .set(LibrarySourceTab.collections);
+      } catch (e) {
+        ref.read(libraryMessageProvider.notifier).setError('$e');
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (currentPath != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 4, 8),
+            child: Row(
+              children: [
+                const LibraryPaneLabel('Browse'),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: volumes.when(
+                    loading: () => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
+                    data: (items) => _VolumeSelect(
+                      volumes: items,
+                      selected: selectedVolume,
+                      onSelect: openPath,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: currentPath == null
+              ? volumes.when(
+                  loading: () => const Center(child: FCircularProgress()),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
                       'Volumes error: $e',
                       style: theme.typography.body.sm.copyWith(
                         color: colors.destructive,
                       ),
                     ),
-                    data: (items) {
-                      if (items.isEmpty) {
-                        return Text(
-                          'No volumes found',
+                  ),
+                  data: (items) {
+                    if (items.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          'No drives found.',
                           style: theme.typography.body.sm.copyWith(
                             color: colors.mutedForeground,
                           ),
-                        );
-                      }
-                      return FItemGroup(
-                        children: [
-                          for (final v in items)
-                            FItem(
-                              title: Text(v.name),
-                              subtitle: Text(v.path),
-                              style: itemStyle,
-                              onPress: () => openPath(v.path),
-                            ),
-                        ],
+                        ),
                       );
-                    },
-                  )
-                : listing.when(
-                    loading: () => const Center(child: FCircularProgress()),
-                    error: (e, _) => Text(
+                    }
+                    return ListView(
+                      children: [
+                        for (final v in items)
+                          LibraryNavRow(
+                            title: v.name,
+                            subtitle: v.path,
+                            icon: v.isRemovable
+                                ? FLucideIcons.usb
+                                : FLucideIcons.hardDrive,
+                            onPress: () => openPath(v.path),
+                          ),
+                      ],
+                    );
+                  },
+                )
+              : listing.when(
+                  loading: () => const Center(child: FCircularProgress()),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
                       'Browse error: $e',
                       style: theme.typography.body.sm.copyWith(
                         color: colors.destructive,
                       ),
                     ),
-                    data: (dir) {
-                      if (dir == null) {
-                        return const SizedBox.shrink();
-                      }
-                      return FItemGroup(
-                        children: [
-                          FItem(
-                            title: const Text('Drives'),
-                            subtitle: const Text('Back to volume list'),
-                            style: itemStyle,
-                            onPress: () => ref
-                                .read(driveCurrentPathProvider.notifier)
-                                .set(null),
-                          ),
-                          if (dir.parent != null)
-                            FItem(
-                              title: const Text('..'),
-                              subtitle: const Text('Parent folder'),
-                              style: itemStyle,
-                              onPress: () => openPath(dir.parent!),
-                            ),
-                          for (final d in dir.directories)
-                            FItem(
-                              title: Text(d.name),
-                              style: itemStyle,
-                              onPress: () => openPath(d.path),
-                            ),
-                        ],
-                      );
-                    },
                   ),
+                  data: (dir) {
+                    if (dir == null) {
+                      return const SizedBox.shrink();
+                    }
+                    final currentName =
+                        selectedVolume?.path == dir.path
+                        ? (selectedVolume?.name ?? dir.path)
+                        : dir.path.split(RegExp(r'[/\\]')).last;
+                    return ListView(
+                      children: [
+                        LibraryNavRow(
+                          title: currentName,
+                          icon: FLucideIcons.folder,
+                          selected: true,
+                          trailing: _CreateCollectionButton(
+                            onPress: () => createCollection(dir.path),
+                          ),
+                        ),
+                        if (dir.directories.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 10, 8),
+                            child: Text(
+                              'No subfolders here.',
+                              style: theme.typography.body.sm.copyWith(
+                                color: colors.mutedForeground,
+                              ),
+                            ),
+                          )
+                        else
+                          for (final d in dir.directories)
+                            LibraryNavRow(
+                              title: d.name,
+                              icon: FLucideIcons.folder,
+                              indented: true,
+                              onPress: () => openPath(d.path),
+                              trailing: _CreateCollectionButton(
+                                onPress: () => createCollection(d.path),
+                              ),
+                            ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VolumeSelect extends StatelessWidget {
+  const _VolumeSelect({
+    required this.volumes,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  final List<FsVolumeInfo> volumes;
+  final FsVolumeInfo? selected;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    if (volumes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return FSelect<String>.rich(
+      size: .sm,
+      hint: 'Select drive',
+      format: (path) {
+        for (final v in volumes) {
+          if (v.path == path) {
+            return v.name;
+          }
+        }
+        return path;
+      },
+      control: .lifted(
+        value: selected?.path,
+        onChange: (path) {
+          if (path != null) {
+            onSelect(path);
+          }
+        },
+      ),
+      children: [
+        for (final v in volumes)
+          FSelectItem(
+            value: v.path,
+            prefix: Icon(
+              v.isRemovable ? FLucideIcons.usb : FLucideIcons.hardDrive,
+              size: 16,
+            ),
+            title: Text(v.name),
           ),
-        ],
+      ],
+    );
+  }
+}
+
+class _CreateCollectionButton extends StatelessWidget {
+  const _CreateCollectionButton({required this.onPress});
+
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.theme.colors;
+    return FTappable(
+      semanticsLabel: 'Create collection',
+      onPress: onPress,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(
+          FLucideIcons.folderPlus,
+          size: 14,
+          color: colors.mutedForeground,
+        ),
       ),
     );
   }
@@ -132,21 +250,6 @@ class DriveFilesPane extends ConsumerWidget {
     final listing = ref.watch(driveListingProvider);
     final resolved = ref.watch(driveResolvedByPathProvider);
 
-    final highlight = Color.alphaBlend(
-      colors.foreground.withValues(alpha: 0.1),
-      colors.secondary,
-    );
-    final itemStyle = FItemStyleDelta.delta(
-      backgroundColor: .delta([
-        .base(colors.background.withValues(alpha: 0.00)),
-      ]),
-      padding: .value(EdgeInsets.zero),
-      contentDecoration: .delta([
-        .base(.shapeDelta(color: colors.secondary)),
-        .match({.hovered}, .shapeDelta(color: highlight)),
-      ]),
-    );
-
     if (currentPath == null) {
       return Center(
         child: Text(
@@ -162,9 +265,7 @@ class DriveFilesPane extends ConsumerWidget {
       loading: () => const Center(child: FCircularProgress()),
       error: (e, _) => Text(
         'Browse error: $e',
-        style: theme.typography.body.sm.copyWith(
-          color: colors.destructive,
-        ),
+        style: theme.typography.body.sm.copyWith(color: colors.destructive),
       ),
       data: (dir) {
         if (dir == null) {
@@ -183,13 +284,13 @@ class DriveFilesPane extends ConsumerWidget {
         }
         final byPath =
             resolved.asData?.value ?? const <String, LibraryTrackSummary>{};
-        return FItemGroup(
+        return ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
             for (final f in files)
-              FItem(
-                title: Text(_driveFileTitle(f, byPath)),
-                subtitle: Text(_driveFileSubtitle(f, byPath)),
-                style: itemStyle,
+              LibraryNavRow(
+                title: _driveFileTitle(f, byPath),
+                subtitle: _driveFileSubtitle(f, byPath),
               ),
           ],
         );
@@ -197,7 +298,10 @@ class DriveFilesPane extends ConsumerWidget {
     );
   }
 
-  String _driveFileTitle(FsEntry file, Map<String, LibraryTrackSummary> byPath) {
+  String _driveFileTitle(
+    FsEntry file,
+    Map<String, LibraryTrackSummary> byPath,
+  ) {
     final track = byPath[file.path];
     if (track != null) {
       return trackTitleLabel(track);

@@ -17,8 +17,7 @@ class LibraryPanel extends ConsumerWidget {
     ref.watch(libraryEventsBootstrapProvider);
     final theme = context.theme;
     final message = ref.watch(libraryMessageProvider);
-    final drive =
-        ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
+    final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
 
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -52,20 +51,25 @@ class LibraryPanel extends ConsumerWidget {
                       divider: .dividerWithThumb,
                       children: [
                         .fixed(
-                          minExtent: 140,
-                          extent: 220,
+                          minExtent: 240,
+                          extent: 240,
                           builder: _fill,
                           child: Padding(
                             padding: const EdgeInsets.all(8),
                             child: FTabs(
                               expands: true,
-                              onPress: (index) {
-                                ref.read(librarySourceTabProvider.notifier).set(
-                                  index == 1
-                                      ? LibrarySourceTab.drive
-                                      : LibrarySourceTab.collections,
-                                );
-                              },
+                              control: .lifted(
+                                index: drive ? 1 : 0,
+                                onChange: (index) {
+                                  ref
+                                      .read(librarySourceTabProvider.notifier)
+                                      .set(
+                                        index == 1
+                                            ? LibrarySourceTab.drive
+                                            : LibrarySourceTab.collections,
+                                      );
+                                },
+                              ),
                               children: const [
                                 FTabEntry(
                                   label: Text('Collections'),

@@ -233,6 +233,28 @@ final driveListingProvider = FutureProvider<FsDirectoryListing?>((ref) async {
   return browseFsDirectory(path: path);
 });
 
+/// Longest matching volume root for [driveCurrentPathProvider] (Tauri `findActiveVolume`).
+final driveActiveVolumeProvider = Provider<FsVolumeInfo?>((ref) {
+  final path = ref.watch(driveCurrentPathProvider);
+  final volumes = ref.watch(driveVolumesProvider).asData?.value;
+  if (path == null || volumes == null || volumes.isEmpty) {
+    return null;
+  }
+  final sorted = [...volumes]..sort((a, b) => b.path.length.compareTo(a.path.length));
+  for (final volume in sorted) {
+    if (path == volume.path) {
+      return volume;
+    }
+    if (volume.path != '/' && path.startsWith('${volume.path}/')) {
+      return volume;
+    }
+    if (volume.path == '/' && path.startsWith('/')) {
+      return volume;
+    }
+  }
+  return null;
+});
+
 final driveResolvedByPathProvider =
     FutureProvider<Map<String, LibraryTrackSummary>>((ref) async {
       final listing = await ref.watch(driveListingProvider.future);
