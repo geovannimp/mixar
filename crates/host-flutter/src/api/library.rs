@@ -5,9 +5,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use audio_core::{ms_to_secs, secs_to_ms, SpectralPeak};
 use library::{
-    read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
-    LibraryWorker, NewCollection, TrackId, WritableLibrary,
+    read_artwork, spawn_library_worker, BeatGridSnapshot, Evt, LibraryBuses, LibraryConfig,
+    LibraryManager, LibraryWorker, NewCollection, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -16,6 +17,7 @@ use library_api::{
 use library_core::{AudioSource, Collection, CollectionId, Library};
 
 use crate::frb_generated::{SseEncode, StreamSink};
+use crate::waveform_render::{pack_waveform_frame, render_scrolling_lane, WaveformDisplayGains};
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
 #[derive(Clone, Debug)]
@@ -57,6 +59,23 @@ pub struct AddFolderCollectionResult {
 pub struct ResolvedLibraryTrack {
     pub request_path: String,
     pub track: LibraryTrackSummary,
+}
+
+/// Request for a Tauri-compatible packed scrolling waveform lane (`WFR1`).
+#[derive(Clone, Debug)]
+pub struct RenderWaveformLaneRequest {
+    pub track_id: Option<String>,
+    pub path: Option<String>,
+    pub width: u32,
+    pub height: u32,
+    pub position_ms: i32,
+    pub visible_ms: i32,
+    pub buffer_ratio: f64,
+    pub include_detail: bool,
+    pub include_beat_grid: bool,
+    pub eq_low_db: f32,
+    pub eq_mid_db: f32,
+    pub eq_high_db: f32,
 }
 
 /// Thin typed library egress for Dart (no MessagePack on the Flutter side).
@@ -281,6 +300,113 @@ impl LibraryTransport {
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
         self.buses.subscribe_evt_all().map_err(|e| e.to_string())
+    }
+
+    /// Render a scrolling waveform lane and return Tauri-compatible packed `WFR1` bytes.
+    ///
+    /// Overview peaks come from the library when present; otherwise an empty overview
+    /// yields a valid silent/background frame. Detail windows are skipped this pass
+    /// (no AppState audio cache).
+    pub fn render_waveform_lane(
+        &self,
+        request: RenderWaveformLaneRequest,
+    ) -> Result<Vec<u8>, String> {
+        let viewport_width = request.width.max(1) as usize;
+        let height = request.height.max(1) as usize;
+        let visible_ms = request.visible_ms.max(100);
+        let buffer_ratio = request.buffer_ratio.clamp(0.0, 4.0);
+        let position_secs = ms_to_secs(request.position_ms);
+        let visible_secs = ms_to_secs(visible_ms);
+        let cover_secs = visible_secs * (1.0 + 2.0 * buffer_ratio);
+        let strip_width = ((viewport_width as f64) * (cover_secs / visible_secs))
+            .round()
+            .max(viewport_width as f64) as usize;
+
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+
+        let file_path = if let Some(path) = request.path.clone() {
+            path
+        } else if let Some(ref id) = request.track_id {
+            let source = lib
+                .get_track(&TrackId::new(id.clone()))
+                .map_err(|e| e.to_string())?
+                .ok_or_else(|| "Track not found in library.".to_string())?;
+            source
+                .file()
+                .ok_or_else(|| "Only file tracks have waveforms.".to_string())?
+                .path()
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            return Err("path or track_id is required for waveform rendering.".to_string());
+        };
+        let _ = file_path; // resolved for parity / future detail decode
+
+        let beat_grid: Option<BeatGridSnapshot> = if request.include_beat_grid {
+            request.track_id.as_ref().and_then(|id| {
+                lib.get_track_beat_grid(&TrackId::new(id.clone()))
+                    .ok()
+                    .flatten()
+            })
+        } else {
+            None
+        };
+
+        let (overview, track_duration_ms) = if let Some(ref id) = request.track_id {
+            let track_id = TrackId::new(id.clone());
+            let duration = lib
+                .get_track(&track_id)
+                .map_err(|e| e.to_string())?
+                .and_then(|source| source.metadata().duration_ms)
+                .unwrap_or(0);
+            match lib
+                .get_track_waveform_overview(&track_id)
+                .map_err(|e| e.to_string())?
+            {
+                Some(overview_row) if !overview_row.peaks.is_empty() && duration > 0 => {
+                    (overview_row.peaks, duration)
+                }
+                _ => (Vec::<SpectralPeak>::new(), duration),
+            }
+        } else {
+            (Vec::<SpectralPeak>::new(), 0)
+        };
+
+        // ponytail: no AppState detail cache — overview-only frames this pass.
+        let _ = request.include_detail;
+
+        let gains = WaveformDisplayGains::from_eq_db(
+            request.eq_low_db,
+            request.eq_mid_db,
+            request.eq_high_db,
+        );
+        let track_duration_secs = ms_to_secs(track_duration_ms);
+        let rgba = render_scrolling_lane(
+            strip_width,
+            height,
+            &overview,
+            None,
+            track_duration_secs,
+            position_secs,
+            cover_secs,
+            gains,
+            beat_grid.as_ref(),
+            request.include_beat_grid,
+        );
+
+        let half_cover_ms = secs_to_ms(cover_secs / 2.0);
+        Ok(pack_waveform_frame(
+            strip_width as u32,
+            height as u32,
+            request.position_ms,
+            request.position_ms - half_cover_ms,
+            request.position_ms + half_cover_ms,
+            visible_ms,
+            rgba,
+        ))
     }
 }
 

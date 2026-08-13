@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use host_flutter::api::library::LibraryTransport;
+use host_flutter::api::library::{LibraryTransport, RenderWaveformLaneRequest};
 use library_api::{decode_evt_body, EvtBody, Kind};
 
 fn write_minimal_wav(path: &Path) {
@@ -124,4 +124,69 @@ fn refresh_existing_track_emits_track_updated() {
         }
         other => panic!("unexpected body {other:?}"),
     }
+}
+
+#[test]
+fn render_waveform_lane_requires_path_or_track_id() {
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let err = transport
+        .render_waveform_lane(RenderWaveformLaneRequest {
+            track_id: None,
+            path: None,
+            width: 64,
+            height: 32,
+            position_ms: 0,
+            visible_ms: 1_000,
+            buffer_ratio: 0.0,
+            include_detail: false,
+            include_beat_grid: false,
+            eq_low_db: 0.0,
+            eq_mid_db: 0.0,
+            eq_high_db: 0.0,
+        })
+        .unwrap_err();
+    assert!(err.contains("path or track_id"));
+}
+
+#[test]
+fn render_waveform_lane_returns_wfr1_packed_frame() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("track_w.wav");
+    write_minimal_wav(&wav);
+
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let added = transport
+        .add_folder_collection(dir.path().to_string_lossy().into_owned())
+        .unwrap();
+    let tracks = transport
+        .list_collection_tracks(added.collection.id.clone())
+        .unwrap();
+    assert_eq!(tracks.len(), 1);
+
+    let width = 64u32;
+    let height = 32u32;
+    let packed = transport
+        .render_waveform_lane(RenderWaveformLaneRequest {
+            track_id: Some(tracks[0].id.clone()),
+            path: None,
+            width,
+            height,
+            position_ms: 0,
+            visible_ms: 1_000,
+            buffer_ratio: 0.0,
+            include_detail: false,
+            include_beat_grid: false,
+            eq_low_db: 0.0,
+            eq_mid_db: 0.0,
+            eq_high_db: 0.0,
+        })
+        .unwrap();
+
+    assert!(packed.starts_with(b"WFR1"));
+    assert!(packed.len() >= 28);
+    assert_eq!(u32::from_le_bytes(packed[4..8].try_into().unwrap()), width);
+    assert_eq!(
+        u32::from_le_bytes(packed[8..12].try_into().unwrap()),
+        height
+    );
 }
