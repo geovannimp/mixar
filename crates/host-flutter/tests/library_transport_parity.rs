@@ -90,7 +90,8 @@ fn add_folder_resolve_and_track_artwork_metadata() {
         .iter()
         .find(|t| t.path.ends_with("track_cover.wav"))
         .expect("cover wav");
-    assert_eq!(cover_row.artwork.as_deref(), Some(art_bytes));
+    // Lists stay artwork-free until covers are stored in library.db.
+    assert!(cover_row.artwork.is_none());
 
     let resolved = transport
         .resolve_tracks_for_paths(vec![bare.to_string_lossy().into_owned()])

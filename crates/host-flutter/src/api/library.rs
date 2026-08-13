@@ -41,7 +41,8 @@ pub struct LibraryTrackSummary {
     pub key: Option<String>,
     pub duration_ms: Option<i32>,
     pub path: String,
-    /// Embedded artwork bytes when present on the file.
+    /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
+    /// Lists leave this `None` until artwork is persisted in the library DB.
     pub artwork: Option<Vec<u8>>,
 }
 
@@ -152,7 +153,7 @@ impl LibraryTransport {
             .collect()
     }
 
-    /// List tracks in a collection (includes embedded artwork when present).
+    /// List tracks in a collection (artwork left unset — not stored in DB yet).
     pub fn list_collection_tracks(
         &self,
         collection_id: String,
@@ -165,10 +166,9 @@ impl LibraryTransport {
             lib.get_collection_tracks(&CollectionId::new(collection_id))
                 .map_err(|e| e.to_string())?
         };
-        // Artwork file I/O happens after releasing the manager lock.
         Ok(sources
             .iter()
-            .filter_map(|s| track_summary(s, true))
+            .filter_map(|s| track_summary(s, false))
             .collect())
     }
 
