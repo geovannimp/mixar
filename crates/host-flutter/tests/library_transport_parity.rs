@@ -1,9 +1,11 @@
-//! LibraryTransport parity: add folder, resolve paths, artwork.
+//! LibraryTransport parity: add folder, resolve paths, artwork, analyze/refresh bus.
 
 use std::io::Write;
 use std::path::Path;
+use std::time::Duration;
 
 use host_flutter::api::library::LibraryTransport;
+use library_api::{decode_evt_body, EvtBody, Kind};
 
 fn write_minimal_wav(path: &Path) {
     let sample_rate = 8_000u32;
@@ -66,4 +68,60 @@ fn add_folder_resolve_and_artwork() {
         .get_track_artwork(None, Some(wav.to_string_lossy().into_owned()))
         .unwrap();
     assert!(artwork_by_path.is_none() || artwork_by_path.as_ref().is_some_and(|b| !b.is_empty()));
+}
+
+#[test]
+fn refresh_missing_track_publishes_error_evt() {
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+
+    transport.refresh_track("missing-track-id".into()).unwrap();
+    transport
+        .analyze_track("missing-track-id".into(), false)
+        .unwrap();
+
+    let event = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("evt bus alive")
+        .expect("Error evt");
+    assert_eq!(event.kind(), &Kind::Error);
+    match decode_evt_body(event.payload()).unwrap() {
+        EvtBody::Error { message, track_id } => {
+            assert!(!message.is_empty());
+            assert_eq!(track_id.as_deref(), Some("missing-track-id"));
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
+}
+
+#[test]
+fn refresh_existing_track_emits_track_updated() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("track_b.wav");
+    write_minimal_wav(&wav);
+
+    let transport = LibraryTransport::open_in_memory().unwrap();
+    let added = transport
+        .add_folder_collection(dir.path().to_string_lossy().into_owned())
+        .unwrap();
+    let tracks = transport
+        .list_collection_tracks(added.collection.id.clone())
+        .unwrap();
+    assert_eq!(tracks.len(), 1);
+
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.refresh_track(tracks[0].id.clone()).unwrap();
+
+    let event = rx
+        .recv_timeout(Duration::from_secs(2))
+        .expect("evt bus alive")
+        .expect("TrackUpdated evt");
+    assert_eq!(event.kind(), &Kind::TrackUpdated);
+    match decode_evt_body(event.payload()).unwrap() {
+        EvtBody::TrackUpdated { track } => {
+            assert_eq!(track.id, tracks[0].id);
+            assert!(track.path.ends_with("track_b.wav"));
+        }
+        other => panic!("unexpected body {other:?}"),
+    }
 }

@@ -1698,6 +1698,7 @@ dependencies = [
  "engine-core",
  "flutter_rust_bridge",
  "library",
+ "library-api",
  "library-core",
  "tempfile",
 ]
