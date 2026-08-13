@@ -4,12 +4,16 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/engine.dart';
+import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi' as ffi;
+
 import 'frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -75,6 +79,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_f_64(dynamic raw);
 
   @protected
+  FsDirectoryListing dco_decode_fs_directory_listing(dynamic raw);
+
+  @protected
+  FsEntry dco_decode_fs_entry(dynamic raw);
+
+  @protected
+  FsVolumeInfo dco_decode_fs_volume_info(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -91,6 +104,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<FsEntry> dco_decode_list_fs_entry(dynamic raw);
+
+  @protected
+  List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw);
 
   @protected
   List<LibraryCollectionSummary> dco_decode_list_library_collection_summary(
@@ -210,6 +229,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
+  FsDirectoryListing sse_decode_fs_directory_listing(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  FsEntry sse_decode_fs_entry(SseDeserializer deserializer);
+
+  @protected
+  FsVolumeInfo sse_decode_fs_volume_info(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -230,6 +260,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<FsEntry> sse_decode_list_fs_entry(SseDeserializer deserializer);
+
+  @protected
+  List<FsVolumeInfo> sse_decode_list_fs_volume_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<LibraryCollectionSummary> sse_decode_list_library_collection_summary(
@@ -364,6 +402,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_fs_directory_listing(
+    FsDirectoryListing self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_fs_entry(FsEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_fs_volume_info(FsVolumeInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -389,6 +439,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_fs_entry(List<FsEntry> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_fs_volume_info(
+    List<FsVolumeInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_library_collection_summary(

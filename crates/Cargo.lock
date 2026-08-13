@@ -1706,6 +1706,7 @@ dependencies = [
  "engine-api",
  "engine-core",
  "flutter_rust_bridge",
+ "fs-browser",
  "library",
  "library-api",
  "library-core",

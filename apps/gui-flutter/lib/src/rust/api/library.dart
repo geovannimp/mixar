@@ -4,6 +4,7 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `track_display_name`, `track_summary`
@@ -24,7 +25,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Load one track including embedded artwork when present.
   Future<LibraryTrackSummary?> getTrack({required String trackId});
 
-  /// List tracks in a collection (artwork left unset for cheap browsing).
+  /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   });
@@ -173,7 +174,8 @@ class LibraryTrackSummary {
   final int? durationMs;
   final String path;
 
-  /// Embedded artwork bytes when loaded (lists leave this `None` for cheap browsing).
+  /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
+  /// Lists leave this `None` until artwork is persisted in the library DB.
   final Uint8List? artwork;
 
   const LibraryTrackSummary({

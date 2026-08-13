@@ -10,6 +10,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 anyhow = { workspace = true }
 engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }
+fs-browser = { path = "../fs-browser" }
 flutter_rust_bridge = "=2.12.0"
 library = { path = "../library" }
 library-api = { path = "../library-api" }
