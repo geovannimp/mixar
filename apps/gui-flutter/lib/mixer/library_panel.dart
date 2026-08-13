@@ -56,9 +56,8 @@ class LibraryPanel extends ConsumerWidget {
                           extent: 220,
                           builder: _fill,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+                            padding: const EdgeInsets.all(8),
                             child: FTabs(
-                              // Equal-width tabs (Account/Password style); scrollable shrinks to labels.
                               expands: true,
                               onPress: (index) {
                                 ref.read(librarySourceTabProvider.notifier).set(
