@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -85,15 +87,38 @@ final filteredTracksProvider = Provider<AsyncValue<List<LibraryTrackSummary>>>((
 // --- Library events (Task 3) ---
 
 class AnalyzingTrackId extends Notifier<String?> {
-  @override
-  String? build() => null;
+  Timer? _stuckClear;
 
-  void set(String? id) => state = id;
+  @override
+  String? build() {
+    ref.onDispose(() => _stuckClear?.cancel());
+    return null;
+  }
+
+  void set(String? id) {
+    _stuckClear?.cancel();
+    state = id;
+    if (id == null) {
+      return;
+    }
+    // ponytail: clear stuck spinner if evt never arrives. Upgrade: correlate cmd/evt ids.
+    _stuckClear = Timer(const Duration(seconds: 60), () {
+      if (state == id) {
+        state = null;
+      }
+    });
+  }
 
   void clearIf(String? trackId) {
     if (trackId != null && state == trackId) {
+      _stuckClear?.cancel();
       state = null;
     }
+  }
+
+  void clear() {
+    _stuckClear?.cancel();
+    state = null;
   }
 }
 
@@ -127,7 +152,11 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       }
     case LibraryEvtKind.error:
       ref.read(libraryMessageProvider.notifier).setError(evt.message ?? 'Error');
-      ref.read(analyzingTrackIdProvider.notifier).clearIf(evt.trackId);
+      if (evt.trackId != null) {
+        ref.read(analyzingTrackIdProvider.notifier).clearIf(evt.trackId);
+      } else {
+        ref.read(analyzingTrackIdProvider.notifier).clear();
+      }
     case LibraryEvtKind.notice:
       ref.read(libraryMessageProvider.notifier).setNotice(evt.message);
   }

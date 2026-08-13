@@ -54,7 +54,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (scroll == null || !scroll.hasClients) {
       ref
           .read(artworkCacheProvider.notifier)
-          .ensureLoaded(ref, _tracks.take(30).map((t) => t.id).toList());
+          .ensureLoaded(_tracks.take(30).map((t) => t.id).toList());
       return;
     }
     final rowH = manager.rowTotalHeight;
@@ -65,7 +65,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final count = (scroll.position.viewportDimension / rowH).ceil() + 2;
     final last = (first + count).clamp(0, _tracks.length);
     final ids = [for (var i = first; i < last; i++) _tracks[i].id];
-    ref.read(artworkCacheProvider.notifier).ensureLoaded(ref, ids);
+    ref.read(artworkCacheProvider.notifier).ensureLoaded(ids);
   }
 
   @override
@@ -199,7 +199,19 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           final bytes = artwork[trackId];
           if (bytes != null && bytes.isNotEmpty) {
             return Center(
-              child: Image.memory(bytes, width: 28, height: 28, fit: BoxFit.cover),
+              child: Image.memory(
+                bytes,
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+                cacheWidth: 56,
+                cacheHeight: 56,
+                errorBuilder: (_, _, _) => Container(
+                  width: 28,
+                  height: 28,
+                  color: theme.colors.muted,
+                ),
+              ),
             );
           }
           return Center(
@@ -298,7 +310,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
               ],
               child: analyzing
                   ? const FCircularProgress(size: .sm)
-                  : const Text('⋯'),
+                  : Semantics(
+                      label: 'Track actions',
+                      button: true,
+                      child: const Text('⋯'),
+                    ),
             ),
           );
         },

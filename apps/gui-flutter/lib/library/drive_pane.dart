@@ -88,6 +88,14 @@ class DrivePane extends ConsumerWidget {
                       }
                       return FItemGroup(
                         children: [
+                          FItem(
+                            title: const Text('Drives'),
+                            subtitle: const Text('Back to volume list'),
+                            style: itemStyle,
+                            onPress: () => ref
+                                .read(driveCurrentPathProvider.notifier)
+                                .set(null),
+                          ),
                           if (dir.parent != null)
                             FItem(
                               title: const Text('..'),
@@ -173,24 +181,17 @@ class DriveFilesPane extends ConsumerWidget {
             ),
           );
         }
-        return resolved.when(
-          loading: () => const Center(child: FCircularProgress()),
-          error: (e, _) => Text(
-            'Resolve error: $e',
-            style: theme.typography.body.sm.copyWith(
-              color: colors.destructive,
-            ),
-          ),
-          data: (byPath) => FItemGroup(
-            children: [
-              for (final f in files)
-                FItem(
-                  title: Text(_driveFileTitle(f, byPath)),
-                  subtitle: Text(_driveFileSubtitle(f, byPath)),
-                  style: itemStyle,
-                ),
-            ],
-          ),
+        final byPath =
+            resolved.asData?.value ?? const <String, LibraryTrackSummary>{};
+        return FItemGroup(
+          children: [
+            for (final f in files)
+              FItem(
+                title: Text(_driveFileTitle(f, byPath)),
+                subtitle: Text(_driveFileSubtitle(f, byPath)),
+                style: itemStyle,
+              ),
+          ],
         );
       },
     );

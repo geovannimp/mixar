@@ -26,10 +26,16 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     try {
       final transport = await ref.read(libraryTransportProvider.future);
       final result = await transport.addFolderCollection(folderPath: path);
+      if (!mounted) {
+        return;
+      }
       ref.invalidate(collectionsProvider);
       ref.invalidate(collectionTracksProvider);
       ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ref.read(libraryMessageProvider.notifier).setError('$e');
     } finally {
       if (mounted) {
