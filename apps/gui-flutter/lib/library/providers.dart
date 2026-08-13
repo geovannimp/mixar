@@ -168,6 +168,20 @@ Future<void> refreshTrackAction(WidgetRef ref, String trackId) async {
 
 // --- Drive browse (Task 6) ---
 
+enum LibrarySourceTab { collections, drive }
+
+class LibrarySourceTabNotifier extends Notifier<LibrarySourceTab> {
+  @override
+  LibrarySourceTab build() => LibrarySourceTab.collections;
+
+  void set(LibrarySourceTab tab) => state = tab;
+}
+
+final librarySourceTabProvider =
+    NotifierProvider<LibrarySourceTabNotifier, LibrarySourceTab>(
+      LibrarySourceTabNotifier.new,
+    );
+
 final driveVolumesProvider = FutureProvider<List<FsVolumeInfo>>(
   (ref) => listFsVolumes(),
 );

@@ -70,20 +70,16 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text('Collections', style: theme.typography.display.sm),
-              ),
-              FButton(
-                size: .sm,
-                variant: .primary,
-                onPress: _adding ? null : _addFolder,
-                child: _adding
-                    ? const FCircularProgress(size: .sm)
-                    : const Text('Add folder'),
-              ),
-            ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: FButton(
+              size: .sm,
+              variant: .primary,
+              onPress: _adding ? null : _addFolder,
+              child: _adding
+                  ? const FCircularProgress(size: .sm)
+                  : const Text('Add folder'),
+            ),
           ),
           const SizedBox(height: 12),
           Expanded(

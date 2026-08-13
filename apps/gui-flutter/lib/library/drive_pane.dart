@@ -42,8 +42,6 @@ class DrivePane extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Browse', style: theme.typography.display.sm),
-          const SizedBox(height: 12),
           Expanded(
             child: currentPath == null
                 ? volumes.when(

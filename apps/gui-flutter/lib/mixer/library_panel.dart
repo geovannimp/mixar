@@ -7,8 +7,8 @@ import 'package:gui_flutter/library/drive_pane.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 
-/// Library panel: [FTabs](https://forui.dev/docs/widgets/navigation/tabs) for
-/// collections vs drive, plus track/drive file panes.
+/// Library panel: left [FTabs](https://forui.dev/docs/widgets/navigation/tabs)
+/// (Collections / Drive); right pane follows the selected tab.
 class LibraryPanel extends ConsumerWidget {
   const LibraryPanel({super.key});
 
@@ -17,6 +17,8 @@ class LibraryPanel extends ConsumerWidget {
     ref.watch(libraryEventsBootstrapProvider);
     final theme = context.theme;
     final message = ref.watch(libraryMessageProvider);
+    final drive =
+        ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
 
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -45,56 +47,48 @@ class LibraryPanel extends ConsumerWidget {
                       ),
                     ),
                   Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: FTabs(
-                        expands: true,
-                        scrollable: true,
-                        children: [
-                          FTabEntry(
-                            label: const Text('Collections'),
-                            child: FResizable(
-                              axis: .horizontal,
-                              divider: .dividerWithThumb,
-                              children: [
-                                .fixed(
-                                  minExtent: 100,
-                                  extent: 200,
-                                  builder: _fill,
-                                  child: const CollectionsPane(),
+                    child: FResizable(
+                      axis: .horizontal,
+                      divider: .dividerWithThumb,
+                      children: [
+                        .fixed(
+                          minExtent: 140,
+                          extent: 220,
+                          builder: _fill,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
+                            child: FTabs(
+                              expands: true,
+                              scrollable: true,
+                              onPress: (index) {
+                                ref.read(librarySourceTabProvider.notifier).set(
+                                  index == 1
+                                      ? LibrarySourceTab.drive
+                                      : LibrarySourceTab.collections,
+                                );
+                              },
+                              children: const [
+                                FTabEntry(
+                                  label: Text('Collections'),
+                                  child: CollectionsPane(),
                                 ),
-                                .flex(
-                                  flex: 3,
-                                  minFlex: 1,
-                                  builder: _fill,
-                                  child: const TrackTablePane(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          FTabEntry(
-                            label: const Text('Drive'),
-                            child: FResizable(
-                              axis: .horizontal,
-                              divider: .dividerWithThumb,
-                              children: [
-                                .fixed(
-                                  minExtent: 100,
-                                  extent: 200,
-                                  builder: _fill,
-                                  child: const DrivePane(),
-                                ),
-                                .flex(
-                                  flex: 3,
-                                  minFlex: 1,
-                                  builder: _fill,
-                                  child: const DriveFilesPane(),
+                                FTabEntry(
+                                  label: Text('Drive'),
+                                  child: DrivePane(),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        .flex(
+                          flex: 3,
+                          minFlex: 1,
+                          builder: _fill,
+                          child: drive
+                              ? const DriveFilesPane()
+                              : const TrackTablePane(),
+                        ),
+                      ],
                     ),
                   ),
                 ],
