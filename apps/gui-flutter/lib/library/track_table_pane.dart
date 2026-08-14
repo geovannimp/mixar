@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -85,7 +83,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingId = ref.watch(analyzingTrackIdProvider);
-    final artwork = ref.watch(artworkCacheProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -95,6 +92,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       }
       manager.removeAllRows();
       manager.appendRows(_rowsFor(_tracks, next));
+    });
+    ref.listen(artworkCacheProvider, (_, _) {
+      _manager?.notifyListeners();
     });
 
     ref.listen(libraryTableTracksProvider, (_, next) {
@@ -174,7 +174,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                           borderRadius: theme.style.borderRadius.md,
                           child: TrinaGrid(
                             key: ValueKey(drive ? drivePath : selectedId),
-                            columns: _columns(theme, artwork, analyzingId),
+                            columns: _columns(theme),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
                             onLoaded: (e) {
@@ -195,11 +195,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  List<TrinaColumn> _columns(
-    FThemeData theme,
-    Map<String, Uint8List?> artwork,
-    String? analyzingId,
-  ) {
+  List<TrinaColumn> _columns(FThemeData theme) {
     return [
       TrinaColumn(
         title: '',
@@ -215,7 +211,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           if (trackId == null) {
             return const SizedBox.shrink();
           }
-          final bytes = artwork[trackId];
+          final bytes = ref.read(artworkCacheProvider)[trackId];
           if (bytes != null && bytes.isNotEmpty) {
             return Center(
               child: Image.memory(
@@ -307,7 +303,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           if (trackId == null) {
             return const SizedBox.shrink();
           }
-          final analyzing = analyzingId == trackId;
+          final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           return Center(
             child: FPopoverMenu(
