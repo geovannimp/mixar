@@ -4,13 +4,17 @@
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
 import 'api/engine.dart';
+import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -68,7 +72,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -811136485;
+  int get rustContentHash => -1708079357;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -131,11 +135,17 @@ abstract class RustLibApi extends BaseApi {
 
   String crateApiMetaAppDisplayName();
 
+  Future<FsDirectoryListing> crateApiFsBrowserBrowseFsDirectory({
+    required String path,
+  });
+
   Future<bool> crateApiEngineEngineIsRunning();
 
   Future<void> crateApiMetaInitApp();
 
   List<String> crateApiEngineListBackendNames();
+
+  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes();
 
   Future<List<OutputDevice>> crateApiEngineListOutputDevices({
     required String backend,
@@ -571,6 +581,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "app_display_name", argNames: []);
 
   @override
+  Future<FsDirectoryListing> crateApiFsBrowserBrowseFsDirectory({
+    required String path,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_fs_directory_listing,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiFsBrowserBrowseFsDirectoryConstMeta,
+        argValues: [path],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFsBrowserBrowseFsDirectoryConstMeta =>
+      const TaskConstMeta(debugName: "browse_fs_directory", argNames: ["path"]);
+
+  @override
   Future<bool> crateApiEngineEngineIsRunning() {
     return handler.executeNormal(
       NormalTask(
@@ -579,7 +619,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 13,
             port: port_,
           );
         },
@@ -606,7 +646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 14,
             port: port_,
           );
         },
@@ -630,7 +670,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 15)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_list_String,
@@ -647,6 +687,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_backend_names", argNames: []);
 
   @override
+  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 16,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_fs_volume_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiFsBrowserListFsVolumesConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiFsBrowserListFsVolumesConstMeta =>
+      const TaskConstMeta(debugName: "list_fs_volumes", argNames: []);
+
+  @override
   Future<List<OutputDevice>> crateApiEngineListOutputDevices({
     required String backend,
   }) {
@@ -658,7 +725,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -695,7 +762,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -724,7 +791,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -853,6 +920,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FsDirectoryListing dco_decode_fs_directory_listing(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return FsDirectoryListing(
+      path: dco_decode_String(arr[0]),
+      parent: dco_decode_opt_String(arr[1]),
+      directories: dco_decode_list_fs_entry(arr[2]),
+      audioFiles: dco_decode_list_fs_entry(arr[3]),
+    );
+  }
+
+  @protected
+  FsEntry dco_decode_fs_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FsEntry(
+      name: dco_decode_String(arr[0]),
+      path: dco_decode_String(arr[1]),
+    );
+  }
+
+  @protected
+  FsVolumeInfo dco_decode_fs_volume_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return FsVolumeInfo(
+      name: dco_decode_String(arr[0]),
+      path: dco_decode_String(arr[1]),
+      isRemovable: dco_decode_bool(arr[2]),
+    );
+  }
+
+  @protected
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -918,6 +1024,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<FsEntry> dco_decode_list_fs_entry(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_fs_entry).toList();
+  }
+
+  @protected
+  List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_fs_volume_info).toList();
   }
 
   @protected
@@ -1179,6 +1297,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  FsDirectoryListing sse_decode_fs_directory_listing(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_path = sse_decode_String(deserializer);
+    var var_parent = sse_decode_opt_String(deserializer);
+    var var_directories = sse_decode_list_fs_entry(deserializer);
+    var var_audioFiles = sse_decode_list_fs_entry(deserializer);
+    return FsDirectoryListing(
+      path: var_path,
+      parent: var_parent,
+      directories: var_directories,
+      audioFiles: var_audioFiles,
+    );
+  }
+
+  @protected
+  FsEntry sse_decode_fs_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    return FsEntry(name: var_name, path: var_path);
+  }
+
+  @protected
+  FsVolumeInfo sse_decode_fs_volume_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_name = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_isRemovable = sse_decode_bool(deserializer);
+    return FsVolumeInfo(
+      name: var_name,
+      path: var_path,
+      isRemovable: var_isRemovable,
+    );
+  }
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
@@ -1266,6 +1422,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FsEntry> sse_decode_list_fs_entry(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FsEntry>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_fs_entry(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<FsVolumeInfo> sse_decode_list_fs_volume_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FsVolumeInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_fs_volume_info(deserializer));
     }
     return ans_;
   }
@@ -1588,6 +1770,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_fs_directory_listing(
+    FsDirectoryListing self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.path, serializer);
+    sse_encode_opt_String(self.parent, serializer);
+    sse_encode_list_fs_entry(self.directories, serializer);
+    sse_encode_list_fs_entry(self.audioFiles, serializer);
+  }
+
+  @protected
+  void sse_encode_fs_entry(FsEntry self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.path, serializer);
+  }
+
+  @protected
+  void sse_encode_fs_volume_info(FsVolumeInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.name, serializer);
+    sse_encode_String(self.path, serializer);
+    sse_encode_bool(self.isRemovable, serializer);
+  }
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
@@ -1649,6 +1858,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_fs_entry(List<FsEntry> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_fs_entry(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_fs_volume_info(
+    List<FsVolumeInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_fs_volume_info(item, serializer);
     }
   }
 
@@ -1881,7 +2111,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportGetTrack(that: this, trackId: trackId);
 
-  /// List tracks in a collection (artwork left unset for cheap browsing).
+  /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
   }) =>

@@ -278,15 +278,20 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
         if is_hidden(&file_name) {
             continue;
         }
+        // DirEntry::file_type does not follow symlinks (Path::is_dir can block on FUSE/NFS).
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
         let entry_path = entry.path();
         let entry_str = entry_path.to_string_lossy().into_owned();
 
-        if entry_path.is_dir() {
+        if file_type.is_dir() {
             directories.push(FsEntry {
                 name: file_name,
                 path: entry_str,
             });
-        } else if entry_path.is_file() && is_audio_file(&entry_path) {
+        } else if file_type.is_file() && is_audio_file(&entry_path) {
             audio_files.push(FsEntry {
                 name: file_name,
                 path: entry_str,
@@ -294,8 +299,8 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
         }
     }
 
-    directories.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    audio_files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    directories.sort_by_key(|a| a.name.to_lowercase());
+    audio_files.sort_by_key(|a| a.name.to_lowercase());
 
     Ok(DirectoryListing {
         path: path_str,
@@ -308,10 +313,35 @@ pub fn browse_directory(path: &str) -> Result<DirectoryListing, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use tempfile::tempdir;
 
     #[test]
-    fn browse_current_directory() {
-        let listing = browse_directory(".").expect("browse current directory");
-        assert!(listing.path.len() > 0);
+    fn browse_directory_splits_dirs_and_audio_files() {
+        let root = tempdir().expect("temp dir");
+        let nested = root.path().join("nested");
+        fs::create_dir(&nested).expect("nested dir");
+        fs::write(root.path().join("track.wav"), b"RIFF").expect("wav file");
+        fs::write(root.path().join("readme.txt"), b"notes").expect("text file");
+
+        let listing = browse_directory(root.path().to_str().unwrap()).expect("browse temp dir");
+
+        assert_eq!(listing.directories.len(), 1);
+        assert_eq!(listing.directories[0].name, "nested");
+        assert_eq!(listing.audio_files.len(), 1);
+        assert_eq!(listing.audio_files[0].name, "track.wav");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn browse_does_not_follow_dangling_symlink() {
+        let root = tempdir().expect("temp dir");
+        std::os::unix::fs::symlink("/no/such/fs-browser-target", root.path().join("broken"))
+            .expect("symlink");
+        let listing = browse_directory(root.path().to_str().unwrap()).expect("browse");
+        assert!(
+            listing.directories.iter().all(|e| e.name != "broken"),
+            "dangling symlink must not be stat'd as a directory"
+        );
     }
 }
