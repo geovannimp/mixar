@@ -134,6 +134,21 @@ void main() {
       expect(parseTrackDragPlainText('{"type":"other"}'), isNull);
       expect(parseTrackDragPlainText(null), isNull);
     });
+
+    test('rejects unsupported filesystem paths from OS plain text', () {
+      expect(
+        parseTrackDragPlainText(
+          encodeTrackDragPlainText(
+            const TrackDragPayload(
+              source: TrackDragSource.filesystem,
+              path: '/tmp/readme.txt',
+              title: 'readme.txt',
+            ),
+          ),
+        ),
+        isNull,
+      );
+    });
   });
 
   group('preferredTrackDropOperation', () {

@@ -142,7 +142,15 @@ TrackDragPayload? parseTrackDragPlainText(String? text) {
     return null;
   }
   try {
-    return parseTrackDragLocalData(jsonDecode(text));
+    final payload = parseTrackDragLocalData(jsonDecode(text));
+    if (payload == null) {
+      return null;
+    }
+    if (payload.source == TrackDragSource.filesystem &&
+        !isSupportedAudioPath(payload.path)) {
+      return null;
+    }
+    return payload;
   } on FormatException {
     return null;
   }
