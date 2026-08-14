@@ -39,6 +39,25 @@ void main() {
       },
     );
 
+    test('empty updated trackId keeps previous trackId', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          trackId: 'abc',
+          durationMs: 8000,
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, playing: true),
+      );
+      expect(snap.trackIdFor(1), 'abc');
+      expect(snap.durationMsFor(1), 8000);
+      expect(snap.isPlaying(1), isTrue);
+    });
+
     test('updated playing flag is stored per deck', () {
       var snap = applyEngineEvt(
         EngineUiSnapshot.empty,

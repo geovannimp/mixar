@@ -42,6 +42,16 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     }
     state = state.copyWith(titles: next);
   }
+
+  void setDeckTrackId(int deckId, String? trackId) {
+    final next = Map<int, String>.from(state.trackIds);
+    if (trackId == null || trackId.isEmpty) {
+      next.remove(deckId);
+    } else {
+      next[deckId] = trackId;
+    }
+    state = state.copyWith(trackIds: next);
+  }
 }
 
 final engineUiProvider = NotifierProvider<EngineUi, EngineUiSnapshot>(
@@ -167,6 +177,7 @@ Future<void> loadPayloadToDeck(
         deckId,
         trackDisplayTitle(title: payload.title, path: payload.path),
       );
+  ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
 }
 
 Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {

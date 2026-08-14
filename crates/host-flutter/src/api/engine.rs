@@ -386,6 +386,7 @@ impl EngineTransport {
     }
 
     fn load_prepared(&self, deck_id: u16, prepared: PreparedTrackPlayback) -> Result<(), String> {
+        let track_id = prepared.track_id.as_str().to_string();
         let snap = {
             let mut guard = self
                 .engine
@@ -397,9 +398,13 @@ impl EngineTransport {
             engine
                 .load_prepared_track(deck_id as usize, prepared)
                 .map_err(|e| e.to_string())?;
-            engine
+            let mut snap = engine
                 .deck_snapshot(deck_id as usize)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
+            // DSP snapshots omit library identity; the prepared load is the
+            // source of truth Flutter needs to fetch L0/L1 peaks.
+            snap.track_id = Some(track_id);
+            snap
         };
         self.buses
             .publish_evt(

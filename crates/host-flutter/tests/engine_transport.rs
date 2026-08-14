@@ -64,6 +64,19 @@ fn load_path_publishes_updated() {
         .unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
     assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated {
+        track_id,
+        duration_ms,
+        ..
+    } = decode_evt_body(event.payload()).unwrap()
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(
+        track_id.as_ref().is_some_and(|id| !id.is_empty()),
+        "load Updated must carry track_id for waveform fetch, got {track_id:?}"
+    );
+    assert!(duration_ms.is_some_and(|ms| ms > 0));
 }
 
 #[test]
