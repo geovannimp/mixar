@@ -18,7 +18,7 @@
     "test": "moon run :test",
     "dev": "moon run :dev",
     "gui:build": "moon run gui-app:build",
-    "gui:tauri": "moon run gui-app:tauri",
+    "tauri:dev": "moon run gui-app:dev",
     "flutter:dev": "moon run gui-flutter:dev-linux"
   },
   "devDependencies": {

@@ -42,7 +42,7 @@ class ArtworkCache extends Notifier<Map<String, Uint8List?>> {
       final track = await transport.getTrack(trackId: id);
       _store(id, track?.artwork);
     } catch (_) {
-      _store(id, null);
+      return;
     } finally {
       _inFlight.remove(id);
     }

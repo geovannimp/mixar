@@ -21,6 +21,27 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(driveCurrentPathProvider.notifier).set(path);
   }
 
+  void _openParent(FsDirectoryListing dir, FsVolumeInfo? volume) {
+    final parent = dir.parent;
+    if (parent == null || !_parentInVolume(parent, volume)) {
+      return;
+    }
+    _openPath(parent);
+  }
+
+  static bool _parentInVolume(String parent, FsVolumeInfo? volume) {
+    if (volume == null) {
+      return false;
+    }
+    if (parent == volume.path) {
+      return true;
+    }
+    if (volume.path == '/') {
+      return parent.startsWith('/');
+    }
+    return parent.startsWith('${volume.path}/');
+  }
+
   Future<void> _createCollection(String folderPath) async {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
@@ -114,6 +135,14 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                               title: currentName,
                               icon: FLucideIcons.folder,
                               selected: true,
+                              onPress:
+                                  dir.parent != null &&
+                                      _parentInVolume(
+                                        dir.parent!,
+                                        selectedVolume,
+                                      )
+                                  ? () => _openParent(dir, selectedVolume)
+                                  : null,
                               trailing: _CreateCollectionButton(
                                 onPress: () => _createCollection(dir.path),
                               ),
