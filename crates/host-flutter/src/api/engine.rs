@@ -7,10 +7,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, DeckSnapshot, EvtBody, Kind, Origin};
+use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{
-    spawn_engine_control, AudioBackend, AudioBackendTrait, Engine, EngineBuses, EngineConfig,
-    EngineControl, Evt,
+    deck_snapshot_to_evt, spawn_engine_control, AudioBackend, AudioBackendTrait, Engine,
+    EngineBuses, EngineConfig, EngineControl, Evt,
 };
 use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::TrackId;
@@ -135,12 +135,12 @@ fn is_coalescible(kind: &Kind) -> bool {
 /// Host-owned engine handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct EngineTransport {
+    /// Declared first so Drop joins the control thread before `engine` is destroyed.
+    #[allow(dead_code)]
+    control: EngineControl,
     engine: Arc<Mutex<Option<Engine>>>,
     buses: EngineBuses,
     library: Arc<Mutex<LibraryManager>>,
-    /// Drop joins the control thread; must not live inside the engine mutex.
-    #[allow(dead_code)]
-    control: EngineControl,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
 }
 
@@ -176,12 +176,22 @@ impl EngineTransport {
         engine.set_buses(buses.clone());
         engine.start().map_err(|e| e.to_string())?;
         let engine = Arc::new(Mutex::new(Some(engine)));
-        let control = spawn_engine_control(Arc::clone(&engine)).map_err(|e| e.to_string())?;
+        let control = match spawn_engine_control(Arc::clone(&engine)) {
+            Ok(control) => control,
+            Err(e) => {
+                if let Ok(mut guard) = engine.lock() {
+                    if let Some(eng) = guard.as_mut() {
+                        let _ = eng.stop();
+                    }
+                }
+                return Err(e.to_string());
+            }
+        };
         Ok(Self {
+            control,
             engine,
             buses,
             library: library_arc,
-            control,
             evt_forwarder: Mutex::new(None),
         })
     }
@@ -255,7 +265,7 @@ impl EngineTransport {
             .publish_evt(
                 Origin::Deck(deck_id),
                 Kind::Updated,
-                deck_updated_body(snap),
+                deck_snapshot_to_evt(snap),
             )
             .map_err(|e| e.to_string())
     }
@@ -321,41 +331,6 @@ impl EngineTransport {
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<engine_core::EvtReceiver, String> {
         self.buses.subscribe_evt_all().map_err(|e| e.to_string())
-    }
-}
-
-fn deck_updated_body(s: DeckSnapshot) -> EvtBody {
-    EvtBody::DeckUpdated {
-        id: s.id,
-        track: s.track,
-        track_id: s.track_id,
-        title: s.title,
-        artist: s.artist,
-        bpm: s.bpm,
-        key: s.key,
-        playing: s.playing,
-        volume: s.volume,
-        speed: s.speed,
-        tempo_range: s.tempo_range,
-        eq: s.eq,
-        filter: s.filter,
-        gain_trim: s.gain_trim,
-        headphone_cue: s.headphone_cue,
-        sync_mode: s.sync_mode,
-        cue_point_ms: s.cue_point_ms,
-        quantize: s.quantize,
-        active_loop: s.active_loop,
-        pad_mode: s.pad_mode,
-        position_ms: s.position_ms,
-        duration_ms: s.duration_ms,
-        hot_cues: s.hot_cues,
-        saved_loops: s.saved_loops,
-        loudness_lufs: s.loudness_lufs,
-        auto_gain_db: s.auto_gain_db,
-        active_sampler_bank_id: s.active_sampler_bank_id,
-        top_jog_mode: s.top_jog_mode,
-        outer_jog_mode: s.outer_jog_mode,
-        jog_touching: s.jog_touching,
     }
 }
 

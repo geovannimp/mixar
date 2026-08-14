@@ -198,7 +198,8 @@ fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>
     );
 }
 
-fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
+/// Map a deck snapshot to the `DeckUpdated` evt body (host load paths + control thread).
+pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
     EvtBody::DeckUpdated {
         id: snap.id,
         track: snap.track,

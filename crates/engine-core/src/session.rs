@@ -17,11 +17,11 @@ use std::sync::{Arc, Mutex};
 ///
 /// Shim over host-owned [`EngineBuses`] + [`Engine`] + [`EngineControl`].
 pub struct EngineSession {
-    engine: Arc<Mutex<Option<Engine>>>,
-    buses: EngineBuses,
-    /// Kept so Drop joins the control thread; must not live inside the engine mutex.
+    /// Declared first so Drop joins the control thread before `engine` is destroyed.
     #[allow(dead_code)]
     control: EngineControl,
+    engine: Arc<Mutex<Option<Engine>>>,
+    buses: EngineBuses,
 }
 
 impl EngineSession {
@@ -53,9 +53,9 @@ impl EngineSession {
         let engine = Arc::new(Mutex::new(Some(engine)));
         let control = spawn_engine_control(Arc::clone(&engine))?;
         Ok(Self {
+            control,
             engine,
             buses,
-            control,
         })
     }
 

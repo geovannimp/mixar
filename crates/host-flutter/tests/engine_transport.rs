@@ -23,10 +23,11 @@ fn recv_kind(rx: &engine_core::EvtReceiver, kind: Kind, timeout: Duration) -> en
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = rx
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
+        let event = match rx.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) => event,
+            Ok(None) => continue,
+            Err(e) => panic!("evt bus disconnected waiting for {kind:?}: {e}"),
+        };
         if *event.kind() == kind {
             return (*event).clone();
         }
