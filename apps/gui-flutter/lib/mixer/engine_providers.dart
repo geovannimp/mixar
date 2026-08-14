@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -124,11 +125,8 @@ Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
   }
 }
 
-Future<EngineTransport?> _engineOrNull(WidgetRef ref) =>
-    ref.read(engineTransportProvider.future);
-
 Future<void> setDeckVolume(WidgetRef ref, int deckId, double volume) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setVolume(deckId: deckId, volume: volume);
 }
 
@@ -138,17 +136,17 @@ Future<void> setDeckEqBand(
   EqBand band,
   double gain,
 ) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setEqBand(deckId: deckId, band: band, gain: gain);
 }
 
 Future<void> setDeckFilter(WidgetRef ref, int deckId, double filter) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setFilter(deckId: deckId, filter: filter);
 }
 
 Future<void> setDeckGainTrim(WidgetRef ref, int deckId, double gainTrim) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setGainTrim(deckId: deckId, gainTrim: gainTrim);
 }
 
@@ -157,11 +155,11 @@ Future<void> setDeckHeadphoneCue(
   int deckId,
   bool enabled,
 ) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setHeadphoneCue(deckId: deckId, enabled: enabled);
 }
 
 Future<void> setCrossfader(WidgetRef ref, double position) async {
-  final engine = await _engineOrNull(ref);
+  final engine = await ref.read(engineTransportProvider.future);
   await engine?.setCrossfader(position: position);
 }
