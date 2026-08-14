@@ -11,6 +11,7 @@ use engine_api::{
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 const TICK_INTERVAL: Duration = Duration::from_millis(33);
@@ -80,7 +81,53 @@ impl PeakHoldState {
     }
 }
 
-pub fn control_thread_loop(
+/// Host-owned engine cmd worker (`JoinHandle` must not live inside `Mutex<Engine>`).
+pub struct EngineWorker {
+    shutdown: Arc<AtomicBool>,
+    handle: Option<JoinHandle<()>>,
+}
+
+impl Drop for EngineWorker {
+    fn drop(&mut self) {
+        self.shutdown.store(true, Ordering::Relaxed);
+        if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Spawn the cmd-draining worker using buses attached to `engine`.
+///
+/// Errors if [`Engine::set_buses`] was not called, or if the thread fails to subscribe.
+pub fn spawn_engine_worker(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineWorker> {
+    let buses = {
+        let guard = engine.lock().unwrap_or_else(|e| e.into_inner());
+        guard.as_ref().and_then(Engine::buses).ok_or_else(|| {
+            anyhow!("engine buses not attached; call set_buses before spawn_engine_worker")
+        })?
+    };
+
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let cmd = buses.cmd_bus();
+    let evt = buses.evt_bus();
+    let revision = buses.revision_arc();
+    let engine_handle = Arc::clone(&engine);
+    let shutdown_flag = Arc::clone(&shutdown);
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
+    let handle = std::thread::spawn(move || {
+        control_thread_loop(cmd, evt, engine_handle, revision, shutdown_flag, ready_tx);
+    });
+    ready_rx
+        .recv()
+        .map_err(|_| anyhow!("engine worker failed to start"))??;
+
+    Ok(EngineWorker {
+        shutdown,
+        handle: Some(handle),
+    })
+}
+
+fn control_thread_loop(
     cmd_bus: EngineBus,
     evt_bus: EngineBus,
     engine: Arc<Mutex<Option<Engine>>>,
@@ -151,7 +198,8 @@ fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>
     );
 }
 
-fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
+/// Map a deck snapshot to the `DeckUpdated` evt body (host load paths + cmd worker).
+pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
     EvtBody::DeckUpdated {
         id: snap.id,
         track: snap.track,

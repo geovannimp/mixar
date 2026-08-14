@@ -312,6 +312,18 @@ impl LibraryTransport {
     pub fn subscribe_evt_all(&self) -> Result<library::EvtReceiver, String> {
         self.buses.subscribe_evt_all().map_err(|e| e.to_string())
     }
+
+    /// Shared manager for engine load-to-deck (prepare outside the engine lock).
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn library_arc(&self) -> Arc<Mutex<LibraryManager>> {
+        Arc::clone(&self.library)
+    }
+
+    /// Library cmd bus clone for `Engine::new_with_library_bus`.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn cmd_bus(&self) -> library::LibraryBus {
+        self.buses.cmd_bus()
+    }
 }
 
 /// Map omnibus library egress to the thin Dart-facing evt (ignores Navigate/Load/cues/…).
