@@ -80,6 +80,38 @@ void main() {
     });
   });
 
+  group('track drag plain text', () {
+    test('round-trips JSON for GTK / OS clipboard formats', () {
+      final original = TrackDragPayload(
+        source: TrackDragSource.library,
+        trackId: 't1',
+        path: '/lib/a.wav',
+        title: 'Alpha',
+      );
+      expect(
+        parseTrackDragPlainText(encodeTrackDragPlainText(original)),
+        original,
+      );
+    });
+
+    test('rejects non-JSON and non-track text', () {
+      expect(parseTrackDragPlainText('not json'), isNull);
+      expect(parseTrackDragPlainText('{"type":"other"}'), isNull);
+      expect(parseTrackDragPlainText(null), isNull);
+    });
+  });
+
+  group('preferredTrackDropOperation', () {
+    test('prefers copy when the source allows it', () {
+      expect(preferredTrackDropOperation({'move', 'copy'}), 'copy');
+    });
+
+    test('falls back to the first allowed op when copy is absent', () {
+      expect(preferredTrackDropOperation({'move'}), 'move');
+      expect(preferredTrackDropOperation(const {}), 'copy');
+    });
+  });
+
   group('applyEngineEvt', () {
     test('status sets running; updated sets deck title', () {
       var snap = EngineUiSnapshot.empty;
@@ -101,16 +133,28 @@ void main() {
       expect(snap.titleFor(1), isNull);
     });
 
-    test('empty updated title clears the deck', () {
+    test(
+      'empty updated track keeps host title (engine snapshots omit library fields)',
+      () {
+        var snap = applyEngineEvt(
+          EngineUiSnapshot.empty,
+          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, track: 'X'),
+        );
+        snap = applyEngineEvt(
+          snap,
+          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1),
+        );
+        expect(snap.titleFor(1), 'X');
+      },
+    );
+
+    test('updated playing flag is stored per deck', () {
       var snap = applyEngineEvt(
         EngineUiSnapshot.empty,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, track: 'X'),
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
       );
-      snap = applyEngineEvt(
-        snap,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, track: ''),
-      );
-      expect(snap.titleFor(1), isNull);
+      expect(snap.isPlaying(0), isTrue);
+      expect(snap.isPlaying(1), isFalse);
     });
 
     test('position events do not change titles', () {

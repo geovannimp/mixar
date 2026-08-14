@@ -12,6 +12,16 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
   void apply(EngineEvt evt) => state = applyEngineEvt(state, evt);
 
   void setRunning(bool running) => state = state.copyWith(running: running);
+
+  void setDeckTitle(int deckId, String title) {
+    final next = Map<int, String>.from(state.titles);
+    if (title.isEmpty) {
+      next.remove(deckId);
+    } else {
+      next[deckId] = title;
+    }
+    state = state.copyWith(titles: next);
+  }
 }
 
 final engineUiProvider = NotifierProvider<EngineUi, EngineUiSnapshot>(
@@ -24,6 +34,10 @@ final engineRunningProvider = Provider<bool>(
 
 final deckTrackTitleProvider = Provider.family<String?, int>(
   (ref, deckId) => ref.watch(engineUiProvider).titleFor(deckId),
+);
+
+final deckPlayingProvider = Provider.family<bool, int>(
+  (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
 );
 
 /// Starts once on desktop. Widget tests set [debugOverrideDesktopWindow] false
@@ -75,4 +89,17 @@ Future<void> loadPayloadToDeck(
         engine.loadLibraryTrack(deckId: id, trackId: trackId),
     loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
   );
+  ref.read(engineUiProvider.notifier).setDeckTitle(deckId, payload.title);
+}
+
+Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  if (engine == null) {
+    return;
+  }
+  if (ref.read(engineUiProvider).isPlaying(deckId)) {
+    await engine.pause(deckId: deckId);
+  } else {
+    await engine.play(deckId: deckId);
+  }
 }

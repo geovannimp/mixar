@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -117,6 +119,37 @@ TrackDragPayload? parseTrackDragLocalData(Object? data) {
   );
 }
 
+/// GTK needs a platform format on the drag item; `localData` alone yields an
+/// empty target list and the drop session never reaches Flutter.
+String encodeTrackDragPlainText(TrackDragPayload payload) =>
+    jsonEncode(payload.toLocalData());
+
+TrackDragPayload? parseTrackDragPlainText(String? text) {
+  if (text == null || text.isEmpty) {
+    return null;
+  }
+  try {
+    return parseTrackDragLocalData(jsonDecode(text));
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Prefer copy; Linux GTK often advertises move instead.
+String preferredTrackDropOperation(Iterable<String> allowed) {
+  final set = allowed.toSet();
+  if (set.contains('copy')) {
+    return 'copy';
+  }
+  if (set.contains('move')) {
+    return 'move';
+  }
+  if (set.contains('link')) {
+    return 'link';
+  }
+  return 'copy';
+}
+
 bool isSupportedAudioPath(String path) {
   final base = path.replaceAll('\\', '/').split('/').last;
   final dot = base.lastIndexOf('.');
@@ -140,20 +173,31 @@ String pathFromDroppedUri(Uri uri) {
 }
 
 class EngineUiSnapshot {
-  const EngineUiSnapshot({required this.running, required this.titles});
+  const EngineUiSnapshot({
+    required this.running,
+    required this.titles,
+    this.playing = const {},
+  });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
 
   final bool running;
   final Map<int, String> titles;
+  final Map<int, bool> playing;
 
   String? titleFor(int deckId) => titles[deckId];
 
-  EngineUiSnapshot copyWith({bool? running, Map<int, String>? titles}) =>
-      EngineUiSnapshot(
-        running: running ?? this.running,
-        titles: titles ?? this.titles,
-      );
+  bool isPlaying(int deckId) => playing[deckId] ?? false;
+
+  EngineUiSnapshot copyWith({
+    bool? running,
+    Map<int, String>? titles,
+    Map<int, bool>? playing,
+  }) => EngineUiSnapshot(
+    running: running ?? this.running,
+    titles: titles ?? this.titles,
+    playing: playing ?? this.playing,
+  );
 }
 
 EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
@@ -165,14 +209,19 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (id == null) {
         return prev;
       }
-      final next = Map<int, String>.from(prev.titles);
+      final nextTitles = Map<int, String>.from(prev.titles);
       final title = evt.track;
-      if (title == null || title.isEmpty) {
-        next.remove(id);
-      } else {
-        next[id] = title;
+      // Engine snapshots omit library metadata (`track`/`title` are always
+      // null). Keep the host title from load; only replace when the evt
+      // actually carries one.
+      if (title != null && title.isNotEmpty) {
+        nextTitles[id] = title;
       }
-      return prev.copyWith(titles: next);
+      final nextPlaying = Map<int, bool>.from(prev.playing);
+      if (evt.playing != null) {
+        nextPlaying[id] = evt.playing!;
+      }
+      return prev.copyWith(titles: nextTitles, playing: nextPlaying);
     case EngineEvtKind.position:
     case EngineEvtKind.levels:
     case EngineEvtKind.error:

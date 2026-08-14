@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -32,6 +34,7 @@ class DeckPanel extends ConsumerWidget {
     final accentColor = FaderColors.forAccent(accent).grip;
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
+    final playing = ref.watch(deckPlayingProvider(deckId));
     final tempo = DeckTempoPanel(
       accent: accent,
       isMaster: isMaster,
@@ -81,7 +84,14 @@ class DeckPanel extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: FButton(onPress: () {}, child: const Text('Play')),
+              child: FButton(
+                onPress: !hasTrack
+                    ? null
+                    : () {
+                        unawaited(_togglePlay(context, ref, deckId));
+                      },
+                child: Text(playing ? 'Pause' : 'Play'),
+              ),
             ),
           ],
         ),
@@ -104,6 +114,21 @@ class DeckPanel extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+Future<void> _togglePlay(
+  BuildContext context,
+  WidgetRef ref,
+  int deckId,
+) async {
+  try {
+    await toggleDeckPlay(ref, deckId);
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
 }
 

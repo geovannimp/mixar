@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -45,61 +47,99 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
     }
 
     return DropRegion(
-      formats: const [Formats.fileUri],
+      formats: const [Formats.plainText, Formats.fileUri],
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: (event) {
-        if (!event.session.allowedOperations.contains(DropOperation.copy)) {
+        if (!_canAcceptNative(event)) {
           return DropOperation.none;
         }
-        for (final item in event.session.items) {
-          if (parseTrackDragLocalData(item.localData) != null) {
-            return DropOperation.copy;
-          }
-          if (item.canProvide(Formats.fileUri)) {
-            return DropOperation.copy;
-          }
-        }
-        return DropOperation.none;
+        final op = _dropOperation(event.session.allowedOperations);
+        return op == DropOperation.none ? DropOperation.copy : op;
       },
       onDropEnter: (_) => setState(() => _over = true),
       onDropLeave: (_) => setState(() => _over = false),
       onPerformDrop: (event) async {
         setState(() => _over = false);
-        await _performDrop(event);
+        _performDrop(event);
       },
       child: highlighted,
     );
   }
 
-  Future<void> _performDrop(PerformDropEvent event) async {
+  bool _canAcceptNative(DropOverEvent event) {
     for (final item in event.session.items) {
-      final local = parseTrackDragLocalData(item.localData);
-      if (local != null) {
-        await _load(local);
+      if (parseTrackDragLocalData(item.localData) != null) {
+        return true;
+      }
+      if (item.canProvide(Formats.plainText) ||
+          item.canProvide(Formats.fileUri)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  DropOperation _dropOperation(Set<DropOperation> allowed) {
+    switch (preferredTrackDropOperation(allowed.map((op) => op.name))) {
+      case 'copy':
+        return DropOperation.copy;
+      case 'move':
+        return DropOperation.move;
+      case 'link':
+        return DropOperation.link;
+      default:
+        return DropOperation.copy;
+    }
+  }
+
+  void _performDrop(PerformDropEvent event) {
+    var loaded = false;
+    void tryLoad(TrackDragPayload? payload) {
+      if (loaded || payload == null) {
+        return;
+      }
+      loaded = true;
+      unawaited(_load(payload));
+    }
+
+    for (final item in event.session.items) {
+      tryLoad(parseTrackDragLocalData(item.localData));
+      if (loaded) {
         return;
       }
     }
 
-    final fileItems = [
-      for (final item in event.session.items)
-        if (item.dataReader != null && item.canProvide(Formats.fileUri)) item,
-    ];
+    final fileItems = <DropItem>[];
+    for (final item in event.session.items) {
+      final reader = item.dataReader;
+      if (reader == null) {
+        continue;
+      }
+      if (item.canProvide(Formats.plainText)) {
+        reader.getValue<String>(
+          Formats.plainText,
+          (text) => tryLoad(parseTrackDragPlainText(text)),
+        );
+      }
+      if (item.canProvide(Formats.fileUri)) {
+        fileItems.add(item);
+      }
+    }
+
     if (fileItems.isEmpty) {
       return;
     }
 
     var remaining = fileItems.length;
-    var loaded = false;
     for (final item in fileItems) {
       item.dataReader!.getValue<Uri>(
         Formats.fileUri,
-        (uri) async {
+        (uri) {
           remaining--;
           if (!loaded && uri != null) {
             final path = pathFromDroppedUri(uri);
             if (isSupportedAudioPath(path)) {
-              loaded = true;
-              await _load(payloadFromOsPath(path));
+              tryLoad(payloadFromOsPath(path));
             }
           }
           if (remaining == 0 && !loaded && mounted) {

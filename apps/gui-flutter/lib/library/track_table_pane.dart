@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -359,6 +360,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 
     return TrinaGridConfiguration(
       rowWrapperIsConstantHeight: true,
+      selectingMode: TrinaGridSelectingMode.none,
+      scrollbar: const TrinaGridScrollbarConfig(
+        // Mouse-drag scrolls steal super_dnd's 4px ImmediateMultiDrag when
+        // dragging a row up onto the decks. Wheel + thumb still scroll.
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.invertedStylus,
+          PointerDeviceKind.trackpad,
+        },
+      ),
       columnSize: const TrinaGridColumnSizeConfig(
         autoSizeMode: TrinaAutoSizeMode.scale,
         resizeMode: TrinaResizeMode.pushAndPull,
@@ -445,13 +457,20 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       title: title,
     );
     return DragItemWidget(
-      dragItemProvider: (_) async => DragItem(
-        localData: payload.toLocalData(),
-        suggestedName: payload.title,
-      ),
+      dragItemProvider: (_) async {
+        final item = DragItem(
+          localData: payload.toLocalData(),
+          suggestedName: payload.title,
+        );
+        item.add(Formats.plainText(encodeTrackDragPlainText(payload)));
+        return item;
+      },
       allowedOperations: () => [DropOperation.copy],
       dragBuilder: (context, child) => _TrackDragCard(title: payload.title),
-      child: DraggableWidget(child: rowWidget),
+      child: DraggableWidget(
+        hitTestBehavior: HitTestBehavior.opaque,
+        child: rowWidget,
+      ),
     );
   }
 
