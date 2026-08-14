@@ -1,4 +1,5 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 class MixerChannelUi {
@@ -86,7 +87,7 @@ class EngineUiSnapshot {
 
   double speedFor(int deckId) => speeds[deckId] ?? 0.5;
 
-  double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? 0.08;
+  double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
 
   MixerChannelUi channelFor(int deckId) =>
       channels[deckId] ?? MixerChannelUi.defaults;

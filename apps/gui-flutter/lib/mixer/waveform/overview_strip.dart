@@ -46,7 +46,7 @@ class OverviewStrip extends ConsumerWidget {
                 : (details) {
                     final ms = (details.localPosition.dx / width * durationMs)
                         .round();
-                    unawaited(seekDeck(ref, deckId, ms));
+                    unawaited(_seek(ref, context, deckId, ms));
                   },
             child: Stack(
               fit: StackFit.expand,
@@ -86,5 +86,21 @@ class OverviewStrip extends ConsumerWidget {
         },
       ),
     );
+  }
+}
+
+Future<void> _seek(
+  WidgetRef ref,
+  BuildContext context,
+  int deckId,
+  int ms,
+) async {
+  try {
+    await seekDeck(ref, deckId, ms);
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
 }

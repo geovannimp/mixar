@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/deck_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
@@ -116,6 +117,12 @@ void main() {
 
     expect(find.text('Seeded Track'), findsOneWidget);
     expect(find.text('Load tracks to see waveforms.'), findsNothing);
-    expect(find.byType(OverviewStrip), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byType(DeckPanel),
+        matching: find.byType(OverviewStrip),
+      ),
+      findsNWidgets(2),
+    );
   });
 }

@@ -336,7 +336,7 @@ impl LibraryManager {
         start_ms: i32,
         end_ms: i32,
         buckets: usize,
-    ) -> Result<Vec<audio_core::SpectralPeak>> {
+    ) -> Result<(Vec<audio_core::SpectralPeak>, i32, i32)> {
         let buckets = buckets.max(1);
         let cached = {
             let lib = library.lock().expect("library lock");
@@ -367,13 +367,25 @@ impl LibraryManager {
             cache.get(id).cloned().unwrap_or(loaded)
         };
 
-        Ok(audio_core::compute_spectral_window(
+        let duration_ms = {
+            let channels = usize::from(audio.channels.max(1));
+            let frames = audio.samples.len() / channels;
+            if audio.sample_rate == 0 || frames == 0 {
+                0
+            } else {
+                audio_core::secs_to_ms(frames as f64 / f64::from(audio.sample_rate))
+            }
+        };
+        let start_ms = start_ms.max(0).min(duration_ms.max(0));
+        let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
+        let peaks = audio_core::compute_spectral_window(
             audio.as_ref(),
             audio_core::ms_to_secs(start_ms),
             audio_core::ms_to_secs(end_ms),
             buckets,
             &audio_core::WaveformAnalysisConfig::default(),
-        ))
+        );
+        Ok((peaks, start_ms, end_ms))
     }
 
     /// Read the stored integrated loudness for a track, if it has been analyzed.
@@ -1210,8 +1222,10 @@ mod tests {
         };
 
         LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
-        let peaks =
-            LibraryManager::compute_waveform_window(&library, &track_id, 0, 500, 64).unwrap();
+        let (peaks, start_ms, end_ms) =
+            LibraryManager::compute_waveform_window(&library, &track_id, -1_000, 500, 64).unwrap();
+        assert_eq!(start_ms, 0);
+        assert_eq!(end_ms, 500);
         assert_eq!(peaks.len(), 64);
         assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
     }

@@ -60,6 +60,38 @@ void main() {
     expect(rect.right, closeTo(0.5, 1e-6));
   });
 
+  test('l1Range clamps to the track so t=0 maps to the first L1 peak', () {
+    final range = l1Range(
+      positionMs: 0,
+      visibleMs: 24_000,
+      durationMs: 180_000,
+    );
+    expect(range.startMs, 0);
+    expect(range.endMs, 36_000);
+
+    const overview = [
+      SpectralPeak(low: 1, mid: 0, high: 0),
+      SpectralPeak(low: 1, mid: 0, high: 0),
+    ];
+    final detail = DetailWindow(
+      peaks: const [
+        SpectralPeak(low: 0, mid: 0, high: 1),
+        SpectralPeak(low: 0, mid: 1, high: 0),
+      ],
+      startMs: range.startMs,
+      endMs: range.endMs,
+    );
+    expect(peakAtTime(overview, detail, 180_000, 0).high, closeTo(1, 1e-6));
+
+    final tail = l1Range(
+      positionMs: 170_000,
+      visibleMs: 24_000,
+      durationMs: 180_000,
+    );
+    expect(tail.startMs, 134_000);
+    expect(tail.endMs, 180_000);
+  });
+
   test('centerScrubMs subtracts pointer delta across the span', () {
     expect(
       centerScrubMs(anchorPosMs: 10_000, deltaX: 50, width: 100, spanMs: 1000),

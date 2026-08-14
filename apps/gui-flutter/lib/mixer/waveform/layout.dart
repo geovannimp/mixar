@@ -46,3 +46,22 @@ int l1StartMs({required int positionMs, required int visibleMs}) =>
 
 int l1EndMs({required int positionMs, required int visibleMs}) =>
     positionMs + (visibleMs * 3 / 2).round();
+
+({int startMs, int endMs}) l1Range({
+  required int positionMs,
+  required int visibleMs,
+  required int durationMs,
+}) {
+  if (durationMs <= 0) {
+    return (startMs: 0, endMs: 0);
+  }
+  final start = l1StartMs(
+    positionMs: positionMs,
+    visibleMs: visibleMs,
+  ).clamp(0, durationMs).toInt();
+  final end = l1EndMs(
+    positionMs: positionMs,
+    visibleMs: visibleMs,
+  ).clamp(start, durationMs).toInt();
+  return (startMs: start, endMs: end);
+}

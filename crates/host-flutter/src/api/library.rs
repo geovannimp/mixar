@@ -311,7 +311,7 @@ impl LibraryTransport {
         buckets: u32,
     ) -> Result<WaveformPeaks, String> {
         let id = TrackId::new(track_id);
-        let peaks = LibraryManager::compute_waveform_window(
+        let (peaks, start_ms, end_ms) = LibraryManager::compute_waveform_window(
             &self.library,
             &id,
             start_ms,

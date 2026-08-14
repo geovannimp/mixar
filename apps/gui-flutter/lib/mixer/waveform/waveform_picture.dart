@@ -3,6 +3,9 @@ import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 
 class WaveformBarPainter extends CustomPainter {
+  // ponytail: CustomPaint display-list + RepaintBoundary, not a recorded
+  // ui.Picture. Upgrade: record Picture on data/size/L1 and scroll with
+  // Transform so playhead ticks don't rebuild the lane State.
   WaveformBarPainter({
     required this.overview,
     required this.detail,
@@ -29,6 +32,7 @@ class WaveformBarPainter extends CustomPainter {
     final midY = size.height / 2;
     final maxAmp = size.height * 0.46;
     final width = size.width.floor();
+    final paint = Paint();
     for (var x = 0; x < width; x++) {
       final timeMs = originMs + (x / size.width) * spanMs;
       if (timeMs < 0 || timeMs > durationMs) {
@@ -42,7 +46,7 @@ class WaveformBarPainter extends CustomPainter {
         continue;
       }
       final color = spectralRgb(peak.low, peak.mid, peak.high);
-      final paint = Paint()..color = color.withValues(alpha: barAlpha(amp));
+      paint.color = color.withValues(alpha: barAlpha(amp));
       final barH = amp * maxAmp;
       canvas.drawRect(
         Rect.fromLTRB(x.toDouble(), midY - barH, x + 1.0, midY + barH),

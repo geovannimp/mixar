@@ -5,6 +5,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 
 final waveformOverviewProvider =
     FutureProvider.family<List<SpectralPeak>, String>((ref, trackId) async {
+      ref.watch(libraryAnalysisEpochProvider);
       final lib = await ref.watch(libraryTransportProvider.future);
       final packed = await lib.getWaveformOverview(trackId: trackId);
       if (packed == null) {
@@ -17,6 +18,7 @@ final beatGridProvider = FutureProvider.family<BeatGridData?, String>((
   ref,
   trackId,
 ) async {
+  ref.watch(libraryAnalysisEpochProvider);
   final lib = await ref.watch(libraryTransportProvider.future);
   return lib.getBeatGrid(trackId: trackId);
 });

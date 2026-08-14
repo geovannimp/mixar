@@ -36,8 +36,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   var _l1Gen = 0;
   var _l1TrackId = '';
   var _l1InFlight = false;
+  String? _l1FailKey;
   DetailWindow? _detail;
-  Duration _lastSeek = Duration.zero;
+  final _seekClock = Stopwatch();
 
   @override
   void initState() {
@@ -86,6 +87,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final theme = context.theme;
     final playing = ref.watch(deckPlayingProvider(widget.deckId));
     if (playing && !_ticker.isTicking) {
+      _elapsed = Duration.zero;
+      _engineElapsed = Duration.zero;
       _ticker.start();
     } else if (!playing && _ticker.isTicking) {
       _ticker.stop();
@@ -119,6 +122,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     if (trackId != _l1TrackId) {
       _l1TrackId = trackId ?? '';
       _detail = null;
+      _l1FailKey = null;
       _l1Gen++;
     }
 
@@ -134,7 +138,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
           return const SizedBox.expand();
         }
 
-        _maybeFetchL1(trackId, visibleMs, width);
+        _maybeFetchL1(trackId, visibleMs, durationMs, width);
 
         final pxPerMs = width / visibleMs;
         final bufW = width * (1 + 2 * kWaveformBufferRatio);
@@ -189,7 +193,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               spanMs: visibleMs.toDouble(),
             ).round();
             _scrubbing = false;
-            unawaited(seekDeck(ref, widget.deckId, ms));
+            unawaited(_seek(ms));
           },
           onPointerCancel: (_) => _scrubbing = false,
           child: ClipRect(
@@ -242,8 +246,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     );
   }
 
-  void _maybeFetchL1(String? trackId, int visibleMs, double width) {
-    if (trackId == null || !mounted || _l1InFlight) {
+  void _maybeFetchL1(
+    String? trackId,
+    int visibleMs,
+    int durationMs,
+    double width,
+  ) {
+    if (trackId == null || durationMs <= 0 || !mounted || _l1InFlight) {
       return;
     }
     if (_detail != null &&
@@ -251,16 +260,30 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         _displayMs <= _detail!.endMs - visibleMs * kWaveformRefreshMargin) {
       return;
     }
-    final start = l1StartMs(
+    final range = l1Range(
       positionMs: _displayMs.round(),
       visibleMs: visibleMs,
+      durationMs: durationMs,
     );
-    final end = l1EndMs(positionMs: _displayMs.round(), visibleMs: visibleMs);
-    final gen = ++_l1Gen;
+    if (range.endMs <= range.startMs) {
+      return;
+    }
     final buckets = (width * 3).round().clamp(16, 16384);
+    final failKey = '$trackId:${range.startMs}:${range.endMs}:$buckets';
+    if (_l1FailKey == failKey) {
+      return;
+    }
+    final gen = ++_l1Gen;
     _l1InFlight = true;
     unawaited(
-      _loadL1(trackId, start, end, buckets, gen).whenComplete(() {
+      _loadL1(
+        trackId,
+        range.startMs,
+        range.endMs,
+        buckets,
+        gen,
+        failKey,
+      ).whenComplete(() {
         _l1InFlight = false;
       }),
     );
@@ -272,6 +295,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     int end,
     int buckets,
     int gen,
+    String failKey,
   ) async {
     try {
       final lib = await ref.read(libraryTransportProvider.future);
@@ -284,6 +308,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       if (!mounted || gen != _l1Gen) {
         return;
       }
+      _l1FailKey = null;
       setState(() {
         _detail = DetailWindow(
           peaks: decodeRgbPeaks(packed.rgb),
@@ -292,16 +317,30 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         );
       });
     } catch (e, st) {
+      _l1FailKey = failKey;
       FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
     }
   }
 
   void _throttledSeek(int ms) {
-    if (_elapsed - _lastSeek < const Duration(milliseconds: 32)) {
+    if (_seekClock.isRunning && _seekClock.elapsedMilliseconds < 32) {
       return;
     }
-    _lastSeek = _elapsed;
-    unawaited(seekDeck(ref, widget.deckId, ms));
+    _seekClock
+      ..reset()
+      ..start();
+    unawaited(_seek(ms));
+  }
+
+  Future<void> _seek(int ms) async {
+    try {
+      await seekDeck(ref, widget.deckId, ms);
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      showFToast(context: context, variant: .destructive, title: Text('$e'));
+    }
   }
 }
 
