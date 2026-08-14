@@ -327,6 +327,55 @@ impl LibraryManager {
         waveform::get_track_beat_grid(&self.db, id)
     }
 
+    /// Hi-res spectral peaks for a time window (L1). Uses the decode cache when present.
+    ///
+    /// Takes `&Mutex<Self>` so decode / analysis does not hold the library lock.
+    pub fn compute_waveform_window(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        start_ms: i32,
+        end_ms: i32,
+        buckets: usize,
+    ) -> Result<Vec<audio_core::SpectralPeak>> {
+        let buckets = buckets.max(1);
+        let cached = {
+            let lib = library.lock().expect("library lock");
+            let cache = lib.decode_cache.lock().expect("library decode cache lock");
+            cache.get(id).cloned()
+        };
+
+        let audio = if let Some(cached) = cached {
+            cached
+        } else {
+            let source = {
+                let lib = library.lock().expect("library lock");
+                lib.get_track(id)?
+                    .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+            };
+            if source.file().is_none() {
+                return Err(LibraryError::Unsupported("stream tracks have no waveform"));
+            }
+            let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
+                backend: "library",
+                message: format!("failed to decode track for waveform: {e}"),
+            })?);
+            let lib = library.lock().expect("library lock");
+            let mut cache = lib.decode_cache.lock().expect("library decode cache lock");
+            cache
+                .entry(id.clone())
+                .or_insert_with(|| Arc::clone(&loaded));
+            cache.get(id).cloned().unwrap_or(loaded)
+        };
+
+        Ok(audio_core::compute_spectral_window(
+            audio.as_ref(),
+            audio_core::ms_to_secs(start_ms),
+            audio_core::ms_to_secs(end_ms),
+            buckets,
+            &audio_core::WaveformAnalysisConfig::default(),
+        ))
+    }
+
     /// Read the stored integrated loudness for a track, if it has been analyzed.
     pub fn track_loudness_lufs(&self, id: &TrackId) -> Result<Option<f64>> {
         self.store().track_analysis_loudness(id)
@@ -1146,6 +1195,25 @@ mod tests {
         assert_eq!(first.track_id, track_id);
         assert_eq!(second.track_id, track_id);
         assert!(std::sync::Arc::ptr_eq(&first.audio, &second.audio));
+    }
+
+    #[test]
+    fn compute_waveform_window_from_decode_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_path(&wav).unwrap().id().clone()
+        };
+
+        LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        let peaks =
+            LibraryManager::compute_waveform_window(&library, &track_id, 0, 500, 64).unwrap();
+        assert_eq!(peaks.len(), 64);
+        assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
     }
 
     #[test]

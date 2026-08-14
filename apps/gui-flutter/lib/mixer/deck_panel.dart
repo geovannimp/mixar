@@ -8,6 +8,7 @@ import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
+import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 
 /// Placeholder deck chrome (track info, pads, jog, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -57,7 +58,9 @@ class DeckPanel extends ConsumerWidget {
             color: theme.colors.mutedForeground,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
+        OverviewStrip(deckId: deckId, height: 36),
+        const SizedBox(height: 8),
         Expanded(
           child: Row(
             children: [

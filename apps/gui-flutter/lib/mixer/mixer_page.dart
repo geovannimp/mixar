@@ -11,8 +11,8 @@ import 'package:gui_flutter/mixer/waveform_section.dart';
 class MixerPage extends StatelessWidget {
   const MixerPage({super.key});
 
-  static const _waveformDefault = 112.0;
-  static const _waveformMin = 70.0;
+  static const _waveformDefault = 160.0;
+  static const _waveformMin = 110.0;
   static const _deckRowHeight = 410.0;
 
   @override

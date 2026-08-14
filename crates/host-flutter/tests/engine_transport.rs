@@ -93,3 +93,37 @@ fn set_crossfader_publishes_status() {
     };
     assert!((status.crossfader - 0.2).abs() < 1e-4);
 }
+
+#[test]
+fn load_path_exposes_waveform_peaks() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let path = short_tone_fixture().to_string_lossy().into_owned();
+    transport.load_path(0, path.clone()).unwrap();
+
+    let resolved = library.resolve_tracks_for_paths(vec![path]).unwrap();
+    let track_id = resolved[0].track.id.clone();
+    let overview = library
+        .get_waveform_overview(track_id.clone())
+        .unwrap()
+        .expect("overview after load");
+    assert!(overview.count > 0);
+    assert_eq!(overview.rgb.len(), overview.count as usize * 3);
+
+    let window = library.get_waveform_window(track_id, 0, 200, 32).unwrap();
+    assert_eq!(window.count, 32);
+    assert_eq!(window.rgb.len(), 96);
+}
+
+#[test]
+fn seek_after_load_publishes_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport
+        .load_path(0, short_tone_fixture().to_string_lossy().into_owned())
+        .unwrap();
+    recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
+    transport.seek(0, 20).unwrap();
+    recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+}

@@ -1,13 +1,19 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 
-/// Dual-lane waveform placeholder (Deck A over Deck B).
-class WaveformSection extends StatelessWidget {
+/// Dual-lane waveform: overview + scrolling detail per deck.
+class WaveformSection extends ConsumerWidget {
   const WaveformSection({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
+    final hasA = ref.watch(deckTrackIdProvider(0)) != null;
+    final hasB = ref.watch(deckTrackIdProvider(1)) != null;
 
     return ColoredBox(
       color: theme.colors.background,
@@ -15,51 +21,23 @@ class WaveformSection extends StatelessWidget {
         children: [
           Column(
             children: [
-              Expanded(child: _Lane(label: 'Deck A')),
+              const OverviewStrip(deckId: 0, height: 22),
+              const Expanded(child: ScrollingLane(deckId: 0, label: 'Deck A')),
               FDivider(),
-              Expanded(child: _Lane(label: 'Deck B')),
+              const OverviewStrip(deckId: 1, height: 22),
+              const Expanded(child: ScrollingLane(deckId: 1, label: 'Deck B')),
             ],
           ),
-          Center(
-            child: Text(
-              'Load tracks to see waveforms.',
-              style: theme.typography.body.sm.copyWith(
-                color: theme.colors.mutedForeground,
+          if (!hasA && !hasB)
+            Center(
+              child: Text(
+                'Load tracks to see waveforms.',
+                style: theme.typography.body.sm.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
               ),
             ),
-          ),
-          Align(
-            alignment: Alignment.center,
-            child: ColoredBox(
-              color: theme.colors.foreground.withValues(alpha: 0.35),
-              child: const SizedBox(width: 1, height: double.infinity),
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _Lane extends StatelessWidget {
-  const _Lane({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: Text(
-          label,
-          style: theme.typography.body.xs.copyWith(
-            color: theme.colors.mutedForeground,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
     );
   }

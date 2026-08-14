@@ -6,6 +6,9 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -19,6 +22,8 @@ class _SeededEngineUi extends EngineUi {
       kind: EngineEvtKind.updated,
       deckId: 0,
       track: 'Seeded Track',
+      trackId: 't1',
+      durationMs: 180000,
     ),
   );
 }
@@ -71,8 +76,8 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) =>
-              MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
           home: const AppShell(appTitle: 'Rust DJ'),
@@ -100,9 +105,17 @@ void main() {
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {
     await pumpShell(
       tester,
-      extraOverrides: [engineUiProvider.overrideWith(_SeededEngineUi.new)],
+      extraOverrides: [
+        engineUiProvider.overrideWith(_SeededEngineUi.new),
+        waveformOverviewProvider.overrideWith(
+          (ref, id) async => const <SpectralPeak>[],
+        ),
+        beatGridProvider.overrideWith((ref, id) async => null),
+      ],
     );
 
     expect(find.text('Seeded Track'), findsOneWidget);
+    expect(find.text('Load tracks to see waveforms.'), findsNothing);
+    expect(find.byType(OverviewStrip), findsWidgets);
   });
 }

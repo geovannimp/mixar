@@ -49,11 +49,11 @@ void main() {
     });
 
     test('position events do not change titles', () {
-      var snap = applyEngineEvt(
+      final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, track: 'Keep'),
       );
-      snap = applyEngineEvt(
+      final after = applyEngineEvt(
         snap,
         const EngineEvt(
           kind: EngineEvtKind.position,
@@ -61,7 +61,28 @@ void main() {
           positionMs: 12,
         ),
       );
-      expect(snap.titleFor(0), 'Keep');
+      expect(after.titleFor(0), 'Keep');
+      expect(identical(after, snap), isTrue);
+    });
+
+    test('updated stores trackId duration speed without requiring a title', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          trackId: 'abc',
+          durationMs: 8000,
+          speed: 0.5,
+          tempoRange: 0.08,
+          playing: false,
+        ),
+      );
+      expect(snap.trackIdFor(1), 'abc');
+      expect(snap.durationMsFor(1), 8000);
+      expect(snap.speedFor(1), 0.5);
+      expect(snap.tempoRangeFor(1), 0.08);
+      expect(snap.isPlaying(1), isFalse);
     });
 
     test('updated mixer fields patch the channel', () {
