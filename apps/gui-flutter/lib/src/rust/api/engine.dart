@@ -4,38 +4,150 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
+import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
+// These functions are ignored because they are not marked as `pub`: `deck_id_of`, `deck_updated_body`, `is_coalescible`, `load_prepared`, `map_engine_evt`, `publish_empty`, `to_engine_config`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
 
-/// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
-List<String> listBackendNames() =>
-    RustLib.instance.api.crateApiEngineListBackendNames();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
+abstract class AudioBackendTransport implements RustOpaqueInterface {
+  /// Compiled-in backend names, with `"auto"` first (config default; not from `list_names`).
+  static List<String> listNames() =>
+      RustLib.instance.api.crateApiEngineAudioBackendTransportListNames();
 
-/// List output devices for a backend (`AudioBackend::new` + `list_output_devices`).
-Future<List<OutputDevice>> listOutputDevices({required String backend}) =>
-    RustLib.instance.api.crateApiEngineListOutputDevices(backend: backend);
+  /// List output devices for this backend instance.
+  Future<List<OutputDevice>> listOutputDevices();
 
-/// Start the engine. Idempotent if a session is already running.
-Future<void> startEngine({
-  required String backend,
-  int? sampleRate,
-  int? bufferSize,
-}) => RustLib.instance.api.crateApiEngineStartEngine(
-  backend: backend,
-  sampleRate: sampleRate,
-  bufferSize: bufferSize,
-);
+  /// Open a backend by name (`AudioBackend::new`).
+  static Future<AudioBackendTransport> open({required String name}) =>
+      RustLib.instance.api.crateApiEngineAudioBackendTransportOpen(name: name);
+}
 
-/// Stop the engine and drop the session (only after a successful stop).
-Future<void> stopEngine() => RustLib.instance.api.crateApiEngineStopEngine();
+// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>>
+abstract class EngineTransport implements RustOpaqueInterface {
+  /// Whether [`Engine::start`] has opened streams.
+  Future<bool> isRunning();
 
-/// Whether a session is currently held (async FRB — avoids blocking the UI isolate on sync dispatch).
-Future<bool> engineIsRunning() =>
-    RustLib.instance.api.crateApiEngineEngineIsRunning();
+  /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
+  Future<void> loadLibraryTrack({required int deckId, required String trackId});
 
-/// Output device summary for the Flutter smoke UI.
+  /// Load a filesystem path: prepare outside the engine lock, then `load_prepared_track`.
+  Future<void> loadPath({required int deckId, required String path});
+
+  /// Pause a deck (cmd bus).
+  Future<void> pause({required int deckId});
+
+  /// Play a deck (cmd bus).
+  Future<void> play({required int deckId});
+
+  /// Start the engine from `config` (`Engine::new`), sharing `library` for load-to-deck.
+  static Future<EngineTransport> start({
+    required LibraryTransport libraryTransport,
+    required EngineStartConfig config,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportStart(
+    libraryTransport: libraryTransport,
+    config: config,
+  );
+
+  /// Stop audio streams; the transport still owns the control thread until Drop.
+  Future<void> stop();
+
+  /// Forward thin typed engine events to Dart via FRB `StreamSink`.
+  ///
+  /// Coalesces Position/Levels/Updated/Status (latest wins) like Tauri.
+  /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
+  Stream<EngineEvt> subscribeEvents();
+}
+
+/// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
+class EngineEvt {
+  final EngineEvtKind kind;
+  final int? deckId;
+  final bool? running;
+  final bool? playing;
+  final String? track;
+  final String? trackId;
+  final int? positionMs;
+  final double? peakL;
+  final double? peakR;
+  final String? message;
+
+  const EngineEvt({
+    required this.kind,
+    this.deckId,
+    this.running,
+    this.playing,
+    this.track,
+    this.trackId,
+    this.positionMs,
+    this.peakL,
+    this.peakR,
+    this.message,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      deckId.hashCode ^
+      running.hashCode ^
+      playing.hashCode ^
+      track.hashCode ^
+      trackId.hashCode ^
+      positionMs.hashCode ^
+      peakL.hashCode ^
+      peakR.hashCode ^
+      message.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EngineEvt &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          deckId == other.deckId &&
+          running == other.running &&
+          playing == other.playing &&
+          track == other.track &&
+          trackId == other.trackId &&
+          positionMs == other.positionMs &&
+          peakL == other.peakL &&
+          peakR == other.peakR &&
+          message == other.message;
+}
+
+/// Discriminator for thin engine egress (unit enum — no freezed on Dart).
+enum EngineEvtKind { status, updated, position, levels, error, notice }
+
+/// Config passed to [`EngineTransport::start`] — maps onto [`EngineConfig`].
+class EngineStartConfig {
+  final String backend;
+  final int? sampleRate;
+  final int? bufferSize;
+
+  const EngineStartConfig({
+    required this.backend,
+    this.sampleRate,
+    this.bufferSize,
+  });
+
+  @override
+  int get hashCode =>
+      backend.hashCode ^ sampleRate.hashCode ^ bufferSize.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is EngineStartConfig &&
+          runtimeType == other.runtimeType &&
+          backend == other.backend &&
+          sampleRate == other.sampleRate &&
+          bufferSize == other.bufferSize;
+}
+
+/// Output device summary for the Flutter settings / smoke UI.
 class OutputDevice {
   final String id;
   final String name;
