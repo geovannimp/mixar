@@ -20,11 +20,12 @@ mod transport;
 pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{DeviceInfo, LoadableAudio, LoadedAudio};
 pub use backend::{create_backend, AudioBackend, AudioBackendTrait};
-pub use bus::{Evt, EvtReceiver};
+pub use bus::{EngineBuses, Evt, EvtReceiver};
 pub use config::{
     validate_buffer_size, AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig,
     SamplerStripRouteSetting, BUFFER_SIZE_MULTIPLE, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
 };
+pub use control::{spawn_engine_control, EngineControl};
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library::PreparedTrackPlayback;
