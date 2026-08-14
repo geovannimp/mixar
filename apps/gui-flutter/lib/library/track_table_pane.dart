@@ -1,9 +1,13 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
 
 /// Filter + [trina_grid](https://github.com/doonfrs/trina_grid) track table.
@@ -57,7 +61,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     }
     final scroll = manager.scroll.bodyRowsVertical;
     if (scroll == null || !scroll.hasClients) {
-      ref.read(artworkCacheProvider.notifier).ensureLoaded(ids.take(30).toList());
+      ref
+          .read(artworkCacheProvider.notifier)
+          .ensureLoaded(ids.take(30).toList());
       return;
     }
     final rowH = manager.rowTotalHeight;
@@ -83,6 +89,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingId = ref.watch(analyzingTrackIdProvider);
+    final engineRunning = ref.watch(engineRunningProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -157,7 +164,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                       if (tracks.isEmpty) {
                         return Center(
                           child: Text(
-                            drive ? 'No audio files in this folder' : 'No tracks',
+                            drive
+                                ? 'No audio files in this folder'
+                                : 'No tracks',
                             style: theme.typography.body.sm.copyWith(
                               color: theme.colors.mutedForeground,
                             ),
@@ -177,6 +186,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                             columns: _columns(theme),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
+                            rowWrapper: engineRunning ? _dragRowWrapper : null,
                             onLoaded: (e) {
                               _manager = e.stateManager;
                               e.stateManager.setShowColumnFilter(false);
@@ -221,20 +231,13 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                 fit: BoxFit.cover,
                 cacheWidth: 56,
                 cacheHeight: 56,
-                errorBuilder: (_, _, _) => Container(
-                  width: 28,
-                  height: 28,
-                  color: theme.colors.muted,
-                ),
+                errorBuilder: (_, _, _) =>
+                    Container(width: 28, height: 28, color: theme.colors.muted),
               ),
             );
           }
           return Center(
-            child: Container(
-              width: 28,
-              height: 28,
-              color: theme.colors.muted,
-            ),
+            child: Container(width: 28, height: 28, color: theme.colors.muted),
           );
         },
       ),
@@ -356,6 +359,18 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
 
     return TrinaGridConfiguration(
+      rowWrapperIsConstantHeight: true,
+      selectingMode: TrinaGridSelectingMode.none,
+      scrollbar: const TrinaGridScrollbarConfig(
+        // Mouse-drag scrolls steal super_dnd's 4px ImmediateMultiDrag when
+        // dragging a row up onto the decks. Wheel + thumb still scroll.
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.stylus,
+          PointerDeviceKind.invertedStylus,
+          PointerDeviceKind.trackpad,
+        },
+      ),
       columnSize: const TrinaGridColumnSizeConfig(
         autoSizeMode: TrinaAutoSizeMode.scale,
         resizeMode: TrinaResizeMode.pushAndPull,
@@ -399,6 +414,8 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           cells: {
             'trackId': TrinaCell(value: t.id),
             'inLibrary': TrinaCell(value: t.id != t.path),
+            'path': TrinaCell(value: t.path),
+            'dragTitle': TrinaCell(value: trackTitleLabel(t)),
             'artwork': TrinaCell(value: t.id),
             'title': TrinaCell(
               value: analyzingId == t.id
@@ -417,6 +434,46 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ];
   }
 
+  Widget _dragRowWrapper(
+    BuildContext context,
+    Widget rowWidget,
+    TrinaRow rowData,
+    TrinaGridStateManager stateManager,
+  ) {
+    final path = rowData.cells['path']?.value as String?;
+    final trackId = rowData.cells['trackId']?.value as String?;
+    final inLibrary = rowData.cells['inLibrary']?.value == true;
+    final title =
+        rowData.cells['dragTitle']?.value as String? ??
+        rowData.cells['title']?.value as String? ??
+        '';
+    if (path == null) {
+      return rowWidget;
+    }
+    final payload = TrackDragPayload(
+      source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
+      trackId: inLibrary ? trackId : null,
+      path: path,
+      title: trackDisplayTitle(title: title, path: path),
+    );
+    return DragItemWidget(
+      dragItemProvider: (_) async {
+        final item = DragItem(
+          localData: payload.toLocalData(),
+          suggestedName: payload.title,
+        );
+        item.add(Formats.plainText(encodeTrackDragPlainText(payload)));
+        return item;
+      },
+      allowedOperations: () => [DropOperation.copy],
+      dragBuilder: (context, child) => _TrackDragCard(title: payload.title),
+      child: DraggableWidget(
+        hitTestBehavior: HitTestBehavior.opaque,
+        child: rowWidget,
+      ),
+    );
+  }
+
   String _formatDuration(int? ms) {
     if (ms == null || ms <= 0) {
       return '';
@@ -425,5 +482,37 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final m = totalSec ~/ 60;
     final s = totalSec % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _TrackDragCard extends StatelessWidget {
+  const _TrackDragCard({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colors.background.withValues(alpha: 0.95),
+        borderRadius: theme.style.borderRadius.md,
+        border: Border.all(color: theme.colors.border),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 200),
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

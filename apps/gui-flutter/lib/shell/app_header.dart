@@ -1,12 +1,14 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
 
 /// Brand | tabs | drag region | status | window controls (desktop).
-class AppHeader extends StatelessWidget {
+class AppHeader extends ConsumerWidget {
   const AppHeader({
     required this.appTitle,
     required this.tab,
@@ -19,9 +21,16 @@ class AppHeader extends StatelessWidget {
   final ValueChanged<ShellTab> onTabChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final desktop = isDesktopWindow;
+    final starting = ref.watch(engineTransportProvider).isLoading;
+    final running = ref.watch(engineRunningProvider);
+    final engineLabel = starting
+        ? 'Engine starting…'
+        : running
+        ? 'Engine running'
+        : 'Engine idle';
 
     return ColoredBox(
       color: theme.colors.background,
@@ -70,7 +79,7 @@ class AppHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Center(
                   child: Text(
-                    'Engine idle',
+                    engineLabel,
                     style: theme.typography.body.xs.copyWith(
                       color: theme.colors.mutedForeground,
                     ),

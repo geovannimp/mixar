@@ -4,12 +4,52 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
+class _SeededEngineUi extends EngineUi {
+  @override
+  EngineUiSnapshot build() => applyEngineEvt(
+    EngineUiSnapshot.empty,
+    const EngineEvt(
+      kind: EngineEvtKind.updated,
+      deckId: 0,
+      track: 'Seeded Track',
+    ),
+  );
+}
+
 void main() {
-  testWidgets('mixer shell shows core regions', (tester) async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const collection = LibraryCollectionSummary(
+    id: 'c1',
+    name: 'samples',
+    kind: 'folder',
+    path: '/tmp/samples',
+    trackCount: 1,
+  );
+  const track = LibraryTrackSummary(
+    id: 't1',
+    displayName: 'Demo Track',
+    artist: 'Artist',
+    title: 'Demo Track',
+    album: null,
+    genre: null,
+    bpm: 128,
+    key: '8A',
+    durationMs: 180000,
+    path: '/tmp/samples/demo.wav',
+  );
+
+  Future<void> pumpShell(
+    WidgetTester tester, {
+    List extraOverrides = const [],
+  }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
 
@@ -19,26 +59,6 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    const collection = LibraryCollectionSummary(
-      id: 'c1',
-      name: 'samples',
-      kind: 'folder',
-      path: '/tmp/samples',
-      trackCount: 1,
-    );
-    const track = LibraryTrackSummary(
-      id: 't1',
-      displayName: 'Demo Track',
-      artist: 'Artist',
-      title: 'Demo Track',
-      album: null,
-      genre: null,
-      bpm: 128,
-      key: '8A',
-      durationMs: 180000,
-      path: '/tmp/samples/demo.wav',
-    );
-
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -47,18 +67,23 @@ void main() {
             final id = ref.watch(activeCollectionIdProvider);
             return id == collection.id ? [track] : const [];
           }),
+          ...extraOverrides,
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+          builder: (context, child) =>
+              MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
           home: const AppShell(appTitle: 'Rust DJ'),
         ),
       ),
     );
-
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('mixer shell shows core regions', (tester) async {
+    await pumpShell(tester);
 
     expect(find.text('Rust DJ'), findsOneWidget);
     expect(find.text('Deck A'), findsWidgets);
@@ -66,8 +91,18 @@ void main() {
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
     expect(find.text('Collections'), findsOneWidget);
     expect(find.text('samples'), findsOneWidget);
-    // First collection is selected by default.
     expect(find.text('Demo Track'), findsWidgets);
     expect(find.textContaining('Filter tracks'), findsOneWidget);
+    expect(find.text('Engine idle'), findsOneWidget);
+    expect(find.text('No track loaded'), findsWidgets);
+  });
+
+  testWidgets('deck shows loaded title from engine snapshot', (tester) async {
+    await pumpShell(
+      tester,
+      extraOverrides: [engineUiProvider.overrideWith(_SeededEngineUi.new)],
+    );
+
+    expect(find.text('Seeded Track'), findsOneWidget);
   });
 }

@@ -1,12 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/track_drop_zone.dart';
 
 /// Placeholder deck chrome (track info, pads, jog, transport) + tempo column.
-class DeckPanel extends StatelessWidget {
+class DeckPanel extends ConsumerWidget {
   const DeckPanel({
+    required this.deckId,
     required this.label,
     required this.accent,
     required this.isMaster,
@@ -14,6 +20,7 @@ class DeckPanel extends StatelessWidget {
     super.key,
   });
 
+  final int deckId;
   final String label;
   final FaderAccent accent;
   final bool isMaster;
@@ -22,9 +29,12 @@ class DeckPanel extends StatelessWidget {
   bool get _tempoOnRight => accent == FaderAccent.a;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final accentColor = FaderColors.forAccent(accent).grip;
+    final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
+    final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
+    final playing = ref.watch(deckPlayingProvider(deckId));
     final tempo = DeckTempoPanel(
       accent: accent,
       isMaster: isMaster,
@@ -42,7 +52,7 @@ class DeckPanel extends StatelessWidget {
           ),
         ),
         Text(
-          'No track loaded',
+          loadedTitle ?? 'No track loaded',
           style: theme.typography.body.xs.copyWith(
             color: theme.colors.mutedForeground,
           ),
@@ -51,9 +61,7 @@ class DeckPanel extends StatelessWidget {
         Expanded(
           child: Row(
             children: [
-              const Expanded(
-                child: DeckPerformancePanel(hasTrack: false),
-              ),
+              Expanded(child: DeckPerformancePanel(hasTrack: hasTrack)),
               const SizedBox(width: 8),
               const Expanded(
                 child: _PlaceholderBox(
@@ -76,26 +84,51 @@ class DeckPanel extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: FButton(onPress: () {}, child: const Text('Play')),
+              child: FButton(
+                onPress: !hasTrack
+                    ? null
+                    : () {
+                        unawaited(_togglePlay(context, ref, deckId));
+                      },
+                child: Text(playing ? 'Pause' : 'Play'),
+              ),
             ),
           ],
         ),
       ],
     );
 
-    return FCard(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-            Expanded(child: body),
-            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
-          ],
+    return TrackDropZone(
+      deckId: deckId,
+      child: FCard(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
+              Expanded(child: body),
+              if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+Future<void> _togglePlay(
+  BuildContext context,
+  WidgetRef ref,
+  int deckId,
+) async {
+  try {
+    await toggleDeckPlay(ref, deckId);
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
 }
 

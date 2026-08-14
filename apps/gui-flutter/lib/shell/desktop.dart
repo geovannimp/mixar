@@ -9,3 +9,6 @@ bool? debugOverrideDesktopWindow;
 /// Desktop hosts where [window_manager] applies (not web / mobile).
 bool get isDesktopWindow =>
     debugOverrideDesktopWindow ?? (!kIsWeb && platform.ioIsDesktop);
+
+/// Exit the process (no-op on web / stub).
+void fatalExit([int code = 1]) => platform.fatalExit(code);
