@@ -48,7 +48,7 @@ pub struct Engine {
     library: Option<Arc<Mutex<LibraryManager>>>,
     /// Optional library cmd bus for deck performance persistence (hot cues / loops).
     library_cmd: Option<LibraryBus>,
-    /// Host-owned omnibus clones. Control thread JoinHandle stays off this struct.
+    /// Host-owned omnibus clones. Worker JoinHandle stays off this struct.
     engine_buses: Option<EngineBuses>,
     /// Decoded PCM cache keyed by track id.
     decode_cache: HashMap<TrackId, Arc<LoadedAudio>>,

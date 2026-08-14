@@ -4,19 +4,19 @@
 
 **Goal:** Attach host-owned omnibus buses to `Engine`, deprecate `EngineSession` to a shim, and add Flutter FRB `EngineTransport` + `AudioBackendTransport` (host API only).
 
-**Architecture:** Host creates `EngineBuses`, injects clones into `Engine`, owns `spawn_engine_control` JoinHandle. Flutter `EngineTransport` is that host. Tauri keeps compiling via thin `EngineSession` shim. Device listing is a separate `AudioBackendTransport`.
+**Architecture:** Host creates `EngineBuses`, injects clones into `Engine`, owns `spawn_engine_worker` JoinHandle. Flutter `EngineTransport` is that host. Tauri keeps compiling via thin `EngineSession` shim. Device listing is a separate `AudioBackendTransport`.
 
 **Tech Stack:** Rust (`engine-core`, `engine-api`, `host-flutter`), flutter_rust_bridge 2.12, existing control thread.
 
 ## Global Constraints
 
-- Control-thread `JoinHandle` must not live inside `Mutex<Engine>`
+- Worker `JoinHandle` must not live inside `Mutex<Engine>`
 - `publish_evt` for controller must work via `EngineBuses` without locking the engine mutex
 - Flutter UI stays placeholder (no mixer/settings wiring)
 - Thin bus: Play/Pause cmds; host-side load; Status/Updated/Position/Levels/Error/Notice evts
 - Load prepare happens outside the engine lock
 - `EngineTransport::start` takes library + config (not a bare backend name)
-- Prefer shortest diffs; keep `Arc<Mutex<Option<Engine>>>` in the control thread
+- Prefer shortest diffs; keep `Arc<Mutex<Option<Engine>>>` in the cmd worker
 
 ## File map
 
@@ -24,7 +24,7 @@
 |------|------|
 | `crates/engine-core/src/bus.rs` | Add `EngineBuses` + publish helpers |
 | `crates/engine-core/src/engine.rs` | `set_buses` / publish / subscribe / `is_running` |
-| `crates/engine-core/src/control.rs` | Export `spawn_engine_control` / `EngineControl` |
+| `crates/engine-core/src/control.rs` | Export `spawn_engine_worker` / `EngineWorker` |
 | `crates/engine-core/src/session.rs` | Thin deprecated shim |
 | `crates/engine-core/src/lib.rs` | Re-exports |
 | `crates/engine-core/tests/engine_buses.rs` | Engine + buses smoke (no session) |
@@ -36,11 +36,11 @@
 
 ---
 
-### Task 1: `EngineBuses` + engine attach + public control spawn
+### Task 1: `EngineBuses` + engine attach + public worker spawn
 
 **Files:** engine-core as in the file map.
 
-- [x] Implement `EngineBuses`, `Engine::set_buses`, `spawn_engine_control`, `EngineSession` shim, `engine_buses.rs` tests.
+- [x] Implement `EngineBuses`, `Engine::set_buses`, `spawn_engine_worker`, `EngineSession` shim, `engine_buses.rs` tests.
 - [x] `cargo test --manifest-path crates/Cargo.toml -p engine-core`
 
 ### Task 2: Flutter `AudioBackendTransport` + `EngineTransport`

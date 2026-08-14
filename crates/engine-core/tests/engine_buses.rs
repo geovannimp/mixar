@@ -1,7 +1,7 @@
 //! Engine + EngineBuses without EngineSession.
 
 use engine_api::{encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{spawn_engine_control, Engine, EngineBuses, EngineConfig};
+use engine_core::{spawn_engine_worker, Engine, EngineBuses, EngineConfig};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -32,12 +32,12 @@ fn engine_publish_evt_without_session() {
 }
 
 #[test]
-fn spawn_control_play_empty_deck_emits_error() {
+fn spawn_worker_play_empty_deck_emits_error() {
     let mut engine = Engine::new(null_config()).unwrap();
     let buses = EngineBuses::new();
     engine.set_buses(buses.clone());
     let engine = Arc::new(Mutex::new(Some(engine)));
-    let _control = spawn_engine_control(Arc::clone(&engine)).unwrap();
+    let _worker = spawn_engine_worker(Arc::clone(&engine)).unwrap();
 
     let rx = buses.subscribe_evt_all().unwrap();
     let body = encode_cmd_body(&CmdBody::Empty).unwrap();

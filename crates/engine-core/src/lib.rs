@@ -25,7 +25,7 @@ pub use config::{
     validate_buffer_size, AdvancedConfig, AudioConfig, DeviceConfig, EngineConfig,
     SamplerStripRouteSetting, BUFFER_SIZE_MULTIPLE, DEFAULT_TEMPO_RANGE, DEFAULT_TEMPO_RANGE_STEPS,
 };
-pub use control::{deck_snapshot_to_evt, spawn_engine_control, EngineControl};
+pub use control::{deck_snapshot_to_evt, spawn_engine_worker, EngineWorker};
 pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library::PreparedTrackPlayback;

@@ -1,31 +1,31 @@
-//! Thin shim: host-owned buses + engine + control thread (Tauri compatibility).
+//! Thin shim: host-owned buses + engine + worker (Tauri compatibility).
 //!
 //! Prefer attaching [`crate::EngineBuses`] to [`crate::Engine`] and
-//! [`crate::spawn_engine_control`] directly. This type preserves the old
+//! [`crate::spawn_engine_worker`] directly. This type preserves the old
 //! `EngineSession` surface for existing hosts.
 
 use crate::bus::{EngineBus, EngineBuses, EvtReceiver};
 use crate::config::EngineConfig;
-use crate::control::{spawn_engine_control, EngineControl};
+use crate::control::{spawn_engine_worker, EngineWorker};
 use crate::engine::Engine;
 use anyhow::Result;
 use engine_api::{EvtBody, Kind, Origin};
 use library::{LibraryBus, LibraryManager};
 use std::sync::{Arc, Mutex};
 
-/// Owns the engine, cmd/evt omnibus buses, revision counter, and control thread.
+/// Owns the engine, cmd/evt omnibus buses, revision counter, and cmd worker.
 ///
-/// Shim over host-owned [`EngineBuses`] + [`Engine`] + [`EngineControl`].
+/// Shim over host-owned [`EngineBuses`] + [`Engine`] + [`EngineWorker`].
 pub struct EngineSession {
-    /// Declared first so Drop joins the control thread before `engine` is destroyed.
+    /// Declared first so Drop joins the worker before `engine` is destroyed.
     #[allow(dead_code)]
-    control: EngineControl,
+    worker: EngineWorker,
     engine: Arc<Mutex<Option<Engine>>>,
     buses: EngineBuses,
 }
 
 impl EngineSession {
-    /// Create a session with fresh buses and a control thread.
+    /// Create a session with fresh buses and a cmd worker.
     pub fn new(config: EngineConfig) -> Result<Self> {
         Self::from_engine(Engine::new(config)?)
     }
@@ -51,9 +51,9 @@ impl EngineSession {
         let buses = EngineBuses::new();
         engine.set_buses(buses.clone());
         let engine = Arc::new(Mutex::new(Some(engine)));
-        let control = spawn_engine_control(Arc::clone(&engine))?;
+        let worker = spawn_engine_worker(Arc::clone(&engine))?;
         Ok(Self {
-            control,
+            worker,
             engine,
             buses,
         })

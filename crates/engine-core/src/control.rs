@@ -81,13 +81,13 @@ impl PeakHoldState {
     }
 }
 
-/// Host-owned engine control thread (`JoinHandle` must not live inside `Mutex<Engine>`).
-pub struct EngineControl {
+/// Host-owned engine cmd worker (`JoinHandle` must not live inside `Mutex<Engine>`).
+pub struct EngineWorker {
     shutdown: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
 }
 
-impl Drop for EngineControl {
+impl Drop for EngineWorker {
     fn drop(&mut self) {
         self.shutdown.store(true, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
@@ -96,14 +96,14 @@ impl Drop for EngineControl {
     }
 }
 
-/// Spawn the cmd-draining control thread using buses attached to `engine`.
+/// Spawn the cmd-draining worker using buses attached to `engine`.
 ///
 /// Errors if [`Engine::set_buses`] was not called, or if the thread fails to subscribe.
-pub fn spawn_engine_control(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineControl> {
+pub fn spawn_engine_worker(engine: Arc<Mutex<Option<Engine>>>) -> Result<EngineWorker> {
     let buses = {
         let guard = engine.lock().unwrap_or_else(|e| e.into_inner());
         guard.as_ref().and_then(Engine::buses).ok_or_else(|| {
-            anyhow!("engine buses not attached; call set_buses before spawn_engine_control")
+            anyhow!("engine buses not attached; call set_buses before spawn_engine_worker")
         })?
     };
 
@@ -119,9 +119,9 @@ pub fn spawn_engine_control(engine: Arc<Mutex<Option<Engine>>>) -> Result<Engine
     });
     ready_rx
         .recv()
-        .map_err(|_| anyhow!("control thread failed to start"))??;
+        .map_err(|_| anyhow!("engine worker failed to start"))??;
 
-    Ok(EngineControl {
+    Ok(EngineWorker {
         shutdown,
         handle: Some(handle),
     })
@@ -198,7 +198,7 @@ fn publish_error(evt_bus: &EngineBus, origin: Origin, message: impl Into<String>
     );
 }
 
-/// Map a deck snapshot to the `DeckUpdated` evt body (host load paths + control thread).
+/// Map a deck snapshot to the `DeckUpdated` evt body (host load paths + cmd worker).
 pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
     EvtBody::DeckUpdated {
         id: snap.id,

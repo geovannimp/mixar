@@ -9,8 +9,8 @@ use std::time::Duration;
 
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{
-    deck_snapshot_to_evt, spawn_engine_control, AudioBackend, AudioBackendTrait, Engine,
-    EngineBuses, EngineConfig, EngineControl, Evt,
+    deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, AudioBackendTrait, Engine,
+    EngineBuses, EngineConfig, EngineWorker, Evt,
 };
 use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::TrackId;
@@ -135,9 +135,9 @@ fn is_coalescible(kind: &Kind) -> bool {
 /// Host-owned engine handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct EngineTransport {
-    /// Declared first so Drop joins the control thread before `engine` is destroyed.
+    /// Declared first so Drop joins the worker before `engine` is destroyed.
     #[allow(dead_code)]
-    control: EngineControl,
+    worker: EngineWorker,
     engine: Arc<Mutex<Option<Engine>>>,
     buses: EngineBuses,
     library: Arc<Mutex<LibraryManager>>,
@@ -176,8 +176,8 @@ impl EngineTransport {
         engine.set_buses(buses.clone());
         engine.start().map_err(|e| e.to_string())?;
         let engine = Arc::new(Mutex::new(Some(engine)));
-        let control = match spawn_engine_control(Arc::clone(&engine)) {
-            Ok(control) => control,
+        let worker = match spawn_engine_worker(Arc::clone(&engine)) {
+            Ok(worker) => worker,
             Err(e) => {
                 if let Ok(mut guard) = engine.lock() {
                     if let Some(eng) = guard.as_mut() {
@@ -188,7 +188,7 @@ impl EngineTransport {
             }
         };
         Ok(Self {
-            control,
+            worker,
             engine,
             buses,
             library: library_arc,
@@ -196,7 +196,7 @@ impl EngineTransport {
         })
     }
 
-    /// Stop audio streams; the transport still owns the control thread until Drop.
+    /// Stop audio streams; the transport still owns the worker until Drop.
     pub fn stop(&self) -> Result<(), String> {
         let mut guard = self
             .engine

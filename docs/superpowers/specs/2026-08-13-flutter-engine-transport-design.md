@@ -15,8 +15,8 @@ Depends: Library buses (`2026-08-13-flutter-library-transport-parity-design.md`)
 |--------|--------|
 | Scope | Host API + tests; mixer widgets stay placeholders; no settings UI |
 | Bus ownership | Host creates cmd+evt once; injects clones into `Engine` via `set_buses` |
-| Control thread | `spawn_engine_control(Arc<Mutex<Option<Engine>>>)` — `JoinHandle` stays host-owned (not inside the engine mutex) |
-| `EngineSession` | Deprecated shim over engine + buses + control thread; same public methods for Tauri |
+| Worker | `spawn_engine_worker(Arc<Mutex<Option<Engine>>>)` — `JoinHandle` stays host-owned (not inside the engine mutex) |
+| `EngineSession` | Deprecated shim over engine + buses + worker; same public methods for Tauri |
 | Start args | `EngineTransport::start(library, config)` — backend/sample-rate/buffer live on config (`Engine::new(config)`), not separate start parameters |
 | AudioBackendTransport | Settings discovery only: `listNames` / `open(name)` / `listOutputDevices`. Not passed into start |
 | Flutter bus wire | Typed FRB only (Play/Pause cmds; host-side LoadPath/LoadLibraryTrack; Status/Updated/Position/Levels/Error/Notice evts) |
@@ -30,7 +30,7 @@ Host (EngineTransport / EngineSession shim)
   EngineBuses::new() → { cmd, evt, revision }
   Engine::new(config) / new_with_library_bus → set_buses(clones)
   Arc<Mutex<Option<Engine>>>
-  spawn_engine_control(arc)  // JoinHandle on host
+  spawn_engine_worker(arc)  // JoinHandle on host
   share EngineBuses clones with controller later (no engine lock to publish)
 
 Engine
@@ -98,7 +98,7 @@ Free functions `list_backend_names` / `list_output_devices` / `start_engine` / `
 ## Acceptance
 
 - [ ] `Engine` can `set_buses` and `publish_evt` / `publish_cmd` without `EngineSession`
-- [ ] `spawn_engine_control` + Drop/shutdown works; existing engine-core bus tests still pass via shim
+- [ ] `spawn_engine_worker` + Drop/shutdown works; existing engine-core bus tests still pass via shim
 - [ ] Flutter `EngineTransport` start/stop/play/pause/load + event stream
 - [ ] `AudioBackendTransport` lists names + null devices
 - [ ] `cargo test -p engine-core` and `cargo test -p host_flutter` pass
