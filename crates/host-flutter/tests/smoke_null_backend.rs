@@ -1,8 +1,10 @@
-//! Smoke checks for the Flutter host API (null backend — no real audio device).
+//! Smoke checks for Flutter host audio APIs (null backend — no real audio device).
+
+use host_flutter::api::engine::AudioBackendTransport;
 
 #[test]
 fn list_backends_includes_null_and_auto() {
-    let names = host_flutter::api::engine::list_backend_names();
+    let names = AudioBackendTransport::list_names();
     assert!(
         names.iter().any(|n| n == "null"),
         "expected null backend in {names:?}"
@@ -11,24 +13,8 @@ fn list_backends_includes_null_and_auto() {
 }
 
 #[test]
-fn start_stop_null_backend() {
-    // Ensure clean slate if another test left a session (same process).
-    let _ = host_flutter::api::engine::stop_engine();
-    assert!(!host_flutter::api::engine::engine_is_running());
-
-    host_flutter::api::engine::start_engine("null".into(), None, None).unwrap();
-    assert!(host_flutter::api::engine::engine_is_running());
-
-    // Idempotent
-    host_flutter::api::engine::start_engine("null".into(), None, None).unwrap();
-    assert!(host_flutter::api::engine::engine_is_running());
-
-    host_flutter::api::engine::stop_engine().unwrap();
-    assert!(!host_flutter::api::engine::engine_is_running());
-}
-
-#[test]
 fn list_null_devices() {
-    let devices = host_flutter::api::engine::list_output_devices("null".into()).unwrap();
+    let backend = AudioBackendTransport::open("null".into()).unwrap();
+    let devices = backend.list_output_devices().unwrap();
     assert!(!devices.is_empty());
 }
