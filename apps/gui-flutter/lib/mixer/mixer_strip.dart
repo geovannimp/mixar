@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
 
 const _eqColumnWidth = 52.0;
 const _faderColumnWidth = 52.0;
@@ -13,24 +18,22 @@ const _columnFooterHeight = 32.0;
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
-/// Center mixer: Tauri `DeckMixer` layout (local state; no engine).
-class MixerStrip extends StatefulWidget {
+/// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
+class MixerStrip extends ConsumerStatefulWidget {
   const MixerStrip({super.key});
 
   @override
-  State<MixerStrip> createState() => _MixerStripState();
+  ConsumerState<MixerStrip> createState() => _MixerStripState();
 }
 
-class _MixerStripState extends State<MixerStrip> {
-  double _crossfader = 50;
-  bool _meterMono = true;
-
-  final _a = _ChannelState();
-  final _b = _ChannelState();
+class _MixerStripState extends ConsumerState<MixerStrip> {
+  var _meterMono = true;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final enabled = ref.watch(engineRunningProvider);
+    final crossfader = ref.watch(crossfaderProvider) * 100;
 
     return SizedBox(
       width: 300,
@@ -53,27 +56,9 @@ class _MixerStripState extends State<MixerStrip> {
                   mainAxisAlignment: .center,
                   crossAxisAlignment: .stretch,
                   children: [
-                    _EqColumn(
-                      accent: .a,
-                      high: _a.high,
-                      mid: _a.mid,
-                      low: _a.low,
-                      filter: _a.filter,
-                      onHigh: (v) => setState(() => _a.high = v),
-                      onMid: (v) => setState(() => _a.mid = v),
-                      onLow: (v) => setState(() => _a.low = v),
-                      onFilter: (v) => setState(() => _a.filter = v),
-                    ),
+                    _EqColumn(deckId: 0, accent: .a, enabled: enabled),
                     const SizedBox(width: 4),
-                    _VolumeColumn(
-                      accent: .a,
-                      gain: _a.gain,
-                      volume: _a.volume,
-                      cue: _a.cue,
-                      onGain: (v) => setState(() => _a.gain = v),
-                      onVolume: (v) => setState(() => _a.volume = v),
-                      onCue: () => setState(() => _a.cue = !_a.cue),
-                    ),
+                    _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
                     const SizedBox(width: 4),
                     _LevelMetersColumn(
                       mono: _meterMono,
@@ -81,27 +66,9 @@ class _MixerStripState extends State<MixerStrip> {
                           setState(() => _meterMono = mono),
                     ),
                     const SizedBox(width: 4),
-                    _VolumeColumn(
-                      accent: .b,
-                      gain: _b.gain,
-                      volume: _b.volume,
-                      cue: _b.cue,
-                      onGain: (v) => setState(() => _b.gain = v),
-                      onVolume: (v) => setState(() => _b.volume = v),
-                      onCue: () => setState(() => _b.cue = !_b.cue),
-                    ),
+                    _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
                     const SizedBox(width: 4),
-                    _EqColumn(
-                      accent: .b,
-                      high: _b.high,
-                      mid: _b.mid,
-                      low: _b.low,
-                      filter: _b.filter,
-                      onHigh: (v) => setState(() => _b.high = v),
-                      onMid: (v) => setState(() => _b.mid = v),
-                      onLow: (v) => setState(() => _b.low = v),
-                      onFilter: (v) => setState(() => _b.filter = v),
-                    ),
+                    _EqColumn(deckId: 1, accent: .b, enabled: enabled),
                   ],
                 ),
               ),
@@ -134,7 +101,7 @@ class _MixerStripState extends State<MixerStrip> {
                     Expanded(
                       child: FaderSlider(
                         orientation: .horizontal,
-                        value: _crossfader,
+                        value: crossfader,
                         min: 0,
                         max: 100,
                         step: 0.05,
@@ -142,8 +109,15 @@ class _MixerStripState extends State<MixerStrip> {
                         showMarkers: true,
                         centerNotch: true,
                         crossfaderTrack: true,
-                        onValueChange: (next) =>
-                            setState(() => _crossfader = next),
+                        disabled: !enabled,
+                        onValueChange: (next) {
+                          unawaited(
+                            _mixerCmd(
+                              context,
+                              () => setCrossfader(ref, next / 100),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -166,44 +140,38 @@ class _MixerStripState extends State<MixerStrip> {
   }
 }
 
-class _ChannelState {
-  double gain = kControlNormCenter;
-  double high = kControlNormCenter;
-  double mid = kControlNormCenter;
-  double low = kControlNormCenter;
-  double filter = kControlNormCenter;
-  double volume = 100;
-  bool cue = false;
+Future<void> _mixerCmd(BuildContext context, Future<void> Function() fn) async {
+  try {
+    await fn();
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
+  }
 }
 
-class _EqColumn extends StatelessWidget {
+class _EqColumn extends ConsumerWidget {
   const _EqColumn({
+    required this.deckId,
     required this.accent,
-    required this.high,
-    required this.mid,
-    required this.low,
-    required this.filter,
-    required this.onHigh,
-    required this.onMid,
-    required this.onLow,
-    required this.onFilter,
+    required this.enabled,
   });
 
+  final int deckId;
   final FaderAccent accent;
-  final double high;
-  final double mid;
-  final double low;
-  final double filter;
-  final ValueChanged<double> onHigh;
-  final ValueChanged<double> onMid;
-  final ValueChanged<double> onLow;
-  final ValueChanged<double> onFilter;
+  final bool enabled;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final accentColor = FaderColors.forAccent(accent).grip;
+    final ch = ref.watch(deckMixerChannelProvider(deckId));
 
-    Widget knob(String label, double value, ValueChanged<double> onChange) {
+    Widget knob(
+      String label,
+      double value, {
+      required Future<void> Function(double) send,
+    }) {
       return RotaryKnob(
         label: label,
         value: value,
@@ -213,7 +181,10 @@ class _EqColumn extends StatelessWidget {
         center: kControlNormCenter,
         size: .md,
         accentColor: accentColor,
-        onValueChange: onChange,
+        disabled: !enabled,
+        onValueChange: (next) {
+          unawaited(_mixerCmd(context, () => send(next)));
+        },
       );
     }
 
@@ -221,50 +192,60 @@ class _EqColumn extends StatelessWidget {
       width: _eqColumnWidth,
       child: Column(
         children: [
-          knob('HI', high, onHigh),
+          knob(
+            'HI',
+            ch.eqHigh,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
+          ),
           const SizedBox(height: 4),
-          knob('MID', mid, onMid),
+          knob(
+            'MID',
+            ch.eqMid,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
+          ),
           const SizedBox(height: 4),
-          knob('LOW', low, onLow),
+          knob(
+            'LOW',
+            ch.eqLow,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
+          ),
           const SizedBox(height: 4),
-          knob('FLT', filter, onFilter),
+          knob('FLT', ch.filter, send: (v) => setDeckFilter(ref, deckId, v)),
         ],
       ),
     );
   }
 }
 
-class _VolumeColumn extends StatelessWidget {
+class _VolumeColumn extends ConsumerWidget {
   const _VolumeColumn({
+    required this.deckId,
     required this.accent,
-    required this.gain,
-    required this.volume,
-    required this.cue,
-    required this.onGain,
-    required this.onVolume,
-    required this.onCue,
+    required this.enabled,
   });
 
+  final int deckId;
   final FaderAccent accent;
-  final double gain;
-  final double volume;
-  final bool cue;
-  final ValueChanged<double> onGain;
-  final ValueChanged<double> onVolume;
-  final VoidCallback onCue;
+  final bool enabled;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final accentColor = FaderColors.forAccent(accent).grip;
+    final ch = ref.watch(deckMixerChannelProvider(deckId));
 
     return SizedBox(
       width: _faderColumnWidth,
       child: Column(
         children: [
           _MixerGainHeader(
-            gain: gain,
+            gain: ch.gainTrim,
             accentColor: accentColor,
-            onGain: onGain,
+            disabled: !enabled,
+            onGain: (next) {
+              unawaited(
+                _mixerCmd(context, () => setDeckGainTrim(ref, deckId, next)),
+              );
+            },
           ),
           Expanded(
             child: Padding(
@@ -275,18 +256,37 @@ class _VolumeColumn extends StatelessWidget {
                   child: FaderSlider(
                     orientation: .vertical,
                     accent: accent,
-                    value: volume,
+                    value: ch.volume * 100,
                     min: 0,
                     max: 100,
                     showIndicator: true,
                     showMarkers: true,
-                    onValueChange: onVolume,
+                    disabled: !enabled,
+                    onValueChange: (next) {
+                      unawaited(
+                        _mixerCmd(
+                          context,
+                          () => setDeckVolume(ref, deckId, next / 100),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
           ),
-          _MixerCueFooter(cue: cue, onCue: onCue),
+          _MixerCueFooter(
+            cue: ch.headphoneCue,
+            disabled: !enabled,
+            onCue: () {
+              unawaited(
+                _mixerCmd(
+                  context,
+                  () => setDeckHeadphoneCue(ref, deckId, !ch.headphoneCue),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -299,11 +299,13 @@ class _MixerGainHeader extends StatelessWidget {
     required this.gain,
     required this.accentColor,
     required this.onGain,
+    required this.disabled,
   });
 
   final double gain;
   final Color accentColor;
   final ValueChanged<double> onGain;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
@@ -316,6 +318,7 @@ class _MixerGainHeader extends StatelessWidget {
       center: kControlNormCenter,
       size: .md,
       accentColor: accentColor,
+      disabled: disabled,
       onValueChange: onGain,
     );
   }
@@ -325,11 +328,13 @@ class _MixerCueFooter extends StatelessWidget {
   const _MixerCueFooter({
     required this.cue,
     required this.onCue,
+    this.disabled = false,
     this.spacer = false,
   });
 
   final bool cue;
   final VoidCallback onCue;
+  final bool disabled;
   final bool spacer;
 
   @override
@@ -346,7 +351,7 @@ class _MixerCueFooter extends StatelessWidget {
           variant: cue ? .secondary : .ghost,
           size: .sm,
           mainAxisSize: .min,
-          onPress: onCue,
+          onPress: disabled ? null : onCue,
           child: Icon(
             FLucideIcons.headphones,
             size: 14,
@@ -359,19 +364,18 @@ class _MixerCueFooter extends StatelessWidget {
 }
 
 /// VU ladders between faders — M/S toggle sits in the GAIN-aligned header.
-class _LevelMetersColumn extends StatelessWidget {
-  const _LevelMetersColumn({
-    required this.mono,
-    required this.onMonoChanged,
-  });
+class _LevelMetersColumn extends ConsumerWidget {
+  const _LevelMetersColumn({required this.mono, required this.onMonoChanged});
 
   final bool mono;
   final ValueChanged<bool> onMonoChanged;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final mode = mono ? LevelMeterMode.mono : LevelMeterMode.stereo;
+    final levelsA = ref.watch(deckLevelsProvider(0));
+    final levelsB = ref.watch(deckLevelsProvider(1));
 
     return Column(
       children: [
@@ -424,9 +428,9 @@ class _LevelMetersColumn extends StatelessWidget {
               mainAxisAlignment: .center,
               crossAxisAlignment: .stretch,
               children: [
-                LevelMeter(levels: zeroDeckLevels, mode: mode),
+                LevelMeter(levels: levelsA, mode: mode),
                 const SizedBox(width: 2),
-                LevelMeter(levels: zeroDeckLevels, mode: mode),
+                LevelMeter(levels: levelsB, mode: mode),
               ],
             ),
           ),

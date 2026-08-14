@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -38,6 +40,20 @@ final deckTrackTitleProvider = Provider.family<String?, int>(
 
 final deckPlayingProvider = Provider.family<bool, int>(
   (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
+);
+
+final deckMixerChannelProvider = Provider.family<MixerChannelUi, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.channelFor(deckId))),
+);
+
+final deckLevelsProvider = Provider.family<DeckLevels, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.levelsFor(deckId))),
+);
+
+final crossfaderProvider = Provider<double>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.crossfader)),
 );
 
 /// Starts once on desktop. Widget tests set [debugOverrideDesktopWindow] false
@@ -107,4 +123,43 @@ Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
   } else {
     await engine.play(deckId: deckId);
   }
+}
+
+Future<void> setDeckVolume(WidgetRef ref, int deckId, double volume) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setVolume(deckId: deckId, volume: volume);
+}
+
+Future<void> setDeckEqBand(
+  WidgetRef ref,
+  int deckId,
+  EqBand band,
+  double gain,
+) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setEqBand(deckId: deckId, band: band, gain: gain);
+}
+
+Future<void> setDeckFilter(WidgetRef ref, int deckId, double filter) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setFilter(deckId: deckId, filter: filter);
+}
+
+Future<void> setDeckGainTrim(WidgetRef ref, int deckId, double gainTrim) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setGainTrim(deckId: deckId, gainTrim: gainTrim);
+}
+
+Future<void> setDeckHeadphoneCue(
+  WidgetRef ref,
+  int deckId,
+  bool enabled,
+) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setHeadphoneCue(deckId: deckId, enabled: enabled);
+}
+
+Future<void> setCrossfader(WidgetRef ref, double position) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setCrossfader(position: position);
 }

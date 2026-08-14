@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 LibraryTrackSummary _track({
@@ -69,23 +68,14 @@ void main() {
 
     test('missing title uses displayName', () {
       final payload = payloadFromLibraryTrack(
-        _track(
-          id: 't1',
-          path: '/lib/a.wav',
-          displayName: 'a.wav',
-        ),
+        _track(id: 't1', path: '/lib/a.wav', displayName: 'a.wav'),
       );
       expect(payload.title, 'a.wav');
     });
 
     test('empty title and displayName uses file name', () {
       final payload = payloadFromLibraryTrack(
-        _track(
-          id: 't1',
-          path: '/lib/untitled.wav',
-          title: '',
-          displayName: '',
-        ),
+        _track(id: 't1', path: '/lib/untitled.wav', title: '', displayName: ''),
       );
       expect(payload.title, 'untitled.wav');
     });
@@ -159,68 +149,6 @@ void main() {
     test('falls back to the first allowed op when copy is absent', () {
       expect(preferredTrackDropOperation({'move'}), 'move');
       expect(preferredTrackDropOperation(const {}), 'copy');
-    });
-  });
-
-  group('applyEngineEvt', () {
-    test('status sets running; updated sets deck title', () {
-      var snap = EngineUiSnapshot.empty;
-      snap = applyEngineEvt(
-        snap,
-        const EngineEvt(kind: EngineEvtKind.status, running: true),
-      );
-      expect(snap.running, isTrue);
-
-      snap = applyEngineEvt(
-        snap,
-        const EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: 0,
-          track: 'Loaded Title',
-        ),
-      );
-      expect(snap.titleFor(0), 'Loaded Title');
-      expect(snap.titleFor(1), isNull);
-    });
-
-    test(
-      'empty updated track keeps host title (engine snapshots omit library fields)',
-      () {
-        var snap = applyEngineEvt(
-          EngineUiSnapshot.empty,
-          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, track: 'X'),
-        );
-        snap = applyEngineEvt(
-          snap,
-          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1),
-        );
-        expect(snap.titleFor(1), 'X');
-      },
-    );
-
-    test('updated playing flag is stored per deck', () {
-      var snap = applyEngineEvt(
-        EngineUiSnapshot.empty,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
-      );
-      expect(snap.isPlaying(0), isTrue);
-      expect(snap.isPlaying(1), isFalse);
-    });
-
-    test('position events do not change titles', () {
-      var snap = applyEngineEvt(
-        EngineUiSnapshot.empty,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, track: 'Keep'),
-      );
-      snap = applyEngineEvt(
-        snap,
-        const EngineEvt(
-          kind: EngineEvtKind.position,
-          deckId: 0,
-          positionMs: 12,
-        ),
-      );
-      expect(snap.titleFor(0), 'Keep');
     });
   });
 

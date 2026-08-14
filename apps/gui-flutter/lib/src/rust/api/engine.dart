@@ -7,9 +7,9 @@ import '../frb_generated.dart';
 import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `deck_id_of`, `deck_updated_body`, `is_coalescible`, `load_prepared`, `map_engine_evt`, `publish_empty`, `to_engine_config`
+// These functions are ignored because they are not marked as `pub`: `bare`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_body`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -43,6 +43,28 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Play a deck (cmd bus).
   Future<void> play({required int deckId});
 
+  /// Crossfader `0..1` (A … B).
+  Future<void> setCrossfader({required double position});
+
+  /// Single EQ band as `0..1` (center `0.5` = 0 dB).
+  Future<void> setEqBand({
+    required int deckId,
+    required EqBand band,
+    required double gain,
+  });
+
+  /// Filter knob `0..1`.
+  Future<void> setFilter({required int deckId, required double filter});
+
+  /// Gain trim knob `0..1`.
+  Future<void> setGainTrim({required int deckId, required double gainTrim});
+
+  /// Per-deck headphone cue (PFL).
+  Future<void> setHeadphoneCue({required int deckId, required bool enabled});
+
+  /// Channel fader `0..1`.
+  Future<void> setVolume({required int deckId, required double volume});
+
   /// Start the engine from `config` (`Engine::new`), sharing `library` for load-to-deck.
   static Future<EngineTransport> start({
     required LibraryTransport libraryTransport,
@@ -52,7 +74,7 @@ abstract class EngineTransport implements RustOpaqueInterface {
     config: config,
   );
 
-  /// Stop audio streams; the transport still owns the control thread until Drop.
+  /// Stop audio streams; the transport still owns the worker until Drop.
   Future<void> stop();
 
   /// Forward thin typed engine events to Dart via FRB `StreamSink`.
@@ -73,7 +95,17 @@ class EngineEvt {
   final int? positionMs;
   final double? peakL;
   final double? peakR;
+  final double? peakHoldL;
+  final double? peakHoldR;
   final String? message;
+  final double? volume;
+  final double? eqLow;
+  final double? eqMid;
+  final double? eqHigh;
+  final double? filter;
+  final double? gainTrim;
+  final bool? headphoneCue;
+  final double? crossfader;
 
   const EngineEvt({
     required this.kind,
@@ -85,7 +117,17 @@ class EngineEvt {
     this.positionMs,
     this.peakL,
     this.peakR,
+    this.peakHoldL,
+    this.peakHoldR,
     this.message,
+    this.volume,
+    this.eqLow,
+    this.eqMid,
+    this.eqHigh,
+    this.filter,
+    this.gainTrim,
+    this.headphoneCue,
+    this.crossfader,
   });
 
   @override
@@ -99,7 +141,17 @@ class EngineEvt {
       positionMs.hashCode ^
       peakL.hashCode ^
       peakR.hashCode ^
-      message.hashCode;
+      peakHoldL.hashCode ^
+      peakHoldR.hashCode ^
+      message.hashCode ^
+      volume.hashCode ^
+      eqLow.hashCode ^
+      eqMid.hashCode ^
+      eqHigh.hashCode ^
+      filter.hashCode ^
+      gainTrim.hashCode ^
+      headphoneCue.hashCode ^
+      crossfader.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -115,7 +167,17 @@ class EngineEvt {
           positionMs == other.positionMs &&
           peakL == other.peakL &&
           peakR == other.peakR &&
-          message == other.message;
+          peakHoldL == other.peakHoldL &&
+          peakHoldR == other.peakHoldR &&
+          message == other.message &&
+          volume == other.volume &&
+          eqLow == other.eqLow &&
+          eqMid == other.eqMid &&
+          eqHigh == other.eqHigh &&
+          filter == other.filter &&
+          gainTrim == other.gainTrim &&
+          headphoneCue == other.headphoneCue &&
+          crossfader == other.crossfader;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -146,6 +208,9 @@ class EngineStartConfig {
           sampleRate == other.sampleRate &&
           bufferSize == other.bufferSize;
 }
+
+/// EQ band for [`EngineTransport::set_eq_band`].
+enum EqBand { low, mid, high }
 
 /// Output device summary for the Flutter settings / smoke UI.
 class OutputDevice {

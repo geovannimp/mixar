@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Matches `library-core` `SUPPORTED_AUDIO_EXTENSIONS`.
@@ -191,64 +190,6 @@ String pathFromDroppedUri(Uri uri) {
     return uri.toFilePath();
   }
   return uri.toFilePath();
-}
-
-class EngineUiSnapshot {
-  const EngineUiSnapshot({
-    required this.running,
-    required this.titles,
-    this.playing = const {},
-  });
-
-  static const empty = EngineUiSnapshot(running: false, titles: {});
-
-  final bool running;
-  final Map<int, String> titles;
-  final Map<int, bool> playing;
-
-  String? titleFor(int deckId) => titles[deckId];
-
-  bool isPlaying(int deckId) => playing[deckId] ?? false;
-
-  EngineUiSnapshot copyWith({
-    bool? running,
-    Map<int, String>? titles,
-    Map<int, bool>? playing,
-  }) => EngineUiSnapshot(
-    running: running ?? this.running,
-    titles: titles ?? this.titles,
-    playing: playing ?? this.playing,
-  );
-}
-
-EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
-  switch (evt.kind) {
-    case EngineEvtKind.status:
-      return prev.copyWith(running: evt.running ?? prev.running);
-    case EngineEvtKind.updated:
-      final id = evt.deckId;
-      if (id == null) {
-        return prev;
-      }
-      final nextTitles = Map<int, String>.from(prev.titles);
-      final title = evt.track;
-      // Engine snapshots omit library metadata (`track`/`title` are always
-      // null). Keep the host title from load; only replace when the evt
-      // actually carries one.
-      if (title != null && title.isNotEmpty) {
-        nextTitles[id] = title;
-      }
-      final nextPlaying = Map<int, bool>.from(prev.playing);
-      if (evt.playing != null) {
-        nextPlaying[id] = evt.playing!;
-      }
-      return prev.copyWith(titles: nextTitles, playing: nextPlaying);
-    case EngineEvtKind.position:
-    case EngineEvtKind.levels:
-    case EngineEvtKind.error:
-    case EngineEvtKind.notice:
-      return prev;
-  }
 }
 
 Future<void> applyTrackDrop({

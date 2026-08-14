@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use engine_api::{Kind, Origin};
+use engine_api::{decode_evt_body, EvtBody, Kind, Origin};
 use host_flutter::api::engine::{EngineStartConfig, EngineTransport};
 use host_flutter::api::library::LibraryTransport;
 
@@ -64,4 +64,32 @@ fn load_path_publishes_updated() {
         .unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
     assert_eq!(*event.origin(), Origin::Deck(0));
+}
+
+#[test]
+fn set_volume_publishes_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.set_volume(0, 0.25).unwrap();
+    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated { volume, .. } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected DeckUpdated");
+    };
+    assert!((volume - 0.25).abs() < 1e-4);
+}
+
+#[test]
+fn set_crossfader_publishes_status() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.set_crossfader(0.2).unwrap();
+    let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Mixer);
+    let EvtBody::EngineStatus { status } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected EngineStatus");
+    };
+    assert!((status.crossfader - 0.2).abs() < 1e-4);
 }

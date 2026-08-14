@@ -17,6 +17,18 @@ class DeckLevels {
   final double peakR;
   final double peakHoldL;
   final double peakHoldR;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DeckLevels &&
+          peakL == other.peakL &&
+          peakR == other.peakR &&
+          peakHoldL == other.peakHoldL &&
+          peakHoldR == other.peakHoldR;
+
+  @override
+  int get hashCode => Object.hash(peakL, peakR, peakHoldL, peakHoldR);
 }
 
 const zeroDeckLevels = DeckLevels(
@@ -38,11 +50,16 @@ bool segmentOn(double level, int indexFromBottom) {
 /// Bottom segment covers [1/SEGMENTS, 2/SEGMENTS). Tiny residual hold must not light.
 int? holdSegment(double hold) {
   if (hold < 1 / kLevelMeterSegments - 1e-6) return null;
-  return math.min(kLevelMeterSegments - 1, (hold * kLevelMeterSegments).ceil() - 1);
+  return math.min(
+    kLevelMeterSegments - 1,
+    (hold * kLevelMeterSegments).ceil() - 1,
+  );
 }
 
 // Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on FCard).
-final _green = const Color(0xff10b981).withValues(alpha: 0.45); // emerald-500/45
+final _green = const Color(
+  0xff10b981,
+).withValues(alpha: 0.45); // emerald-500/45
 final _amber = const Color(0xfffbbf24).withValues(alpha: 0.45); // amber-400/45
 final _red = const Color(0xffef4444).withValues(alpha: 0.50); // red-500/50
 
@@ -96,7 +113,11 @@ class _Ladder extends StatelessWidget {
       width: 6,
       child: Column(
         children: [
-          for (var fromTop = kLevelMeterSegments - 1; fromTop >= 0; fromTop--) ...[
+          for (
+            var fromTop = kLevelMeterSegments - 1;
+            fromTop >= 0;
+            fromTop--
+          ) ...[
             if (fromTop < kLevelMeterSegments - 1) const SizedBox(height: 1),
             Expanded(
               child: DecoratedBox(

@@ -143,6 +143,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EngineStartConfig dco_decode_engine_start_config(dynamic raw);
 
   @protected
+  EqBand dco_decode_eq_band(dynamic raw);
+
+  @protected
   double dco_decode_f_32(dynamic raw);
 
   @protected
@@ -369,6 +372,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EngineStartConfig sse_decode_engine_start_config(
     SseDeserializer deserializer,
   );
+
+  @protected
+  EqBand sse_decode_eq_band(SseDeserializer deserializer);
 
   @protected
   double sse_decode_f_32(SseDeserializer deserializer);
@@ -629,6 +635,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     EngineStartConfig self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_eq_band(EqBand self, SseSerializer serializer);
 
   @protected
   void sse_encode_f_32(double self, SseSerializer serializer);
