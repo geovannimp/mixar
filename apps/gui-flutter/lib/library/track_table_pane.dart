@@ -454,7 +454,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
       trackId: inLibrary ? trackId : null,
       path: path,
-      title: title,
+      title: trackDisplayTitle(title: title, path: path),
     );
     return DragItemWidget(
       dragItemProvider: (_) async {

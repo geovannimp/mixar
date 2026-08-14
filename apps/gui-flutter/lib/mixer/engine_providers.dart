@@ -89,7 +89,12 @@ Future<void> loadPayloadToDeck(
         engine.loadLibraryTrack(deckId: id, trackId: trackId),
     loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
   );
-  ref.read(engineUiProvider.notifier).setDeckTitle(deckId, payload.title);
+  ref
+      .read(engineUiProvider.notifier)
+      .setDeckTitle(
+        deckId,
+        trackDisplayTitle(title: payload.title, path: payload.path),
+      );
 }
 
 Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {

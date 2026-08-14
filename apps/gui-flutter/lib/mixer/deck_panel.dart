@@ -52,7 +52,7 @@ class DeckPanel extends ConsumerWidget {
           ),
         ),
         Text(
-          hasTrack ? loadedTitle : 'No track loaded',
+          loadedTitle ?? 'No track loaded',
           style: theme.typography.body.xs.copyWith(
             color: theme.colors.mutedForeground,
           ),

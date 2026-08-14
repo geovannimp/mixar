@@ -66,13 +66,26 @@ TrackLoadKind trackLoadKind(TrackDragPayload payload) {
   return TrackLoadKind.path;
 }
 
+String fileNameFromPath(String path) {
+  final base = path.replaceAll('\\', '/').split('/').last;
+  return base.isEmpty ? path : base;
+}
+
+/// Metadata title when present; otherwise the file name so a loaded deck
+/// never looks empty.
+String trackDisplayTitle({required String title, required String path}) {
+  final trimmed = title.trim();
+  if (trimmed.isNotEmpty) {
+    return trimmed;
+  }
+  return fileNameFromPath(path);
+}
+
 TrackDragPayload payloadFromOsPath(String path) {
-  final slash = path.replaceAll('\\', '/').lastIndexOf('/');
-  final title = slash >= 0 ? path.substring(slash + 1) : path;
   return TrackDragPayload(
     source: TrackDragSource.filesystem,
     path: path,
-    title: title.isEmpty ? path : title,
+    title: fileNameFromPath(path),
   );
 }
 
@@ -85,7 +98,7 @@ TrackDragPayload payloadFromLibraryTrack(LibraryTrackSummary track) {
     source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
     trackId: inLibrary ? track.id : null,
     path: track.path,
-    title: title,
+    title: trackDisplayTitle(title: title, path: track.path),
   );
 }
 
@@ -115,7 +128,7 @@ TrackDragPayload? parseTrackDragLocalData(Object? data) {
     source: source,
     trackId: trackId is String && trackId.isNotEmpty ? trackId : null,
     path: path,
-    title: title,
+    title: trackDisplayTitle(title: title, path: path),
   );
 }
 
@@ -151,7 +164,7 @@ String preferredTrackDropOperation(Iterable<String> allowed) {
 }
 
 bool isSupportedAudioPath(String path) {
-  final base = path.replaceAll('\\', '/').split('/').last;
+  final base = fileNameFromPath(path);
   final dot = base.lastIndexOf('.');
   if (dot < 0 || dot == base.length - 1) {
     return false;

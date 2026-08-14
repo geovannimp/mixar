@@ -66,6 +66,29 @@ void main() {
       expect(payload.trackId, isNull);
       expect(trackLoadKind(payload), TrackLoadKind.path);
     });
+
+    test('missing title uses displayName', () {
+      final payload = payloadFromLibraryTrack(
+        _track(
+          id: 't1',
+          path: '/lib/a.wav',
+          displayName: 'a.wav',
+        ),
+      );
+      expect(payload.title, 'a.wav');
+    });
+
+    test('empty title and displayName uses file name', () {
+      final payload = payloadFromLibraryTrack(
+        _track(
+          id: 't1',
+          path: '/lib/untitled.wav',
+          title: '',
+          displayName: '',
+        ),
+      );
+      expect(payload.title, 'untitled.wav');
+    });
   });
 
   group('parseTrackDragLocalData', () {
@@ -77,6 +100,18 @@ void main() {
     test('rejects non-track maps', () {
       expect(parseTrackDragLocalData({'type': 'other'}), isNull);
       expect(parseTrackDragLocalData('nope'), isNull);
+    });
+
+    test('empty title falls back to file name', () {
+      expect(
+        parseTrackDragLocalData({
+          'type': 'track',
+          'source': 'filesystem',
+          'path': '/music/cut.mp3',
+          'title': '',
+        })?.title,
+        'cut.mp3',
+      );
     });
   });
 
