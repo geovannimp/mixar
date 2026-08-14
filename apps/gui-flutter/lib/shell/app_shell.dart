@@ -1,24 +1,27 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 
 /// Top-level shell: header + Mixer / Settings body (no backend wiring).
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({required this.appTitle, super.key});
 
   final String appTitle;
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   var _tab = ShellTab.mixer;
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(engineEventsBootstrapProvider);
     return FScaffold(
       childPad: false,
       header: AppHeader(

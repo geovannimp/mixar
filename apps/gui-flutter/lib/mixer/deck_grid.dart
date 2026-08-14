@@ -24,6 +24,7 @@ class _DeckGridState extends State<DeckGrid> {
         children: [
           Expanded(
             child: DeckPanel(
+              deckId: 0,
               label: 'Deck A',
               accent: FaderAccent.a,
               isMaster: _master == FaderAccent.a,
@@ -37,6 +38,7 @@ class _DeckGridState extends State<DeckGrid> {
           const SizedBox(width: 8),
           Expanded(
             child: DeckPanel(
+              deckId: 1,
               label: 'Deck B',
               accent: FaderAccent.b,
               isMaster: _master == FaderAccent.b,
