@@ -69,23 +69,14 @@ void main() {
 
     test('missing title uses displayName', () {
       final payload = payloadFromLibraryTrack(
-        _track(
-          id: 't1',
-          path: '/lib/a.wav',
-          displayName: 'a.wav',
-        ),
+        _track(id: 't1', path: '/lib/a.wav', displayName: 'a.wav'),
       );
       expect(payload.title, 'a.wav');
     });
 
     test('empty title and displayName uses file name', () {
       final payload = payloadFromLibraryTrack(
-        _track(
-          id: 't1',
-          path: '/lib/untitled.wav',
-          title: '',
-          displayName: '',
-        ),
+        _track(id: 't1', path: '/lib/untitled.wav', title: '', displayName: ''),
       );
       expect(payload.title, 'untitled.wav');
     });
@@ -221,6 +212,63 @@ void main() {
         ),
       );
       expect(snap.titleFor(0), 'Keep');
+    });
+
+    test('updated mixer fields patch the channel', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          volume: 0.25,
+          eqHigh: 0.1,
+          headphoneCue: true,
+        ),
+      );
+      expect(snap.channelFor(0).volume, 0.25);
+      expect(snap.channelFor(0).eqHigh, 0.1);
+      expect(snap.channelFor(0).headphoneCue, isTrue);
+      expect(snap.channelFor(0).eqLow, 0.5);
+      expect(snap.channelFor(1).volume, 1.0);
+    });
+
+    test('status sets crossfader without clobbering volume', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, volume: 0.3),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.status,
+          running: true,
+          crossfader: 0.2,
+        ),
+      );
+      expect(snap.running, isTrue);
+      expect(snap.crossfader, 0.2);
+      expect(snap.channelFor(0).volume, 0.3);
+    });
+
+    test('levels patch peaks without changing volume', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, volume: 0.4),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.levels,
+          deckId: 0,
+          peakL: 0.5,
+          peakR: 0.6,
+          peakHoldL: 0.8,
+          peakHoldR: 0.9,
+        ),
+      );
+      expect(snap.channelFor(0).volume, 0.4);
+      expect(snap.levelsFor(0).peakL, 0.5);
+      expect(snap.levelsFor(0).peakHoldR, 0.9);
     });
   });
 

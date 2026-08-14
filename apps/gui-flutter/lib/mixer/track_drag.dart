@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -193,11 +194,62 @@ String pathFromDroppedUri(Uri uri) {
   return uri.toFilePath();
 }
 
+class MixerChannelUi {
+  const MixerChannelUi({
+    this.volume = 1.0,
+    this.eqLow = 0.5,
+    this.eqMid = 0.5,
+    this.eqHigh = 0.5,
+    this.filter = 0.5,
+    this.gainTrim = 0.5,
+    this.headphoneCue = false,
+  });
+
+  static const defaults = MixerChannelUi();
+
+  final double volume;
+  final double eqLow;
+  final double eqMid;
+  final double eqHigh;
+  final double filter;
+  final double gainTrim;
+  final bool headphoneCue;
+
+  MixerChannelUi patchedFrom(EngineEvt evt) => MixerChannelUi(
+    volume: evt.volume ?? volume,
+    eqLow: evt.eqLow ?? eqLow,
+    eqMid: evt.eqMid ?? eqMid,
+    eqHigh: evt.eqHigh ?? eqHigh,
+    filter: evt.filter ?? filter,
+    gainTrim: evt.gainTrim ?? gainTrim,
+    headphoneCue: evt.headphoneCue ?? headphoneCue,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MixerChannelUi &&
+          volume == other.volume &&
+          eqLow == other.eqLow &&
+          eqMid == other.eqMid &&
+          eqHigh == other.eqHigh &&
+          filter == other.filter &&
+          gainTrim == other.gainTrim &&
+          headphoneCue == other.headphoneCue;
+
+  @override
+  int get hashCode =>
+      Object.hash(volume, eqLow, eqMid, eqHigh, filter, gainTrim, headphoneCue);
+}
+
 class EngineUiSnapshot {
   const EngineUiSnapshot({
     required this.running,
     required this.titles,
     this.playing = const {},
+    this.channels = const {},
+    this.levels = const {},
+    this.crossfader = 0.5,
   });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
@@ -205,26 +257,43 @@ class EngineUiSnapshot {
   final bool running;
   final Map<int, String> titles;
   final Map<int, bool> playing;
+  final Map<int, MixerChannelUi> channels;
+  final Map<int, DeckLevels> levels;
+  final double crossfader;
 
   String? titleFor(int deckId) => titles[deckId];
 
   bool isPlaying(int deckId) => playing[deckId] ?? false;
 
+  MixerChannelUi channelFor(int deckId) =>
+      channels[deckId] ?? MixerChannelUi.defaults;
+
+  DeckLevels levelsFor(int deckId) => levels[deckId] ?? zeroDeckLevels;
+
   EngineUiSnapshot copyWith({
     bool? running,
     Map<int, String>? titles,
     Map<int, bool>? playing,
+    Map<int, MixerChannelUi>? channels,
+    Map<int, DeckLevels>? levels,
+    double? crossfader,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
     titles: titles ?? this.titles,
     playing: playing ?? this.playing,
+    channels: channels ?? this.channels,
+    levels: levels ?? this.levels,
+    crossfader: crossfader ?? this.crossfader,
   );
 }
 
 EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
   switch (evt.kind) {
     case EngineEvtKind.status:
-      return prev.copyWith(running: evt.running ?? prev.running);
+      return prev.copyWith(
+        running: evt.running ?? prev.running,
+        crossfader: evt.crossfader ?? prev.crossfader,
+      );
     case EngineEvtKind.updated:
       final id = evt.deckId;
       if (id == null) {
@@ -242,9 +311,28 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (evt.playing != null) {
         nextPlaying[id] = evt.playing!;
       }
-      return prev.copyWith(titles: nextTitles, playing: nextPlaying);
-    case EngineEvtKind.position:
+      final nextChannels = Map<int, MixerChannelUi>.from(prev.channels);
+      nextChannels[id] = prev.channelFor(id).patchedFrom(evt);
+      return prev.copyWith(
+        titles: nextTitles,
+        playing: nextPlaying,
+        channels: nextChannels,
+      );
     case EngineEvtKind.levels:
+      final id = evt.deckId;
+      if (id == null || evt.peakL == null || evt.peakR == null) {
+        return prev;
+      }
+      final nextLevels = Map<int, DeckLevels>.from(prev.levels);
+      final prevLevels = prev.levelsFor(id);
+      nextLevels[id] = DeckLevels(
+        peakL: evt.peakL!,
+        peakR: evt.peakR!,
+        peakHoldL: evt.peakHoldL ?? prevLevels.peakHoldL,
+        peakHoldR: evt.peakHoldR ?? prevLevels.peakHoldR,
+      );
+      return prev.copyWith(levels: nextLevels);
+    case EngineEvtKind.position:
     case EngineEvtKind.error:
     case EngineEvtKind.notice:
       return prev;
