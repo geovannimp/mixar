@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -147,18 +148,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
           originMs: _originMs,
           width: width,
           pxPerMs: pxPerMs,
-        );
+        ).roundToDouble();
 
         final marks = grid?.bpm == null
             ? const <BeatMark>[]
             : beatGridXs(
                 bpm: grid!.bpm!,
                 firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
-                startMs: _displayMs.round() - visibleMs ~/ 2,
-                endMs: _displayMs.round() + visibleMs ~/ 2,
-                positionMs: _displayMs.round(),
-                width: width,
-                visibleMs: visibleMs,
+                originMs: _originMs,
+                spanMs: spanMs.toDouble(),
+                width: bufW,
               );
 
         return Listener(
@@ -205,19 +204,24 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                   top: 0,
                   width: bufW,
                   height: height,
-                  child: RepaintBoundary(
-                    child: CustomPaint(
-                      painter: WaveformBarPainter(
-                        overview: peaks,
-                        detail: _detail,
-                        durationMs: durationMs,
-                        originMs: _originMs,
-                        spanMs: spanMs.toDouble(),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      RepaintBoundary(
+                        child: CustomPaint(
+                          painter: WaveformBarPainter(
+                            overview: peaks,
+                            detail: _detail,
+                            durationMs: durationMs,
+                            originMs: _originMs,
+                            spanMs: spanMs.toDouble(),
+                          ),
+                        ),
                       ),
-                    ),
+                      CustomPaint(painter: _BeatGridPainter(marks: marks)),
+                    ],
                   ),
                 ),
-                CustomPaint(painter: _BeatGridPainter(marks: marks)),
                 Align(
                   alignment: Alignment.center,
                   child: ColoredBox(
@@ -255,9 +259,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     if (trackId == null || durationMs <= 0 || !mounted || _l1InFlight) {
       return;
     }
-    if (_detail != null &&
-        _displayMs >= _detail!.startMs + visibleMs * kWaveformRefreshMargin &&
-        _displayMs <= _detail!.endMs - visibleMs * kWaveformRefreshMargin) {
+    if (!l1NeedsRefresh(
+      positionMs: _displayMs,
+      detailStartMs: _detail?.startMs,
+      detailEndMs: _detail?.endMs,
+      visibleMs: visibleMs,
+      durationMs: durationMs,
+    )) {
       return;
     }
     final range = l1Range(
@@ -266,6 +274,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       durationMs: durationMs,
     );
     if (range.endMs <= range.startMs) {
+      return;
+    }
+    if (_detail != null &&
+        _detail!.startMs == range.startMs &&
+        _detail!.endMs == range.endMs) {
       return;
     }
     final buckets = (width * 3).round().clamp(16, 16384);
@@ -351,17 +364,25 @@ class _BeatGridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final bar = Paint()
+      ..color = const Color.fromARGB(80, 200, 205, 215)
+      ..strokeWidth = 1
+      ..isAntiAlias = false;
+    final beat = Paint()
+      ..color = const Color.fromARGB(55, 170, 175, 185)
+      ..strokeWidth = 1
+      ..isAntiAlias = false;
     for (final mark in marks) {
-      final paint = Paint()
-        ..color = mark.isBar
-            ? const Color.fromARGB(80, 200, 205, 215)
-            : const Color.fromARGB(55, 170, 175, 185)
-        ..strokeWidth = 1;
-      canvas.drawLine(Offset(mark.x, 0), Offset(mark.x, size.height), paint);
+      final x = mark.x.roundToDouble();
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        mark.isBar ? bar : beat,
+      );
     }
   }
 
   @override
   bool shouldRepaint(_BeatGridPainter oldDelegate) =>
-      !identical(marks, oldDelegate.marks);
+      !listEquals(marks, oldDelegate.marks);
 }

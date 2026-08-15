@@ -3,35 +3,41 @@ class BeatMark {
 
   final double x;
   final bool isBar;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BeatMark && x == other.x && isBar == other.isBar;
+
+  @override
+  int get hashCode => Object.hash(x, isBar);
 }
 
+/// Beat x positions in the scrolling buffer (origin at the left edge).
 List<BeatMark> beatGridXs({
   required double bpm,
   required double firstBeatSecs,
-  required int startMs,
-  required int endMs,
-  required int positionMs,
+  required double originMs,
+  required double spanMs,
   required double width,
-  required int visibleMs,
 }) {
-  if (!(bpm > 20 && bpm < 400) || visibleMs <= 0 || width <= 0) {
+  if (!(bpm > 20 && bpm < 400) || spanMs <= 0 || width <= 0) {
     return const [];
   }
   final beatPeriodMs = 60_000 / bpm;
   final phaseMs = firstBeatSecs * 1000;
-  final pxPerMs = width / visibleMs;
-  final centerX = width / 2;
-  var beatIndex = ((startMs - phaseMs) / beatPeriodMs).floor();
+  final pxPerMs = width / spanMs;
+  final endMs = originMs + spanMs;
+  var beatIndex = ((originMs - phaseMs) / beatPeriodMs).floor();
   final marks = <BeatMark>[];
   for (var i = 0; i < 10000; i++) {
     final beatMs = phaseMs + beatIndex * beatPeriodMs;
     if (beatMs > endMs + beatPeriodMs) {
       break;
     }
-    if (beatMs >= startMs - 1e-6 && beatMs <= endMs + 1e-6) {
-      final x = centerX + (beatMs - positionMs) * pxPerMs;
+    if (beatMs >= originMs - 1e-6 && beatMs <= endMs + 1e-6) {
+      final x = (beatMs - originMs) * pxPerMs;
       if (x >= 0 && x <= width) {
-        marks.add(BeatMark(x: x, isBar: beatIndex.remainder(4) == 0));
+        marks.add(BeatMark(x: x, isBar: beatIndex % 4 == 0));
       }
     }
     beatIndex += 1;

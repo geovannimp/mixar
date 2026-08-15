@@ -2,10 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 
-/// Dual-lane waveform: overview + scrolling detail per deck.
+/// Dual scrolling lanes. Overview strips live on each deck panel.
 class WaveformSection extends ConsumerWidget {
   const WaveformSection({super.key});
 
@@ -21,10 +20,8 @@ class WaveformSection extends ConsumerWidget {
         children: [
           Column(
             children: [
-              const OverviewStrip(deckId: 0, height: 22),
               const Expanded(child: ScrollingLane(deckId: 0, label: 'Deck A')),
-              FDivider(),
-              const OverviewStrip(deckId: 1, height: 22),
+              const FDivider(style: .delta(padding: .value(.zero))),
               const Expanded(child: ScrollingLane(deckId: 1, label: 'Deck B')),
             ],
           ),

@@ -65,3 +65,33 @@ int l1EndMs({required int positionMs, required int visibleMs}) =>
   ).clamp(start, durationMs).toInt();
   return (startMs: start, endMs: end);
 }
+
+bool l1NeedsRefresh({
+  required double positionMs,
+  required int? detailStartMs,
+  required int? detailEndMs,
+  required int visibleMs,
+  required int durationMs,
+}) {
+  if (detailStartMs == null || detailEndMs == null) {
+    return true;
+  }
+  if (detailEndMs <= detailStartMs || visibleMs <= 0) {
+    return true;
+  }
+  final margin = visibleMs * kWaveformRefreshMargin;
+  final nearStart = positionMs < detailStartMs + margin;
+  final nearEnd = positionMs > detailEndMs - margin;
+  if (!nearStart && !nearEnd) {
+    return false;
+  }
+  final canSlideStart = detailStartMs > 0;
+  final canSlideEnd = detailEndMs < durationMs;
+  if (nearStart && !canSlideStart && !(nearEnd && canSlideEnd)) {
+    return false;
+  }
+  if (nearEnd && !canSlideEnd && !(nearStart && canSlideStart)) {
+    return false;
+  }
+  return true;
+}

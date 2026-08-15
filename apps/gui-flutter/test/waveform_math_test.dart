@@ -92,6 +92,39 @@ void main() {
     expect(tail.endMs, 180_000);
   });
 
+  test('l1NeedsRefresh is false at t=0 once the clamped window is loaded', () {
+    expect(
+      l1NeedsRefresh(
+        positionMs: 0,
+        detailStartMs: 0,
+        detailEndMs: 36_000,
+        visibleMs: 24_000,
+        durationMs: 180_000,
+      ),
+      isFalse,
+    );
+    expect(
+      l1NeedsRefresh(
+        positionMs: 28_000,
+        detailStartMs: 0,
+        detailEndMs: 36_000,
+        visibleMs: 24_000,
+        durationMs: 180_000,
+      ),
+      isTrue,
+    );
+    expect(
+      l1NeedsRefresh(
+        positionMs: 179_000,
+        detailStartMs: 144_000,
+        detailEndMs: 180_000,
+        visibleMs: 24_000,
+        durationMs: 180_000,
+      ),
+      isFalse,
+    );
+  });
+
   test('centerScrubMs subtracts pointer delta across the span', () {
     expect(
       centerScrubMs(anchorPosMs: 10_000, deltaX: 50, width: 100, spanMs: 1000),
@@ -99,17 +132,20 @@ void main() {
     );
   });
 
-  test('beatGridXs marks bars every 4 beats from bpm + phase', () {
-    final xs = beatGridXs(
-      bpm: 120,
-      firstBeatSecs: 0,
-      startMs: 0,
-      endMs: 2000,
-      positionMs: 1000,
-      width: 200,
-      visibleMs: 2000,
-    );
-    expect(xs.where((m) => m.isBar), isNotEmpty);
-    expect(xs.where((m) => !m.isBar), isNotEmpty);
-  });
+  test(
+    'beatGridXs is origin-relative so marks stay put while the lane scrolls',
+    () {
+      final xs = beatGridXs(
+        bpm: 120,
+        firstBeatSecs: 0,
+        originMs: 0,
+        spanMs: 2000,
+        width: 200,
+      );
+      expect(xs.first.x, closeTo(0, 1e-6));
+      expect(xs[1].x, closeTo(50, 1e-6));
+      expect(xs.where((m) => m.isBar), isNotEmpty);
+      expect(xs.where((m) => !m.isBar), isNotEmpty);
+    },
+  );
 }
