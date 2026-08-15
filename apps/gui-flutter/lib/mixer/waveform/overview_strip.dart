@@ -21,17 +21,10 @@ class OverviewStrip extends ConsumerWidget {
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId)) ?? 0;
     final positionMs = ref.watch(deckPositionMsProvider(deckId));
-    final speed = ref.watch(deckSpeedRatioProvider(deckId));
     final peaks = trackId == null
         ? const <SpectralPeak>[]
         : (ref.watch(waveformOverviewProvider(trackId)).value ??
               const <SpectralPeak>[]);
-    final visibleMs = visibleSourceMs(speed);
-    final window = overviewWindowRect(
-      positionMs: positionMs,
-      durationMs: durationMs,
-      visibleMs: visibleMs,
-    );
 
     return SizedBox(
       height: height,
@@ -39,6 +32,15 @@ class OverviewStrip extends ConsumerWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
+          final visibleMs = cropVisibleMs(
+            durationMs: durationMs,
+            viewportWidth: width,
+          );
+          final window = overviewWindowRect(
+            positionMs: positionMs,
+            durationMs: durationMs,
+            visibleMs: visibleMs,
+          );
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapDown: durationMs <= 0

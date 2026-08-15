@@ -3,6 +3,13 @@ import 'dart:ui';
 const kWaveformVisibleMs = 24000;
 const kWaveformBufferRatio = 1.0;
 const kWaveformRefreshMargin = 0.35;
+const kWaveformSeekSnapMs = 180.0;
+const kWaveformDriftCorrectMs = 60.0;
+const kWaveformStripMsPerPx = 13.0;
+const kWaveformStripMinPx = 2048;
+const kWaveformStripMaxPx = 16384;
+const kWaveformStripHeight = 128.0;
+const kWaveformStripTilePx = 2048;
 
 int visibleSourceMs(double speed) {
   final clamped = speed.isFinite && speed > 0 ? speed : 1.0;
@@ -41,6 +48,69 @@ double playheadDx({
   return width / 2 - (positionMs - originMs) * pxPerMs;
 }
 
+double snapPx(double x, double dpr) {
+  final scale = dpr > 0 ? dpr : 1.0;
+  return (x * scale).round() / scale;
+}
+
+int stripWidthPx(int durationMs) {
+  if (durationMs <= 0) {
+    return kWaveformStripMinPx;
+  }
+  return (durationMs / kWaveformStripMsPerPx).ceil().clamp(
+    kWaveformStripMinPx,
+    kWaveformStripMaxPx,
+  );
+}
+
+double stripPxPerMs(int durationMs) {
+  final width = stripWidthPx(durationMs);
+  if (durationMs <= 0) {
+    return 0;
+  }
+  return width / durationMs;
+}
+
+double stripTranslateX({
+  required double positionMs,
+  required double viewportWidth,
+  required double pxPerMs,
+}) => viewportWidth / 2 - positionMs * pxPerMs;
+
+int cropVisibleMs({required int durationMs, required double viewportWidth}) {
+  final px = stripPxPerMs(durationMs);
+  if (px <= 0) {
+    return kWaveformVisibleMs;
+  }
+  return (viewportWidth / px).round().clamp(1, durationMs);
+}
+
+/// Engine estimate at this frame: last poll plus time elapsed at [speed].
+double engineEstimateMs({
+  required double anchorMs,
+  required double ageMs,
+  required double speed,
+}) => anchorMs + ageMs * speed;
+
+/// Keep interpolating; only pull 25% when drift exceeds [kWaveformDriftCorrectMs].
+/// A late ~33ms position poll must not yank the playhead backward.
+double correctPlayheadDrift({
+  required double displayMs,
+  required double estimateMs,
+}) {
+  final error = estimateMs - displayMs;
+  if (error.abs() > kWaveformDriftCorrectMs) {
+    return displayMs + error * 0.25;
+  }
+  return displayMs;
+}
+
+bool playheadShouldSnap({
+  required double displayMs,
+  required double engineMs,
+  required bool playing,
+}) => !playing || (displayMs - engineMs).abs() >= kWaveformSeekSnapMs;
+
 int l1StartMs({required int positionMs, required int visibleMs}) =>
     positionMs - (visibleMs * 3 / 2).round();
 
@@ -64,6 +134,35 @@ int l1EndMs({required int positionMs, required int visibleMs}) =>
     visibleMs: visibleMs,
   ).clamp(start, durationMs).toInt();
   return (startMs: start, endMs: end);
+}
+
+/// Keep ~1 bucket per viewport pixel so L1 swaps don't change peak density.
+int l1BucketCount({
+  required int startMs,
+  required int endMs,
+  required int visibleMs,
+  required double width,
+}) {
+  if (visibleMs <= 0 || width <= 0 || endMs <= startMs) {
+    return 16;
+  }
+  return ((endMs - startMs) / visibleMs * width).round().clamp(16, 16384);
+}
+
+bool l1CoversVisible({
+  required double positionMs,
+  required int visibleMs,
+  required int startMs,
+  required int endMs,
+  int durationMs = 1 << 30,
+}) {
+  if (visibleMs <= 0 || endMs <= startMs) {
+    return false;
+  }
+  final half = visibleMs / 2;
+  final viewStart = (positionMs - half).clamp(0, durationMs.toDouble());
+  final viewEnd = (positionMs + half).clamp(0, durationMs.toDouble());
+  return startMs <= viewStart && endMs >= viewEnd;
 }
 
 bool l1NeedsRefresh({

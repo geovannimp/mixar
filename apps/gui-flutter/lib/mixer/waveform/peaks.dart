@@ -43,8 +43,9 @@ SpectralPeak peakAtTime(
   List<SpectralPeak> overview,
   DetailWindow? detail,
   int durationMs,
-  double timeMs,
-) {
+  double timeMs, {
+  bool fallbackToOverview = true,
+}) {
   if (detail != null &&
       detail.peaks.length > 1 &&
       timeMs >= detail.startMs &&
@@ -55,7 +56,7 @@ SpectralPeak peakAtTime(
       return interpolatePeak(detail.peaks, frac * (detail.peaks.length - 1));
     }
   }
-  if (overview.isEmpty || durationMs <= 0) {
+  if (!fallbackToOverview || overview.isEmpty || durationMs <= 0) {
     return const SpectralPeak(low: 0, mid: 0, high: 0);
   }
   final frac = (timeMs / durationMs).clamp(0.0, 1.0);

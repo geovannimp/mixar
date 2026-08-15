@@ -26,6 +26,15 @@ void main() {
     expect(spectralRgb(0, 0, 1), const Color.fromARGB(255, 72, 188, 255));
   });
 
+  test('barFill is opaque and leans toward the background as amp drops', () {
+    final full = barFill(const Color.fromARGB(255, 255, 72, 48), 1);
+    expect(full.a, 1);
+    expect(full.r, closeTo(1, 1e-3));
+    final dim = barFill(const Color.fromARGB(255, 255, 72, 48), 0);
+    expect(dim.a, 1);
+    expect(dim.r, lessThan(full.r));
+  });
+
   test('peakAtTime prefers L1 inside the detail window', () {
     const overview = [
       SpectralPeak(low: 1, mid: 0, high: 0),
@@ -41,6 +50,52 @@ void main() {
     );
     expect(peakAtTime(overview, detail, 4000, 1500).mid, closeTo(1, 1e-6));
     expect(peakAtTime(overview, detail, 4000, 0).low, closeTo(1, 1e-6));
+    expect(
+      peakAtTime(overview, detail, 4000, 0, fallbackToOverview: false).low,
+      0,
+    );
+  });
+
+  test('l1BucketCount stays one bucket per viewport pixel', () {
+    expect(
+      l1BucketCount(startMs: 0, endMs: 36_000, visibleMs: 24_000, width: 1920),
+      2880,
+    );
+    expect(
+      l1BucketCount(startMs: 0, endMs: 72_000, visibleMs: 24_000, width: 1920),
+      5760,
+    );
+  });
+
+  test('l1CoversVisible is true when the window contains the viewport', () {
+    expect(
+      l1CoversVisible(
+        positionMs: 0,
+        visibleMs: 24_000,
+        startMs: 0,
+        endMs: 36_000,
+        durationMs: 180_000,
+      ),
+      isTrue,
+    );
+    expect(
+      l1CoversVisible(
+        positionMs: 12_000,
+        visibleMs: 24_000,
+        startMs: 0,
+        endMs: 36_000,
+      ),
+      isTrue,
+    );
+    expect(
+      l1CoversVisible(
+        positionMs: 30_000,
+        visibleMs: 24_000,
+        startMs: 0,
+        endMs: 36_000,
+      ),
+      isFalse,
+    );
   });
 
   test('visibleSourceMs scales with speed and clamps', () {
@@ -146,6 +201,73 @@ void main() {
       expect(xs[1].x, closeTo(50, 1e-6));
       expect(xs.where((m) => m.isBar), isNotEmpty);
       expect(xs.where((m) => !m.isBar), isNotEmpty);
+    },
+  );
+
+  test('late engine poll under 60ms does not yank the playhead', () {
+    expect(correctPlayheadDrift(displayMs: 1040, estimateMs: 1000), 1040);
+  });
+
+  test('large playhead drift is pulled 25 percent', () {
+    expect(correctPlayheadDrift(displayMs: 1000, estimateMs: 1080), 1020);
+  });
+
+  test('playhead snaps when paused or on a seek', () {
+    expect(
+      playheadShouldSnap(displayMs: 1000, engineMs: 1010, playing: false),
+      isTrue,
+    );
+    expect(
+      playheadShouldSnap(displayMs: 1000, engineMs: 1010, playing: true),
+      isFalse,
+    );
+    expect(
+      playheadShouldSnap(displayMs: 1000, engineMs: 1200, playing: true),
+      isTrue,
+    );
+  });
+
+  test('snapPx rounds to device pixels', () {
+    expect(snapPx(1.4, 1), 1);
+    expect(snapPx(1.4, 2), 1.5);
+  });
+
+  test('strip width depends on duration, not viewport', () {
+    expect(stripWidthPx(180_000), (180_000 / 13).ceil());
+    expect(stripWidthPx(60_000), (60_000 / 13).ceil());
+    expect(stripWidthPx(180_000), inInclusiveRange(2048, 16384));
+  });
+
+  test('strip crop shows more time in a wider viewport', () {
+    final narrow = cropVisibleMs(durationMs: 180_000, viewportWidth: 800);
+    final wide = cropVisibleMs(durationMs: 180_000, viewportWidth: 1600);
+    expect(wide, closeTo(narrow * 2, 2));
+  });
+
+  test('stripTranslateX keeps the playhead at the viewport center', () {
+    const width = 1920.0;
+    const pxPerMs = 0.08;
+    const pos = 10_000.0;
+    final dx = stripTranslateX(
+      positionMs: pos,
+      viewportWidth: width,
+      pxPerMs: pxPerMs,
+    );
+    expect(dx + pos * pxPerMs, closeTo(width / 2, 1e-6));
+  });
+
+  test(
+    'rebased origin at t=0 puts the visible slice one viewport to the left',
+    () {
+      const width = 1920.0;
+      const visible = 24000.0;
+      final dx = playheadDx(
+        positionMs: 0,
+        originMs: -visible * 1.5,
+        width: width,
+        pxPerMs: width / visible,
+      );
+      expect(dx, closeTo(-width, 1e-6));
     },
   );
 }
