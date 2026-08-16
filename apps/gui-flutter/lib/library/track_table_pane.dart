@@ -130,7 +130,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     });
 
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(6, 0, 0, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -21,84 +20,72 @@ class LibraryPanel extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FCard(
-        clipBehavior: Clip.antiAlias,
-        child: kIsWeb
-            ? Center(
-                child: Text(
-                  'Library browse is desktop-only',
-                  style: theme.typography.body.sm.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (message != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Text(
+                message,
+                style: theme.typography.body.sm.copyWith(
+                  color: theme.colors.destructive,
                 ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (message != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                      child: Text(
-                        message,
-                        style: theme.typography.body.sm.copyWith(
-                          color: theme.colors.destructive,
+              ),
+            ),
+          Expanded(
+            child: FResizable(
+              axis: .horizontal,
+              divider: .none,
+              children: [
+                .fixed(
+                  minExtent: 240,
+                  extent: 240,
+                  builder: _fill,
+                  child: FCard(
+                    clipBehavior: Clip.antiAlias,
+                    child: FTabs(
+                      expands: true,
+                      style: .delta(
+                        spacing: 4,
+                        indicatorSize: .tab,
+                        minHeight: 28,
+                        decoration: DecorationDelta.boxDelta(
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
-                    ),
-                  Expanded(
-                    child: FResizable(
-                      axis: .horizontal,
-                      divider: .dividerWithThumb,
-                      children: [
-                        .fixed(
-                          minExtent: 240,
-                          extent: 240,
-                          builder: _fill,
-                          child: FTabs(
-                            expands: true,
-                            style: .delta(
-                              spacing: 4,
-                              indicatorSize: .tab,
-                              minHeight: 28,
-                              decoration: DecorationDelta.boxDelta(
-                                borderRadius: BorderRadius.zero,
-                              ),
-                            ),
-                            control: .lifted(
-                              index: drive ? 1 : 0,
-                              onChange: (index) {
-                                ref
-                                    .read(librarySourceTabProvider.notifier)
-                                    .set(
-                                      index == 1
-                                          ? LibrarySourceTab.drive
-                                          : LibrarySourceTab.collections,
-                                    );
-                              },
-                            ),
-                            children: const [
-                              FTabEntry(
-                                label: Text('Collections'),
-                                child: CollectionsPane(),
-                              ),
-                              FTabEntry(
-                                label: Text('Drive'),
-                                child: DrivePane(),
-                              ),
-                            ],
-                          ),
+                      control: .lifted(
+                        index: drive ? 1 : 0,
+                        onChange: (index) {
+                          ref
+                              .read(librarySourceTabProvider.notifier)
+                              .set(
+                                index == 1
+                                    ? LibrarySourceTab.drive
+                                    : LibrarySourceTab.collections,
+                              );
+                        },
+                      ),
+                      children: const [
+                        FTabEntry(
+                          label: Text('Collections'),
+                          child: CollectionsPane(),
                         ),
-                        .flex(
-                          flex: 3,
-                          minFlex: 1,
-                          builder: _fill,
-                          child: const TrackTablePane(),
-                        ),
+                        FTabEntry(label: Text('Drive'), child: DrivePane()),
                       ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                .flex(
+                  flex: 3,
+                  minFlex: 1,
+                  builder: _fill,
+                  child: const TrackTablePane(),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
