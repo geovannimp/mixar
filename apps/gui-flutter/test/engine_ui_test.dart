@@ -92,14 +92,14 @@ void main() {
           deckId: 1,
           trackId: 'abc',
           durationMs: 8000,
-          speed: 0.5,
+          speed: 0.62,
           tempoRange: 0.08,
           playing: false,
         ),
       );
       expect(snap.trackIdFor(1), 'abc');
       expect(snap.durationMsFor(1), 8000);
-      expect(snap.speedFor(1), 0.5);
+      expect(snap.speedFor(1), 0.62);
       expect(snap.tempoRangeFor(1), 0.08);
       expect(snap.isPlaying(1), isFalse);
     });

@@ -13,6 +13,12 @@ class BeatMark {
 }
 
 /// Beat x positions in the scrolling buffer (origin at the left edge).
+///
+/// ponytail: constant-tempo grid. Beats are extrapolated from `bpm` and a
+/// single phase, and every 4th beat is treated as a bar. Ignores
+/// `BeatGridData.beats` (variable tempo) and `BeatGridData.downbeats` (real
+/// bar starts, non-4/4). Upgrade: bisect `beats` for the visible span and mark
+/// bars from `downbeats`.
 List<BeatMark> beatGridXs({
   required double bpm,
   required double firstBeatSecs,

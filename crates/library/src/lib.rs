@@ -337,7 +337,14 @@ impl LibraryManager {
         end_ms: i32,
         buckets: usize,
     ) -> Result<(Vec<audio_core::SpectralPeak>, i32, i32)> {
-        let buckets = buckets.max(1);
+        // ponytail: caps L1 resolution to bound RPC allocation. Upgrade to
+        // chunked peak generation if a larger waveform window is required.
+        if buckets == 0 || buckets > audio_core::MAX_WAVEFORM_BUCKETS {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "waveform bucket count is out of range".into(),
+            });
+        }
         let cached = {
             let lib = library.lock().expect("library lock");
             let cache = lib.decode_cache.lock().expect("library decode cache lock");
@@ -1144,7 +1151,6 @@ mod tests {
     }
 
     /// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
-    #[cfg(feature = "analysis")]
     fn write_analysis_wav(path: &Path) {
         let sample_rate = 48_000u32;
         let duration_secs = 3u32;
@@ -1228,6 +1234,29 @@ mod tests {
         assert_eq!(end_ms, 500);
         assert_eq!(peaks.len(), 64);
         assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
+    }
+
+    #[test]
+    fn compute_waveform_window_rejects_out_of_range_buckets() {
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let id = TrackId::new("missing");
+        let zero = LibraryManager::compute_waveform_window(&library, &id, 0, 100, 0).unwrap_err();
+        assert!(
+            zero.to_string().contains("bucket"),
+            "zero buckets should fail validation, got {zero}"
+        );
+        let huge = LibraryManager::compute_waveform_window(
+            &library,
+            &id,
+            0,
+            100,
+            audio_core::MAX_WAVEFORM_BUCKETS + 1,
+        )
+        .unwrap_err();
+        assert!(
+            huge.to_string().contains("bucket"),
+            "oversized buckets should fail validation, got {huge}"
+        );
     }
 
     #[test]
