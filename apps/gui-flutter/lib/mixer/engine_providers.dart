@@ -106,28 +106,32 @@ final deckTrackTitleProvider = Provider.family<String?, int>(
 );
 
 /// Decks whose engine load is still in flight (drop/load started, not finished).
-class DeckLoadInFlight extends Notifier<Set<int>> {
+class DeckLoadInFlight extends Notifier<Map<int, int>> {
   @override
-  Set<int> build() => const {};
+  Map<int, int> build() => const {};
 
   void set(int deckId, bool loading) {
+    final n = state[deckId] ?? 0;
     if (loading) {
-      if (state.contains(deckId)) {
+      state = {...state, deckId: n + 1};
+      return;
+    }
+    if (n <= 1) {
+      if (n == 0) {
         return;
       }
-      state = {...state, deckId};
-    } else if (state.contains(deckId)) {
       state = {...state}..remove(deckId);
+      return;
     }
+    state = {...state, deckId: n - 1};
   }
 }
 
-final deckLoadInFlightProvider = NotifierProvider<DeckLoadInFlight, Set<int>>(
-  DeckLoadInFlight.new,
-);
+final deckLoadInFlightProvider =
+    NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
 
 final deckLoadingProvider = Provider.family<bool, int>(
-  (ref, deckId) => ref.watch(deckLoadInFlightProvider).contains(deckId),
+  (ref, deckId) => (ref.watch(deckLoadInFlightProvider)[deckId] ?? 0) > 0,
 );
 
 /// True while the engine is loading this deck, or its overview / beat grid

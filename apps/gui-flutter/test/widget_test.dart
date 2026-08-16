@@ -37,7 +37,7 @@ class _SeededEngineUi extends EngineUi {
 
 class _LoadingDeckA extends DeckLoadInFlight {
   @override
-  Set<int> build() => const {0};
+  Map<int, int> build() => const {0: 1};
 }
 
 final _skeletonizerFinder = find.byWidgetPredicate((w) => w is Skeletonizer);
@@ -52,6 +52,20 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('overlapping deck loads stay in flight until the last one finishes', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final loading = container.read(deckLoadInFlightProvider.notifier);
+    loading.set(0, true);
+    loading.set(0, true);
+    expect(container.read(deckLoadingProvider(0)), isTrue);
+    loading.set(0, false);
+    expect(container.read(deckLoadingProvider(0)), isTrue);
+    expect(container.read(deckLoadingProvider(1)), isFalse);
+    loading.set(0, false);
+    expect(container.read(deckLoadingProvider(0)), isFalse);
+  });
 
   const collection = LibraryCollectionSummary(
     id: 'c1',
