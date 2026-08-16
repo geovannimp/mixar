@@ -6,8 +6,15 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+
+const _waveformSkeletonEffect = ShimmerEffect(
+  baseColor: kWaveformBg,
+  highlightColor: Color.fromARGB(255, 32, 34, 42),
+);
 
 class OverviewStrip extends ConsumerWidget {
   const OverviewStrip({required this.deckId, this.height = 28, super.key});
@@ -21,73 +28,90 @@ class OverviewStrip extends ConsumerWidget {
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId)) ?? 0;
     final positionMs = ref.watch(deckPositionMsProvider(deckId));
+    final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final peaks = trackId == null
         ? const <SpectralPeak>[]
         : (ref.watch(waveformOverviewProvider(trackId)).value ??
               const <SpectralPeak>[]);
     final mode = ref.watch(waveformDisplayModeProvider);
 
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final visibleMs = cropVisibleMs(
-            durationMs: durationMs,
-            viewportWidth: width,
-          );
-          final window = overviewWindowRect(
-            positionMs: positionMs,
-            durationMs: durationMs,
-            visibleMs: visibleMs,
-          );
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: durationMs <= 0
-                ? null
-                : (details) {
-                    final ms = (details.localPosition.dx / width * durationMs)
-                        .round();
-                    unawaited(_seek(ref, context, deckId, ms));
-                  },
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CustomPaint(
-                  painter: WaveformBarPainter(
-                    overview: peaks,
-                    detail: null,
-                    durationMs: durationMs,
-                    originMs: 0,
-                    spanMs: durationMs.toDouble(),
-                    mode: mode,
-                  ),
+    return Skeletonizer(
+      enabled: skeleton,
+      effect: _waveformSkeletonEffect,
+      child: Skeleton.replace(
+        width: double.infinity,
+        height: height,
+        replacement: const Skeleton.leaf(child: ColoredBox(color: kWaveformBg)),
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              final visibleMs = cropVisibleMs(
+                durationMs: durationMs,
+                viewportWidth: width,
+              );
+              final window = overviewWindowRect(
+                positionMs: positionMs,
+                durationMs: durationMs,
+                visibleMs: visibleMs,
+              );
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: durationMs <= 0
+                    ? null
+                    : (details) {
+                        final ms =
+                            (details.localPosition.dx / width * durationMs)
+                                .round();
+                        unawaited(_seek(ref, context, deckId, ms));
+                      },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CustomPaint(
+                      painter: WaveformBarPainter(
+                        overview: peaks,
+                        detail: null,
+                        durationMs: durationMs,
+                        originMs: 0,
+                        spanMs: durationMs.toDouble(),
+                        mode: mode,
+                      ),
+                    ),
+                    if (durationMs > 0)
+                      Positioned(
+                        left: window.left * width,
+                        width:
+                            (window.right - window.left).clamp(0.0, 1.0) *
+                            width,
+                        top: 0,
+                        bottom: 0,
+                        child: ColoredBox(
+                          color: theme.colors.foreground.withValues(
+                            alpha: 0.12,
+                          ),
+                        ),
+                      ),
+                    if (durationMs > 0)
+                      Positioned(
+                        left: (positionMs / durationMs).clamp(0.0, 1.0) * width,
+                        top: 0,
+                        bottom: 0,
+                        child: ColoredBox(
+                          color: theme.colors.foreground.withValues(
+                            alpha: 0.85,
+                          ),
+                          child: const SizedBox(width: 1),
+                        ),
+                      ),
+                  ],
                 ),
-                if (durationMs > 0)
-                  Positioned(
-                    left: window.left * width,
-                    width: (window.right - window.left).clamp(0.0, 1.0) * width,
-                    top: 0,
-                    bottom: 0,
-                    child: ColoredBox(
-                      color: theme.colors.foreground.withValues(alpha: 0.12),
-                    ),
-                  ),
-                if (durationMs > 0)
-                  Positioned(
-                    left: (positionMs / durationMs).clamp(0.0, 1.0) * width,
-                    top: 0,
-                    bottom: 0,
-                    child: ColoredBox(
-                      color: theme.colors.foreground.withValues(alpha: 0.85),
-                      child: const SizedBox(width: 1),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        },
+              );
+            },
+          ),
+        ),
       ),
     );
   }

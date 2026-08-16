@@ -5,6 +5,7 @@ import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
@@ -104,6 +105,57 @@ final deckTrackTitleProvider = Provider.family<String?, int>(
   (ref, deckId) => ref.watch(engineUiProvider).titleFor(deckId),
 );
 
+/// Decks whose engine load is still in flight (drop/load started, not finished).
+class DeckLoadInFlight extends Notifier<Map<int, int>> {
+  @override
+  Map<int, int> build() => const {};
+
+  void set(int deckId, bool loading) {
+    final n = state[deckId] ?? 0;
+    if (loading) {
+      state = {...state, deckId: n + 1};
+      return;
+    }
+    if (n <= 1) {
+      if (n == 0) {
+        return;
+      }
+      state = {...state}..remove(deckId);
+      return;
+    }
+    state = {...state, deckId: n - 1};
+  }
+}
+
+final deckLoadInFlightProvider =
+    NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
+
+final deckLoadingProvider = Provider.family<bool, int>(
+  (ref, deckId) => (ref.watch(deckLoadInFlightProvider)[deckId] ?? 0) > 0,
+);
+
+/// True while the engine is loading this deck, or its overview / beat grid
+/// is still fetching after the track id lands.
+final deckSkeletonProvider = Provider.family<bool, int>((ref, deckId) {
+  if (ref.watch(deckLoadingProvider(deckId))) {
+    return true;
+  }
+  final trackId = ref.watch(deckTrackIdProvider(deckId));
+  if (trackId == null) {
+    return false;
+  }
+  return ref.watch(waveformOverviewProvider(trackId)).isLoading ||
+      ref.watch(beatGridProvider(trackId)).isLoading;
+});
+
+final deckBpmProvider = Provider.family<double?, int>((ref, deckId) {
+  final trackId = ref.watch(deckTrackIdProvider(deckId));
+  if (trackId == null) {
+    return null;
+  }
+  return ref.watch(beatGridProvider(trackId)).value?.bpm;
+});
+
 final deckPlayingProvider = Provider.family<bool, int>(
   (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
 );
@@ -160,24 +212,30 @@ Future<void> loadPayloadToDeck(
   int deckId,
   TrackDragPayload payload,
 ) async {
-  final engine = await ref.read(engineTransportProvider.future);
-  if (engine == null) {
-    return;
+  final loading = ref.read(deckLoadInFlightProvider.notifier);
+  loading.set(deckId, true);
+  try {
+    final engine = await ref.read(engineTransportProvider.future);
+    if (engine == null) {
+      return;
+    }
+    await applyTrackDrop(
+      deckId: deckId,
+      payload: payload,
+      loadLibraryTrack: (id, trackId) =>
+          engine.loadLibraryTrack(deckId: id, trackId: trackId),
+      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
+    );
+    ref
+        .read(engineUiProvider.notifier)
+        .setDeckTitle(
+          deckId,
+          trackDisplayTitle(title: payload.title, path: payload.path),
+        );
+    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
+  } finally {
+    loading.set(deckId, false);
   }
-  await applyTrackDrop(
-    deckId: deckId,
-    payload: payload,
-    loadLibraryTrack: (id, trackId) =>
-        engine.loadLibraryTrack(deckId: id, trackId: trackId),
-    loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
-  );
-  ref
-      .read(engineUiProvider.notifier)
-      .setDeckTitle(
-        deckId,
-        trackDisplayTitle(title: payload.title, path: payload.path),
-      );
-  ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
 }
 
 Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {

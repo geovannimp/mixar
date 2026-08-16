@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,12 +7,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_panel.dart';
+import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -30,8 +35,37 @@ class _SeededEngineUi extends EngineUi {
   );
 }
 
+class _LoadingDeckA extends DeckLoadInFlight {
+  @override
+  Map<int, int> build() => const {0: 1};
+}
+
+final _skeletonizerFinder = find.byWidgetPredicate((w) => w is Skeletonizer);
+
+bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
+  return tester
+      .widgetList<Skeletonizer>(
+        find.descendant(of: of, matching: _skeletonizerFinder),
+      )
+      .any((s) => s.enabled);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('overlapping deck loads stay in flight until the last one finishes', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final loading = container.read(deckLoadInFlightProvider.notifier);
+    loading.set(0, true);
+    loading.set(0, true);
+    expect(container.read(deckLoadingProvider(0)), isTrue);
+    loading.set(0, false);
+    expect(container.read(deckLoadingProvider(0)), isTrue);
+    expect(container.read(deckLoadingProvider(1)), isFalse);
+    loading.set(0, false);
+    expect(container.read(deckLoadingProvider(0)), isFalse);
+  });
 
   const collection = LibraryCollectionSummary(
     id: 'c1',
@@ -56,6 +90,7 @@ void main() {
   Future<void> pumpShell(
     WidgetTester tester, {
     List extraOverrides = const [],
+    bool settle = true,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
@@ -86,7 +121,11 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
   }
 
   testWidgets('mixer shell shows core regions', (tester) async {
@@ -109,7 +148,10 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(AppShell)),
     );
-    expect(container.read(waveformDisplayModeProvider), WaveformDisplayMode.rgb);
+    expect(
+      container.read(waveformDisplayModeProvider),
+      WaveformDisplayMode.rgb,
+    );
 
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
@@ -124,7 +166,10 @@ void main() {
 
     await tester.tap(find.text('RGB'));
     await tester.pumpAndSettle();
-    expect(container.read(waveformDisplayModeProvider), WaveformDisplayMode.rgb);
+    expect(
+      container.read(waveformDisplayModeProvider),
+      WaveformDisplayMode.rgb,
+    );
   });
 
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {
@@ -148,5 +193,84 @@ void main() {
       ),
       findsNWidgets(2),
     );
+  });
+
+  testWidgets('loading deck skeletons title, bpm, and overview preview', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settle: false,
+      extraOverrides: [
+        deckLoadInFlightProvider.overrideWith(_LoadingDeckA.new),
+      ],
+    );
+
+    final deckA = find.ancestor(
+      of: find.descendant(
+        of: find.byType(DeckPanel),
+        matching: find.text('Deck A'),
+      ),
+      matching: find.byType(DeckPanel),
+    );
+    final deckB = find.ancestor(
+      of: find.descendant(
+        of: find.byType(DeckPanel),
+        matching: find.text('Deck B'),
+      ),
+      matching: find.byType(DeckPanel),
+    );
+    final laneA = find.ancestor(
+      of: find.descendant(
+        of: find.byType(ScrollingLane),
+        matching: find.text('Deck A'),
+      ),
+      matching: find.byType(ScrollingLane),
+    );
+
+    expect(_enabledSkeletonsUnder(tester, deckA), isTrue);
+    expect(
+      _enabledSkeletonsUnder(
+        tester,
+        find.descendant(of: deckA, matching: find.byType(OverviewStrip)),
+      ),
+      isTrue,
+    );
+    expect(
+      _enabledSkeletonsUnder(
+        tester,
+        find.descendant(of: deckA, matching: find.byType(DeckTempoPanel)),
+      ),
+      isTrue,
+    );
+    expect(_enabledSkeletonsUnder(tester, laneA), isFalse);
+    expect(_enabledSkeletonsUnder(tester, deckB), isFalse);
+    expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
+  });
+
+  testWidgets('loaded deck stays skeletonized while overview fetches', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      settle: false,
+      extraOverrides: [
+        engineUiProvider.overrideWith(_SeededEngineUi.new),
+        waveformOverviewProvider.overrideWith(
+          (ref, id) => Completer<List<SpectralPeak>>().future,
+        ),
+        beatGridProvider.overrideWith((ref, id) async => null),
+      ],
+    );
+
+    final deckA = find.ancestor(
+      of: find.descendant(
+        of: find.byType(DeckPanel),
+        matching: find.text('Deck A'),
+      ),
+      matching: find.byType(DeckPanel),
+    );
+    expect(_enabledSkeletonsUnder(tester, deckA), isTrue);
+    expect(find.text('Load tracks to see waveforms.'), findsNothing);
   });
 }

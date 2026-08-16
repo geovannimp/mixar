@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 enum TempoSyncMode { off, tempo, beat }
 
@@ -12,6 +13,7 @@ class DeckTempoPanel extends StatefulWidget {
     required this.isMaster,
     required this.onMasterChanged,
     this.trackBpm,
+    this.loading = false,
     super.key,
   });
 
@@ -21,6 +23,9 @@ class DeckTempoPanel extends StatefulWidget {
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
+
+  /// Skeletonize the BPM readout while a track is loading.
+  final bool loading;
 
   @override
   State<DeckTempoPanel> createState() => _DeckTempoPanelState();
@@ -84,13 +89,16 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
           padding: const EdgeInsets.all(8),
           child: Column(
             children: [
-              Text(
-                formatBpm(liveBpm),
-                textAlign: .center,
-                style: theme.typography.body.sm.copyWith(
-                  color: accent,
-                  fontWeight: .w700,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              Skeletonizer(
+                enabled: widget.loading,
+                child: Text(
+                  widget.loading ? '000.00' : formatBpm(liveBpm),
+                  textAlign: .center,
+                  style: theme.typography.body.sm.copyWith(
+                    color: accent,
+                    fontWeight: .w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
