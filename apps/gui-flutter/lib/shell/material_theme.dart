@@ -46,7 +46,8 @@ ThemeData materialUiThemeFromForui(
     ),
     fontFamily: t.bodyMedium?.fontFamily ?? theme.typography.body.fontFamily,
     fontFamilyFallback:
-        t.bodyMedium?.fontFamilyFallback ?? theme.typography.body.fontFamilyFallback,
+        t.bodyMedium?.fontFamilyFallback ??
+        theme.typography.body.fontFamilyFallback,
     textTheme: textTheme,
     splashFactory: NoSplash.splashFactory,
     useMaterial3: true,

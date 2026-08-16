@@ -7,6 +7,7 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 
@@ -66,6 +67,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
   WaveformStrip? build() {
     final (trackId, durationMs) = arg;
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
+    final mode = ref.watch(waveformDisplayModeProvider);
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
       return null;
     }
@@ -78,6 +80,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       originMs: 0,
       spanMs: durationMs.toDouble(),
       size: Size(width.toDouble(), height),
+      mode: mode,
     );
     final strip = WaveformStrip(
       durationMs: durationMs,
@@ -93,7 +96,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
         toDrop?.dispose();
       });
     });
-    unawaited(_fillL1(trackId, peaks, durationMs, width, gen));
+    unawaited(_fillL1(trackId, peaks, durationMs, width, gen, mode));
     return strip;
   }
 
@@ -103,6 +106,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     int durationMs,
     int width,
     int gen,
+    WaveformDisplayMode mode,
   ) async {
     final lib = await ref.read(libraryTransportProvider.future);
     if (!ref.mounted || gen != _gen) {
@@ -156,6 +160,7 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           size: Size(w.toDouble(), kWaveformStripHeight),
           fallbackToOverview: false,
           fillBackground: true,
+          mode: mode,
         );
         final cur = _owned;
         if (cur == null || gen != _gen) {

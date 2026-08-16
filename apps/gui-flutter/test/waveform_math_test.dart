@@ -26,6 +26,32 @@ void main() {
     expect(spectralRgb(0, 0, 1), const Color.fromARGB(255, 72, 188, 255));
   });
 
+  test('filteredBars draws low then mid then high from the same center', () {
+    const peak = SpectralPeak(low: 1, mid: 0.5, high: 0.25);
+    final bars = filteredBars(peak, 100);
+    expect(bars, hasLength(3));
+    expect(bars[0].height, 100);
+    expect(bars[0].color, kLowColor);
+    expect(bars[1].height, 50);
+    expect(bars[1].color, kMidColor);
+    expect(bars[2].height, 25);
+    expect(bars[2].color, kHighColor);
+  });
+
+  test(
+    'waveformBars is one mixed bar in RGB and three stacked bars in Filtered',
+    () {
+      const peak = SpectralPeak(low: 1, mid: 0.5, high: 0.25);
+      expect(
+        waveformBars(peak, 100, WaveformDisplayMode.filtered),
+        hasLength(3),
+      );
+      final rgb = waveformBars(peak, 100, WaveformDisplayMode.rgb);
+      expect(rgb, hasLength(1));
+      expect(rgb.single.height, 100);
+    },
+  );
+
   test('barFill is opaque and leans toward the background as amp drops', () {
     final full = barFill(const Color.fromARGB(255, 255, 72, 48), 1);
     expect(full.a, 1);

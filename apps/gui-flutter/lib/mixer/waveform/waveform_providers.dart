@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 final waveformOverviewProvider =
@@ -22,3 +23,15 @@ final beatGridProvider = FutureProvider.family<BeatGridData?, String>((
   final lib = await ref.watch(libraryTransportProvider.future);
   return lib.getBeatGrid(trackId: trackId);
 });
+
+class WaveformDisplayModeNotifier extends Notifier<WaveformDisplayMode> {
+  @override
+  WaveformDisplayMode build() => WaveformDisplayMode.rgb;
+
+  void set(WaveformDisplayMode mode) => state = mode;
+}
+
+final waveformDisplayModeProvider =
+    NotifierProvider<WaveformDisplayModeNotifier, WaveformDisplayMode>(
+      WaveformDisplayModeNotifier.new,
+    );

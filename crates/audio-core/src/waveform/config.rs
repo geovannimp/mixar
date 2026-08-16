@@ -2,7 +2,7 @@
 pub const OVERVIEW_SAMPLE_COUNT: usize = 2048;
 
 /// Bump when analysis or blob layout changes.
-pub const WAVEFORM_SCHEMA_VERSION: u32 = 1;
+pub const WAVEFORM_SCHEMA_VERSION: u32 = 2;
 
 pub const DEFAULT_LOW_CROSSOVER_HZ: f32 = 600.0;
 pub const DEFAULT_MID_HIGH_CROSSOVER_HZ: f32 = 4000.0;

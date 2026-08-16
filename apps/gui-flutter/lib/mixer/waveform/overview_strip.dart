@@ -25,6 +25,7 @@ class OverviewStrip extends ConsumerWidget {
         ? const <SpectralPeak>[]
         : (ref.watch(waveformOverviewProvider(trackId)).value ??
               const <SpectralPeak>[]);
+    final mode = ref.watch(waveformDisplayModeProvider);
 
     return SizedBox(
       height: height,
@@ -60,6 +61,7 @@ class OverviewStrip extends ConsumerWidget {
                     durationMs: durationMs,
                     originMs: 0,
                     spanMs: durationMs.toDouble(),
+                    mode: mode,
                   ),
                 ),
                 if (durationMs > 0)

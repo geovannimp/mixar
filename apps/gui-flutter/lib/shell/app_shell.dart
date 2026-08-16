@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/shell/app_header.dart';
+import 'package:gui_flutter/shell/settings_page.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 
 /// Top-level shell: header + Mixer / Settings body (no backend wiring).
@@ -31,17 +32,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
       child: switch (_tab) {
         ShellTab.mixer => const MixerPage(),
-        ShellTab.settings => const _SettingsPlaceholder(),
+        ShellTab.settings => const SettingsPage(),
       },
     );
-  }
-}
-
-class _SettingsPlaceholder extends StatelessWidget {
-  const _SettingsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Settings — placeholder'));
   }
 }

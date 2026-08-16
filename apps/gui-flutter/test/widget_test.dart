@@ -103,6 +103,16 @@ void main() {
     expect(find.text('No track loaded'), findsWidgets);
   });
 
+  testWidgets('settings switches waveform display mode', (tester) async {
+    await pumpShell(tester);
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Waveform'), findsOneWidget);
+    expect(find.text('Filtered'), findsOneWidget);
+    await tester.tap(find.text('RGB'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {
     await pumpShell(
       tester,

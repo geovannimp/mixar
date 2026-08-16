@@ -13,6 +13,7 @@ class WaveformBarPainter extends CustomPainter {
     required this.spanMs,
     this.fallbackToOverview = true,
     this.fillBackground = true,
+    this.mode = WaveformDisplayMode.rgb,
   });
 
   final List<SpectralPeak> overview;
@@ -22,6 +23,7 @@ class WaveformBarPainter extends CustomPainter {
   final double spanMs;
   final bool fallbackToOverview;
   final bool fillBackground;
+  final WaveformDisplayMode mode;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -47,18 +49,21 @@ class WaveformBarPainter extends CustomPainter {
         timeMs,
         fallbackToOverview: fallbackToOverview,
       );
-      final amp = peak.low > peak.mid
-          ? (peak.low > peak.high ? peak.low : peak.high)
-          : (peak.mid > peak.high ? peak.mid : peak.high);
-      if (amp <= 0.001) {
-        continue;
+      for (final bar in waveformBars(peak, maxAmp, mode)) {
+        if (bar.height <= 0.1) {
+          continue;
+        }
+        paint.color = bar.color;
+        canvas.drawRect(
+          Rect.fromLTRB(
+            x.toDouble(),
+            midY - bar.height,
+            x + 1.0,
+            midY + bar.height,
+          ),
+          paint,
+        );
       }
-      paint.color = barFill(spectralRgb(peak.low, peak.mid, peak.high), amp);
-      final barH = amp * maxAmp;
-      canvas.drawRect(
-        Rect.fromLTRB(x.toDouble(), midY - barH, x + 1.0, midY + barH),
-        paint,
-      );
     }
   }
 
@@ -70,7 +75,8 @@ class WaveformBarPainter extends CustomPainter {
       originMs != oldDelegate.originMs ||
       spanMs != oldDelegate.spanMs ||
       fallbackToOverview != oldDelegate.fallbackToOverview ||
-      fillBackground != oldDelegate.fillBackground;
+      fillBackground != oldDelegate.fillBackground ||
+      mode != oldDelegate.mode;
 }
 
 Picture recordWaveformPicture({
@@ -82,6 +88,7 @@ Picture recordWaveformPicture({
   required Size size,
   bool fallbackToOverview = true,
   bool fillBackground = true,
+  WaveformDisplayMode mode = WaveformDisplayMode.rgb,
 }) {
   final recorder = PictureRecorder();
   final canvas = Canvas(recorder, Offset.zero & size);
@@ -93,6 +100,7 @@ Picture recordWaveformPicture({
     spanMs: spanMs,
     fallbackToOverview: fallbackToOverview,
     fillBackground: fillBackground,
+    mode: mode,
   ).paint(canvas, size);
   return recorder.endRecording();
 }
