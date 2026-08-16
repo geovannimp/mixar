@@ -1,4 +1,4 @@
-/// Top-level deck performance surface modes (left rail).
+/// Top-level deck performance surface modes (vertical Pads / Loop tabs).
 ///
 /// Distinct from [PadMode] (Hot Cue / Roll / … inside the Pads surface).
 enum DeckPerformanceMode { pads, loop }
