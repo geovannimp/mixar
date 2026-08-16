@@ -50,7 +50,17 @@ class DeckPerformancePanel extends StatelessWidget {
               children: [
                 for (final mode in kDeckPerformanceModes)
                   FTabEntry(
-                    label: Text(deckPerformanceModeLabel(mode)),
+                    label: RotatedBox(
+                      quarterTurns: 1,
+                      child: Icon(
+                        switch (mode) {
+                          DeckPerformanceMode.pads => FLucideIcons.layoutGrid,
+                          DeckPerformanceMode.loop => FLucideIcons.repeat2,
+                        },
+                        size: 16,
+                        semanticLabel: deckPerformanceModeLabel(mode),
+                      ),
+                    ),
                     child: RotatedBox(
                       quarterTurns: 1,
                       child: Directionality(

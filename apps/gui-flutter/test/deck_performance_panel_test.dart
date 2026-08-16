@@ -25,23 +25,23 @@ void main() {
   testWidgets('Pads / Loop tabs switch exclusive content', (tester) async {
     await pumpPanel(tester);
 
-    expect(find.text('Pads'), findsOneWidget);
-    expect(find.text('Loop'), findsOneWidget);
+    expect(find.byIcon(FLucideIcons.layoutGrid), findsOneWidget);
+    expect(find.byIcon(FLucideIcons.repeat2), findsOneWidget);
     expect(
-      tester.getCenter(find.text('Pads')).dy <
-          tester.getCenter(find.text('Loop')).dy,
+      tester.getCenter(find.byIcon(FLucideIcons.layoutGrid)).dy <
+          tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy,
       isTrue,
     );
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
 
-    await tester.tap(find.text('Loop'));
+    await tester.tap(find.byIcon(FLucideIcons.repeat2));
     await tester.pumpAndSettle();
     expect(find.text('IN'), findsOneWidget);
     expect(find.text('OUT'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
 
-    await tester.tap(find.text('Pads'));
+    await tester.tap(find.byIcon(FLucideIcons.layoutGrid));
     await tester.pumpAndSettle();
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
