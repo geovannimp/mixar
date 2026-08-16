@@ -67,6 +67,13 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+  // window_manager WindowOptions.minimumSize uses gdk_window_set_geometry_hints,
+  // which Wayland compositors ignore. Set it on the GtkWindow instead:
+  // https://github.com/leanflutter/window_manager/issues/538
+  GdkGeometry hints = {};
+  hints.min_width = 1024;
+  hints.min_height = 768;
+  gtk_window_set_geometry_hints(window, nullptr, &hints, GDK_HINT_MIN_SIZE);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
