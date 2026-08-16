@@ -19,7 +19,7 @@ Future<void> main() async {
     await windowManager.ensureInitialized();
     final options = WindowOptions(
       size: const Size(1280, 800),
-      minimumSize: const Size(960, 640),
+      minimumSize: const Size(1024, 768),
       center: true,
       // Transparent so ClipRRect corners reveal the compositor, not opaque black.
       backgroundColor: Colors.transparent,

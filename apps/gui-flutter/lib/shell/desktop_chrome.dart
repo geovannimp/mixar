@@ -5,7 +5,7 @@ import 'package:window_manager/window_manager.dart';
 /// GNOME/Adwaita-style radius for undecorated windows (matches compositor shadow).
 const double kDesktopWindowRadius = 12;
 
-/// Clips desktop content to rounded corners so compositor shadows aren't squared.
+/// Clips desktop content to rounded top corners so compositor shadows aren't squared.
 ///
 /// Requires a transparent native window background (see `linux/runner/my_application.cc`
 /// RGBA workaround for https://github.com/leanflutter/window_manager/issues/179
@@ -56,9 +56,12 @@ class _DesktopChromeState extends State<DesktopChrome> with WindowListener {
       return widget.child;
     }
     return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        _maximized ? 0 : kDesktopWindowRadius,
-      ),
+      borderRadius: _maximized
+          ? BorderRadius.zero
+          : const BorderRadius.only(
+              topLeft: Radius.circular(kDesktopWindowRadius),
+              topRight: Radius.circular(kDesktopWindowRadius),
+            ),
       child: widget.child,
     );
   }
