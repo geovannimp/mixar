@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Placeholder deck chrome (track info, performance tabs, transport) + tempo column.
@@ -87,7 +88,10 @@ class DeckPanel extends ConsumerWidget {
                     : () {
                         unawaited(_togglePlay(context, ref, deckId));
                       },
-                child: Text(playing ? 'Pause' : 'Play'),
+                semanticsLabel: playing ? 'Pause' : 'Play',
+                child: Icon(
+                  playing ? LucideIcons.pause600 : LucideIcons.play600,
+                ),
               ),
             ),
           ],
@@ -97,17 +101,15 @@ class DeckPanel extends ConsumerWidget {
 
     return TrackDropZone(
       deckId: deckId,
-      child: FCard(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-              Expanded(child: body),
-              if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
+            Expanded(child: body),
+            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
+          ],
         ),
       ),
     );

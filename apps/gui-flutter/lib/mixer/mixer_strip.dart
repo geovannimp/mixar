@@ -34,100 +34,97 @@ class _MixerStripState extends ConsumerState<MixerStrip> {
 
     return SizedBox(
       width: 232,
-      child: FCard(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            children: [
-              Text(
-                'Mixer',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                  fontWeight: .w600,
-                  letterSpacing: 1.6,
-                ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Text(
+              'Mixer',
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.mutedForeground,
+                fontWeight: .w600,
+                letterSpacing: 1.6,
               ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: .center,
-                  crossAxisAlignment: .stretch,
-                  spacing: 8,
-                  children: [
-                    _EqColumn(deckId: 0, accent: .a, enabled: enabled),
-                    _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
-                    _LevelMetersColumn(
-                      mono: _meterMono,
-                      onMonoChanged: (mono) =>
-                          setState(() => _meterMono = mono),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: Row(
+                mainAxisAlignment: .center,
+                crossAxisAlignment: .stretch,
+                spacing: 8,
+                children: [
+                  _EqColumn(deckId: 0, accent: .a, enabled: enabled),
+                  _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
+                  _LevelMetersColumn(
+                    mono: _meterMono,
+                    onMonoChanged: (mono) => setState(() => _meterMono = mono),
+                  ),
+                  _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
+                  _EqColumn(deckId: 1, accent: .b, enabled: enabled),
+                ],
+              ),
+            ),
+            const FDivider(
+              style: .delta(padding: .value(.symmetric(vertical: 8))),
+            ),
+            Text(
+              'Crossfader',
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.mutedForeground,
+                fontWeight: .w600,
+                letterSpacing: 1.2,
+                fontSize: 8,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  Text(
+                    'A',
+                    style: theme.typography.body.xs.copyWith(
+                      color: FaderColors.a.grip,
+                      fontWeight: .w600,
+                      fontSize: 8,
                     ),
-                    _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
-                    _EqColumn(deckId: 1, accent: .b, enabled: enabled),
-                  ],
-                ),
-              ),
-              const FDivider(
-                style: .delta(padding: .value(.symmetric(vertical: 8))),
-              ),
-              Text(
-                'Crossfader',
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
-                  fontWeight: .w600,
-                  letterSpacing: 1.2,
-                  fontSize: 8,
-                ),
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 36,
-                child: Row(
-                  children: [
-                    Text(
-                      'A',
-                      style: theme.typography.body.xs.copyWith(
-                        color: FaderColors.a.grip,
-                        fontWeight: .w600,
-                        fontSize: 8,
-                      ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: FaderSlider(
+                      orientation: .horizontal,
+                      value: crossfader,
+                      min: 0,
+                      max: 100,
+                      step: 0.05,
+                      showIndicator: false,
+                      showMarkers: true,
+                      centerNotch: true,
+                      crossfaderTrack: true,
+                      disabled: !enabled,
+                      onValueChange: (next) {
+                        unawaited(
+                          _mixerCmd(
+                            context,
+                            () => setCrossfader(ref, next / 100),
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: FaderSlider(
-                        orientation: .horizontal,
-                        value: crossfader,
-                        min: 0,
-                        max: 100,
-                        step: 0.05,
-                        showIndicator: false,
-                        showMarkers: true,
-                        centerNotch: true,
-                        crossfaderTrack: true,
-                        disabled: !enabled,
-                        onValueChange: (next) {
-                          unawaited(
-                            _mixerCmd(
-                              context,
-                              () => setCrossfader(ref, next / 100),
-                            ),
-                          );
-                        },
-                      ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'B',
+                    style: theme.typography.body.xs.copyWith(
+                      color: FaderColors.b.grip,
+                      fontWeight: .w600,
+                      fontSize: 8,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'B',
-                      style: theme.typography.body.xs.copyWith(
-                        color: FaderColors.b.grip,
-                        fontWeight: .w600,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
