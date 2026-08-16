@@ -9,9 +9,6 @@ import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
-const _eqColumnWidth = 52.0;
-const _faderColumnWidth = 52.0;
-
 /// Matches Forui `FButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
 
@@ -36,10 +33,10 @@ class _MixerStripState extends ConsumerState<MixerStrip> {
     final crossfader = ref.watch(crossfaderProvider) * 100;
 
     return SizedBox(
-      width: 300,
+      width: 232,
       child: FCard(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          padding: const EdgeInsets.all(10),
           child: Column(
             children: [
               Text(
@@ -55,19 +52,16 @@ class _MixerStripState extends ConsumerState<MixerStrip> {
                 child: Row(
                   mainAxisAlignment: .center,
                   crossAxisAlignment: .stretch,
+                  spacing: 8,
                   children: [
                     _EqColumn(deckId: 0, accent: .a, enabled: enabled),
-                    const SizedBox(width: 4),
                     _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
-                    const SizedBox(width: 4),
                     _LevelMetersColumn(
                       mono: _meterMono,
                       onMonoChanged: (mono) =>
                           setState(() => _meterMono = mono),
                     ),
-                    const SizedBox(width: 4),
                     _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
-                    const SizedBox(width: 4),
                     _EqColumn(deckId: 1, accent: .b, enabled: enabled),
                   ],
                 ),
@@ -188,31 +182,28 @@ class _EqColumn extends ConsumerWidget {
       );
     }
 
-    return SizedBox(
-      width: _eqColumnWidth,
-      child: Column(
-        children: [
-          knob(
-            'HI',
-            ch.eqHigh,
-            send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
-          ),
-          const SizedBox(height: 4),
-          knob(
-            'MID',
-            ch.eqMid,
-            send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
-          ),
-          const SizedBox(height: 4),
-          knob(
-            'LOW',
-            ch.eqLow,
-            send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
-          ),
-          const SizedBox(height: 4),
-          knob('FLT', ch.filter, send: (v) => setDeckFilter(ref, deckId, v)),
-        ],
-      ),
+    return Column(
+      children: [
+        knob(
+          'HI',
+          ch.eqHigh,
+          send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
+        ),
+        const SizedBox(height: 4),
+        knob(
+          'MID',
+          ch.eqMid,
+          send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
+        ),
+        const SizedBox(height: 4),
+        knob(
+          'LOW',
+          ch.eqLow,
+          send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
+        ),
+        const SizedBox(height: 4),
+        knob('FLT', ch.filter, send: (v) => setDeckFilter(ref, deckId, v)),
+      ],
     );
   }
 }
@@ -233,62 +224,59 @@ class _VolumeColumn extends ConsumerWidget {
     final accentColor = FaderColors.forAccent(accent).grip;
     final ch = ref.watch(deckMixerChannelProvider(deckId));
 
-    return SizedBox(
-      width: _faderColumnWidth,
-      child: Column(
-        children: [
-          _MixerGainHeader(
-            gain: ch.gainTrim,
-            accentColor: accentColor,
-            disabled: !enabled,
-            onGain: (next) {
-              unawaited(
-                _mixerCmd(context, () => setDeckGainTrim(ref, deckId, next)),
-              );
-            },
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Center(
-                child: SizedBox(
-                  width: _faderMinHitWidth,
-                  child: FaderSlider(
-                    orientation: .vertical,
-                    accent: accent,
-                    value: ch.volume * 100,
-                    min: 0,
-                    max: 100,
-                    showIndicator: true,
-                    showMarkers: true,
-                    disabled: !enabled,
-                    onValueChange: (next) {
-                      unawaited(
-                        _mixerCmd(
-                          context,
-                          () => setDeckVolume(ref, deckId, next / 100),
-                        ),
-                      );
-                    },
-                  ),
+    return Column(
+      children: [
+        _MixerGainHeader(
+          gain: ch.gainTrim,
+          accentColor: accentColor,
+          disabled: !enabled,
+          onGain: (next) {
+            unawaited(
+              _mixerCmd(context, () => setDeckGainTrim(ref, deckId, next)),
+            );
+          },
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: SizedBox(
+                width: _faderMinHitWidth,
+                child: FaderSlider(
+                  orientation: .vertical,
+                  accent: accent,
+                  value: ch.volume * 100,
+                  min: 0,
+                  max: 100,
+                  showIndicator: true,
+                  showMarkers: true,
+                  disabled: !enabled,
+                  onValueChange: (next) {
+                    unawaited(
+                      _mixerCmd(
+                        context,
+                        () => setDeckVolume(ref, deckId, next / 100),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
           ),
-          _MixerCueFooter(
-            cue: ch.headphoneCue,
-            disabled: !enabled,
-            onCue: () {
-              unawaited(
-                _mixerCmd(
-                  context,
-                  () => setDeckHeadphoneCue(ref, deckId, !ch.headphoneCue),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+        ),
+        _MixerCueFooter(
+          cue: ch.headphoneCue,
+          disabled: !enabled,
+          onCue: () {
+            unawaited(
+              _mixerCmd(
+                context,
+                () => setDeckHeadphoneCue(ref, deckId, !ch.headphoneCue),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

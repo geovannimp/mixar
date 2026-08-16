@@ -78,7 +78,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 114,
+      width: 76,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
