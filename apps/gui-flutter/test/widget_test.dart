@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
+import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -105,12 +106,25 @@ void main() {
 
   testWidgets('settings switches waveform display mode', (tester) async {
     await pumpShell(tester);
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(AppShell)),
+    );
+    expect(container.read(waveformDisplayModeProvider), WaveformDisplayMode.rgb);
+
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Waveform'), findsOneWidget);
-    expect(find.text('Filtered'), findsOneWidget);
+
+    await tester.tap(find.text('Filtered'));
+    await tester.pumpAndSettle();
+    expect(
+      container.read(waveformDisplayModeProvider),
+      WaveformDisplayMode.filtered,
+    );
+
     await tester.tap(find.text('RGB'));
     await tester.pumpAndSettle();
+    expect(container.read(waveformDisplayModeProvider), WaveformDisplayMode.rgb);
   });
 
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {
