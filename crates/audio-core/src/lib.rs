@@ -1,4 +1,4 @@
-//! Core audio traits and types for rust-dj-engine
+//! Core audio traits and types for Mixar
 //!
 //! This crate defines the fundamental abstractions for audio backends,
 //! streams, and callbacks that all audio backends must implement.

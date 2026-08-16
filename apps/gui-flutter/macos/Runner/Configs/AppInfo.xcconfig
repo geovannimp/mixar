@@ -8,7 +8,7 @@
 PRODUCT_NAME = gui_flutter
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.geovanni.gui-app
+PRODUCT_BUNDLE_IDENTIFIER = top.mixar.app
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 dev.rustmixer. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Mixar. All rights reserved.

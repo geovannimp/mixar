@@ -1,4 +1,4 @@
-//! Audio resampler for rust-dj-engine
+//! Audio resampler for Mixar
 //!
 //! This crate provides audio resampling capabilities using rubato 3 (FFT synchronous resampler).
 //! Uses `InterleavedSlice` from `audioadapter-buffers` for zero-copy

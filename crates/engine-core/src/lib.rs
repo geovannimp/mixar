@@ -1,4 +1,4 @@
-//! Core engine orchestration for rust-dj-engine
+//! Core engine orchestration for Mixar
 //!
 //! This crate orchestrates the engine lifecycle, configuration,
 //! and provides the main Engine API.

@@ -167,7 +167,7 @@ Pure Rust MIR suite (Apache-2.0), part of the OxiMedia workspace.
 ### 6.1 Workspace layout
 
 ```text
-rust-dj-engine/
+mixar/
 ├─ analyzer-core/        # Traits, TrackAnalysis types, AnalysisConfig, errors (no I/O)
 ├─ analyzer-stratum/     # stratum-dsp backend (default)
 ├─ analyzer/             # Thin facade: re-exports core + default backend helpers

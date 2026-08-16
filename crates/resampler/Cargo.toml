@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Audio resampler for rust-dj-engine"
+description = "Audio resampler for Mixar"
 
 [dependencies]
 audio-core = { path = "../audio-core" }

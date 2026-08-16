@@ -27,7 +27,7 @@
 
 ## 1 — Project Overview
 
-- **Project name:** `rust-dj-engine`
+- **Project name:** Mixar
 - **License:** GPLv3
 - **Primary dev / CI platform:** Linux x86_64
 - **Delivery form:** Rust crate (workspace) + optional static library build
@@ -71,7 +71,7 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 ## 3 — High-level Architecture
 
 ```
-rust-dj-engine/
+mixar/
 ├─ crates/                # Cargo workspace root (Cargo.toml)
 │  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
 │  ├─ backend-null/       # deterministic backend for tests and CI
@@ -98,8 +98,7 @@ rust-dj-engine/
 │  ├─ library-adapters/   # third-party formats (Rekordbox, Serato, …)
 │  ├─ analyzer-core/      # offline analysis traits and types
 │  ├─ analyzer-stratum/   # stratum-dsp backend
-│  ├─ analyzer/           # decode + analyze_file facade
-│  └─ app-example/        # minimal example binary
+│  └─ analyzer/           # decode + analyze_file facade
 ├─ apps/gui-app/          # Tauri + React UI (separate Cargo package under src-tauri)
 └─ samples/               # sample audio for local demos
 ```
@@ -285,7 +284,7 @@ Bus audio in DSP is stereo. Each bus maps to a device as either a **stereo pair*
 
 Config is loaded via `EngineConfig::from_toml_file` / `to_toml_file`. Fields map directly to the `EngineConfig` struct (flat TOML keys, not a nested `[engine]` table unless you wrap it yourself).
 
-**Conventional paths:** local `config.toml` (as used by `app-example`), or `$XDG_CONFIG_HOME/rust-dj-engine/config.toml` (fallback `~/.config/rust-dj-engine/config.toml`).
+**Conventional paths:** local `config.toml`, or the desktop app data directory for identifier `top.mixar.app`.
 
 ### Example Configuration
 
@@ -798,7 +797,7 @@ Linux x86_64 build + test job.
 - Stable `audio-core` trait surface; minimize breaking changes.
 - Use semantic versioning and a changelog.
 - Document per-backend caveats and supported devices.
-- `app-example` is the reference for minimal app usage (config, backend discovery, `FileAudioSource`, play/pause).
+- `apps/gui-app` is the reference desktop host (config, backend discovery, `FileAudioSource`, play/pause).
 
 ## 13 — Build Flags & Runtime Tweaks
 
@@ -828,7 +827,7 @@ panic = "abort"
 - `codec` (symphonia) and `resampler` (rubato).
 - Producer/consumer ring-buffer plumbing (`rtrb`, `ConsumerCallback`).
 - `Engine` API with `AudioSource`-based `load_track` and `FileAudioSource`.
-- TOML config (`EngineConfig`) and `app-example`.
+- TOML config (`EngineConfig`) and desktop hosts.
 - Bus/device channel mapping (`set_bus_device` and multi-bus routing), including settings-driven engine restart with deck/track rehydration.
 
 ### Next (MVP remaining)
@@ -861,7 +860,7 @@ panic = "abort"
 - Implement `backend-miniaudio` and `backend-cpal`.
 - Implement `codec` wrapper (symphonia) + unit tests.
 - Implement resampler abstraction and rubato impl.
-- Add TOML config parsing and `app-example`.
+- Add TOML config parsing.
 
 ### Sprint 2 — Producer/Consumer & AudioSource ✅ (partial)
 
@@ -914,7 +913,7 @@ engine.pause(0)?;
 engine.stop()?;
 ```
 
-See `app-example` and `README.md` for the runnable reference.
+See `README.md` for the runnable reference.
 
 ---
 

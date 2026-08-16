@@ -79,7 +79,7 @@ impl CpalBackend {
     fn is_unnamed_stream_output(id: &str, name: &str) -> bool {
         name.eq_ignore_ascii_case("unknown")
             || name.eq_ignore_ascii_case("Unknown Device")
-            || id_ends_with_segment(id, "gui-app")
+            || id_ends_with_segment(id, "mixar")
     }
 
     /// Whether this device should appear in `list_output_devices`.
@@ -494,11 +494,11 @@ mod tests {
             "sink_default"
         ));
         assert!(!CpalBackend::should_list_output_device(
-            "cpal:pipewire:gui-app",
+            "cpal:pipewire:mixar",
             "unknown"
         ));
         assert!(!CpalBackend::should_list_output_device(
-            "cpal:pipewire:gui-app",
+            "cpal:pipewire:mixar",
             "Unknown Device"
         ));
         assert!(CpalBackend::should_list_output_device(

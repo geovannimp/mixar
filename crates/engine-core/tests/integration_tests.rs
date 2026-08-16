@@ -1,4 +1,4 @@
-//! Integration tests for rust-dj-engine
+//! Integration tests for Mixar
 //!
 //! These tests verify that the different components work together correctly.
 

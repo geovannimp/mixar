@@ -1,4 +1,4 @@
-//! Library manager for rust-dj-engine.
+//! Library manager for Mixar.
 //!
 //! Implements [`Library`] and [`WritableLibrary`] from `library-core`.
 //! Persistence is an implementation detail of this crate.

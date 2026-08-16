@@ -2,7 +2,7 @@
 
 Reference: [`tech-spec.md`](tech-spec.md), [`dj-waveform-spec.md`](dj-waveform-spec.md), [`audio-analyzer-spec.md`](audio-analyzer-spec.md).
 
-This document defines what a **professional DJ deck** should contain in rust-mixer, based on competitor products (Rekordbox, Serato DJ Pro, Traktor Pro, DJUCED / Hercules), the attached reference screenshots, and the gap between our current MVP and industry expectations.
+This document defines what a **professional DJ deck** should contain in Mixar, based on competitor products (Rekordbox, Serato DJ Pro, Traktor Pro, DJUCED / Hercules), the attached reference screenshots, and the gap between our current MVP and industry expectations.
 
 ---
 
@@ -10,7 +10,7 @@ This document defines what a **professional DJ deck** should contain in rust-mix
 
 - [1 — Summary](#1--summary)
 - [2 — Competitor Reference](#2--competitor-reference)
-- [3 — Current State (rust-mixer)](#3--current-state-rust-mixer)
+- [3 — Current State (Mixar)](#3--current-state-mixar)
 - [4 — Deck Information Architecture](#4--deck-information-architecture)
 - [5 — Feature Specification](#5--feature-specification)
   - [5.1 Track metadata & status](#51-track-metadata--status)
@@ -92,7 +92,7 @@ Common expectations across all products:
 
 ---
 
-## 3 — Current State (rust-mixer)
+## 3 — Current State (Mixar)
 
 ### GUI (`gui-app`)
 
@@ -306,7 +306,7 @@ When `pad_mode = hot_cue`, pads behave as hot cues:
 
 **Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue in Phase 2).
 
-**Implementation note:** Current rust-mixer code (`DeckPadsPanel`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
+**Implementation note:** Current Mixar code (`DeckPadsPanel`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
 
 ---
 
@@ -380,7 +380,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 |----|---------|-------------|----------|
 | S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (Virtual DJ Stems mode) | P3 |
 | S2 | **Stem isolation gain** | Per-stem level 0–100% | P3 |
-| S3 | **Sampler pads** | Trigger one-shots from persisted named banks (8 slots); see `docs/superpowers/specs/2026-07-22-sampler-banks-design.md` | P3 |
+| S3 | **Sampler pads** | Trigger one-shots from persisted named banks (8 slots) | P3 |
 | S4 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
 | S5 | **Loop roll pad mode** | Beat-quantized temporary loop per pad | P2 |
 | S6 | **Beat jump pad mode** | ±N beats per pad | P2 |

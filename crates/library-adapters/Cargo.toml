@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Third-party library adapters for rust-dj-engine (Rekordbox, Serato, …)"
+description = "Third-party library adapters for Mixar (Rekordbox, Serato, …)"
 
 [dependencies]
 library-core = { path = "../library-core" }

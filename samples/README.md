@@ -1,6 +1,6 @@
 # Sample Audio
 
-Audio files in this directory are used by `app-example` and for local development/testing.
+Audio files in this directory are used by the GUI and for local development/testing.
 
 When adding a sample, include attribution below if the track is not your own work.
 

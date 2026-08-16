@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Audio analysis traits and types for rust-dj-engine"
+description = "Audio analysis traits and types for Mixar"
 
 [dependencies]
 serde = { workspace = true }

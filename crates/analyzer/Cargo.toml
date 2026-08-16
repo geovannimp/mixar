@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Offline audio analysis for rust-dj-engine (decode + default backend)"
+description = "Offline audio analysis for Mixar (decode + default backend)"
 
 [dependencies]
 analyzer-core = { path = "../analyzer-core" }

@@ -1,11 +1,11 @@
 {
-    "name": "gui_flutter",
-    "short_name": "gui_flutter",
+    "name": "Mixar",
+    "short_name": "Mixar",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Mixar desktop host",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
