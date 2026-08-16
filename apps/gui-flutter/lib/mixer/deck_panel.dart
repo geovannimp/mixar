@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 /// Placeholder deck chrome (track info, pads, jog, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -36,10 +37,13 @@ class DeckPanel extends ConsumerWidget {
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
     final playing = ref.watch(deckPlayingProvider(deckId));
+    final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final tempo = DeckTempoPanel(
       accent: accent,
       isMaster: isMaster,
       onMasterChanged: onMasterChanged,
+      trackBpm: ref.watch(deckBpmProvider(deckId)),
+      loading: skeleton,
     );
 
     final body = Column(
@@ -52,10 +56,13 @@ class DeckPanel extends ConsumerWidget {
             color: accentColor,
           ),
         ),
-        Text(
-          loadedTitle ?? 'No track loaded',
-          style: theme.typography.body.xs.copyWith(
-            color: theme.colors.mutedForeground,
+        Skeletonizer(
+          enabled: skeleton,
+          child: Text(
+            loadedTitle ?? 'No track loaded',
+            style: theme.typography.body.xs.copyWith(
+              color: theme.colors.mutedForeground,
+            ),
           ),
         ),
         const SizedBox(height: 8),
