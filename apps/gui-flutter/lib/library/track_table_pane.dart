@@ -192,7 +192,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                         child: ClipRRect(
                           borderRadius: theme.style.borderRadius.md,
                           child: TrinaGrid(
-                            key: ValueKey(drive ? drivePath : selectedId),
+                            // TrinaGrid only reads rowWrapper at construct.
+                            key: ValueKey((
+                              drive ? drivePath : selectedId,
+                              engineRunning,
+                            )),
                             columns: _columns(theme),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,

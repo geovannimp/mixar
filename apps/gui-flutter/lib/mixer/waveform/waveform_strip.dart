@@ -68,7 +68,13 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
     final (trackId, durationMs) = arg;
     final peaks = ref.watch(waveformOverviewProvider(trackId)).value;
     final mode = ref.watch(waveformDisplayModeProvider);
+    ref.onDispose(() {
+      _dropAfterFrame(_owned);
+      _owned = null;
+    });
     if (peaks == null || peaks.isEmpty || durationMs <= 0) {
+      _dropAfterFrame(_owned);
+      _owned = null;
       return null;
     }
     final gen = ++_gen;
@@ -88,14 +94,9 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       heightPx: height.round(),
       l0: l0,
     );
+    final prev = _owned;
     _owned = strip;
-    ref.onDispose(() {
-      final toDrop = _owned;
-      _owned = null;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        toDrop?.dispose();
-      });
-    });
+    _dropAfterFrame(prev);
     unawaited(_fillL1(trackId, peaks, durationMs, width, gen, mode));
     return strip;
   }
@@ -177,6 +178,15 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
       }
       await Future<void>.delayed(Duration.zero);
     }
+  }
+
+  void _dropAfterFrame(WaveformStrip? strip) {
+    if (strip == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      strip.dispose();
+    });
   }
 
   double _focusPx(String trackId, int width, int durationMs) {
