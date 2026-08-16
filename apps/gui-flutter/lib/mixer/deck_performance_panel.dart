@@ -4,7 +4,7 @@ import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 
-/// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop content.
+/// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Jog content.
 ///
 /// Forui tabs are horizontal-only; [RotatedBox] stands the tab bar on the left
 /// and un-rotates each pane.
@@ -56,6 +56,7 @@ class DeckPerformancePanel extends StatelessWidget {
                         switch (mode) {
                           DeckPerformanceMode.pads => FLucideIcons.layoutGrid,
                           DeckPerformanceMode.loop => FLucideIcons.repeat2,
+                          DeckPerformanceMode.jog => FLucideIcons.disc3,
                         },
                         size: 16,
                         semanticLabel: deckPerformanceModeLabel(mode),
@@ -76,11 +77,40 @@ class DeckPerformancePanel extends StatelessWidget {
                             disabled: disabled,
                             bordered: false,
                           ),
+                          DeckPerformanceMode.jog => const Center(
+                            child: _JogPlaceholder(),
+                          ),
                         },
                       ),
                     ),
                   ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JogPlaceholder extends StatelessWidget {
+  const _JogPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return AspectRatio(
+      aspectRatio: 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: theme.colors.border, width: 3),
+        ),
+        child: Center(
+          child: Text(
+            'JOG',
+            style: theme.typography.body.xs.copyWith(
+              color: theme.colors.mutedForeground,
             ),
           ),
         ),

@@ -22,28 +22,45 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Pads / Loop tabs switch exclusive content', (tester) async {
+  testWidgets('Pads / Loop / Jog tabs switch exclusive content', (
+    tester,
+  ) async {
     await pumpPanel(tester);
 
     expect(find.byIcon(FLucideIcons.layoutGrid), findsOneWidget);
     expect(find.byIcon(FLucideIcons.repeat2), findsOneWidget);
+    expect(find.byIcon(FLucideIcons.disc3), findsOneWidget);
     expect(
       tester.getCenter(find.byIcon(FLucideIcons.layoutGrid)).dy <
           tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy,
       isTrue,
     );
+    expect(
+      tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy <
+          tester.getCenter(find.byIcon(FLucideIcons.disc3)).dy,
+      isTrue,
+    );
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
+    expect(find.text('JOG'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.repeat2));
     await tester.pumpAndSettle();
     expect(find.text('IN'), findsOneWidget);
     expect(find.text('OUT'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
+    expect(find.text('JOG'), findsNothing);
+
+    await tester.tap(find.byIcon(FLucideIcons.disc3));
+    await tester.pumpAndSettle();
+    expect(find.text('JOG'), findsOneWidget);
+    expect(find.text('CUE'), findsNothing);
+    expect(find.text('IN'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.layoutGrid));
     await tester.pumpAndSettle();
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
+    expect(find.text('JOG'), findsNothing);
   });
 }

@@ -11,7 +11,7 @@ import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Placeholder deck chrome (track info, pads, jog, transport) + tempo column.
+/// Placeholder deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
   const DeckPanel({
     required this.deckId,
@@ -68,20 +68,7 @@ class DeckPanel extends ConsumerWidget {
         const SizedBox(height: 8),
         OverviewStrip(deckId: deckId, height: 36),
         const SizedBox(height: 8),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(child: DeckPerformancePanel(hasTrack: hasTrack)),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: _PlaceholderBox(
-                  label: 'Jog',
-                  child: Center(child: _JogPlaceholder()),
-                ),
-              ),
-            ],
-          ),
-        ),
+        Expanded(child: DeckPerformancePanel(hasTrack: hasTrack)),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -139,65 +126,5 @@ Future<void> _togglePlay(
       return;
     }
     showFToast(context: context, variant: .destructive, title: Text('$e'));
-  }
-}
-
-class _JogPlaceholder extends StatelessWidget {
-  const _JogPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return AspectRatio(
-      aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: theme.colors.border, width: 3),
-        ),
-        child: Center(
-          child: Text(
-            'JOG',
-            style: theme.typography.body.xs.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderBox extends StatelessWidget {
-  const _PlaceholderBox({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.colors.border),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              label,
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Expanded(child: child),
-          ],
-        ),
-      ),
-    );
   }
 }
