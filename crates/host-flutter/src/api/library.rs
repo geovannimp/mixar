@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
     read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
     LibraryWorker, NewCollection, TrackId, WritableLibrary,
@@ -61,6 +62,23 @@ pub struct AddFolderCollectionResult {
 pub struct ResolvedLibraryTrack {
     pub request_path: String,
     pub track: LibraryTrackSummary,
+}
+
+/// Packed mono RGB peaks (`count × 3` uint8 bytes).
+#[derive(Clone, Debug)]
+pub struct WaveformPeaks {
+    pub count: u32,
+    pub rgb: Vec<u8>,
+    pub start_ms: i32,
+    pub end_ms: i32,
+}
+
+/// Beat-grid overlay data (beat times in seconds).
+#[derive(Clone, Debug)]
+pub struct BeatGridData {
+    pub beats: Vec<f32>,
+    pub downbeats: Vec<f32>,
+    pub bpm: Option<f64>,
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
@@ -263,6 +281,66 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
+    /// L0 overview peaks from the library DB, if present.
+    pub fn get_waveform_overview(&self, track_id: String) -> Result<Option<WaveformPeaks>, String> {
+        let id = TrackId::new(track_id);
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let Some(row) = lib
+            .get_track_waveform_overview(&id)
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        let duration_ms = lib
+            .get_track(&id)
+            .map_err(|e| e.to_string())?
+            .and_then(|t| t.metadata().duration_ms)
+            .unwrap_or(0);
+        Ok(Some(pack_peaks(&row.peaks, 0, duration_ms)))
+    }
+
+    /// L1 JIT window peaks from the decode cache (decodes the file if needed).
+    pub fn get_waveform_window(
+        &self,
+        track_id: String,
+        start_ms: i32,
+        end_ms: i32,
+        buckets: u32,
+    ) -> Result<WaveformPeaks, String> {
+        let id = TrackId::new(track_id);
+        let (peaks, start_ms, end_ms) = LibraryManager::compute_waveform_window(
+            &self.library,
+            &id,
+            start_ms,
+            end_ms,
+            buckets as usize,
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(pack_peaks(&peaks, start_ms, end_ms))
+    }
+
+    /// Analyzed beat grid, if present.
+    pub fn get_beat_grid(&self, track_id: String) -> Result<Option<BeatGridData>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let Some(grid) = lib
+            .get_track_beat_grid(&TrackId::new(track_id))
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(BeatGridData {
+            beats: grid.beats,
+            downbeats: grid.downbeats,
+            bpm: grid.bpm,
+        }))
+    }
+
     /// Queue metadata refresh for a track via the library cmd bus only.
     pub fn refresh_track(&self, track_id: String) -> Result<(), String> {
         let bytes =
@@ -419,6 +497,15 @@ fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryT
         path: path.to_string_lossy().into_owned(),
         artwork,
     })
+}
+
+fn pack_peaks(peaks: &[audio_core::SpectralPeak], start_ms: i32, end_ms: i32) -> WaveformPeaks {
+    WaveformPeaks {
+        count: peaks.len() as u32,
+        rgb: peaks_to_rgb_bytes(peaks, WaveformChannelMode::Mono),
+        start_ms,
+        end_ms,
+    }
 }
 
 fn track_display_name(source: &AudioSource) -> String {

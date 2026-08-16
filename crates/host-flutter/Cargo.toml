@@ -12,6 +12,7 @@ engine-api = { path = "../engine-api" }
 engine-core = { path = "../engine-core" }
 fs-browser = { path = "../fs-browser" }
 flutter_rust_bridge = "=2.12.0"
+audio-core = { path = "../audio-core" }
 library = { path = "../library" }
 library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }

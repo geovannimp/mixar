@@ -327,6 +327,74 @@ impl LibraryManager {
         waveform::get_track_beat_grid(&self.db, id)
     }
 
+    /// Hi-res spectral peaks for a time window (L1). Uses the decode cache when present.
+    ///
+    /// Takes `&Mutex<Self>` so decode / analysis does not hold the library lock.
+    pub fn compute_waveform_window(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        start_ms: i32,
+        end_ms: i32,
+        buckets: usize,
+    ) -> Result<(Vec<audio_core::SpectralPeak>, i32, i32)> {
+        // ponytail: caps L1 resolution to bound RPC allocation. Upgrade to
+        // chunked peak generation if a larger waveform window is required.
+        if buckets == 0 || buckets > audio_core::MAX_WAVEFORM_BUCKETS {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "waveform bucket count is out of range".into(),
+            });
+        }
+        let cached = {
+            let lib = library.lock().expect("library lock");
+            let cache = lib.decode_cache.lock().expect("library decode cache lock");
+            cache.get(id).cloned()
+        };
+
+        let audio = if let Some(cached) = cached {
+            cached
+        } else {
+            let source = {
+                let lib = library.lock().expect("library lock");
+                lib.get_track(id)?
+                    .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+            };
+            if source.file().is_none() {
+                return Err(LibraryError::Unsupported("stream tracks have no waveform"));
+            }
+            let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
+                backend: "library",
+                message: format!("failed to decode track for waveform: {e}"),
+            })?);
+            let lib = library.lock().expect("library lock");
+            let mut cache = lib.decode_cache.lock().expect("library decode cache lock");
+            cache
+                .entry(id.clone())
+                .or_insert_with(|| Arc::clone(&loaded));
+            cache.get(id).cloned().unwrap_or(loaded)
+        };
+
+        let duration_ms = {
+            let channels = usize::from(audio.channels.max(1));
+            let frames = audio.samples.len() / channels;
+            if audio.sample_rate == 0 || frames == 0 {
+                0
+            } else {
+                audio_core::secs_to_ms(frames as f64 / f64::from(audio.sample_rate))
+            }
+        };
+        let start_ms = start_ms.max(0).min(duration_ms.max(0));
+        let end_ms = end_ms.max(start_ms).min(duration_ms.max(0));
+        let peaks = audio_core::compute_spectral_window(
+            audio.as_ref(),
+            audio_core::ms_to_secs(start_ms),
+            audio_core::ms_to_secs(end_ms),
+            buckets,
+            &audio_core::WaveformAnalysisConfig::default(),
+        );
+        Ok((peaks, start_ms, end_ms))
+    }
+
     /// Read the stored integrated loudness for a track, if it has been analyzed.
     pub fn track_loudness_lufs(&self, id: &TrackId) -> Result<Option<f64>> {
         self.store().track_analysis_loudness(id)
@@ -1083,7 +1151,6 @@ mod tests {
     }
 
     /// Mono 16-bit PCM sine (~3s @ 48 kHz) so EBU R128 loudness stays finite.
-    #[cfg(feature = "analysis")]
     fn write_analysis_wav(path: &Path) {
         let sample_rate = 48_000u32;
         let duration_secs = 3u32;
@@ -1146,6 +1213,50 @@ mod tests {
         assert_eq!(first.track_id, track_id);
         assert_eq!(second.track_id, track_id);
         assert!(std::sync::Arc::ptr_eq(&first.audio, &second.audio));
+    }
+
+    #[test]
+    fn compute_waveform_window_from_decode_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_path(&wav).unwrap().id().clone()
+        };
+
+        LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        let (peaks, start_ms, end_ms) =
+            LibraryManager::compute_waveform_window(&library, &track_id, -1_000, 500, 64).unwrap();
+        assert_eq!(start_ms, 0);
+        assert_eq!(end_ms, 500);
+        assert_eq!(peaks.len(), 64);
+        assert!(peaks.iter().any(|p| p.low + p.mid + p.high > 0.0));
+    }
+
+    #[test]
+    fn compute_waveform_window_rejects_out_of_range_buckets() {
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let id = TrackId::new("missing");
+        let zero = LibraryManager::compute_waveform_window(&library, &id, 0, 100, 0).unwrap_err();
+        assert!(
+            zero.to_string().contains("bucket"),
+            "zero buckets should fail validation, got {zero}"
+        );
+        let huge = LibraryManager::compute_waveform_window(
+            &library,
+            &id,
+            0,
+            100,
+            audio_core::MAX_WAVEFORM_BUCKETS + 1,
+        )
+        .unwrap_err();
+        assert!(
+            huge.to_string().contains("bucket"),
+            "oversized buckets should fail validation, got {huge}"
+        );
     }
 
     #[test]

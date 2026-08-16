@@ -146,6 +146,9 @@ pub struct EngineEvt {
     pub gain_trim: Option<f32>,
     pub headphone_cue: Option<bool>,
     pub crossfader: Option<f32>,
+    pub duration_ms: Option<i32>,
+    pub speed: Option<f32>,
+    pub tempo_range: Option<f32>,
 }
 
 impl EngineEvt {
@@ -171,6 +174,9 @@ impl EngineEvt {
             gain_trim: None,
             headphone_cue: None,
             crossfader: None,
+            duration_ms: None,
+            speed: None,
+            tempo_range: None,
         }
     }
 }
@@ -282,6 +288,15 @@ impl EngineTransport {
         self.publish_empty(Origin::Deck(deck_id), Kind::Pause)
     }
 
+    /// Seek a deck to `position_ms` (cmd bus).
+    pub fn seek(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::Seek,
+            &CmdBody::Seek { position_ms },
+        )
+    }
+
     /// Channel fader `0..1`.
     pub fn set_volume(&self, deck_id: u16, volume: f32) -> Result<(), String> {
         self.publish_body(
@@ -371,6 +386,7 @@ impl EngineTransport {
     }
 
     fn load_prepared(&self, deck_id: u16, prepared: PreparedTrackPlayback) -> Result<(), String> {
+        let track_id = prepared.track_id.as_str().to_string();
         let snap = {
             let mut guard = self
                 .engine
@@ -382,9 +398,13 @@ impl EngineTransport {
             engine
                 .load_prepared_track(deck_id as usize, prepared)
                 .map_err(|e| e.to_string())?;
-            engine
+            let mut snap = engine
                 .deck_snapshot(deck_id as usize)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
+            // DSP snapshots omit library identity; the prepared load is the
+            // source of truth Flutter needs to fetch L0/L1 peaks.
+            snap.track_id = Some(track_id);
+            snap
         };
         self.buses
             .publish_evt(
@@ -500,6 +520,9 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.filter = Some(snap.filter);
     evt.gain_trim = Some(snap.gain_trim);
     evt.headphone_cue = Some(snap.headphone_cue);
+    evt.duration_ms = snap.duration_ms;
+    evt.speed = Some(snap.speed);
+    evt.tempo_range = Some(snap.tempo_range);
     evt
 }
 
@@ -529,6 +552,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             filter,
             gain_trim,
             headphone_cue,
+            duration_ms,
+            speed,
+            tempo_range,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -544,6 +570,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.filter = Some(filter);
             evt.gain_trim = Some(gain_trim);
             evt.headphone_cue = Some(headphone_cue);
+            evt.duration_ms = duration_ms;
+            evt.speed = Some(speed);
+            evt.tempo_range = Some(tempo_range);
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -695,6 +724,8 @@ mod tests {
         assert_eq!(mapped[1].volume, Some(0.3));
         assert_eq!(mapped[1].eq_high, Some(0.25));
         assert_eq!(mapped[1].headphone_cue, Some(true));
+        assert_eq!(mapped[1].speed, Some(0.5));
+        assert_eq!(mapped[1].tempo_range, Some(0.08));
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
     }

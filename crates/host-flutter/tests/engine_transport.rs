@@ -64,6 +64,19 @@ fn load_path_publishes_updated() {
         .unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
     assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated {
+        track_id,
+        duration_ms,
+        ..
+    } = decode_evt_body(event.payload()).unwrap()
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(
+        track_id.as_ref().is_some_and(|id| !id.is_empty()),
+        "load Updated must carry track_id for waveform fetch, got {track_id:?}"
+    );
+    assert!(duration_ms.is_some_and(|ms| ms > 0));
 }
 
 #[test]
@@ -92,4 +105,38 @@ fn set_crossfader_publishes_status() {
         panic!("expected EngineStatus");
     };
     assert!((status.crossfader - 0.2).abs() < 1e-4);
+}
+
+#[test]
+fn load_path_exposes_waveform_peaks() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let path = short_tone_fixture().to_string_lossy().into_owned();
+    transport.load_path(0, path.clone()).unwrap();
+
+    let resolved = library.resolve_tracks_for_paths(vec![path]).unwrap();
+    let track_id = resolved[0].track.id.clone();
+    let overview = library
+        .get_waveform_overview(track_id.clone())
+        .unwrap()
+        .expect("overview after load");
+    assert!(overview.count > 0);
+    assert_eq!(overview.rgb.len(), overview.count as usize * 3);
+
+    let window = library.get_waveform_window(track_id, 0, 200, 32).unwrap();
+    assert_eq!(window.count, 32);
+    assert_eq!(window.rgb.len(), 96);
+}
+
+#[test]
+fn seek_after_load_publishes_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport
+        .load_path(0, short_tone_fixture().to_string_lossy().into_owned())
+        .unwrap();
+    recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
+    transport.seek(0, 20).unwrap();
+    recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
 }

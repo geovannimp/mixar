@@ -307,6 +307,68 @@ mod tests {
         assert_eq!(peaks.len(), OVERVIEW_SAMPLE_COUNT);
     }
 
+    fn sine(freq_hz: f32, sample_rate: u32, frames: usize) -> Vec<f32> {
+        let sr = sample_rate as f32;
+        (0..frames)
+            .map(|i| (2.0 * std::f32::consts::PI * freq_hz * i as f32 / sr).sin())
+            .collect()
+    }
+
+    fn mid_bucket(peaks: &[SpectralPeak]) -> SpectralPeak {
+        peaks[peaks.len() / 2]
+    }
+
+    #[test]
+    fn biquad_1khz_tone_is_strongest_in_mid_band() {
+        let peaks = compute_spectral_envelope(
+            &mono_audio(sine(1_000.0, 48_000, 48_000), 48_000),
+            32,
+            &WaveformAnalysisConfig::default(),
+        );
+        let peak = mid_bucket(&peaks);
+        assert!(
+            peak.mid > peak.low && peak.mid > peak.high,
+            "1 kHz should land in mid, got low={} mid={} high={}",
+            peak.low,
+            peak.mid,
+            peak.high
+        );
+    }
+
+    #[test]
+    fn biquad_100hz_tone_is_strongest_in_low_band() {
+        let peaks = compute_spectral_envelope(
+            &mono_audio(sine(100.0, 48_000, 48_000), 48_000),
+            32,
+            &WaveformAnalysisConfig::default(),
+        );
+        let peak = mid_bucket(&peaks);
+        assert!(
+            peak.low > peak.mid && peak.low > peak.high,
+            "100 Hz should land in low, got low={} mid={} high={}",
+            peak.low,
+            peak.mid,
+            peak.high
+        );
+    }
+
+    #[test]
+    fn biquad_8khz_tone_is_strongest_in_high_band() {
+        let peaks = compute_spectral_envelope(
+            &mono_audio(sine(8_000.0, 48_000, 48_000), 48_000),
+            32,
+            &WaveformAnalysisConfig::default(),
+        );
+        let peak = mid_bucket(&peaks);
+        assert!(
+            peak.high > peak.low && peak.high > peak.mid,
+            "8 kHz should land in high, got low={} mid={} high={}",
+            peak.low,
+            peak.mid,
+            peak.high
+        );
+    }
+
     #[test]
     fn encode_round_trip_through_overview() {
         use config::ChannelMode;

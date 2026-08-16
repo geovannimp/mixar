@@ -68,7 +68,9 @@ impl BiquadBandFilter {
         let sr = sample_rate as f32;
         Self {
             low: Biquad::low_pass(sr, low_hz),
-            mid_high: Biquad::high_pass(sr, mid_high_hz),
+            // HP(low) − HP(mid_high) is the 600–4000 Hz band. Both HPs at
+            // mid_high cancelled mid to ~0.
+            mid_high: Biquad::high_pass(sr, low_hz),
             high: Biquad::high_pass(sr, mid_high_hz),
         }
     }

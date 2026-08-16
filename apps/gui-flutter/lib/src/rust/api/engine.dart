@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bare`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_body`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `bare`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `subscribe_evt_all`
@@ -42,6 +42,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Play a deck (cmd bus).
   Future<void> play({required int deckId});
+
+  /// Seek a deck to `position_ms` (cmd bus).
+  Future<void> seek({required int deckId, required int positionMs});
 
   /// Crossfader `0..1` (A … B).
   Future<void> setCrossfader({required double position});
@@ -106,6 +109,9 @@ class EngineEvt {
   final double? gainTrim;
   final bool? headphoneCue;
   final double? crossfader;
+  final int? durationMs;
+  final double? speed;
+  final double? tempoRange;
 
   const EngineEvt({
     required this.kind,
@@ -128,6 +134,9 @@ class EngineEvt {
     this.gainTrim,
     this.headphoneCue,
     this.crossfader,
+    this.durationMs,
+    this.speed,
+    this.tempoRange,
   });
 
   @override
@@ -151,7 +160,10 @@ class EngineEvt {
       filter.hashCode ^
       gainTrim.hashCode ^
       headphoneCue.hashCode ^
-      crossfader.hashCode;
+      crossfader.hashCode ^
+      durationMs.hashCode ^
+      speed.hashCode ^
+      tempoRange.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -177,7 +189,10 @@ class EngineEvt {
           filter == other.filter &&
           gainTrim == other.gainTrim &&
           headphoneCue == other.headphoneCue &&
-          crossfader == other.crossfader;
+          crossfader == other.crossfader &&
+          durationMs == other.durationMs &&
+          speed == other.speed &&
+          tempoRange == other.tempoRange;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).

@@ -1,4 +1,5 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 class MixerChannelUi {
@@ -57,6 +58,10 @@ class EngineUiSnapshot {
     this.channels = const {},
     this.levels = const {},
     this.crossfader = 0.5,
+    this.trackIds = const {},
+    this.durationMs = const {},
+    this.speeds = const {},
+    this.tempoRanges = const {},
   });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
@@ -67,10 +72,22 @@ class EngineUiSnapshot {
   final Map<int, MixerChannelUi> channels;
   final Map<int, DeckLevels> levels;
   final double crossfader;
+  final Map<int, String> trackIds;
+  final Map<int, int> durationMs;
+  final Map<int, double> speeds;
+  final Map<int, double> tempoRanges;
 
   String? titleFor(int deckId) => titles[deckId];
 
   bool isPlaying(int deckId) => playing[deckId] ?? false;
+
+  String? trackIdFor(int deckId) => trackIds[deckId];
+
+  int? durationMsFor(int deckId) => durationMs[deckId];
+
+  double speedFor(int deckId) => speeds[deckId] ?? 0.5;
+
+  double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
 
   MixerChannelUi channelFor(int deckId) =>
       channels[deckId] ?? MixerChannelUi.defaults;
@@ -84,6 +101,10 @@ class EngineUiSnapshot {
     Map<int, MixerChannelUi>? channels,
     Map<int, DeckLevels>? levels,
     double? crossfader,
+    Map<int, String>? trackIds,
+    Map<int, int>? durationMs,
+    Map<int, double>? speeds,
+    Map<int, double>? tempoRanges,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
     titles: titles ?? this.titles,
@@ -91,6 +112,10 @@ class EngineUiSnapshot {
     channels: channels ?? this.channels,
     levels: levels ?? this.levels,
     crossfader: crossfader ?? this.crossfader,
+    trackIds: trackIds ?? this.trackIds,
+    durationMs: durationMs ?? this.durationMs,
+    speeds: speeds ?? this.speeds,
+    tempoRanges: tempoRanges ?? this.tempoRanges,
   );
 }
 
@@ -120,10 +145,30 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       }
       final nextChannels = Map<int, MixerChannelUi>.from(prev.channels);
       nextChannels[id] = prev.channelFor(id).patchedFrom(evt);
+      final nextTrackIds = Map<int, String>.from(prev.trackIds);
+      if (evt.trackId != null && evt.trackId!.isNotEmpty) {
+        nextTrackIds[id] = evt.trackId!;
+      }
+      final nextDurations = Map<int, int>.from(prev.durationMs);
+      if (evt.durationMs != null) {
+        nextDurations[id] = evt.durationMs!;
+      }
+      final nextSpeeds = Map<int, double>.from(prev.speeds);
+      if (evt.speed != null) {
+        nextSpeeds[id] = evt.speed!;
+      }
+      final nextRanges = Map<int, double>.from(prev.tempoRanges);
+      if (evt.tempoRange != null) {
+        nextRanges[id] = evt.tempoRange!;
+      }
       return prev.copyWith(
         titles: nextTitles,
         playing: nextPlaying,
         channels: nextChannels,
+        trackIds: nextTrackIds,
+        durationMs: nextDurations,
+        speeds: nextSpeeds,
+        tempoRanges: nextRanges,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

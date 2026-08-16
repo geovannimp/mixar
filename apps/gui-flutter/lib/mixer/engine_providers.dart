@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -11,7 +12,24 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
   EngineUiSnapshot build() => EngineUiSnapshot.empty;
 
-  void apply(EngineEvt evt) => state = applyEngineEvt(state, evt);
+  void apply(EngineEvt evt) {
+    if (evt.kind == EngineEvtKind.position) {
+      final id = evt.deckId;
+      final ms = evt.positionMs;
+      if (id != null && ms != null) {
+        ref.read(deckPlayheadsProvider.notifier).put(id, ms);
+      }
+      return;
+    }
+    state = applyEngineEvt(state, evt);
+    if (evt.kind == EngineEvtKind.updated &&
+        evt.deckId != null &&
+        evt.positionMs != null) {
+      ref
+          .read(deckPlayheadsProvider.notifier)
+          .put(evt.deckId!, evt.positionMs!);
+    }
+  }
 
   void setRunning(bool running) => state = state.copyWith(running: running);
 
@@ -24,11 +42,59 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     }
     state = state.copyWith(titles: next);
   }
+
+  void setDeckTrackId(int deckId, String? trackId) {
+    final next = Map<int, String>.from(state.trackIds);
+    if (trackId == null || trackId.isEmpty) {
+      next.remove(deckId);
+    } else {
+      next[deckId] = trackId;
+    }
+    state = state.copyWith(trackIds: next);
+  }
 }
 
 final engineUiProvider = NotifierProvider<EngineUi, EngineUiSnapshot>(
   EngineUi.new,
 );
+
+class DeckPlayheads extends Notifier<Map<int, int>> {
+  @override
+  Map<int, int> build() => const {};
+
+  void put(int deckId, int ms) {
+    if (state[deckId] == ms) {
+      return;
+    }
+    state = {...state, deckId: ms};
+  }
+}
+
+final deckPlayheadsProvider = NotifierProvider<DeckPlayheads, Map<int, int>>(
+  DeckPlayheads.new,
+);
+
+final deckPositionMsProvider = Provider.family<int, int>(
+  (ref, deckId) => ref.watch(deckPlayheadsProvider)[deckId] ?? 0,
+);
+
+final deckTrackIdProvider = Provider.family<String?, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.trackIdFor(deckId))),
+);
+
+final deckDurationMsProvider = Provider.family<int?, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.durationMsFor(deckId))),
+);
+
+final deckSpeedRatioProvider = Provider.family<double, int>((ref, deckId) {
+  final speed = ref.watch(engineUiProvider.select((s) => s.speedFor(deckId)));
+  final range = ref.watch(
+    engineUiProvider.select((s) => s.tempoRangeFor(deckId)),
+  );
+  return normToSpeedRatio(speed, range);
+});
 
 final engineRunningProvider = Provider<bool>(
   (ref) => ref.watch(engineUiProvider).running,
@@ -111,6 +177,7 @@ Future<void> loadPayloadToDeck(
         deckId,
         trackDisplayTitle(title: payload.title, path: payload.path),
       );
+  ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
 }
 
 Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
@@ -162,4 +229,9 @@ Future<void> setDeckHeadphoneCue(
 Future<void> setCrossfader(WidgetRef ref, double position) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setCrossfader(position: position);
+}
+
+Future<void> seekDeck(WidgetRef ref, int deckId, int positionMs) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.seek(deckId: deckId, positionMs: positionMs);
 }

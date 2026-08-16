@@ -66,6 +66,18 @@ final trackFilterProvider =
 String trackTitleLabel(LibraryTrackSummary t) =>
     (t.title?.isNotEmpty ?? false) ? t.title! : t.displayName;
 
+/// File tracks use the path as [LibraryTrackSummary.id], so `id != path` is not a library check.
+bool trackIsInLibrary(
+  LibraryTrackSummary t, {
+  required LibrarySourceTab tab,
+  Map<String, LibraryTrackSummary> driveResolvedByPath = const {},
+}) {
+  return switch (tab) {
+    LibrarySourceTab.collections => true,
+    LibrarySourceTab.drive => driveResolvedByPath.containsKey(t.path),
+  };
+}
+
 final filteredTracksProvider = Provider<AsyncValue<List<LibraryTrackSummary>>>((
   ref,
 ) {
@@ -139,6 +151,16 @@ class LibraryMessage extends Notifier<String?> {
 final libraryMessageProvider =
     NotifierProvider<LibraryMessage, String?>(LibraryMessage.new);
 
+class LibraryAnalysisEpoch extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void bump() => state++;
+}
+
+final libraryAnalysisEpochProvider =
+    NotifierProvider<LibraryAnalysisEpoch, int>(LibraryAnalysisEpoch.new);
+
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
@@ -149,6 +171,7 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref
             .read(analyzingTrackIdProvider.notifier)
             .clearIf(evt.trackId ?? evt.track?.id);
+        ref.read(libraryAnalysisEpochProvider.notifier).bump();
       }
     case LibraryEvtKind.error:
       ref.read(libraryMessageProvider.notifier).setError(evt.message ?? 'Error');

@@ -6,9 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `track_display_name`, `track_summary`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `collection_summary`, `from_manager`, `map_library_evt`, `pack_peaks`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `library_arc`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>>
@@ -21,8 +21,22 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
 
+  /// Analyzed beat grid, if present.
+  Future<BeatGridData?> getBeatGrid({required String trackId});
+
   /// Load one track including embedded artwork when present.
   Future<LibraryTrackSummary?> getTrack({required String trackId});
+
+  /// L0 overview peaks from the library DB, if present.
+  Future<WaveformPeaks?> getWaveformOverview({required String trackId});
+
+  /// L1 JIT window peaks from the decode cache (decodes the file if needed).
+  Future<WaveformPeaks> getWaveformWindow({
+    required String trackId,
+    required int startMs,
+    required int endMs,
+    required int buckets,
+  });
 
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
@@ -88,6 +102,27 @@ class AddFolderCollectionResult {
           updated == other.updated &&
           skipped == other.skipped &&
           failed == other.failed;
+}
+
+/// Beat-grid overlay data (beat times in seconds).
+class BeatGridData {
+  final Float32List beats;
+  final Float32List downbeats;
+  final double? bpm;
+
+  const BeatGridData({required this.beats, required this.downbeats, this.bpm});
+
+  @override
+  int get hashCode => beats.hashCode ^ downbeats.hashCode ^ bpm.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BeatGridData &&
+          runtimeType == other.runtimeType &&
+          beats == other.beats &&
+          downbeats == other.downbeats &&
+          bpm == other.bpm;
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -240,4 +275,33 @@ class ResolvedLibraryTrack {
           runtimeType == other.runtimeType &&
           requestPath == other.requestPath &&
           track == other.track;
+}
+
+/// Packed mono RGB peaks (`count × 3` uint8 bytes).
+class WaveformPeaks {
+  final int count;
+  final Uint8List rgb;
+  final int startMs;
+  final int endMs;
+
+  const WaveformPeaks({
+    required this.count,
+    required this.rgb,
+    required this.startMs,
+    required this.endMs,
+  });
+
+  @override
+  int get hashCode =>
+      count.hashCode ^ rgb.hashCode ^ startMs.hashCode ^ endMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WaveformPeaks &&
+          runtimeType == other.runtimeType &&
+          count == other.count &&
+          rgb == other.rgb &&
+          startMs == other.startMs &&
+          endMs == other.endMs;
 }

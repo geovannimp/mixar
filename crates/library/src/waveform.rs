@@ -8,7 +8,7 @@ use audio_core::{
     WAVEFORM_SCHEMA_VERSION,
 };
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{EntityTrait, PaginatorTrait, Set};
+use sea_orm::{EntityTrait, Set};
 use serde::Deserialize;
 
 use library_core::{FileAudioSource, LibraryError, Result, TrackId};
@@ -142,6 +142,9 @@ pub(crate) fn get_track_waveform_row(
     let Some(row) = row else {
         return Ok(None);
     };
+    if row.version != WAVEFORM_SCHEMA_VERSION as i32 {
+        return Ok(None);
+    }
 
     let channel_mode = parse_channel_mode(&row.channel_mode);
     let raw = zstd_decompress(&row.overview_bytes)?;
@@ -165,10 +168,10 @@ pub(crate) fn get_track_waveform_row(
 }
 
 pub(crate) fn has_track_waveform(db: &Db, track_id: &TrackId) -> Result<bool> {
-    let count = TrackWaveformEntity::find_by_id(track_id.as_str())
-        .count(db.conn()?.as_connection())
+    let row = TrackWaveformEntity::find_by_id(track_id.as_str())
+        .one(db.conn()?.as_connection())
         .map_err(db::db_err)?;
-    Ok(count > 0)
+    Ok(row.is_some_and(|r| r.version == WAVEFORM_SCHEMA_VERSION as i32))
 }
 
 #[derive(Debug, Clone)]

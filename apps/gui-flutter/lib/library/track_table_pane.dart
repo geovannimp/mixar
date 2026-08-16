@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,9 +54,12 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (_tracks.isEmpty) {
       return;
     }
+    final tab = ref.read(librarySourceTabProvider);
+    final resolved =
+        ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
     final ids = [
       for (final t in _tracks)
-        if (t.id != t.path) t.id,
+        if (trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved)) t.id,
     ];
     if (ids.isEmpty) {
       return;
@@ -75,7 +80,12 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final last = (first + count).clamp(0, _tracks.length);
     final visible = [
       for (var i = first; i < last; i++)
-        if (_tracks[i].id != _tracks[i].path) _tracks[i].id,
+        if (trackIsInLibrary(
+          _tracks[i],
+          tab: tab,
+          driveResolvedByPath: resolved,
+        ))
+          _tracks[i].id,
     ];
     ref.read(artworkCacheProvider.notifier).ensureLoaded(visible);
   }
@@ -296,8 +306,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: '',
         field: 'actions',
         type: TrinaColumnType.text(),
-        width: 40,
-        minWidth: 40,
+        width: 44,
+        minWidth: 44,
+        cellPadding: EdgeInsets.zero,
+        suppressedAutoSize: true,
         enableContextMenu: false,
         enableDropToResize: false,
         enableSorting: false,
@@ -309,34 +321,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           return Center(
-            child: FPopoverMenu(
-              menu: [
-                FItemGroup(
-                  children: [
-                    FItem(
-                      title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
-                      enabled: inLibrary && !analyzing,
-                      onPress: !inLibrary || analyzing
-                          ? null
-                          : () => analyzeTrackAction(ref, trackId),
-                    ),
-                    FItem(
-                      title: const Text('Refresh'),
-                      enabled: inLibrary,
-                      onPress: inLibrary
-                          ? () => refreshTrackAction(ref, trackId)
-                          : null,
-                    ),
-                  ],
-                ),
-              ],
-              child: analyzing
-                  ? const FCircularProgress(size: .sm)
-                  : Semantics(
-                      label: 'Track actions',
-                      button: true,
-                      child: const Text('⋯'),
-                    ),
+            child: TrackActionsMenu(
+              trackId: trackId,
+              inLibrary: inLibrary,
+              analyzing: analyzing,
             ),
           );
         },
@@ -408,12 +396,21 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     List<LibraryTrackSummary> tracks,
     String? analyzingId,
   ) {
+    final tab = ref.read(librarySourceTabProvider);
+    final resolved =
+        ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
     return [
       for (final t in tracks)
         TrinaRow(
           cells: {
             'trackId': TrinaCell(value: t.id),
-            'inLibrary': TrinaCell(value: t.id != t.path),
+            'inLibrary': TrinaCell(
+              value: trackIsInLibrary(
+                t,
+                tab: tab,
+                driveResolvedByPath: resolved,
+              ),
+            ),
             'path': TrinaCell(value: t.path),
             'dragTitle': TrinaCell(value: trackTitleLabel(t)),
             'artwork': TrinaCell(value: t.id),
@@ -482,6 +479,65 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final m = totalSec ~/ 60;
     final s = totalSec % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class TrackActionsMenu extends ConsumerWidget {
+  const TrackActionsMenu({
+    required this.trackId,
+    required this.inLibrary,
+    required this.analyzing,
+    super.key,
+  });
+
+  final String trackId;
+  final bool inLibrary;
+  final bool analyzing;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FPopoverMenu(
+      style: const .delta(maxWidth: 250),
+      faded: null,
+      divider: .full,
+      overlayLocation: OverlayChildLocation.rootOverlay,
+      menuBuilder: (context, controller, _) => [
+        .group(
+          children: [
+            .item(
+              title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
+              enabled: inLibrary && !analyzing,
+              onPress: !inLibrary || analyzing
+                  ? null
+                  : () {
+                      unawaited(controller.hide());
+                      unawaited(analyzeTrackAction(ref, trackId));
+                    },
+            ),
+            .item(
+              title: const Text('Refresh'),
+              enabled: inLibrary,
+              onPress: inLibrary
+                  ? () {
+                      unawaited(controller.hide());
+                      unawaited(refreshTrackAction(ref, trackId));
+                    }
+                  : null,
+            ),
+          ],
+        ),
+      ],
+      builder: (context, controller, child) => FButton.icon(
+        variant: .ghost,
+        size: .xs,
+        semanticsLabel: 'Track actions',
+        onPress: analyzing ? null : controller.toggle,
+        child: child!,
+      ),
+      child: analyzing
+          ? const FCircularProgress()
+          : const Icon(FLucideIcons.ellipsisVertical),
+    );
   }
 }
 
