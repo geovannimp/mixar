@@ -52,7 +52,6 @@ export function HeadphoneMonitorControls() {
         accentClass="text-zinc-500"
         ringClass="border-amber-500/40"
         className="gap-0"
-        formatValue={(value) => `${Math.round(value * 100)}%`}
         onValueChange={(mix) => {
           void setCueMix(mix);
         }}
