@@ -92,9 +92,9 @@ BEGIN
             VALUE "CompanyName", "" "\0"
             VALUE "FileDescription", "Mixar" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "gui_flutter" "\0"
+            VALUE "InternalName", "Mixar" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Mixar. All rights reserved." "\0"
-            VALUE "OriginalFilename", "gui_flutter.exe" "\0"
+            VALUE "OriginalFilename", "Mixar.exe" "\0"
             VALUE "ProductName", "Mixar" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
