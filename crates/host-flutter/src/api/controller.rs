@@ -262,16 +262,17 @@ fn emit_events(sink: &Mutex<Option<StreamSink<ControllerEvt>>>, events: Vec<Cont
     if events.is_empty() {
         return;
     }
-    let Ok(guard) = sink.lock() else {
+    let Ok(mut guard) = sink.lock() else {
         return;
     };
-    let Some(sink) = guard.as_ref() else {
-        return;
+    let failed = {
+        let Some(slot) = guard.as_ref() else {
+            return;
+        };
+        events.into_iter().any(|ev| slot.add(map_evt(ev)).is_err())
     };
-    for ev in events {
-        if sink.add(map_evt(ev)).is_err() {
-            break;
-        }
+    if failed {
+        *guard = None;
     }
 }
 
