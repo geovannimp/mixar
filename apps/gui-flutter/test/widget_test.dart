@@ -18,6 +18,7 @@ import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/shell/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -156,6 +157,7 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pumpAndSettle();
     expect(find.text('Waveform'), findsOneWidget);
+    expect(find.text('Controllers'), findsOneWidget);
 
     await tester.tap(find.text('Filtered'));
     await tester.pumpAndSettle();
@@ -170,6 +172,32 @@ void main() {
       container.read(waveformDisplayModeProvider),
       WaveformDisplayMode.rgb,
     );
+  });
+
+  testWidgets('settings page lists waveform and controllers', (tester) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+    final theme = FTheme.neutral.light.desktop;
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: const SettingsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Waveform'), findsOneWidget);
+    expect(find.text('Controllers'), findsOneWidget);
   });
 
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {

@@ -4,10 +4,11 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/shell/app_header.dart';
+import 'package:gui_flutter/shell/controller_offer_bridge.dart';
 import 'package:gui_flutter/shell/settings_page.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 
-/// Top-level shell: header + Mixer / Settings body (no backend wiring).
+/// Top-level shell: header + Mixer / Settings body.
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({required this.appTitle, super.key});
 
@@ -30,10 +31,17 @@ class _AppShellState extends ConsumerState<AppShell> {
         tab: _tab,
         onTabChanged: (tab) => setState(() => _tab = tab),
       ),
-      child: switch (_tab) {
-        ShellTab.mixer => const MixerPage(),
-        ShellTab.settings => const SettingsPage(),
-      },
+      child: Column(
+        children: [
+          const ControllerOfferBridge(),
+          Expanded(
+            child: switch (_tab) {
+              ShellTab.mixer => const MixerPage(),
+              ShellTab.settings => const SettingsPage(),
+            },
+          ),
+        ],
+      ),
     );
   }
 }

@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/controller.dart';
 import 'api/engine.dart';
 import 'api/fs_browser.dart';
 import 'api/library.dart';
@@ -26,8 +27,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransportPtr;
 
   CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ControllerTransportPtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransportPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_EngineBusHandlePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandlePtr;
+
+  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_EngineTransportPtr => wire
       ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransportPtr;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_LibraryBusHandlePtr => wire
+      ._rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandlePtr;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_LibraryTransportPtr => wire
@@ -43,8 +56,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  );
+
+  @protected
+  EngineBusHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  );
+
+  @protected
   EngineTransport
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+    dynamic raw,
+  );
+
+  @protected
+  LibraryBusHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     dynamic raw,
   );
 
@@ -61,8 +92,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  );
+
+  @protected
+  EngineBusHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  );
+
+  @protected
   EngineTransport
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+    dynamic raw,
+  );
+
+  @protected
+  LibraryBusHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     dynamic raw,
   );
 
@@ -79,14 +128,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  );
+
+  @protected
+  EngineBusHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  );
+
+  @protected
   EngineTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     dynamic raw,
   );
 
   @protected
+  LibraryBusHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    dynamic raw,
+  );
+
+  @protected
   LibraryTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+    dynamic raw,
+  );
+
+  @protected
+  RustStreamSink<ControllerEvt> dco_decode_StreamSink_controller_evt_Sse(
     dynamic raw,
   );
 
@@ -141,6 +213,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw);
 
   @protected
+  ControllerDeviceDirection dco_decode_controller_device_direction(dynamic raw);
+
+  @protected
+  ControllerDeviceInfo dco_decode_controller_device_info(dynamic raw);
+
+  @protected
+  ControllerEvt dco_decode_controller_evt(dynamic raw);
+
+  @protected
+  ControllerEvtKind dco_decode_controller_evt_kind(dynamic raw);
+
+  @protected
+  ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw);
+
+  @protected
   EngineEvt dco_decode_engine_evt(dynamic raw);
 
   @protected
@@ -184,6 +271,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<ControllerDeviceInfo> dco_decode_list_controller_device_info(
+    dynamic raw,
+  );
+
+  @protected
+  List<ControllerEvt> dco_decode_list_controller_evt(dynamic raw);
+
+  @protected
+  List<ControllerMappingInfo> dco_decode_list_controller_mapping_info(
+    dynamic raw,
+  );
 
   @protected
   List<FsEntry> dco_decode_list_fs_entry(dynamic raw);
@@ -285,8 +385,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EngineBusHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EngineTransport
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LibraryBusHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     SseDeserializer deserializer,
   );
 
@@ -303,8 +421,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EngineBusHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EngineTransport
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LibraryBusHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
     SseDeserializer deserializer,
   );
 
@@ -321,14 +457,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerTransport
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EngineBusHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EngineTransport
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     SseDeserializer deserializer,
   );
 
   @protected
+  LibraryBusHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryTransport
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  RustStreamSink<ControllerEvt> sse_decode_StreamSink_controller_evt_Sse(
     SseDeserializer deserializer,
   );
 
@@ -395,6 +554,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  ControllerDeviceDirection sse_decode_controller_device_direction(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerDeviceInfo sse_decode_controller_device_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerEvt sse_decode_controller_evt(SseDeserializer deserializer);
+
+  @protected
+  ControllerEvtKind sse_decode_controller_evt_kind(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ControllerMappingInfo sse_decode_controller_mapping_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   EngineEvt sse_decode_engine_evt(SseDeserializer deserializer);
 
   @protected
@@ -446,6 +628,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<ControllerDeviceInfo> sse_decode_list_controller_device_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ControllerEvt> sse_decode_list_controller_evt(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ControllerMappingInfo> sse_decode_list_controller_mapping_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<FsEntry> sse_decode_list_fs_entry(SseDeserializer deserializer);
@@ -564,8 +761,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
     SseSerializer serializer,
   );
 
@@ -585,8 +803,29 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
     SseSerializer serializer,
   );
 
@@ -606,6 +845,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
     SseSerializer serializer,
@@ -613,8 +866,21 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     LibraryTransport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_controller_evt_Sse(
+    RustStreamSink<ControllerEvt> self,
     SseSerializer serializer,
   );
 
@@ -688,6 +954,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_controller_device_direction(
+    ControllerDeviceDirection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_controller_device_info(
+    ControllerDeviceInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_controller_evt(ControllerEvt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_controller_evt_kind(
+    ControllerEvtKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_controller_mapping_info(
+    ControllerMappingInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_engine_evt(EngineEvt self, SseSerializer serializer);
 
   @protected
@@ -746,6 +1039,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_controller_device_info(
+    List<ControllerDeviceInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_controller_evt(
+    List<ControllerEvt> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_controller_mapping_info(
+    List<ControllerMappingInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_fs_entry(List<FsEntry> self, SseSerializer serializer);
@@ -920,6 +1231,74 @@ class RustLibWire implements BaseWire {
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransportPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransportPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransportPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransportPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandlePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandlePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandlePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandlePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     ffi.Pointer<ffi.Void> ptr,
   ) {
@@ -951,6 +1330,40 @@ class RustLibWire implements BaseWire {
       );
   late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport =
       _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransportPtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandlePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle',
+      );
+  late final _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle =
+      _rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandlePtr
+          .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  void
+  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+      ptr,
+    );
+  }
+
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandlePtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+        'frbgen_gui_flutter_rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle',
+      );
+  late final _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle =
+      _rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandlePtr
           .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
 
   void

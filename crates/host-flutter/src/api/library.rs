@@ -106,6 +106,25 @@ struct EvtForwarder {
     handle: JoinHandle<()>,
 }
 
+/// Cloneable library cmd/evt buses for hosts that only publish (controller).
+#[derive(Clone)]
+#[flutter_rust_bridge::frb(opaque)]
+pub struct LibraryBusHandle {
+    buses: LibraryBuses,
+}
+
+impl LibraryBusHandle {
+    /// Wrap an existing bus pair (tests / `LibraryTransport::buses`).
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn from_buses(buses: LibraryBuses) -> Self {
+        Self { buses }
+    }
+
+    pub(crate) fn buses(&self) -> LibraryBuses {
+        self.buses.clone()
+    }
+}
+
 /// Host-owned library handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct LibraryTransport {
@@ -401,6 +420,11 @@ impl LibraryTransport {
     #[flutter_rust_bridge::frb(ignore)]
     pub fn cmd_bus(&self) -> library::LibraryBus {
         self.buses.cmd_bus()
+    }
+
+    /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
+    pub fn buses(&self) -> LibraryBusHandle {
+        LibraryBusHandle::from_buses(self.buses.clone())
     }
 }
 

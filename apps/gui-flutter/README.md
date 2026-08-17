@@ -43,7 +43,7 @@ After Rust API changes:
 moon run gui-flutter:generate
 ```
 
-The main window is a Forui ([forui.dev](https://forui.dev/)) layout shell: header, waveforms, decks/mixer, library — engine/library not wired into the shell yet. Display name comes from Rust (`engine_api::APP_DISPLAY_NAME` / `appDisplayName()`).
+The main window is a Forui ([forui.dev](https://forui.dev/)) layout shell: header, waveforms, decks/mixer, library. Engine, library, and MIDI controller transports are wired over FRB. Display name comes from Rust (`engine_api::APP_DISPLAY_NAME` / `appDisplayName()`).
 
 ## Rust tests
 

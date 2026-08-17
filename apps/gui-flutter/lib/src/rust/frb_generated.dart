@@ -3,6 +3,7 @@
 
 // ignore_for_file: unused_import, unused_element, unnecessary_import, duplicate_ignore, invalid_use_of_internal_member, annotate_overrides, non_constant_identifier_names, curly_braces_in_flow_control_structures, prefer_const_literals_to_create_immutables, unused_field
 
+import 'api/controller.dart';
 import 'api/engine.dart';
 import 'api/fs_browser.dart';
 import 'api/library.dart';
@@ -69,7 +70,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -488118472;
+  int get rustContentHash => 1102062064;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -90,6 +91,56 @@ abstract class RustLibApi extends BaseApi {
 
   Future<AudioBackendTransport> crateApiEngineAudioBackendTransportOpen({
     required String name,
+  });
+
+  Future<void> crateApiControllerControllerTransportDisableMapping({
+    required ControllerTransport that,
+    required String mappingId,
+  });
+
+  Future<void> crateApiControllerControllerTransportEnableMapping({
+    required ControllerTransport that,
+    required String mappingId,
+    String? portName,
+  });
+
+  Future<List<ControllerDeviceInfo>>
+  crateApiControllerControllerTransportListDevices({
+    required ControllerTransport that,
+  });
+
+  Future<List<ControllerMappingInfo>>
+  crateApiControllerControllerTransportListMappings({
+    required ControllerTransport that,
+  });
+
+  Future<List<ControllerEvt>>
+  crateApiControllerControllerTransportPendingOffers({
+    required ControllerTransport that,
+  });
+
+  Future<ControllerTransport> crateApiControllerControllerTransportStart({
+    required EngineBusHandle engineBuses,
+    required LibraryBusHandle libraryBuses,
+    required String mappingsDir,
+    String? shippedMappingsDir,
+  });
+
+  Stream<ControllerEvt> crateApiControllerControllerTransportSubscribeEvents({
+    required ControllerTransport that,
+  });
+
+  Future<void> crateApiControllerControllerTransportUpdateAllMappings({
+    required ControllerTransport that,
+  });
+
+  Future<void> crateApiControllerControllerTransportUpdateMapping({
+    required ControllerTransport that,
+    required String mappingId,
+  });
+
+  Future<EngineBusHandle> crateApiEngineEngineTransportBuses({
+    required EngineTransport that,
   });
 
   Future<bool> crateApiEngineEngineTransportIsRunning({
@@ -185,6 +236,10 @@ abstract class RustLibApi extends BaseApi {
     required bool force,
   });
 
+  Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
+    required LibraryTransport that,
+  });
+
   Future<BeatGridData?> crateApiLibraryLibraryTransportGetBeatGrid({
     required LibraryTransport that,
     required String trackId,
@@ -260,6 +315,24 @@ abstract class RustLibApi extends BaseApi {
   get rust_arc_decrement_strong_count_AudioBackendTransportPtr;
 
   RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_ControllerTransport;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_ControllerTransport;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_ControllerTransportPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_EngineBusHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_EngineBusHandle;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_EngineBusHandlePtr;
+
+  RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_EngineTransport;
 
   RustArcDecrementStrongCountFnType
@@ -267,6 +340,15 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_EngineTransportPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_LibraryBusHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_LibraryBusHandle;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_LibraryBusHandlePtr;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_LibraryTransport;
@@ -385,6 +467,409 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiControllerControllerTransportDisableMapping({
+    required ControllerTransport that,
+    required String mappingId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(mappingId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 4,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiControllerControllerTransportDisableMappingConstMeta,
+        argValues: [that, mappingId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportDisableMappingConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_disable_mapping",
+        argNames: ["that", "mappingId"],
+      );
+
+  @override
+  Future<void> crateApiControllerControllerTransportEnableMapping({
+    required ControllerTransport that,
+    required String mappingId,
+    String? portName,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(mappingId, serializer);
+          sse_encode_opt_String(portName, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportEnableMappingConstMeta,
+        argValues: [that, mappingId, portName],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportEnableMappingConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_enable_mapping",
+        argNames: ["that", "mappingId", "portName"],
+      );
+
+  @override
+  Future<List<ControllerDeviceInfo>>
+  crateApiControllerControllerTransportListDevices({
+    required ControllerTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 6,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_controller_device_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportListDevicesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportListDevicesConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_list_devices",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<ControllerMappingInfo>>
+  crateApiControllerControllerTransportListMappings({
+    required ControllerTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_controller_mapping_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportListMappingsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportListMappingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_list_mappings",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<ControllerEvt>>
+  crateApiControllerControllerTransportPendingOffers({
+    required ControllerTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 8,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_controller_evt,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportPendingOffersConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportPendingOffersConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_pending_offers",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<ControllerTransport> crateApiControllerControllerTransportStart({
+    required EngineBusHandle engineBuses,
+    required LibraryBusHandle libraryBuses,
+    required String mappingsDir,
+    String? shippedMappingsDir,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+            engineBuses,
+            serializer,
+          );
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+            libraryBuses,
+            serializer,
+          );
+          sse_encode_String(mappingsDir, serializer);
+          sse_encode_opt_String(shippedMappingsDir, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 9,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportStartConstMeta,
+        argValues: [engineBuses, libraryBuses, mappingsDir, shippedMappingsDir],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiControllerControllerTransportStartConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_start",
+        argNames: [
+          "engineBuses",
+          "libraryBuses",
+          "mappingsDir",
+          "shippedMappingsDir",
+        ],
+      );
+
+  @override
+  Stream<ControllerEvt> crateApiControllerControllerTransportSubscribeEvents({
+    required ControllerTransport that,
+  }) {
+    final sink = RustStreamSink<ControllerEvt>();
+    unawaited(
+      handler.executeNormal(
+        NormalTask(
+          callFfi: (port_) {
+            final serializer = SseSerializer(generalizedFrbRustBinding);
+            sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+              that,
+              serializer,
+            );
+            sse_encode_StreamSink_controller_evt_Sse(sink, serializer);
+            pdeCallFfi(
+              generalizedFrbRustBinding,
+              serializer,
+              funcId: 10,
+              port: port_,
+            );
+          },
+          codec: SseCodec(
+            decodeSuccessData: sse_decode_unit,
+            decodeErrorData: sse_decode_String,
+          ),
+          constMeta:
+              kCrateApiControllerControllerTransportSubscribeEventsConstMeta,
+          argValues: [that, sink],
+          apiImpl: this,
+        ),
+      ),
+    );
+    return sink.stream;
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportSubscribeEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_subscribe_events",
+        argNames: ["that", "sink"],
+      );
+
+  @override
+  Future<void> crateApiControllerControllerTransportUpdateAllMappings({
+    required ControllerTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiControllerControllerTransportUpdateAllMappingsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportUpdateAllMappingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_update_all_mappings",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiControllerControllerTransportUpdateMapping({
+    required ControllerTransport that,
+    required String mappingId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(mappingId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 12,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiControllerControllerTransportUpdateMappingConstMeta,
+        argValues: [that, mappingId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiControllerControllerTransportUpdateMappingConstMeta =>
+      const TaskConstMeta(
+        debugName: "ControllerTransport_update_mapping",
+        argNames: ["that", "mappingId"],
+      );
+
+  @override
+  Future<EngineBusHandle> crateApiEngineEngineTransportBuses({
+    required EngineTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 13,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEngineEngineTransportBusesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportBusesConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_buses",
+        argNames: ["that"],
+      );
+
+  @override
   Future<bool> crateApiEngineEngineTransportIsRunning({
     required EngineTransport that,
   }) {
@@ -399,7 +884,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 4,
+            funcId: 14,
             port: port_,
           );
         },
@@ -439,7 +924,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 15,
             port: port_,
           );
         },
@@ -479,7 +964,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 16,
             port: port_,
           );
         },
@@ -517,7 +1002,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 17,
             port: port_,
           );
         },
@@ -555,7 +1040,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 18,
             port: port_,
           );
         },
@@ -595,7 +1080,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 19,
             port: port_,
           );
         },
@@ -633,7 +1118,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 20,
             port: port_,
           );
         },
@@ -675,7 +1160,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 21,
             port: port_,
           );
         },
@@ -715,7 +1200,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 22,
             port: port_,
           );
         },
@@ -755,7 +1240,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 23,
             port: port_,
           );
         },
@@ -795,7 +1280,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 24,
             port: port_,
           );
         },
@@ -835,7 +1320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 25,
             port: port_,
           );
         },
@@ -873,7 +1358,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 26,
             port: port_,
           );
         },
@@ -910,7 +1395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 27,
             port: port_,
           );
         },
@@ -949,7 +1434,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 18,
+              funcId: 28,
               port: port_,
             );
           },
@@ -990,7 +1475,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 29,
             port: port_,
           );
         },
@@ -1031,7 +1516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1053,6 +1538,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 31,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportBusesConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportBusesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_buses",
+        argNames: ["that"],
+      );
+
+  @override
   Future<BeatGridData?> crateApiLibraryLibraryTransportGetBeatGrid({
     required LibraryTransport that,
     required String trackId,
@@ -1069,7 +1591,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1107,7 +1629,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1145,7 +1667,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1190,7 +1712,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1230,7 +1752,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1269,7 +1791,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1302,7 +1824,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1333,7 +1855,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1372,7 +1894,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 40,
             port: port_,
           );
         },
@@ -1411,7 +1933,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1452,7 +1974,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 31,
+              funcId: 42,
               port: port_,
             );
           },
@@ -1481,7 +2003,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 32)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -1509,7 +2031,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1536,7 +2058,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1563,7 +2085,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1590,12 +2112,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport;
 
   RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_ControllerTransport => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_ControllerTransport => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_EngineBusHandle => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_EngineBusHandle => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle;
+
+  RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_EngineTransport => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport;
 
   RustArcDecrementStrongCountFnType
   get rust_arc_decrement_strong_count_EngineTransport => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_LibraryBusHandle => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_LibraryBusHandle => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle;
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_LibraryTransport => wire
@@ -1621,12 +2167,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  EngineBusHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   EngineTransport
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return EngineTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LibraryBusHandle
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1648,12 +2221,39 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  EngineBusHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   EngineTransport
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return EngineTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  LibraryBusHandle
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -1675,6 +2275,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  EngineBusHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   EngineTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     dynamic raw,
@@ -1684,12 +2302,29 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  LibraryBusHandle
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   LibraryTransport
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     dynamic raw,
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return LibraryTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  RustStreamSink<ControllerEvt> dco_decode_StreamSink_controller_evt_Sse(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    throw UnimplementedError();
   }
 
   @protected
@@ -1808,6 +2443,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_waveform_peaks(raw);
+  }
+
+  @protected
+  ControllerDeviceDirection dco_decode_controller_device_direction(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ControllerDeviceDirection.values[raw as int];
+  }
+
+  @protected
+  ControllerDeviceInfo dco_decode_controller_device_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return ControllerDeviceInfo(
+      portName: dco_decode_String(arr[0]),
+      direction: dco_decode_controller_device_direction(arr[1]),
+      matchedMappingId: dco_decode_opt_String(arr[2]),
+    );
+  }
+
+  @protected
+  ControllerEvt dco_decode_controller_evt(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ControllerEvt(
+      kind: dco_decode_controller_evt_kind(arr[0]),
+      mappingId: dco_decode_opt_String(arr[1]),
+      deviceName: dco_decode_opt_String(arr[2]),
+      portName: dco_decode_opt_String(arr[3]),
+    );
+  }
+
+  @protected
+  ControllerEvtKind dco_decode_controller_evt_kind(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ControllerEvtKind.values[raw as int];
+  }
+
+  @protected
+  ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ControllerMappingInfo(
+      id: dco_decode_String(arr[0]),
+      deviceId: dco_decode_String(arr[1]),
+      vendorName: dco_decode_String(arr[2]),
+      productName: dco_decode_String(arr[3]),
+      description: dco_decode_opt_String(arr[4]),
+      midiNameContains: dco_decode_list_String(arr[5]),
+      attached: dco_decode_bool(arr[6]),
+    );
   }
 
   @protected
@@ -1985,6 +2678,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> dco_decode_list_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_String).toList();
+  }
+
+  @protected
+  List<ControllerDeviceInfo> dco_decode_list_controller_device_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_controller_device_info)
+        .toList();
+  }
+
+  @protected
+  List<ControllerEvt> dco_decode_list_controller_evt(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_controller_evt).toList();
+  }
+
+  @protected
+  List<ControllerMappingInfo> dco_decode_list_controller_mapping_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_controller_mapping_info)
+        .toList();
   }
 
   @protected
@@ -2212,12 +2931,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  EngineBusHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   EngineTransport
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return EngineTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  LibraryBusHandle
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -2248,12 +3003,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  EngineBusHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   EngineTransport
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return EngineTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  LibraryBusHandle
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -2284,12 +3075,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ControllerTransport
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return ControllerTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  EngineBusHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return EngineBusHandleImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   EngineTransport
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return EngineTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  LibraryBusHandle
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return LibraryBusHandleImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -2305,6 +3132,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
+  }
+
+  @protected
+  RustStreamSink<ControllerEvt> sse_decode_StreamSink_controller_evt_Sse(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    throw UnimplementedError('Unreachable ()');
   }
 
   @protected
@@ -2434,6 +3269,77 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_waveform_peaks(deserializer));
+  }
+
+  @protected
+  ControllerDeviceDirection sse_decode_controller_device_direction(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ControllerDeviceDirection.values[inner];
+  }
+
+  @protected
+  ControllerDeviceInfo sse_decode_controller_device_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_portName = sse_decode_String(deserializer);
+    var var_direction = sse_decode_controller_device_direction(deserializer);
+    var var_matchedMappingId = sse_decode_opt_String(deserializer);
+    return ControllerDeviceInfo(
+      portName: var_portName,
+      direction: var_direction,
+      matchedMappingId: var_matchedMappingId,
+    );
+  }
+
+  @protected
+  ControllerEvt sse_decode_controller_evt(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_kind = sse_decode_controller_evt_kind(deserializer);
+    var var_mappingId = sse_decode_opt_String(deserializer);
+    var var_deviceName = sse_decode_opt_String(deserializer);
+    var var_portName = sse_decode_opt_String(deserializer);
+    return ControllerEvt(
+      kind: var_kind,
+      mappingId: var_mappingId,
+      deviceName: var_deviceName,
+      portName: var_portName,
+    );
+  }
+
+  @protected
+  ControllerEvtKind sse_decode_controller_evt_kind(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ControllerEvtKind.values[inner];
+  }
+
+  @protected
+  ControllerMappingInfo sse_decode_controller_mapping_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_vendorName = sse_decode_String(deserializer);
+    var var_productName = sse_decode_String(deserializer);
+    var var_description = sse_decode_opt_String(deserializer);
+    var var_midiNameContains = sse_decode_list_String(deserializer);
+    var var_attached = sse_decode_bool(deserializer);
+    return ControllerMappingInfo(
+      id: var_id,
+      deviceId: var_deviceId,
+      vendorName: var_vendorName,
+      productName: var_productName,
+      description: var_description,
+      midiNameContains: var_midiNameContains,
+      attached: var_attached,
+    );
   }
 
   @protected
@@ -2656,6 +3562,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ControllerDeviceInfo> sse_decode_list_controller_device_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ControllerDeviceInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_controller_device_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ControllerEvt> sse_decode_list_controller_evt(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ControllerEvt>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_controller_evt(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ControllerMappingInfo> sse_decode_list_controller_mapping_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ControllerMappingInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_controller_mapping_info(deserializer));
     }
     return ans_;
   }
@@ -2985,6 +3933,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ControllerTransportImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as EngineBusHandleImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
     SseSerializer serializer,
@@ -2992,6 +3966,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as EngineTransportImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as LibraryBusHandleImpl).frbInternalSseEncode(move: true),
       serializer,
     );
   }
@@ -3024,6 +4011,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ControllerTransportImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as EngineBusHandleImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
     SseSerializer serializer,
@@ -3031,6 +4044,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as EngineTransportImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as LibraryBusHandleImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -3063,6 +4089,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerControllerTransport(
+    ControllerTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as ControllerTransportImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineBusHandle(
+    EngineBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as EngineBusHandleImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
     EngineTransport self,
     SseSerializer serializer,
@@ -3076,6 +4128,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryBusHandle(
+    LibraryBusHandle self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as LibraryBusHandleImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
     LibraryTransport self,
     SseSerializer serializer,
@@ -3083,6 +4148,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as LibraryTransportImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
+  void sse_encode_StreamSink_controller_evt_Sse(
+    RustStreamSink<ControllerEvt> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(
+      self.setupAndSerialize(
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_controller_evt,
+          decodeErrorData: sse_decode_AnyhowException,
+        ),
+      ),
       serializer,
     );
   }
@@ -3224,6 +4306,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_waveform_peaks(self, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_device_direction(
+    ControllerDeviceDirection self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_device_info(
+    ControllerDeviceInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.portName, serializer);
+    sse_encode_controller_device_direction(self.direction, serializer);
+    sse_encode_opt_String(self.matchedMappingId, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_evt(ControllerEvt self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_controller_evt_kind(self.kind, serializer);
+    sse_encode_opt_String(self.mappingId, serializer);
+    sse_encode_opt_String(self.deviceName, serializer);
+    sse_encode_opt_String(self.portName, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_evt_kind(
+    ControllerEvtKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_controller_mapping_info(
+    ControllerMappingInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_String(self.vendorName, serializer);
+    sse_encode_String(self.productName, serializer);
+    sse_encode_opt_String(self.description, serializer);
+    sse_encode_list_String(self.midiNameContains, serializer);
+    sse_encode_bool(self.attached, serializer);
   }
 
   @protected
@@ -3381,6 +4516,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_controller_device_info(
+    List<ControllerDeviceInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_controller_device_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_controller_evt(
+    List<ControllerEvt> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_controller_evt(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_controller_mapping_info(
+    List<ControllerMappingInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_controller_mapping_info(item, serializer);
     }
   }
 
@@ -3698,6 +4869,92 @@ class AudioBackendTransportImpl extends RustOpaque
 }
 
 @sealed
+class ControllerTransportImpl extends RustOpaque
+    implements ControllerTransport {
+  // Not to be used by end users
+  ControllerTransportImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  ControllerTransportImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_increment_strong_count_ControllerTransport,
+    rustArcDecrementStrongCount: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_ControllerTransport,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_ControllerTransportPtr,
+  );
+
+  Future<void> disableMapping({required String mappingId}) =>
+      RustLib.instance.api.crateApiControllerControllerTransportDisableMapping(
+        that: this,
+        mappingId: mappingId,
+      );
+
+  Future<void> enableMapping({required String mappingId, String? portName}) =>
+      RustLib.instance.api.crateApiControllerControllerTransportEnableMapping(
+        that: this,
+        mappingId: mappingId,
+        portName: portName,
+      );
+
+  Future<List<ControllerDeviceInfo>> listDevices() => RustLib.instance.api
+      .crateApiControllerControllerTransportListDevices(that: this);
+
+  Future<List<ControllerMappingInfo>> listMappings() => RustLib.instance.api
+      .crateApiControllerControllerTransportListMappings(that: this);
+
+  Future<List<ControllerEvt>> pendingOffers() => RustLib.instance.api
+      .crateApiControllerControllerTransportPendingOffers(that: this);
+
+  /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.
+  ///
+  /// Replaces any previous sink so repeated subscribe calls do not leak.
+  Stream<ControllerEvt> subscribeEvents() => RustLib.instance.api
+      .crateApiControllerControllerTransportSubscribeEvents(that: this);
+
+  Future<void> updateAllMappings() => RustLib.instance.api
+      .crateApiControllerControllerTransportUpdateAllMappings(that: this);
+
+  Future<void> updateMapping({required String mappingId}) =>
+      RustLib.instance.api.crateApiControllerControllerTransportUpdateMapping(
+        that: this,
+        mappingId: mappingId,
+      );
+}
+
+@sealed
+class EngineBusHandleImpl extends RustOpaque implements EngineBusHandle {
+  // Not to be used by end users
+  EngineBusHandleImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  EngineBusHandleImpl.frbInternalSseDecode(BigInt ptr, int externalSizeOnNative)
+    : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_EngineBusHandle,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_EngineBusHandle,
+    rustArcDecrementStrongCountPtr:
+        RustLib.instance.api.rust_arc_decrement_strong_count_EngineBusHandlePtr,
+  );
+}
+
+@sealed
 class EngineTransportImpl extends RustOpaque implements EngineTransport {
   // Not to be used by end users
   EngineTransportImpl.frbInternalDcoDecode(List<dynamic> wire)
@@ -3715,6 +4972,10 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
     rustArcDecrementStrongCountPtr:
         RustLib.instance.api.rust_arc_decrement_strong_count_EngineTransportPtr,
   );
+
+  /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
+  Future<EngineBusHandle> buses() =>
+      RustLib.instance.api.crateApiEngineEngineTransportBuses(that: this);
 
   /// Whether [`Engine::start`] has opened streams.
   Future<bool> isRunning() =>
@@ -3818,6 +5079,30 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
 }
 
 @sealed
+class LibraryBusHandleImpl extends RustOpaque implements LibraryBusHandle {
+  // Not to be used by end users
+  LibraryBusHandleImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  LibraryBusHandleImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_LibraryBusHandle,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_LibraryBusHandle,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_LibraryBusHandlePtr,
+  );
+}
+
+@sealed
 class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   // Not to be used by end users
   LibraryTransportImpl.frbInternalDcoDecode(List<dynamic> wire)
@@ -3855,6 +5140,10 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         trackId: trackId,
         force: force,
       );
+
+  /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
+  Future<LibraryBusHandle> buses() =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportBuses(that: this);
 
   /// Analyzed beat grid, if present.
   Future<BeatGridData?> getBeatGrid({required String trackId}) => RustLib
