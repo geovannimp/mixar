@@ -24,7 +24,7 @@ Two desktop hosts share the same engine: **Tauri + React** (`apps/gui-app`, prim
 
 ## Quick start
 
-**Prerequisites:** [Node](https://nodejs.org/) 22.18+, Rust stable with rustfmt/clippy, and a working sound device. On Linux, install [Tauri’s native deps](https://v2.tauri.app/start/prerequisites/#linux) plus ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu).
+**Prerequisites:** [Node](https://nodejs.org/), Rust stable with rustfmt/clippy, and a working sound device. On Linux, install [Tauri’s native deps](https://v2.tauri.app/start/prerequisites/#linux) plus ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu).
 
 [mise](https://mise.jdx.dev) is recommended: it reads `.node-version` and `rust-toolchain.toml`.
 
@@ -60,7 +60,7 @@ CI (GitHub Actions) runs affected lint, format, build, tests, and a cargo audit.
 
 A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The backend audio callback only consumes that buffer — no allocations on the audio thread.
 
-```
+```text
 Library / AudioSource
         │ load → PCM
         ▼
@@ -72,7 +72,7 @@ Producer thread ──► ring buffer ──► audio callback (CPAL / miniaudio
 
 Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread.
 
-```
+```text
 mixar/
 ├─ apps/gui-app/       # Tauri + React desktop UI
 ├─ apps/gui-flutter/   # Experimental Flutter host
