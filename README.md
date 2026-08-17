@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/mixar-banner.jpg" alt="Mixar" width="100%">
+  <img src="docs/mixar-banner.png" alt="Mixar" width="100%">
 </p>
 
 # Mixar
