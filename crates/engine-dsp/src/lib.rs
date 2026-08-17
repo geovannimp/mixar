@@ -1,4 +1,4 @@
-//! Pure DSP components for rust-dj-engine
+//! Pure DSP components for Mixar
 //!
 //! This crate contains the core DSP functionality including decks,
 //! mixer, and audio processing components. It has zero I/O dependencies

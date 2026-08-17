@@ -1,4 +1,4 @@
-//! Audio codec wrapper for rust-dj-engine
+//! Audio codec wrapper for Mixar
 //!
 //! This crate provides audio decoding capabilities using symphonia.
 

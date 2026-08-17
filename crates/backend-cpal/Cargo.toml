@@ -3,9 +3,9 @@ name = "backend-cpal"
 version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
-description = "CPAL backend for the Rust DJ Engine"
+description = "CPAL backend for Mixar"
 license = "MIT"
-repository = "https://github.com/yourusername/rust-mixer"
+repository = "https://github.com/geovannimp/mixar"
 
 [features]
 default = ["pipewire"]

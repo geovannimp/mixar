@@ -1,4 +1,4 @@
-//! Third-party library adapters for rust-dj-engine.
+//! Third-party library adapters for Mixar.
 //!
 //! Each adapter implements [`library_core::Library`] (and optionally
 //! [`library_core::WritableLibrary`]) so external DJ software can be browsed

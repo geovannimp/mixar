@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
+import { useCallback, useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
 import { EQ_MAX_DB, EQ_MIN_DB, EQ_STEP_DB } from "@/lib/eq";
 
@@ -31,11 +26,7 @@ const ANGLE_SPAN_DEG = 270;
 const ANGLE_MAX_DEG = ANGLE_MIN_DEG + ANGLE_SPAN_DEG;
 
 /** CSS angle: 0° = up, clockwise → SVG point in a square viewBox. */
-function polarToSvg(
-  angleDeg: number,
-  radius: number,
-  center = 50,
-): { x: number; y: number } {
+function polarToSvg(angleDeg: number, radius: number, center = 50): { x: number; y: number } {
   const rad = (angleDeg * Math.PI) / 180;
   return {
     x: center + radius * Math.sin(rad),
@@ -44,11 +35,7 @@ function polarToSvg(
 }
 
 /** Clockwise arc path from `fromDeg` to `toDeg` (CSS angles). */
-function clockwiseArcPath(
-  fromDeg: number,
-  toDeg: number,
-  radius: number,
-): string | null {
+function clockwiseArcPath(fromDeg: number, toDeg: number, radius: number): string | null {
   const span = toDeg - fromDeg;
   if (span <= 0.05) {
     return null;
@@ -73,8 +60,7 @@ function TravelArcs({
   const radius = 50 - strokeWidth / 2;
   const trackPath = clockwiseArcPath(ANGLE_MIN_DEG, ANGLE_MAX_DEG, radius);
   const valuePath = clockwiseArcPath(fillFromDeg, fillToDeg, radius);
-  const fillStroke =
-    fillClassName?.replaceAll("border-", "stroke-") ?? "stroke-zinc-300";
+  const fillStroke = fillClassName?.replaceAll("border-", "stroke-") ?? "stroke-zinc-300";
 
   return (
     <svg aria-hidden viewBox="0 0 100 100" className=" inset-0 size-full">
@@ -221,9 +207,7 @@ export function RotaryKnob({
 
   return (
     <div className={cn("flex flex-col items-center gap-0.5", className)}>
-      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>
-        {label}
-      </span>
+      <span className={cn(labelClass, accentClass ?? "text-zinc-500")}>{label}</span>
       <button
         type="button"
         disabled={disabled}
@@ -256,18 +240,12 @@ export function RotaryKnob({
         {/* Raised knob face */}
         <span
           aria-hidden
-          className={cn(
-            "flex justify-center absolute rounded-full bg-zinc-800",
-            faceInsetClass,
-          )}
+          className={cn("flex justify-center absolute rounded-full bg-zinc-800", faceInsetClass)}
           style={{
             transform: `rotate(${angle}deg)`,
           }}
         >
-          <span
-            aria-hidden
-            className={cn("rounded-full bg-zinc-200", tickClass)}
-          />
+          <span aria-hidden className={cn("rounded-full bg-zinc-200", tickClass)} />
         </span>
       </button>
     </div>

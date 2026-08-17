@@ -3,11 +3,7 @@ import { Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DeckButton } from "@/components/ui/deck-button";
 import { type DeckAccent, DECK_ACCENTS } from "@/lib/ui";
-import {
-  formatDeckRemainingDisplay,
-  formatDeckTotalDisplay,
-  normToSpeedRatio,
-} from "@/lib/format";
+import { formatDeckRemainingDisplay, formatDeckTotalDisplay, normToSpeedRatio } from "@/lib/format";
 import { useDeckBusy } from "@/hooks/engine/use-deck-busy";
 import { useDeckControls } from "@/hooks/engine/use-deck-controls";
 import { useDeckOverview } from "@/hooks/engine/use-deck-overview";
@@ -36,13 +32,7 @@ interface DeckPanelProps {
   accentKey: DeckAccent;
 }
 
-function DeckRemainingTime({
-  deckId,
-  durationMs,
-}: {
-  deckId: number;
-  durationMs: number | null;
-}) {
+function DeckRemainingTime({ deckId, durationMs }: { deckId: number; durationMs: number | null }) {
   const positionMs = useDeckPosition(deckId);
   return (
     <span className="text-sm font-semibold text-zinc-100 sm:text-base">
@@ -468,16 +458,10 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
     >
       <div className="flex shrink-0 items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">
-          <h2
-            className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}
-          >
+          <h2 className={`text-[10px] font-bold uppercase tracking-widest ${accent.text}`}>
             {accent.label}
           </h2>
-          <DeckInfoPopover
-            deck={deckForInfo}
-            disabled={!hasTrack}
-            accentClass={accent.text}
-          />
+          <DeckInfoPopover deck={deckForInfo} disabled={!hasTrack} accentClass={accent.text} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <DeckButton
@@ -515,10 +499,7 @@ export function DeckPanel({ deckId, accentKey }: DeckPanelProps) {
         <div className="flex flex-col flex-1 gap-2">
           <DeckTrackInfo deck={deckForInfo} />
           <div className="flex flex-1 flex-col gap-2">
-            <DeckOverviewSection
-              deckId={deckId}
-              transportDisabled={transportDisabled}
-            />
+            <DeckOverviewSection deckId={deckId} transportDisabled={transportDisabled} />
             <DeckPerformanceSection
               deckId={deckId}
               accentKey={accentKey}

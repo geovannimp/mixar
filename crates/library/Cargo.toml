@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Library manager for rust-dj-engine"
+description = "Library manager for Mixar"
 
 [dependencies]
 library-core = { path = "../library-core" }

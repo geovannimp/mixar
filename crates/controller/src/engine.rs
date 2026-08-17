@@ -146,7 +146,7 @@ pub struct ControllerEngine {
 impl ControllerEngine {
     /// Open and seed app-data mappings from the shipped catalog when missing.
     ///
-    /// `app_name` labels midir clients in the system MIDI list (e.g. `"Rust DJ"`).
+    /// `app_name` labels midir clients in the system MIDI list (e.g. `"Mixar"`).
     pub fn open(
         app_name: impl Into<String>,
         app_mappings_dir: impl Into<PathBuf>,

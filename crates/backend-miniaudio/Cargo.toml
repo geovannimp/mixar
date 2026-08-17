@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Miniaudio backend for rust-dj-engine"
+description = "Miniaudio backend for Mixar"
 
 [dependencies]
 audio-core = { path = "../audio-core" }

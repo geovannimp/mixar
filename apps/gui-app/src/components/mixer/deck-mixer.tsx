@@ -35,13 +35,7 @@ interface MixerKnobProps {
   onValueChange: (value: number) => void;
 }
 
-function MixerKnob({
-  label,
-  value,
-  accent,
-  disabled,
-  onValueChange,
-}: MixerKnobProps) {
+function MixerKnob({ label, value, accent, disabled, onValueChange }: MixerKnobProps) {
   return (
     <RotaryKnob
       label={label}
@@ -76,9 +70,7 @@ function DeckEqColumn({
   onFilterChange,
 }: DeckEqColumnProps) {
   return (
-    <div
-      className={`flex h-full ${EQ_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}
-    >
+    <div className={`flex h-full ${EQ_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
       {EQ_BANDS.map((band) => (
         <MixerKnob
           key={band.id}
@@ -128,9 +120,7 @@ function DeckVolumeFader({
   const percent = Math.round(volume * 100);
 
   return (
-    <div
-      className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}
-    >
+    <div className={`flex h-full ${FADER_COLUMN_CLASS} shrink-0 flex-col items-center gap-1`}>
       <MixerKnob
         label="GAIN"
         value={gainTrim}
@@ -165,8 +155,7 @@ function DeckVolumeFader({
         className={cn(
           buttonIcon,
           "mt-2 size-7 shrink-0 border-white/10 text-zinc-400 hover:bg-zinc-800/90",
-          cue &&
-            "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
+          cue && "border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
         )}
         disabled={disabled}
         aria-label="Cue"
@@ -181,11 +170,7 @@ function DeckVolumeFader({
 }
 
 /** Spacers match GAIN / % / cue so meters align with the volume slider track. */
-function LevelMetersColumn({
-  levelMeterMode,
-}: {
-  levelMeterMode: LevelMeterMode;
-}) {
+function LevelMetersColumn({ levelMeterMode }: { levelMeterMode: LevelMeterMode }) {
   return (
     <div className="flex h-full shrink-0 flex-col items-center gap-1">
       <div className="invisible shrink-0" aria-hidden>
@@ -200,10 +185,7 @@ function LevelMetersColumn({
         <LevelMeter deckId={0} mode={levelMeterMode} />
         <LevelMeter deckId={1} mode={levelMeterMode} />
       </div>
-      <span
-        className="invisible w-full shrink-0 text-center text-[9px] tabular-nums"
-        aria-hidden
-      >
+      <span className="invisible w-full shrink-0 text-center text-[9px] tabular-nums" aria-hidden>
         100%
       </span>
       <div className="invisible size-7 shrink-0" aria-hidden />
@@ -228,9 +210,7 @@ function Crossfader({
         Crossfader
       </span>
       <div className="flex items-center gap-1.5 overflow-visible px-0.5">
-        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">
-          A
-        </span>
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-sky-300">A</span>
         <Slider
           orientation="horizontal"
           thumbAlignment="center"
@@ -251,9 +231,7 @@ function Crossfader({
             onPositionChange(next / 100);
           }}
         />
-        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-rose-300">
-          B
-        </span>
+        <span className="w-3 shrink-0 text-center text-[8px] font-semibold text-rose-300">B</span>
       </div>
     </div>
   );
@@ -333,15 +311,9 @@ export function DeckMixer() {
               ? "Level meter mode: mono. Switch to stereo."
               : "Level meter mode: stereo. Switch to mono."
           }
-          title={
-            levelMeterMode === "mono"
-              ? "Mono meters (max L/R)"
-              : "Stereo meters (L/R)"
-          }
+          title={levelMeterMode === "mono" ? "Mono meters (max L/R)" : "Stereo meters (L/R)"}
           onClick={() =>
-            engineActions.setLevelMeterMode(
-              levelMeterMode === "mono" ? "stereo" : "mono",
-            )
+            engineActions.setLevelMeterMode(levelMeterMode === "mono" ? "stereo" : "mono")
           }
         >
           {levelMeterMode === "mono" ? "M" : "S"}
@@ -352,17 +324,9 @@ export function DeckMixer() {
         <MixerEqColumn deckId={0} accent={DECK_ACCENTS.a} />
 
         <div className="flex min-h-0 shrink-0 items-stretch gap-1 px-0.5">
-          <MixerVolumeColumn
-            deckId={0}
-            channelAccent="a"
-            accent={DECK_ACCENTS.a}
-          />
+          <MixerVolumeColumn deckId={0} channelAccent="a" accent={DECK_ACCENTS.a} />
           <LevelMetersColumn levelMeterMode={levelMeterMode} />
-          <MixerVolumeColumn
-            deckId={1}
-            channelAccent="b"
-            accent={DECK_ACCENTS.b}
-          />
+          <MixerVolumeColumn deckId={1} channelAccent="b" accent={DECK_ACCENTS.b} />
         </div>
 
         <MixerEqColumn deckId={1} accent={DECK_ACCENTS.b} />

@@ -1,4 +1,8 @@
-# Rust DJ Engine
+<p align="center">
+  <img src="apps/gui-app/src/assets/mixar-logo.png" alt="Mixar" height="48">
+</p>
+
+# Mixar
 
 A modular, high-performance Rust audio engine for DJ applications.
 
@@ -13,7 +17,7 @@ GUI logging (Tauri plugin + LogTape, log file locations, verbosity): see [docs/l
 Cargo + npm workspace layout:
 
 ```
-rust-dj-engine/
+mixar/
 ├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
 ├─ .node-version       # Node major pin (22); also package.json engines
 ├─ rust-toolchain.toml # Rust stable + rustfmt/clippy (rustup / mise / CI)
@@ -39,8 +43,7 @@ rust-dj-engine/
 │  ├─ library-core/    # Library traits and shared types
 │  ├─ analyzer-core/   # Offline analysis traits and types
 │  ├─ analyzer-stratum/# stratum-dsp backend
-│  ├─ analyzer/        # decode + analyze_file facade
-│  └─ app-example/     # Minimal example binary
+│  └─ analyzer/        # decode + analyze_file facade
 └─ samples/            # Sample audio for local demos
 ```
 
@@ -103,7 +106,7 @@ Working pieces:
 - `codec` (symphonia) and `resampler` (rubato)
 - Producer/consumer plumbing with ring buffer
 - `Engine` API with `AudioSource`-based `load_track`
-- `app-example` demo (config, backend discovery, load/play/pause)
+- Desktop hosts: Tauri (`gui-app`) and experimental Flutter (`gui-flutter`)
 
 Still open / partial:
 
@@ -123,7 +126,7 @@ Any toolchain manager works (rustup + nvm/fnm/asdf, etc.). **Recommended:** [mis
 
 ```bash
 git clone <repository-url>
-cd rust-dj-engine
+cd mixar
 mise install
 npm install
 ```
@@ -133,10 +136,8 @@ npm install
 ```bash
 cargo build --manifest-path crates/Cargo.toml
 cargo test --manifest-path crates/Cargo.toml
-cargo run --manifest-path crates/Cargo.toml -p app-example
+npm run tauri:dev
 ```
-
-The example loads a file from `samples/` when present (run from the repo root). Override backend and settings with a local `config.toml` or by editing `app-example`.
 
 ### Running Tests
 

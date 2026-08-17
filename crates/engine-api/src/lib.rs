@@ -10,7 +10,7 @@ mod payload;
 mod wire;
 
 /// Product display name shared by desktop hosts (Tauri / Flutter).
-pub const APP_DISPLAY_NAME: &str = "Rust DJ";
+pub const APP_DISPLAY_NAME: &str = "Mixar";
 
 pub use kind::Kind;
 pub use origin::Origin;

@@ -21,9 +21,9 @@ This document synthesizes how professional DJ applications build, store, and ren
   - [8.6 EQ-aware rendering (future)](#86-eq-aware-rendering-future--architecture-now-wiring-later)
 - [9 — Data Model & Storage](#9--data-model--storage)
   - [9.1 Size math](#91-size-math-order-of-magnitude)
-  - [9.3 Storage tiers](#93-storage-tiers-agreed-for-rust-dj-engine)
+  - [9.3 Storage tiers](#93-storage-tiers-agreed-for-mixar)
   - [9.4 Database layout](#94-database-layout-decided)
-- [10 — rust-dj-engine Today](#10--rust-dj-engine-today)
+- [10 — Mixar Today](#10--mixar-today)
 - [11 — Recommended Direction for This Project](#11--recommended-direction-for-this-project)
 - [12 — Decision log](#12--decision-log)
 - [13 — Deferred to implementation](#13--deferred-to-implementation)
@@ -41,7 +41,7 @@ This document synthesizes how professional DJ applications build, store, and ren
 | **Two resolutions** | Detailed waveform for scrolling + low-res **overview** for full-track navigation. |
 | **EQ affects display?** | **MVP:** static. **Future:** Mixxx-style band gains at render time (§8.6). |
 | **When computed** | Overview at library import; scroll **window** detail at deck load / seek (background). |
-| **rust-dj-engine storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
+| **Mixar storage** | **Overview only** in `library.db` (`track_waveform` table); hi-res window in memory; progressive UI (§8.4). |
 
 ---
 
@@ -106,7 +106,7 @@ They are **not** intended to reflect post-EQ or post-filter audio with perfect a
 | **Rekordbox** | Offline (`rekordbox` analysis) | Not public; behaves like peak/RGB | Blue (amplitude), RGB, 3-Band | Static (no knob feedback) |
 | **Serato** | Offline | Not public | Frequency-colored (low → red) | Static |
 | **Traktor** | Offline | Not public | Blue/orange or RGB depending on version | Static |
-| **rust-dj-engine** | JIT on deck load | Peak (max abs) | RGB-style spectral | Not implemented |
+| **Mixar** | JIT on deck load | Peak (max abs) | RGB-style spectral | Not implemented |
 
 ---
 
@@ -406,7 +406,7 @@ Bytes per track ≈ `(duration_ms / 1000) × visual_rate × bytes_per_sample`.
 
 A single **60 min** mix at 441/s mono RGB is **~4.8 MB** of scroll data alone.
 
-#### B — Fixed bucket cap (rust-dj-engine today: max 16,384 buckets)
+#### B — Fixed bucket cap (Mixar today: max 16,384 buckets)
 
 Bytes per track ≈ `cap × bands × sizeof(sample)` — **bounded regardless of track length**.
 
@@ -428,7 +428,7 @@ Mixxx stores waveform **analysis blobs in the library database** (via `AnalysisD
 
 Takeaway: even Mixxx separates **persistent analysis bytes** from **cheap display cache**, and accepts per-track size scaling with duration.
 
-### 9.3 Storage tiers (agreed for rust-dj-engine)
+### 9.3 Storage tiers (agreed for Mixar)
 
 **Decision:** persist **overview only** in the library DB. Scroll detail is **not** stored on disk — computed per visible window at runtime (§8.4).
 
@@ -519,7 +519,7 @@ trait WaveformBandFilter {
 
 Analysis pipeline selects implementation from config / `WaveformAnalysisConfig`. MVP ships one default (e.g. Butterworth or Bessel at 600 / 4000 Hz); others added without changing storage format.
 
-### 9.7 Comparison to current rust-dj-engine
+### 9.7 Comparison to current Mixar
 
 | Aspect | Today | Target |
 |--------|-------|--------|
@@ -555,7 +555,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 
 ---
 
-## 10 — rust-dj-engine Today
+## 10 — Mixar Today
 
 **Location:** `audio-core/src/waveform.rs`, `gui-app` waveform components.
 

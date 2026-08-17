@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "stratum-dsp backend for rust-dj-engine audio analysis"
+description = "stratum-dsp backend for Mixar audio analysis"
 
 [dependencies]
 analyzer-core = { path = "../analyzer-core" }

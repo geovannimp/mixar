@@ -103,16 +103,13 @@
 
   --color-destructive-foreground: var(--destructive-foreground);
 
-  --animate-toast-success-odd: toast-success-odd 0.32s
-    cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-odd: toast-success-odd 0.32s cubic-bezier(0.5, 1, 0.89, 1);
 
-  --animate-toast-success-even: toast-success-even 0.32s
-    cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-success-even: toast-success-even 0.32s cubic-bezier(0.5, 1, 0.89, 1);
 
   --animate-toast-error-odd: toast-error-odd 0.28s cubic-bezier(0.5, 1, 0.89, 1);
 
-  --animate-toast-error-even: toast-error-even 0.28s
-    cubic-bezier(0.5, 1, 0.89, 1);
+  --animate-toast-error-even: toast-error-even 0.28s cubic-bezier(0.5, 1, 0.89, 1);
   @keyframes toast-success-odd {
     0% {
       scale: 1;

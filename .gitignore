@@ -113,6 +113,7 @@ dev/
 
 # Brainstorm / agent session artifacts
 .superpowers/
+docs/superpowers/
 
 # Local git worktrees
 .worktrees/

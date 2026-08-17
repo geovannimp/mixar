@@ -17,7 +17,6 @@ members = [
     "analyzer-core",
     "analyzer-stratum",
     "analyzer",
-    "app-example",
     "controller",
     "host-flutter",
 ]
@@ -29,7 +28,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Your Name <your.email@example.com>"]
 license = "GPL-3.0"
-repository = "https://github.com/yourusername/rust-dj-engine"
+repository = "https://github.com/geovannimp/mixar"
 description = "Modular Rust Audio Engine for DJ applications"
 
 [workspace.dependencies]
@@ -58,7 +57,7 @@ debug = true
 # Temporary: clang ≥21 + published pipewire-rs 0.10.0 drops SPA_ID_INVALID / PW_ID_ANY
 # (https://gitlab.freedesktop.org/pipewire/pipewire-rs/-/work_items/118).
 # Fixed in !273; drop this patch when crates.io ships ≥0.10.1.
-# See https://github.com/geovannimp/rust-dj-engine/issues/144
+# See https://github.com/geovannimp/mixar/issues/144
 [patch.crates-io]
 pipewire = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }
 pipewire-sys = { git = "https://gitlab.freedesktop.org/pipewire/pipewire-rs", rev = "9b54509e848e53ffa971ace15d7adf4908c09358" }

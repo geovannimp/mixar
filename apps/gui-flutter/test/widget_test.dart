@@ -117,7 +117,7 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const AppShell(appTitle: 'Rust DJ'),
+          home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
     );
@@ -131,7 +131,7 @@ void main() {
   testWidgets('mixer shell shows core regions', (tester) async {
     await pumpShell(tester);
 
-    expect(find.text('Rust DJ'), findsOneWidget);
+    expect(find.bySemanticsLabel('Mixar'), findsOneWidget);
     expect(find.text('Deck A'), findsWidgets);
     expect(find.text('Deck B'), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);

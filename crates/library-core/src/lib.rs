@@ -1,4 +1,4 @@
-//! Library traits and shared types for rust-dj-engine.
+//! Library traits and shared types for Mixar.
 //!
 //! Backends implement [`Library`] and [`WritableLibrary`]. The canonical manager
 //! lives in `library`; third-party adapters live in `library-adapters`.

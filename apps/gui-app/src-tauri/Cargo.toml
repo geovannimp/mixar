@@ -1,7 +1,7 @@
 [package]
 name = "gui-app"
 version = "0.1.0"
-description = "Rust DJ Engine prototype"
+description = "Mixar prototype"
 authors = ["you"]
 edition = "2021"
 

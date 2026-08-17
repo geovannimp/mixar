@@ -30,8 +30,7 @@ interface FaderTick {
 /** Hierarchical ticks every 10%: major at ends+center, otherwise minor. */
 const FADER_TICKS: FaderTick[] = Array.from({ length: 11 }, (_, i) => {
   const pos = i * 10;
-  const size: TickSize =
-    pos === 0 || pos === 50 || pos === 100 ? "major" : "minor";
+  const size: TickSize = pos === 0 || pos === 50 || pos === 100 ? "major" : "minor";
   return { pos, size };
 });
 
@@ -176,21 +175,12 @@ export function Slider({
     return [min];
   }, [value, defaultValue, min]);
 
-  const channelFader = channelAccent
-    ? DECK_ACCENTS[channelAccent].fader
-    : NEUTRAL_FADER_TRACK;
+  const channelFader = channelAccent ? DECK_ACCENTS[channelAccent].fader : NEUTRAL_FADER_TRACK;
   const faderLane =
-    thumbVariant === "fader"
-      ? crossfaderTrack
-        ? CROSSFADER_TRACK
-        : channelFader.trackBg
-      : null;
+    thumbVariant === "fader" ? (crossfaderTrack ? CROSSFADER_TRACK : channelFader.trackBg) : null;
   const markedFader = thumbVariant === "fader" && showMarkers;
 
-  const handleValueChange: SliderPrimitive.Root.Props["onValueChange"] = (
-    next,
-    eventDetails,
-  ) => {
+  const handleValueChange: SliderPrimitive.Root.Props["onValueChange"] = (next, eventDetails) => {
     if (!onValueChange) {
       return;
     }

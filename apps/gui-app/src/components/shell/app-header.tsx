@@ -1,3 +1,4 @@
+import mixarLogo from "@/assets/mixar-logo.png";
 import { isTauriApp } from "@/lib/tauri-app";
 
 import { TitleBarDragRegion } from "./title-bar-drag-region";
@@ -11,8 +12,8 @@ export function AppHeader() {
   return (
     <header className="relative z-40 flex h-10 shrink-0 items-stretch border-b border-white/8">
       <div className="flex min-w-0 items-center gap-3 px-4">
-        <h1 className="text-sm font-serif font-bold uppercase tracking-widest text-zinc-200">
-          Rust DJ
+        <h1 className="flex items-center">
+          <img src={mixarLogo} alt="Mixar" className="h-3 w-auto invert" />
         </h1>
       </div>
 

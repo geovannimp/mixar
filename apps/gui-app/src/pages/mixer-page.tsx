@@ -1,9 +1,5 @@
 import { useEffect } from "react";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { DeckGrid } from "@/components/deck/deck-grid";
 import { DualDeckWaveform } from "@/components/waveform/dual-deck-waveform";
 import { LibraryPanel } from "@/components/library/library-panel";
@@ -24,11 +20,7 @@ export function MixerPage() {
 
   return (
     <div className="flex min-h-0 flex-1 select-none flex-col">
-      <ResizablePanelGroup
-        id="mixer-layout"
-        orientation="vertical"
-        className="min-h-0 flex-1"
-      >
+      <ResizablePanelGroup id="mixer-layout" orientation="vertical" className="min-h-0 flex-1">
         <ResizablePanel
           id="waveforms"
           defaultSize={WAVEFORM_DEFAULT_HEIGHT}
@@ -40,18 +32,10 @@ export function MixerPage() {
           <DualDeckWaveform />
         </ResizablePanel>
 
-        <ResizableHandle
-          withHandle
-          className="bg-white/8 hover:bg-emerald-500/25"
-        />
+        <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
 
         {/* Keep waveforms outside TrackDragProvider so drag state updates don't re-render lanes. */}
-        <ResizablePanel
-          id="decks-and-library"
-          defaultSize="60"
-          minSize="40"
-          className="min-h-0"
-        >
+        <ResizablePanel id="decks-and-library" defaultSize="60" minSize="40" className="min-h-0">
           <TrackDragProvider>
             <ResizablePanelGroup
               id="mixer-decks-library"
@@ -69,10 +53,7 @@ export function MixerPage() {
                 <DeckGrid />
               </ResizablePanel>
 
-              <ResizableHandle
-                withHandle
-                className="bg-white/8 hover:bg-emerald-500/25"
-              />
+              <ResizableHandle withHandle className="bg-white/8 hover:bg-emerald-500/25" />
 
               <ResizablePanel
                 id="library"

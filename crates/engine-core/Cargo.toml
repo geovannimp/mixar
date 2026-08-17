@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Core engine orchestration for rust-dj-engine"
+description = "Core engine orchestration for Mixar"
 
 [features]
 default = ["backend-cpal"]
