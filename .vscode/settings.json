@@ -16,5 +16,5 @@
   },
   "dart.flutterHotReloadOnSave": "all",
   "cmake.sourceDirectory": "${workspaceFolder}/apps/gui-flutter/linux",
-  "cSpell.words": ["forui"]
+  "cSpell.words": ["forui", "mixar"]
 }
