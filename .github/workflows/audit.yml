@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: crates
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains

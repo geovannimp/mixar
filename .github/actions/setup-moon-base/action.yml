@@ -10,7 +10,11 @@ runs:
         set -euo pipefail
 
         # Always fetch main so vcs.defaultBranch and main-targeted PRs resolve.
-        git fetch --no-tags origin main:main
+        # git refuses to update a currently checked-out branch (exit 128), which
+        # is the case on push to main — checkout already has that ref.
+        if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
+          git fetch --no-tags origin main:main
+        fi
 
         if [ "${{ github.event_name }}" = "pull_request" ]; then
           base_ref="${{ github.base_ref }}"
