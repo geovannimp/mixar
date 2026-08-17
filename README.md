@@ -1,235 +1,109 @@
 <p align="center">
-  <img src="apps/gui-app/src/assets/mixar-logo.png" alt="Mixar" height="48">
+  <img src="docs/mixar-banner.jpg" alt="Mixar" width="100%">
 </p>
 
 # Mixar
 
-A modular, high-performance Rust audio engine for DJ applications.
+[![Build](https://github.com/geovannimp/mixar/actions/workflows/build.yml/badge.svg)](https://github.com/geovannimp/mixar/actions/workflows/build.yml)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](https://github.com/geovannimp/mixar)
 
-## Overview
+Open-source DJ software: dual decks, a mixer, and a library on a Rust audio engine.
 
-Headless Rust library providing a reusable audio engine for DJ apps. It features runtime-selectable audio backends, modular decks, pluggable audio loading via `AudioSource`, and a producer/consumer threading model with lock-free ring buffers.
+Linux is the primary development platform. The app is under active development and is not a released product yet.
 
-GUI logging (Tauri plugin + LogTape, log file locations, verbosity): see [docs/logging.md](docs/logging.md).
+## Features
 
-## Architecture
+- Dual decks with overview + scrolling waveforms, beat grid, play/pause, seek, and tempo
+- Mixer: gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters
+- Hot cues, loops, performance pads, sampler, and beat sync
+- Library with folder collections, track metadata, and offline analysis (BPM, key, loudness, artwork)
+- MIDI controller mappings
+- Runtime-selectable audio backends: CPAL (PipeWire on Linux when available), miniaudio, or `null` for tests
 
-Cargo + npm workspace layout:
+Two desktop hosts share the same engine: **Tauri + React** (`apps/gui-app`, primary) and an experimental **Flutter** host (`apps/gui-flutter`).
 
-```
-mixar/
-├─ package.json        # npm workspaces root (apps/* + packages/* + lefthook + @moonrepo/cli)
-├─ .node-version       # Node major pin (22); also package.json engines
-├─ rust-toolchain.toml # Rust stable + rustfmt/clippy (rustup / mise / CI)
-├─ mise.toml           # enables mise to read the pins above
-├─ .moon/              # moon workspace + toolchains
-├─ lefthook.yml        # pre-commit: npm run lint + format:check
-├─ apps/               # npm applications (moon globs: apps/*)
-│  ├─ gui-app/         # Tauri + React desktop UI (primary)
-│  └─ gui-flutter/     # Experimental Flutter host (flutter_rust_bridge)
-├─ packages/           # shared JS/TS libraries (moon globs: packages/*)
-├─ crates/             # Cargo workspace root (Cargo.toml + moon rust project)
-│  ├─ moon.yml
-│  ├─ audio-core/      # Shared types and traits (AudioBackend, AudioSource, Sample, …)
-│  ├─ backend-null/    # Deterministic backend for tests and CI
-│  ├─ backend-miniaudio/
-│  ├─ backend-cpal/    # CPAL (native PipeWire on Linux when available)
-│  ├─ engine-core/     # Engine lifecycle, config, producer thread, track loading
-│  ├─ engine-dsp/      # Pure DSP: decks, mixer (no I/O)
-│  ├─ host-flutter/    # FRB API surface for apps/gui-flutter
-│  ├─ codec/           # Decoder wrapper (symphonia)
-│  ├─ resampler/       # Resampler trait + rubato implementation
-│  ├─ library/         # Library manager (collections, tags, analysis)
-│  ├─ library-core/    # Library traits and shared types
-│  ├─ analyzer-core/   # Offline analysis traits and types
-│  ├─ analyzer-stratum/# stratum-dsp backend
-│  └─ analyzer/        # decode + analyze_file facade
-└─ samples/            # Sample audio for local demos
-```
+## Quick start
 
-### Data flow
+**Prerequisites:** [Node](https://nodejs.org/) 22.18+, Rust stable with rustfmt/clippy, and a working sound device. On Linux, install [Tauri’s native deps](https://v2.tauri.app/start/prerequisites/#linux) plus ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu).
 
-```
-AudioSource (e.g. FileAudioSource)
-        │ load() → LoadedAudio
-        ▼
-   Engine::load_track → Deck (engine-dsp)
-        │
-        ▼
-Producer thread ──► ring buffer ──► audio callback (backend)
-   (DSP process)                    (ConsumerCallback)
-```
-
-- **Producer:** engine-controlled thread runs DSP and writes interleaved stereo into a preallocated ring buffer.
-- **Consumer:** backend audio callback reads from the ring buffer; no allocations on the audio thread.
-- **Backends:** chosen at runtime via config (`auto` / `cpal` / `miniaudio` / `null`). Compiled in; no dynamic loading.
-
-### engine-core modules
-
-| Module         | Responsibility                                                                |
-| -------------- | ----------------------------------------------------------------------------- |
-| `config`       | `EngineConfig` and related TOML types                                         |
-| `engine`       | `Engine` public API (`start` / `stop` / `load_track` / `play` / `pause`)      |
-| `backend`      | Backend factory (`AudioBackend::list_names` / `new`)                          |
-| `producer`     | Ring buffer setup and producer thread loop                                    |
-| `callback`     | `ConsumerCallback` (ring-buffer consumer for the audio device)                |
-| `audio_source` | `FileAudioSource`; re-exports `AudioSource` / `LoadedAudio` from `audio-core` |
-
-### Audio loading
-
-Tracks are loaded through the `AudioSource` trait (defined in `audio-core`), not a bare path:
-
-```rust
-use engine_core::{Engine, EngineConfig, FileAudioSource};
-
-let mut engine = Engine::new(EngineConfig::default())?;
-engine.start()?;
-engine.load_track(0, &FileAudioSource::new("track.wav"))?;
-engine.play(0)?;
-```
-
-- `AudioSource` / `LoadedAudio` live in `audio-core` so loaders stay independent of engine internals.
-- `FileAudioSource` (in `engine-core`) loads from disk via `codec`.
-- Implement `AudioSource` for other origins (memory, network, etc.) without changing `Engine`.
-
-### engine-dsp
-
-Pure DSP only (`deck`, `mixer`). No filesystem, network, or backend/codec I/O. BPM/key/beat grid come from library track metadata. Suitable for future WASM builds.
-
-## Current Status
-
-Working pieces:
-
-- Workspace crates and CI skeleton
-- `audio-core` traits (`AudioBackend`, `AudioStream`, `AudioCallback`, `AudioSource`)
-- Backends: `null`, `miniaudio`, `cpal`
-- `codec` (symphonia) and `resampler` (rubato)
-- Producer/consumer plumbing with ring buffer
-- `Engine` API with `AudioSource`-based `load_track`
-- Desktop hosts: Tauri (`gui-app`) and experimental Flutter (`gui-flutter`)
-
-Still open / partial:
-
-- Library manager and tag storage (Sprint 3 placeholder)
-- WASM build of `engine-dsp`
-
-## Quick Start
-
-### Prerequisites
-
-- **Node** 22+ (see `.node-version` / `package.json` `engines`)
-- **Rust** stable with `rustfmt` and `clippy` (see `rust-toolchain.toml`)
-- Linux x86_64 (primary development platform)
-- For real audio output: a working sound device (CPAL/miniaudio). Use `backend = "null"` for headless tests.
-
-Any toolchain manager works (rustup + nvm/fnm/asdf, etc.). **Recommended:** [mise](https://mise.jdx.dev) — it reads `.node-version` and `rust-toolchain.toml` (via `mise.toml` settings). Follow [Getting Started](https://mise.jdx.dev/getting-started.html) and [IDE Integration](https://mise.jdx.dev/ide-integration.html).
+[mise](https://mise.jdx.dev) is recommended: it reads `.node-version` and `rust-toolchain.toml`.
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/geovannimp/mixar.git
 cd mixar
 mise install
 npm install
-```
-
-### Building
-
-```bash
-cargo build --manifest-path crates/Cargo.toml
-cargo test --manifest-path crates/Cargo.toml
 npm run tauri:dev
 ```
 
-### Running Tests
+Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so they do not need an audio device.
 
-```bash
-cargo test --manifest-path crates/Cargo.toml
-cargo test --manifest-path crates/Cargo.toml -p engine-core --lib
-cargo test --manifest-path crates/Cargo.toml -p audio-core
-cargo test --manifest-path crates/Cargo.toml -p backend-null
-cargo test --manifest-path crates/Cargo.toml -p engine-dsp
-```
-
-Integration tests that open real devices may fail without audio hardware; prefer the null backend for CI-style runs.
+The Flutter host (Linux): `npm run flutter:dev`.
 
 ## Development
 
-### Git hooks
-
-Run `npm install` once at the **repo root**. That installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev) (`@moonrepo/cli`), wires pre-commit hooks, and enables the task graph.
-
-Pre-commit runs `npm run lint` and `npm run format:check` (moon). CI uses `moon ci` for affected full-package checks.
-
-- Skip a lefthook job: `LEFTHOOK_EXCLUDE=lint,format`
-- Disable lefthook: `LEFTHOOK=0 git commit ...`
-- Emergency only: `git commit --no-verify`
-
-### moon task runner
+`npm install` at the repo root installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev). Pre-commit runs format and lint on staged files.
 
 ```bash
-npm install                 # root — hooks + gui-app + moon
-npm run lint                # moon run :lint
-npm run format:check        # moon run :format-check
-npm run build               # moon run :build
-npm run gui:dev             # moon run gui-app:dev
-npm run gui:build           # moon run gui-app:build
-npm run gui:tauri           # moon run gui-app:tauri (pass args after --)
-npx moon ci --base main     # locally mimic affected CI
+npm run lint            # moon run :lint
+npm run format:check    # moon run :format-check
+npm run test            # moon run :test
+npm run build           # moon run :build
+npx moon ci --base main # mimic affected CI locally
 ```
 
-#### Adding a new npm workspace package (e.g. `apps/website`, `packages/ui`)
+Skip a hook job with `LEFTHOOK_EXCLUDE=lint,format`. Disable hooks with `LEFTHOOK=0`. Emergency only: `git commit --no-verify`.
 
-1. Create the folder under `apps/` (application) or `packages/` (shared library).
-2. Add `package.json` with `lint`, `format:check`, and `build` scripts (and a unique `name`).
-3. Add `moon.yml` (`language: typescript`) whose tasks call those scripts; use `preset: server` (or `runInCI: false`) on `dev`.
-4. Run `npm install` at root — `workspaces` / moon already glob `apps/*` and `packages/*`.
-5. Verify `npx moon run <folder-name>:lint` and that `npx moon ci --base main` only runs it when that package changes.
+CI (GitHub Actions) runs affected lint, format, build, tests, and a cargo audit. A secondary Rust beta/nightly job runs when Rust paths change.
 
-### Code Style
+## Architecture
 
-- `cargo fmt` (also enforced by the pre-commit hook)
-- `cargo clippy`
-- Standard Rust naming conventions
+A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The backend audio callback only consumes that buffer — no allocations on the audio thread.
 
-### Testing
+```
+Library / AudioSource
+        │ load → PCM
+        ▼
+   Engine → decks + mixer (engine-dsp)
+        │
+        ▼
+Producer thread ──► ring buffer ──► audio callback (CPAL / miniaudio / null)
+```
 
-- Unit tests live in each crate
-- Integration tests can use the null backend
-- CI runs format, clippy, and tests on Linux
+Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread.
 
-### CI/CD
+```
+mixar/
+├─ apps/gui-app/       # Tauri + React desktop UI
+├─ apps/gui-flutter/   # Experimental Flutter host
+├─ crates/             # Cargo workspace (engine, backends, library, controller, …)
+└─ samples/            # Local demo audio
+```
 
-GitHub Actions primary gate is `moon ci` (affected lint, format-check, build, and rust test). A secondary Rust beta/nightly matrix runs on Rust path changes. Separate jobs cover security audit and docs generation.
+Default engine config is 48 kHz, 512-frame buffers. Backends are compiled in and chosen at runtime (`auto` / `cpal` / `miniaudio` / `null`).
 
-## Roadmap
+To embed the engine without a GUI:
 
-### Done
+```rust
+use engine_core::{AudioSource, Engine, EngineConfig, FileAudioSource};
 
-- [x] Workspace scaffolding
-- [x] `audio-core` traits and types
-- [x] `backend-null`, `backend-miniaudio`, `backend-cpal`
-- [x] `codec` (symphonia) and `resampler` (rubato)
-- [x] Producer/consumer ring-buffer plumbing
-- [x] Pluggable `AudioSource` loading (`FileAudioSource`)
+let mut engine = Engine::new(EngineConfig::default())?;
+engine.start()?;
+engine.load_track(0, AudioSource::File(FileAudioSource::from_path("track.wav")))?;
+engine.play(0)?;
+```
 
-### Next
+## Documentation
 
-- [ ] Complete bus/device channel mapping
-- [ ] Library manager: collections, tag reading, and metadata storage
-- [ ] WASM prototype for `engine-dsp`
-
-## License
-
-GPL-3.0
+- [Technical spec](docs/tech-spec.md) — crates, threading, config, backends
+- [Deck spec](docs/deck-spec.md) — deck UI, mixer, pads, data model
+- [Logging](docs/logging.md) — log files and verbosity
+- [Waveforms](docs/dj-waveform-spec.md) and [analyzer](docs/audio-analyzer-spec.md)
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run `npm install` at the repo root (installs git hooks); then `cargo fmt` / `cargo clippy` as needed
-6. Submit a pull request
+Open a pull request against `main`. Run `npm install` once so git hooks are installed, then keep `cargo fmt` / `cargo clippy` and the npm format/lint scripts clean.
 
-## Technical Details
+## License
 
-See [docs/tech-spec.md](docs/tech-spec.md) for the full technical specification. Cursor rules under `.cursor/rules/` describe per-crate conventions for agents and contributors.
+[GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)
