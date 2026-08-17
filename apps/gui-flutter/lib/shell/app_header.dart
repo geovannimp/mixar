@@ -50,7 +50,7 @@ class AppHeader extends ConsumerWidget {
                     ),
                     child: Image.asset(
                       'assets/mixar-logo.png',
-                      height: 16,
+                      height: 12,
                       filterQuality: FilterQuality.medium,
                       semanticLabel: appTitle,
                     ),

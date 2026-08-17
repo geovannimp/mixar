@@ -13,7 +13,7 @@ export function AppHeader() {
     <header className="relative z-40 flex h-10 shrink-0 items-stretch border-b border-white/8">
       <div className="flex min-w-0 items-center gap-3 px-4">
         <h1 className="flex items-center">
-          <img src={mixarLogo} alt="Mixar" className="h-4 w-auto invert" />
+          <img src={mixarLogo} alt="Mixar" className="h-3 w-auto invert" />
         </h1>
       </div>
 
