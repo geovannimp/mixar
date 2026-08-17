@@ -1,27 +1,20 @@
 name: Setup moon affected CI
-description: Fetch main (and PR base), enable moon --affected via env
+description: Enable moon --affected via env (checkout fetch-depth 0 provides history)
 
 runs:
   using: composite
   steps:
-    - name: Fetch base refs and enable affected
+    - name: Enable moon affected
       shell: bash
       run: |
         set -euo pipefail
 
-        # Always fetch main so vcs.defaultBranch and main-targeted PRs resolve.
-        git fetch --no-tags origin main:main
-
         if [ "${{ github.event_name }}" = "pull_request" ]; then
-          base_ref="${{ github.base_ref }}"
-          if [ "$base_ref" != "main" ]; then
-            git fetch --no-tags origin "${base_ref}:${base_ref}"
-          fi
           echo "MOON_BASE=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV"
         elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
           echo "MOON_BASE=${{ github.event.before }}" >> "$GITHUB_ENV"
         else
-          echo "MOON_BASE=main" >> "$GITHUB_ENV"
+          echo "MOON_BASE=origin/main" >> "$GITHUB_ENV"
         fi
 
         # remote = compare against MOON_BASE / default branch (not local dirty state)
