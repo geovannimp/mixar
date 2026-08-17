@@ -40,7 +40,11 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   }
 
   void _hydrate(ControllerTransport transport) {
+    // ponytail: 250ms × 40 poll of pendingOffers covers offers raised before
+    // this widget subscribed (cold ALSA). Upgrade: Rust sink replays pending
+    // offers on subscribe, then delete this timer.
     var attempts = 0;
+    var reported = false;
     Future<void> tick() async {
       if (!mounted) {
         return;
@@ -53,7 +57,19 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
         if (offers.isNotEmpty) {
           _retry?.cancel();
         }
-      } catch (_) {}
+      } catch (e, st) {
+        if (reported) {
+          return;
+        }
+        reported = true;
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: st,
+            context: ErrorDescription('controller pendingOffers hydrate'),
+          ),
+        );
+      }
     }
 
     unawaited(tick());
@@ -67,6 +83,9 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
   }
 
   void _onEvent(ControllerEvt evt) {
+    if (!mounted) {
+      return;
+    }
     switch (evt.kind) {
       case ControllerEvtKind.mappingOffer:
         _showOffer(evt);
@@ -94,6 +113,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     showFToast(
       context: context,
       duration: null,
+      onDismiss: () => _shownPorts.remove(port),
       title: Text('${evt.deviceName ?? mappingId} connected'),
       description: const Text('Do you want to use this controller?'),
       suffixBuilder: (context, entry) => FButton(

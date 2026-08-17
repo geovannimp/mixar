@@ -107,6 +107,9 @@ class _ControllersCardState extends ConsumerState<_ControllersCard> {
     setState(() => _busy = true);
     try {
       await action();
+      if (!mounted) {
+        return;
+      }
       ref.invalidate(controllerMappingsProvider);
       ref.invalidate(controllerDevicesProvider);
     } catch (e) {

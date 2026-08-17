@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 /// Starts once on desktop after engine+library buses exist.
+/// MIDI is optional: start failure is reported and the rest of the shell keeps running.
 final controllerTransportProvider = FutureProvider<ControllerTransport?>((
   ref,
 ) async {
@@ -28,11 +29,11 @@ final controllerTransportProvider = FutureProvider<ControllerTransport?>((
       mappingsDir: mappingsDir,
     );
     ref.keepAlive();
+    ref.onDispose(controller.dispose);
     return controller;
   } catch (e, st) {
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
-    fatalExit(1);
-    rethrow;
+    return null;
   }
 });
 

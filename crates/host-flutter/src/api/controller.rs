@@ -130,28 +130,23 @@ impl ControllerTransport {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
             let sink = Arc::clone(&sink);
-            threads.push(
-                std::thread::Builder::new()
-                    .name("controller-poll".into())
-                    .spawn(move || loop {
-                        let events = if let Ok(mut eng) = controller_engine.lock() {
-                            let _ = eng.poll_devices();
-                            eng.take_events()
-                        } else {
-                            Vec::new()
-                        };
-                        emit_events(&sink, events);
-                        let mut waited = Duration::ZERO;
-                        while waited < DEVICE_POLL_INTERVAL {
-                            if stop_flag.load(Ordering::Relaxed) {
-                                return;
-                            }
-                            std::thread::sleep(Duration::from_millis(100));
-                            waited += Duration::from_millis(100);
-                        }
-                    })
-                    .map_err(|e| e.to_string())?,
-            );
+            spawn_named("controller-poll", &stop, &mut threads, move || loop {
+                let events = if let Ok(mut eng) = controller_engine.lock() {
+                    let _ = eng.poll_devices();
+                    eng.take_events()
+                } else {
+                    Vec::new()
+                };
+                emit_events(&sink, events);
+                let mut waited = Duration::ZERO;
+                while waited < DEVICE_POLL_INTERVAL {
+                    if stop_flag.load(Ordering::Relaxed) {
+                        return;
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                    waited += Duration::from_millis(100);
+                }
+            })?;
         }
         {
             let stop_flag = Arc::clone(&stop);
@@ -159,27 +154,22 @@ impl ControllerTransport {
             let sink = Arc::clone(&sink);
             let engine_buses = engine_buses.clone();
             let library_buses = library_buses.clone();
-            threads.push(
-                std::thread::Builder::new()
-                    .name("controller-pump".into())
-                    .spawn(move || {
-                        while !stop_flag.load(Ordering::Relaxed) {
-                            let mut bus = HostPublish {
-                                engine: engine_buses.clone(),
-                                library: library_buses.clone(),
-                            };
-                            let events = if let Ok(mut eng) = controller_engine.lock() {
-                                eng.pump(&mut bus);
-                                eng.take_events()
-                            } else {
-                                Vec::new()
-                            };
-                            emit_events(&sink, events);
-                            std::thread::sleep(PUMP_INTERVAL);
-                        }
-                    })
-                    .map_err(|e| e.to_string())?,
-            );
+            spawn_named("controller-pump", &stop, &mut threads, move || {
+                while !stop_flag.load(Ordering::Relaxed) {
+                    let mut bus = HostPublish {
+                        engine: engine_buses.clone(),
+                        library: library_buses.clone(),
+                    };
+                    let events = if let Ok(mut eng) = controller_engine.lock() {
+                        eng.pump(&mut bus);
+                        eng.take_events()
+                    } else {
+                        Vec::new()
+                    };
+                    emit_events(&sink, events);
+                    std::thread::sleep(PUMP_INTERVAL);
+                }
+            })?;
         }
 
         Ok(Self {
@@ -338,6 +328,31 @@ fn map_evt(ev: ControllerEvent) -> ControllerEvt {
     }
 }
 
+fn stop_and_join(stop: &AtomicBool, threads: &mut Vec<JoinHandle<()>>) {
+    stop.store(true, Ordering::Relaxed);
+    for handle in threads.drain(..) {
+        let _ = handle.join();
+    }
+}
+
+fn spawn_named(
+    name: &str,
+    stop: &AtomicBool,
+    threads: &mut Vec<JoinHandle<()>>,
+    f: impl FnOnce() + Send + 'static,
+) -> Result<(), String> {
+    match std::thread::Builder::new().name(name.into()).spawn(f) {
+        Ok(handle) => {
+            threads.push(handle);
+            Ok(())
+        }
+        Err(e) => {
+            stop_and_join(stop, threads);
+            Err(e.to_string())
+        }
+    }
+}
+
 /// ponytail: compile-time walk to repo `mappings/` — Flutter release builds need
 /// bundled resources (Tauri uses `resource_dir` first). Override via `shipped_mappings_dir`.
 fn resolve_shipped_mappings() -> PathBuf {
@@ -352,4 +367,25 @@ fn resolve_shipped_mappings() -> PathBuf {
         }
     }
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../mappings")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_and_join_stops_spawned_thread() {
+        let stop = Arc::new(AtomicBool::new(false));
+        let mut threads = Vec::new();
+        let watch = Arc::clone(&stop);
+        spawn_named("controller-test", stop.as_ref(), &mut threads, move || {
+            while !watch.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        })
+        .unwrap();
+        assert_eq!(threads.len(), 1);
+        stop_and_join(stop.as_ref(), &mut threads);
+        assert!(threads.is_empty());
+    }
 }
