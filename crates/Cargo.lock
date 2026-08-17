@@ -1680,6 +1680,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "controller",
  "engine-api",
  "engine-core",
  "flutter_rust_bridge",

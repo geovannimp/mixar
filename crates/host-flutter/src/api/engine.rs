@@ -193,6 +193,25 @@ fn is_coalescible(kind: &Kind) -> bool {
     )
 }
 
+/// Cloneable engine cmd/evt buses for hosts that only publish (controller).
+#[derive(Clone)]
+#[flutter_rust_bridge::frb(opaque)]
+pub struct EngineBusHandle {
+    buses: EngineBuses,
+}
+
+impl EngineBusHandle {
+    /// Wrap an existing bus pair (tests / `EngineTransport::buses`).
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn from_buses(buses: EngineBuses) -> Self {
+        Self { buses }
+    }
+
+    pub(crate) fn buses(&self) -> EngineBuses {
+        self.buses.clone()
+    }
+}
+
 /// Host-owned engine handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct EngineTransport {
@@ -496,6 +515,11 @@ impl EngineTransport {
     #[flutter_rust_bridge::frb(ignore)]
     pub fn subscribe_evt_all(&self) -> Result<engine_core::EvtReceiver, String> {
         self.buses.subscribe_evt_all().map_err(|e| e.to_string())
+    }
+
+    /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
+    pub fn buses(&self) -> EngineBusHandle {
+        EngineBusHandle::from_buses(self.buses.clone())
     }
 }
 
