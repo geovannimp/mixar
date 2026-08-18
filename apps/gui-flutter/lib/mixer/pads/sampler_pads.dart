@@ -221,6 +221,9 @@ class SamplerPads extends StatelessWidget {
       formats: const [Formats.plainText, Formats.fileUri],
       hitTestBehavior: HitTestBehavior.opaque,
       onDropOver: (event) {
+        if (disabled) {
+          return DropOperation.none;
+        }
         for (final item in event.session.items) {
           if (parseTrackDragLocalData(item.localData) != null ||
               item.canProvide(Formats.plainText) ||
@@ -231,6 +234,9 @@ class SamplerPads extends StatelessWidget {
         return DropOperation.none;
       },
       onPerformDrop: (event) async {
+        if (disabled) {
+          return;
+        }
         _performSamplerAssignDrop(event, slot, assign);
       },
       child: pad,

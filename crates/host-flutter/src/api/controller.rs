@@ -423,11 +423,15 @@ fn mirror_engine_library_to_controller(
     };
     let mut deck_tracks: [Option<String>; 4] = Default::default();
     while !stop.load(Ordering::Relaxed) {
-        if let Ok(Some(ev)) = engine_rx.recv_timeout(Duration::from_millis(5)) {
-            apply_engine_mirror(&controller, &mut deck_tracks, ev.as_ref());
+        match engine_rx.recv_timeout(Duration::from_millis(5)) {
+            Ok(Some(ev)) => apply_engine_mirror(&controller, &mut deck_tracks, ev.as_ref()),
+            Ok(None) => {}
+            Err(_) => return,
         }
-        if let Ok(Some(ev)) = library_rx.recv_timeout(Duration::from_millis(5)) {
-            apply_library_mirror(&controller, &deck_tracks, ev.as_ref());
+        match library_rx.recv_timeout(Duration::from_millis(5)) {
+            Ok(Some(ev)) => apply_library_mirror(&controller, &deck_tracks, ev.as_ref()),
+            Ok(None) => {}
+            Err(_) => return,
         }
     }
 }

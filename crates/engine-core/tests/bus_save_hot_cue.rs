@@ -216,12 +216,17 @@ fn hot_cue_pad_press_saves_then_triggers() {
             Ok(())
         })
         .expect("seek 0");
-    while evt
-        .recv_timeout(Duration::from_millis(50))
-        .ok()
-        .flatten()
-        .is_some()
-    {}
+    let drain_until = Instant::now() + Duration::from_millis(500);
+    while Instant::now() < drain_until {
+        if evt
+            .recv_timeout(Duration::from_millis(20))
+            .ok()
+            .flatten()
+            .is_none()
+        {
+            break;
+        }
+    }
 
     session
         .publish_cmd(

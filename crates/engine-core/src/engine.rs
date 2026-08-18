@@ -1319,9 +1319,6 @@ impl Engine {
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let position_ms = snap_ms(position_ms, bpm, quantize);
-        if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.hot_cues[usize::from(slot)] = Some(position_ms);
-        }
         self.publish_library_cmd(
             library_api::Kind::SaveHotCue,
             library_api::CmdBody::SaveHotCue {
@@ -1332,7 +1329,11 @@ impl Engine {
                 color: None,
                 label: None,
             },
-        )
+        )?;
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.hot_cues[usize::from(slot)] = Some(position_ms);
+        }
+        Ok(())
     }
 
     fn hydrate_hot_cues(&mut self, deck_id: usize) -> Result<()> {
@@ -1376,16 +1377,17 @@ impl Engine {
             .get(deck_id)
             .and_then(|c| c.track_id.clone())
             .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
-        if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.hot_cues[usize::from(slot)] = None;
-        }
         self.publish_library_cmd(
             library_api::Kind::DeleteHotCue,
             library_api::CmdBody::DeleteHotCue {
                 track_id: track_id.as_str().to_string(),
                 slot,
             },
-        )
+        )?;
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.hot_cues[usize::from(slot)] = None;
+        }
+        Ok(())
     }
 
     /// Hot-cue pad press: save, trigger, or delete from engine-owned slot state.

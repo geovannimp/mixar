@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -46,12 +47,25 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     PadMode.sampler => rust.PadMode.sampler,
   };
 
-  Future<void> _run(Future<void> Function(rust.EngineTransport engine) fn) async {
+  Future<bool> _run(Future<void> Function(rust.EngineTransport engine) fn) async {
     final engine = _engine;
     if (engine == null) {
+      return false;
+    }
+    try {
+      await fn(engine);
+      return true;
+    } catch (e) {
+      _toastError(e);
+      return false;
+    }
+  }
+
+  void _toastError(Object e) {
+    if (!mounted) {
       return;
     }
-    await fn(engine);
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
 
   @override
@@ -179,8 +193,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       },
       onSelectBank: (id) => setState(() => _activeBankId = id),
       onSaveBank: (bankId, name, playMode) {
-        // Bank rename/play-mode persist is host/library bank cmds; UI keeps the
-        // picker selection so chrome stays in sync with the last chosen bank.
+        // ponytail: bank name/play-mode edits are dropped; only the picker
+        // selection is kept. Upgrade: send SetSamplerBank once the cmd lands.
         setState(() => _activeBankId = bankId);
       },
       onSamplerAssign: (slot, payload) {
@@ -193,24 +207,22 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
   }
 
   Future<void> _assignSampler(int slot, TrackDragPayload payload) async {
-    final engine = _engine;
-    if (engine == null) {
-      return;
-    }
-    if (payload.trackId != null && payload.trackId!.isNotEmpty) {
-      await engine.assignSamplerTrack(
-        deckId: widget.deckId,
-        slot: slot,
-        trackId: payload.trackId!,
-      );
-    } else {
-      await engine.assignSampler(
-        deckId: widget.deckId,
-        slot: slot,
-        path: payload.path,
-      );
-    }
-    if (!mounted) {
+    final ok = await _run((engine) async {
+      if (payload.trackId != null && payload.trackId!.isNotEmpty) {
+        await engine.assignSamplerTrack(
+          deckId: widget.deckId,
+          slot: slot,
+          trackId: payload.trackId!,
+        );
+      } else {
+        await engine.assignSampler(
+          deckId: widget.deckId,
+          slot: slot,
+          path: payload.path,
+        );
+      }
+    });
+    if (!ok || !mounted) {
       return;
     }
     setState(() {
