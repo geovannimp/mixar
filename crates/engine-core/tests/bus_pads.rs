@@ -289,3 +289,54 @@ fn beat_jump_pad_press_moves_playhead() {
         "expected ~500ms after +1 beat jump, got {pos}"
     );
 }
+
+#[test]
+fn pad_press_follows_engine_pad_mode() {
+    let session = null_session_loaded();
+    session
+        .with_engine(|engine| {
+            engine.seek_deck(0, 0)?;
+            Ok(())
+        })
+        .expect("seek");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetPadMode,
+            encode_cmd_body(&CmdBody::SetPadMode {
+                mode: PadMode::BeatJump,
+            })
+            .unwrap(),
+        )
+        .expect("set pad mode");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::PadPress,
+            encode_cmd_body(&CmdBody::PadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
+        )
+        .expect("press");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { position_ms, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let pos = position_ms.expect("position");
+    assert!(
+        (pos - 500).abs() <= 2,
+        "PadPress in beat-jump mode should jump +1 beat, got {pos}"
+    );
+}

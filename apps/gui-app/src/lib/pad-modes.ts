@@ -29,6 +29,13 @@ export const PAD_MODE_SHORT_LABELS: Record<PadMode, string> = {
   sampler: "Sample",
 };
 
-export const LOOP_ROLL_BEATS = [1, 2, 4, 8, 16, 32, 64, 128] as const;
+export const LOOP_ROLL_BEATS = [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4] as const;
 export const BEAT_JUMP_FORWARD = [1, 2, 4, 8, 16, 32, 64, 128] as const;
 export const BEAT_JUMP_BACK = [-1, -2, -4, -8, -16, -32, -64, -128] as const;
+
+export function formatBeatLength(beats: number): string {
+  if (beats >= 1 || beats <= 0) {
+    return String(beats);
+  }
+  return `1/${Math.round(1 / beats)}`;
+}

@@ -114,7 +114,7 @@ impl MappingSession {
     pub fn set_deck_hot_cues(
         &mut self,
         deck: u16,
-        cues: [Option<i32>; 8],
+        cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT],
         midi: &mut impl MidiOut,
     ) {
         let i = (deck as usize).min(3);

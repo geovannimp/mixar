@@ -577,7 +577,7 @@ impl ControllerEngine {
     }
 
     /// Mirror library hot cues into the attached mapping (pad Trigger vs Save + LEDs).
-    pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; 8]) {
+    pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT]) {
         if let Some(attached) = self.attached.as_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,

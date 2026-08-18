@@ -14,7 +14,7 @@ mod session;
 pub mod check;
 pub mod script;
 
-pub use action::{resolve_action, RoutedAction};
+pub use action::{resolve_action, RoutedAction, HOT_CUE_SLOT_COUNT};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,

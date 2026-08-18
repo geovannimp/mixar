@@ -341,6 +341,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeatJump, CmdBody::BeatJump { .. })
         | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
         | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
+        | (Kind::PadPress, CmdBody::PadPress { .. })
+        | (Kind::PadRelease, CmdBody::PadRelease { .. })
         | (Kind::TriggerHotCue, CmdBody::TriggerHotCue { .. })
         | (Kind::RecallSavedLoop, CmdBody::RecallSavedLoop { .. })
         | (Kind::SaveHotCue, CmdBody::SaveHotCue { .. })
@@ -353,8 +355,6 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeatJumpPadRelease, CmdBody::BeatJumpPadRelease { .. })
         | (Kind::SamplerPadPress, CmdBody::SamplerPadPress { .. })
         | (Kind::SamplerPadRelease, CmdBody::SamplerPadRelease { .. })
-        | (Kind::TriggerSampler, CmdBody::TriggerSampler { .. })
-        | (Kind::EndSampler, CmdBody::EndSampler { .. })
         | (Kind::AssignSampler, CmdBody::AssignSampler { .. })
         | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
         | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
@@ -655,6 +655,20 @@ fn dispatch_deck_cmd(
             eng.end_deck_loop_roll(deck_id)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
+        Kind::PadPress => {
+            let CmdBody::PadPress { slot, shift } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.pad_press(deck_id, slot, shift)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::PadRelease => {
+            let CmdBody::PadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.pad_release(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
         Kind::TriggerHotCue => {
             let CmdBody::TriggerHotCue { position_ms } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
@@ -763,20 +777,6 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.recall_deck_saved_loop(deck_id, in_ms, out_ms)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::TriggerSampler => {
-            let CmdBody::TriggerSampler { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.trigger_deck_sampler(deck_id, slot as usize)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
-        Kind::EndSampler => {
-            let CmdBody::EndSampler { slot } = decode_cmd_body_for(kind, payload)? else {
-                unreachable!()
-            };
-            eng.end_deck_sampler(deck_id, slot as usize)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::JogTouch => {

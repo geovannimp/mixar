@@ -50,7 +50,7 @@ const DECK_ALIASES: &[&str] = &[
     "pad_6",
     "pad_7",
     "pad_8",
-    // Other HW note banks for the same physical pads (→ map to pad_N).
+    // Other HW note banks for the same physical pads (Pioneer: named *_pad leaves).
     "loop_pad_1",
     "loop_pad_2",
     "loop_pad_3",
@@ -176,6 +176,10 @@ const DECK_LEAVES: &[&str] = &[
     "beat_jump",
     "pad_mode",
     "pad",
+    "hot_cue_pad",
+    "loop_roll_pad",
+    "beat_jump_pad",
+    "sampler_pad",
     "trigger_sampler",
 ];
 
@@ -193,7 +197,7 @@ pub fn validate_leaf_args(
     args: &crate::action_id::ActionArgs,
 ) -> Result<(), LoadError> {
     match leaf {
-        "pad" => {
+        "pad" | "hot_cue_pad" | "loop_roll_pad" | "beat_jump_pad" | "sampler_pad" => {
             args.expect_keys_exactly(&["n"])?;
             let n = args.require_int("n")?;
             if n < 1 {
@@ -281,9 +285,27 @@ pub fn is_closed_input_alias(section: &str, alias: &str) -> bool {
         return SAMPLER_ALIASES.contains(&alias);
     }
     if section.starts_with("deck_") {
-        return DECK_ALIASES.contains(&alias);
+        return DECK_ALIASES.contains(&alias) || numbered_deck_alias(alias);
     }
     false
+}
+
+/// `hot_cue_n` / `pad_n` / … for any n >= 1. Engine/library reject slots they cannot use.
+fn numbered_deck_alias(alias: &str) -> bool {
+    const PREFIXES: &[&str] = &[
+        "hot_cue_",
+        "delete_hot_cue_",
+        "pad_",
+        "loop_pad_",
+        "jump_pad_",
+        "sampler_pad_",
+    ];
+    PREFIXES.iter().any(|prefix| {
+        alias
+            .strip_prefix(prefix)
+            .and_then(|rest| rest.parse::<usize>().ok())
+            .is_some_and(|n| n >= 1)
+    })
 }
 
 pub fn is_snake_case(name: &str) -> bool {
@@ -292,4 +314,18 @@ pub fn is_snake_case(name: &str) -> bool {
             .chars()
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         && name.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn numbered_deck_aliases_accept_any_n_from_one() {
+        assert!(is_closed_input_alias("deck_1", "hot_cue_16"));
+        assert!(is_closed_input_alias("deck_1", "pad_17"));
+        assert!(is_closed_input_alias("deck_1", "delete_hot_cue_99"));
+        assert!(!is_closed_input_alias("deck_1", "pad_0"));
+        assert!(!numbered_deck_alias("pad_mode_hot_cue"));
+    }
 }

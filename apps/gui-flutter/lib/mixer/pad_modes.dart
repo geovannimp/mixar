@@ -1,7 +1,9 @@
 import 'package:flutter/services.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
 
-/// Pad mode enum + Tauri-matching beat tables / labels.
-enum PadMode { hotCue, loopRoll, beatJump, sampler }
+export 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
+
+/// Pad mode helpers + Tauri-matching beat tables / labels.
 
 const kPadModes = <PadMode>[
   PadMode.hotCue,
@@ -10,7 +12,7 @@ const kPadModes = <PadMode>[
   PadMode.sampler,
 ];
 
-const kLoopRollBeats = <num>[1, 2, 4, 8, 16, 32, 64, 128];
+const kLoopRollBeats = <num>[1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4];
 const kBeatJumpForward = <num>[1, 2, 4, 8, 16, 32, 64, 128];
 const kBeatJumpBack = <num>[-1, -2, -4, -8, -16, -32, -64, -128];
 

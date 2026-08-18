@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use controller::{
     ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
+    HOT_CUE_SLOT_COUNT,
 };
 use engine_api::{
     decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, PadMode,
@@ -373,22 +374,22 @@ fn spawn_named(
     }
 }
 
-fn hot_cue_slots_lib(cues: &[LibraryHotCue]) -> [Option<i32>; 8] {
-    let mut slots = [None; 8];
+fn hot_cue_slots_lib(cues: &[LibraryHotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] {
+    let mut slots = [None; HOT_CUE_SLOT_COUNT];
     for cue in cues {
         let idx = cue.slot as usize;
-        if idx < 8 {
+        if idx < slots.len() {
             slots[idx] = Some(cue.position_ms);
         }
     }
     slots
 }
 
-fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; 8] {
-    let mut slots = [None; 8];
+fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] {
+    let mut slots = [None; HOT_CUE_SLOT_COUNT];
     for cue in cues {
         let idx = cue.slot as usize;
-        if idx < 8 {
+        if idx < slots.len() {
             slots[idx] = Some(cue.position_ms);
         }
     }
@@ -402,7 +403,11 @@ fn apply_pad_mode(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, mode: PadMode) 
     ctrl.set_deck_pad_mode(deck, mode);
 }
 
-fn apply_hot_cues(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, slots: [Option<i32>; 8]) {
+fn apply_hot_cues(
+    eng: &Arc<Mutex<ControllerEngine>>,
+    deck: u16,
+    slots: [Option<i32>; HOT_CUE_SLOT_COUNT],
+) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
     };

@@ -37,6 +37,8 @@ export const KindSchema = z.enum([
   "set_pad_mode",
   "begin_loop_roll",
   "end_loop_roll",
+  "pad_press",
+  "pad_release",
   "hot_cue_pad_press",
   "hot_cue_pad_release",
   "loop_roll_pad_press",
@@ -47,8 +49,6 @@ export const KindSchema = z.enum([
   "sampler_pad_release",
   "trigger_hot_cue",
   "recall_saved_loop",
-  "trigger_sampler",
-  "end_sampler",
   "assign_sampler",
   "assign_sampler_track",
   "clear_sampler",
@@ -252,6 +252,12 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     beats: z.number().finite().positive(),
   }),
   z.object({
+    type: z.literal("pad_press"),
+    slot: z.number().int().nonnegative(),
+    shift: z.boolean().optional(),
+  }),
+  z.object({ type: z.literal("pad_release"), slot: z.number().int().nonnegative() }),
+  z.object({
     type: z.literal("hot_cue_pad_press"),
     slot: z.number().int().nonnegative(),
     shift: z.boolean().optional(),
@@ -273,8 +279,6 @@ export const CmdBodySchema = z.discriminatedUnion("type", [
     in_ms: z.number(),
     out_ms: z.number(),
   }),
-  z.object({ type: z.literal("trigger_sampler"), slot: z.number().int().nonnegative() }),
-  z.object({ type: z.literal("end_sampler"), slot: z.number().int().nonnegative() }),
   z.object({
     type: z.literal("assign_sampler"),
     slot: z.number().int().nonnegative(),
@@ -492,10 +496,12 @@ export type CmdKind =
   | "set_pad_mode"
   | "begin_loop_roll"
   | "end_loop_roll"
+  | "pad_press"
+  | "pad_release"
+  | "sampler_pad_press"
+  | "sampler_pad_release"
   | "trigger_hot_cue"
   | "recall_saved_loop"
-  | "trigger_sampler"
-  | "end_sampler"
   | "assign_sampler"
   | "assign_sampler_track"
   | "clear_sampler"

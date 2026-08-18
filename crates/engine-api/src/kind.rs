@@ -37,6 +37,10 @@ pub enum Kind {
     SetPadMode,
     BeginLoopRoll,
     EndLoopRoll,
+    /// Generic pad: engine `pad_mode` selects the named pair (notes do not change per mode).
+    PadPress,
+    PadRelease,
+    /// Hardware note banks that already encode mode (Pioneer).
     HotCuePadPress,
     HotCuePadRelease,
     LoopRollPadPress,
@@ -47,8 +51,6 @@ pub enum Kind {
     SamplerPadRelease,
     TriggerHotCue,
     RecallSavedLoop,
-    TriggerSampler,
-    EndSampler,
     AssignSampler,
     AssignSamplerTrack,
     ClearSampler,

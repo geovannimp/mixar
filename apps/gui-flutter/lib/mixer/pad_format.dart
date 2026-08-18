@@ -10,3 +10,15 @@ String formatDeckTimeTenth(int? ms) {
   final tenth = rem % 10;
   return '$minutes:${whole.toString().padLeft(2, '0')}.$tenth';
 }
+
+/// Beat length label: `1/32`, `1/2`, `1`, `4`.
+String formatBeatLength(num beats) {
+  if (beats >= 1) {
+    return beats == beats.roundToDouble() ? '${beats.round()}' : '$beats';
+  }
+  if (beats <= 0) {
+    return '$beats';
+  }
+  final den = (1 / beats).round();
+  return '1/$den';
+}

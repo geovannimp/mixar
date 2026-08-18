@@ -55,44 +55,6 @@ fn null_session_with_sample() -> EngineSession {
 }
 
 #[test]
-fn trigger_sampler_requires_sampler_pad_mode() {
-    let config = EngineConfig {
-        backend: "null".to_string(),
-        ..Default::default()
-    };
-    let session = EngineSession::new(config).expect("session");
-    session.with_engine(|engine| engine.start()).expect("start");
-    session
-        .with_engine(|engine| {
-            engine.assign_sampler_slot(0, 0, sample_source(), "tone".into(), None)?;
-            Ok(())
-        })
-        .expect("assign");
-
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::TriggerSampler,
-            encode_cmd_body(&CmdBody::TriggerSampler { slot: 0 }).unwrap(),
-        )
-        .expect("publish");
-
-    let event = recv_evt_kind(&evt, Kind::Error);
-    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
-        panic!("expected Error");
-    };
-    assert!(
-        message.to_lowercase().contains("sampler"),
-        "unexpected error: {message}"
-    );
-}
-
-#[test]
 fn trigger_and_end_sampler_roundtrip() {
     let session = null_session_with_sample();
     let evt = session
@@ -103,8 +65,12 @@ fn trigger_and_end_sampler_roundtrip() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::TriggerSampler,
-            encode_cmd_body(&CmdBody::TriggerSampler { slot: 0 }).unwrap(),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
         )
         .expect("trigger");
 
@@ -118,8 +84,8 @@ fn trigger_and_end_sampler_roundtrip() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::EndSampler,
-            encode_cmd_body(&CmdBody::EndSampler { slot: 0 }).unwrap(),
+            Kind::SamplerPadRelease,
+            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
         )
         .expect("end");
 

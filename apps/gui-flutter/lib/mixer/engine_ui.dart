@@ -1,7 +1,7 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
+import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
   const MixerChannelUi({
@@ -24,7 +24,7 @@ class MixerChannelUi {
   final double gainTrim;
   final bool headphoneCue;
 
-  MixerChannelUi patchedFrom(rust.EngineEvt evt) => MixerChannelUi(
+  MixerChannelUi patchedFrom(EngineEvt evt) => MixerChannelUi(
     volume: evt.volume ?? volume,
     eqLow: evt.eqLow ?? eqLow,
     eqMid: evt.eqMid ?? eqMid,
@@ -126,14 +126,14 @@ class EngineUiSnapshot {
   );
 }
 
-EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, rust.EngineEvt evt) {
+EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
   switch (evt.kind) {
-    case rust.EngineEvtKind.status:
+    case EngineEvtKind.status:
       return prev.copyWith(
         running: evt.running ?? prev.running,
         crossfader: evt.crossfader ?? prev.crossfader,
       );
-    case rust.EngineEvtKind.updated:
+    case EngineEvtKind.updated:
       final id = evt.deckId;
       if (id == null) {
         return prev;
@@ -171,7 +171,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, rust.EngineEvt evt) {
       final nextPadModes = Map<int, PadMode>.from(prev.padModes);
       final enginePadMode = evt.padMode;
       if (enginePadMode != null) {
-        nextPadModes[id] = _uiPadMode(enginePadMode);
+        nextPadModes[id] = enginePadMode;
       }
       return prev.copyWith(
         titles: nextTitles,
@@ -183,7 +183,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, rust.EngineEvt evt) {
         tempoRanges: nextRanges,
         padModes: nextPadModes,
       );
-    case rust.EngineEvtKind.levels:
+    case EngineEvtKind.levels:
       final id = evt.deckId;
       if (id == null || evt.peakL == null || evt.peakR == null) {
         return prev;
@@ -197,16 +197,9 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, rust.EngineEvt evt) {
         peakHoldR: evt.peakHoldR ?? prevLevels.peakHoldR,
       );
       return prev.copyWith(levels: nextLevels);
-    case rust.EngineEvtKind.position:
-    case rust.EngineEvtKind.error:
-    case rust.EngineEvtKind.notice:
+    case EngineEvtKind.position:
+    case EngineEvtKind.error:
+    case EngineEvtKind.notice:
       return prev;
   }
 }
-
-PadMode _uiPadMode(rust.PadMode engine) => switch (engine) {
-  rust.PadMode.hotCue => PadMode.hotCue,
-  rust.PadMode.loopRoll => PadMode.loopRoll,
-  rust.PadMode.beatJump => PadMode.beatJump,
-  rust.PadMode.sampler => PadMode.sampler,
-};

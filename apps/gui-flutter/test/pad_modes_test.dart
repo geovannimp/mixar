@@ -23,9 +23,16 @@ void main() {
   });
 
   test('beat tables match Tauri', () {
-    expect(kLoopRollBeats, [1, 2, 4, 8, 16, 32, 64, 128]);
+    expect(kLoopRollBeats, [1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4]);
     expect(kBeatJumpForward, [1, 2, 4, 8, 16, 32, 64, 128]);
     expect(kBeatJumpBack, [-1, -2, -4, -8, -16, -32, -64, -128]);
+  });
+
+  test('formatBeatLength', () {
+    expect(formatBeatLength(1 / 32), '1/32');
+    expect(formatBeatLength(0.5), '1/2');
+    expect(formatBeatLength(1), '1');
+    expect(formatBeatLength(4), '4');
   });
 
   test('formatDeckTimeTenth', () {

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
-import 'package:gui_flutter/mixer/pad_modes.dart' as pads;
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
@@ -171,7 +170,7 @@ void main() {
           padMode: PadMode.loopRoll,
         ),
       );
-      expect(snap.padModeFor(0), pads.PadMode.loopRoll);
+      expect(snap.padModeFor(0), PadMode.loopRoll);
     });
   });
 }

@@ -1277,24 +1277,6 @@ impl Engine {
         }
     }
 
-    /// Trigger a sampler pad; requires deck pad mode `sampler`.
-    pub fn trigger_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
-        let mode = self
-            .deck_control
-            .get(deck_id)
-            .map(|c| c.pad_mode)
-            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
-        if mode != PadMode::Sampler {
-            return Err(anyhow::anyhow!("Deck is not in Sampler pad mode."));
-        }
-        self.trigger_sampler(deck_id, slot)
-    }
-
-    /// End hold/loop for a sampler pad slot.
-    pub fn end_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
-        self.end_sampler(deck_id, slot)
-    }
-
     /// Trigger hot cue: snap position, seek, play.
     pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
@@ -1308,8 +1290,11 @@ impl Engine {
 
     /// Snap playhead and persist a hot cue via the library cmd bus.
     pub fn save_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        if slot > 7 {
-            return Err(anyhow::anyhow!("Hot cue slot must be 0..=7."));
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
         }
         let track_id = self
             .deck_control
@@ -1357,7 +1342,7 @@ impl Engine {
         let Some(control) = self.deck_control.get_mut(deck_id) else {
             return Ok(());
         };
-        control.hot_cues = [None; 8];
+        control.hot_cues = [None; crate::pads::HOT_CUE_SLOT_COUNT];
         for cue in cues {
             let idx = usize::from(cue.slot_index);
             if idx < control.hot_cues.len() {
@@ -1369,8 +1354,11 @@ impl Engine {
 
     /// Persist a delete for `slot` via the library cmd bus.
     pub fn delete_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        if slot > 7 {
-            return Err(anyhow::anyhow!("Hot cue slot must be 0..=7."));
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
         }
         let track_id = self
             .deck_control
@@ -1390,10 +1378,39 @@ impl Engine {
         Ok(())
     }
 
+    /// Generic pad press: dispatch using this deck's engine `pad_mode`.
+    pub fn pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        match self.deck_pad_mode(deck_id)? {
+            PadMode::HotCue => self.hot_cue_pad_press(deck_id, slot, shift),
+            PadMode::LoopRoll => self.loop_roll_pad_press(deck_id, slot),
+            PadMode::BeatJump => self.beat_jump_pad_press(deck_id, slot),
+            PadMode::Sampler => self.sampler_pad_press(deck_id, slot, shift),
+        }
+    }
+
+    pub fn pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        match self.deck_pad_mode(deck_id)? {
+            PadMode::HotCue => self.hot_cue_pad_release(deck_id, slot),
+            PadMode::LoopRoll => self.loop_roll_pad_release(deck_id, slot),
+            PadMode::BeatJump => self.beat_jump_pad_release(deck_id, slot),
+            PadMode::Sampler => self.sampler_pad_release(deck_id, slot),
+        }
+    }
+
+    fn deck_pad_mode(&self, deck_id: usize) -> Result<PadMode> {
+        self.deck_control
+            .get(deck_id)
+            .map(|c| c.pad_mode)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+    }
+
     /// Hot-cue pad press: save, trigger, or delete from engine-owned slot state.
     pub fn hot_cue_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
-        if slot > 7 {
-            return Err(anyhow::anyhow!("Hot cue slot must be 0..=7."));
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
         }
         let filled = self
             .deck_control
