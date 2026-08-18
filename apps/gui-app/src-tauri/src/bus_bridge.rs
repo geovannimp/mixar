@@ -282,8 +282,7 @@ pub fn engine_publish(
                     return Err("set_sampler_bank body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_sampler::set_deck_sampler_bank_inner(
-                    &mut state, deck_id, bank_id)?;
+                crate::deck_sampler::set_deck_sampler_bank_inner(&mut state, deck_id, bank_id)?;
                 return Ok(());
             }
             Kind::CreateSamplerBank => {
@@ -439,7 +438,10 @@ pub fn engine_publish(
         }
     }
     // ponytail: AppState.pad_mode still mirrors for leftover sampler bank/assign invokes.
-    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::SetPadMode)) {
+    if matches!(
+        (&msg.origin, &msg.kind),
+        (Origin::Deck(_), Kind::SetPadMode)
+    ) {
         let Origin::Deck(deck_id) = msg.origin else {
             unreachable!()
         };
@@ -461,23 +463,25 @@ pub fn engine_publish(
     }
     // ponytail: bank load + play mode + last-used bank stay host-owned until bank cmds migrate.
     let mut remember_sampler_bank: Option<(String, String)> = None;
-    if matches!(
-        (&msg.origin, &msg.kind),
-        (Origin::Deck(_), Kind::SamplerPadPress)
-    ) {
+    let sampler_named = matches!(msg.kind, Kind::SamplerPadPress);
+    let generic_pad = matches!(msg.kind, Kind::PadPress);
+    if (sampler_named || generic_pad) && matches!(msg.origin, Origin::Deck(_)) {
         let Origin::Deck(deck_id) = msg.origin else {
             unreachable!()
         };
         let deck_id = deck_id as usize;
         if deck_id < crate::NUM_DECKS {
             let mut state = app_state.lock().map_err(|e| e.to_string())?;
-            crate::deck_sampler::apply_effective_play_mode(&mut state, deck_id)?;
-            crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id)?;
-            if let (Some(track_id), Some(bank_id)) = (
-                state.decks[deck_id].track_id.clone(),
-                state.decks[deck_id].active_sampler_bank_id.clone(),
-            ) {
-                remember_sampler_bank = Some((track_id, bank_id));
+            if sampler_named || state.decks[deck_id].pad_mode == crate::deck_sync::PadMode::Sampler
+            {
+                crate::deck_sampler::apply_effective_play_mode(&mut state, deck_id)?;
+                crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id)?;
+                if let (Some(track_id), Some(bank_id)) = (
+                    state.decks[deck_id].track_id.clone(),
+                    state.decks[deck_id].active_sampler_bank_id.clone(),
+                ) {
+                    remember_sampler_bank = Some((track_id, bank_id));
+                }
             }
         }
     }

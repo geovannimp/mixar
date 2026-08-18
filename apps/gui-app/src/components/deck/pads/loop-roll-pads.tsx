@@ -20,7 +20,7 @@ export function LoopRollPads({ disabled, onBegin, onEnd }: LoopRollPadsProps) {
             type="button"
             size="pad"
             disabled={disabled}
-            title={`Loop roll ${label} beat${beats === 1 ? "" : "s"} — hold`}
+            title={`Loop roll ${label} beat${beats > 1 ? "s" : ""} — hold`}
             onPointerDown={() => onBegin(beats)}
             onPointerUp={() => onEnd()}
             onPointerLeave={() => onEnd()}
