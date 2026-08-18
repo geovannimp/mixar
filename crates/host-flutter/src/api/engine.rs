@@ -160,6 +160,24 @@ impl From<engine_api::PadMode> for PadMode {
     }
 }
 
+/// Jog platter policy for [`EngineTransport::set_jog_mode`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum JogMode {
+    Vinyl,
+    PitchBend,
+    Ignore,
+}
+
+impl From<JogMode> for engine_api::JogMode {
+    fn from(mode: JogMode) -> Self {
+        match mode {
+            JogMode::Vinyl => Self::Vinyl,
+            JogMode::PitchBend => Self::PitchBend,
+            JogMode::Ignore => Self::Ignore,
+        }
+    }
+}
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 #[derive(Clone, Debug)]
 pub struct EngineEvt {
@@ -503,6 +521,139 @@ impl EngineTransport {
         )
     }
 
+    /// Cue/master headphone mix `0..1`.
+    pub fn set_cue_mix(&self, mix: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetCueMix,
+            &CmdBody::SetCueMix {
+                mix,
+                soft_takeover: false,
+            },
+        )
+    }
+
+    /// Master cue (headphones hear master).
+    pub fn set_master_cue(&self, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Mixer,
+            Kind::SetMasterCue,
+            &CmdBody::SetMasterCue { enabled },
+        )
+    }
+
+    /// Tempo fader position `0..1`.
+    pub fn set_speed(&self, deck_id: u16, speed: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetSpeed,
+            &CmdBody::SetSpeed {
+                speed,
+                soft_takeover: false,
+            },
+        )
+    }
+
+    /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
+    pub fn set_tempo_range(&self, deck_id: u16, tempo_range: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetTempoRange,
+            &CmdBody::SetTempoRange { tempo_range },
+        )
+    }
+
+    pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::JogTouch,
+            &CmdBody::JogTouch { touching },
+        )
+    }
+
+    pub fn jog_turn(&self, deck_id: u16, delta: i32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::JogTurn,
+            &CmdBody::JogTurn { delta },
+        )
+    }
+
+    pub fn set_jog_mode(&self, deck_id: u16, top: JogMode, outer: JogMode) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetJogMode,
+            &CmdBody::SetJogMode {
+                top: top.into(),
+                outer: outer.into(),
+            },
+        )
+    }
+
+    pub fn set_cue_point(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::SetCuePoint)
+    }
+
+    pub fn begin_cue_hold(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::BeginCueHold)
+    }
+
+    pub fn end_cue_hold(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::EndCueHold)
+    }
+
+    pub fn set_quantize(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetQuantize,
+            &CmdBody::SetQuantize { enabled },
+        )
+    }
+
+    pub fn unload(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::Unload)
+    }
+
+    pub fn set_auto_loop(&self, deck_id: u16, beats: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetAutoLoop,
+            &CmdBody::SetAutoLoop { beats },
+        )
+    }
+
+    pub fn loop_in(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::LoopIn)
+    }
+
+    pub fn loop_out(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::LoopOut)
+    }
+
+    pub fn exit_loop(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::ExitLoop)
+    }
+
+    pub fn recall_saved_loop(&self, deck_id: u16, in_ms: i32, out_ms: i32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::RecallSavedLoop,
+            &CmdBody::RecallSavedLoop { in_ms, out_ms },
+        )
+    }
+
+    pub fn toggle_sync(&self, deck_id: u16, beat_sync: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::ToggleSync,
+            &CmdBody::ToggleSync { beat_sync },
+        )
+    }
+
+    pub fn set_master_deck(&self, deck_id: u16) -> Result<(), String> {
+        self.publish_empty(Origin::Deck(deck_id), Kind::SetMasterDeck)
+    }
+
     /// Per-deck pad mode.
     pub fn set_pad_mode(&self, deck_id: u16, mode: PadMode) -> Result<(), String> {
         self.publish_body(
@@ -603,6 +754,91 @@ impl EngineTransport {
             Kind::ClearSampler,
             &CmdBody::ClearSampler { slot },
         )
+    }
+
+    /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
+    pub fn set_sampler_bank(&self, deck_id: u16, bank_id: String) -> Result<(), String> {
+        let slots = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            if lib
+                .get_sampler_bank(&bank_id)
+                .map_err(|e| e.to_string())?
+                .is_none()
+            {
+                return Err(format!("Sampler bank not found: {bank_id}"));
+            }
+            lib.list_sampler_bank_slots(&bank_id)
+                .map_err(|e| e.to_string())?
+        };
+        let mut prepared = Vec::new();
+        for record in slots {
+            if usize::from(record.slot_index) >= library::SAMPLER_BANK_SIZE {
+                continue;
+            }
+            let item = if let Some(track_id) = record.track_id {
+                LibraryManager::prepare_track_for_playback(
+                    self.library.as_ref(),
+                    &TrackId::new(track_id),
+                )
+            } else if let Some(path) = record.path {
+                LibraryManager::prepare_file_path_for_playback(
+                    self.library.as_ref(),
+                    Path::new(&path),
+                )
+            } else {
+                continue;
+            }
+            .map_err(|e| e.to_string())?;
+            prepared.push((record.slot_index, item));
+        }
+        let snap = {
+            let mut guard = self
+                .engine
+                .lock()
+                .map_err(|_| "engine lock poisoned".to_string())?;
+            let engine = guard
+                .as_mut()
+                .ok_or_else(|| "engine not available".to_string())?;
+            engine
+                .clear_all_sampler_slots(deck_id as usize)
+                .map_err(|e| e.to_string())?;
+            for (slot, item) in prepared {
+                engine
+                    .assign_prepared_sampler(deck_id as usize, slot as usize, item)
+                    .map_err(|e| e.to_string())?;
+            }
+            engine
+                .deck_snapshot(deck_id as usize)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?
+        };
+        self.publish_deck_updated(deck_id, snap)
+    }
+
+    /// Rename / set play mode for a stored sampler bank.
+    pub fn update_sampler_bank(
+        &self,
+        bank_id: String,
+        name: String,
+        play_mode: Option<crate::api::library::SamplerPlayMode>,
+    ) -> Result<(), String> {
+        let name = name.trim().to_string();
+        if name.is_empty() {
+            return Err("Bank name cannot be empty.".to_string());
+        }
+        let play_mode = play_mode.map(|m| match m {
+            crate::api::library::SamplerPlayMode::Oneshot => library::SamplerPlayMode::Oneshot,
+            crate::api::library::SamplerPlayMode::Hold => library::SamplerPlayMode::Hold,
+            crate::api::library::SamplerPlayMode::Loop => library::SamplerPlayMode::Loop,
+        });
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.update_sampler_bank(&bank_id, &name, play_mode)
+            .map_err(|e| e.to_string())
     }
 
     /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.

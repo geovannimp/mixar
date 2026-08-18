@@ -19,6 +19,13 @@ fn null_start_config() -> EngineStartConfig {
     }
 }
 
+fn load_fixture(transport: &EngineTransport, rx: &engine_core::EvtReceiver, deck_id: u16) {
+    transport
+        .load_path(deck_id, short_tone_fixture().to_string_lossy().into_owned())
+        .unwrap();
+    recv_kind(rx, Kind::Updated, Duration::from_secs(5));
+}
+
 fn recv_kind(rx: &engine_core::EvtReceiver, kind: Kind, timeout: Duration) -> engine_core::Evt {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline {
@@ -139,4 +146,68 @@ fn seek_after_load_publishes_updated() {
     recv_kind(&rx, Kind::Updated, Duration::from_secs(5));
     transport.seek(0, 20).unwrap();
     recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+}
+
+#[test]
+fn set_speed_after_load_publishes_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    load_fixture(&transport, &rx, 0);
+    transport.set_speed(0, 0.25).unwrap();
+    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated { speed, .. } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected DeckUpdated");
+    };
+    assert!((speed - 0.25).abs() < 1e-4);
+}
+
+#[test]
+fn set_cue_point_after_load_publishes_updated() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    load_fixture(&transport, &rx, 0);
+    transport.set_cue_point(0).unwrap();
+    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated { cue_point_ms, .. } = decode_evt_body(event.payload()).unwrap()
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(cue_point_ms.is_some());
+}
+
+#[test]
+fn loop_in_after_load_publishes_active_loop() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    load_fixture(&transport, &rx, 0);
+    transport.loop_in(0).unwrap();
+    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated { active_loop, .. } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("loop region");
+    assert!(region.active);
+    assert!(region.out_ms > region.in_ms);
+}
+
+#[test]
+fn set_master_deck_publishes_status() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    load_fixture(&transport, &rx, 0);
+    load_fixture(&transport, &rx, 1);
+    transport.set_master_deck(1).unwrap();
+    let event = recv_kind(&rx, Kind::Status, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Mixer);
+    let EvtBody::EngineStatus { status } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected EngineStatus");
+    };
+    assert_eq!(status.master_deck, 1);
 }
