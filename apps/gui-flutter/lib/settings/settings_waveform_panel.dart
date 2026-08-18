@@ -1,17 +1,21 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
-class SettingsWaveformPanel extends ConsumerWidget {
-  const SettingsWaveformPanel({super.key});
+class SettingsWaveformPanel extends StatelessWidget {
+  const SettingsWaveformPanel({
+    super.key,
+    required this.draft,
+    required this.onChanged,
+  });
+
+  final AppSettings draft;
+  final ValueChanged<AppSettings> onChanged;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(waveformDisplayModeProvider);
-
+  Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -24,14 +28,14 @@ class SettingsWaveformPanel extends ConsumerWidget {
         SettingsField(
           label: 'Display mode',
           child: SettingsSelect(
-            value: mode,
-            options: WaveformDisplayMode.values,
+            value: draft.waveformDisplayMode,
+            options: WaveformDisplayModeSetting.values,
             labelBuilder: (m) => switch (m) {
-              WaveformDisplayMode.rgb => 'RGB',
-              WaveformDisplayMode.filtered => 'Filtered',
+              WaveformDisplayModeSetting.rgb => 'RGB',
+              WaveformDisplayModeSetting.filtered => 'Filtered',
             },
             onChanged: (m) =>
-                ref.read(waveformDisplayModeProvider.notifier).set(m),
+                onChanged(copyAppSettings(draft, waveformDisplayMode: m)),
           ),
         ),
       ],

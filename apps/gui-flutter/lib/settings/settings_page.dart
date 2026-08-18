@@ -77,7 +77,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         variant: .ghost,
                         size: .sm,
                         semanticsLabel: 'Close',
-                        onPress: widget.onClose,
+                        onPress: _busy ? null : () => _close(dirty),
                         child: const Icon(FLucideIcons.x),
                       ),
                     Expanded(
@@ -170,14 +170,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       _saved = false;
     });
     try {
-      final saved = await saveAppSettings(ref, draft);
+      final result = await saveAppSettings(ref, draft);
       if (!mounted) {
         return;
       }
       setState(() {
-        _draft = saved;
-        _baseline = saved;
-        _saved = true;
+        _draft = result.saved;
+        _baseline = result.saved;
+        _saved = result.applyError == null;
+        _error = result.applyError;
       });
     } catch (e) {
       if (mounted) {
@@ -189,7 +190,90 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       }
     }
   }
+
+  Future<void> _close(bool dirty) async {
+    if (!dirty) {
+      widget.onClose?.call();
+      return;
+    }
+    final choice = await showFDialog<_CloseChoice>(
+      context: context,
+      builder: (context, _, animation) {
+        return FDialog(
+          animation: animation,
+          builder: (context, _) {
+            final theme = context.theme;
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: .min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Unsaved settings',
+                    style: theme.typography.body.md.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Save changes before closing?'),
+                  const SizedBox(height: 16),
+                  Row(
+                    spacing: 8,
+                    children: [
+                      FButton(
+                        variant: .outline,
+                        size: .sm,
+                        onPress: () =>
+                            Navigator.of(context).pop(_CloseChoice.cancel),
+                        child: const Text('Cancel'),
+                      ),
+                      FButton(
+                        variant: .ghost,
+                        size: .sm,
+                        onPress: () =>
+                            Navigator.of(context).pop(_CloseChoice.discard),
+                        child: const Text('Discard'),
+                      ),
+                      FButton(
+                        size: .sm,
+                        onPress: () =>
+                            Navigator.of(context).pop(_CloseChoice.save),
+                        child: const Text('Save'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    switch (choice) {
+      case null:
+      case _CloseChoice.cancel:
+        return;
+      case _CloseChoice.discard:
+        widget.onClose?.call();
+        return;
+      case _CloseChoice.save:
+        final draft = _draft;
+        if (draft == null) {
+          return;
+        }
+        await _save(draft);
+        if (mounted && _error == null) {
+          widget.onClose?.call();
+        }
+    }
+  }
 }
+
+enum _CloseChoice { save, discard, cancel }
 
 class _SettingsSectionPanel extends StatelessWidget {
   const _SettingsSectionPanel({
@@ -213,7 +297,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.waveform => const SettingsWaveformPanel(),
+      SettingsSection.waveform => SettingsWaveformPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
       SettingsSection.deck => SettingsDeckPanel(
         draft: draft,
         onChanged: onChanged,

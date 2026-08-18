@@ -20,7 +20,6 @@ class SettingsAudioPanel extends ConsumerWidget {
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
-  static const _backends = ['cpal', 'auto', 'null'];
   static const _resamplerQualities = ['low', 'medium', 'high'];
 
   @override
@@ -28,6 +27,11 @@ class SettingsAudioPanel extends ConsumerWidget {
     final theme = context.theme;
     final devicesAsync = ref.watch(audioDevicesProvider(draft.backend));
     final deviceList = devicesAsync.value ?? const <OutputDevice>[];
+    final backends = ref.watch(audioBackendNamesProvider);
+    final backendOptions = [
+      if (!backends.contains(draft.backend)) draft.backend,
+      ...backends,
+    ];
     final sampleRates = _masterBusSampleRates(
       devices: deviceList,
       masterDeviceId: draft.masterBus.deviceId,
@@ -55,7 +59,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     label: 'Backend',
                     child: SettingsSelect(
                       value: draft.backend,
-                      options: _backends,
+                      options: backendOptions,
                       labelBuilder: (v) => v,
                       onChanged: (backend) =>
                           onChanged(copyAppSettings(draft, backend: backend)),
@@ -284,6 +288,7 @@ class _BusRouteFields extends StatelessWidget {
     final selectedId = deviceOptions.any((d) => d.id == route.deviceId)
         ? route.deviceId
         : 'default';
+    final maxChannels = _maxChannelsFor(devices, selectedId);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,11 +303,14 @@ class _BusRouteFields extends StatelessWidget {
               return device.isDefault ? 'System default' : device.name;
             },
             onChanged: (deviceId) => onChanged(
-              BusRouteSettings(
-                deviceId: deviceId,
-                leftChannel: route.leftChannel,
-                rightChannel: route.rightChannel,
-                mode: route.mode,
+              _clampRoute(
+                BusRouteSettings(
+                  deviceId: deviceId,
+                  leftChannel: route.leftChannel,
+                  rightChannel: route.rightChannel,
+                  mode: route.mode,
+                ),
+                _maxChannelsFor(devices, deviceId),
               ),
             ),
           ),
@@ -333,6 +341,7 @@ class _BusRouteFields extends StatelessWidget {
                 label: 'Left channel',
                 child: _ChannelStepper(
                   value: route.leftChannel,
+                  maxChannels: maxChannels,
                   onChanged: (v) => onChanged(
                     BusRouteSettings(
                       deviceId: route.deviceId,
@@ -350,6 +359,7 @@ class _BusRouteFields extends StatelessWidget {
                 label: 'Right channel',
                 child: _ChannelStepper(
                   value: route.rightChannel,
+                  maxChannels: maxChannels,
                   enabled: route.mode == BusChannelMode.stereo,
                   onChanged: (v) => onChanged(
                     BusRouteSettings(
@@ -379,19 +389,47 @@ class _BusRouteFields extends StatelessWidget {
   }
 }
 
+int _maxChannelsFor(List<OutputDevice> devices, String deviceId) {
+  final max = _resolveOutputDevice(devices, deviceId)?.maxChannels ?? 2;
+  return max < 1 ? 1 : max;
+}
+
+BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
+  final max = maxChannels < 1 ? 1 : maxChannels;
+  var left = route.leftChannel.clamp(1, max).toInt();
+  var right = route.rightChannel.clamp(1, max).toInt();
+  var mode = route.mode;
+  if (mode == BusChannelMode.stereo && left == right) {
+    if (max >= 2) {
+      right = left == max ? left - 1 : left + 1;
+    } else {
+      mode = BusChannelMode.mono;
+    }
+  }
+  return BusRouteSettings(
+    deviceId: route.deviceId,
+    leftChannel: left,
+    rightChannel: right,
+    mode: mode,
+  );
+}
+
 class _ChannelStepper extends StatelessWidget {
   const _ChannelStepper({
     required this.value,
     required this.onChanged,
+    required this.maxChannels,
     this.enabled = true,
   });
 
   final int value;
   final ValueChanged<int> onChanged;
+  final int maxChannels;
   final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    final max = maxChannels < 1 ? 1 : maxChannels;
     return Row(
       children: [
         FButton(
@@ -406,7 +444,7 @@ class _ChannelStepper extends StatelessWidget {
         FButton(
           variant: .outline,
           size: .sm,
-          onPress: enabled ? () => onChanged(value + 1) : null,
+          onPress: !enabled || value >= max ? null : () => onChanged(value + 1),
           child: const Text('+'),
         ),
       ],

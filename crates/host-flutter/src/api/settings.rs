@@ -1,5 +1,6 @@
 //! Session settings host (mirrors Tauri `AppSettings` / `apply_settings`).
 
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
@@ -13,6 +14,12 @@ use resampler::normalize_resampler_quality;
 const NUM_DECKS: usize = 2;
 const MASTER_BUS_ID: &str = "master";
 const PREVIEW_BUS_ID: &str = "cue";
+const TARGET_LUFS_MIN: f32 = -24.0;
+const TARGET_LUFS_MAX: f32 = -9.0;
+const TARGET_LUFS_DEFAULT: f32 = -18.0;
+const LIBRARY_COLUMN_IDS: &[&str] = &[
+    "title", "artist", "album", "genre", "bpm", "key", "duration", "path",
+];
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -36,18 +43,18 @@ impl SettingsTransport {
         }
     }
 
-    /// Current session settings.
+    /// Current session settings (schema-validated).
     pub fn get_settings(&self) -> Result<AppSettings, String> {
         let host = self.host.lock().map_err(|e| e.to_string())?;
-        Ok(settings_from_host(&host))
+        parse_settings(settings_from_host(&host))
     }
 
     /// Apply settings. Does not restart the engine or update the library —
     /// callers apply those separately (mirrors Flutter `saveAppSettings`).
     pub fn save_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         let mut host = self.host.lock().map_err(|e| e.to_string())?;
-        apply_to_host(&mut host, &settings)?;
-        Ok(settings_from_host(&host))
+        apply_to_host(&mut host, settings)?;
+        parse_settings(settings_from_host(&host))
     }
 }
 
@@ -156,6 +163,13 @@ impl From<SamplerStripRouteSetting> for SamplerStripRouteSettingFrb {
     }
 }
 
+/// Waveform lane paint mode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WaveformDisplayModeSetting {
+    Rgb,
+    Filtered,
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug)]
 pub struct AppSettings {
@@ -178,10 +192,12 @@ pub struct AppSettings {
     pub default_outer_jog_mode: JogModeSetting,
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
+    pub waveform_display_mode: WaveformDisplayModeSetting,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
 struct SettingsHost {
+    configured: bool,
     engine_config: EngineConfig,
     library_table_columns: Vec<String>,
     volume_normalizer_enabled: bool,
@@ -191,20 +207,23 @@ struct SettingsHost {
     deck_default_sampler_bank_id: Vec<Option<String>>,
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
+    waveform_display_mode: WaveformDisplayModeSetting,
 }
 
 impl Default for SettingsHost {
     fn default() -> Self {
         Self {
+            configured: false,
             engine_config: default_engine_config(),
             library_table_columns: default_library_table_columns(),
             volume_normalizer_enabled: true,
-            target_lufs: -18.0,
+            target_lufs: TARGET_LUFS_DEFAULT,
             sampler_play_mode: SamplerPlayModeSetting::Oneshot,
             sampler_strip_route: SamplerStripRouteSetting::Before,
             deck_default_sampler_bank_id: vec![None, None],
             default_top_jog_mode: JogModeSetting::Vinyl,
             default_outer_jog_mode: JogModeSetting::PitchBend,
+            waveform_display_mode: WaveformDisplayModeSetting::Rgb,
         }
     }
 }
@@ -253,6 +272,102 @@ fn default_engine_config() -> EngineConfig {
         )],
         ..Default::default()
     }
+}
+
+/// Zod-style parse: reject invalid values, coerce recoverable ones.
+fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
+    let mut errors = Vec::new();
+
+    settings.backend = settings.backend.trim().to_string();
+    if settings.backend.is_empty() {
+        errors.push("backend must not be empty".into());
+    }
+    if settings.sample_rate == 0 {
+        errors.push("sample_rate must be > 0".into());
+    }
+    if let Err(e) = validate_buffer_size(settings.buffer_size) {
+        errors.push(e.to_string());
+    }
+    settings.resampler_quality =
+        normalize_resampler_quality(Some(settings.resampler_quality.as_str())).to_string();
+
+    if let Err(e) = parse_bus("master_bus", &settings.master_bus) {
+        errors.push(e);
+    }
+    if let Err(e) = parse_bus("preview_bus", &settings.preview_bus) {
+        errors.push(e);
+    }
+
+    if !settings.target_lufs.is_finite() {
+        errors.push("target_lufs must be finite".into());
+    } else if !(TARGET_LUFS_MIN..=TARGET_LUFS_MAX).contains(&settings.target_lufs) {
+        errors.push(format!(
+            "target_lufs must be between {TARGET_LUFS_MIN} and {TARGET_LUFS_MAX}"
+        ));
+    }
+
+    if !settings.default_tempo_range.is_finite() || settings.default_tempo_range <= 0.0 {
+        errors.push("default_tempo_range must be finite and > 0".into());
+    }
+    settings
+        .tempo_range_steps
+        .retain(|step| step.is_finite() && *step > 0.0);
+    if settings.tempo_range_steps.is_empty() {
+        errors.push("tempo_range_steps must contain at least one finite > 0 step".into());
+    }
+
+    let allowed: HashSet<&str> = LIBRARY_COLUMN_IDS.iter().copied().collect();
+    let mut columns: Vec<String> = settings
+        .library_table_columns
+        .into_iter()
+        .filter(|id| allowed.contains(id.as_str()))
+        .collect();
+    if !columns.iter().any(|id| id == "title") {
+        columns.insert(0, "title".into());
+    }
+    if columns.is_empty() {
+        columns = default_library_table_columns();
+    }
+    settings.library_table_columns = columns;
+
+    let mut banks = settings.deck_default_sampler_bank_id;
+    banks.resize(NUM_DECKS, None);
+    banks.truncate(NUM_DECKS);
+    settings.deck_default_sampler_bank_id = banks
+        .into_iter()
+        .map(|id| match id {
+            Some(s) if s.trim().is_empty() => None,
+            other => other,
+        })
+        .collect();
+
+    if errors.is_empty() {
+        Ok(settings)
+    } else {
+        Err(errors.join("; "))
+    }
+}
+
+fn parse_bus(field: &str, route: &BusRouteSettings) -> Result<(), String> {
+    if route.device_id.trim().is_empty() {
+        return Err(format!("{field}.device_id must not be empty"));
+    }
+    match route.mode {
+        BusChannelMode::Mono => {
+            if route.left_channel == 0 {
+                return Err(format!("{field}.left_channel must be 1-based"));
+            }
+        }
+        BusChannelMode::Stereo => {
+            if route.left_channel == 0 || route.right_channel == 0 {
+                return Err(format!("{field} channels must be 1-based"));
+            }
+            if route.left_channel == route.right_channel {
+                return Err(format!("{field} left and right channels must be distinct"));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn bus_route_from_config(bus: &BusConfig) -> BusRouteSettings {
@@ -329,13 +444,14 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_outer_jog_mode: host.default_outer_jog_mode,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
+        waveform_display_mode: host.waveform_display_mode,
     }
 }
 
-fn apply_to_host(host: &mut SettingsHost, settings: &AppSettings) -> Result<(), String> {
-    validate_buffer_size(settings.buffer_size).map_err(|e| e.to_string())?;
+fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), String> {
+    let settings = parse_settings(settings)?;
     let mut config = host.engine_config.clone();
-    config.buses = buses_from_settings(settings);
+    config.buses = buses_from_settings(&settings);
     config.backend = settings.backend.clone();
     config.sample_rate = settings.sample_rate;
     config.buffer_size = settings.buffer_size;
@@ -349,26 +465,16 @@ fn apply_to_host(host: &mut SettingsHost, settings: &AppSettings) -> Result<(), 
     });
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
-    host.library_table_columns = if settings.library_table_columns.is_empty() {
-        default_library_table_columns()
-    } else {
-        settings.library_table_columns.clone()
-    };
+    host.library_table_columns = settings.library_table_columns;
     host.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     host.target_lufs = settings.target_lufs;
     host.sampler_play_mode = settings.sampler_play_mode;
     host.sampler_strip_route = settings.sampler_strip_route.into();
-    host.deck_default_sampler_bank_id = (0..NUM_DECKS)
-        .map(|i| {
-            settings
-                .deck_default_sampler_bank_id
-                .get(i)
-                .cloned()
-                .flatten()
-        })
-        .collect();
+    host.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
+    host.waveform_display_mode = settings.waveform_display_mode;
+    host.configured = true;
     Ok(())
 }
 
@@ -380,6 +486,26 @@ fn normalizer_target(enabled: bool, target_lufs: f32) -> Option<f32> {
 pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     let host = shared_host();
     let host = host.lock().map_err(|e| e.to_string())?;
+    Ok(host.engine_config.clone())
+}
+
+/// Overlay [`EngineStartConfig`] onto the host until the user has saved settings.
+pub(crate) fn seed_engine_config_if_unconfigured(
+    backend: &str,
+    sample_rate: Option<u32>,
+    buffer_size: Option<u32>,
+) -> Result<EngineConfig, String> {
+    let host = shared_host();
+    let mut host = host.lock().map_err(|e| e.to_string())?;
+    if !host.configured {
+        host.engine_config.backend = backend.to_string();
+        if let Some(sr) = sample_rate {
+            host.engine_config.sample_rate = sr;
+        }
+        if let Some(bs) = buffer_size {
+            host.engine_config.buffer_size = bs;
+        }
+    }
     Ok(host.engine_config.clone())
 }
 
@@ -398,12 +524,53 @@ pub(crate) fn settings_host_runtime() -> Result<(Option<f32>, JogMode, JogMode),
 mod tests {
     use super::*;
 
+    fn sample_settings() -> AppSettings {
+        settings_from_host(&SettingsHost::default())
+    }
+
     #[test]
     fn default_settings_round_trip() {
+        let parsed = parse_settings(sample_settings()).expect("defaults parse");
+        assert_eq!(parsed.backend, "cpal");
+        assert_eq!(parsed.sample_rate, 48_000);
+        assert!(parsed.volume_normalizer_enabled);
+        assert_eq!(
+            parsed.waveform_display_mode,
+            WaveformDisplayModeSetting::Rgb
+        );
+    }
+
+    #[test]
+    fn parse_rejects_non_finite_target_lufs() {
+        let mut settings = sample_settings();
+        settings.target_lufs = f32::NAN;
+        let err = parse_settings(settings).unwrap_err();
+        assert!(err.contains("target_lufs"), "{err}");
+    }
+
+    #[test]
+    fn parse_rejects_zero_bus_channel() {
+        let mut settings = sample_settings();
+        settings.master_bus.left_channel = 0;
+        let err = parse_settings(settings).unwrap_err();
+        assert!(err.contains("1-based"), "{err}");
+    }
+
+    #[test]
+    fn apply_to_host_rejects_nan_and_leaves_host_unchanged() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.target_lufs = f32::NAN;
+        assert!(apply_to_host(&mut host, settings).is_err());
+        assert!(!host.configured);
+        assert_eq!(host.target_lufs, TARGET_LUFS_DEFAULT);
+    }
+
+    #[test]
+    fn load_parses_host_snapshot() {
         let host = SettingsHost::default();
-        let settings = settings_from_host(&host);
-        assert_eq!(settings.backend, "cpal");
-        assert_eq!(settings.sample_rate, 48_000);
-        assert!(settings.volume_normalizer_enabled);
+        let settings = parse_settings(settings_from_host(&host)).expect("load");
+        assert_eq!(settings.buffer_size, 512);
+        assert_eq!(settings.target_lufs, TARGET_LUFS_DEFAULT);
     }
 }

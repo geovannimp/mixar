@@ -6,7 +6,9 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
-final settingsTransportProvider = FutureProvider<SettingsTransport>((ref) async {
+final settingsTransportProvider = FutureProvider<SettingsTransport>((
+  ref,
+) async {
   return SettingsTransport.open();
 });
 
@@ -28,7 +30,9 @@ final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
 });
 
 final libraryTableColumnsProvider = Provider<List<String>>((ref) {
-  return ref.watch(appSettingsProvider).maybeWhen(
+  return ref
+      .watch(appSettingsProvider)
+      .maybeWhen(
         data: (s) => s.libraryTableColumns,
         orElse: () => List<String>.from(kDefaultLibraryColumns),
       );
@@ -49,7 +53,14 @@ LibraryAnalysisDurationSetting _libraryAnalysisDuration(
   };
 }
 
-Future<AppSettings> saveAppSettings(
+class SaveAppSettingsResult {
+  const SaveAppSettingsResult({required this.saved, this.applyError});
+
+  final AppSettings saved;
+  final String? applyError;
+}
+
+Future<SaveAppSettingsResult> saveAppSettings(
   WidgetRef ref,
   AppSettings draft,
 ) async {
@@ -57,20 +68,25 @@ Future<AppSettings> saveAppSettings(
   final library = await ref.read(libraryTransportProvider.future);
   final normalized = normalizeAppSettings(draft);
   final saved = await settings.saveSettings(settings: normalized);
-  await library.applyLibrarySettings(
-    analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
-  );
   ref.invalidate(appSettingsProvider);
   ref.invalidate(libraryTableColumnsProvider);
-  final engine = await ref.read(engineTransportProvider.future);
-  if (engine != null && await engine.isRunning()) {
-    await engine.restartFromSettings();
-    for (var deckId = 0; deckId < 2; deckId++) {
-      final trackId = ref.read(deckTrackIdProvider(deckId));
-      if (trackId != null) {
-        await engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+  String? applyError;
+  try {
+    await library.applyLibrarySettings(
+      analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
+    );
+    final engine = await ref.read(engineTransportProvider.future);
+    if (engine != null && await engine.isRunning()) {
+      await engine.restartFromSettings();
+      for (var deckId = 0; deckId < 2; deckId++) {
+        final trackId = ref.read(deckTrackIdProvider(deckId));
+        if (trackId != null) {
+          await engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+        }
       }
     }
+  } catch (e) {
+    applyError = '$e';
   }
-  return saved;
+  return SaveAppSettingsResult(saved: saved, applyError: applyError);
 }

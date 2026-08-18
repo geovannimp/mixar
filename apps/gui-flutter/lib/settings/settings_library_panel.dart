@@ -57,9 +57,8 @@ class SettingsLibraryPanel extends StatelessWidget {
             value: draft.analysisDuration,
             options: [for (final (mode, _, _) in _analysisModes) mode],
             labelBuilder: _labelFor,
-            subtitleBuilder: (mode) => _analysisModes
-                .firstWhere((m) => m.$1 == mode)
-                .$3,
+            subtitleBuilder: (mode) =>
+                _analysisModes.firstWhere((m) => m.$1 == mode).$3,
             onChanged: (mode) =>
                 onChanged(copyAppSettings(draft, analysisDuration: mode)),
           ),
@@ -82,7 +81,8 @@ class SettingsLibraryPanel extends StatelessWidget {
                       child: Row(
                         children: [
                           FCheckbox(
-                            value: col.required ||
+                            value:
+                                col.required ||
                                 draft.libraryTableColumns.contains(col.id),
                             onChange: col.required
                                 ? null

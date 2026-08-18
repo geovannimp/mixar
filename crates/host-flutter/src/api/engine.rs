@@ -16,7 +16,9 @@ use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::TrackId;
 
 use crate::api::library::LibraryTransport;
-use crate::api::settings::{settings_engine_config, settings_host_runtime};
+use crate::api::settings::{
+    seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
+};
 use crate::frb_generated::StreamSink;
 
 /// Output device summary for the Flutter settings / smoke UI.
@@ -39,19 +41,20 @@ pub struct EngineStartConfig {
 
 impl EngineStartConfig {
     fn to_engine_config(&self) -> EngineConfig {
-        settings_engine_config().unwrap_or_else(|_| {
-            let mut config = EngineConfig {
-                backend: self.backend.clone(),
-                ..EngineConfig::default()
-            };
-            if let Some(sr) = self.sample_rate {
-                config.sample_rate = sr;
-            }
-            if let Some(bs) = self.buffer_size {
-                config.buffer_size = bs;
-            }
-            config
-        })
+        seed_engine_config_if_unconfigured(&self.backend, self.sample_rate, self.buffer_size)
+            .unwrap_or_else(|_| {
+                let mut config = EngineConfig {
+                    backend: self.backend.clone(),
+                    ..EngineConfig::default()
+                };
+                if let Some(sr) = self.sample_rate {
+                    config.sample_rate = sr;
+                }
+                if let Some(bs) = self.buffer_size {
+                    config.buffer_size = bs;
+                }
+                config
+            })
     }
 }
 
@@ -295,6 +298,23 @@ impl EngineTransport {
         if let Some(engine) = guard.as_mut() {
             engine.stop().map_err(|e| e.to_string())?;
         }
+        match self.build_started_engine(config) {
+            Ok(engine) => {
+                *guard = Some(engine);
+                Ok(())
+            }
+            Err(err) => {
+                if let Some(engine) = guard.as_mut() {
+                    if let Err(rollback) = engine.start() {
+                        return Err(format!("{err}; rollback failed: {rollback}"));
+                    }
+                }
+                Err(err)
+            }
+        }
+    }
+
+    fn build_started_engine(&self, config: EngineConfig) -> Result<Engine, String> {
         let mut engine = Engine::new_with_library_bus(
             config,
             Arc::clone(&self.library),
@@ -303,8 +323,7 @@ impl EngineTransport {
         .map_err(|e| e.to_string())?;
         engine.set_buses(self.buses.clone());
         engine.start().map_err(|e| e.to_string())?;
-        *guard = Some(engine);
-        Ok(())
+        Ok(engine)
     }
 
     /// Apply normalizer + jog defaults after start/restart.

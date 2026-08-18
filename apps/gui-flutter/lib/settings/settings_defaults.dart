@@ -1,6 +1,14 @@
 import 'dart:typed_data';
 
+import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+
+WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
+  return switch (mode) {
+    WaveformDisplayModeSetting.rgb => WaveformDisplayMode.rgb,
+    WaveformDisplayModeSetting.filtered => WaveformDisplayMode.filtered,
+  };
+}
 
 const kDefaultBackend = 'cpal';
 const kDefaultSampleRate = 48000;
@@ -58,6 +66,7 @@ AppSettings defaultAppSettings() {
     defaultOuterJogMode: JogModeSetting.pitchBend,
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
+    waveformDisplayMode: WaveformDisplayModeSetting.rgb,
   );
 }
 
@@ -121,6 +130,7 @@ AppSettings copyAppSettings(
   JogModeSetting? defaultOuterJogMode,
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
+  WaveformDisplayModeSetting? waveformDisplayMode,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -144,5 +154,6 @@ AppSettings copyAppSettings(
     defaultOuterJogMode: defaultOuterJogMode ?? base.defaultOuterJogMode,
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
+    waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
   );
 }

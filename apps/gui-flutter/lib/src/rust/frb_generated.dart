@@ -2663,8 +2663,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 19)
-      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -2685,6 +2685,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
     );
   }
 
@@ -3320,6 +3321,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WaveformDisplayModeSetting.values[raw as int];
+  }
+
+  @protected
   WaveformPeaks dco_decode_waveform_peaks(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -3679,6 +3688,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_defaultOuterJogMode = sse_decode_jog_mode_setting(deserializer);
     var var_defaultTempoRange = sse_decode_f_32(deserializer);
     var var_tempoRangeSteps = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
+      deserializer,
+    );
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -3699,6 +3711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultOuterJogMode: var_defaultOuterJogMode,
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
+      waveformDisplayMode: var_waveformDisplayMode,
     );
   }
 
@@ -4548,6 +4561,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WaveformDisplayModeSetting.values[inner];
+  }
+
+  @protected
   WaveformPeaks sse_decode_waveform_peaks(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_count = sse_decode_u_32(deserializer);
@@ -4948,6 +4970,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_jog_mode_setting(self.defaultOuterJogMode, serializer);
     sse_encode_f_32(self.defaultTempoRange, serializer);
     sse_encode_list_prim_f_32_strict(self.tempoRangeSteps, serializer);
+    sse_encode_waveform_display_mode_setting(
+      self.waveformDisplayMode,
+      serializer,
+    );
   }
 
   @protected
@@ -5687,6 +5713,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_waveform_display_mode_setting(
+    WaveformDisplayModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_waveform_peaks(WaveformPeaks self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_32(self.count, serializer);
@@ -6117,7 +6152,7 @@ class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
         .rust_arc_decrement_strong_count_SettingsTransportPtr,
   );
 
-  /// Current session settings.
+  /// Current session settings (schema-validated).
   Future<AppSettings> getSettings() => RustLib.instance.api
       .crateApiSettingsSettingsTransportGetSettings(that: this);
 

@@ -2930,6 +2930,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::JogModeSetting>::sse_decode(deserializer);
         let mut var_defaultTempoRange = <f32>::sse_decode(deserializer);
         let mut var_tempoRangeSteps = <Vec<f32>>::sse_decode(deserializer);
+        let mut var_waveformDisplayMode =
+            <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -2950,6 +2952,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             default_outer_jog_mode: var_defaultOuterJogMode,
             default_tempo_range: var_defaultTempoRange,
             tempo_range_steps: var_tempoRangeSteps,
+            waveform_display_mode: var_waveformDisplayMode,
         };
     }
 }
@@ -3803,6 +3806,18 @@ impl SseDecode for usize {
     }
 }
 
+impl SseDecode for crate::api::settings::WaveformDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::WaveformDisplayModeSetting::Rgb,
+            1 => crate::api::settings::WaveformDisplayModeSetting::Filtered,
+            _ => unreachable!("Invalid variant for WaveformDisplayModeSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::library::WaveformPeaks {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -4305,6 +4320,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.default_outer_jog_mode.into_into_dart().into_dart(),
             self.default_tempo_range.into_into_dart().into_dart(),
             self.tempo_range_steps.into_into_dart().into_dart(),
+            self.waveform_display_mode.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -4947,6 +4963,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SamplerStripRouteSe
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformDisplayModeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Rgb => 0.into_dart(),
+            Self::Filtered => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::WaveformDisplayModeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::WaveformDisplayModeSetting>
+    for crate::api::settings::WaveformDisplayModeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::WaveformDisplayModeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::WaveformPeaks {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -5206,6 +5243,10 @@ impl SseEncode for crate::api::settings::AppSettings {
         <crate::api::settings::JogModeSetting>::sse_encode(self.default_outer_jog_mode, serializer);
         <f32>::sse_encode(self.default_tempo_range, serializer);
         <Vec<f32>>::sse_encode(self.tempo_range_steps, serializer);
+        <crate::api::settings::WaveformDisplayModeSetting>::sse_encode(
+            self.waveform_display_mode,
+            serializer,
+        );
     }
 }
 
@@ -5911,6 +5952,22 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
+    }
+}
+
+impl SseEncode for crate::api::settings::WaveformDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::WaveformDisplayModeSetting::Rgb => 0,
+                crate::api::settings::WaveformDisplayModeSetting::Filtered => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

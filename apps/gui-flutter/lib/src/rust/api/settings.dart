@@ -6,14 +6,14 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_engine_config`, `default_library_table_columns`, `default_master_bus_route`, `default_preview_bus_route`, `normalizer_target`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `shared_host`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_engine_config`, `default_library_table_columns`, `default_master_bus_route`, `default_preview_bus_route`, `normalizer_target`, `parse_bus`, `parse_settings`, `seed_engine_config_if_unconfigured`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `shared_host`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<SettingsTransport>>
 abstract class SettingsTransport implements RustOpaqueInterface {
-  /// Current session settings.
+  /// Current session settings (schema-validated).
   Future<AppSettings> getSettings();
 
   /// Open the app-wide settings host (singleton per process).
@@ -49,6 +49,7 @@ class AppSettings {
   final JogModeSetting defaultOuterJogMode;
   final double defaultTempoRange;
   final Float32List tempoRangeSteps;
+  final WaveformDisplayModeSetting waveformDisplayMode;
 
   const AppSettings({
     required this.backend,
@@ -70,6 +71,7 @@ class AppSettings {
     required this.defaultOuterJogMode,
     required this.defaultTempoRange,
     required this.tempoRangeSteps,
+    required this.waveformDisplayMode,
   });
 
   @override
@@ -92,7 +94,8 @@ class AppSettings {
       defaultTopJogMode.hashCode ^
       defaultOuterJogMode.hashCode ^
       defaultTempoRange.hashCode ^
-      tempoRangeSteps.hashCode;
+      tempoRangeSteps.hashCode ^
+      waveformDisplayMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -117,7 +120,8 @@ class AppSettings {
           defaultTopJogMode == other.defaultTopJogMode &&
           defaultOuterJogMode == other.defaultOuterJogMode &&
           defaultTempoRange == other.defaultTempoRange &&
-          tempoRangeSteps == other.tempoRangeSteps;
+          tempoRangeSteps == other.tempoRangeSteps &&
+          waveformDisplayMode == other.waveformDisplayMode;
 }
 
 /// Bus channel routing mode.
@@ -163,3 +167,6 @@ enum SamplerPlayModeSetting { oneshot, hold, loop }
 
 /// Sampler ↔ channel-strip routing.
 enum SamplerStripRouteSettingFrb { before, after }
+
+/// Waveform lane paint mode.
+enum WaveformDisplayModeSetting { rgb, filtered }

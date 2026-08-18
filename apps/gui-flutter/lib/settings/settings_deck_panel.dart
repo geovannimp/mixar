@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsDeckPanel extends ConsumerWidget {
@@ -134,13 +135,11 @@ class SettingsDeckPanel extends ConsumerWidget {
                             'Deck ${deck == 0 ? 'A' : 'B'} default sampler bank',
                         child: SettingsSelect<String?>(
                           value: draft.deckDefaultSamplerBankId[deck],
-                          options: [null, for (final bank in banks) bank.id],
-                          labelBuilder: (id) {
-                            if (id == null) {
-                              return 'None';
-                            }
-                            return banks.firstWhere((b) => b.id == id).name;
-                          },
+                          options: _bankOptions(
+                            banks,
+                            draft.deckDefaultSamplerBankId[deck],
+                          ),
+                          labelBuilder: (id) => _bankLabel(banks, id),
                           onChanged: (bankId) => _setDeckBank(deck, bankId),
                         ),
                       ),
@@ -161,6 +160,29 @@ class SettingsDeckPanel extends ConsumerWidget {
     }
     banks[deck] = bankId;
     onChanged(copyAppSettings(draft, deckDefaultSamplerBankId: banks));
+  }
+
+  static List<String?> _bankOptions(
+    List<SamplerBankInfo> banks,
+    String? selected,
+  ) {
+    return [
+      null,
+      if (selected != null && !banks.any((b) => b.id == selected)) selected,
+      for (final bank in banks) bank.id,
+    ];
+  }
+
+  static String _bankLabel(List<SamplerBankInfo> banks, String? id) {
+    if (id == null) {
+      return 'None';
+    }
+    for (final bank in banks) {
+      if (bank.id == id) {
+        return bank.name;
+      }
+    }
+    return id;
   }
 
   static String _jogLabel(JogModeSetting mode) => switch (mode) {

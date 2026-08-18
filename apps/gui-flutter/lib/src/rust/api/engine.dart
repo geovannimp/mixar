@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bare`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`

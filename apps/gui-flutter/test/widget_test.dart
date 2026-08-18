@@ -13,7 +13,6 @@ import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
-import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
@@ -57,6 +56,9 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
 _settingsOverrides() => [
   appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
   audioDevicesProvider.overrideWith((ref, backend) async => const []),
+  audioBackendNamesProvider.overrideWith(
+    (ref) => const ['cpal', 'auto', 'null'],
+  ),
   samplerBanksProvider.overrideWith((ref) async => const []),
   controllerTransportProvider.overrideWith((ref) async => null),
 ];
@@ -157,29 +159,13 @@ void main() {
 
   testWidgets('settings switches waveform display mode', (tester) async {
     await pumpShell(tester);
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(AppShell)),
-    );
-    expect(
-      container.read(waveformDisplayModeProvider),
-      WaveformDisplayMode.rgb,
-    );
-
     await tester.tap(find.byIcon(FLucideIcons.settings));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Waveform'));
     await tester.pumpAndSettle();
     expect(find.text('DISPLAY MODE'), findsOneWidget);
     expect(find.text('RGB'), findsOneWidget);
-
-    container.read(waveformDisplayModeProvider.notifier).set(
-      WaveformDisplayMode.filtered,
-    );
-    await tester.pump();
-    expect(
-      container.read(waveformDisplayModeProvider),
-      WaveformDisplayMode.filtered,
-    );
+    expect(find.text('Save'), findsNothing);
   }, semanticsEnabled: false);
 
   testWidgets('settings page lists waveform and controllers', (tester) async {
@@ -200,11 +186,7 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const SizedBox(
-            width: 1400,
-            height: 900,
-            child: SettingsPage(),
-          ),
+          home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),
         ),
       ),
     );

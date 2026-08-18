@@ -447,6 +447,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   BigInt dco_decode_usize(dynamic raw);
 
   @protected
+  WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
+    dynamic raw,
+  );
+
+  @protected
   WaveformPeaks dco_decode_waveform_peaks(dynamic raw);
 
   @protected
@@ -893,6 +898,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
+
+  @protected
+  WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   WaveformPeaks sse_decode_waveform_peaks(SseDeserializer deserializer);
@@ -1433,6 +1443,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_waveform_display_mode_setting(
+    WaveformDisplayModeSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_waveform_peaks(WaveformPeaks self, SseSerializer serializer);
