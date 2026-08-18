@@ -8,6 +8,8 @@ import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
@@ -100,6 +102,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingId = ref.watch(analyzingTrackIdProvider);
     final engineRunning = ref.watch(engineRunningProvider);
+    final tableColumns = ref.watch(libraryTableColumnsProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -196,8 +199,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                             key: ValueKey((
                               drive ? drivePath : selectedId,
                               engineRunning,
+                              tableColumns.join(','),
                             )),
-                            columns: _columns(theme),
+                            columns: _columns(theme, tableColumns),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
                             rowWrapper: engineRunning ? _dragRowWrapper : null,
@@ -219,7 +223,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  List<TrinaColumn> _columns(FThemeData theme) {
+  List<TrinaColumn> _columns(FThemeData theme, List<String> activeColumns) {
+    final visible = {
+      for (final col in kLibraryColumnDefs)
+        if (col.required || activeColumns.contains(col.id)) col.id,
+    };
     return [
       TrinaColumn(
         title: '',
@@ -255,57 +263,92 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           );
         },
       ),
-      TrinaColumn(
-        title: 'Title',
-        field: 'title',
-        type: TrinaColumnType.text(),
-        width: 280,
-        minWidth: 120,
-        enableContextMenu: false,
-        enableDropToResize: true,
-      ),
-      TrinaColumn(
-        title: 'Artist',
-        field: 'artist',
-        type: TrinaColumnType.text(),
-        width: 180,
-        minWidth: 96,
-        enableContextMenu: false,
-        enableDropToResize: true,
-      ),
-      TrinaColumn(
-        title: 'BPM',
-        field: 'bpm',
-        type: TrinaColumnType.text(),
-        width: 72,
-        minWidth: 56,
-        textAlign: TrinaColumnTextAlign.right,
-        titleTextAlign: TrinaColumnTextAlign.right,
-        enableContextMenu: false,
-        enableDropToResize: true,
-      ),
-      TrinaColumn(
-        title: 'Key',
-        field: 'key',
-        type: TrinaColumnType.text(),
-        width: 64,
-        minWidth: 48,
-        textAlign: TrinaColumnTextAlign.center,
-        titleTextAlign: TrinaColumnTextAlign.center,
-        enableContextMenu: false,
-        enableDropToResize: true,
-      ),
-      TrinaColumn(
-        title: 'Length',
-        field: 'length',
-        type: TrinaColumnType.text(),
-        width: 80,
-        minWidth: 64,
-        textAlign: TrinaColumnTextAlign.right,
-        titleTextAlign: TrinaColumnTextAlign.right,
-        enableContextMenu: false,
-        enableDropToResize: true,
-      ),
+      if (visible.contains('title'))
+        TrinaColumn(
+          title: 'Title',
+          field: 'title',
+          type: TrinaColumnType.text(),
+          width: 280,
+          minWidth: 120,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('artist'))
+        TrinaColumn(
+          title: 'Artist',
+          field: 'artist',
+          type: TrinaColumnType.text(),
+          width: 180,
+          minWidth: 96,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('album'))
+        TrinaColumn(
+          title: 'Album',
+          field: 'album',
+          type: TrinaColumnType.text(),
+          width: 180,
+          minWidth: 96,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('genre'))
+        TrinaColumn(
+          title: 'Genre',
+          field: 'genre',
+          type: TrinaColumnType.text(),
+          width: 120,
+          minWidth: 80,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('bpm'))
+        TrinaColumn(
+          title: 'BPM',
+          field: 'bpm',
+          type: TrinaColumnType.text(),
+          width: 72,
+          minWidth: 56,
+          textAlign: TrinaColumnTextAlign.right,
+          titleTextAlign: TrinaColumnTextAlign.right,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('key'))
+        TrinaColumn(
+          title: 'Key',
+          field: 'key',
+          type: TrinaColumnType.text(),
+          width: 64,
+          minWidth: 48,
+          textAlign: TrinaColumnTextAlign.center,
+          titleTextAlign: TrinaColumnTextAlign.center,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('duration'))
+        TrinaColumn(
+          title: 'Length',
+          field: 'length',
+          type: TrinaColumnType.text(),
+          width: 80,
+          minWidth: 64,
+          textAlign: TrinaColumnTextAlign.right,
+          titleTextAlign: TrinaColumnTextAlign.right,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
+      if (visible.contains('path'))
+        TrinaColumn(
+          title: 'Path',
+          field: 'pathDisplay',
+          type: TrinaColumnType.text(),
+          width: 240,
+          minWidth: 120,
+          enableContextMenu: false,
+          enableDropToResize: true,
+        ),
       TrinaColumn(
         title: '',
         field: 'actions',
@@ -424,11 +467,14 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                   : trackTitleLabel(t),
             ),
             'artist': TrinaCell(value: t.artist ?? ''),
+            'album': TrinaCell(value: t.album ?? ''),
+            'genre': TrinaCell(value: t.genre ?? ''),
             'bpm': TrinaCell(
               value: t.bpm == null ? '' : t.bpm!.toStringAsFixed(1),
             ),
             'key': TrinaCell(value: t.key ?? ''),
             'length': TrinaCell(value: _formatDuration(t.durationMs)),
+            'pathDisplay': TrinaCell(value: t.path),
             'actions': TrinaCell(value: t.id),
           },
         ),

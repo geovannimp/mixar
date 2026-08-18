@@ -6,6 +6,8 @@ import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -51,6 +53,7 @@ void main() {
             collectionsProvider.overrideWith((ref) async => [collection]),
             collectionTracksProvider.overrideWith((ref) async => [track]),
             libraryEventsBootstrapProvider.overrideWith((ref) {}),
+            appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
           ],
           child: MaterialApp(
             theme: materialUiThemeFromForui(theme),

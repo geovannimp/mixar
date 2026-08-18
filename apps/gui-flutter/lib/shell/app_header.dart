@@ -7,7 +7,7 @@ import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Brand | tabs | drag region | status | window controls (desktop).
+/// Brand | drag region | status | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {
   const AppHeader({
     required this.appTitle,
@@ -58,21 +58,6 @@ class AppHeader extends ConsumerWidget {
                 ),
               ),
             ),
-            FButton(
-              variant: tab == ShellTab.mixer ? .secondary : .ghost,
-              size: .sm,
-              mainAxisSize: .min,
-              onPress: () => onTabChanged(ShellTab.mixer),
-              child: const Text('Mixer'),
-            ),
-            const SizedBox(width: 4),
-            FButton(
-              variant: tab == ShellTab.settings ? .secondary : .ghost,
-              size: .sm,
-              mainAxisSize: .min,
-              onPress: () => onTabChanged(ShellTab.settings),
-              child: const Text('Settings'),
-            ),
             Expanded(
               child: _maybeDrag(
                 desktop: desktop,
@@ -92,6 +77,13 @@ class AppHeader extends ConsumerWidget {
                   ),
                 ),
               ),
+            ),
+            FButton.icon(
+              variant: .ghost,
+              size: .sm,
+              semanticsLabel: 'Settings',
+              onPress: () => onTabChanged(ShellTab.settings),
+              child: const Icon(FLucideIcons.settings),
             ),
             if (desktop) const WindowTitleBarControls(),
           ],

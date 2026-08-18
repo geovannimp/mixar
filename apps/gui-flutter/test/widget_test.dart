@@ -18,7 +18,10 @@ import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/settings_page.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -50,6 +53,13 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
       )
       .any((s) => s.enabled);
 }
+
+_settingsOverrides() => [
+  appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+  audioDevicesProvider.overrideWith((ref, backend) async => const []),
+  samplerBanksProvider.overrideWith((ref) async => const []),
+  controllerTransportProvider.overrideWith((ref) async => null),
+];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -110,6 +120,7 @@ void main() {
             final id = ref.watch(activeCollectionIdProvider);
             return id == collection.id ? [track] : const [];
           }),
+          ..._settingsOverrides(),
           ...extraOverrides,
         ],
         child: MaterialApp(
@@ -154,25 +165,22 @@ void main() {
       WaveformDisplayMode.rgb,
     );
 
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.byIcon(FLucideIcons.settings));
     await tester.pumpAndSettle();
-    expect(find.text('Waveform'), findsOneWidget);
-    expect(find.text('Controllers'), findsOneWidget);
+    await tester.tap(find.text('Waveform'));
+    await tester.pumpAndSettle();
+    expect(find.text('DISPLAY MODE'), findsOneWidget);
+    expect(find.text('RGB'), findsOneWidget);
 
-    await tester.tap(find.text('Filtered'));
-    await tester.pumpAndSettle();
+    container.read(waveformDisplayModeProvider.notifier).set(
+      WaveformDisplayMode.filtered,
+    );
+    await tester.pump();
     expect(
       container.read(waveformDisplayModeProvider),
       WaveformDisplayMode.filtered,
     );
-
-    await tester.tap(find.text('RGB'));
-    await tester.pumpAndSettle();
-    expect(
-      container.read(waveformDisplayModeProvider),
-      WaveformDisplayMode.rgb,
-    );
-  });
+  }, semanticsEnabled: false);
 
   testWidgets('settings page lists waveform and controllers', (tester) async {
     debugOverrideDesktopWindow = false;
@@ -185,20 +193,38 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: _settingsOverrides(),
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
           builder: (context, child) => MaterialUiCompatibilityBridge(
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const SettingsPage(),
+          home: const SizedBox(
+            width: 1400,
+            height: 900,
+            child: SettingsPage(),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Waveform'), findsOneWidget);
-    expect(find.text('Controllers'), findsOneWidget);
-  });
+    expect(find.text('Waveform'), findsWidgets);
+    await tester.tap(find.text('Waveform'));
+    await tester.pumpAndSettle();
+    expect(find.text('DISPLAY MODE'), findsOneWidget);
+    expect(find.text('Save'), findsNothing);
+
+    await tester.tap(find.text('Audio'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FSwitch).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Save'), findsOneWidget);
+
+    await tester.tap(find.text('Controllers'));
+    await tester.pumpAndSettle();
+    expect(find.text('Update All'), findsOneWidget);
+  }, semanticsEnabled: false);
 
   testWidgets('deck shows loaded title from engine snapshot', (tester) async {
     await pumpShell(

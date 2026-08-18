@@ -73,12 +73,10 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
       fontWeight: .w600,
       fontSize: 10,
     );
-    // Default FButton sm content pad is h:10 → only ~48px left in this column ("Set master" overflows).
-    // Flutter 3.47 Inter metrics: "Set master" at 9px is ~90 wide; keep pad tight and column ≥114.
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 76,
+      width: 114,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),

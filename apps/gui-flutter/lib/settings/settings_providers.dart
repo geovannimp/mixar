@@ -1,0 +1,76 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
+
+final settingsTransportProvider = FutureProvider<SettingsTransport>((ref) async {
+  return SettingsTransport.open();
+});
+
+final audioBackendNamesProvider = Provider<List<String>>(
+  (_) => AudioBackendTransport.listNames(),
+);
+
+final audioDevicesProvider = FutureProvider.family<List<OutputDevice>, String>((
+  ref,
+  backend,
+) async {
+  final transport = await AudioBackendTransport.open(name: backend);
+  return transport.listOutputDevices();
+});
+
+final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
+  final settings = await ref.watch(settingsTransportProvider.future);
+  return normalizeAppSettings(await settings.getSettings());
+});
+
+final libraryTableColumnsProvider = Provider<List<String>>((ref) {
+  return ref.watch(appSettingsProvider).maybeWhen(
+        data: (s) => s.libraryTableColumns,
+        orElse: () => List<String>.from(kDefaultLibraryColumns),
+      );
+});
+
+final samplerBanksProvider = FutureProvider<List<SamplerBankInfo>>((ref) async {
+  final library = await ref.watch(libraryTransportProvider.future);
+  return library.listSamplerBanks();
+});
+
+LibraryAnalysisDurationSetting _libraryAnalysisDuration(
+  AnalysisDurationSetting duration,
+) {
+  return switch (duration) {
+    AnalysisDurationSetting.fast => LibraryAnalysisDurationSetting.fast,
+    AnalysisDurationSetting.precise => LibraryAnalysisDurationSetting.precise,
+    AnalysisDurationSetting.complete => LibraryAnalysisDurationSetting.complete,
+  };
+}
+
+Future<AppSettings> saveAppSettings(
+  WidgetRef ref,
+  AppSettings draft,
+) async {
+  final settings = await ref.read(settingsTransportProvider.future);
+  final library = await ref.read(libraryTransportProvider.future);
+  final normalized = normalizeAppSettings(draft);
+  final saved = await settings.saveSettings(settings: normalized);
+  await library.applyLibrarySettings(
+    analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
+  );
+  ref.invalidate(appSettingsProvider);
+  ref.invalidate(libraryTableColumnsProvider);
+  final engine = await ref.read(engineTransportProvider.future);
+  if (engine != null && await engine.isRunning()) {
+    await engine.restartFromSettings();
+    for (var deckId = 0; deckId < 2; deckId++) {
+      final trackId = ref.read(deckTrackIdProvider(deckId));
+      if (trackId != null) {
+        await engine.loadLibraryTrack(deckId: deckId, trackId: trackId);
+      }
+    }
+  }
+  return saved;
+}

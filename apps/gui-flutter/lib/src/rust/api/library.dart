@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `map_library_evt`, `pack_peaks`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -23,6 +23,11 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
+
+  /// Apply library analysis worker duration.
+  Future<void> applyLibrarySettings({
+    required LibraryAnalysisDurationSetting analysisDuration,
+  });
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses();
@@ -51,6 +56,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// List all collections with track counts.
   Future<List<LibraryCollectionSummary>> listCollections();
+
+  /// Sampler banks stored in the library DB.
+  Future<List<SamplerBankInfo>> listSamplerBanks();
 
   /// Open (or create) a SQLite library at `db_path`.
   static Future<LibraryTransport> open({required String dbPath}) =>
@@ -130,6 +138,9 @@ class BeatGridData {
           downbeats == other.downbeats &&
           bpm == other.bpm;
 }
+
+/// Offline analysis depth for library worker configuration.
+enum LibraryAnalysisDurationSetting { fast, precise, complete }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
 class LibraryCollectionSummary {
@@ -282,6 +293,37 @@ class ResolvedLibraryTrack {
           requestPath == other.requestPath &&
           track == other.track;
 }
+
+/// Sampler bank row for deck default-bank pickers.
+class SamplerBankInfo {
+  final String id;
+  final String name;
+  final SamplerPlayMode? playMode;
+  final int sortIndex;
+
+  const SamplerBankInfo({
+    required this.id,
+    required this.name,
+    this.playMode,
+    required this.sortIndex,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ name.hashCode ^ playMode.hashCode ^ sortIndex.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SamplerBankInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          playMode == other.playMode &&
+          sortIndex == other.sortIndex;
+}
+
+enum SamplerPlayMode { oneshot, hold, loop }
 
 /// Packed mono RGB peaks (`count × 3` uint8 bytes).
 class WaveformPeaks {

@@ -1,0 +1,228 @@
+import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:forui/forui.dart';
+import 'package:gui_flutter/settings/settings_audio_panel.dart';
+import 'package:gui_flutter/settings/settings_controllers_panel.dart';
+import 'package:gui_flutter/settings/settings_deck_panel.dart';
+import 'package:gui_flutter/settings/settings_library_panel.dart';
+import 'package:gui_flutter/settings/settings_mixer_panel.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/settings/settings_section.dart';
+import 'package:gui_flutter/settings/settings_sidebar.dart';
+import 'package:gui_flutter/settings/settings_waveform_panel.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
+
+class SettingsPage extends ConsumerStatefulWidget {
+  const SettingsPage({this.onClose, super.key});
+
+  final VoidCallback? onClose;
+
+  @override
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  var _section = SettingsSection.audio;
+  AppSettings? _draft;
+  AppSettings? _baseline;
+  var _busy = false;
+  String? _error;
+  var _saved = false;
+
+  bool _isDirty(AppSettings draft, AppSettings baseline) => draft != baseline;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final settingsAsync = ref.watch(appSettingsProvider);
+
+    return settingsAsync.when(
+      loading: () => Center(
+        child: Text(
+          'Loading settings…',
+          style: theme.typography.body.sm.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+      ),
+      error: (e, _) => Center(
+        child: Text(
+          '$e',
+          style: theme.typography.body.sm.copyWith(
+            color: theme.colors.destructive,
+          ),
+        ),
+      ),
+      data: (settings) {
+        _baseline ??= settings;
+        _draft ??= settings;
+        final draft = _draft!;
+        final baseline = _baseline!;
+        final dirty = _isDirty(draft, baseline);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: theme.colors.border)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 24, 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 12,
+                  children: [
+                    if (widget.onClose != null)
+                      FButton.icon(
+                        variant: .ghost,
+                        size: .sm,
+                        semanticsLabel: 'Close',
+                        onPress: widget.onClose,
+                        child: const Icon(FLucideIcons.x),
+                      ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SETTINGS',
+                            style: theme.typography.body.xs.copyWith(
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Saving restarts the engine automatically if it\'s running.',
+                            style: theme.typography.body.sm.copyWith(
+                              color: theme.colors.mutedForeground,
+                            ),
+                          ),
+                          if (_error != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _error!,
+                              style: theme.typography.body.sm.copyWith(
+                                color: theme.colors.destructive,
+                              ),
+                            ),
+                          ],
+                          if (_saved && _error == null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Settings saved.',
+                              style: theme.typography.body.sm.copyWith(
+                                color: theme.colors.primary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (dirty)
+                      FButton(
+                        size: .sm,
+                        mainAxisSize: .min,
+                        onPress: _busy ? null : () => _save(draft),
+                        child: Text(_busy ? 'Saving…' : 'Save'),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SettingsSidebar(
+                    active: _section,
+                    onSelect: (section) => setState(() => _section = section),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 672),
+                        child: _SettingsSectionPanel(
+                          section: _section,
+                          draft: draft,
+                          onChanged: (next) => setState(() {
+                            _draft = next;
+                            _saved = false;
+                          }),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _save(AppSettings draft) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _saved = false;
+    });
+    try {
+      final saved = await saveAppSettings(ref, draft);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _draft = saved;
+        _baseline = saved;
+        _saved = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = '$e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+}
+
+class _SettingsSectionPanel extends StatelessWidget {
+  const _SettingsSectionPanel({
+    required this.section,
+    required this.draft,
+    required this.onChanged,
+  });
+
+  final SettingsSection section;
+  final AppSettings draft;
+  final ValueChanged<AppSettings> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return switch (section) {
+      SettingsSection.audio => SettingsAudioPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.mixer => SettingsMixerPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.waveform => const SettingsWaveformPanel(),
+      SettingsSection.deck => SettingsDeckPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.library => SettingsLibraryPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.controllers => const SettingsControllersPanel(),
+    };
+  }
+}

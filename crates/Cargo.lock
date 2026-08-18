@@ -1689,6 +1689,7 @@ dependencies = [
  "library-api",
  "library-core",
  "lofty",
+ "resampler",
  "tempfile",
 ]
 
