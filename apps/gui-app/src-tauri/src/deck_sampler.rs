@@ -233,6 +233,11 @@ pub(crate) fn load_bank_into_engine(
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
+    with_engine(state, |engine| {
+        engine
+            .set_deck_sampler_bank(deck_id, Some(bank_id.to_string()))
+            .map_err(|e| e.to_string())
+    })?;
     if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id) {
         return apply_effective_play_mode_for_bank(state, deck_id, bank_id);
     }

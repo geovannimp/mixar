@@ -811,6 +811,9 @@ impl EngineTransport {
                     .map_err(|e| e.to_string())?;
             }
             engine
+                .set_deck_sampler_bank(deck_id as usize, Some(bank_id))
+                .map_err(|e| e.to_string())?;
+            engine
                 .deck_snapshot(deck_id as usize)
                 .ok_or_else(|| "deck snapshot unavailable".to_string())?
         };

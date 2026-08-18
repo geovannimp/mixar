@@ -211,3 +211,26 @@ fn set_master_deck_publishes_status() {
     };
     assert_eq!(status.master_deck, 1);
 }
+
+#[test]
+fn set_sampler_bank_publishes_active_bank_id() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let bank_id = {
+        let lib = library.library_arc();
+        let guard = lib.lock().unwrap();
+        guard.create_sampler_bank("pads", None).unwrap().id
+    };
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    transport.set_sampler_bank(0, bank_id.clone()).unwrap();
+    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::DeckUpdated {
+        active_sampler_bank_id,
+        ..
+    } = decode_evt_body(event.payload()).unwrap()
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(active_sampler_bank_id.as_deref(), Some(bank_id.as_str()));
+}
