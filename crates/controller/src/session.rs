@@ -109,7 +109,8 @@ impl MappingSession {
         &self.snapshot
     }
 
-    /// Hot-cue pad routing uses these positions; keep in sync with library `HotCuesChanged`.
+    /// LED/toggle-pause and the `trigger_hot_cue` shortcut use these positions.
+    /// MIDI `pad n` publishes named press/release; it does not look up cue ms.
     pub fn set_deck_hot_cues(
         &mut self,
         deck: u16,
@@ -119,6 +120,15 @@ impl MappingSession {
         let i = (deck as usize).min(3);
         self.snapshot.hot_cues[i] = cues;
         self.refresh_hot_cue_leds(deck, midi);
+    }
+
+    /// Mirror engine `pad_mode` so MIDI `pad n` matches the UI.
+    pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        self.snapshot.pad_mode[i] = mode;
+        if mode == PadMode::HotCue {
+            self.refresh_hot_cue_leds(deck, midi);
+        }
     }
 
     /// Re-send pad LED MIDI for the deck's hot-cue slots (also after pad-mode changes).
@@ -498,6 +508,23 @@ impl MappingSession {
                         self.set_playing_deck(d, true);
                         let deck_section = format!("deck_{}", d + 1);
                         self.apply_output_signal(&deck_section, "play_pause", true, midi);
+                    }
+                }
+                if matches!(kind, Kind::HotCuePadPress) {
+                    if let (Origin::Deck(d), CmdBody::HotCuePadPress { slot, shift: false }) =
+                        (o, body)
+                    {
+                        let i = deck_slot(*d);
+                        let filled = self.snapshot.hot_cues[i]
+                            .get(*slot as usize)
+                            .copied()
+                            .flatten()
+                            .is_some();
+                        if filled {
+                            self.set_playing_deck(*d, true);
+                            let deck_section = format!("deck_{}", d + 1);
+                            self.apply_output_signal(&deck_section, "play_pause", true, midi);
+                        }
                     }
                 }
                 if matches!(kind, Kind::Pause) {

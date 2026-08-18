@@ -9,10 +9,15 @@ use std::time::Duration;
 use controller::{
     ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
 };
-use engine_api::{encode_cmd_body, CmdBody, Kind, Origin};
+use engine_api::{
+    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, PadMode,
+};
 use engine_core::EngineBuses;
 use library::LibraryBuses;
-use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
+use library_api::{
+    decode_evt_body as decode_library_evt, EvtBody as LibraryEvtBody, HotCue as LibraryHotCue,
+    Kind as LibraryKind, Origin as LibraryOrigin,
+};
 
 use crate::api::engine::EngineBusHandle;
 use crate::api::library::LibraryBusHandle;
@@ -125,7 +130,7 @@ impl ControllerTransport {
         let engine_buses = engine_buses.buses();
         let library_buses = library_buses.buses();
 
-        let mut threads = Vec::with_capacity(2);
+        let mut threads = Vec::with_capacity(3);
         {
             let stop_flag = Arc::clone(&stop);
             let controller_engine = Arc::clone(&engine);
@@ -169,6 +174,20 @@ impl ControllerTransport {
                     emit_events(&sink, events);
                     std::thread::sleep(PUMP_INTERVAL);
                 }
+            })?;
+        }
+        {
+            let stop_flag = Arc::clone(&stop);
+            let controller_engine = Arc::clone(&engine);
+            let engine_buses = engine_buses.clone();
+            let library_buses = library_buses.clone();
+            spawn_named("controller-mirror", &stop, &mut threads, move || {
+                mirror_engine_library_to_controller(
+                    stop_flag,
+                    controller_engine,
+                    engine_buses,
+                    library_buses,
+                );
             })?;
         }
 
@@ -350,6 +369,117 @@ fn spawn_named(
         Err(e) => {
             stop_and_join(stop, threads);
             Err(e.to_string())
+        }
+    }
+}
+
+fn hot_cue_slots_lib(cues: &[LibraryHotCue]) -> [Option<i32>; 8] {
+    let mut slots = [None; 8];
+    for cue in cues {
+        let idx = cue.slot as usize;
+        if idx < 8 {
+            slots[idx] = Some(cue.position_ms);
+        }
+    }
+    slots
+}
+
+fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; 8] {
+    let mut slots = [None; 8];
+    for cue in cues {
+        let idx = cue.slot as usize;
+        if idx < 8 {
+            slots[idx] = Some(cue.position_ms);
+        }
+    }
+    slots
+}
+
+fn apply_pad_mode(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, mode: PadMode) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_pad_mode(deck, mode);
+}
+
+fn apply_hot_cues(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, slots: [Option<i32>; 8]) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_hot_cues(deck, slots);
+}
+
+fn mirror_engine_library_to_controller(
+    stop: Arc<AtomicBool>,
+    controller: Arc<Mutex<ControllerEngine>>,
+    engine_buses: EngineBuses,
+    library_buses: LibraryBuses,
+) {
+    let Ok(engine_rx) = engine_buses.subscribe_evt_all() else {
+        return;
+    };
+    let Ok(library_rx) = library_buses.subscribe_evt_all() else {
+        return;
+    };
+    let mut deck_tracks: [Option<String>; 4] = Default::default();
+    while !stop.load(Ordering::Relaxed) {
+        if let Ok(Some(ev)) = engine_rx.recv_timeout(Duration::from_millis(5)) {
+            apply_engine_mirror(&controller, &mut deck_tracks, ev.as_ref());
+        }
+        if let Ok(Some(ev)) = library_rx.recv_timeout(Duration::from_millis(5)) {
+            apply_library_mirror(&controller, &deck_tracks, ev.as_ref());
+        }
+    }
+}
+
+fn apply_engine_mirror(
+    controller: &Arc<Mutex<ControllerEngine>>,
+    deck_tracks: &mut [Option<String>; 4],
+    ev: &engine_core::Evt,
+) {
+    let Ok(body) = decode_evt_body(ev.payload()) else {
+        return;
+    };
+    match body {
+        EvtBody::DeckUpdated {
+            id,
+            track_id,
+            pad_mode,
+            hot_cues,
+            ..
+        } => {
+            let idx = (id as usize).min(3);
+            deck_tracks[idx] = track_id;
+            apply_pad_mode(controller, id, pad_mode);
+            apply_hot_cues(controller, id, hot_cue_slots_deck(&hot_cues));
+        }
+        EvtBody::EngineStatus { status } => {
+            for deck in status.decks {
+                let idx = (deck.id as usize).min(3);
+                deck_tracks[idx] = deck.track_id;
+                apply_pad_mode(controller, deck.id, deck.pad_mode);
+                apply_hot_cues(controller, deck.id, hot_cue_slots_deck(&deck.hot_cues));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn apply_library_mirror(
+    controller: &Arc<Mutex<ControllerEngine>>,
+    deck_tracks: &[Option<String>; 4],
+    ev: &library::Evt,
+) {
+    let Ok(body) = decode_library_evt(ev.payload()) else {
+        return;
+    };
+    let LibraryEvtBody::HotCuesChanged { track_id, hot_cues } = body else {
+        return;
+    };
+    let slots = hot_cue_slots_lib(&hot_cues);
+    for (i, loaded) in deck_tracks.iter().enumerate() {
+        if loaded.as_deref() == Some(track_id.as_str()) {
+            apply_hot_cues(controller, i as u16, slots);
         }
     }
 }

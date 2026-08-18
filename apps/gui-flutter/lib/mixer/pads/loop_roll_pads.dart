@@ -6,14 +6,14 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 
 class LoopRollPads extends StatelessWidget {
   const LoopRollPads({
-    required this.onBegin,
-    required this.onEnd,
+    required this.onPress,
+    required this.onRelease,
     this.disabled = false,
     super.key,
   });
 
-  final ValueChanged<num> onBegin;
-  final VoidCallback onEnd;
+  final ValueChanged<int> onPress;
+  final ValueChanged<int> onRelease;
   final bool disabled;
 
   @override
@@ -26,10 +26,9 @@ class LoopRollPads extends StatelessWidget {
             final beats = kLoopRollBeats[slot];
             return HoldPadButton(
               disabled: disabled,
-              tooltip:
-                  'Loop roll $beats beat${beats == 1 ? '' : 's'} — hold',
-              onBegin: () => onBegin(beats),
-              onEnd: onEnd,
+              tooltip: 'Loop roll $beats beat${beats == 1 ? '' : 's'} — hold',
+              onBegin: () => onPress(slot),
+              onEnd: () => onRelease(slot),
               child: Column(
                 mainAxisSize: .min,
                 children: [

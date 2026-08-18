@@ -1,7 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
+import 'package:gui_flutter/mixer/deck_pads_host.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 
 /// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Jog content.
@@ -10,11 +12,13 @@ import 'package:gui_flutter/mixer/performance_modes.dart';
 /// and un-rotates each pane.
 class DeckPerformancePanel extends StatelessWidget {
   const DeckPerformancePanel({
+    this.deckId,
     this.hasTrack = false,
     this.disabled = false,
     super.key,
   });
 
+  final int? deckId;
   final bool hasTrack;
   final bool disabled;
 
@@ -67,11 +71,33 @@ class DeckPerformancePanel extends StatelessWidget {
                       child: Directionality(
                         textDirection: TextDirection.ltr,
                         child: switch (mode) {
-                          DeckPerformanceMode.pads => DeckPadsPanel(
-                            hasTrack: hasTrack,
-                            disabled: disabled,
-                            bordered: false,
-                          ),
+                          DeckPerformanceMode.pads => deckId != null
+                              ? DeckPadsHost(
+                                  deckId: deckId!,
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                )
+                              : DeckPadsPanel(
+                                  padMode: PadMode.hotCue,
+                                  onPadMode: (_) {},
+                                  hotCues: const [],
+                                  onHotCuePress: (_, _) {},
+                                  onHotCueRelease: (_) {},
+                                  onLoopRollPress: (_) {},
+                                  onLoopRollRelease: (_) {},
+                                  onBeatJumpPress: (_) {},
+                                  onBeatJumpRelease: (_) {},
+                                  samplerSlots: const [],
+                                  samplerBanks: const [],
+                                  onSamplerPress: (_, _) {},
+                                  onSamplerRelease: (_) {},
+                                  onSelectBank: (_) {},
+                                  onSaveBank: (_, _, _) {},
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                ),
                           DeckPerformanceMode.loop => DeckLoopPanel(
                             hasTrack: hasTrack,
                             disabled: disabled,

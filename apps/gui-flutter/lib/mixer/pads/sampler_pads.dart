@@ -4,6 +4,8 @@ import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class SamplerSlot {
   const SamplerSlot({this.label, this.durationMs, this.path});
@@ -51,11 +53,11 @@ class SamplerPads extends StatelessWidget {
     required this.activeBankId,
     required this.holdLike,
     required this.effectivePlayMode,
-    required this.onTrigger,
-    required this.onEnd,
-    required this.onClear,
+    required this.onPress,
+    required this.onRelease,
     required this.onSelectBank,
     required this.onSaveBank,
+    this.onAssign,
     this.disabled = false,
     super.key,
   });
@@ -65,11 +67,11 @@ class SamplerPads extends StatelessWidget {
   final String? activeBankId;
   final bool holdLike;
   final String effectivePlayMode;
-  final ValueChanged<int> onTrigger;
-  final ValueChanged<int> onEnd;
-  final ValueChanged<int> onClear;
+  final void Function(int slot, bool shift) onPress;
+  final ValueChanged<int> onRelease;
   final ValueChanged<String> onSelectBank;
   final void Function(String bankId, String name, String? playMode) onSaveBank;
+  final void Function(int slot, TrackDragPayload payload)? onAssign;
   final bool disabled;
 
   @override
@@ -180,67 +182,58 @@ class SamplerPads extends StatelessWidget {
     final label = sample.label?.trim();
     final tooltip = filled
         ? (holdLike
-              ? 'Pad ${slot + 1} — hold to play, shift+click clear'
-              : 'Pad ${slot + 1} — click trigger, shift+click clear')
-        : 'Sampler pad ${slot + 1} (assign when library DnD lands)';
+              ? 'Pad ${slot + 1} — hold to play, shift+hold clear'
+              : 'Pad ${slot + 1} — press trigger, shift+press clear')
+        : 'Sampler pad ${slot + 1} (drop a track to assign)';
 
-    final body = Column(
-      mainAxisSize: .min,
-      children: [
-        Text(
-          filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
-          overflow: TextOverflow.ellipsis,
-          style: theme.typography.body.xs.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        Text(
-          filled && sample.durationMs != null
-              ? formatDeckTimeTenth(sample.durationMs)
-              : 'sample',
-          overflow: TextOverflow.ellipsis,
-          style: theme.typography.body.xs,
-        ),
-      ],
-    );
-
-    void onPress() {
-      if (shiftKeyPressed() && filled) {
-        onClear(slot);
-        return;
-      }
-      if (filled && !holdLike) {
-        onTrigger(slot);
-      }
-    }
-
-    if (holdLike) {
-      return HoldPadButton(
-        disabled: disabled,
-        accentSlot: filled ? slot : null,
-        tooltip: tooltip,
-        skipBeginWhenShift: true,
-        onPress: onPress,
-        onBegin: () {
-          if (filled) {
-            onTrigger(slot);
-          }
-        },
-        onEnd: () {
-          if (filled) {
-            onEnd(slot);
-          }
-        },
-        child: body,
-      );
-    }
-
-    return PadButton(
+    final pad = HoldPadButton(
       disabled: disabled,
       accentSlot: filled ? slot : null,
       tooltip: tooltip,
-      onPress: onPress,
-      child: body,
+      onBegin: () => onPress(slot, shiftKeyPressed()),
+      onEnd: () => onRelease(slot),
+      child: Column(
+        mainAxisSize: .min,
+        children: [
+          Text(
+            filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
+            overflow: TextOverflow.ellipsis,
+            style: theme.typography.body.xs.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            filled && sample.durationMs != null
+                ? formatDeckTimeTenth(sample.durationMs)
+                : 'sample',
+            overflow: TextOverflow.ellipsis,
+            style: theme.typography.body.xs,
+          ),
+        ],
+      ),
+    );
+
+    final assign = onAssign;
+    if (assign == null) {
+      return pad;
+    }
+    return DropRegion(
+      formats: const [Formats.plainText, Formats.fileUri],
+      hitTestBehavior: HitTestBehavior.opaque,
+      onDropOver: (event) {
+        for (final item in event.session.items) {
+          if (parseTrackDragLocalData(item.localData) != null ||
+              item.canProvide(Formats.plainText) ||
+              item.canProvide(Formats.fileUri)) {
+            return DropOperation.copy;
+          }
+        }
+        return DropOperation.none;
+      },
+      onPerformDrop: (event) async {
+        _performSamplerAssignDrop(event, slot, assign);
+      },
+      child: pad,
     );
   }
 
@@ -337,6 +330,52 @@ class SamplerPads extends StatelessWidget {
       result.$1.trim().isEmpty ? bank.name : result.$1.trim(),
       result.$2,
     );
+  }
+}
+
+void _performSamplerAssignDrop(
+  PerformDropEvent event,
+  int slot,
+  void Function(int slot, TrackDragPayload payload) assign,
+) {
+  var assigned = false;
+  void tryAssign(TrackDragPayload? payload) {
+    if (assigned || payload == null) {
+      return;
+    }
+    assigned = true;
+    assign(slot, payload);
+  }
+
+  for (final item in event.session.items) {
+    tryAssign(parseTrackDragLocalData(item.localData));
+    if (assigned) {
+      return;
+    }
+  }
+
+  for (final item in event.session.items) {
+    final reader = item.dataReader;
+    if (reader == null) {
+      continue;
+    }
+    if (item.canProvide(Formats.plainText)) {
+      reader.getValue<String>(
+        Formats.plainText,
+        (text) => tryAssign(parseTrackDragPlainText(text)),
+      );
+    }
+    if (item.canProvide(Formats.fileUri)) {
+      reader.getValue<Uri>(Formats.fileUri, (uri) {
+        if (uri == null) {
+          return;
+        }
+        final path = pathFromDroppedUri(uri);
+        if (isSupportedAudioPath(path)) {
+          tryAssign(payloadFromOsPath(path));
+        }
+      });
+    }
   }
 }
 

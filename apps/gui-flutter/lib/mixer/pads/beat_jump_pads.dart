@@ -6,12 +6,14 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 
 class BeatJumpPads extends StatelessWidget {
   const BeatJumpPads({
-    required this.onBeatJump,
+    required this.onPress,
+    required this.onRelease,
     this.disabled = false,
     super.key,
   });
 
-  final ValueChanged<num> onBeatJump;
+  final ValueChanged<int> onPress;
+  final ValueChanged<int> onRelease;
   final bool disabled;
 
   @override
@@ -25,10 +27,11 @@ class BeatJumpPads extends StatelessWidget {
                 ? kBeatJumpForward[slot]
                 : kBeatJumpBack[slot - 4];
             final forward = beats > 0;
-            return PadButton(
+            return HoldPadButton(
               disabled: disabled,
               tooltip: 'Beat jump ${forward ? '+' : ''}$beats',
-              onPress: () => onBeatJump(beats),
+              onBegin: () => onPress(slot),
+              onEnd: () => onRelease(slot),
               child: Column(
                 mainAxisSize: .min,
                 children: [

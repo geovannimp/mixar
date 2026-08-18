@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart' as pads;
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
@@ -159,6 +160,18 @@ void main() {
       expect(snap.channelFor(0).volume, 0.4);
       expect(snap.levelsFor(0).peakL, 0.5);
       expect(snap.levelsFor(0).peakHoldR, 0.9);
+    });
+
+    test('updated padMode lands on the snapshot', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          padMode: PadMode.loopRoll,
+        ),
+      );
+      expect(snap.padModeFor(0), pads.PadMode.loopRoll);
     });
   });
 }

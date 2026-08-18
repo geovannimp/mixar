@@ -12,6 +12,8 @@ pub(crate) struct DeckControlState {
     pub loop_roll_restore: Option<LoopRegion>,
     /// Library track id when the deck holds a library-backed (or id'd) load.
     pub track_id: Option<TrackId>,
+    /// Runtime hot-cue positions (library hydrate + in-session save/delete).
+    pub hot_cues: [Option<i32>; 8],
 }
 
 impl DeckControlState {
@@ -20,6 +22,7 @@ impl DeckControlState {
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.track_id = None;
+        self.hot_cues = [None; 8];
     }
 }
 

@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `map_library_evt`, `pack_peaks`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -139,6 +139,27 @@ class BeatGridData {
           bpm == other.bpm;
 }
 
+/// Persisted hot cue row for Dart (`library_api::HotCue`).
+class HotCueInfo {
+  final int slot;
+  final int positionMs;
+  final String? label;
+
+  const HotCueInfo({required this.slot, required this.positionMs, this.label});
+
+  @override
+  int get hashCode => slot.hashCode ^ positionMs.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HotCueInfo &&
+          runtimeType == other.runtimeType &&
+          slot == other.slot &&
+          positionMs == other.positionMs &&
+          label == other.label;
+}
+
 /// Offline analysis depth for library worker configuration.
 enum LibraryAnalysisDurationSetting { fast, precise, complete }
 
@@ -186,17 +207,23 @@ class LibraryEvt {
   final LibraryTrackSummary? track;
   final String? message;
   final String? trackId;
+  final List<HotCueInfo>? hotCues;
 
   const LibraryEvt({
     required this.kind,
     this.track,
     this.message,
     this.trackId,
+    this.hotCues,
   });
 
   @override
   int get hashCode =>
-      kind.hashCode ^ track.hashCode ^ message.hashCode ^ trackId.hashCode;
+      kind.hashCode ^
+      track.hashCode ^
+      message.hashCode ^
+      trackId.hashCode ^
+      hotCues.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -206,11 +233,18 @@ class LibraryEvt {
           kind == other.kind &&
           track == other.track &&
           message == other.message &&
-          trackId == other.trackId;
+          trackId == other.trackId &&
+          hotCues == other.hotCues;
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
-enum LibraryEvtKind { trackAnalyzed, trackUpdated, error, notice }
+enum LibraryEvtKind {
+  trackAnalyzed,
+  trackUpdated,
+  error,
+  notice,
+  hotCuesChanged,
+}
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
 class LibraryTrackSummary {

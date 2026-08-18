@@ -129,6 +129,37 @@ impl From<EqBand> for engine_api::EqBand {
     }
 }
 
+/// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PadMode {
+    HotCue,
+    LoopRoll,
+    BeatJump,
+    Sampler,
+}
+
+impl From<PadMode> for engine_api::PadMode {
+    fn from(mode: PadMode) -> Self {
+        match mode {
+            PadMode::HotCue => Self::HotCue,
+            PadMode::LoopRoll => Self::LoopRoll,
+            PadMode::BeatJump => Self::BeatJump,
+            PadMode::Sampler => Self::Sampler,
+        }
+    }
+}
+
+impl From<engine_api::PadMode> for PadMode {
+    fn from(mode: engine_api::PadMode) -> Self {
+        match mode {
+            engine_api::PadMode::HotCue => Self::HotCue,
+            engine_api::PadMode::LoopRoll => Self::LoopRoll,
+            engine_api::PadMode::BeatJump => Self::BeatJump,
+            engine_api::PadMode::Sampler => Self::Sampler,
+        }
+    }
+}
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 #[derive(Clone, Debug)]
 pub struct EngineEvt {
@@ -155,6 +186,7 @@ pub struct EngineEvt {
     pub duration_ms: Option<i32>,
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
+    pub pad_mode: Option<PadMode>,
 }
 
 impl EngineEvt {
@@ -183,6 +215,7 @@ impl EngineEvt {
             duration_ms: None,
             speed: None,
             tempo_range: None,
+            pad_mode: None,
         }
     }
 }
@@ -470,6 +503,108 @@ impl EngineTransport {
         )
     }
 
+    /// Per-deck pad mode.
+    pub fn set_pad_mode(&self, deck_id: u16, mode: PadMode) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetPadMode,
+            &CmdBody::SetPadMode { mode: mode.into() },
+        )
+    }
+
+    pub fn hot_cue_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::HotCuePadPress,
+            &CmdBody::HotCuePadPress { slot, shift },
+        )
+    }
+
+    pub fn hot_cue_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::HotCuePadRelease,
+            &CmdBody::HotCuePadRelease { slot },
+        )
+    }
+
+    pub fn loop_roll_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::LoopRollPadPress,
+            &CmdBody::LoopRollPadPress { slot },
+        )
+    }
+
+    pub fn loop_roll_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::LoopRollPadRelease,
+            &CmdBody::LoopRollPadRelease { slot },
+        )
+    }
+
+    pub fn beat_jump_pad_press(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::BeatJumpPadPress,
+            &CmdBody::BeatJumpPadPress { slot },
+        )
+    }
+
+    pub fn beat_jump_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::BeatJumpPadRelease,
+            &CmdBody::BeatJumpPadRelease { slot },
+        )
+    }
+
+    pub fn sampler_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SamplerPadPress,
+            &CmdBody::SamplerPadPress { slot, shift },
+        )
+    }
+
+    pub fn sampler_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SamplerPadRelease,
+            &CmdBody::SamplerPadRelease { slot },
+        )
+    }
+
+    pub fn assign_sampler(&self, deck_id: u16, slot: u8, path: String) -> Result<(), String> {
+        let prepared =
+            LibraryManager::prepare_file_path_for_playback(self.library.as_ref(), Path::new(&path))
+                .map_err(|e| e.to_string())?;
+        self.assign_prepared(deck_id, slot, prepared)
+    }
+
+    pub fn assign_sampler_track(
+        &self,
+        deck_id: u16,
+        slot: u8,
+        track_id: String,
+    ) -> Result<(), String> {
+        let prepared = LibraryManager::prepare_track_for_playback(
+            self.library.as_ref(),
+            &TrackId::new(track_id),
+        )
+        .map_err(|e| e.to_string())?;
+        self.assign_prepared(deck_id, slot, prepared)
+    }
+
+    pub fn clear_sampler(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::ClearSampler,
+            &CmdBody::ClearSampler { slot },
+        )
+    }
+
     /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
     pub fn load_library_track(&self, deck_id: u16, track_id: String) -> Result<(), String> {
         let prepared = LibraryManager::prepare_track_for_playback(
@@ -489,7 +624,6 @@ impl EngineTransport {
     }
 
     fn load_prepared(&self, deck_id: u16, prepared: PreparedTrackPlayback) -> Result<(), String> {
-        let track_id = prepared.track_id.as_str().to_string();
         let snap = {
             let mut guard = self
                 .engine
@@ -501,14 +635,38 @@ impl EngineTransport {
             engine
                 .load_prepared_track(deck_id as usize, prepared)
                 .map_err(|e| e.to_string())?;
-            let mut snap = engine
+            engine
                 .deck_snapshot(deck_id as usize)
-                .ok_or_else(|| "deck snapshot unavailable".to_string())?;
-            // DSP snapshots omit library identity; the prepared load is the
-            // source of truth Flutter needs to fetch L0/L1 peaks.
-            snap.track_id = Some(track_id);
-            snap
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?
         };
+        self.publish_deck_updated(deck_id, snap)
+    }
+
+    fn assign_prepared(
+        &self,
+        deck_id: u16,
+        slot: u8,
+        prepared: PreparedTrackPlayback,
+    ) -> Result<(), String> {
+        let snap = {
+            let mut guard = self
+                .engine
+                .lock()
+                .map_err(|_| "engine lock poisoned".to_string())?;
+            let engine = guard
+                .as_mut()
+                .ok_or_else(|| "engine not available".to_string())?;
+            engine
+                .assign_prepared_sampler(deck_id as usize, slot as usize, prepared)
+                .map_err(|e| e.to_string())?;
+            engine
+                .deck_snapshot(deck_id as usize)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?
+        };
+        self.publish_deck_updated(deck_id, snap)
+    }
+
+    fn publish_deck_updated(&self, deck_id: u16, snap: DeckSnapshot) -> Result<(), String> {
         self.buses
             .publish_evt(
                 Origin::Deck(deck_id),
@@ -631,6 +789,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.duration_ms = snap.duration_ms;
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
+    evt.pad_mode = Some(snap.pad_mode.into());
     evt
 }
 
@@ -663,6 +822,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             duration_ms,
             speed,
             tempo_range,
+            pad_mode,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -681,6 +841,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.duration_ms = duration_ms;
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
+            evt.pad_mode = Some(pad_mode.into());
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -834,6 +995,7 @@ mod tests {
         assert_eq!(mapped[1].headphone_cue, Some(true));
         assert_eq!(mapped[1].speed, Some(0.5));
         assert_eq!(mapped[1].tempo_range, Some(0.08));
+        assert_eq!(mapped[1].pad_mode, Some(super::PadMode::HotCue));
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
     }

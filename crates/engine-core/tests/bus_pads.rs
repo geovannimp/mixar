@@ -210,3 +210,82 @@ fn end_loop_roll_restores_prior_active_loop() {
     assert_eq!(restored.out_ms, prior.out_ms);
     assert!(restored.active);
 }
+
+#[test]
+fn loop_roll_pad_press_release_roundtrip() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopRollPadPress,
+            encode_cmd_body(&CmdBody::LoopRollPadPress { slot: 2 }).unwrap(),
+        )
+        .expect("press");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("roll loop");
+    assert!(region.active);
+    assert!(region.out_ms > region.in_ms);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopRollPadRelease,
+            encode_cmd_body(&CmdBody::LoopRollPadRelease { slot: 2 }).unwrap(),
+        )
+        .expect("release");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(active_loop.is_none());
+}
+
+#[test]
+fn beat_jump_pad_press_moves_playhead() {
+    let session = null_session_loaded();
+    session
+        .with_engine(|engine| {
+            engine.seek_deck(0, 0)?;
+            Ok(())
+        })
+        .expect("seek");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::BeatJumpPadPress,
+            encode_cmd_body(&CmdBody::BeatJumpPadPress { slot: 0 }).unwrap(),
+        )
+        .expect("press");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { position_ms, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let pos = position_ms.expect("position");
+    // +1 beat at 120 BPM = 500ms
+    assert!(
+        (pos - 500).abs() <= 2,
+        "expected ~500ms after +1 beat jump, got {pos}"
+    );
+}

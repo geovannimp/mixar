@@ -20,17 +20,15 @@ class DeckHotCue {
 class HotCuePads extends StatelessWidget {
   const HotCuePads({
     required this.hotCues,
-    required this.onTrigger,
-    required this.onSave,
-    required this.onDelete,
+    required this.onPress,
+    required this.onRelease,
     this.disabled = false,
     super.key,
   });
 
   final List<DeckHotCue> hotCues;
-  final ValueChanged<DeckHotCue> onTrigger;
-  final ValueChanged<int> onSave;
-  final ValueChanged<int> onDelete;
+  final void Function(int slot, bool shift) onPress;
+  final ValueChanged<int> onRelease;
   final bool disabled;
 
   @override
@@ -38,8 +36,7 @@ class HotCuePads extends StatelessWidget {
     final theme = context.theme;
     return PadGrid(
       children: [
-        for (var slot = 0; slot < 8; slot++)
-          _pad(theme, slot),
+        for (var slot = 0; slot < 8; slot++) _pad(theme, slot),
       ],
     );
   }
@@ -56,24 +53,14 @@ class HotCuePads extends StatelessWidget {
     final label = cue?.label?.trim();
     final positionMs = cue?.positionMs;
 
-    return PadButton(
+    return HoldPadButton(
       disabled: disabled,
       accentSlot: filled ? slot : null,
       tooltip: filled
-          ? 'Pad ${slot + 1} — click trigger, shift+click delete'
+          ? 'Pad ${slot + 1} — hold trigger, shift+hold delete'
           : 'Set hot cue on pad ${slot + 1}',
-      onPress: () {
-        if (shiftKeyPressed() && filled) {
-          onDelete(slot);
-          return;
-        }
-        final current = cue;
-        if (current != null) {
-          onTrigger(current);
-          return;
-        }
-        onSave(slot);
-      },
+      onBegin: () => onPress(slot, shiftKeyPressed()),
+      onEnd: () => onRelease(slot),
       child: Column(
         mainAxisSize: .min,
         children: [

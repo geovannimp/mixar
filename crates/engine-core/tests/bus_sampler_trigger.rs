@@ -126,3 +126,81 @@ fn trigger_and_end_sampler_roundtrip() {
     let event = recv_evt_kind(&evt, Kind::Updated);
     assert_eq!(*event.kind(), Kind::Updated);
 }
+
+#[test]
+fn sampler_pad_press_release_without_sampler_mode() {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.assign_sampler_slot(0, 0, sample_source(), "tone".into(), None)?;
+            Ok(())
+        })
+        .expect("assign");
+
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
+        )
+        .expect("press");
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    assert_eq!(*event.kind(), Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadRelease,
+            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
+        )
+        .expect("release");
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    assert_eq!(*event.kind(), Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: true,
+            })
+            .unwrap(),
+        )
+        .expect("clear");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
+        )
+        .expect("empty press");
+    let event = recv_evt_kind(&evt, Kind::Error);
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+        panic!("expected Error");
+    };
+    assert!(
+        !message.is_empty(),
+        "cleared slot should fail trigger: {message}"
+    );
+}

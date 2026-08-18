@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
+import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
@@ -159,6 +161,33 @@ final deckBpmProvider = Provider.family<double?, int>((ref, deckId) {
 final deckPlayingProvider = Provider.family<bool, int>(
   (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
 );
+
+final deckPadModeProvider = Provider.family<PadMode, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
+);
+
+final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
+  ref,
+  deckId,
+) {
+  final trackId = ref.watch(deckTrackIdProvider(deckId));
+  if (trackId == null) {
+    return const [];
+  }
+  final rows = ref.watch(trackHotCuesProvider)[trackId];
+  if (rows == null) {
+    return const [];
+  }
+  return [
+    for (final row in rows)
+      DeckHotCue(
+        slot: row.slot,
+        positionMs: row.positionMs,
+        label: row.label,
+      ),
+  ];
+});
 
 final deckMixerChannelProvider = Provider.family<MixerChannelUi, int>(
   (ref, deckId) =>
