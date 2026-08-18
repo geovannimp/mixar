@@ -5,64 +5,64 @@ import 'package:gui_flutter/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 
-/// Tauri-shaped deck pads panel (mode tabs + per-mode grids). Local state only.
-class DeckPadsPanel extends StatefulWidget {
+/// Presentational deck pads panel (mode tabs + per-mode grids).
+class DeckPadsPanel extends StatelessWidget {
   const DeckPadsPanel({
+    required this.padMode,
+    required this.onPadMode,
+    required this.hotCues,
+    required this.onHotCuePress,
+    required this.onHotCueRelease,
+    required this.onLoopRollPress,
+    required this.onLoopRollRelease,
+    required this.onBeatJumpPress,
+    required this.onBeatJumpRelease,
+    required this.samplerSlots,
+    required this.samplerBanks,
+    required this.onSamplerPress,
+    required this.onSamplerRelease,
+    required this.onSelectBank,
+    required this.onSaveBank,
+    this.activeBankId,
+    this.onSamplerAssign,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
     super.key,
   });
 
-  /// When false, pad actions are disabled (Tauri `!deck.track`).
+  final PadMode padMode;
+  final ValueChanged<PadMode> onPadMode;
+  final List<DeckHotCue> hotCues;
+  final void Function(int slot, bool shift) onHotCuePress;
+  final ValueChanged<int> onHotCueRelease;
+  final ValueChanged<int> onLoopRollPress;
+  final ValueChanged<int> onLoopRollRelease;
+  final ValueChanged<int> onBeatJumpPress;
+  final ValueChanged<int> onBeatJumpRelease;
+  final List<SamplerSlot> samplerSlots;
+  final List<SamplerBank> samplerBanks;
+  final String? activeBankId;
+  final void Function(int slot, bool shift) onSamplerPress;
+  final ValueChanged<int> onSamplerRelease;
+  final ValueChanged<String> onSelectBank;
+  final void Function(String bankId, String name, String? playMode) onSaveBank;
+  final void Function(int slot, TrackDragPayload payload)? onSamplerAssign;
   final bool hasTrack;
-
-  /// Disables mode tabs (and pads).
   final bool disabled;
-
-  /// When false, skips the outer bordered chrome (parent supplies it).
   final bool bordered;
 
-  @override
-  State<DeckPadsPanel> createState() => _DeckPadsPanelState();
-}
-
-class _DeckPadsPanelState extends State<DeckPadsPanel> {
-  PadMode _padMode = PadMode.hotCue;
-  final List<DeckHotCue> _hotCues = [
-    // Demo filled cue so accent chrome is visible while unloaded.
-    const DeckHotCue(slot: 0, positionMs: 12500),
-  ];
-
-  late List<SamplerBank> _banks;
-  late String _activeBankId;
-  late List<SamplerSlot> _slots;
-  final String _settingsPlayMode = kDefaultSamplerPlayMode;
-
-  @override
-  void initState() {
-    super.initState();
-    _banks = const [
-      SamplerBank(id: 'bank-1', name: 'Bank 1'),
-      SamplerBank(id: 'bank-2', name: 'Bank 2', playMode: kSamplerPlayModeHold),
-    ];
-    _activeBankId = _banks.first.id;
-    _slots = [
-      const SamplerSlot(label: 'Kick', durationMs: 500, path: 'demo'),
-      for (var i = 1; i < 8; i++) const SamplerSlot(),
-    ];
-  }
-
-  bool get _controlsDisabled => widget.disabled || !widget.hasTrack;
+  bool get _controlsDisabled => disabled || !hasTrack;
 
   String get _effectivePlayMode {
-    for (final bank in _banks) {
-      if (bank.id == _activeBankId) {
-        return bank.playMode ?? _settingsPlayMode;
+    for (final bank in samplerBanks) {
+      if (bank.id == activeBankId) {
+        return bank.playMode ?? kDefaultSamplerPlayMode;
       }
     }
-    return _settingsPlayMode;
+    return kDefaultSamplerPlayMode;
   }
 
   bool get _holdLike {
@@ -87,9 +87,9 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
                 Expanded(
                   child: _PadModeTab(
                     label: padModeShortLabel(mode),
-                    active: _padMode == mode,
-                    disabled: widget.disabled,
-                    onPress: () => setState(() => _padMode = mode),
+                    active: padMode == mode,
+                    disabled: disabled,
+                    onPress: () => onPadMode(mode),
                   ),
                 ),
             ],
@@ -99,7 +99,7 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
       ],
     );
 
-    if (!widget.bordered) {
+    if (!bordered) {
       return body;
     }
 
@@ -114,59 +114,35 @@ class _DeckPadsPanelState extends State<DeckPadsPanel> {
   }
 
   Widget _modeBody() {
-    return switch (_padMode) {
+    return switch (padMode) {
       PadMode.hotCue => HotCuePads(
-        hotCues: _hotCues,
+        hotCues: hotCues,
         disabled: _controlsDisabled,
-        onTrigger: (_) {},
-        onSave: (slot) {
-          setState(() {
-            _hotCues.removeWhere((c) => c.slot == slot);
-            _hotCues.add(DeckHotCue(slot: slot, positionMs: slot * 1000));
-          });
-        },
-        onDelete: (slot) {
-          setState(() => _hotCues.removeWhere((c) => c.slot == slot));
-        },
+        onPress: onHotCuePress,
+        onRelease: onHotCueRelease,
       ),
       PadMode.loopRoll => LoopRollPads(
         disabled: _controlsDisabled,
-        onBegin: (_) {},
-        onEnd: () {},
+        onPress: onLoopRollPress,
+        onRelease: onLoopRollRelease,
       ),
       PadMode.beatJump => BeatJumpPads(
         disabled: _controlsDisabled,
-        onBeatJump: (_) {},
+        onPress: onBeatJumpPress,
+        onRelease: onBeatJumpRelease,
       ),
       PadMode.sampler => SamplerPads(
-        slots: _slots,
-        banks: _banks,
-        activeBankId: _activeBankId,
+        slots: samplerSlots,
+        banks: samplerBanks,
+        activeBankId: activeBankId,
         disabled: _controlsDisabled,
         holdLike: _holdLike,
         effectivePlayMode: _effectivePlayMode,
-        onTrigger: (_) {},
-        onEnd: (_) {},
-        onClear: (slot) {
-          setState(() {
-            _slots = [
-              for (var i = 0; i < _slots.length; i++)
-                if (i == slot) const SamplerSlot() else _slots[i],
-            ];
-          });
-        },
-        onSelectBank: (id) => setState(() => _activeBankId = id),
-        onSaveBank: (bankId, name, playMode) {
-          setState(() {
-            _banks = [
-              for (final bank in _banks)
-                if (bank.id == bankId)
-                  SamplerBank(id: bank.id, name: name, playMode: playMode)
-                else
-                  bank,
-            ];
-          });
-        },
+        onPress: onSamplerPress,
+        onRelease: onSamplerRelease,
+        onSelectBank: onSelectBank,
+        onSaveBank: onSaveBank,
+        onAssign: onSamplerAssign,
       ),
     };
   }

@@ -10,6 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::controller_host::SharedController;
 use crate::SharedAppState;
+use controller::HOT_CUE_SLOT_COUNT;
 
 pub const LIBRARY_BUS_EVENT: &str = "library://bus";
 
@@ -20,11 +21,11 @@ pub struct LibraryEvtForwarder {
     thread: Option<JoinHandle<()>>,
 }
 
-fn hot_cue_slots(cues: &[library_api::HotCue]) -> [Option<i32>; 8] {
-    let mut slots = [None; 8];
+fn hot_cue_slots(cues: &[library_api::HotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] {
+    let mut slots = [None; HOT_CUE_SLOT_COUNT];
     for cue in cues {
         let idx = cue.slot as usize;
-        if idx < 8 {
+        if idx < slots.len() {
             slots[idx] = Some(cue.position_ms);
         }
     }

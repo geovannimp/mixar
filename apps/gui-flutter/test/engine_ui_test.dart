@@ -160,5 +160,17 @@ void main() {
       expect(snap.levelsFor(0).peakL, 0.5);
       expect(snap.levelsFor(0).peakHoldR, 0.9);
     });
+
+    test('updated padMode lands on the snapshot', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          padMode: PadMode.loopRoll,
+        ),
+      );
+      expect(snap.padModeFor(0), PadMode.loopRoll);
+    });
   });
 }

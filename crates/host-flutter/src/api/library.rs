@@ -137,6 +137,15 @@ pub enum LibraryEvtKind {
     TrackUpdated,
     Error,
     Notice,
+    HotCuesChanged,
+}
+
+/// Persisted hot cue row for Dart (`library_api::HotCue`).
+#[derive(Clone, Debug)]
+pub struct HotCueInfo {
+    pub slot: u8,
+    pub position_ms: i32,
+    pub label: Option<String>,
 }
 
 /// Thin typed library egress for Dart (no MessagePack on the Flutter side).
@@ -148,6 +157,7 @@ pub struct LibraryEvt {
     pub track: Option<LibraryTrackSummary>,
     pub message: Option<String>,
     pub track_id: Option<String>,
+    pub hot_cues: Option<Vec<HotCueInfo>>,
 }
 
 struct EvtForwarder {
@@ -506,27 +516,46 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             track: Some(api_track_summary(track)),
             message: None,
             track_id: None,
+            hot_cues: None,
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
             kind: LibraryEvtKind::TrackUpdated,
             track: Some(api_track_summary(track)),
             message: None,
             track_id: None,
+            hot_cues: None,
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
             kind: LibraryEvtKind::Error,
             track: None,
             message: Some(message),
             track_id,
+            hot_cues: None,
         }),
         EvtBody::Notice { message } => Some(LibraryEvt {
             kind: LibraryEvtKind::Notice,
             track: None,
             message: Some(message),
             track_id: None,
+            hot_cues: None,
+        }),
+        EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
+            kind: LibraryEvtKind::HotCuesChanged,
+            track: None,
+            message: None,
+            track_id: Some(track_id),
+            hot_cues: Some(
+                hot_cues
+                    .into_iter()
+                    .map(|c| HotCueInfo {
+                        slot: c.slot,
+                        position_ms: c.position_ms,
+                        label: c.label,
+                    })
+                    .collect(),
+            ),
         }),
         EvtBody::Empty
-        | EvtBody::HotCuesChanged { .. }
         | EvtBody::LoopsChanged { .. }
         | EvtBody::Navigate { .. }
         | EvtBody::Load { .. } => None,
@@ -657,6 +686,7 @@ mod tests {
         assert_eq!(mapped.kind, LibraryEvtKind::Error);
         assert_eq!(mapped.message.as_deref(), Some("missing"));
         assert_eq!(mapped.track_id.as_deref(), Some("t1"));
+        assert!(mapped.hot_cues.is_none());
 
         buses
             .publish_evt(
@@ -674,6 +704,32 @@ mod tests {
         assert_eq!(track.id, "t1");
         assert_eq!(track.display_name, "Track One");
         assert_eq!(track.bpm, Some(128.0));
+
+        buses
+            .publish_evt(
+                Origin::Library,
+                Kind::HotCuesChanged,
+                EvtBody::HotCuesChanged {
+                    track_id: "t1".into(),
+                    hot_cues: vec![library_api::HotCue {
+                        slot: 0,
+                        position_ms: 12_500,
+                        loop_length_beats: None,
+                        color: None,
+                        label: Some("intro".into()),
+                    }],
+                },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("HotCuesChanged maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::HotCuesChanged);
+        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
+        let cues = mapped.hot_cues.expect("cues");
+        assert_eq!(cues.len(), 1);
+        assert_eq!(cues[0].slot, 0);
+        assert_eq!(cues[0].position_ms, 12_500);
+        assert_eq!(cues[0].label.as_deref(), Some("intro"));
 
         buses
             .publish_evt(

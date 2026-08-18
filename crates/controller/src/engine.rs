@@ -13,6 +13,7 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut};
+use engine_api::PadMode;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -576,12 +577,22 @@ impl ControllerEngine {
     }
 
     /// Mirror library hot cues into the attached mapping (pad Trigger vs Save + LEDs).
-    pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; 8]) {
+    pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT]) {
         if let Some(attached) = self.attached.as_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };
             attached.session.set_deck_hot_cues(deck, cues, &mut sink);
+        }
+    }
+
+    /// Mirror engine pad mode so MIDI `pad n` matches the UI.
+    pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
+        if let Some(attached) = self.attached.as_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+            };
+            attached.session.set_deck_pad_mode(deck, mode, &mut sink);
         }
     }
 

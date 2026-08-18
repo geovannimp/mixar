@@ -15,14 +15,14 @@ use audio_core::{
     Sample, StreamParams,
 };
 use engine_api::{
-    DeckEq, DeckSnapshot, EngineStatus, EvtBody, Kind, LoopRegion, Origin, PadMode, SamplerStatus,
-    SyncMode,
+    DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, Kind, LoopRegion, Origin, PadMode,
+    SamplerStatus, SyncMode,
 };
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
 use engine_dsp::DspEngine;
 use library::{LibraryBus, LibraryManager, PreparedTrackPlayback};
-use library_core::{AudioSource, LoadableAudio, TrackId, TrackMetadata};
+use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId, TrackMetadata};
 use rtrb::Producer;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
@@ -501,6 +501,7 @@ impl Engine {
             control.track_id = Some(track_id);
         }
         drop(dsp);
+        self.hydrate_hot_cues(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         log::info!("Track loaded into deck {}", deck_id);
         Ok(())
@@ -545,6 +546,7 @@ impl Engine {
             control.track_id = Some(track_id);
         }
         drop(dsp);
+        self.hydrate_hot_cues(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
         log::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
@@ -1036,6 +1038,29 @@ impl Engine {
         loudness_lufs: Option<f64>,
     ) -> Result<()> {
         let audio = self.decode_source(&source)?;
+        self.assign_sampler_audio(deck_id, slot, audio, label, loudness_lufs)
+    }
+
+    /// Assign already-decoded library audio to a sampler pad (prepare off the engine lock).
+    pub fn assign_prepared_sampler(
+        &mut self,
+        deck_id: usize,
+        slot: usize,
+        prepared: PreparedTrackPlayback,
+    ) -> Result<()> {
+        let label = sampler_slot_label(&prepared.source);
+        let loudness = prepared.loudness_lufs;
+        self.assign_sampler_audio(deck_id, slot, prepared.audio, label, loudness)
+    }
+
+    fn assign_sampler_audio(
+        &mut self,
+        deck_id: usize,
+        slot: usize,
+        audio: Arc<LoadedAudio>,
+        label: String,
+        loudness_lufs: Option<f64>,
+    ) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
@@ -1046,6 +1071,41 @@ impl Engine {
         dsp.sampler_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?
             .assign_slot(slot, audio, label, sample_rate, &quality, loudness_lufs)
+    }
+
+    /// Decode a filesystem path into a sampler pad slot.
+    ///
+    /// ponytail: bus MIDI path decodes under the engine mutex (O(file) stall).
+    /// Flutter host prepares via [`Self::assign_prepared_sampler`] instead.
+    pub fn assign_sampler_from_path(
+        &mut self,
+        deck_id: usize,
+        slot: u8,
+        path: String,
+    ) -> Result<()> {
+        let source = AudioSource::File(FileAudioSource::from_path(&path));
+        let label = sampler_slot_label(&source);
+        self.assign_sampler_slot(deck_id, slot as usize, source, label, None)
+    }
+
+    /// Decode a library track into a sampler pad slot.
+    ///
+    /// ponytail: bus MIDI path prepares under the engine mutex (O(file) stall).
+    /// Flutter host prepares via [`Self::assign_prepared_sampler`] instead.
+    pub fn assign_sampler_from_track(
+        &mut self,
+        deck_id: usize,
+        slot: u8,
+        track_id: String,
+    ) -> Result<()> {
+        let library = self
+            .library
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine has no attached LibraryManager"))?;
+        let prepared =
+            LibraryManager::prepare_track_for_playback(library.as_ref(), &TrackId::new(track_id))
+                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        self.assign_prepared_sampler(deck_id, slot as usize, prepared)
     }
 
     /// Clear a sampler pad slot on a deck.
@@ -1217,24 +1277,6 @@ impl Engine {
         }
     }
 
-    /// Trigger a sampler pad; requires deck pad mode `sampler`.
-    pub fn trigger_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
-        let mode = self
-            .deck_control
-            .get(deck_id)
-            .map(|c| c.pad_mode)
-            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {deck_id}"))?;
-        if mode != PadMode::Sampler {
-            return Err(anyhow::anyhow!("Deck is not in Sampler pad mode."));
-        }
-        self.trigger_sampler(deck_id, slot)
-    }
-
-    /// End hold/loop for a sampler pad slot.
-    pub fn end_deck_sampler(&mut self, deck_id: usize, slot: usize) -> Result<()> {
-        self.end_sampler(deck_id, slot)
-    }
-
     /// Trigger hot cue: snap position, seek, play.
     pub fn trigger_deck_hot_cue(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
         if !self.deck_has_audio_loaded(deck_id).unwrap_or(false) {
@@ -1248,8 +1290,11 @@ impl Engine {
 
     /// Snap playhead and persist a hot cue via the library cmd bus.
     pub fn save_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        if slot > 7 {
-            return Err(anyhow::anyhow!("Hot cue slot must be 0..=7."));
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
         }
         let track_id = self
             .deck_control
@@ -1269,7 +1314,158 @@ impl Engine {
                 color: None,
                 label: None,
             },
-        )
+        )?;
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.hot_cues[usize::from(slot)] = Some(position_ms);
+        }
+        Ok(())
+    }
+
+    fn hydrate_hot_cues(&mut self, deck_id: usize) -> Result<()> {
+        let Some(track_id) = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+        else {
+            return Ok(());
+        };
+        let Some(library) = self.library.as_ref() else {
+            return Ok(());
+        };
+        let lib = library
+            .lock()
+            .map_err(|_| anyhow::anyhow!("library lock poisoned"))?;
+        let cues = lib
+            .list_track_hot_cues(&track_id)
+            .map_err(|e| anyhow::anyhow!("list hot cues: {e}"))?;
+        drop(lib);
+        let Some(control) = self.deck_control.get_mut(deck_id) else {
+            return Ok(());
+        };
+        control.hot_cues = [None; crate::pads::HOT_CUE_SLOT_COUNT];
+        for cue in cues {
+            let idx = usize::from(cue.slot_index);
+            if idx < control.hot_cues.len() {
+                control.hot_cues[idx] = Some(cue.position_ms);
+            }
+        }
+        Ok(())
+    }
+
+    /// Persist a delete for `slot` via the library cmd bus.
+    pub fn delete_deck_hot_cue(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
+        }
+        let track_id = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.track_id.clone())
+            .ok_or_else(|| anyhow::anyhow!("Only library tracks can persist hot cues."))?;
+        self.publish_library_cmd(
+            library_api::Kind::DeleteHotCue,
+            library_api::CmdBody::DeleteHotCue {
+                track_id: track_id.as_str().to_string(),
+                slot,
+            },
+        )?;
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.hot_cues[usize::from(slot)] = None;
+        }
+        Ok(())
+    }
+
+    /// Generic pad press: dispatch using this deck's engine `pad_mode`.
+    pub fn pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        match self.deck_pad_mode(deck_id)? {
+            PadMode::HotCue => self.hot_cue_pad_press(deck_id, slot, shift),
+            PadMode::LoopRoll => self.loop_roll_pad_press(deck_id, slot),
+            PadMode::BeatJump => self.beat_jump_pad_press(deck_id, slot),
+            PadMode::Sampler => self.sampler_pad_press(deck_id, slot, shift),
+        }
+    }
+
+    pub fn pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        match self.deck_pad_mode(deck_id)? {
+            PadMode::HotCue => self.hot_cue_pad_release(deck_id, slot),
+            PadMode::LoopRoll => self.loop_roll_pad_release(deck_id, slot),
+            PadMode::BeatJump => self.beat_jump_pad_release(deck_id, slot),
+            PadMode::Sampler => self.sampler_pad_release(deck_id, slot),
+        }
+    }
+
+    fn deck_pad_mode(&self, deck_id: usize) -> Result<PadMode> {
+        self.deck_control
+            .get(deck_id)
+            .map(|c| c.pad_mode)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+    }
+
+    /// Hot-cue pad press: save, trigger, or delete from engine-owned slot state.
+    pub fn hot_cue_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Hot cue slot must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
+        }
+        let filled = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.hot_cues.get(usize::from(slot)).copied())
+            .flatten();
+        if shift {
+            if filled.is_some() {
+                self.delete_deck_hot_cue(deck_id, slot)?;
+            }
+            return Ok(());
+        }
+        if let Some(position_ms) = filled {
+            return self.trigger_deck_hot_cue(deck_id, position_ms);
+        }
+        self.save_deck_hot_cue(deck_id, slot)
+    }
+
+    pub fn hot_cue_pad_release(&mut self, _deck_id: usize, _slot: u8) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn loop_roll_pad_press(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let beats = crate::pads::loop_roll_beats(slot)
+            .ok_or_else(|| anyhow::anyhow!("Loop roll slot must be 0..=7."))?;
+        self.begin_deck_loop_roll(deck_id, beats)
+    }
+
+    pub fn loop_roll_pad_release(&mut self, deck_id: usize, _slot: u8) -> Result<()> {
+        self.end_deck_loop_roll(deck_id)
+    }
+
+    pub fn beat_jump_pad_press(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let beats = crate::pads::beat_jump_beats(slot)
+            .ok_or_else(|| anyhow::anyhow!("Beat jump slot must be 0..=7."))?;
+        self.beat_jump_deck(deck_id, beats)
+    }
+
+    pub fn beat_jump_pad_release(&mut self, _deck_id: usize, _slot: u8) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn sampler_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        let slot_i = slot as usize;
+        if shift {
+            if self.sampler_slot_assigned(deck_id, slot_i) {
+                self.clear_sampler_slot(deck_id, slot_i)?;
+            }
+            return Ok(());
+        }
+        self.trigger_sampler(deck_id, slot_i)
+    }
+
+    pub fn sampler_pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        self.end_sampler(deck_id, slot as usize)
     }
 
     fn publish_library_cmd(
@@ -1563,13 +1759,7 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let control = self.deck_control.get(deck_id)?;
-        deck_snapshot_from_dsp(
-            &dsp,
-            deck_id,
-            control.sync_mode,
-            control.quantize,
-            control.pad_mode,
-        )
+        deck_snapshot_from_dsp(&dsp, deck_id, control)
     }
 
     /// Full engine snapshot for bus `Status` events.
@@ -1577,15 +1767,10 @@ impl Engine {
         let dsp_engine = self.dsp_engine.as_ref()?;
         let dsp = dsp_engine.lock().ok()?;
         let mut decks = Vec::with_capacity(dsp.num_decks());
+        let default_control = DeckControlState::default();
         for deck_id in 0..dsp.num_decks() {
-            let (sync_mode, quantize, pad_mode) = self
-                .deck_control
-                .get(deck_id)
-                .map(|d| (d.sync_mode, d.quantize, d.pad_mode))
-                .unwrap_or((SyncMode::Off, true, PadMode::HotCue));
-            if let Some(snapshot) =
-                deck_snapshot_from_dsp(&dsp, deck_id, sync_mode, quantize, pad_mode)
-            {
+            let control = self.deck_control.get(deck_id).unwrap_or(&default_control);
+            if let Some(snapshot) = deck_snapshot_from_dsp(&dsp, deck_id, control) {
                 decks.push(snapshot);
             }
         }
@@ -1737,9 +1922,7 @@ impl Engine {
 fn deck_snapshot_from_dsp(
     dsp: &DspEngine,
     deck_id: usize,
-    sync_mode: SyncMode,
-    quantize: bool,
-    pad_mode: PadMode,
+    control: &DeckControlState,
 ) -> Option<DeckSnapshot> {
     let deck = dsp.deck(deck_id)?;
     let channel = dsp.mixer().channel(deck_id)?;
@@ -1759,10 +1942,10 @@ fn deck_snapshot_from_dsp(
     Some(DeckSnapshot {
         id: deck_id as u16,
         track: None,
-        track_id: None,
+        track_id: control.track_id.as_ref().map(|id| id.as_str().to_string()),
         title: None,
         artist: None,
-        bpm: None,
+        bpm: control.bpm,
         key: None,
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
@@ -1776,14 +1959,14 @@ fn deck_snapshot_from_dsp(
         filter: crate::control_norm::strip_db_to_norm(channel.filter_db()),
         gain_trim: crate::control_norm::strip_db_to_norm(channel.gain_trim_db()),
         headphone_cue: channel.headphone_cue(),
-        sync_mode,
+        sync_mode: control.sync_mode,
         cue_point_ms: deck.cue_point_ms(),
-        quantize,
+        quantize: control.quantize,
         active_loop,
-        pad_mode,
+        pad_mode: control.pad_mode,
         position_ms,
         duration_ms,
-        hot_cues: Vec::new(),
+        hot_cues: control_hot_cues(control),
         saved_loops: Vec::new(),
         loudness_lufs: None,
         auto_gain_db: 0.0,
@@ -1792,6 +1975,23 @@ fn deck_snapshot_from_dsp(
         outer_jog_mode: map_jog_mode_to_api(deck.outer_jog_mode()),
         jog_touching: deck.jog_touching(),
     })
+}
+
+fn control_hot_cues(control: &DeckControlState) -> Vec<DeckHotCue> {
+    control
+        .hot_cues
+        .iter()
+        .enumerate()
+        .filter_map(|(slot, pos)| {
+            Some(DeckHotCue {
+                slot: slot as u8,
+                position_ms: (*pos)?,
+                loop_length_beats: None,
+                color: None,
+                label: None,
+            })
+        })
+        .collect()
 }
 
 fn map_jog_mode(mode: engine_api::JogMode) -> engine_dsp::JogMode {
@@ -1808,6 +2008,21 @@ fn map_jog_mode_to_api(mode: engine_dsp::JogMode) -> engine_api::JogMode {
         engine_dsp::JogMode::PitchBend => engine_api::JogMode::PitchBend,
         engine_dsp::JogMode::Ignore => engine_api::JogMode::Ignore,
     }
+}
+
+fn sampler_slot_label(source: &AudioSource) -> String {
+    if let Some(title) = source.metadata().title.as_ref().filter(|t| !t.is_empty()) {
+        return title.clone();
+    }
+    source
+        .file()
+        .and_then(|f| {
+            f.path()
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| source.id().as_str().to_string())
 }
 
 fn loudness_from_metadata(metadata: &TrackMetadata) -> Option<f64> {

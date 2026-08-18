@@ -10,6 +10,7 @@ mod config;
 mod control;
 mod control_norm;
 mod engine;
+mod pads;
 mod producer;
 mod routing;
 mod session;

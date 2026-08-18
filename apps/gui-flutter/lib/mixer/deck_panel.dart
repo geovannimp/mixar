@@ -74,7 +74,9 @@ class DeckPanel extends ConsumerWidget {
         const SizedBox(height: 8),
         OverviewStrip(deckId: deckId, height: 36),
         const SizedBox(height: 8),
-        Expanded(child: DeckPerformancePanel(hasTrack: hasTrack)),
+        Expanded(
+          child: DeckPerformancePanel(deckId: deckId, hasTrack: hasTrack),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [

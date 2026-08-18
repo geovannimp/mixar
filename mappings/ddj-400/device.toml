@@ -1,7 +1,7 @@
 # Pioneer DDJ-400 device definition.
 # MIDI from Pioneer MIDI Message List + Mixxx Pioneer-DDJ-400.midi.xml.
-# Pad banks (hot cue / loop / jump / sampler notes) all feed software pad_N;
-# mode buttons set engine pad_mode.
+# Pad banks use distinct notes per hardware mode; map.toml binds each bank to a named pad leaf.
+# Mode buttons still set engine pad_mode so the UI follows the hardware page.
 # Ref: https://github.com/mixxxdj/mixxx/blob/main/res/controllers/Pioneer-DDJ-400.midi.xml
 
 schema_version = 1

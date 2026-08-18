@@ -55,7 +55,46 @@ fn null_session_with_sample() -> EngineSession {
 }
 
 #[test]
-fn trigger_sampler_requires_sampler_pad_mode() {
+fn trigger_and_end_sampler_roundtrip() {
+    let session = null_session_with_sample();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
+        )
+        .expect("trigger");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pad_mode, PadMode::Sampler);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadRelease,
+            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
+        )
+        .expect("end");
+
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    assert_eq!(*event.kind(), Kind::Updated);
+}
+
+#[test]
+fn sampler_pad_press_release_without_sampler_mode() {
     let config = EngineConfig {
         backend: "null".to_string(),
         ..Default::default()
@@ -77,52 +116,57 @@ fn trigger_sampler_requires_sampler_pad_mode() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::TriggerSampler,
-            encode_cmd_body(&CmdBody::TriggerSampler { slot: 0 }).unwrap(),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
         )
-        .expect("publish");
+        .expect("press");
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    assert_eq!(*event.kind(), Kind::Updated);
 
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadRelease,
+            encode_cmd_body(&CmdBody::SamplerPadRelease { slot: 0 }).unwrap(),
+        )
+        .expect("release");
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    assert_eq!(*event.kind(), Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: true,
+            })
+            .unwrap(),
+        )
+        .expect("clear");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SamplerPadPress,
+            encode_cmd_body(&CmdBody::SamplerPadPress {
+                slot: 0,
+                shift: false,
+            })
+            .unwrap(),
+        )
+        .expect("empty press");
     let event = recv_evt_kind(&evt, Kind::Error);
     let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
         panic!("expected Error");
     };
     assert!(
-        message.to_lowercase().contains("sampler"),
-        "unexpected error: {message}"
+        !message.is_empty(),
+        "cleared slot should fail trigger: {message}"
     );
-}
-
-#[test]
-fn trigger_and_end_sampler_roundtrip() {
-    let session = null_session_with_sample();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::TriggerSampler,
-            encode_cmd_body(&CmdBody::TriggerSampler { slot: 0 }).unwrap(),
-        )
-        .expect("trigger");
-
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
-    assert_eq!(pad_mode, PadMode::Sampler);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::EndSampler,
-            encode_cmd_body(&CmdBody::EndSampler { slot: 0 }).unwrap(),
-        )
-        .expect("end");
-
-    let event = recv_evt_kind(&evt, Kind::Updated);
-    assert_eq!(*event.kind(), Kind::Updated);
 }

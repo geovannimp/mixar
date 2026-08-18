@@ -19,6 +19,7 @@ use crate::controller_host::SharedController;
 use crate::deck_sampler::{SamplerPlayModeSetting, SamplerStatus};
 use crate::deck_sync::PadMode;
 use crate::{AppState, DeckInfo, SharedAppState, NUM_DECKS};
+use controller::HOT_CUE_SLOT_COUNT;
 use library_core::TrackId;
 
 pub const ENGINE_BUS_EVENT: &str = "engine://bus";
@@ -168,7 +169,7 @@ fn sync_controller_hot_cues(app: &AppHandle, deck: u16, track_id: Option<&str>) 
     };
     let controller = Arc::clone(&controller);
     let slots = match track_id {
-        None => [None; 8],
+        None => [None; HOT_CUE_SLOT_COUNT],
         Some(tid) => {
             let Some(app_state) = app.try_state::<SharedAppState>() else {
                 return;
@@ -182,16 +183,16 @@ fn sync_controller_hot_cues(app: &AppHandle, deck: u16, track_id: Option<&str>) 
             };
             match lib.list_track_hot_cues(&TrackId::new(tid.to_string())) {
                 Ok(rows) => {
-                    let mut slots = [None; 8];
+                    let mut slots = [None; HOT_CUE_SLOT_COUNT];
                     for row in rows {
                         let idx = row.slot_index as usize;
-                        if idx < 8 {
+                        if idx < slots.len() {
                             slots[idx] = Some(row.position_ms);
                         }
                     }
                     slots
                 }
-                Err(_) => [None; 8],
+                Err(_) => [None; HOT_CUE_SLOT_COUNT],
             }
         }
     };
@@ -281,8 +282,7 @@ pub fn engine_publish(
                     return Err("set_sampler_bank body mismatch".into());
                 };
                 let mut state = app_state.lock().map_err(|e| e.to_string())?;
-                crate::deck_sampler::set_deck_sampler_bank_inner(
-                    &mut state, deck_id, bank_id)?;
+                crate::deck_sampler::set_deck_sampler_bank_inner(&mut state, deck_id, bank_id)?;
                 return Ok(());
             }
             Kind::CreateSamplerBank => {
@@ -438,7 +438,10 @@ pub fn engine_publish(
         }
     }
     // ponytail: AppState.pad_mode still mirrors for leftover sampler bank/assign invokes.
-    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::SetPadMode)) {
+    if matches!(
+        (&msg.origin, &msg.kind),
+        (Origin::Deck(_), Kind::SetPadMode)
+    ) {
         let Origin::Deck(deck_id) = msg.origin else {
             unreachable!()
         };
@@ -460,20 +463,25 @@ pub fn engine_publish(
     }
     // ponytail: bank load + play mode + last-used bank stay host-owned until bank cmds migrate.
     let mut remember_sampler_bank: Option<(String, String)> = None;
-    if matches!((&msg.origin, &msg.kind), (Origin::Deck(_), Kind::TriggerSampler)) {
+    let sampler_named = matches!(msg.kind, Kind::SamplerPadPress);
+    let generic_pad = matches!(msg.kind, Kind::PadPress);
+    if (sampler_named || generic_pad) && matches!(msg.origin, Origin::Deck(_)) {
         let Origin::Deck(deck_id) = msg.origin else {
             unreachable!()
         };
         let deck_id = deck_id as usize;
         if deck_id < crate::NUM_DECKS {
             let mut state = app_state.lock().map_err(|e| e.to_string())?;
-            crate::deck_sampler::apply_effective_play_mode(&mut state, deck_id)?;
-            crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id)?;
-            if let (Some(track_id), Some(bank_id)) = (
-                state.decks[deck_id].track_id.clone(),
-                state.decks[deck_id].active_sampler_bank_id.clone(),
-            ) {
-                remember_sampler_bank = Some((track_id, bank_id));
+            if sampler_named || state.decks[deck_id].pad_mode == crate::deck_sync::PadMode::Sampler
+            {
+                crate::deck_sampler::apply_effective_play_mode(&mut state, deck_id)?;
+                crate::deck_sampler::ensure_deck_bank_loaded(&mut state, deck_id)?;
+                if let (Some(track_id), Some(bank_id)) = (
+                    state.decks[deck_id].track_id.clone(),
+                    state.decks[deck_id].active_sampler_bank_id.clone(),
+                ) {
+                    remember_sampler_bank = Some((track_id, bank_id));
+                }
             }
         }
     }

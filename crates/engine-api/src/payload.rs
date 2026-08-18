@@ -247,18 +247,48 @@ pub enum CmdBody {
     BeginLoopRoll {
         beats: f32,
     },
+    PadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    PadRelease {
+        slot: u8,
+    },
+    HotCuePadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    HotCuePadRelease {
+        slot: u8,
+    },
+    LoopRollPadPress {
+        slot: u8,
+    },
+    LoopRollPadRelease {
+        slot: u8,
+    },
+    BeatJumpPadPress {
+        slot: u8,
+    },
+    BeatJumpPadRelease {
+        slot: u8,
+    },
+    SamplerPadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    SamplerPadRelease {
+        slot: u8,
+    },
     TriggerHotCue {
         position_ms: i32,
     },
     RecallSavedLoop {
         in_ms: i32,
         out_ms: i32,
-    },
-    TriggerSampler {
-        slot: u8,
-    },
-    EndSampler {
-        slot: u8,
     },
     AssignSampler {
         slot: u8,

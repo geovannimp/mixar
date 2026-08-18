@@ -118,7 +118,7 @@ fn headphone_cue_toggles_and_lights_led() {
 #[test]
 fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     let mut s = session();
-    let mut cues = [None; 8];
+    let mut cues = [None; controller::HOT_CUE_SLOT_COUNT];
     cues[0] = Some(1_000);
     let mut bus = CaptureBus {
         cmds: vec![],
@@ -130,14 +130,18 @@ fn hot_cue_trigger_marks_playing_so_toggle_pauses() {
     assert_eq!(midi.frames.len(), 1, "filled hot cue should light pad LED");
     assert_eq!(midi.frames[0], vec![0x90, 0x2E, 0x7F]);
 
-    // pad_1 → TriggerHotCue (engine would start playback)
+    // pad_1 → hot_cue_pad → HotCuePadPress (engine save vs trigger; filled cue starts playback)
     s.handle_midi(&[0x90, 0x2E, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);
-    assert_eq!(bus.cmds[0].1, Kind::TriggerHotCue);
+    assert_eq!(bus.cmds[0].1, Kind::HotCuePadPress);
     assert!(s.snapshot().playing[0], "hot cue must mark deck playing");
 
     bus.cmds.clear();
     s.handle_midi(&[0x80, 0x2E, 0x00], &mut bus, &mut midi);
+    assert_eq!(bus.cmds.len(), 1);
+    assert_eq!(bus.cmds[0].1, Kind::HotCuePadRelease);
+
+    bus.cmds.clear();
     // play_pause always publishes TogglePlay; engine owns play/pause decision
     s.handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.cmds.len(), 1);

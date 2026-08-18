@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -31,8 +31,34 @@ abstract class EngineBusHandle implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>>
 abstract class EngineTransport implements RustOpaqueInterface {
+  Future<void> assignSampler({
+    required int deckId,
+    required int slot,
+    required String path,
+  });
+
+  Future<void> assignSamplerTrack({
+    required int deckId,
+    required int slot,
+    required String trackId,
+  });
+
+  Future<void> beatJumpPadPress({required int deckId, required int slot});
+
+  Future<void> beatJumpPadRelease({required int deckId, required int slot});
+
   /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<EngineBusHandle> buses();
+
+  Future<void> clearSampler({required int deckId, required int slot});
+
+  Future<void> hotCuePadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> hotCuePadRelease({required int deckId, required int slot});
 
   /// Whether [`Engine::start`] has opened streams.
   Future<bool> isRunning();
@@ -43,6 +69,10 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Load a filesystem path: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadPath({required int deckId, required String path});
 
+  Future<void> loopRollPadPress({required int deckId, required int slot});
+
+  Future<void> loopRollPadRelease({required int deckId, required int slot});
+
   /// Pause a deck (cmd bus).
   Future<void> pause({required int deckId});
 
@@ -51,6 +81,14 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Restart using the current settings host config + runtime normalizer/jog defaults.
   Future<void> restartFromSettings();
+
+  Future<void> samplerPadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> samplerPadRelease({required int deckId, required int slot});
 
   /// Seek a deck to `position_ms` (cmd bus).
   Future<void> seek({required int deckId, required int positionMs});
@@ -73,6 +111,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Per-deck headphone cue (PFL).
   Future<void> setHeadphoneCue({required int deckId, required bool enabled});
+
+  /// Per-deck pad mode.
+  Future<void> setPadMode({required int deckId, required PadMode mode});
 
   /// Channel fader `0..1`.
   Future<void> setVolume({required int deckId, required double volume});
@@ -121,6 +162,7 @@ class EngineEvt {
   final int? durationMs;
   final double? speed;
   final double? tempoRange;
+  final PadMode? padMode;
 
   const EngineEvt({
     required this.kind,
@@ -146,6 +188,7 @@ class EngineEvt {
     this.durationMs,
     this.speed,
     this.tempoRange,
+    this.padMode,
   });
 
   @override
@@ -172,7 +215,8 @@ class EngineEvt {
       crossfader.hashCode ^
       durationMs.hashCode ^
       speed.hashCode ^
-      tempoRange.hashCode;
+      tempoRange.hashCode ^
+      padMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -201,7 +245,8 @@ class EngineEvt {
           crossfader == other.crossfader &&
           durationMs == other.durationMs &&
           speed == other.speed &&
-          tempoRange == other.tempoRange;
+          tempoRange == other.tempoRange &&
+          padMode == other.padMode;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -271,3 +316,6 @@ class OutputDevice {
           maxChannels == other.maxChannels &&
           defaultSampleRates == other.defaultSampleRates;
 }
+
+/// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
+enum PadMode { hotCue, loopRoll, beatJump, sampler }

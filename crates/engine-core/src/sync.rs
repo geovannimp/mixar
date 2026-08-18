@@ -1,5 +1,6 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
+use crate::pads::HOT_CUE_SLOT_COUNT;
 use engine_api::{LoopRegion, PadMode, SyncMode};
 use library_core::TrackId;
 
@@ -12,6 +13,8 @@ pub(crate) struct DeckControlState {
     pub loop_roll_restore: Option<LoopRegion>,
     /// Library track id when the deck holds a library-backed (or id'd) load.
     pub track_id: Option<TrackId>,
+    /// Runtime hot-cue positions (library hydrate + in-session save/delete).
+    pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
 }
 
 impl DeckControlState {
@@ -20,6 +23,7 @@ impl DeckControlState {
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.track_id = None;
+        self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
     }
 }
 

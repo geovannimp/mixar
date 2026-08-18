@@ -236,6 +236,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
+  PadMode dco_decode_box_autoadd_pad_mode(dynamic raw);
+
+  @protected
   SamplerPlayMode dco_decode_box_autoadd_sampler_play_mode(dynamic raw);
 
   @protected
@@ -296,6 +299,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo dco_decode_fs_volume_info(dynamic raw);
 
   @protected
+  HotCueInfo dco_decode_hot_cue_info(dynamic raw);
+
+  @protected
   int dco_decode_i_32(dynamic raw);
 
   @protected
@@ -339,6 +345,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw);
+
+  @protected
+  List<HotCueInfo> dco_decode_list_hot_cue_info(dynamic raw);
 
   @protected
   List<LibraryCollectionSummary> dco_decode_list_library_collection_summary(
@@ -395,6 +404,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PadMode? dco_decode_opt_box_autoadd_pad_mode(dynamic raw);
+
+  @protected
   SamplerPlayMode? dco_decode_opt_box_autoadd_sampler_play_mode(dynamic raw);
 
   @protected
@@ -407,10 +419,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   WaveformPeaks? dco_decode_opt_box_autoadd_waveform_peaks(dynamic raw);
 
   @protected
+  List<HotCueInfo>? dco_decode_opt_list_hot_cue_info(dynamic raw);
+
+  @protected
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
   OutputDevice dco_decode_output_device(dynamic raw);
+
+  @protected
+  PadMode dco_decode_pad_mode(dynamic raw);
 
   @protected
   ResolvedLibraryTrack dco_decode_resolved_library_track(dynamic raw);
@@ -649,6 +667,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PadMode sse_decode_box_autoadd_pad_mode(SseDeserializer deserializer);
+
+  @protected
   SamplerPlayMode sse_decode_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   );
@@ -725,6 +746,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo sse_decode_fs_volume_info(SseDeserializer deserializer);
 
   @protected
+  HotCueInfo sse_decode_hot_cue_info(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
@@ -776,6 +800,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<FsVolumeInfo> sse_decode_list_fs_volume_info(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<HotCueInfo> sse_decode_list_hot_cue_info(SseDeserializer deserializer);
 
   @protected
   List<LibraryCollectionSummary> sse_decode_list_library_collection_summary(
@@ -840,6 +867,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  PadMode? sse_decode_opt_box_autoadd_pad_mode(SseDeserializer deserializer);
+
+  @protected
   SamplerPlayMode? sse_decode_opt_box_autoadd_sampler_play_mode(
     SseDeserializer deserializer,
   );
@@ -856,10 +886,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<HotCueInfo>? sse_decode_opt_list_hot_cue_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   OutputDevice sse_decode_output_device(SseDeserializer deserializer);
+
+  @protected
+  PadMode sse_decode_pad_mode(SseDeserializer deserializer);
 
   @protected
   ResolvedLibraryTrack sse_decode_resolved_library_track(
@@ -1137,6 +1175,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_pad_mode(PadMode self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_sampler_play_mode(
     SamplerPlayMode self,
     SseSerializer serializer,
@@ -1227,6 +1268,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_fs_volume_info(FsVolumeInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_hot_cue_info(HotCueInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -1289,6 +1333,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_fs_volume_info(
     List<FsVolumeInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_hot_cue_info(
+    List<HotCueInfo> self,
     SseSerializer serializer,
   );
 
@@ -1371,6 +1421,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_pad_mode(
+    PadMode? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sampler_play_mode(
     SamplerPlayMode? self,
     SseSerializer serializer,
@@ -1389,6 +1445,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_list_hot_cue_info(
+    List<HotCueInfo>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_prim_u_8_strict(
     Uint8List? self,
     SseSerializer serializer,
@@ -1396,6 +1458,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_output_device(OutputDevice self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_pad_mode(PadMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_resolved_library_track(

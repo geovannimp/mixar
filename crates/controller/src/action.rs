@@ -5,7 +5,10 @@ use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as Libr
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 
-/// Local mirrors still needed for pad routing + LED (not soft-takeover).
+/// Library hot-cue slots are 0..=15; MIDI `pad n` and LED cache match that.
+pub const HOT_CUE_SLOT_COUNT: usize = 16;
+
+/// Local mirrors for LED + soft-takeover (not MIDI pad routing).
 /// Absolute values are wire `0..1` when present.
 #[derive(Clone, Debug)]
 pub struct ControlSnapshot {
@@ -26,7 +29,7 @@ pub struct ControlSnapshot {
     pub cue_mix: f32,
     pub master_cue: bool,
     /// Hot cue positions ms per deck/slot (None = empty).
-    pub hot_cues: [[Option<i32>; 8]; 4],
+    pub hot_cues: [[Option<i32>; HOT_CUE_SLOT_COUNT]; 4],
 }
 
 impl Default for ControlSnapshot {
@@ -47,7 +50,7 @@ impl Default for ControlSnapshot {
             crossfader: 0.5,
             cue_mix: 0.5,
             master_cue: false,
-            hot_cues: [[None; 8]; 4],
+            hot_cues: [[None; HOT_CUE_SLOT_COUNT]; 4],
         }
     }
 }
@@ -434,113 +437,117 @@ pub fn resolve_action(
             ))
         }
         "pad" => {
-            let n = args.require_int("n").ok()?;
-            if n < 1 {
-                return None;
+            let slot = pad_n_slot(&args)?;
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::PadPress,
+                    CmdBody::PadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::PadRelease,
+                    CmdBody::PadRelease { slot },
+                ))
             }
-            let slot = n as u8;
-            let Origin::Deck(d) = origin else {
-                return None;
-            };
-            let mode = snap.pad_mode[deck_idx(d)];
-            resolve_pad_slot(origin, slot, active, mode, snap)
         }
+        "hot_cue_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::HotCue),
+        "loop_roll_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::LoopRoll),
+        "beat_jump_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::BeatJump),
+        "sampler_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::Sampler),
         "trigger_sampler" => {
-            if !active {
-                return None;
-            }
             let slot = args.require_int("slot").ok()?;
             if slot < 1 {
                 return None;
             }
-            Some(engine_cmd(
-                origin,
-                Kind::TriggerSampler,
-                CmdBody::TriggerSampler {
-                    slot: (slot as u8) - 1,
-                },
-            ))
+            let slot = u8::try_from(slot - 1).ok()?;
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::SamplerPadPress,
+                    CmdBody::SamplerPadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::SamplerPadRelease,
+                    CmdBody::SamplerPadRelease { slot },
+                ))
+            }
         }
         _ => None,
     }
 }
 
-/// Match GUI pad grid (`LOOP_ROLL_BEATS` / beat-jump layout).
-const LOOP_ROLL_BEATS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0];
-const BEAT_JUMP_BEATS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, -1.0, -2.0, -4.0, -8.0];
+fn pad_n_slot(args: &crate::action_id::ActionArgs) -> Option<u8> {
+    let n = args.require_int("n").ok()?;
+    u8::try_from(n.checked_sub(1)?).ok()
+}
 
-fn resolve_pad_slot(
-    origin: Origin,
-    slot: u8,
-    active: bool,
-    mode: PadMode,
-    snap: &ControlSnapshot,
-) -> Option<RoutedAction> {
-    if slot < 1 {
-        return None;
-    }
-    let idx = (slot - 1) as usize;
+/// Named pad leaves publish the mode-specific press/release pair (Pioneer note banks).
+/// Generic `pad` publishes PadPress / PadRelease instead.
+fn resolve_pad_slot(origin: Origin, slot: u8, active: bool, mode: PadMode) -> Option<RoutedAction> {
     match mode {
         PadMode::HotCue => {
-            if !active {
-                return None;
-            }
-            let Origin::Deck(d) = origin else {
-                return None;
-            };
-            let cues = &snap.hot_cues[deck_idx(d)];
-            if idx >= cues.len() {
-                return Some(engine_cmd(
-                    origin,
-                    Kind::SaveHotCue,
-                    CmdBody::SaveHotCue { slot: slot - 1 },
-                ));
-            }
-            match cues[idx] {
-                Some(pos) => Some(engine_cmd(
-                    origin,
-                    Kind::TriggerHotCue,
-                    CmdBody::TriggerHotCue { position_ms: pos },
-                )),
-                None => Some(engine_cmd(
-                    origin,
-                    Kind::SaveHotCue,
-                    CmdBody::SaveHotCue { slot: slot - 1 },
-                )),
-            }
-        }
-        PadMode::LoopRoll => {
-            let beats = *LOOP_ROLL_BEATS.get(idx)?;
             if active {
                 Some(engine_cmd(
                     origin,
-                    Kind::BeginLoopRoll,
-                    CmdBody::BeginLoopRoll { beats },
+                    Kind::HotCuePadPress,
+                    CmdBody::HotCuePadPress { slot, shift: false },
                 ))
             } else {
-                Some(engine_cmd(origin, Kind::EndLoopRoll, CmdBody::Empty))
+                Some(engine_cmd(
+                    origin,
+                    Kind::HotCuePadRelease,
+                    CmdBody::HotCuePadRelease { slot },
+                ))
+            }
+        }
+        PadMode::LoopRoll => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::LoopRollPadPress,
+                    CmdBody::LoopRollPadPress { slot },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::LoopRollPadRelease,
+                    CmdBody::LoopRollPadRelease { slot },
+                ))
             }
         }
         PadMode::BeatJump => {
-            if !active {
-                return None;
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::BeatJumpPadPress,
+                    CmdBody::BeatJumpPadPress { slot },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::BeatJumpPadRelease,
+                    CmdBody::BeatJumpPadRelease { slot },
+                ))
             }
-            let beats = *BEAT_JUMP_BEATS.get(idx)?;
-            Some(engine_cmd(
-                origin,
-                Kind::BeatJump,
-                CmdBody::BeatJump { beats },
-            ))
         }
         PadMode::Sampler => {
-            if !active {
-                return None;
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::SamplerPadPress,
+                    CmdBody::SamplerPadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::SamplerPadRelease,
+                    CmdBody::SamplerPadRelease { slot },
+                ))
             }
-            Some(engine_cmd(
-                origin,
-                Kind::TriggerSampler,
-                CmdBody::TriggerSampler { slot: slot - 1 },
-            ))
         }
     }
 }
@@ -629,68 +636,234 @@ mod tests {
     }
 
     #[test]
-    fn pad_routes_by_software_pad_mode() {
+    fn generic_pad_publishes_pad_press_release() {
         let mut snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
-        match routed {
+        let press = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        match press {
             RoutedAction::EngineCmd {
-                body: CmdBody::SaveHotCue { slot },
+                body: CmdBody::PadPress { slot, shift },
                 ..
-            } => assert_eq!(slot, 0),
-            other => panic!("expected SaveHotCue, got {other:?}"),
+            } => {
+                assert_eq!(slot, 0);
+                assert!(!shift);
+            }
+            other => panic!("expected PadPress, got {other:?}"),
         }
-
-        snap.hot_cues[0][0] = Some(12_500);
-        let routed =
-            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
-        match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::TriggerHotCue { position_ms },
-                ..
-            } => assert_eq!(position_ms, 12_500),
-            other => panic!("expected TriggerHotCue, got {other:?}"),
-        }
-
-        snap.pad_mode[0] = PadMode::BeatJump;
-        let routed =
-            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
-        match routed {
-            RoutedAction::EngineCmd {
-                body: CmdBody::BeatJump { beats },
-                ..
-            } => assert_eq!(beats, 1.0),
-            other => panic!("expected BeatJump +1, got {other:?}"),
-        }
-
-        snap.pad_mode[0] = PadMode::LoopRoll;
-        let begin = resolve_action("Deck(_)::pad(n:3)", "deck_1", 1.0, true, false, &snap).unwrap();
-        match begin {
-            RoutedAction::EngineCmd {
-                body: CmdBody::BeginLoopRoll { beats },
-                ..
-            } => assert_eq!(beats, 4.0),
-            other => panic!("expected BeginLoopRoll 4, got {other:?}"),
-        }
-        let end = resolve_action("Deck(_)::pad(n:3)", "deck_1", 0.0, false, false, &snap).unwrap();
+        let release =
+            resolve_action("Deck(_)::pad(n:1)", "deck_1", 0.0, false, false, &snap).unwrap();
         assert!(matches!(
-            end,
+            release,
             RoutedAction::EngineCmd {
-                kind: Kind::EndLoopRoll,
+                body: CmdBody::PadRelease { slot: 0 },
                 ..
             }
         ));
 
-        snap.pad_mode[0] = PadMode::Sampler;
-        let routed =
-            resolve_action("Deck(_)::pad(n:2)", "deck_1", 1.0, true, false, &snap).unwrap();
+        snap.pad_mode[0] = PadMode::BeatJump;
+        snap.hot_cues[0][0] = Some(12_500);
+        let still_generic =
+            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        assert!(
+            matches!(
+                still_generic,
+                RoutedAction::EngineCmd {
+                    body: CmdBody::PadPress {
+                        slot: 0,
+                        shift: false
+                    },
+                    ..
+                }
+            ),
+            "generic pad must not read snapshot pad_mode or cues, got {still_generic:?}"
+        );
+    }
+
+    #[test]
+    fn named_pad_leaves_publish_mode_pair() {
+        let snap = ControlSnapshot::default();
+        let press = resolve_action(
+            "Deck(_)::hot_cue_pad(n:1)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match press {
+            RoutedAction::EngineCmd {
+                body: CmdBody::HotCuePadPress { slot, shift: false },
+                ..
+            } => assert_eq!(slot, 0),
+            other => panic!("expected HotCuePadPress, got {other:?}"),
+        }
+        let release = resolve_action(
+            "Deck(_)::hot_cue_pad(n:1)",
+            "deck_1",
+            0.0,
+            false,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            release,
+            RoutedAction::EngineCmd {
+                body: CmdBody::HotCuePadRelease { slot: 0 },
+                ..
+            }
+        ));
+
+        let routed = resolve_action(
+            "Deck(_)::beat_jump_pad(n:1)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
-                body: CmdBody::TriggerSampler { slot },
+                body: CmdBody::BeatJumpPadPress { slot },
+                ..
+            } => assert_eq!(slot, 0),
+            other => panic!("expected BeatJumpPadPress, got {other:?}"),
+        }
+
+        let begin = resolve_action(
+            "Deck(_)::loop_roll_pad(n:3)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match begin {
+            RoutedAction::EngineCmd {
+                body: CmdBody::LoopRollPadPress { slot },
+                ..
+            } => assert_eq!(slot, 2),
+            other => panic!("expected LoopRollPadPress slot 2, got {other:?}"),
+        }
+        let end = resolve_action(
+            "Deck(_)::loop_roll_pad(n:3)",
+            "deck_1",
+            0.0,
+            false,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            end,
+            RoutedAction::EngineCmd {
+                body: CmdBody::LoopRollPadRelease { slot: 2 },
+                ..
+            }
+        ));
+
+        let routed = resolve_action(
+            "Deck(_)::sampler_pad(n:2)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SamplerPadPress { slot, shift: false },
                 ..
             } => assert_eq!(slot, 1),
-            other => panic!("expected TriggerSampler, got {other:?}"),
+            other => panic!("expected SamplerPadPress, got {other:?}"),
         }
+        let end = resolve_action(
+            "Deck(_)::sampler_pad(n:2)",
+            "deck_1",
+            0.0,
+            false,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            end,
+            RoutedAction::EngineCmd {
+                body: CmdBody::SamplerPadRelease { slot: 1 },
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn midi_pad_n_is_not_capped_at_eight() {
+        let snap = ControlSnapshot::default();
+        let routed =
+            resolve_action("Deck(_)::pad(n:9)", "deck_1", 1.0, true, false, &snap).unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::PadPress { slot, shift: false },
+                ..
+            } => assert_eq!(slot, 8),
+            other => panic!("expected PadPress slot 8, got {other:?}"),
+        }
+        assert!(resolve_action("Deck(_)::pad(n:0)", "deck_1", 1.0, true, false, &snap).is_none());
+        let named = resolve_action(
+            "Deck(_)::hot_cue_pad(n:9)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match named {
+            RoutedAction::EngineCmd {
+                body: CmdBody::HotCuePadPress { slot, shift: false },
+                ..
+            } => assert_eq!(slot, 8),
+            other => panic!("expected HotCuePadPress slot 8, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn trigger_sampler_leaf_publishes_pad_press_release() {
+        let snap = ControlSnapshot::default();
+        let press = resolve_action(
+            "Deck(_)::trigger_sampler(slot:2)",
+            "deck_1",
+            1.0,
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match press {
+            RoutedAction::EngineCmd {
+                body: CmdBody::SamplerPadPress { slot, shift: false },
+                ..
+            } => assert_eq!(slot, 1),
+            other => panic!("expected SamplerPadPress, got {other:?}"),
+        }
+        let release = resolve_action(
+            "Deck(_)::trigger_sampler(slot:2)",
+            "deck_1",
+            0.0,
+            false,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            release,
+            RoutedAction::EngineCmd {
+                body: CmdBody::SamplerPadRelease { slot: 1 },
+                ..
+            }
+        ));
     }
 
     #[test]

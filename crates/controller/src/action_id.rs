@@ -351,5 +351,6 @@ mod tests {
         assert_eq!(t, OriginTemplate::Deck(None));
         assert!(!crate::catalog::is_known_action("Deck(_)::pad_1"));
         assert!(crate::catalog::is_known_action("Deck(_)::pad(n:1)"));
+        assert!(crate::catalog::is_known_action("Deck(_)::hot_cue_pad(n:1)"));
     }
 }

@@ -1,19 +1,20 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 
 class LoopRollPads extends StatelessWidget {
   const LoopRollPads({
-    required this.onBegin,
-    required this.onEnd,
+    required this.onPress,
+    required this.onRelease,
     this.disabled = false,
     super.key,
   });
 
-  final ValueChanged<num> onBegin;
-  final VoidCallback onEnd;
+  final ValueChanged<int> onPress;
+  final ValueChanged<int> onRelease;
   final bool disabled;
 
   @override
@@ -24,17 +25,17 @@ class LoopRollPads extends StatelessWidget {
         for (var slot = 0; slot < 8; slot++)
           () {
             final beats = kLoopRollBeats[slot];
+            final label = formatBeatLength(beats);
             return HoldPadButton(
               disabled: disabled,
-              tooltip:
-                  'Loop roll $beats beat${beats == 1 ? '' : 's'} — hold',
-              onBegin: () => onBegin(beats),
-              onEnd: onEnd,
+              tooltip: 'Loop roll $label beat${beats == 1 ? '' : 's'} — hold',
+              onBegin: () => onPress(slot),
+              onEnd: () => onRelease(slot),
               child: Column(
                 mainAxisSize: .min,
                 children: [
                   Text(
-                    '$beats',
+                    label,
                     style: theme.typography.body.sm.copyWith(
                       fontWeight: FontWeight.w700,
                     ),

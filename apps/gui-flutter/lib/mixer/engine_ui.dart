@@ -1,6 +1,7 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
   const MixerChannelUi({
@@ -62,6 +63,7 @@ class EngineUiSnapshot {
     this.durationMs = const {},
     this.speeds = const {},
     this.tempoRanges = const {},
+    this.padModes = const {},
   });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
@@ -76,6 +78,7 @@ class EngineUiSnapshot {
   final Map<int, int> durationMs;
   final Map<int, double> speeds;
   final Map<int, double> tempoRanges;
+  final Map<int, PadMode> padModes;
 
   String? titleFor(int deckId) => titles[deckId];
 
@@ -88,6 +91,8 @@ class EngineUiSnapshot {
   double speedFor(int deckId) => speeds[deckId] ?? 0.5;
 
   double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
+
+  PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
   MixerChannelUi channelFor(int deckId) =>
       channels[deckId] ?? MixerChannelUi.defaults;
@@ -105,6 +110,7 @@ class EngineUiSnapshot {
     Map<int, int>? durationMs,
     Map<int, double>? speeds,
     Map<int, double>? tempoRanges,
+    Map<int, PadMode>? padModes,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
     titles: titles ?? this.titles,
@@ -116,6 +122,7 @@ class EngineUiSnapshot {
     durationMs: durationMs ?? this.durationMs,
     speeds: speeds ?? this.speeds,
     tempoRanges: tempoRanges ?? this.tempoRanges,
+    padModes: padModes ?? this.padModes,
   );
 }
 
@@ -161,6 +168,11 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (evt.tempoRange != null) {
         nextRanges[id] = evt.tempoRange!;
       }
+      final nextPadModes = Map<int, PadMode>.from(prev.padModes);
+      final enginePadMode = evt.padMode;
+      if (enginePadMode != null) {
+        nextPadModes[id] = enginePadMode;
+      }
       return prev.copyWith(
         titles: nextTitles,
         playing: nextPlaying,
@@ -169,6 +181,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         durationMs: nextDurations,
         speeds: nextSpeeds,
         tempoRanges: nextRanges,
+        padModes: nextPadModes,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

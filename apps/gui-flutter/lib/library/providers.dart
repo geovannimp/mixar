@@ -161,6 +161,20 @@ class LibraryAnalysisEpoch extends Notifier<int> {
 final libraryAnalysisEpochProvider =
     NotifierProvider<LibraryAnalysisEpoch, int>(LibraryAnalysisEpoch.new);
 
+class TrackHotCues extends Notifier<Map<String, List<HotCueInfo>>> {
+  @override
+  Map<String, List<HotCueInfo>> build() => const {};
+
+  void set(String trackId, List<HotCueInfo> cues) {
+    state = {...state, trackId: cues};
+  }
+}
+
+final trackHotCuesProvider =
+    NotifierProvider<TrackHotCues, Map<String, List<HotCueInfo>>>(
+      TrackHotCues.new,
+    );
+
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
@@ -182,6 +196,13 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       }
     case LibraryEvtKind.notice:
       ref.read(libraryMessageProvider.notifier).setNotice(evt.message);
+    case LibraryEvtKind.hotCuesChanged:
+      final trackId = evt.trackId;
+      if (trackId != null) {
+        ref
+            .read(trackHotCuesProvider.notifier)
+            .set(trackId, evt.hotCues ?? const []);
+      }
   }
 }
 
