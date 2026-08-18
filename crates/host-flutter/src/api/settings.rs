@@ -573,4 +573,16 @@ mod tests {
         assert_eq!(settings.buffer_size, 512);
         assert_eq!(settings.target_lufs, TARGET_LUFS_DEFAULT);
     }
+
+    #[test]
+    fn apply_to_host_persists_waveform_display_mode() {
+        let mut host = SettingsHost::default();
+        let mut settings = sample_settings();
+        settings.waveform_display_mode = WaveformDisplayModeSetting::Filtered;
+        apply_to_host(&mut host, settings).expect("settings apply");
+        assert_eq!(
+            settings_from_host(&host).waveform_display_mode,
+            WaveformDisplayModeSetting::Filtered,
+        );
+    }
 }

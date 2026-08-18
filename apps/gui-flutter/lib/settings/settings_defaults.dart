@@ -157,3 +157,49 @@ AppSettings copyAppSettings(
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
   );
 }
+
+/// Value equality for dirty checks. Generated `AppSettings.==` uses collection
+/// identity for lists / `Float32List`.
+bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
+  if (identical(draft, baseline)) {
+    return false;
+  }
+  return draft.backend != baseline.backend ||
+      draft.sampleRate != baseline.sampleRate ||
+      draft.bufferSize != baseline.bufferSize ||
+      draft.lowLatency != baseline.lowLatency ||
+      draft.resamplerQuality != baseline.resamplerQuality ||
+      draft.masterBus != baseline.masterBus ||
+      draft.previewEnabled != baseline.previewEnabled ||
+      draft.previewBus != baseline.previewBus ||
+      draft.analysisDuration != baseline.analysisDuration ||
+      draft.volumeNormalizerEnabled != baseline.volumeNormalizerEnabled ||
+      draft.targetLufs != baseline.targetLufs ||
+      draft.samplerPlayMode != baseline.samplerPlayMode ||
+      draft.samplerStripRoute != baseline.samplerStripRoute ||
+      draft.defaultTopJogMode != baseline.defaultTopJogMode ||
+      draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
+      draft.defaultTempoRange != baseline.defaultTempoRange ||
+      draft.waveformDisplayMode != baseline.waveformDisplayMode ||
+      !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
+      !_sameList(
+        draft.deckDefaultSamplerBankId,
+        baseline.deckDefaultSamplerBankId,
+      ) ||
+      !_sameList(draft.tempoRangeSteps, baseline.tempoRangeSteps);
+}
+
+bool _sameList<T>(List<T> a, List<T> b) {
+  if (identical(a, b)) {
+    return true;
+  }
+  if (a.length != b.length) {
+    return false;
+  }
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
+}

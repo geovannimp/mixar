@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_deck_panel.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
@@ -29,7 +30,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   String? _error;
   var _saved = false;
 
-  bool _isDirty(AppSettings draft, AppSettings baseline) => draft != baseline;
+  bool _isDirty(AppSettings draft, AppSettings baseline) =>
+      appSettingsDirty(draft, baseline);
 
   @override
   Widget build(BuildContext context) {

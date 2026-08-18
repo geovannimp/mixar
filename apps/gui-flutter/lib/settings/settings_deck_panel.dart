@@ -80,7 +80,7 @@ class SettingsDeckPanel extends ConsumerWidget {
                 label: 'Default tempo range',
                 child: SettingsSelect(
                   value: draft.defaultTempoRange,
-                  options: kTempoRangeSteps,
+                  options: _tempoRangeOptions(draft),
                   labelBuilder: formatTempoRange,
                   onChanged: (step) => onChanged(
                     copyAppSettings(draft, defaultTempoRange: step),
@@ -160,6 +160,19 @@ class SettingsDeckPanel extends ConsumerWidget {
     }
     banks[deck] = bankId;
     onChanged(copyAppSettings(draft, deckDefaultSamplerBankId: banks));
+  }
+
+  static List<double> _tempoRangeOptions(AppSettings draft) {
+    const eps = 1e-4;
+    final steps = [
+      for (final step in draft.tempoRangeSteps)
+        if (step.isFinite && step > 0) step,
+    ];
+    final options = steps.isEmpty ? List<double>.from(kTempoRangeSteps) : steps;
+    if (!options.any((s) => (s - draft.defaultTempoRange).abs() < eps)) {
+      options.insert(0, draft.defaultTempoRange);
+    }
+    return options;
   }
 
   static List<String?> _bankOptions(
