@@ -9,15 +9,64 @@ use std::time::Duration;
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
     read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
-    LibraryWorker, NewCollection, TrackId, WritableLibrary,
+    LibraryWorker, NewCollection, SamplerBankRecord, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
     TrackSummary as ApiTrackSummary,
 };
-use library_core::{AudioSource, Collection, CollectionId, Library};
+use library_core::{AnalysisDurationMode, AudioSource, Collection, CollectionId, Library};
 
 use crate::frb_generated::StreamSink;
+
+/// Offline analysis depth for library worker configuration.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LibraryAnalysisDurationSetting {
+    Fast,
+    Precise,
+    Complete,
+}
+
+impl From<LibraryAnalysisDurationSetting> for AnalysisDurationMode {
+    fn from(value: LibraryAnalysisDurationSetting) -> Self {
+        match value {
+            LibraryAnalysisDurationSetting::Fast => Self::Fast,
+            LibraryAnalysisDurationSetting::Precise => Self::Precise,
+            LibraryAnalysisDurationSetting::Complete => Self::Complete,
+        }
+    }
+}
+
+/// Sampler bank row for deck default-bank pickers.
+#[derive(Clone, Debug)]
+pub struct SamplerBankInfo {
+    pub id: String,
+    pub name: String,
+    pub play_mode: Option<SamplerPlayMode>,
+    pub sort_index: i32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SamplerPlayMode {
+    Oneshot,
+    Hold,
+    Loop,
+}
+
+impl From<SamplerBankRecord> for SamplerBankInfo {
+    fn from(bank: SamplerBankRecord) -> Self {
+        Self {
+            id: bank.id,
+            name: bank.name,
+            play_mode: bank.play_mode.map(|m| match m {
+                library::SamplerPlayMode::Oneshot => SamplerPlayMode::Oneshot,
+                library::SamplerPlayMode::Hold => SamplerPlayMode::Hold,
+                library::SamplerPlayMode::Loop => SamplerPlayMode::Loop,
+            }),
+            sort_index: bank.sort_index,
+        }
+    }
+}
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
 #[derive(Clone, Debug)]
@@ -425,6 +474,26 @@ impl LibraryTransport {
     /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
     pub fn buses(&self) -> LibraryBusHandle {
         LibraryBusHandle::from_buses(self.buses.clone())
+    }
+
+    /// Apply library analysis worker duration.
+    pub fn apply_library_settings(
+        &self,
+        analysis_duration: LibraryAnalysisDurationSetting,
+    ) -> Result<(), String> {
+        self.buses.set_analysis_duration(analysis_duration.into());
+        Ok(())
+    }
+
+    /// Sampler banks stored in the library DB.
+    pub fn list_sampler_banks(&self) -> Result<Vec<SamplerBankInfo>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.list_sampler_banks()
+            .map(|rows| rows.into_iter().map(SamplerBankInfo::from).collect())
+            .map_err(|e| e.to_string())
     }
 }
 

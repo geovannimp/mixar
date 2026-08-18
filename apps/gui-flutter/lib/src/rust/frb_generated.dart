@@ -8,6 +8,7 @@ import 'api/engine.dart';
 import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
+import 'api/settings.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'frb_generated.dart';
@@ -70,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1102062064;
+  int get rustContentHash => 1704916241;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -169,6 +170,10 @@ abstract class RustLibApi extends BaseApi {
     required int deckId,
   });
 
+  Future<void> crateApiEngineEngineTransportRestartFromSettings({
+    required EngineTransport that,
+  });
+
   Future<void> crateApiEngineEngineTransportSeek({
     required EngineTransport that,
     required int deckId,
@@ -236,6 +241,11 @@ abstract class RustLibApi extends BaseApi {
     required bool force,
   });
 
+  Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
+    required LibraryTransport that,
+    required LibraryAnalysisDurationSetting analysisDuration,
+  });
+
   Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
     required LibraryTransport that,
   });
@@ -274,6 +284,11 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
   });
 
+  Future<List<SamplerBankInfo>>
+  crateApiLibraryLibraryTransportListSamplerBanks({
+    required LibraryTransport that,
+  });
+
   Future<LibraryTransport> crateApiLibraryLibraryTransportOpen({
     required String dbPath,
   });
@@ -293,6 +308,17 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<LibraryEvt> crateApiLibraryLibraryTransportSubscribeEvents({
     required LibraryTransport that,
+  });
+
+  Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
+    required SettingsTransport that,
+  });
+
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen();
+
+  Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
+    required SettingsTransport that,
+    required AppSettings settings,
   });
 
   String crateApiMetaAppDisplayName();
@@ -358,6 +384,15 @@ abstract class RustLibApi extends BaseApi {
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_LibraryTransportPtr;
+
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SettingsTransport;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SettingsTransport;
+
+  CrossPlatformFinalizerArg
+  get rust_arc_decrement_strong_count_SettingsTransportPtr;
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -1062,6 +1097,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportRestartFromSettings({
+    required EngineTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 19,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportRestartFromSettingsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiEngineEngineTransportRestartFromSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_restart_from_settings",
+        argNames: ["that"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSeek({
     required EngineTransport that,
     required int deckId,
@@ -1080,7 +1152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 20,
             port: port_,
           );
         },
@@ -1118,7 +1190,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 21,
             port: port_,
           );
         },
@@ -1160,7 +1232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1200,7 +1272,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1240,7 +1312,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1280,7 +1352,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 25,
             port: port_,
           );
         },
@@ -1320,7 +1392,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 26,
             port: port_,
           );
         },
@@ -1358,7 +1430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1395,7 +1467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1434,7 +1506,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 28,
+              funcId: 29,
               port: port_,
             );
           },
@@ -1475,7 +1547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 30,
             port: port_,
           );
         },
@@ -1516,7 +1588,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1538,6 +1610,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
+    required LibraryTransport that,
+    required LibraryAnalysisDurationSetting analysisDuration,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_library_analysis_duration_setting(
+            analysisDuration,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 32,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta,
+        argValues: [that, analysisDuration],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_apply_library_settings",
+        argNames: ["that", "analysisDuration"],
+      );
+
+  @override
   Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
     required LibraryTransport that,
   }) {
@@ -1552,7 +1667,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1591,7 +1706,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1629,7 +1744,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 35,
             port: port_,
           );
         },
@@ -1667,7 +1782,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1712,7 +1827,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1752,7 +1867,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1791,7 +1906,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1813,6 +1928,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<SamplerBankInfo>>
+  crateApiLibraryLibraryTransportListSamplerBanks({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 40,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_sampler_bank_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportListSamplerBanksConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportListSamplerBanksConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_list_sampler_banks",
+        argNames: ["that"],
+      );
+
+  @override
   Future<LibraryTransport> crateApiLibraryLibraryTransportOpen({
     required String dbPath,
   }) {
@@ -1824,7 +1976,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1855,7 +2007,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 42,
             port: port_,
           );
         },
@@ -1894,7 +2046,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 43,
             port: port_,
           );
         },
@@ -1933,7 +2085,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 41,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1974,7 +2126,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 42,
+              funcId: 45,
               port: port_,
             );
           },
@@ -1998,12 +2150,114 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
+    required SettingsTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 46,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSettingsSettingsTransportGetSettingsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsSettingsTransportGetSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_get_settings",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 47,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsSettingsTransportOpenConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsSettingsTransportOpenConstMeta =>
+      const TaskConstMeta(debugName: "SettingsTransport_open", argNames: []);
+
+  @override
+  Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
+    required SettingsTransport that,
+    required AppSettings settings,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+            that,
+            serializer,
+          );
+          sse_encode_box_autoadd_app_settings(settings, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 48,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_app_settings,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiSettingsSettingsTransportSaveSettingsConstMeta,
+        argValues: [that, settings],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsSettingsTransportSaveSettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "SettingsTransport_save_settings",
+        argNames: ["that", "settings"],
+      );
+
+  @override
   String crateApiMetaAppDisplayName() {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 43)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 49)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -2031,7 +2285,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 50,
             port: port_,
           );
         },
@@ -2058,7 +2312,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 51,
             port: port_,
           );
         },
@@ -2085,7 +2339,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 52,
             port: port_,
           );
         },
@@ -2151,6 +2405,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get rust_arc_decrement_strong_count_LibraryTransport => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport;
 
+  RustArcIncrementStrongCountFnType
+  get rust_arc_increment_strong_count_SettingsTransport => wire
+      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport;
+
+  RustArcDecrementStrongCountFnType
+  get rust_arc_decrement_strong_count_SettingsTransport => wire
+      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport;
+
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -2212,6 +2474,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SettingsTransport
+  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   AudioBackendTransport
   dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     dynamic raw,
@@ -2263,6 +2534,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return LibraryTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
+  SettingsTransport
+  dco_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
   }
 
   @protected
@@ -2320,6 +2600,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SettingsTransport
+  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalDcoDecode(raw as List<dynamic>);
+  }
+
+  @protected
   RustStreamSink<ControllerEvt> dco_decode_StreamSink_controller_evt_Sse(
     dynamic raw,
   ) {
@@ -2365,6 +2654,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnalysisDurationSetting dco_decode_analysis_duration_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return AnalysisDurationSetting.values[raw as int];
+  }
+
+  @protected
+  AppSettings dco_decode_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
+    return AppSettings(
+      backend: dco_decode_String(arr[0]),
+      sampleRate: dco_decode_u_32(arr[1]),
+      bufferSize: dco_decode_u_32(arr[2]),
+      lowLatency: dco_decode_bool(arr[3]),
+      resamplerQuality: dco_decode_String(arr[4]),
+      masterBus: dco_decode_bus_route_settings(arr[5]),
+      previewEnabled: dco_decode_bool(arr[6]),
+      previewBus: dco_decode_bus_route_settings(arr[7]),
+      analysisDuration: dco_decode_analysis_duration_setting(arr[8]),
+      libraryTableColumns: dco_decode_list_String(arr[9]),
+      volumeNormalizerEnabled: dco_decode_bool(arr[10]),
+      targetLufs: dco_decode_f_32(arr[11]),
+      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[12]),
+      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[13]),
+      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[14]),
+      defaultTopJogMode: dco_decode_jog_mode_setting(arr[15]),
+      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
+      defaultTempoRange: dco_decode_f_32(arr[17]),
+      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
+    );
+  }
+
+  @protected
   BeatGridData dco_decode_beat_grid_data(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2381,6 +2706,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool dco_decode_bool(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as bool;
+  }
+
+  @protected
+  AppSettings dco_decode_box_autoadd_app_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_app_settings(raw);
   }
 
   @protected
@@ -2428,6 +2759,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerPlayMode dco_decode_box_autoadd_sampler_play_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sampler_play_mode(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -2443,6 +2780,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_waveform_peaks(raw);
+  }
+
+  @protected
+  BusChannelMode dco_decode_bus_channel_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return BusChannelMode.values[raw as int];
+  }
+
+  @protected
+  BusRouteSettings dco_decode_bus_route_settings(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return BusRouteSettings(
+      deviceId: dco_decode_String(arr[0]),
+      leftChannel: dco_decode_u_16(arr[1]),
+      rightChannel: dco_decode_u_16(arr[2]),
+      mode: dco_decode_bus_channel_mode(arr[3]),
+    );
   }
 
   @protected
@@ -2619,6 +2976,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  JogModeSetting dco_decode_jog_mode_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return JogModeSetting.values[raw as int];
+  }
+
+  @protected
+  LibraryAnalysisDurationSetting dco_decode_library_analysis_duration_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryAnalysisDurationSetting.values[raw as int];
+  }
+
+  @protected
   LibraryCollectionSummary dco_decode_library_collection_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -2737,6 +3108,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String?> dco_decode_list_opt_String(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_opt_String).toList();
+  }
+
+  @protected
   List<OutputDevice> dco_decode_list_output_device(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_output_device).toList();
@@ -2768,6 +3145,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_resolved_library_track)
         .toList();
+  }
+
+  @protected
+  List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_sampler_bank_info).toList();
   }
 
   @protected
@@ -2814,6 +3197,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return raw == null
         ? null
         : dco_decode_box_autoadd_library_track_summary(raw);
+  }
+
+  @protected
+  SamplerPlayMode? dco_decode_opt_box_autoadd_sampler_play_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sampler_play_mode(raw);
   }
 
   @protected
@@ -2868,6 +3257,40 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerBankInfo dco_decode_sampler_bank_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SamplerBankInfo(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      playMode: dco_decode_opt_box_autoadd_sampler_play_mode(arr[2]),
+      sortIndex: dco_decode_i_32(arr[3]),
+    );
+  }
+
+  @protected
+  SamplerPlayMode dco_decode_sampler_play_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SamplerPlayMode.values[raw as int];
+  }
+
+  @protected
+  SamplerPlayModeSetting dco_decode_sampler_play_mode_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SamplerPlayModeSetting.values[raw as int];
+  }
+
+  @protected
+  SamplerStripRouteSettingFrb dco_decode_sampler_strip_route_setting_frb(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SamplerStripRouteSettingFrb.values[raw as int];
+  }
+
+  @protected
   int dco_decode_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -2895,6 +3318,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
+  }
+
+  @protected
+  WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return WaveformDisplayModeSetting.values[raw as int];
   }
 
   @protected
@@ -2991,6 +3422,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SettingsTransport
+  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   AudioBackendTransport
   sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     SseDeserializer deserializer,
@@ -3057,6 +3500,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return LibraryTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
+  SettingsTransport
+  sse_decode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalSseDecode(
       sse_decode_usize(deserializer),
       sse_decode_i_32(deserializer),
     );
@@ -3135,6 +3590,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SettingsTransport
+  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return SettingsTransportImpl.frbInternalSseDecode(
+      sse_decode_usize(deserializer),
+      sse_decode_i_32(deserializer),
+    );
+  }
+
+  @protected
   RustStreamSink<ControllerEvt> sse_decode_StreamSink_controller_evt_Sse(
     SseDeserializer deserializer,
   ) {
@@ -3185,6 +3652,70 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  AnalysisDurationSetting sse_decode_analysis_duration_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return AnalysisDurationSetting.values[inner];
+  }
+
+  @protected
+  AppSettings sse_decode_app_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_backend = sse_decode_String(deserializer);
+    var var_sampleRate = sse_decode_u_32(deserializer);
+    var var_bufferSize = sse_decode_u_32(deserializer);
+    var var_lowLatency = sse_decode_bool(deserializer);
+    var var_resamplerQuality = sse_decode_String(deserializer);
+    var var_masterBus = sse_decode_bus_route_settings(deserializer);
+    var var_previewEnabled = sse_decode_bool(deserializer);
+    var var_previewBus = sse_decode_bus_route_settings(deserializer);
+    var var_analysisDuration = sse_decode_analysis_duration_setting(
+      deserializer,
+    );
+    var var_libraryTableColumns = sse_decode_list_String(deserializer);
+    var var_volumeNormalizerEnabled = sse_decode_bool(deserializer);
+    var var_targetLufs = sse_decode_f_32(deserializer);
+    var var_samplerPlayMode = sse_decode_sampler_play_mode_setting(
+      deserializer,
+    );
+    var var_samplerStripRoute = sse_decode_sampler_strip_route_setting_frb(
+      deserializer,
+    );
+    var var_deckDefaultSamplerBankId = sse_decode_list_opt_String(deserializer);
+    var var_defaultTopJogMode = sse_decode_jog_mode_setting(deserializer);
+    var var_defaultOuterJogMode = sse_decode_jog_mode_setting(deserializer);
+    var var_defaultTempoRange = sse_decode_f_32(deserializer);
+    var var_tempoRangeSteps = sse_decode_list_prim_f_32_strict(deserializer);
+    var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
+      deserializer,
+    );
+    return AppSettings(
+      backend: var_backend,
+      sampleRate: var_sampleRate,
+      bufferSize: var_bufferSize,
+      lowLatency: var_lowLatency,
+      resamplerQuality: var_resamplerQuality,
+      masterBus: var_masterBus,
+      previewEnabled: var_previewEnabled,
+      previewBus: var_previewBus,
+      analysisDuration: var_analysisDuration,
+      libraryTableColumns: var_libraryTableColumns,
+      volumeNormalizerEnabled: var_volumeNormalizerEnabled,
+      targetLufs: var_targetLufs,
+      samplerPlayMode: var_samplerPlayMode,
+      samplerStripRoute: var_samplerStripRoute,
+      deckDefaultSamplerBankId: var_deckDefaultSamplerBankId,
+      defaultTopJogMode: var_defaultTopJogMode,
+      defaultOuterJogMode: var_defaultOuterJogMode,
+      defaultTempoRange: var_defaultTempoRange,
+      tempoRangeSteps: var_tempoRangeSteps,
+      waveformDisplayMode: var_waveformDisplayMode,
+    );
+  }
+
+  @protected
   BeatGridData sse_decode_beat_grid_data(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_beats = sse_decode_list_prim_f_32_strict(deserializer);
@@ -3201,6 +3732,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   bool sse_decode_bool(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint8() != 0;
+  }
+
+  @protected
+  AppSettings sse_decode_box_autoadd_app_settings(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_app_settings(deserializer));
   }
 
   @protected
@@ -3252,6 +3791,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerPlayMode sse_decode_box_autoadd_sampler_play_mode(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sampler_play_mode(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_16(deserializer));
@@ -3269,6 +3816,28 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_waveform_peaks(deserializer));
+  }
+
+  @protected
+  BusChannelMode sse_decode_bus_channel_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return BusChannelMode.values[inner];
+  }
+
+  @protected
+  BusRouteSettings sse_decode_bus_route_settings(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_deviceId = sse_decode_String(deserializer);
+    var var_leftChannel = sse_decode_u_16(deserializer);
+    var var_rightChannel = sse_decode_u_16(deserializer);
+    var var_mode = sse_decode_bus_channel_mode(deserializer);
+    return BusRouteSettings(
+      deviceId: var_deviceId,
+      leftChannel: var_leftChannel,
+      rightChannel: var_rightChannel,
+      mode: var_mode,
+    );
   }
 
   @protected
@@ -3481,6 +4050,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return JogModeSetting.values[inner];
+  }
+
+  @protected
+  LibraryAnalysisDurationSetting sse_decode_library_analysis_duration_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryAnalysisDurationSetting.values[inner];
+  }
+
+  @protected
   LibraryCollectionSummary sse_decode_library_collection_summary(
     SseDeserializer deserializer,
   ) {
@@ -3663,6 +4248,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<String?> sse_decode_list_opt_String(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String?>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_opt_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<OutputDevice> sse_decode_list_output_device(
     SseDeserializer deserializer,
   ) {
@@ -3707,6 +4304,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ResolvedLibraryTrack>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_resolved_library_track(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<SamplerBankInfo> sse_decode_list_sampler_bank_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SamplerBankInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sampler_bank_info(deserializer));
     }
     return ans_;
   }
@@ -3793,6 +4404,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerPlayMode? sse_decode_opt_box_autoadd_sampler_play_mode(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sampler_play_mode(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -3866,6 +4490,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerBankInfo sse_decode_sampler_bank_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_playMode = sse_decode_opt_box_autoadd_sampler_play_mode(
+      deserializer,
+    );
+    var var_sortIndex = sse_decode_i_32(deserializer);
+    return SamplerBankInfo(
+      id: var_id,
+      name: var_name,
+      playMode: var_playMode,
+      sortIndex: var_sortIndex,
+    );
+  }
+
+  @protected
+  SamplerPlayMode sse_decode_sampler_play_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SamplerPlayMode.values[inner];
+  }
+
+  @protected
+  SamplerPlayModeSetting sse_decode_sampler_play_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SamplerPlayModeSetting.values[inner];
+  }
+
+  @protected
+  SamplerStripRouteSettingFrb sse_decode_sampler_strip_route_setting_frb(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SamplerStripRouteSettingFrb.values[inner];
+  }
+
+  @protected
   int sse_decode_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getUint16();
@@ -3892,6 +4558,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
+  }
+
+  @protected
+  WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return WaveformDisplayModeSetting.values[inner];
   }
 
   @protected
@@ -3998,6 +4673,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   void
+  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SettingsTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SettingsTransportImpl).frbInternalSseEncode(move: true),
+      serializer,
+    );
+  }
+
+  @protected
+  void
   sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport(
     AudioBackendTransport self,
     SseSerializer serializer,
@@ -4070,6 +4758,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_usize(
       (self as LibraryTransportImpl).frbInternalSseEncode(move: false),
+      serializer,
+    );
+  }
+
+  @protected
+  void
+  sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SettingsTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SettingsTransportImpl).frbInternalSseEncode(move: false),
       serializer,
     );
   }
@@ -4153,6 +4854,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void
+  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerSettingsTransport(
+    SettingsTransport self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_usize(
+      (self as SettingsTransportImpl).frbInternalSseEncode(move: null),
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_StreamSink_controller_evt_Sse(
     RustStreamSink<ControllerEvt> self,
     SseSerializer serializer,
@@ -4223,6 +4937,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_analysis_duration_setting(
+    AnalysisDurationSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_app_settings(AppSettings self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.backend, serializer);
+    sse_encode_u_32(self.sampleRate, serializer);
+    sse_encode_u_32(self.bufferSize, serializer);
+    sse_encode_bool(self.lowLatency, serializer);
+    sse_encode_String(self.resamplerQuality, serializer);
+    sse_encode_bus_route_settings(self.masterBus, serializer);
+    sse_encode_bool(self.previewEnabled, serializer);
+    sse_encode_bus_route_settings(self.previewBus, serializer);
+    sse_encode_analysis_duration_setting(self.analysisDuration, serializer);
+    sse_encode_list_String(self.libraryTableColumns, serializer);
+    sse_encode_bool(self.volumeNormalizerEnabled, serializer);
+    sse_encode_f_32(self.targetLufs, serializer);
+    sse_encode_sampler_play_mode_setting(self.samplerPlayMode, serializer);
+    sse_encode_sampler_strip_route_setting_frb(
+      self.samplerStripRoute,
+      serializer,
+    );
+    sse_encode_list_opt_String(self.deckDefaultSamplerBankId, serializer);
+    sse_encode_jog_mode_setting(self.defaultTopJogMode, serializer);
+    sse_encode_jog_mode_setting(self.defaultOuterJogMode, serializer);
+    sse_encode_f_32(self.defaultTempoRange, serializer);
+    sse_encode_list_prim_f_32_strict(self.tempoRangeSteps, serializer);
+    sse_encode_waveform_display_mode_setting(
+      self.waveformDisplayMode,
+      serializer,
+    );
+  }
+
+  @protected
   void sse_encode_beat_grid_data(BeatGridData self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_list_prim_f_32_strict(self.beats, serializer);
@@ -4234,6 +4988,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_bool(bool self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint8(self ? 1 : 0);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_app_settings(
+    AppSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_app_settings(self, serializer);
   }
 
   @protected
@@ -4288,6 +5051,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_sampler_play_mode(
+    SamplerPlayMode self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sampler_play_mode(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self, serializer);
@@ -4306,6 +5078,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_waveform_peaks(self, serializer);
+  }
+
+  @protected
+  void sse_encode_bus_channel_mode(
+    BusChannelMode self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_bus_route_settings(
+    BusRouteSettings self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.deviceId, serializer);
+    sse_encode_u_16(self.leftChannel, serializer);
+    sse_encode_u_16(self.rightChannel, serializer);
+    sse_encode_bus_channel_mode(self.mode, serializer);
   }
 
   @protected
@@ -4461,6 +5254,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_jog_mode_setting(
+    JogModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_library_analysis_duration_setting(
+    LibraryAnalysisDurationSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_library_collection_summary(
     LibraryCollectionSummary self,
     SseSerializer serializer,
@@ -4601,6 +5412,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_opt_String(
+    List<String?> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_opt_String(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_output_device(
     List<OutputDevice> self,
     SseSerializer serializer,
@@ -4651,6 +5474,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_resolved_library_track(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_sampler_bank_info(
+    List<SamplerBankInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sampler_bank_info(item, serializer);
     }
   }
 
@@ -4731,6 +5566,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sampler_play_mode(
+    SamplerPlayMode? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sampler_play_mode(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -4797,6 +5645,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sampler_bank_info(
+    SamplerBankInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_opt_box_autoadd_sampler_play_mode(self.playMode, serializer);
+    sse_encode_i_32(self.sortIndex, serializer);
+  }
+
+  @protected
+  void sse_encode_sampler_play_mode(
+    SamplerPlayMode self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_sampler_play_mode_setting(
+    SamplerPlayModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_sampler_strip_route_setting_frb(
+    SamplerStripRouteSettingFrb self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putUint16(self);
@@ -4823,6 +5710,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
+  }
+
+  @protected
+  void sse_encode_waveform_display_mode_setting(
+    WaveformDisplayModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -5007,6 +5903,10 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
   Future<void> play({required int deckId}) => RustLib.instance.api
       .crateApiEngineEngineTransportPlay(that: this, deckId: deckId);
 
+  /// Restart using the current settings host config + runtime normalizer/jog defaults.
+  Future<void> restartFromSettings() => RustLib.instance.api
+      .crateApiEngineEngineTransportRestartFromSettings(that: this);
+
   /// Seek a deck to `position_ms` (cmd bus).
   Future<void> seek({required int deckId, required int positionMs}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSeek(
@@ -5141,6 +6041,15 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         force: force,
       );
 
+  /// Apply library analysis worker duration.
+  Future<void> applyLibrarySettings({
+    required LibraryAnalysisDurationSetting analysisDuration,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportApplyLibrarySettings(
+        that: this,
+        analysisDuration: analysisDuration,
+      );
+
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportBuses(that: this);
@@ -5193,6 +6102,10 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportListCollections(that: this);
 
+  /// Sampler banks stored in the library DB.
+  Future<List<SamplerBankInfo>> listSamplerBanks() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportListSamplerBanks(that: this);
+
   /// Queue metadata refresh for a track via the library cmd bus only.
   Future<void> refreshTrack({required String trackId}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportRefreshTrack(
@@ -5214,4 +6127,40 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<LibraryEvt> subscribeEvents() => RustLib.instance.api
       .crateApiLibraryLibraryTransportSubscribeEvents(that: this);
+}
+
+@sealed
+class SettingsTransportImpl extends RustOpaque implements SettingsTransport {
+  // Not to be used by end users
+  SettingsTransportImpl.frbInternalDcoDecode(List<dynamic> wire)
+    : super.frbInternalDcoDecode(wire, _kStaticData);
+
+  // Not to be used by end users
+  SettingsTransportImpl.frbInternalSseDecode(
+    BigInt ptr,
+    int externalSizeOnNative,
+  ) : super.frbInternalSseDecode(ptr, externalSizeOnNative, _kStaticData);
+
+  static final _kStaticData = RustArcStaticData(
+    rustArcIncrementStrongCount:
+        RustLib.instance.api.rust_arc_increment_strong_count_SettingsTransport,
+    rustArcDecrementStrongCount:
+        RustLib.instance.api.rust_arc_decrement_strong_count_SettingsTransport,
+    rustArcDecrementStrongCountPtr: RustLib
+        .instance
+        .api
+        .rust_arc_decrement_strong_count_SettingsTransportPtr,
+  );
+
+  /// Current session settings (schema-validated).
+  Future<AppSettings> getSettings() => RustLib.instance.api
+      .crateApiSettingsSettingsTransportGetSettings(that: this);
+
+  /// Apply settings. Does not restart the engine or update the library —
+  /// callers apply those separately (mirrors Flutter `saveAppSettings`).
+  Future<AppSettings> saveSettings({required AppSettings settings}) =>
+      RustLib.instance.api.crateApiSettingsSettingsTransportSaveSettings(
+        that: this,
+        settings: settings,
+      );
 }

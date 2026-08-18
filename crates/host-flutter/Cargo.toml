@@ -17,6 +17,7 @@ controller = { path = "../controller" }
 library = { path = "../library" }
 library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }
+resampler = { path = "../resampler" }
 
 [dev-dependencies]
 lofty = "0.22"

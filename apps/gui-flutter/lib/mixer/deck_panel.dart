@@ -7,8 +7,10 @@ import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -39,12 +41,15 @@ class DeckPanel extends ConsumerWidget {
     final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
     final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
+    final settings = ref.watch(appSettingsProvider).value;
     final tempo = DeckTempoPanel(
       accent: accent,
       isMaster: isMaster,
       onMasterChanged: onMasterChanged,
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
+      defaultTempoRange: settings?.defaultTempoRange ?? kDefaultTempoRange,
+      tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
     );
 
     final body = Column(

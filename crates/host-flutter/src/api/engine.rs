@@ -16,6 +16,9 @@ use library::{LibraryManager, PreparedTrackPlayback};
 use library_core::TrackId;
 
 use crate::api::library::LibraryTransport;
+use crate::api::settings::{
+    seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
+};
 use crate::frb_generated::StreamSink;
 
 /// Output device summary for the Flutter settings / smoke UI.
@@ -38,17 +41,20 @@ pub struct EngineStartConfig {
 
 impl EngineStartConfig {
     fn to_engine_config(&self) -> EngineConfig {
-        let mut config = EngineConfig {
-            backend: self.backend.clone(),
-            ..EngineConfig::default()
-        };
-        if let Some(sr) = self.sample_rate {
-            config.sample_rate = sr;
-        }
-        if let Some(bs) = self.buffer_size {
-            config.buffer_size = bs;
-        }
-        config
+        seed_engine_config_if_unconfigured(&self.backend, self.sample_rate, self.buffer_size)
+            .unwrap_or_else(|_| {
+                let mut config = EngineConfig {
+                    backend: self.backend.clone(),
+                    ..EngineConfig::default()
+                };
+                if let Some(sr) = self.sample_rate {
+                    config.sample_rate = sr;
+                }
+                if let Some(bs) = self.buffer_size {
+                    config.buffer_size = bs;
+                }
+                config
+            })
     }
 }
 
@@ -221,6 +227,7 @@ pub struct EngineTransport {
     engine: Arc<Mutex<Option<Engine>>>,
     buses: EngineBuses,
     library: Arc<Mutex<LibraryManager>>,
+    library_cmd_bus: library::LibraryBus,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
 }
 
@@ -267,13 +274,90 @@ impl EngineTransport {
                 return Err(e.to_string());
             }
         };
-        Ok(Self {
+        let transport = Self {
             worker,
             engine,
             buses,
             library: library_arc,
+            library_cmd_bus: library_transport.cmd_bus(),
             evt_forwarder: Mutex::new(None),
-        })
+        };
+        if let Ok((target, top, outer)) = settings_host_runtime() {
+            let _ = transport.apply_host_settings(target, top, outer);
+        }
+        Ok(transport)
+    }
+
+    /// Stop, rebuild, and start the engine with a new config (settings save).
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn restart(&self, config: EngineConfig) -> Result<(), String> {
+        let mut guard = self
+            .engine
+            .lock()
+            .map_err(|_| "engine lock poisoned".to_string())?;
+        if let Some(engine) = guard.as_mut() {
+            engine.stop().map_err(|e| e.to_string())?;
+        }
+        match self.build_started_engine(config) {
+            Ok(engine) => {
+                *guard = Some(engine);
+                Ok(())
+            }
+            Err(err) => {
+                if let Some(engine) = guard.as_mut() {
+                    if let Err(rollback) = engine.start() {
+                        return Err(format!("{err}; rollback failed: {rollback}"));
+                    }
+                }
+                Err(err)
+            }
+        }
+    }
+
+    fn build_started_engine(&self, config: EngineConfig) -> Result<Engine, String> {
+        let mut engine = Engine::new_with_library_bus(
+            config,
+            Arc::clone(&self.library),
+            self.library_cmd_bus.clone(),
+        )
+        .map_err(|e| e.to_string())?;
+        engine.set_buses(self.buses.clone());
+        engine.start().map_err(|e| e.to_string())?;
+        Ok(engine)
+    }
+
+    /// Apply normalizer + jog defaults after start/restart.
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn apply_host_settings(
+        &self,
+        normalizer_target: Option<f32>,
+        top_jog: engine_api::JogMode,
+        outer_jog: engine_api::JogMode,
+    ) -> Result<(), String> {
+        let mut guard = self
+            .engine
+            .lock()
+            .map_err(|_| "engine lock poisoned".to_string())?;
+        let engine = guard
+            .as_mut()
+            .ok_or_else(|| "engine not available".to_string())?;
+        engine
+            .set_normalizer_target(normalizer_target)
+            .map_err(|e| e.to_string())?;
+        for deck_id in 0..2 {
+            engine
+                .set_deck_jog_mode(deck_id, top_jog, outer_jog)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    /// Restart using the current settings host config + runtime normalizer/jog defaults.
+    pub fn restart_from_settings(&self) -> Result<(), String> {
+        let config = settings_engine_config()?;
+        self.restart(config)?;
+        let (target, top, outer) = settings_host_runtime()?;
+        self.apply_host_settings(target, top, outer)
     }
 
     /// Stop audio streams; the transport still owns the worker until Drop.

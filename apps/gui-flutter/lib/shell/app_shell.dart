@@ -5,7 +5,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/controller_offer_bridge.dart';
-import 'package:gui_flutter/shell/settings_page.dart';
+import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 
 /// Top-level shell: header + Mixer / Settings body.
@@ -37,7 +37,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           Expanded(
             child: switch (_tab) {
               ShellTab.mixer => const MixerPage(),
-              ShellTab.settings => const SettingsPage(),
+              ShellTab.settings => SettingsPage(
+                onClose: () => setState(() => _tab = ShellTab.mixer),
+              ),
             },
           ),
         ],

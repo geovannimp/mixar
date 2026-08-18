@@ -37,16 +37,26 @@ final controllerTransportProvider = FutureProvider<ControllerTransport?>((
   }
 });
 
+/// Catalog of mapping files. Listed once when the controller host starts.
 final controllerMappingsProvider = FutureProvider<List<ControllerMappingInfo>>((
   ref,
 ) async {
+  ref.keepAlive();
   final transport = await ref.watch(controllerTransportProvider.future);
   if (transport == null) {
     return const [];
   }
-  return transport.listMappings();
+  final rows = await transport.listMappings();
+  for (final row in rows) {
+    if (row.attached) {
+      ref.read(attachedMappingIdProvider.notifier).seed(row.id);
+      break;
+    }
+  }
+  return rows;
 });
 
+/// Live MIDI ports. Reloaded from attach/detach bus events, not by re-listing mappings.
 final controllerDevicesProvider = FutureProvider<List<ControllerDeviceInfo>>((
   ref,
 ) async {
@@ -56,3 +66,15 @@ final controllerDevicesProvider = FutureProvider<List<ControllerDeviceInfo>>((
   }
   return transport.listDevices();
 });
+
+class AttachedMappingId extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void seed(String id) => state ??= id;
+
+  void set(String? id) => state = id;
+}
+
+final attachedMappingIdProvider =
+    NotifierProvider<AttachedMappingId, String?>(AttachedMappingId.new);

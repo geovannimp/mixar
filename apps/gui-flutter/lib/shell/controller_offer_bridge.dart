@@ -90,8 +90,12 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       case ControllerEvtKind.mappingOffer:
         _showOffer(evt);
       case ControllerEvtKind.mappingAttached:
+        ref.read(attachedMappingIdProvider.notifier).set(evt.mappingId);
+        ref.invalidate(controllerDevicesProvider);
       case ControllerEvtKind.mappingDetached:
-        ref.invalidate(controllerMappingsProvider);
+        if (ref.read(attachedMappingIdProvider) == evt.mappingId) {
+          ref.read(attachedMappingIdProvider.notifier).set(null);
+        }
         ref.invalidate(controllerDevicesProvider);
     }
   }

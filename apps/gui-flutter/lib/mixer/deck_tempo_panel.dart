@@ -14,6 +14,8 @@ class DeckTempoPanel extends StatefulWidget {
     required this.onMasterChanged,
     this.trackBpm,
     this.loading = false,
+    this.defaultTempoRange = kDefaultTempoRange,
+    this.tempoRangeSteps = kTempoRangeSteps,
     super.key,
   });
 
@@ -27,6 +29,9 @@ class DeckTempoPanel extends StatefulWidget {
   /// Skeletonize the BPM readout while a track is loading.
   final bool loading;
 
+  final double defaultTempoRange;
+  final List<double> tempoRangeSteps;
+
   @override
   State<DeckTempoPanel> createState() => _DeckTempoPanelState();
 }
@@ -34,17 +39,27 @@ class DeckTempoPanel extends StatefulWidget {
 class _DeckTempoPanelState extends State<DeckTempoPanel> {
   /// Tempo fader position `0..1` (mid = unity). Slider UI is 0–100.
   double _speedNorm = 0.5;
-  double _tempoRange = kDefaultTempoRange;
+  late double _tempoRange;
   TempoSyncMode _sync = TempoSyncMode.off;
 
   bool get _syncActive => _sync != TempoSyncMode.off;
   bool get _faderDisabled => _syncActive;
 
   @override
+  void initState() {
+    super.initState();
+    _tempoRange = widget.defaultTempoRange;
+  }
+
+  @override
   void didUpdateWidget(covariant DeckTempoPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isMaster && !oldWidget.isMaster) {
       _sync = TempoSyncMode.off;
+    }
+    if (widget.defaultTempoRange != oldWidget.defaultTempoRange &&
+        (_tempoRange - oldWidget.defaultTempoRange).abs() < 1e-4) {
+      _tempoRange = widget.defaultTempoRange;
     }
   }
 
@@ -73,12 +88,10 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
       fontWeight: .w600,
       fontSize: 10,
     );
-    // Default FButton sm content pad is h:10 → only ~48px left in this column ("Set master" overflows).
-    // Flutter 3.47 Inter metrics: "Set master" at 9px is ~90 wide; keep pad tight and column ≥114.
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 76,
+      width: 114,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
@@ -195,7 +208,10 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   size: .xs,
                   mainAxisSize: .min,
                   onPress: () => setState(() {
-                    _tempoRange = nextTempoRange(_tempoRange);
+                    _tempoRange = nextTempoRange(
+                      _tempoRange,
+                      widget.tempoRangeSteps,
+                    );
                   }),
                   child: Text(
                     formatTempoRange(_tempoRange),
