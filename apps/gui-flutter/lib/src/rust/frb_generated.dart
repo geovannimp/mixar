@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -639555893;
+  int get rustContentHash => -79960155;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -166,6 +166,11 @@ abstract class RustLibApi extends BaseApi {
     required int slot,
   });
 
+  Future<void> crateApiEngineEngineTransportBeginCueHold({
+    required EngineTransport that,
+    required int deckId,
+  });
+
   Future<EngineBusHandle> crateApiEngineEngineTransportBuses({
     required EngineTransport that,
   });
@@ -174,6 +179,16 @@ abstract class RustLibApi extends BaseApi {
     required EngineTransport that,
     required int deckId,
     required int slot,
+  });
+
+  Future<void> crateApiEngineEngineTransportEndCueHold({
+    required EngineTransport that,
+    required int deckId,
+  });
+
+  Future<void> crateApiEngineEngineTransportExitLoop({
+    required EngineTransport that,
+    required int deckId,
   });
 
   Future<void> crateApiEngineEngineTransportHotCuePadPress({
@@ -193,6 +208,18 @@ abstract class RustLibApi extends BaseApi {
     required EngineTransport that,
   });
 
+  Future<void> crateApiEngineEngineTransportJogTouch({
+    required EngineTransport that,
+    required int deckId,
+    required bool touching,
+  });
+
+  Future<void> crateApiEngineEngineTransportJogTurn({
+    required EngineTransport that,
+    required int deckId,
+    required int delta,
+  });
+
   Future<void> crateApiEngineEngineTransportLoadLibraryTrack({
     required EngineTransport that,
     required int deckId,
@@ -203,6 +230,16 @@ abstract class RustLibApi extends BaseApi {
     required EngineTransport that,
     required int deckId,
     required String path,
+  });
+
+  Future<void> crateApiEngineEngineTransportLoopIn({
+    required EngineTransport that,
+    required int deckId,
+  });
+
+  Future<void> crateApiEngineEngineTransportLoopOut({
+    required EngineTransport that,
+    required int deckId,
   });
 
   Future<void> crateApiEngineEngineTransportLoopRollPadPress({
@@ -225,6 +262,13 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiEngineEngineTransportPlay({
     required EngineTransport that,
     required int deckId,
+  });
+
+  Future<void> crateApiEngineEngineTransportRecallSavedLoop({
+    required EngineTransport that,
+    required int deckId,
+    required int inMs,
+    required int outMs,
   });
 
   Future<void> crateApiEngineEngineTransportRestartFromSettings({
@@ -250,9 +294,25 @@ abstract class RustLibApi extends BaseApi {
     required int positionMs,
   });
 
+  Future<void> crateApiEngineEngineTransportSetAutoLoop({
+    required EngineTransport that,
+    required int deckId,
+    required double beats,
+  });
+
   Future<void> crateApiEngineEngineTransportSetCrossfader({
     required EngineTransport that,
     required double position,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetCueMix({
+    required EngineTransport that,
+    required double mix,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetCuePoint({
+    required EngineTransport that,
+    required int deckId,
   });
 
   Future<void> crateApiEngineEngineTransportSetEqBand({
@@ -280,10 +340,51 @@ abstract class RustLibApi extends BaseApi {
     required bool enabled,
   });
 
+  Future<void> crateApiEngineEngineTransportSetJogMode({
+    required EngineTransport that,
+    required int deckId,
+    required JogModeSetting top,
+    required JogModeSetting outer,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetMasterCue({
+    required EngineTransport that,
+    required bool enabled,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetMasterDeck({
+    required EngineTransport that,
+    required int deckId,
+  });
+
   Future<void> crateApiEngineEngineTransportSetPadMode({
     required EngineTransport that,
     required int deckId,
     required PadMode mode,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetQuantize({
+    required EngineTransport that,
+    required int deckId,
+    required bool enabled,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetSamplerBank({
+    required EngineTransport that,
+    required int deckId,
+    required String bankId,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetSpeed({
+    required EngineTransport that,
+    required int deckId,
+    required double speed,
+  });
+
+  Future<void> crateApiEngineEngineTransportSetTempoRange({
+    required EngineTransport that,
+    required int deckId,
+    required double tempoRange,
   });
 
   Future<void> crateApiEngineEngineTransportSetVolume({
@@ -303,6 +404,24 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<EngineEvt> crateApiEngineEngineTransportSubscribeEvents({
     required EngineTransport that,
+  });
+
+  Future<void> crateApiEngineEngineTransportToggleSync({
+    required EngineTransport that,
+    required int deckId,
+    required bool beatSync,
+  });
+
+  Future<void> crateApiEngineEngineTransportUnload({
+    required EngineTransport that,
+    required int deckId,
+  });
+
+  Future<void> crateApiEngineEngineTransportUpdateSamplerBank({
+    required EngineTransport that,
+    required String bankId,
+    required String name,
+    SamplerPlayMode? playMode,
   });
 
   Future<AddFolderCollectionResult>
@@ -1108,6 +1227,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportBeginCueHold({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 17,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportBeginCueHoldConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportBeginCueHoldConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_begin_cue_hold",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
   Future<EngineBusHandle> crateApiEngineEngineTransportBuses({
     required EngineTransport that,
   }) {
@@ -1122,7 +1279,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 18,
             port: port_,
           );
         },
@@ -1163,7 +1320,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 18,
+            funcId: 19,
             port: port_,
           );
         },
@@ -1182,6 +1339,82 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "EngineTransport_clear_sampler",
         argNames: ["that", "deckId", "slot"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportEndCueHold({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 20,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportEndCueHoldConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportEndCueHoldConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_end_cue_hold",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportExitLoop({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 21,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportExitLoopConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportExitLoopConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_exit_loop",
+        argNames: ["that", "deckId"],
       );
 
   @override
@@ -1205,7 +1438,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 19,
+            funcId: 22,
             port: port_,
           );
         },
@@ -1245,7 +1478,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 20,
+            funcId: 23,
             port: port_,
           );
         },
@@ -1281,7 +1514,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 21,
+            funcId: 24,
             port: port_,
           );
         },
@@ -1303,6 +1536,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportJogTouch({
+    required EngineTransport that,
+    required int deckId,
+    required bool touching,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_bool(touching, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 25,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportJogTouchConstMeta,
+        argValues: [that, deckId, touching],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportJogTouchConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_jog_touch",
+        argNames: ["that", "deckId", "touching"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportJogTurn({
+    required EngineTransport that,
+    required int deckId,
+    required int delta,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_i_32(delta, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 26,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportJogTurnConstMeta,
+        argValues: [that, deckId, delta],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportJogTurnConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_jog_turn",
+        argNames: ["that", "deckId", "delta"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportLoadLibraryTrack({
     required EngineTransport that,
     required int deckId,
@@ -1321,7 +1634,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 22,
+            funcId: 27,
             port: port_,
           );
         },
@@ -1361,7 +1674,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 23,
+            funcId: 28,
             port: port_,
           );
         },
@@ -1383,6 +1696,82 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportLoopIn({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 29,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportLoopInConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportLoopInConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_loop_in",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportLoopOut({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 30,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportLoopOutConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportLoopOutConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_loop_out",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportLoopRollPadPress({
     required EngineTransport that,
     required int deckId,
@@ -1401,7 +1790,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 24,
+            funcId: 31,
             port: port_,
           );
         },
@@ -1441,7 +1830,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 25,
+            funcId: 32,
             port: port_,
           );
         },
@@ -1479,7 +1868,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 26,
+            funcId: 33,
             port: port_,
           );
         },
@@ -1517,7 +1906,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 27,
+            funcId: 34,
             port: port_,
           );
         },
@@ -1539,6 +1928,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportRecallSavedLoop({
+    required EngineTransport that,
+    required int deckId,
+    required int inMs,
+    required int outMs,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_i_32(inMs, serializer);
+          sse_encode_i_32(outMs, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 35,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportRecallSavedLoopConstMeta,
+        argValues: [that, deckId, inMs, outMs],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportRecallSavedLoopConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_recall_saved_loop",
+        argNames: ["that", "deckId", "inMs", "outMs"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportRestartFromSettings({
     required EngineTransport that,
   }) {
@@ -1553,7 +1984,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 28,
+            funcId: 36,
             port: port_,
           );
         },
@@ -1596,7 +2027,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 29,
+            funcId: 37,
             port: port_,
           );
         },
@@ -1636,7 +2067,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 30,
+            funcId: 38,
             port: port_,
           );
         },
@@ -1676,7 +2107,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 31,
+            funcId: 39,
             port: port_,
           );
         },
@@ -1698,6 +2129,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetAutoLoop({
+    required EngineTransport that,
+    required int deckId,
+    required double beats,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_f_32(beats, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 40,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetAutoLoopConstMeta,
+        argValues: [that, deckId, beats],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetAutoLoopConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_auto_loop",
+        argNames: ["that", "deckId", "beats"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetCrossfader({
     required EngineTransport that,
     required double position,
@@ -1714,7 +2185,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 32,
+            funcId: 41,
             port: port_,
           );
         },
@@ -1733,6 +2204,82 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "EngineTransport_set_crossfader",
         argNames: ["that", "position"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetCueMix({
+    required EngineTransport that,
+    required double mix,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_f_32(mix, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 42,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetCueMixConstMeta,
+        argValues: [that, mix],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetCueMixConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_cue_mix",
+        argNames: ["that", "mix"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetCuePoint({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 43,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetCuePointConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetCuePointConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_cue_point",
+        argNames: ["that", "deckId"],
       );
 
   @override
@@ -1756,7 +2303,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 33,
+            funcId: 44,
             port: port_,
           );
         },
@@ -1796,7 +2343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 34,
+            funcId: 45,
             port: port_,
           );
         },
@@ -1836,7 +2383,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 35,
+            funcId: 46,
             port: port_,
           );
         },
@@ -1876,7 +2423,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 36,
+            funcId: 47,
             port: port_,
           );
         },
@@ -1898,6 +2445,124 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetJogMode({
+    required EngineTransport that,
+    required int deckId,
+    required JogModeSetting top,
+    required JogModeSetting outer,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_jog_mode_setting(top, serializer);
+          sse_encode_jog_mode_setting(outer, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 48,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetJogModeConstMeta,
+        argValues: [that, deckId, top, outer],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetJogModeConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_jog_mode",
+        argNames: ["that", "deckId", "top", "outer"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetMasterCue({
+    required EngineTransport that,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 49,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetMasterCueConstMeta,
+        argValues: [that, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetMasterCueConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_master_cue",
+        argNames: ["that", "enabled"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetMasterDeck({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 50,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetMasterDeckConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetMasterDeckConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_master_deck",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetPadMode({
     required EngineTransport that,
     required int deckId,
@@ -1916,7 +2581,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 37,
+            funcId: 51,
             port: port_,
           );
         },
@@ -1938,6 +2603,166 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportSetQuantize({
+    required EngineTransport that,
+    required int deckId,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 52,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetQuantizeConstMeta,
+        argValues: [that, deckId, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetQuantizeConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_quantize",
+        argNames: ["that", "deckId", "enabled"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetSamplerBank({
+    required EngineTransport that,
+    required int deckId,
+    required String bankId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_String(bankId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 53,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetSamplerBankConstMeta,
+        argValues: [that, deckId, bankId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetSamplerBankConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_sampler_bank",
+        argNames: ["that", "deckId", "bankId"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetSpeed({
+    required EngineTransport that,
+    required int deckId,
+    required double speed,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_f_32(speed, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 54,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetSpeedConstMeta,
+        argValues: [that, deckId, speed],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetSpeedConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_speed",
+        argNames: ["that", "deckId", "speed"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportSetTempoRange({
+    required EngineTransport that,
+    required int deckId,
+    required double tempoRange,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_f_32(tempoRange, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 55,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportSetTempoRangeConstMeta,
+        argValues: [that, deckId, tempoRange],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportSetTempoRangeConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_set_tempo_range",
+        argNames: ["that", "deckId", "tempoRange"],
+      );
+
+  @override
   Future<void> crateApiEngineEngineTransportSetVolume({
     required EngineTransport that,
     required int deckId,
@@ -1956,7 +2781,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 38,
+            funcId: 56,
             port: port_,
           );
         },
@@ -1994,7 +2819,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 39,
+            funcId: 57,
             port: port_,
           );
         },
@@ -2031,7 +2856,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 40,
+            funcId: 58,
             port: port_,
           );
         },
@@ -2070,7 +2895,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 41,
+              funcId: 59,
               port: port_,
             );
           },
@@ -2094,6 +2919,126 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiEngineEngineTransportToggleSync({
+    required EngineTransport that,
+    required int deckId,
+    required bool beatSync,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          sse_encode_bool(beatSync, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 60,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportToggleSyncConstMeta,
+        argValues: [that, deckId, beatSync],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportToggleSyncConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_toggle_sync",
+        argNames: ["that", "deckId", "beatSync"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportUnload({
+    required EngineTransport that,
+    required int deckId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_u_16(deckId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 61,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportUnloadConstMeta,
+        argValues: [that, deckId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportUnloadConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_unload",
+        argNames: ["that", "deckId"],
+      );
+
+  @override
+  Future<void> crateApiEngineEngineTransportUpdateSamplerBank({
+    required EngineTransport that,
+    required String bankId,
+    required String name,
+    SamplerPlayMode? playMode,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerEngineTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(bankId, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_opt_box_autoadd_sampler_play_mode(playMode, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 62,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiEngineEngineTransportUpdateSamplerBankConstMeta,
+        argValues: [that, bankId, name, playMode],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineEngineTransportUpdateSamplerBankConstMeta =>
+      const TaskConstMeta(
+        debugName: "EngineTransport_update_sampler_bank",
+        argNames: ["that", "bankId", "name", "playMode"],
+      );
+
+  @override
   Future<AddFolderCollectionResult>
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
@@ -2111,7 +3056,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 42,
+            funcId: 63,
             port: port_,
           );
         },
@@ -2152,7 +3097,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 43,
+            funcId: 64,
             port: port_,
           );
         },
@@ -2193,7 +3138,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 44,
+            funcId: 65,
             port: port_,
           );
         },
@@ -2231,7 +3176,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 45,
+            funcId: 66,
             port: port_,
           );
         },
@@ -2270,7 +3215,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 46,
+            funcId: 67,
             port: port_,
           );
         },
@@ -2308,7 +3253,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 47,
+            funcId: 68,
             port: port_,
           );
         },
@@ -2346,7 +3291,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 48,
+            funcId: 69,
             port: port_,
           );
         },
@@ -2391,7 +3336,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 49,
+            funcId: 70,
             port: port_,
           );
         },
@@ -2431,7 +3376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 50,
+            funcId: 71,
             port: port_,
           );
         },
@@ -2470,7 +3415,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 51,
+            funcId: 72,
             port: port_,
           );
         },
@@ -2507,7 +3452,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 52,
+            funcId: 73,
             port: port_,
           );
         },
@@ -2540,7 +3485,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 53,
+            funcId: 74,
             port: port_,
           );
         },
@@ -2571,7 +3516,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 54,
+            funcId: 75,
             port: port_,
           );
         },
@@ -2610,7 +3555,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 55,
+            funcId: 76,
             port: port_,
           );
         },
@@ -2649,7 +3594,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 56,
+            funcId: 77,
             port: port_,
           );
         },
@@ -2690,7 +3635,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 57,
+              funcId: 78,
               port: port_,
             );
           },
@@ -2728,7 +3673,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 58,
+            funcId: 79,
             port: port_,
           );
         },
@@ -2758,7 +3703,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 59,
+            funcId: 80,
             port: port_,
           );
         },
@@ -2794,7 +3739,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 60,
+            funcId: 81,
             port: port_,
           );
         },
@@ -2821,7 +3766,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 61)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 82)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -2849,7 +3794,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 62,
+            funcId: 83,
             port: port_,
           );
         },
@@ -2876,7 +3821,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 63,
+            funcId: 84,
             port: port_,
           );
         },
@@ -2903,7 +3848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 85,
             port: port_,
           );
         },
@@ -6640,6 +7585,9 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         slot: slot,
       );
 
+  Future<void> beginCueHold({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportBeginCueHold(that: this, deckId: deckId);
+
   /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<EngineBusHandle> buses() =>
       RustLib.instance.api.crateApiEngineEngineTransportBuses(that: this);
@@ -6650,6 +7598,12 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         deckId: deckId,
         slot: slot,
       );
+
+  Future<void> endCueHold({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportEndCueHold(that: this, deckId: deckId);
+
+  Future<void> exitLoop({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportExitLoop(that: this, deckId: deckId);
 
   Future<void> hotCuePadPress({
     required int deckId,
@@ -6673,6 +7627,20 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
   Future<bool> isRunning() =>
       RustLib.instance.api.crateApiEngineEngineTransportIsRunning(that: this);
 
+  Future<void> jogTouch({required int deckId, required bool touching}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportJogTouch(
+        that: this,
+        deckId: deckId,
+        touching: touching,
+      );
+
+  Future<void> jogTurn({required int deckId, required int delta}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportJogTurn(
+        that: this,
+        deckId: deckId,
+        delta: delta,
+      );
+
   /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadLibraryTrack({
     required int deckId,
@@ -6690,6 +7658,12 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         deckId: deckId,
         path: path,
       );
+
+  Future<void> loopIn({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportLoopIn(that: this, deckId: deckId);
+
+  Future<void> loopOut({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportLoopOut(that: this, deckId: deckId);
 
   Future<void> loopRollPadPress({required int deckId, required int slot}) =>
       RustLib.instance.api.crateApiEngineEngineTransportLoopRollPadPress(
@@ -6712,6 +7686,17 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
   /// Play a deck (cmd bus).
   Future<void> play({required int deckId}) => RustLib.instance.api
       .crateApiEngineEngineTransportPlay(that: this, deckId: deckId);
+
+  Future<void> recallSavedLoop({
+    required int deckId,
+    required int inMs,
+    required int outMs,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportRecallSavedLoop(
+    that: this,
+    deckId: deckId,
+    inMs: inMs,
+    outMs: outMs,
+  );
 
   /// Restart using the current settings host config + runtime normalizer/jog defaults.
   Future<void> restartFromSettings() => RustLib.instance.api
@@ -6743,12 +7728,26 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         positionMs: positionMs,
       );
 
+  Future<void> setAutoLoop({required int deckId, required double beats}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetAutoLoop(
+        that: this,
+        deckId: deckId,
+        beats: beats,
+      );
+
   /// Crossfader `0..1` (A … B).
   Future<void> setCrossfader({required double position}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSetCrossfader(
         that: this,
         position: position,
       );
+
+  /// Cue/master headphone mix `0..1`.
+  Future<void> setCueMix({required double mix}) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetCueMix(that: this, mix: mix);
+
+  Future<void> setCuePoint({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetCuePoint(that: this, deckId: deckId);
 
   /// Single EQ band as `0..1` (center `0.5` = 0 dB).
   Future<void> setEqBand({
@@ -6786,6 +7785,24 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         enabled: enabled,
       );
 
+  Future<void> setJogMode({
+    required int deckId,
+    required JogModeSetting top,
+    required JogModeSetting outer,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportSetJogMode(
+    that: this,
+    deckId: deckId,
+    top: top,
+    outer: outer,
+  );
+
+  /// Master cue (headphones hear master).
+  Future<void> setMasterCue({required bool enabled}) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetMasterCue(that: this, enabled: enabled);
+
+  Future<void> setMasterDeck({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportSetMasterDeck(that: this, deckId: deckId);
+
   /// Per-deck pad mode.
   Future<void> setPadMode({required int deckId, required PadMode mode}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSetPadMode(
@@ -6793,6 +7810,39 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         deckId: deckId,
         mode: mode,
       );
+
+  Future<void> setQuantize({required int deckId, required bool enabled}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetQuantize(
+        that: this,
+        deckId: deckId,
+        enabled: enabled,
+      );
+
+  /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
+  Future<void> setSamplerBank({required int deckId, required String bankId}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetSamplerBank(
+        that: this,
+        deckId: deckId,
+        bankId: bankId,
+      );
+
+  /// Tempo fader position `0..1`.
+  Future<void> setSpeed({required int deckId, required double speed}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportSetSpeed(
+        that: this,
+        deckId: deckId,
+        speed: speed,
+      );
+
+  /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
+  Future<void> setTempoRange({
+    required int deckId,
+    required double tempoRange,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportSetTempoRange(
+    that: this,
+    deckId: deckId,
+    tempoRange: tempoRange,
+  );
 
   /// Channel fader `0..1`.
   Future<void> setVolume({required int deckId, required double volume}) =>
@@ -6812,6 +7862,28 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
   /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<EngineEvt> subscribeEvents() => RustLib.instance.api
       .crateApiEngineEngineTransportSubscribeEvents(that: this);
+
+  Future<void> toggleSync({required int deckId, required bool beatSync}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportToggleSync(
+        that: this,
+        deckId: deckId,
+        beatSync: beatSync,
+      );
+
+  Future<void> unload({required int deckId}) => RustLib.instance.api
+      .crateApiEngineEngineTransportUnload(that: this, deckId: deckId);
+
+  /// Rename / set play mode for a stored sampler bank.
+  Future<void> updateSamplerBank({
+    required String bankId,
+    required String name,
+    SamplerPlayMode? playMode,
+  }) => RustLib.instance.api.crateApiEngineEngineTransportUpdateSamplerBank(
+    that: this,
+    bankId: bankId,
+    name: name,
+    playMode: playMode,
+  );
 }
 
 @sealed

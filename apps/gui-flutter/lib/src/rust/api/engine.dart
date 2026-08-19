@@ -6,8 +6,9 @@
 import '../frb_generated.dart';
 import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
@@ -47,10 +48,16 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> beatJumpPadRelease({required int deckId, required int slot});
 
+  Future<void> beginCueHold({required int deckId});
+
   /// Clone of the engine cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<EngineBusHandle> buses();
 
   Future<void> clearSampler({required int deckId, required int slot});
+
+  Future<void> endCueHold({required int deckId});
+
+  Future<void> exitLoop({required int deckId});
 
   Future<void> hotCuePadPress({
     required int deckId,
@@ -63,11 +70,19 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Whether [`Engine::start`] has opened streams.
   Future<bool> isRunning();
 
+  Future<void> jogTouch({required int deckId, required bool touching});
+
+  Future<void> jogTurn({required int deckId, required int delta});
+
   /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadLibraryTrack({required int deckId, required String trackId});
 
   /// Load a filesystem path: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadPath({required int deckId, required String path});
+
+  Future<void> loopIn({required int deckId});
+
+  Future<void> loopOut({required int deckId});
 
   Future<void> loopRollPadPress({required int deckId, required int slot});
 
@@ -78,6 +93,12 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Play a deck (cmd bus).
   Future<void> play({required int deckId});
+
+  Future<void> recallSavedLoop({
+    required int deckId,
+    required int inMs,
+    required int outMs,
+  });
 
   /// Restart using the current settings host config + runtime normalizer/jog defaults.
   Future<void> restartFromSettings();
@@ -93,8 +114,15 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Seek a deck to `position_ms` (cmd bus).
   Future<void> seek({required int deckId, required int positionMs});
 
+  Future<void> setAutoLoop({required int deckId, required double beats});
+
   /// Crossfader `0..1` (A … B).
   Future<void> setCrossfader({required double position});
+
+  /// Cue/master headphone mix `0..1`.
+  Future<void> setCueMix({required double mix});
+
+  Future<void> setCuePoint({required int deckId});
 
   /// Single EQ band as `0..1` (center `0.5` = 0 dB).
   Future<void> setEqBand({
@@ -112,8 +140,30 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Per-deck headphone cue (PFL).
   Future<void> setHeadphoneCue({required int deckId, required bool enabled});
 
+  Future<void> setJogMode({
+    required int deckId,
+    required JogModeSetting top,
+    required JogModeSetting outer,
+  });
+
+  /// Master cue (headphones hear master).
+  Future<void> setMasterCue({required bool enabled});
+
+  Future<void> setMasterDeck({required int deckId});
+
   /// Per-deck pad mode.
   Future<void> setPadMode({required int deckId, required PadMode mode});
+
+  Future<void> setQuantize({required int deckId, required bool enabled});
+
+  /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
+  Future<void> setSamplerBank({required int deckId, required String bankId});
+
+  /// Tempo fader position `0..1`.
+  Future<void> setSpeed({required int deckId, required double speed});
+
+  /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
+  Future<void> setTempoRange({required int deckId, required double tempoRange});
 
   /// Channel fader `0..1`.
   Future<void> setVolume({required int deckId, required double volume});
@@ -135,6 +185,17 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Coalesces Position/Levels/Updated/Status (latest wins) like Tauri.
   /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<EngineEvt> subscribeEvents();
+
+  Future<void> toggleSync({required int deckId, required bool beatSync});
+
+  Future<void> unload({required int deckId});
+
+  /// Rename / set play mode for a stored sampler bank.
+  Future<void> updateSamplerBank({
+    required String bankId,
+    required String name,
+    SamplerPlayMode? playMode,
+  });
 }
 
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).

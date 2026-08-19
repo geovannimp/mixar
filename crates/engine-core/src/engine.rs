@@ -1514,6 +1514,16 @@ impl Engine {
         Ok(())
     }
 
+    /// Record which library sampler bank is loaded on this deck's pads.
+    pub fn set_deck_sampler_bank(&mut self, deck_id: usize, bank_id: Option<String>) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.active_sampler_bank_id = bank_id;
+        Ok(())
+    }
+
     /// Begin a temporary loop roll; stashes the prior active loop for restore.
     pub fn begin_deck_loop_roll(&mut self, deck_id: usize, beats: f32) -> Result<()> {
         if !beats.is_finite() || beats <= 0.0 {
@@ -1970,7 +1980,7 @@ fn deck_snapshot_from_dsp(
         saved_loops: Vec::new(),
         loudness_lufs: None,
         auto_gain_db: 0.0,
-        active_sampler_bank_id: None,
+        active_sampler_bank_id: control.active_sampler_bank_id.clone(),
         top_jog_mode: map_jog_mode_to_api(deck.top_jog_mode()),
         outer_jog_mode: map_jog_mode_to_api(deck.outer_jog_mode()),
         jog_touching: deck.jog_touching(),

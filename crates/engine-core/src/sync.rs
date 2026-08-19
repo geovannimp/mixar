@@ -15,6 +15,8 @@ pub(crate) struct DeckControlState {
     pub track_id: Option<TrackId>,
     /// Runtime hot-cue positions (library hydrate + in-session save/delete).
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
+    /// Library sampler bank currently loaded onto this deck's pads.
+    pub active_sampler_bank_id: Option<String>,
 }
 
 impl DeckControlState {
