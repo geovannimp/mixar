@@ -194,12 +194,14 @@ impl<'a> Store<'a> {
         id: &CollectionId,
         name: &str,
         fs_path: &str,
+        scan_folder_tree: bool,
     ) -> Result<()> {
         let active = collections::ActiveModel {
             id: Set(id.as_str().to_string()),
             name: Set(name.to_string()),
             collection_type: Set(CollectionTypeWire::Folder.label().to_string()),
             sortable: Set(0),
+            scan_folder_tree: Set(i32::from(scan_folder_tree)),
             fs_path: Set(Some(fs_path.to_string())),
         };
         CollectionEntity::insert(active)
@@ -219,6 +221,7 @@ impl<'a> Store<'a> {
             name: Set(name.to_string()),
             collection_type: Set(CollectionTypeWire::Playlist.label().to_string()),
             sortable: Set(i32::from(sortable)),
+            scan_folder_tree: Set(1),
             fs_path: Set(None),
         };
         CollectionEntity::insert(active)

@@ -79,7 +79,7 @@ pub fn collection(model: collections::Model) -> Result<Collection> {
             };
             CollectionConfig::Folder {
                 fs_path: PathBuf::from(fs_path),
-                scan_folder_tree: true,
+                scan_folder_tree: model.scan_folder_tree != 0,
             }
         }
         CollectionType::Playlist => CollectionConfig::Playlist {

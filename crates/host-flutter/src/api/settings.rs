@@ -62,11 +62,13 @@ impl SettingsTransport {
     /// callers apply those separately (mirrors Flutter `saveAppSettings`).
     pub fn save_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         let mut host = self.host.lock().map_err(|e| e.to_string())?;
-        apply_to_host(&mut host, settings)?;
-        let saved = parse_settings(settings_from_host(&host))?;
+        let mut candidate = host.clone();
+        apply_to_host(&mut candidate, settings)?;
+        let saved = parse_settings(settings_from_host(&candidate))?;
         if let Some(path) = host.persist_path.clone() {
             write_settings_file(&path, &saved)?;
         }
+        *host = candidate;
         Ok(saved)
     }
 }
@@ -217,6 +219,7 @@ pub struct AppSettings {
 }
 
 #[flutter_rust_bridge::frb(ignore)]
+#[derive(Clone)]
 struct SettingsHost {
     configured: bool,
     persist_path: Option<PathBuf>,
@@ -659,13 +662,36 @@ mod tests {
         settings.sample_rate = 44_100;
         write_settings_file(&path, &settings).expect("write");
 
+        settings.sample_rate = 48_000;
+        settings.waveform_display_mode = WaveformDisplayModeSetting::Rgb;
+        write_settings_file(&path, &settings).expect("write again");
+
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert_eq!(
             restored.waveform_display_mode,
-            WaveformDisplayModeSetting::Filtered
+            WaveformDisplayModeSetting::Rgb
         );
-        assert_eq!(restored.sample_rate, 44_100);
+        assert_eq!(restored.sample_rate, 48_000);
+    }
+
+    #[test]
+    fn save_settings_keeps_host_when_persist_fails() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let transport = SettingsTransport {
+            host: Arc::new(Mutex::new(SettingsHost {
+                persist_path: Some(dir.path().to_path_buf()),
+                ..SettingsHost::default()
+            })),
+        };
+        let baseline = transport.get_settings().expect("baseline");
+        let mut settings = sample_settings();
+        settings.sample_rate = 44_100;
+        assert!(transport.save_settings(settings).is_err());
+        assert_eq!(
+            transport.get_settings().expect("unchanged").sample_rate,
+            baseline.sample_rate
+        );
     }
 
     #[test]
