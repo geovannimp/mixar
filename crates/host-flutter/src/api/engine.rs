@@ -161,22 +161,15 @@ impl From<engine_api::PadMode> for PadMode {
     }
 }
 
-/// Deck sync follow mode for [`EngineEvt::sync_mode`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SyncMode {
+pub use engine_api::SyncMode;
+
+/// Deck sync follow mode (slave → master).
+#[allow(dead_code)] // FRB codegen-only; `EngineEvt.sync_mode` is `engine_api::SyncMode`.
+#[flutter_rust_bridge::frb(mirror(SyncMode))]
+pub enum _SyncMode {
     Off,
     Tempo,
     Beat,
-}
-
-impl From<engine_api::SyncMode> for SyncMode {
-    fn from(mode: engine_api::SyncMode) -> Self {
-        match mode {
-            engine_api::SyncMode::Off => Self::Off,
-            engine_api::SyncMode::Tempo => Self::Tempo,
-            engine_api::SyncMode::Beat => Self::Beat,
-        }
-    }
 }
 
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
@@ -1039,7 +1032,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
     evt.pad_mode = Some(snap.pad_mode.into());
-    evt.sync_mode = Some(snap.sync_mode.into());
+    evt.sync_mode = Some(snap.sync_mode);
     evt
 }
 
@@ -1094,7 +1087,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
             evt.pad_mode = Some(pad_mode.into());
-            evt.sync_mode = Some(sync_mode.into());
+            evt.sync_mode = Some(sync_mode);
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -1136,7 +1129,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::{DeckEq, EngineStatus, JogMode, PadMode, SamplerStatus, SyncMode};
+    use engine_api::{DeckEq, EngineStatus, JogMode, PadMode, SamplerStatus};
 
     fn recv_mapped(origin: Origin, kind: Kind, body: EvtBody) -> Vec<EngineEvt> {
         let buses = EngineBuses::new();
@@ -1252,9 +1245,9 @@ mod tests {
         assert_eq!(mapped[1].speed, Some(0.5));
         assert_eq!(mapped[1].tempo_range, Some(0.08));
         assert_eq!(mapped[1].pad_mode, Some(super::PadMode::HotCue));
-        assert_eq!(mapped[1].sync_mode, Some(super::SyncMode::Off));
+        assert_eq!(mapped[1].sync_mode, Some(SyncMode::Off));
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
-        assert_eq!(mapped[2].sync_mode, Some(super::SyncMode::Tempo));
+        assert_eq!(mapped[2].sync_mode, Some(SyncMode::Tempo));
     }
 }

@@ -7234,22 +7234,25 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::SavedLoopInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::SyncMode {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::api::engine::SyncMode> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Off => 0.into_dart(),
-            Self::Tempo => 1.into_dart(),
-            Self::Beat => 2.into_dart(),
+        match self.0 {
+            crate::api::engine::SyncMode::Off => 0.into_dart(),
+            crate::api::engine::SyncMode::Tempo => 1.into_dart(),
+            crate::api::engine::SyncMode::Beat => 2.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::SyncMode {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::SyncMode>
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::api::engine::SyncMode>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
     for crate::api::engine::SyncMode
 {
-    fn into_into_dart(self) -> crate::api::engine::SyncMode {
-        self
+    fn into_into_dart(self) -> FrbWrapper<crate::api::engine::SyncMode> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
