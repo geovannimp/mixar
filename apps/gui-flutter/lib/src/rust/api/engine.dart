@@ -6,10 +6,11 @@
 import '../frb_generated.dart';
 import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -141,8 +142,8 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> setJogMode({
     required int deckId,
-    required JogMode top,
-    required JogMode outer,
+    required JogModeSetting top,
+    required JogModeSetting outer,
   });
 
   /// Master cue (headphones hear master).
@@ -340,9 +341,6 @@ class EngineStartConfig {
 
 /// EQ band for [`EngineTransport::set_eq_band`].
 enum EqBand { low, mid, high }
-
-/// Jog platter policy for [`EngineTransport::set_jog_mode`].
-enum JogMode { vinyl, pitchBend, ignore }
 
 /// Output device summary for the Flutter settings / smoke UI.
 class OutputDevice {

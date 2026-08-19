@@ -2588,8 +2588,8 @@ fn wire__crate__api__engine__EngineTransport_set_jog_mode_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>,
             >>::sse_decode(&mut deserializer);
             let api_deck_id = <u16>::sse_decode(&mut deserializer);
-            let api_top = <crate::api::engine::JogMode>::sse_decode(&mut deserializer);
-            let api_outer = <crate::api::engine::JogMode>::sse_decode(&mut deserializer);
+            let api_top = <crate::api::settings::JogModeSetting>::sse_decode(&mut deserializer);
+            let api_outer = <crate::api::settings::JogModeSetting>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -5068,19 +5068,6 @@ impl SseDecode for i32 {
     }
 }
 
-impl SseDecode for crate::api::engine::JogMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::engine::JogMode::Vinyl,
-            1 => crate::api::engine::JogMode::PitchBend,
-            2 => crate::api::engine::JogMode::Ignore,
-            _ => unreachable!("Invalid variant for JogMode: {}", inner),
-        };
-    }
-}
-
 impl SseDecode for crate::api::settings::JogModeSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6795,25 +6782,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::HotCueInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::engine::JogMode {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Vinyl => 0.into_dart(),
-            Self::PitchBend => 1.into_dart(),
-            Self::Ignore => 2.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::JogMode {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::JogMode>
-    for crate::api::engine::JogMode
-{
-    fn into_into_dart(self) -> crate::api::engine::JogMode {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::JogModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7637,23 +7605,6 @@ impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
-    }
-}
-
-impl SseEncode for crate::api::engine::JogMode {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::engine::JogMode::Vinyl => 0,
-                crate::api::engine::JogMode::PitchBend => 1,
-                crate::api::engine::JogMode::Ignore => 2,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
     }
 }
 

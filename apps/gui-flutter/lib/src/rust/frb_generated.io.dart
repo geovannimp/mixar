@@ -305,9 +305,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_i_32(dynamic raw);
 
   @protected
-  JogMode dco_decode_jog_mode(dynamic raw);
-
-  @protected
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw);
 
   @protected
@@ -753,9 +750,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
-
-  @protected
-  JogMode sse_decode_jog_mode(SseDeserializer deserializer);
 
   @protected
   JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer);
@@ -1278,9 +1272,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_jog_mode(JogMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_jog_mode_setting(

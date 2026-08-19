@@ -343,8 +343,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiEngineEngineTransportSetJogMode({
     required EngineTransport that,
     required int deckId,
-    required JogMode top,
-    required JogMode outer,
+    required JogModeSetting top,
+    required JogModeSetting outer,
   });
 
   Future<void> crateApiEngineEngineTransportSetMasterCue({
@@ -2448,8 +2448,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiEngineEngineTransportSetJogMode({
     required EngineTransport that,
     required int deckId,
-    required JogMode top,
-    required JogMode outer,
+    required JogModeSetting top,
+    required JogModeSetting outer,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -2460,8 +2460,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_u_16(deckId, serializer);
-          sse_encode_jog_mode(top, serializer);
-          sse_encode_jog_mode(outer, serializer);
+          sse_encode_jog_mode_setting(top, serializer);
+          sse_encode_jog_mode_setting(outer, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -4505,12 +4505,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  JogMode dco_decode_jog_mode(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return JogMode.values[raw as int];
-  }
-
-  @protected
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return JogModeSetting.values[raw as int];
@@ -5628,13 +5622,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
-  }
-
-  @protected
-  JogMode sse_decode_jog_mode(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return JogMode.values[inner];
   }
 
   @protected
@@ -6902,12 +6889,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_jog_mode(JogMode self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
   void sse_encode_jog_mode_setting(
     JogModeSetting self,
     SseSerializer serializer,
@@ -7806,8 +7787,8 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
 
   Future<void> setJogMode({
     required int deckId,
-    required JogMode top,
-    required JogMode outer,
+    required JogModeSetting top,
+    required JogModeSetting outer,
   }) => RustLib.instance.api.crateApiEngineEngineTransportSetJogMode(
     that: this,
     deckId: deckId,

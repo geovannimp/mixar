@@ -18,6 +18,7 @@ use library_core::TrackId;
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
     seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
+    JogModeSetting,
 };
 use crate::frb_generated::StreamSink;
 
@@ -156,24 +157,6 @@ impl From<engine_api::PadMode> for PadMode {
             engine_api::PadMode::LoopRoll => Self::LoopRoll,
             engine_api::PadMode::BeatJump => Self::BeatJump,
             engine_api::PadMode::Sampler => Self::Sampler,
-        }
-    }
-}
-
-/// Jog platter policy for [`EngineTransport::set_jog_mode`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum JogMode {
-    Vinyl,
-    PitchBend,
-    Ignore,
-}
-
-impl From<JogMode> for engine_api::JogMode {
-    fn from(mode: JogMode) -> Self {
-        match mode {
-            JogMode::Vinyl => Self::Vinyl,
-            JogMode::PitchBend => Self::PitchBend,
-            JogMode::Ignore => Self::Ignore,
         }
     }
 }
@@ -579,7 +562,12 @@ impl EngineTransport {
         )
     }
 
-    pub fn set_jog_mode(&self, deck_id: u16, top: JogMode, outer: JogMode) -> Result<(), String> {
+    pub fn set_jog_mode(
+        &self,
+        deck_id: u16,
+        top: JogModeSetting,
+        outer: JogModeSetting,
+    ) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
             Kind::SetJogMode,
