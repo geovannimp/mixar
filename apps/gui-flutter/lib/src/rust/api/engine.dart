@@ -224,6 +224,8 @@ class EngineEvt {
   final double? speed;
   final double? tempoRange;
   final PadMode? padMode;
+  final SyncMode? syncMode;
+  final int? masterDeck;
 
   const EngineEvt({
     required this.kind,
@@ -250,6 +252,8 @@ class EngineEvt {
     this.speed,
     this.tempoRange,
     this.padMode,
+    this.syncMode,
+    this.masterDeck,
   });
 
   @override
@@ -277,7 +281,9 @@ class EngineEvt {
       durationMs.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
-      padMode.hashCode;
+      padMode.hashCode ^
+      syncMode.hashCode ^
+      masterDeck.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -307,7 +313,9 @@ class EngineEvt {
           durationMs == other.durationMs &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&
-          padMode == other.padMode;
+          padMode == other.padMode &&
+          syncMode == other.syncMode &&
+          masterDeck == other.masterDeck;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -380,3 +388,6 @@ class OutputDevice {
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
 enum PadMode { hotCue, loopRoll, beatJump, sampler }
+
+/// Deck sync follow mode (slave → master).
+enum SyncMode { off, tempo, beat }

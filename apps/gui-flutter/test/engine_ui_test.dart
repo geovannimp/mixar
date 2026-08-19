@@ -172,5 +172,38 @@ void main() {
       );
       expect(snap.padModeFor(0), PadMode.loopRoll);
     });
+
+    test('updated stores per-deck syncMode', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          syncMode: SyncMode.tempo,
+        ),
+      );
+      expect(snap.syncModeFor(1), SyncMode.tempo);
+      expect(snap.syncModeFor(0), SyncMode.off);
+
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 1),
+      );
+      expect(snap.syncModeFor(1), SyncMode.tempo);
+    });
+
+    test('status sets masterDeck; default is deck 0', () {
+      expect(EngineUiSnapshot.empty.masterDeck, 0);
+      expect(EngineUiSnapshot.empty.isMaster(0), isTrue);
+      expect(EngineUiSnapshot.empty.isMaster(1), isFalse);
+
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(kind: EngineEvtKind.status, masterDeck: 1),
+      );
+      expect(snap.masterDeck, 1);
+      expect(snap.isMaster(1), isTrue);
+      expect(snap.isMaster(0), isFalse);
+    });
   });
 }

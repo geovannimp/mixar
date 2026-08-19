@@ -20,16 +20,12 @@ class DeckPanel extends ConsumerWidget {
     required this.deckId,
     required this.label,
     required this.accent,
-    required this.isMaster,
-    required this.onMasterChanged,
     super.key,
   });
 
   final int deckId;
   final String label;
   final FaderAccent accent;
-  final bool isMaster;
-  final ValueChanged<bool> onMasterChanged;
 
   bool get _tempoOnRight => accent == FaderAccent.a;
 
@@ -42,14 +38,37 @@ class DeckPanel extends ConsumerWidget {
     final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
+    final engineRunning = ref.watch(engineRunningProvider);
+    final tempoDisabled = !hasTrack || !engineRunning;
     final tempo = DeckTempoPanel(
       accent: accent,
-      isMaster: isMaster,
-      onMasterChanged: onMasterChanged,
+      speed: ref.watch(deckSpeedProvider(deckId)),
+      tempoRange: ref.watch(deckTempoRangeProvider(deckId)),
+      syncMode: ref.watch(deckSyncModeProvider(deckId)),
+      isMaster: ref.watch(deckIsMasterProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
-      defaultTempoRange: settings?.defaultTempoRange ?? kDefaultTempoRange,
+      disabled: tempoDisabled,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
+      onSpeedChange: (speed) {
+        unawaited(_engineCmd(context, () => setDeckSpeed(ref, deckId, speed)));
+      },
+      onTempoRangeChange: (tempoRange) {
+        unawaited(
+          _engineCmd(context, () => setDeckTempoRange(ref, deckId, tempoRange)),
+        );
+      },
+      onToggleSync: (beatSync) {
+        unawaited(
+          _engineCmd(
+            context,
+            () => toggleDeckSync(ref, deckId, beatSync: beatSync),
+          ),
+        );
+      },
+      onSetMaster: () {
+        unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
+      },
     );
 
     final body = Column(
@@ -123,17 +142,24 @@ class DeckPanel extends ConsumerWidget {
   }
 }
 
-Future<void> _togglePlay(
+Future<void> _engineCmd(
   BuildContext context,
-  WidgetRef ref,
-  int deckId,
+  Future<void> Function() fn,
 ) async {
   try {
-    await toggleDeckPlay(ref, deckId);
+    await fn();
   } catch (e) {
     if (!context.mounted) {
       return;
     }
     showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
+}
+
+Future<void> _togglePlay(
+  BuildContext context,
+  WidgetRef ref,
+  int deckId,
+) async {
+  await _engineCmd(context, () => toggleDeckPlay(ref, deckId));
 }

@@ -1,27 +1,39 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
 
-enum TempoSyncMode { off, tempo, beat }
-
-/// Tauri-shaped tempo column: BPM / pitch / sync stubs + pitch fader (local state).
-class DeckTempoPanel extends StatefulWidget {
+/// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
+class DeckTempoPanel extends StatelessWidget {
   const DeckTempoPanel({
     required this.accent,
+    required this.speed,
+    required this.tempoRange,
+    required this.syncMode,
     required this.isMaster,
-    required this.onMasterChanged,
+    required this.onSpeedChange,
+    required this.onTempoRangeChange,
+    required this.onToggleSync,
+    required this.onSetMaster,
     this.trackBpm,
     this.loading = false,
-    this.defaultTempoRange = kDefaultTempoRange,
+    this.disabled = false,
     this.tempoRangeSteps = kTempoRangeSteps,
     super.key,
   });
 
   final FaderAccent accent;
+  final double speed;
+  final double tempoRange;
+  final SyncMode syncMode;
   final bool isMaster;
-  final ValueChanged<bool> onMasterChanged;
+  final ValueChanged<double> onSpeedChange;
+  final ValueChanged<double> onTempoRangeChange;
+  final ValueChanged<bool> onToggleSync;
+  final VoidCallback onSetMaster;
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
@@ -29,60 +41,18 @@ class DeckTempoPanel extends StatefulWidget {
   /// Skeletonize the BPM readout while a track is loading.
   final bool loading;
 
-  final double defaultTempoRange;
+  final bool disabled;
   final List<double> tempoRangeSteps;
 
-  @override
-  State<DeckTempoPanel> createState() => _DeckTempoPanelState();
-}
-
-class _DeckTempoPanelState extends State<DeckTempoPanel> {
-  /// Tempo fader position `0..1` (mid = unity). Slider UI is 0–100.
-  double _speedNorm = 0.5;
-  late double _tempoRange;
-  TempoSyncMode _sync = TempoSyncMode.off;
-
-  bool get _syncActive => _sync != TempoSyncMode.off;
-  bool get _faderDisabled => _syncActive;
-
-  @override
-  void initState() {
-    super.initState();
-    _tempoRange = widget.defaultTempoRange;
-  }
-
-  @override
-  void didUpdateWidget(covariant DeckTempoPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.isMaster && !oldWidget.isMaster) {
-      _sync = TempoSyncMode.off;
-    }
-    if (widget.defaultTempoRange != oldWidget.defaultTempoRange &&
-        (_tempoRange - oldWidget.defaultTempoRange).abs() < 1e-4) {
-      _tempoRange = widget.defaultTempoRange;
-    }
-  }
-
-  void _toggleSync() {
-    if (widget.isMaster) {
-      return;
-    }
-    setState(() {
-      _sync = switch (_sync) {
-        TempoSyncMode.off => TempoSyncMode.tempo,
-        TempoSyncMode.tempo => TempoSyncMode.beat,
-        TempoSyncMode.beat => TempoSyncMode.off,
-      };
-    });
-  }
+  bool get _syncActive => syncMode != SyncMode.off;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final accent = FaderColors.forAccent(widget.accent).grip;
-    final liveBpm = effectiveBpm(widget.trackBpm, _speedNorm, _tempoRange);
-    final sliderValue = speedToPitchSlider(_speedNorm);
-    final isMaster = widget.isMaster;
+    final accent = FaderColors.forAccent(this.accent).grip;
+    final liveBpm = effectiveBpm(trackBpm, speed, tempoRange);
+    final sliderValue = speedToPitchSlider(speed);
+    final faderDisabled = disabled || _syncActive;
 
     final chipStyle = theme.typography.body.xs.copyWith(
       fontWeight: .w600,
@@ -103,9 +73,9 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
           child: Column(
             children: [
               Skeletonizer(
-                enabled: widget.loading,
+                enabled: loading,
                 child: Text(
-                  widget.loading ? '000.00' : formatBpm(liveBpm),
+                  loading ? '000.00' : formatBpm(liveBpm),
                   textAlign: .center,
                   style: theme.typography.body.sm.copyWith(
                     color: accent,
@@ -116,7 +86,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
               ),
               const SizedBox(height: 2),
               Text(
-                formatPitchPercent(_speedNorm, _tempoRange),
+                formatPitchPercent(speed, tempoRange),
                 textAlign: .center,
                 style: theme.typography.body.xs.copyWith(
                   color: theme.colors.mutedForeground,
@@ -133,14 +103,16 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: isMaster ? null : _toggleSync,
+                  onPress: disabled || isMaster
+                      ? null
+                      : () => onToggleSync(shiftKeyPressed()),
                   child: Text(
                     isMaster
                         ? 'M'
-                        : switch (_sync) {
-                            TempoSyncMode.off => 'Sync',
-                            TempoSyncMode.tempo => 'S',
-                            TempoSyncMode.beat => 'B',
+                        : switch (syncMode) {
+                            SyncMode.off => 'Sync',
+                            SyncMode.tempo => 'S',
+                            SyncMode.beat => 'B',
                           },
                     style: chipStyle,
                   ),
@@ -155,14 +127,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: () {
-                    if (isMaster) {
-                      widget.onMasterChanged(false);
-                    } else {
-                      setState(() => _sync = TempoSyncMode.off);
-                      widget.onMasterChanged(true);
-                    }
-                  },
+                  onPress: disabled || isMaster ? null : onSetMaster,
                   child: Text(
                     isMaster ? 'Master' : 'Set master',
                     textAlign: .center,
@@ -184,7 +149,7 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: FaderSlider(
                     orientation: .vertical,
-                    accent: widget.accent,
+                    accent: this.accent,
                     value: sliderValue,
                     min: 0,
                     max: 100,
@@ -192,11 +157,10 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                     showIndicator: false,
                     showMarkers: true,
                     centerNotch: true,
-                    disabled: _faderDisabled,
+                    disabled: faderDisabled,
                     semanticLabel: 'Tempo',
-                    onValueChange: (next) => setState(() {
-                      _speedNorm = pitchSliderToSpeed(next);
-                    }),
+                    onValueChange: (next) =>
+                        onSpeedChange(pitchSliderToSpeed(next)),
                   ),
                 ),
               ),
@@ -207,14 +171,13 @@ class _DeckTempoPanelState extends State<DeckTempoPanel> {
                   variant: .ghost,
                   size: .xs,
                   mainAxisSize: .min,
-                  onPress: () => setState(() {
-                    _tempoRange = nextTempoRange(
-                      _tempoRange,
-                      widget.tempoRangeSteps,
-                    );
-                  }),
+                  onPress: disabled
+                      ? null
+                      : () => onTempoRangeChange(
+                          nextTempoRange(tempoRange, tempoRangeSteps),
+                        ),
                   child: Text(
-                    formatTempoRange(_tempoRange),
+                    formatTempoRange(tempoRange),
                     style: theme.typography.body.xs.copyWith(
                       fontSize: 12,
                       fontWeight: .w600,
