@@ -141,7 +141,6 @@ struct AppSettings {
     preview_enabled: bool,
     preview_bus: BusRouteSettings,
     analysis_duration: AnalysisDurationMode,
-    scan_folder_tree: bool,
     #[serde(default = "default_library_table_columns")]
     library_table_columns: Vec<String>,
     #[serde(default = "default_volume_normalizer_enabled")]
@@ -287,7 +286,6 @@ fn settings_from_state(state: &AppState) -> AppSettings {
             .map(bus_route_from_config)
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration,
-    scan_folder_tree: state.library.lock().unwrap().config().scan_folder_tree,
         library_table_columns: state.library_table_columns.clone(),
         volume_normalizer_enabled: state.volume_normalizer_enabled,
         target_lufs: state.target_lufs,
@@ -305,9 +303,6 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     let config = engine_config_from_settings(&state.engine_config, &settings)?;
 
     state.engine_config = config;
-    state.library.lock().unwrap().set_config(LibraryConfig {
-        scan_folder_tree: settings.scan_folder_tree,
-    });
     state
         .library_session
         .set_analysis_duration(settings.analysis_duration);
@@ -1131,7 +1126,6 @@ mod tests {
             preview_enabled: false,
             preview_bus: default_preview_bus_route(),
             analysis_duration: AnalysisDurationMode::Fast,
-            scan_folder_tree: true,
             library_table_columns: super::default_library_table_columns(),
             volume_normalizer_enabled: true,
             target_lufs: -18.0,
@@ -1164,8 +1158,7 @@ mod tests {
                 "left_channel": 3,
                 "right_channel": 4
             },
-            "analysis_duration": "fast",
-            "scan_folder_tree": true
+            "analysis_duration": "fast"
         }))
         .expect("legacy settings should deserialize");
 

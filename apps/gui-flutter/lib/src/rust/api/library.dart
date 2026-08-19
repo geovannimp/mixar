@@ -24,10 +24,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
 
-  /// Apply library analysis duration and folder-scan recursion.
+  /// Apply library analysis duration from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
-    required bool scanFolderTree,
   });
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

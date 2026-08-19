@@ -142,12 +142,19 @@ pub enum CollectionConfig {
     Folder {
         /// Absolute path to a real directory on disk.
         fs_path: PathBuf,
+        /// When true, folder scans recurse into subdirectories.
+        #[serde(default = "default_scan_folder_tree")]
+        scan_folder_tree: bool,
     },
     /// User-defined track list.
     Playlist {
         /// Ordered vs set (crate-like).
         sortable: bool,
     },
+}
+
+fn default_scan_folder_tree() -> bool {
+    true
 }
 
 impl CollectionConfig {
@@ -180,7 +187,7 @@ impl Collection {
     /// Folder only: absolute path on disk.
     pub fn fs_path(&self) -> Option<&std::path::Path> {
         match &self.config {
-            CollectionConfig::Folder { fs_path } => Some(fs_path),
+            CollectionConfig::Folder { fs_path, .. } => Some(fs_path),
             CollectionConfig::Playlist { .. } => None,
         }
     }
@@ -205,20 +212,9 @@ pub struct CollectionTrack {
     pub position: Option<i32>,
 }
 
-/// Library manager configuration.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct LibraryConfig {
-    /// When true, folder scans recurse into subdirectories.
-    pub scan_folder_tree: bool,
-}
-
-impl Default for LibraryConfig {
-    fn default() -> Self {
-        Self {
-            scan_folder_tree: true,
-        }
-    }
-}
+/// Library manager configuration (reserved for library-wide options).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct LibraryConfig {}
 
 /// Parameters for creating a collection (folder or playlist).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -236,6 +232,7 @@ impl NewCollection {
             name: None,
             config: CollectionConfig::Folder {
                 fs_path: path.as_ref().to_path_buf(),
+                scan_folder_tree: true,
             },
         }
     }
@@ -246,6 +243,7 @@ impl NewCollection {
             name: Some(name.into()),
             config: CollectionConfig::Folder {
                 fs_path: path.as_ref().to_path_buf(),
+                scan_folder_tree: true,
             },
         }
     }

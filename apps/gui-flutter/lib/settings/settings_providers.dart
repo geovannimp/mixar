@@ -77,7 +77,6 @@ Future<SaveAppSettingsResult> saveAppSettings(
   try {
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
-      scanFolderTree: normalized.scanFolderTree,
     );
     final engine = await ref.read(engineTransportProvider.future);
     if (engine != null && await engine.isRunning()) {

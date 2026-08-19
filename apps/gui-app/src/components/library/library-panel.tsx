@@ -127,7 +127,6 @@ export function LibraryPanel() {
       preview_enabled: false,
       preview_bus: { device_id: "default", left_channel: 3, right_channel: 4 },
       analysis_duration: "fast",
-      scan_folder_tree: true,
       library_table_columns: DEFAULT_LIBRARY_TABLE_COLUMNS,
       volume_normalizer_enabled: true,
       target_lufs: -18,

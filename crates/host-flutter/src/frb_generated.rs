@@ -3519,7 +3519,6 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                 <crate::api::library::LibraryAnalysisDurationSetting>::sse_decode(
                     &mut deserializer,
                 );
-            let api_scan_folder_tree = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -3540,7 +3539,6 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                     let output_ok = crate::api::library::LibraryTransport::apply_library_settings(
                         &*api_that_guard,
                         api_analysis_duration,
-                        api_scan_folder_tree,
                     )?;
                     Ok(output_ok)
                 })())
@@ -4761,7 +4759,6 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_previewBus = <crate::api::settings::BusRouteSettings>::sse_decode(deserializer);
         let mut var_analysisDuration =
             <crate::api::settings::AnalysisDurationSetting>::sse_decode(deserializer);
-        let mut var_scanFolderTree = <bool>::sse_decode(deserializer);
         let mut var_libraryTableColumns = <Vec<String>>::sse_decode(deserializer);
         let mut var_volumeNormalizerEnabled = <bool>::sse_decode(deserializer);
         let mut var_targetLufs = <f32>::sse_decode(deserializer);
@@ -4788,7 +4785,6 @@ impl SseDecode for crate::api::settings::AppSettings {
             preview_enabled: var_previewEnabled,
             preview_bus: var_previewBus,
             analysis_duration: var_analysisDuration,
-            scan_folder_tree: var_scanFolderTree,
             library_table_columns: var_libraryTableColumns,
             volume_normalizer_enabled: var_volumeNormalizerEnabled,
             target_lufs: var_targetLufs,
@@ -6479,7 +6475,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.preview_enabled.into_into_dart().into_dart(),
             self.preview_bus.into_into_dart().into_dart(),
             self.analysis_duration.into_into_dart().into_dart(),
-            self.scan_folder_tree.into_into_dart().into_dart(),
             self.library_table_columns.into_into_dart().into_dart(),
             self.volume_normalizer_enabled.into_into_dart().into_dart(),
             self.target_lufs.into_into_dart().into_dart(),
@@ -7473,7 +7468,6 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.analysis_duration,
             serializer,
         );
-        <bool>::sse_encode(self.scan_folder_tree, serializer);
         <Vec<String>>::sse_encode(self.library_table_columns, serializer);
         <bool>::sse_encode(self.volume_normalizer_enabled, serializer);
         <f32>::sse_encode(self.target_lufs, serializer);

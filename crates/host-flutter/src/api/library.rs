@@ -17,7 +17,6 @@ use library_api::{
 };
 use library_core::{AnalysisDurationMode, AudioSource, Collection, CollectionId, Library};
 
-use crate::api::settings::settings_library_config;
 use crate::frb_generated::StreamSink;
 
 /// Offline analysis depth for library worker configuration.
@@ -228,7 +227,7 @@ impl LibraryTransport {
     /// Open (or create) a SQLite library at `db_path`.
     pub fn open(db_path: String) -> Result<Self, String> {
         let manager =
-            LibraryManager::open(db_path, settings_library_config()).map_err(|e| e.to_string())?;
+            LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
         Self::from_manager(manager)
     }
 
@@ -502,18 +501,12 @@ impl LibraryTransport {
         LibraryBusHandle::from_buses(self.buses.clone())
     }
 
-    /// Apply library analysis duration and folder-scan recursion.
+    /// Apply library analysis duration from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
-        scan_folder_tree: bool,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
-        let mut lib = self
-            .library
-            .lock()
-            .map_err(|_| "library lock poisoned".to_string())?;
-        lib.set_config(LibraryConfig { scan_folder_tree });
         Ok(())
     }
 

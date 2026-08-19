@@ -3,14 +3,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 /// Opens the shared app-support `library.db` (same folder as Tauri when app IDs match).
 final libraryTransportProvider = FutureProvider<LibraryTransport>((ref) async {
   final support = await getApplicationSupportDirectory();
-  await SettingsTransport.open(path: p.join(support.path, 'settings.json'));
   final dbPath = p.join(support.path, 'library.db');
   return LibraryTransport.open(dbPath: dbPath);
 });

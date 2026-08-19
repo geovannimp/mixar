@@ -439,7 +439,6 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
-    required bool scanFolderTree,
   });
 
   Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
@@ -3127,7 +3126,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
-    required bool scanFolderTree,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3141,7 +3139,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             analysisDuration,
             serializer,
           );
-          sse_encode_bool(scanFolderTree, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3155,7 +3152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta,
-        argValues: [that, analysisDuration, scanFolderTree],
+        argValues: [that, analysisDuration],
         apiImpl: this,
       ),
     );
@@ -3165,7 +3162,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_apply_library_settings",
-        argNames: ["that", "analysisDuration", "scanFolderTree"],
+        argNames: ["that", "analysisDuration"],
       );
 
   @override
@@ -4212,8 +4209,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 21)
-      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    if (arr.length != 20)
+      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -4224,18 +4221,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewEnabled: dco_decode_bool(arr[6]),
       previewBus: dco_decode_bus_route_settings(arr[7]),
       analysisDuration: dco_decode_analysis_duration_setting(arr[8]),
-      scanFolderTree: dco_decode_bool(arr[9]),
-      libraryTableColumns: dco_decode_list_String(arr[10]),
-      volumeNormalizerEnabled: dco_decode_bool(arr[11]),
-      targetLufs: dco_decode_f_32(arr[12]),
-      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[13]),
-      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[14]),
-      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[15]),
-      defaultTopJogMode: dco_decode_jog_mode_setting(arr[16]),
-      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[17]),
-      defaultTempoRange: dco_decode_f_32(arr[18]),
-      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[19]),
-      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[20]),
+      libraryTableColumns: dco_decode_list_String(arr[9]),
+      volumeNormalizerEnabled: dco_decode_bool(arr[10]),
+      targetLufs: dco_decode_f_32(arr[11]),
+      samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[12]),
+      samplerStripRoute: dco_decode_sampler_strip_route_setting_frb(arr[13]),
+      deckDefaultSamplerBankId: dco_decode_list_opt_String(arr[14]),
+      defaultTopJogMode: dco_decode_jog_mode_setting(arr[15]),
+      defaultOuterJogMode: dco_decode_jog_mode_setting(arr[16]),
+      defaultTempoRange: dco_decode_f_32(arr[17]),
+      tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
+      waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
     );
   }
 
@@ -5298,7 +5294,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_analysisDuration = sse_decode_analysis_duration_setting(
       deserializer,
     );
-    var var_scanFolderTree = sse_decode_bool(deserializer);
     var var_libraryTableColumns = sse_decode_list_String(deserializer);
     var var_volumeNormalizerEnabled = sse_decode_bool(deserializer);
     var var_targetLufs = sse_decode_f_32(deserializer);
@@ -5326,7 +5321,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewEnabled: var_previewEnabled,
       previewBus: var_previewBus,
       analysisDuration: var_analysisDuration,
-      scanFolderTree: var_scanFolderTree,
       libraryTableColumns: var_libraryTableColumns,
       volumeNormalizerEnabled: var_volumeNormalizerEnabled,
       targetLufs: var_targetLufs,
@@ -6697,7 +6691,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.previewEnabled, serializer);
     sse_encode_bus_route_settings(self.previewBus, serializer);
     sse_encode_analysis_duration_setting(self.analysisDuration, serializer);
-    sse_encode_bool(self.scanFolderTree, serializer);
     sse_encode_list_String(self.libraryTableColumns, serializer);
     sse_encode_bool(self.volumeNormalizerEnabled, serializer);
     sse_encode_f_32(self.targetLufs, serializer);
@@ -8110,15 +8103,13 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         force: force,
       );
 
-  /// Apply library analysis duration and folder-scan recursion.
+  /// Apply library analysis duration from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
-    required bool scanFolderTree,
   }) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportApplyLibrarySettings(
         that: this,
         analysisDuration: analysisDuration,
-        scanFolderTree: scanFolderTree,
       );
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

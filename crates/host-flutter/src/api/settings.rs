@@ -4,8 +4,6 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use library_core::LibraryConfig;
-
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
 use engine_api::JogMode;
 use engine_core::{
@@ -205,8 +203,6 @@ pub struct AppSettings {
     pub preview_enabled: bool,
     pub preview_bus: BusRouteSettings,
     pub analysis_duration: AnalysisDurationSetting,
-    #[serde(default = "default_scan_folder_tree")]
-    pub scan_folder_tree: bool,
     pub library_table_columns: Vec<String>,
     pub volume_normalizer_enabled: bool,
     pub target_lufs: f32,
@@ -225,7 +221,6 @@ struct SettingsHost {
     configured: bool,
     persist_path: Option<PathBuf>,
     engine_config: EngineConfig,
-    scan_folder_tree: bool,
     library_table_columns: Vec<String>,
     volume_normalizer_enabled: bool,
     target_lufs: f32,
@@ -243,7 +238,6 @@ impl Default for SettingsHost {
             configured: false,
             persist_path: None,
             engine_config: default_engine_config(),
-            scan_folder_tree: default_scan_folder_tree(),
             library_table_columns: default_library_table_columns(),
             volume_normalizer_enabled: true,
             target_lufs: TARGET_LUFS_DEFAULT,
@@ -255,10 +249,6 @@ impl Default for SettingsHost {
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
         }
     }
-}
-
-fn default_scan_folder_tree() -> bool {
-    true
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -467,7 +457,6 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
             .map(bus_route_from_config)
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration.into(),
-        scan_folder_tree: host.scan_folder_tree,
         library_table_columns: host.library_table_columns.clone(),
         volume_normalizer_enabled: host.volume_normalizer_enabled,
         target_lufs: host.target_lufs,
@@ -499,7 +488,6 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     });
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
-    host.scan_folder_tree = settings.scan_folder_tree;
     host.library_table_columns = settings.library_table_columns;
     host.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     host.target_lufs = settings.target_lufs;
@@ -565,16 +553,6 @@ pub(crate) fn settings_engine_config() -> Result<EngineConfig, String> {
     Ok(host.engine_config.clone())
 }
 
-/// Library scan config from the settings host (defaults if unset).
-pub(crate) fn settings_library_config() -> LibraryConfig {
-    shared_host()
-        .lock()
-        .map(|h| LibraryConfig {
-            scan_folder_tree: h.scan_folder_tree,
-        })
-        .unwrap_or_default()
-}
-
 /// Overlay [`EngineStartConfig`] onto the host until the user has saved settings.
 pub(crate) fn seed_engine_config_if_unconfigured(
     backend: &str,
@@ -620,7 +598,6 @@ mod tests {
         assert_eq!(parsed.backend, "cpal");
         assert_eq!(parsed.sample_rate, 48_000);
         assert!(parsed.volume_normalizer_enabled);
-        assert!(parsed.scan_folder_tree);
         assert_eq!(
             parsed.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
@@ -674,27 +651,16 @@ mod tests {
     }
 
     #[test]
-    fn apply_to_host_persists_scan_folder_tree() {
-        let mut host = SettingsHost::default();
-        let mut settings = sample_settings();
-        settings.scan_folder_tree = false;
-        apply_to_host(&mut host, settings).expect("settings apply");
-        assert!(!settings_from_host(&host).scan_folder_tree);
-    }
-
-    #[test]
     fn settings_file_round_trip_survives_reload() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut settings = sample_settings();
-        settings.scan_folder_tree = false;
         settings.waveform_display_mode = WaveformDisplayModeSetting::Filtered;
         settings.sample_rate = 44_100;
         write_settings_file(&path, &settings).expect("write");
 
         let host = load_host(&path);
         let restored = settings_from_host(&host);
-        assert!(!restored.scan_folder_tree);
         assert_eq!(
             restored.waveform_display_mode,
             WaveformDisplayModeSetting::Filtered
@@ -703,17 +669,20 @@ mod tests {
     }
 
     #[test]
-    fn missing_scan_folder_tree_defaults_true() {
+    fn legacy_scan_folder_tree_field_is_ignored() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
         value
             .as_object_mut()
             .expect("object")
-            .remove("scan_folder_tree");
+            .insert("scan_folder_tree".into(), serde_json::Value::Bool(false));
         std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
         let loaded = read_settings_file(&path).expect("read");
-        assert!(loaded.scan_folder_tree);
+        let mut host = SettingsHost::default();
+        apply_to_host(&mut host, loaded).expect("apply");
+        let restored = settings_from_host(&host);
+        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
     }
 
     #[test]

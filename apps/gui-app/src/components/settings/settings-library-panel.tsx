@@ -12,7 +12,6 @@ import {
 } from "@/lib/analysis-mode";
 import type { AppSettings, LibraryTableColumn } from "@/types";
 import { SettingsField, SettingsSectionHeader } from "./settings-field";
-import { SettingsToggle } from "./settings-toggle";
 import { LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "@/lib/library-table";
 
 interface SettingsLibraryPanelProps {
@@ -66,12 +65,6 @@ export function SettingsLibraryPanel({ draft, onChange }: SettingsLibraryPanelPr
           </SelectPopup>
         </Select>
       </SettingsField>
-
-      <SettingsToggle
-        label="Scan folder collections recursively"
-        checked={draft.scan_folder_tree}
-        onCheckedChange={(scan_folder_tree) => onChange({ ...draft, scan_folder_tree })}
-      />
 
       <SettingsField label="Track table columns">
         <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">

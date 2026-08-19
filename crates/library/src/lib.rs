@@ -570,8 +570,16 @@ impl LibraryManager {
             return Ok(report);
         }
 
-        let recursive = self.config.scan_folder_tree;
-        let files = collect_audio_files(fs_path, recursive)?;
+        let CollectionConfig::Folder {
+            scan_folder_tree, ..
+        } = &folder.config
+        else {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: format!("folder {} has non-folder config", folder.id),
+            });
+        };
+        let files = collect_audio_files(fs_path, *scan_folder_tree)?;
         for file in files {
             let existed = self.get_track(&Self::track_id_for(&file))?.is_some();
             match self.import_path(&file) {
@@ -614,7 +622,11 @@ impl LibraryManager {
     }
 
     fn add_folder_collection(&mut self, collection: &NewCollection) -> Result<Collection> {
-        let CollectionConfig::Folder { fs_path: path } = &collection.config else {
+        let CollectionConfig::Folder {
+            fs_path: path,
+            scan_folder_tree,
+        } = &collection.config
+        else {
             return Err(LibraryError::Backend {
                 backend: "library",
                 message: "folder collection requires Folder config".into(),
@@ -646,7 +658,10 @@ impl LibraryManager {
         Ok(Collection {
             id,
             name,
-            config: CollectionConfig::Folder { fs_path: path },
+            config: CollectionConfig::Folder {
+                fs_path: path,
+                scan_folder_tree: *scan_folder_tree,
+            },
         })
     }
 
