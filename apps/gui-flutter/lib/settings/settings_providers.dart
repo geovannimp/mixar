@@ -5,11 +5,14 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 final settingsTransportProvider = FutureProvider<SettingsTransport>((
   ref,
 ) async {
-  return SettingsTransport.open();
+  final support = await getApplicationSupportDirectory();
+  return SettingsTransport.open(path: p.join(support.path, 'settings.json'));
 });
 
 final audioBackendNamesProvider = Provider<List<String>>(
@@ -74,6 +77,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
   try {
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
+      scanFolderTree: normalized.scanFolderTree,
     );
     final engine = await ref.read(engineTransportProvider.future);
     if (engine != null && await engine.isRunning()) {

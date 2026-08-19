@@ -56,6 +56,7 @@ AppSettings defaultAppSettings() {
     previewEnabled: false,
     previewBus: kDefaultPreviewBus,
     analysisDuration: AnalysisDurationSetting.precise,
+    scanFolderTree: true,
     libraryTableColumns: List<String>.from(kDefaultLibraryColumns),
     volumeNormalizerEnabled: true,
     targetLufs: kDefaultTargetLufs,
@@ -120,6 +121,7 @@ AppSettings copyAppSettings(
   bool? previewEnabled,
   BusRouteSettings? previewBus,
   AnalysisDurationSetting? analysisDuration,
+  bool? scanFolderTree,
   List<String>? libraryTableColumns,
   bool? volumeNormalizerEnabled,
   double? targetLufs,
@@ -142,6 +144,7 @@ AppSettings copyAppSettings(
     previewEnabled: previewEnabled ?? base.previewEnabled,
     previewBus: previewBus ?? base.previewBus,
     analysisDuration: analysisDuration ?? base.analysisDuration,
+    scanFolderTree: scanFolderTree ?? base.scanFolderTree,
     libraryTableColumns: libraryTableColumns ?? base.libraryTableColumns,
     volumeNormalizerEnabled:
         volumeNormalizerEnabled ?? base.volumeNormalizerEnabled,
@@ -173,6 +176,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.previewEnabled != baseline.previewEnabled ||
       draft.previewBus != baseline.previewBus ||
       draft.analysisDuration != baseline.analysisDuration ||
+      draft.scanFolderTree != baseline.scanFolderTree ||
       draft.volumeNormalizerEnabled != baseline.volumeNormalizerEnabled ||
       draft.targetLufs != baseline.targetLufs ||
       draft.samplerPlayMode != baseline.samplerPlayMode ||
