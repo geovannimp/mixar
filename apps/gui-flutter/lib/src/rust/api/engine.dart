@@ -10,7 +10,7 @@ import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -224,6 +224,8 @@ class EngineEvt {
   final double? speed;
   final double? tempoRange;
   final PadMode? padMode;
+  final SyncMode? syncMode;
+  final int? masterDeck;
 
   const EngineEvt({
     required this.kind,
@@ -250,6 +252,8 @@ class EngineEvt {
     this.speed,
     this.tempoRange,
     this.padMode,
+    this.syncMode,
+    this.masterDeck,
   });
 
   @override
@@ -277,7 +281,9 @@ class EngineEvt {
       durationMs.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
-      padMode.hashCode;
+      padMode.hashCode ^
+      syncMode.hashCode ^
+      masterDeck.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -307,7 +313,9 @@ class EngineEvt {
           durationMs == other.durationMs &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&
-          padMode == other.padMode;
+          padMode == other.padMode &&
+          syncMode == other.syncMode &&
+          masterDeck == other.masterDeck;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -380,3 +388,6 @@ class OutputDevice {
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
 enum PadMode { hotCue, loopRoll, beatJump, sampler }
+
+/// Deck sync follow mode for [`EngineEvt::sync_mode`].
+enum SyncMode { off, tempo, beat }

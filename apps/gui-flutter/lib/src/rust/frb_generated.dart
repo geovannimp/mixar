@@ -4317,6 +4317,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncMode dco_decode_box_autoadd_sync_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sync_mode(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -4416,8 +4422,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 24)
-      throw Exception('unexpected arr length: expect 24 but see ${arr.length}');
+    if (arr.length != 26)
+      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -4443,6 +4449,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speed: dco_decode_opt_box_autoadd_f_32(arr[21]),
       tempoRange: dco_decode_opt_box_autoadd_f_32(arr[22]),
       padMode: dco_decode_opt_box_autoadd_pad_mode(arr[23]),
+      syncMode: dco_decode_opt_box_autoadd_sync_mode(arr[24]),
+      masterDeck: dco_decode_opt_box_autoadd_u_16(arr[25]),
     );
   }
 
@@ -4794,6 +4802,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncMode? dco_decode_opt_box_autoadd_sync_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sync_mode(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_u_16(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_u_16(raw);
@@ -4908,6 +4922,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       outMs: dco_decode_i_32(arr[2]),
       label: dco_decode_opt_String(arr[3]),
     );
+  }
+
+  @protected
+  SyncMode dco_decode_sync_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SyncMode.values[raw as int];
   }
 
   @protected
@@ -5425,6 +5445,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncMode sse_decode_box_autoadd_sync_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sync_mode(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_u_16(deserializer));
@@ -5564,6 +5590,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_speed = sse_decode_opt_box_autoadd_f_32(deserializer);
     var var_tempoRange = sse_decode_opt_box_autoadd_f_32(deserializer);
     var var_padMode = sse_decode_opt_box_autoadd_pad_mode(deserializer);
+    var var_syncMode = sse_decode_opt_box_autoadd_sync_mode(deserializer);
+    var var_masterDeck = sse_decode_opt_box_autoadd_u_16(deserializer);
     return EngineEvt(
       kind: var_kind,
       deckId: var_deckId,
@@ -5589,6 +5617,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       speed: var_speed,
       tempoRange: var_tempoRange,
       padMode: var_padMode,
+      syncMode: var_syncMode,
+      masterDeck: var_masterDeck,
     );
   }
 
@@ -6103,6 +6133,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SyncMode? sse_decode_opt_box_autoadd_sync_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sync_mode(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -6263,6 +6304,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       outMs: var_outMs,
       label: var_label,
     );
+  }
+
+  @protected
+  SyncMode sse_decode_sync_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SyncMode.values[inner];
   }
 
   @protected
@@ -6800,6 +6848,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_sync_mode(
+    SyncMode self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sync_mode(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_u_16(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_16(self, serializer);
@@ -6921,6 +6978,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_32(self.speed, serializer);
     sse_encode_opt_box_autoadd_f_32(self.tempoRange, serializer);
     sse_encode_opt_box_autoadd_pad_mode(self.padMode, serializer);
+    sse_encode_opt_box_autoadd_sync_mode(self.syncMode, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.masterDeck, serializer);
   }
 
   @protected
@@ -7369,6 +7428,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sync_mode(
+    SyncMode? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sync_mode(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_u_16(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7515,6 +7587,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.inMs, serializer);
     sse_encode_i_32(self.outMs, serializer);
     sse_encode_opt_String(self.label, serializer);
+  }
+
+  @protected
+  void sse_encode_sync_mode(SyncMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

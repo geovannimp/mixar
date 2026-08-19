@@ -167,6 +167,26 @@ final deckPadModeProvider = Provider.family<PadMode, int>(
       ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
 );
 
+final deckSpeedProvider = Provider.family<double, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.speedFor(deckId))),
+);
+
+final deckTempoRangeProvider = Provider.family<double, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.tempoRangeFor(deckId))),
+);
+
+final deckSyncModeProvider = Provider.family<SyncMode, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.syncModeFor(deckId))),
+);
+
+final deckIsMasterProvider = Provider.family<bool, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.isMaster(deckId))),
+);
+
 final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
   ref,
   deckId,
@@ -181,11 +201,7 @@ final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
   }
   return [
     for (final row in rows)
-      DeckHotCue(
-        slot: row.slot,
-        positionMs: row.positionMs,
-        label: row.label,
-      ),
+      DeckHotCue(slot: row.slot, positionMs: row.positionMs, label: row.label),
   ];
 });
 
@@ -321,4 +337,32 @@ Future<void> setCrossfader(WidgetRef ref, double position) async {
 Future<void> seekDeck(WidgetRef ref, int deckId, int positionMs) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.seek(deckId: deckId, positionMs: positionMs);
+}
+
+Future<void> setDeckSpeed(WidgetRef ref, int deckId, double speed) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setSpeed(deckId: deckId, speed: speed);
+}
+
+Future<void> setDeckTempoRange(
+  WidgetRef ref,
+  int deckId,
+  double tempoRange,
+) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setTempoRange(deckId: deckId, tempoRange: tempoRange);
+}
+
+Future<void> toggleDeckSync(
+  WidgetRef ref,
+  int deckId, {
+  required bool beatSync,
+}) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.toggleSync(deckId: deckId, beatSync: beatSync);
+}
+
+Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setMasterDeck(deckId: deckId);
 }

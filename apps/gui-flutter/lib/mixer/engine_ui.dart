@@ -64,6 +64,8 @@ class EngineUiSnapshot {
     this.speeds = const {},
     this.tempoRanges = const {},
     this.padModes = const {},
+    this.syncModes = const {},
+    this.masterDeck = 0,
   });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
@@ -79,6 +81,8 @@ class EngineUiSnapshot {
   final Map<int, double> speeds;
   final Map<int, double> tempoRanges;
   final Map<int, PadMode> padModes;
+  final Map<int, SyncMode> syncModes;
+  final int masterDeck;
 
   String? titleFor(int deckId) => titles[deckId];
 
@@ -93,6 +97,10 @@ class EngineUiSnapshot {
   double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
+
+  SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
+
+  bool isMaster(int deckId) => masterDeck == deckId;
 
   MixerChannelUi channelFor(int deckId) =>
       channels[deckId] ?? MixerChannelUi.defaults;
@@ -111,6 +119,8 @@ class EngineUiSnapshot {
     Map<int, double>? speeds,
     Map<int, double>? tempoRanges,
     Map<int, PadMode>? padModes,
+    Map<int, SyncMode>? syncModes,
+    int? masterDeck,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
     titles: titles ?? this.titles,
@@ -123,6 +133,8 @@ class EngineUiSnapshot {
     speeds: speeds ?? this.speeds,
     tempoRanges: tempoRanges ?? this.tempoRanges,
     padModes: padModes ?? this.padModes,
+    syncModes: syncModes ?? this.syncModes,
+    masterDeck: masterDeck ?? this.masterDeck,
   );
 }
 
@@ -132,6 +144,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       return prev.copyWith(
         running: evt.running ?? prev.running,
         crossfader: evt.crossfader ?? prev.crossfader,
+        masterDeck: evt.masterDeck ?? prev.masterDeck,
       );
     case EngineEvtKind.updated:
       final id = evt.deckId;
@@ -173,6 +186,10 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (enginePadMode != null) {
         nextPadModes[id] = enginePadMode;
       }
+      final nextSyncModes = Map<int, SyncMode>.from(prev.syncModes);
+      if (evt.syncMode != null) {
+        nextSyncModes[id] = evt.syncMode!;
+      }
       return prev.copyWith(
         titles: nextTitles,
         playing: nextPlaying,
@@ -182,6 +199,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         speeds: nextSpeeds,
         tempoRanges: nextRanges,
         padModes: nextPadModes,
+        syncModes: nextSyncModes,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

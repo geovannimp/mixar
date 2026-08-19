@@ -161,6 +161,24 @@ impl From<engine_api::PadMode> for PadMode {
     }
 }
 
+/// Deck sync follow mode for [`EngineEvt::sync_mode`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SyncMode {
+    Off,
+    Tempo,
+    Beat,
+}
+
+impl From<engine_api::SyncMode> for SyncMode {
+    fn from(mode: engine_api::SyncMode) -> Self {
+        match mode {
+            engine_api::SyncMode::Off => Self::Off,
+            engine_api::SyncMode::Tempo => Self::Tempo,
+            engine_api::SyncMode::Beat => Self::Beat,
+        }
+    }
+}
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 #[derive(Clone, Debug)]
 pub struct EngineEvt {
@@ -188,6 +206,8 @@ pub struct EngineEvt {
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
     pub pad_mode: Option<PadMode>,
+    pub sync_mode: Option<SyncMode>,
+    pub master_deck: Option<u16>,
 }
 
 impl EngineEvt {
@@ -217,6 +237,8 @@ impl EngineEvt {
             speed: None,
             tempo_range: None,
             pad_mode: None,
+            sync_mode: None,
+            master_deck: None,
         }
     }
 }
@@ -1017,6 +1039,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
     evt.pad_mode = Some(snap.pad_mode.into());
+    evt.sync_mode = Some(snap.sync_mode.into());
     evt
 }
 
@@ -1030,6 +1053,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             let mut status_evt = EngineEvt::bare(EngineEvtKind::Status);
             status_evt.running = Some(status.running);
             status_evt.crossfader = Some(status.crossfader);
+            status_evt.master_deck = Some(status.master_deck);
             let mut out = Vec::with_capacity(1 + status.decks.len());
             out.push(status_evt);
             out.extend(status.decks.iter().map(updated_from_snapshot));
@@ -1050,6 +1074,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             speed,
             tempo_range,
             pad_mode,
+            sync_mode,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1069,6 +1094,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
             evt.pad_mode = Some(pad_mode.into());
+            evt.sync_mode = Some(sync_mode.into());
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -1188,6 +1214,8 @@ mod tests {
 
     #[test]
     fn map_status_fans_out_crossfader_and_decks() {
+        let mut deck1 = sample_deck(1, 0.7);
+        deck1.sync_mode = SyncMode::Tempo;
         let mapped = recv_mapped(
             Origin::Mixer,
             Kind::Status,
@@ -1198,8 +1226,8 @@ mod tests {
                     crossfader: 0.25,
                     cue_mix: 0.0,
                     master_cue: false,
-                    master_deck: 0,
-                    decks: vec![sample_deck(0, 0.3), sample_deck(1, 0.7)],
+                    master_deck: 1,
+                    decks: vec![sample_deck(0, 0.3), deck1],
                     sampler: SamplerStatus {
                         banks: Vec::new(),
                         active_bank_id: None,
@@ -1215,6 +1243,7 @@ mod tests {
         assert_eq!(mapped[0].kind, EngineEvtKind::Status);
         assert_eq!(mapped[0].running, Some(true));
         assert_eq!(mapped[0].crossfader, Some(0.25));
+        assert_eq!(mapped[0].master_deck, Some(1));
         assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
         assert_eq!(mapped[1].deck_id, Some(0));
         assert_eq!(mapped[1].volume, Some(0.3));
@@ -1223,7 +1252,9 @@ mod tests {
         assert_eq!(mapped[1].speed, Some(0.5));
         assert_eq!(mapped[1].tempo_range, Some(0.08));
         assert_eq!(mapped[1].pad_mode, Some(super::PadMode::HotCue));
+        assert_eq!(mapped[1].sync_mode, Some(super::SyncMode::Off));
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
+        assert_eq!(mapped[2].sync_mode, Some(super::SyncMode::Tempo));
     }
 }

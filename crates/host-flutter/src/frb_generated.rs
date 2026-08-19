@@ -4954,6 +4954,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_speed = <Option<f32>>::sse_decode(deserializer);
         let mut var_tempoRange = <Option<f32>>::sse_decode(deserializer);
         let mut var_padMode = <Option<crate::api::engine::PadMode>>::sse_decode(deserializer);
+        let mut var_syncMode = <Option<crate::api::engine::SyncMode>>::sse_decode(deserializer);
+        let mut var_masterDeck = <Option<u16>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
             kind: var_kind,
             deck_id: var_deckId,
@@ -4979,6 +4981,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
             speed: var_speed,
             tempo_range: var_tempoRange,
             pad_mode: var_padMode,
+            sync_mode: var_syncMode,
+            master_deck: var_masterDeck,
         };
     }
 }
@@ -5552,6 +5556,17 @@ impl SseDecode for Option<crate::api::library::SamplerPlayMode> {
     }
 }
 
+impl SseDecode for Option<crate::api::engine::SyncMode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::api::engine::SyncMode>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<u16> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5735,6 +5750,19 @@ impl SseDecode for crate::api::library::SavedLoopInfo {
             in_ms: var_inMs,
             out_ms: var_outMs,
             label: var_label,
+        };
+    }
+}
+
+impl SseDecode for crate::api::engine::SyncMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::engine::SyncMode::Off,
+            1 => crate::api::engine::SyncMode::Tempo,
+            2 => crate::api::engine::SyncMode::Beat,
+            _ => unreachable!("Invalid variant for SyncMode: {}", inner),
         };
     }
 }
@@ -6711,6 +6739,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.speed.into_into_dart().into_dart(),
             self.tempo_range.into_into_dart().into_dart(),
             self.pad_mode.into_into_dart().into_dart(),
+            self.sync_mode.into_into_dart().into_dart(),
+            self.master_deck.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7204,6 +7234,25 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::SavedLoopInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::engine::SyncMode {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Off => 0.into_dart(),
+            Self::Tempo => 1.into_dart(),
+            Self::Beat => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::engine::SyncMode {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::SyncMode>
+    for crate::api::engine::SyncMode
+{
+    fn into_into_dart(self) -> crate::api::engine::SyncMode {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformDisplayModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7625,6 +7674,8 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<f32>>::sse_encode(self.speed, serializer);
         <Option<f32>>::sse_encode(self.tempo_range, serializer);
         <Option<crate::api::engine::PadMode>>::sse_encode(self.pad_mode, serializer);
+        <Option<crate::api::engine::SyncMode>>::sse_encode(self.sync_mode, serializer);
+        <Option<u16>>::sse_encode(self.master_deck, serializer);
     }
 }
 
@@ -8089,6 +8140,16 @@ impl SseEncode for Option<crate::api::library::SamplerPlayMode> {
     }
 }
 
+impl SseEncode for Option<crate::api::engine::SyncMode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::api::engine::SyncMode>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<u16> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8253,6 +8314,23 @@ impl SseEncode for crate::api::library::SavedLoopInfo {
         <i32>::sse_encode(self.in_ms, serializer);
         <i32>::sse_encode(self.out_ms, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::engine::SyncMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::engine::SyncMode::Off => 0,
+                crate::api::engine::SyncMode::Tempo => 1,
+                crate::api::engine::SyncMode::Beat => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
