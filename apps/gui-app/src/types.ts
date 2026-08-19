@@ -169,7 +169,6 @@ export interface AppSettings {
   preview_enabled: boolean;
   preview_bus: BusRouteSettings;
   analysis_duration: AnalysisMode;
-  scan_folder_tree: boolean;
   library_table_columns: LibraryTableColumn[];
   volume_normalizer_enabled: boolean;
   target_lufs: number;

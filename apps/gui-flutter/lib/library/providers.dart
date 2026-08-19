@@ -13,11 +13,12 @@ final libraryTransportProvider = FutureProvider<LibraryTransport>((ref) async {
   return LibraryTransport.open(dbPath: dbPath);
 });
 
-final collectionsProvider =
-    FutureProvider<List<LibraryCollectionSummary>>((ref) async {
-      final transport = await ref.watch(libraryTransportProvider.future);
-      return transport.listCollections();
-    });
+final collectionsProvider = FutureProvider<List<LibraryCollectionSummary>>((
+  ref,
+) async {
+  final transport = await ref.watch(libraryTransportProvider.future);
+  return transport.listCollections();
+});
 
 /// Explicit user selection; `null` means “use the first collection”.
 class SelectedCollectionId extends Notifier<String?> {
@@ -43,15 +44,16 @@ final activeCollectionIdProvider = Provider<String?>((ref) {
   return collections.first.id;
 });
 
-final collectionTracksProvider =
-    FutureProvider<List<LibraryTrackSummary>>((ref) async {
-      final id = ref.watch(activeCollectionIdProvider);
-      if (id == null) {
-        return const [];
-      }
-      final transport = await ref.watch(libraryTransportProvider.future);
-      return transport.listCollectionTracks(collectionId: id);
-    });
+final collectionTracksProvider = FutureProvider<List<LibraryTrackSummary>>((
+  ref,
+) async {
+  final id = ref.watch(activeCollectionIdProvider);
+  if (id == null) {
+    return const [];
+  }
+  final transport = await ref.watch(libraryTransportProvider.future);
+  return transport.listCollectionTracks(collectionId: id);
+});
 
 class TrackFilter extends Notifier<String> {
   @override
@@ -60,8 +62,9 @@ class TrackFilter extends Notifier<String> {
   void set(String value) => state = value;
 }
 
-final trackFilterProvider =
-    NotifierProvider<TrackFilter, String>(TrackFilter.new);
+final trackFilterProvider = NotifierProvider<TrackFilter, String>(
+  TrackFilter.new,
+);
 
 String trackTitleLabel(LibraryTrackSummary t) =>
     (t.title?.isNotEmpty ?? false) ? t.title! : t.displayName;
@@ -134,8 +137,9 @@ class AnalyzingTrackId extends Notifier<String?> {
   }
 }
 
-final analyzingTrackIdProvider =
-    NotifierProvider<AnalyzingTrackId, String?>(AnalyzingTrackId.new);
+final analyzingTrackIdProvider = NotifierProvider<AnalyzingTrackId, String?>(
+  AnalyzingTrackId.new,
+);
 
 class LibraryMessage extends Notifier<String?> {
   @override
@@ -148,8 +152,9 @@ class LibraryMessage extends Notifier<String?> {
   void setNotice(String? message) => state = message;
 }
 
-final libraryMessageProvider =
-    NotifierProvider<LibraryMessage, String?>(LibraryMessage.new);
+final libraryMessageProvider = NotifierProvider<LibraryMessage, String?>(
+  LibraryMessage.new,
+);
 
 class LibraryAnalysisEpoch extends Notifier<int> {
   @override
@@ -175,6 +180,20 @@ final trackHotCuesProvider =
       TrackHotCues.new,
     );
 
+class TrackSavedLoops extends Notifier<Map<String, List<SavedLoopInfo>>> {
+  @override
+  Map<String, List<SavedLoopInfo>> build() => const {};
+
+  void set(String trackId, List<SavedLoopInfo> loops) {
+    state = {...state, trackId: loops};
+  }
+}
+
+final trackSavedLoopsProvider =
+    NotifierProvider<TrackSavedLoops, Map<String, List<SavedLoopInfo>>>(
+      TrackSavedLoops.new,
+    );
+
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
@@ -188,7 +207,9 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref.read(libraryAnalysisEpochProvider.notifier).bump();
       }
     case LibraryEvtKind.error:
-      ref.read(libraryMessageProvider.notifier).setError(evt.message ?? 'Error');
+      ref
+          .read(libraryMessageProvider.notifier)
+          .setError(evt.message ?? 'Error');
       if (evt.trackId != null) {
         ref.read(analyzingTrackIdProvider.notifier).clearIf(evt.trackId);
       } else {
@@ -203,6 +224,17 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
             .read(trackHotCuesProvider.notifier)
             .set(trackId, evt.hotCues ?? const []);
       }
+    case LibraryEvtKind.loopsChanged:
+      final trackId = evt.trackId;
+      if (trackId != null) {
+        ref
+            .read(trackSavedLoopsProvider.notifier)
+            .set(trackId, evt.loops ?? const []);
+      }
+    // MIDI row-focus / load-to-deck UI is a later sub-issue; payload is on the evt.
+    case LibraryEvtKind.navigate:
+    case LibraryEvtKind.load:
+      break;
   }
 }
 
@@ -271,8 +303,9 @@ class DriveCurrentPath extends Notifier<String?> {
   }
 }
 
-final driveCurrentPathProvider =
-    NotifierProvider<DriveCurrentPath, String?>(DriveCurrentPath.new);
+final driveCurrentPathProvider = NotifierProvider<DriveCurrentPath, String?>(
+  DriveCurrentPath.new,
+);
 
 final driveListingProvider = FutureProvider<FsDirectoryListing?>((ref) async {
   final path = ref.watch(driveCurrentPathProvider);
@@ -289,7 +322,8 @@ final driveActiveVolumeProvider = Provider<FsVolumeInfo?>((ref) {
   if (path == null || volumes == null || volumes.isEmpty) {
     return null;
   }
-  final sorted = [...volumes]..sort((a, b) => b.path.length.compareTo(a.path.length));
+  final sorted = [...volumes]
+    ..sort((a, b) => b.path.length.compareTo(a.path.length));
   for (final volume in sorted) {
     if (path == volume.path) {
       return volume;

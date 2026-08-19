@@ -1,6 +1,7 @@
 //! Session settings host (mirrors Tauri `AppSettings` / `apply_settings`).
 
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use audio_core::{BusConfig, BusId, ChannelMapping, ChannelMode, DeviceId};
@@ -37,10 +38,18 @@ pub struct SettingsTransport {
 
 impl SettingsTransport {
     /// Open the app-wide settings host (singleton per process).
-    pub fn open() -> Self {
-        Self {
-            host: shared_host(),
+    ///
+    /// `path` is the JSON file used to load on first open and write on save
+    /// (Flutter: app-support `settings.json`, next to `library.db`).
+    pub fn open(path: String) -> Self {
+        let persist = PathBuf::from(path);
+        let host = SETTINGS
+            .get_or_init(|| Arc::new(Mutex::new(load_host(&persist))))
+            .clone();
+        if let Ok(mut locked) = host.lock() {
+            bind_persist_path(&mut locked, persist);
         }
+        Self { host }
     }
 
     /// Current session settings (schema-validated).
@@ -53,29 +62,39 @@ impl SettingsTransport {
     /// callers apply those separately (mirrors Flutter `saveAppSettings`).
     pub fn save_settings(&self, settings: AppSettings) -> Result<AppSettings, String> {
         let mut host = self.host.lock().map_err(|e| e.to_string())?;
-        apply_to_host(&mut host, settings)?;
-        parse_settings(settings_from_host(&host))
+        let mut candidate = host.clone();
+        apply_to_host(&mut candidate, settings)?;
+        let saved = parse_settings(settings_from_host(&candidate))?;
+        if let Some(path) = host.persist_path.clone() {
+            write_settings_file(&path, &saved)?;
+        }
+        *host = candidate;
+        Ok(saved)
     }
 }
 
 /// Bus channel routing mode.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BusChannelMode {
+    #[default]
     Stereo,
     Mono,
 }
 
 /// Output bus route (device + channels).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BusRouteSettings {
     pub device_id: String,
     pub left_channel: u16,
     pub right_channel: u16,
+    #[serde(default)]
     pub mode: BusChannelMode,
 }
 
 /// Jog platter policy (maps to [`JogMode`]).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum JogModeSetting {
     Vinyl,
     PitchBend,
@@ -103,7 +122,8 @@ impl From<JogMode> for JogModeSetting {
 }
 
 /// Offline analysis depth (maps to [`AnalysisDurationMode`]).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AnalysisDurationSetting {
     Fast,
     Precise,
@@ -131,7 +151,8 @@ impl From<AnalysisDurationMode> for AnalysisDurationSetting {
 }
 
 /// Default sampler pad play mode.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SamplerPlayModeSetting {
     Oneshot,
     Hold,
@@ -139,7 +160,8 @@ pub enum SamplerPlayModeSetting {
 }
 
 /// Sampler ↔ channel-strip routing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SamplerStripRouteSettingFrb {
     Before,
     After,
@@ -164,14 +186,15 @@ impl From<SamplerStripRouteSetting> for SamplerStripRouteSettingFrb {
 }
 
 /// Waveform lane paint mode.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum WaveformDisplayModeSetting {
     Rgb,
     Filtered,
 }
 
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
     pub backend: String,
     pub sample_rate: u32,
@@ -196,8 +219,10 @@ pub struct AppSettings {
 }
 
 #[flutter_rust_bridge::frb(ignore)]
+#[derive(Clone)]
 struct SettingsHost {
     configured: bool,
+    persist_path: Option<PathBuf>,
     engine_config: EngineConfig,
     library_table_columns: Vec<String>,
     volume_normalizer_enabled: bool,
@@ -214,6 +239,7 @@ impl Default for SettingsHost {
     fn default() -> Self {
         Self {
             configured: false,
+            persist_path: None,
             engine_config: default_engine_config(),
             library_table_columns: default_library_table_columns(),
             volume_normalizer_enabled: true,
@@ -478,6 +504,47 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     Ok(())
 }
 
+fn load_host(path: &Path) -> SettingsHost {
+    let mut host = SettingsHost {
+        persist_path: Some(path.to_path_buf()),
+        ..SettingsHost::default()
+    };
+    if let Some(settings) = read_settings_file(path) {
+        let _ = apply_to_host(&mut host, settings);
+    }
+    host
+}
+
+fn bind_persist_path(host: &mut SettingsHost, path: PathBuf) {
+    if host.persist_path.is_some() {
+        return;
+    }
+    host.persist_path = Some(path.clone());
+    if !host.configured {
+        if let Some(settings) = read_settings_file(&path) {
+            let _ = apply_to_host(host, settings);
+        }
+    }
+}
+
+fn read_settings_file(path: &Path) -> Option<AppSettings> {
+    let bytes = std::fs::read(path).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
+fn write_settings_file(path: &Path, settings: &AppSettings) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?;
+    let mut tmp = path.as_os_str().to_os_string();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    std::fs::write(&tmp, json).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp, path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn normalizer_target(enabled: bool, target_lufs: f32) -> Option<f32> {
     enabled.then_some(target_lufs)
 }
@@ -584,5 +651,74 @@ mod tests {
             settings_from_host(&host).waveform_display_mode,
             WaveformDisplayModeSetting::Filtered,
         );
+    }
+
+    #[test]
+    fn settings_file_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.waveform_display_mode = WaveformDisplayModeSetting::Filtered;
+        settings.sample_rate = 44_100;
+        write_settings_file(&path, &settings).expect("write");
+
+        settings.sample_rate = 48_000;
+        settings.waveform_display_mode = WaveformDisplayModeSetting::Rgb;
+        write_settings_file(&path, &settings).expect("write again");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(
+            restored.waveform_display_mode,
+            WaveformDisplayModeSetting::Rgb
+        );
+        assert_eq!(restored.sample_rate, 48_000);
+    }
+
+    #[test]
+    fn save_settings_keeps_host_when_persist_fails() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let transport = SettingsTransport {
+            host: Arc::new(Mutex::new(SettingsHost {
+                persist_path: Some(dir.path().to_path_buf()),
+                ..SettingsHost::default()
+            })),
+        };
+        let baseline = transport.get_settings().expect("baseline");
+        let mut settings = sample_settings();
+        settings.sample_rate = 44_100;
+        assert!(transport.save_settings(settings).is_err());
+        assert_eq!(
+            transport.get_settings().expect("unchanged").sample_rate,
+            baseline.sample_rate
+        );
+    }
+
+    #[test]
+    fn legacy_scan_folder_tree_field_is_ignored() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .insert("scan_folder_tree".into(), serde_json::Value::Bool(false));
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let loaded = read_settings_file(&path).expect("read");
+        let mut host = SettingsHost::default();
+        apply_to_host(&mut host, loaded).expect("apply");
+        let restored = settings_from_host(&host);
+        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
+    }
+
+    #[test]
+    fn corrupt_settings_file_is_ignored() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, b"not json").expect("write");
+        assert!(read_settings_file(&path).is_none());
+        let host = load_host(&path);
+        assert!(!host.configured);
+        assert_eq!(host.engine_config.sample_rate, 48_000);
     }
 }

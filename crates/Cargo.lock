@@ -1690,6 +1690,8 @@ dependencies = [
  "library-core",
  "lofty",
  "resampler",
+ "serde",
+ "serde_json",
  "tempfile",
 ]
 

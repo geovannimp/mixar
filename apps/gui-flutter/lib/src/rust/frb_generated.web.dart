@@ -383,6 +383,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw);
 
   @protected
+  List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -427,6 +430,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw);
+
+  @protected
   OutputDevice dco_decode_output_device(dynamic raw);
 
   @protected
@@ -448,6 +454,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SamplerStripRouteSettingFrb dco_decode_sampler_strip_route_setting_frb(
     dynamic raw,
   );
+
+  @protected
+  SavedLoopInfo dco_decode_saved_loop_info(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -844,6 +853,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SavedLoopInfo> sse_decode_list_saved_loop_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
 
   @protected
@@ -896,6 +910,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   OutputDevice sse_decode_output_device(SseDeserializer deserializer);
 
   @protected
@@ -921,6 +940,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SamplerStripRouteSettingFrb sse_decode_sampler_strip_route_setting_frb(
     SseDeserializer deserializer,
   );
+
+  @protected
+  SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -1396,6 +1418,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_saved_loop_info(
+    List<SavedLoopInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
 
   @protected
@@ -1459,6 +1487,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_list_saved_loop_info(
+    List<SavedLoopInfo>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_output_device(OutputDevice self, SseSerializer serializer);
 
   @protected
@@ -1493,6 +1527,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     SamplerStripRouteSettingFrb self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_saved_loop_info(SavedLoopInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);

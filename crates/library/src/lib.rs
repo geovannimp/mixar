@@ -570,8 +570,16 @@ impl LibraryManager {
             return Ok(report);
         }
 
-        let recursive = self.config.scan_folder_tree;
-        let files = collect_audio_files(fs_path, recursive)?;
+        let CollectionConfig::Folder {
+            scan_folder_tree, ..
+        } = &folder.config
+        else {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: format!("folder {} has non-folder config", folder.id),
+            });
+        };
+        let files = collect_audio_files(fs_path, *scan_folder_tree)?;
         for file in files {
             let existed = self.get_track(&Self::track_id_for(&file))?.is_some();
             match self.import_path(&file) {
@@ -614,7 +622,11 @@ impl LibraryManager {
     }
 
     fn add_folder_collection(&mut self, collection: &NewCollection) -> Result<Collection> {
-        let CollectionConfig::Folder { fs_path: path } = &collection.config else {
+        let CollectionConfig::Folder {
+            fs_path: path,
+            scan_folder_tree,
+        } = &collection.config
+        else {
             return Err(LibraryError::Backend {
                 backend: "library",
                 message: "folder collection requires Folder config".into(),
@@ -640,13 +652,20 @@ impl LibraryManager {
             })
             .unwrap_or_else(|| path.display().to_string());
 
-        self.store()
-            .insert_folder_collection(&id, &name, &path.to_string_lossy())?;
+        self.store().insert_folder_collection(
+            &id,
+            &name,
+            &path.to_string_lossy(),
+            *scan_folder_tree,
+        )?;
 
         Ok(Collection {
             id,
             name,
-            config: CollectionConfig::Folder { fs_path: path },
+            config: CollectionConfig::Folder {
+                fs_path: path,
+                scan_folder_tree: *scan_folder_tree,
+            },
         })
     }
 
@@ -1322,6 +1341,43 @@ mod tests {
 
         let tracks = lib.get_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 2);
+    }
+
+    #[test]
+    fn folder_scan_folder_tree_survives_db_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("house");
+        std::fs::create_dir_all(&nested).unwrap();
+        write_minimal_wav(&dir.path().join("a.wav"));
+        write_minimal_wav(&nested.join("b.wav"));
+
+        let db_path = dir.path().join("library.db");
+        let folder_id = {
+            let mut lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+            let folder = lib
+                .add_collection(&NewCollection {
+                    name: Some("Flat".into()),
+                    config: CollectionConfig::Folder {
+                        fs_path: dir.path().to_path_buf(),
+                        scan_folder_tree: false,
+                    },
+                })
+                .unwrap();
+            folder.id.clone()
+        };
+
+        let mut lib = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+        let loaded = lib.get_collection(&folder_id).unwrap().unwrap();
+        let CollectionConfig::Folder {
+            scan_folder_tree, ..
+        } = loaded.config
+        else {
+            panic!("expected folder collection");
+        };
+        assert!(!scan_folder_tree);
+
+        let report = lib.sync_collection(Some(&folder_id)).unwrap();
+        assert_eq!(report.added, 1);
     }
 
     #[test]

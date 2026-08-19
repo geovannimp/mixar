@@ -138,6 +138,9 @@ pub enum LibraryEvtKind {
     Error,
     Notice,
     HotCuesChanged,
+    Navigate,
+    Load,
+    LoopsChanged,
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -145,6 +148,15 @@ pub enum LibraryEvtKind {
 pub struct HotCueInfo {
     pub slot: u8,
     pub position_ms: i32,
+    pub label: Option<String>,
+}
+
+/// Persisted saved-loop row for Dart (`library_api::SavedLoop`).
+#[derive(Clone, Debug)]
+pub struct SavedLoopInfo {
+    pub slot: u8,
+    pub in_ms: i32,
+    pub out_ms: i32,
     pub label: Option<String>,
 }
 
@@ -158,6 +170,9 @@ pub struct LibraryEvt {
     pub message: Option<String>,
     pub track_id: Option<String>,
     pub hot_cues: Option<Vec<HotCueInfo>>,
+    pub delta: Option<i32>,
+    pub deck: Option<u16>,
+    pub loops: Option<Vec<SavedLoopInfo>>,
 }
 
 struct EvtForwarder {
@@ -486,7 +501,7 @@ impl LibraryTransport {
         LibraryBusHandle::from_buses(self.buses.clone())
     }
 
-    /// Apply library analysis worker duration.
+    /// Apply library analysis duration from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
@@ -507,7 +522,7 @@ impl LibraryTransport {
     }
 }
 
-/// Map omnibus library egress to the thin Dart-facing evt (ignores Navigate/Load/cues/…).
+/// Map omnibus library egress to the thin Dart-facing evt.
 pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
     let body = decode_evt_body(ev.payload()).ok()?;
     match body {
@@ -517,6 +532,9 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             message: None,
             track_id: None,
             hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
             kind: LibraryEvtKind::TrackUpdated,
@@ -524,6 +542,9 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             message: None,
             track_id: None,
             hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
             kind: LibraryEvtKind::Error,
@@ -531,6 +552,9 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             message: Some(message),
             track_id,
             hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
         }),
         EvtBody::Notice { message } => Some(LibraryEvt {
             kind: LibraryEvtKind::Notice,
@@ -538,6 +562,9 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             message: Some(message),
             track_id: None,
             hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
         }),
         EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
             kind: LibraryEvtKind::HotCuesChanged,
@@ -554,11 +581,51 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
+            delta: None,
+            deck: None,
+            loops: None,
         }),
-        EvtBody::Empty
-        | EvtBody::LoopsChanged { .. }
-        | EvtBody::Navigate { .. }
-        | EvtBody::Load { .. } => None,
+        EvtBody::LoopsChanged { track_id, loops } => Some(LibraryEvt {
+            kind: LibraryEvtKind::LoopsChanged,
+            track: None,
+            message: None,
+            track_id: Some(track_id),
+            hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: Some(
+                loops
+                    .into_iter()
+                    .map(|l| SavedLoopInfo {
+                        slot: l.slot,
+                        in_ms: l.in_ms,
+                        out_ms: l.out_ms,
+                        label: l.label,
+                    })
+                    .collect(),
+            ),
+        }),
+        EvtBody::Navigate { delta } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Navigate,
+            track: None,
+            message: None,
+            track_id: None,
+            hot_cues: None,
+            delta: Some(delta),
+            deck: None,
+            loops: None,
+        }),
+        EvtBody::Load { deck } => Some(LibraryEvt {
+            kind: LibraryEvtKind::Load,
+            track: None,
+            message: None,
+            track_id: None,
+            hot_cues: None,
+            delta: None,
+            deck: Some(deck),
+            loops: None,
+        }),
+        EvtBody::Empty => None,
     }
 }
 
@@ -667,7 +734,7 @@ mod tests {
     }
 
     #[test]
-    fn map_library_evt_maps_thin_kinds_and_ignores_navigate() {
+    fn map_library_evt_maps_thin_kinds_including_navigate_load_loops() {
         let buses = LibraryBuses::new();
         let rx = buses.subscribe_evt_all().unwrap();
 
@@ -739,6 +806,47 @@ mod tests {
             )
             .unwrap();
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
-        assert!(map_library_evt(ev.as_ref()).is_none());
+        let mapped = map_library_evt(ev.as_ref()).expect("Navigate maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::Navigate);
+        assert_eq!(mapped.delta, Some(1));
+
+        buses
+            .publish_evt(
+                Origin::LibraryNavigation,
+                Kind::Load,
+                EvtBody::Load { deck: 0 },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("Load maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::Load);
+        assert_eq!(mapped.deck, Some(0));
+
+        buses
+            .publish_evt(
+                Origin::Library,
+                Kind::LoopsChanged,
+                EvtBody::LoopsChanged {
+                    track_id: "t1".into(),
+                    loops: vec![library_api::SavedLoop {
+                        slot: 2,
+                        in_ms: 1_000,
+                        out_ms: 5_000,
+                        label: Some("break".into()),
+                        color: None,
+                    }],
+                },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("LoopsChanged maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::LoopsChanged);
+        assert_eq!(mapped.track_id.as_deref(), Some("t1"));
+        let loops = mapped.loops.expect("loops");
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].slot, 2);
+        assert_eq!(loops[0].in_ms, 1_000);
+        assert_eq!(loops[0].out_ms, 5_000);
+        assert_eq!(loops[0].label.as_deref(), Some("break"));
     }
 }

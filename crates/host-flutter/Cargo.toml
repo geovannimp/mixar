@@ -18,6 +18,8 @@ library = { path = "../library" }
 library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }
 resampler = { path = "../resampler" }
+serde = { workspace = true }
+serde_json = "1.0"
 
 [dev-dependencies]
 lofty = "0.22"

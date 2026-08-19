@@ -53,12 +53,6 @@ mod tests {
     }
 
     #[test]
-    fn library_config_defaults() {
-        let cfg = LibraryConfig::default();
-        assert!(cfg.scan_folder_tree);
-    }
-
-    #[test]
     fn collection_id_display() {
         let id = CollectionId::new("folder:/music");
         assert_eq!(id.to_string(), "folder:/music");

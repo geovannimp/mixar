@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -79960155;
+  int get rustContentHash => -710110176;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -509,7 +509,9 @@ abstract class RustLibApi extends BaseApi {
     required SettingsTransport that,
   });
 
-  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen();
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen({
+    required String path,
+  });
 
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
     required SettingsTransport that,
@@ -521,6 +523,8 @@ abstract class RustLibApi extends BaseApi {
   Future<FsDirectoryListing> crateApiFsBrowserBrowseFsDirectory({
     required String path,
   });
+
+  Future<BusChannelMode> crateApiSettingsBusChannelModeDefault();
 
   Future<void> crateApiMetaInitApp();
 
@@ -3695,11 +3699,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen() {
+  Future<SettingsTransport> crateApiSettingsSettingsTransportOpen({
+    required String path,
+  }) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
           final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_String(path, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3713,14 +3720,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiSettingsSettingsTransportOpenConstMeta,
-        argValues: [],
+        argValues: [path],
         apiImpl: this,
       ),
     );
   }
 
   TaskConstMeta get kCrateApiSettingsSettingsTransportOpenConstMeta =>
-      const TaskConstMeta(debugName: "SettingsTransport_open", argNames: []);
+      const TaskConstMeta(
+        debugName: "SettingsTransport_open",
+        argNames: ["path"],
+      );
 
   @override
   Future<AppSettings> crateApiSettingsSettingsTransportSaveSettings({
@@ -3813,7 +3823,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "browse_fs_directory", argNames: ["path"]);
 
   @override
-  Future<void> crateApiMetaInitApp() {
+  Future<BusChannelMode> crateApiSettingsBusChannelModeDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -3822,6 +3832,33 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 84,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bus_channel_mode,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsBusChannelModeDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsBusChannelModeDefaultConstMeta =>
+      const TaskConstMeta(debugName: "bus_channel_mode_default", argNames: []);
+
+  @override
+  Future<void> crateApiMetaInitApp() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 85,
             port: port_,
           );
         },
@@ -3848,7 +3885,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 86,
             port: port_,
           );
         },
@@ -4537,14 +4574,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryEvt dco_decode_library_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return LibraryEvt(
       kind: dco_decode_library_evt_kind(arr[0]),
       track: dco_decode_opt_box_autoadd_library_track_summary(arr[1]),
       message: dco_decode_opt_String(arr[2]),
       trackId: dco_decode_opt_String(arr[3]),
       hotCues: dco_decode_opt_list_hot_cue_info(arr[4]),
+      delta: dco_decode_opt_box_autoadd_i_32(arr[5]),
+      deck: dco_decode_opt_box_autoadd_u_16(arr[6]),
+      loops: dco_decode_opt_list_saved_loop_info(arr[7]),
     );
   }
 
@@ -4690,6 +4730,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_saved_loop_info).toList();
+  }
+
+  @protected
   String? dco_decode_opt_String(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_String(raw);
@@ -4778,6 +4824,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_saved_loop_info(raw);
+  }
+
+  @protected
   OutputDevice dco_decode_output_device(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4842,6 +4894,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return SamplerStripRouteSettingFrb.values[raw as int];
+  }
+
+  @protected
+  SavedLoopInfo dco_decode_saved_loop_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SavedLoopInfo(
+      slot: dco_decode_u_8(arr[0]),
+      inMs: dco_decode_i_32(arr[1]),
+      outMs: dco_decode_i_32(arr[2]),
+      label: dco_decode_opt_String(arr[3]),
+    );
   }
 
   @protected
@@ -5669,12 +5735,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_message = sse_decode_opt_String(deserializer);
     var var_trackId = sse_decode_opt_String(deserializer);
     var var_hotCues = sse_decode_opt_list_hot_cue_info(deserializer);
+    var var_delta = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_deck = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_loops = sse_decode_opt_list_saved_loop_info(deserializer);
     return LibraryEvt(
       kind: var_kind,
       track: var_track,
       message: var_message,
       trackId: var_trackId,
       hotCues: var_hotCues,
+      delta: var_delta,
+      deck: var_deck,
+      loops: var_loops,
     );
   }
 
@@ -5912,6 +5984,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SavedLoopInfo> sse_decode_list_saved_loop_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SavedLoopInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_saved_loop_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   String? sse_decode_opt_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -6076,6 +6162,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_saved_loop_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   OutputDevice sse_decode_output_device(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_id = sse_decode_String(deserializer);
@@ -6149,6 +6248,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return SamplerStripRouteSettingFrb.values[inner];
+  }
+
+  @protected
+  SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_slot = sse_decode_u_8(deserializer);
+    var var_inMs = sse_decode_i_32(deserializer);
+    var var_outMs = sse_decode_i_32(deserializer);
+    var var_label = sse_decode_opt_String(deserializer);
+    return SavedLoopInfo(
+      slot: var_slot,
+      inMs: var_inMs,
+      outMs: var_outMs,
+      label: var_label,
+    );
   }
 
   @protected
@@ -6927,6 +7041,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.message, serializer);
     sse_encode_opt_String(self.trackId, serializer);
     sse_encode_opt_list_hot_cue_info(self.hotCues, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.delta, serializer);
+    sse_encode_opt_box_autoadd_u_16(self.deck, serializer);
+    sse_encode_opt_list_saved_loop_info(self.loops, serializer);
   }
 
   @protected
@@ -7138,6 +7255,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_saved_loop_info(
+    List<SavedLoopInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_saved_loop_info(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -7299,6 +7428,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_saved_loop_info(
+    List<SavedLoopInfo>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_saved_loop_info(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_output_device(OutputDevice self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.id, serializer);
@@ -7361,6 +7503,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_saved_loop_info(
+    SavedLoopInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self.slot, serializer);
+    sse_encode_i_32(self.inMs, serializer);
+    sse_encode_i_32(self.outMs, serializer);
+    sse_encode_opt_String(self.label, serializer);
   }
 
   @protected
@@ -7949,7 +8103,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         force: force,
       );
 
-  /// Apply library analysis worker duration.
+  /// Apply library analysis duration from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
   }) =>

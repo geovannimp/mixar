@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `map_library_evt`, `pack_peaks`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -24,7 +24,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
 
-  /// Apply library analysis worker duration.
+  /// Apply library analysis duration from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
   });
@@ -208,6 +208,9 @@ class LibraryEvt {
   final String? message;
   final String? trackId;
   final List<HotCueInfo>? hotCues;
+  final int? delta;
+  final int? deck;
+  final List<SavedLoopInfo>? loops;
 
   const LibraryEvt({
     required this.kind,
@@ -215,6 +218,9 @@ class LibraryEvt {
     this.message,
     this.trackId,
     this.hotCues,
+    this.delta,
+    this.deck,
+    this.loops,
   });
 
   @override
@@ -223,7 +229,10 @@ class LibraryEvt {
       track.hashCode ^
       message.hashCode ^
       trackId.hashCode ^
-      hotCues.hashCode;
+      hotCues.hashCode ^
+      delta.hashCode ^
+      deck.hashCode ^
+      loops.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -234,7 +243,10 @@ class LibraryEvt {
           track == other.track &&
           message == other.message &&
           trackId == other.trackId &&
-          hotCues == other.hotCues;
+          hotCues == other.hotCues &&
+          delta == other.delta &&
+          deck == other.deck &&
+          loops == other.loops;
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
@@ -244,6 +256,9 @@ enum LibraryEvtKind {
   error,
   notice,
   hotCuesChanged,
+  navigate,
+  load,
+  loopsChanged,
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
@@ -358,6 +373,35 @@ class SamplerBankInfo {
 }
 
 enum SamplerPlayMode { oneshot, hold, loop }
+
+/// Persisted saved-loop row for Dart (`library_api::SavedLoop`).
+class SavedLoopInfo {
+  final int slot;
+  final int inMs;
+  final int outMs;
+  final String? label;
+
+  const SavedLoopInfo({
+    required this.slot,
+    required this.inMs,
+    required this.outMs,
+    this.label,
+  });
+
+  @override
+  int get hashCode =>
+      slot.hashCode ^ inMs.hashCode ^ outMs.hashCode ^ label.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SavedLoopInfo &&
+          runtimeType == other.runtimeType &&
+          slot == other.slot &&
+          inMs == other.inMs &&
+          outMs == other.outMs &&
+          label == other.label;
+}
 
 /// Packed mono RGB peaks (`count × 3` uint8 bytes).
 class WaveformPeaks {

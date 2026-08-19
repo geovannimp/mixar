@@ -10,6 +10,8 @@ pub struct Model {
     pub collection_type: String,
     #[sea_orm(default_value = 1)]
     pub sortable: i32,
+    #[sea_orm(default_value = 1)]
+    pub scan_folder_tree: i32,
     #[sea_orm(unique)]
     pub fs_path: Option<String>,
 }
