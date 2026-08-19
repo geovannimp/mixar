@@ -220,7 +220,10 @@ fn resolve_bank_id(
     Ok(start_draft_sampler_bank(state, deck_id, None, None)?.id)
 }
 
-pub(crate) fn apply_effective_play_mode(state: &mut AppState, deck_id: usize) -> Result<(), String> {
+pub(crate) fn apply_effective_play_mode(
+    state: &mut AppState,
+    deck_id: usize,
+) -> Result<(), String> {
     let bank_id = resolve_bank_id(state, None, deck_id)?;
     apply_effective_play_mode_for_bank(state, deck_id, &bank_id)
 }
@@ -233,13 +236,9 @@ pub(crate) fn load_bank_into_engine(
     if deck_id >= NUM_DECKS {
         return Err(format!("Invalid deck ID: {deck_id}"));
     }
-    with_engine(state, |engine| {
-        engine
-            .set_deck_sampler_bank(deck_id, Some(bank_id.to_string()))
-            .map_err(|e| e.to_string())
-    })?;
     if state.loaded_sampler_bank_id[deck_id].as_deref() == Some(bank_id) {
-        return apply_effective_play_mode_for_bank(state, deck_id, bank_id);
+        apply_effective_play_mode_for_bank(state, deck_id, bank_id)?;
+        return commit_deck_sampler_bank(state, deck_id, bank_id);
     }
 
     if state
@@ -254,7 +253,8 @@ pub(crate) fn load_bank_into_engine(
         })?;
         state.sampler_slots[deck_id] = empty_sampler_slots();
         state.loaded_sampler_bank_id[deck_id] = Some(bank_id.to_string());
-        return apply_effective_play_mode_for_bank(state, deck_id, bank_id);
+        apply_effective_play_mode_for_bank(state, deck_id, bank_id)?;
+        return commit_deck_sampler_bank(state, deck_id, bank_id);
     }
 
     let slots = state
@@ -294,7 +294,20 @@ pub(crate) fn load_bank_into_engine(
     }
 
     state.loaded_sampler_bank_id[deck_id] = Some(bank_id.to_string());
-    apply_effective_play_mode_for_bank(state, deck_id, bank_id)
+    apply_effective_play_mode_for_bank(state, deck_id, bank_id)?;
+    commit_deck_sampler_bank(state, deck_id, bank_id)
+}
+
+fn commit_deck_sampler_bank(
+    state: &mut AppState,
+    deck_id: usize,
+    bank_id: &str,
+) -> Result<(), String> {
+    with_engine(state, |engine| {
+        engine
+            .set_deck_sampler_bank(deck_id, Some(bank_id.to_string()))
+            .map_err(|e| e.to_string())
+    })
 }
 
 fn apply_effective_play_mode_for_bank(
@@ -426,10 +439,7 @@ fn persist_draft_bank_if_needed(state: &mut AppState, bank_id: &str) -> Result<S
         .library
         .lock()
         .unwrap()
-        .create_sampler_bank(
-            &draft.name,
-            draft.play_mode.map(|mode| mode.to_lib()),
-        )
+        .create_sampler_bank(&draft.name, draft.play_mode.map(|mode| mode.to_lib()))
         .map_err(|e| e.to_string())?;
 
     state.draft_sampler_bank = None;
@@ -508,7 +518,8 @@ pub(crate) fn ensure_sampler_ready(state: &mut AppState) -> Result<(), String> {
 
     for deck_id in 0..NUM_DECKS {
         // Only persist deck defaults for real banks, not unsaved drafts.
-        if state.deck_default_sampler_bank_id[deck_id].is_none() && state.draft_sampler_bank.is_none()
+        if state.deck_default_sampler_bank_id[deck_id].is_none()
+            && state.draft_sampler_bank.is_none()
         {
             state.deck_default_sampler_bank_id[deck_id] = Some(bank_id.clone());
         }
@@ -623,7 +634,9 @@ pub(crate) fn reapply_sampler_gains(state: &mut AppState) -> Result<(), String> 
 }
 
 #[tauri::command]
-pub fn list_sampler_banks(state: State<'_, SharedAppState>) -> Result<Vec<SamplerBankInfo>, String> {
+pub fn list_sampler_banks(
+    state: State<'_, SharedAppState>,
+) -> Result<Vec<SamplerBankInfo>, String> {
     let state = state.lock().map_err(|e| e.to_string())?;
     let banks = state
         .library
