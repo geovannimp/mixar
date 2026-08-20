@@ -4950,6 +4950,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_gainTrim = <Option<f32>>::sse_decode(deserializer);
         let mut var_headphoneCue = <Option<bool>>::sse_decode(deserializer);
         let mut var_crossfader = <Option<f32>>::sse_decode(deserializer);
+        let mut var_cueMix = <Option<f32>>::sse_decode(deserializer);
+        let mut var_masterCue = <Option<bool>>::sse_decode(deserializer);
         let mut var_durationMs = <Option<i32>>::sse_decode(deserializer);
         let mut var_speed = <Option<f32>>::sse_decode(deserializer);
         let mut var_tempoRange = <Option<f32>>::sse_decode(deserializer);
@@ -4977,6 +4979,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
             gain_trim: var_gainTrim,
             headphone_cue: var_headphoneCue,
             crossfader: var_crossfader,
+            cue_mix: var_cueMix,
+            master_cue: var_masterCue,
             duration_ms: var_durationMs,
             speed: var_speed,
             tempo_range: var_tempoRange,
@@ -6735,6 +6739,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.gain_trim.into_into_dart().into_dart(),
             self.headphone_cue.into_into_dart().into_dart(),
             self.crossfader.into_into_dart().into_dart(),
+            self.cue_mix.into_into_dart().into_dart(),
+            self.master_cue.into_into_dart().into_dart(),
             self.duration_ms.into_into_dart().into_dart(),
             self.speed.into_into_dart().into_dart(),
             self.tempo_range.into_into_dart().into_dart(),
@@ -7673,6 +7679,8 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<f32>>::sse_encode(self.gain_trim, serializer);
         <Option<bool>>::sse_encode(self.headphone_cue, serializer);
         <Option<f32>>::sse_encode(self.crossfader, serializer);
+        <Option<f32>>::sse_encode(self.cue_mix, serializer);
+        <Option<bool>>::sse_encode(self.master_cue, serializer);
         <Option<i32>>::sse_encode(self.duration_ms, serializer);
         <Option<f32>>::sse_encode(self.speed, serializer);
         <Option<f32>>::sse_encode(self.tempo_range, serializer);

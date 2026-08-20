@@ -219,6 +219,14 @@ final crossfaderProvider = Provider<double>(
   (ref) => ref.watch(engineUiProvider.select((s) => s.crossfader)),
 );
 
+final cueMixProvider = Provider<double>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.cueMix)),
+);
+
+final masterCueProvider = Provider<bool>(
+  (ref) => ref.watch(engineUiProvider.select((s) => s.masterCue)),
+);
+
 /// Starts once on desktop. Widget tests set [debugOverrideDesktopWindow] false
 /// so this stays null and skips native audio.
 final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
@@ -332,6 +340,16 @@ Future<void> setDeckHeadphoneCue(
 Future<void> setCrossfader(WidgetRef ref, double position) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setCrossfader(position: position);
+}
+
+Future<void> setCueMix(WidgetRef ref, double mix) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setCueMix(mix: mix);
+}
+
+Future<void> setMasterCue(WidgetRef ref, bool enabled) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setMasterCue(enabled: enabled);
 }
 
 Future<void> seekDeck(WidgetRef ref, int deckId, int positionMs) async {

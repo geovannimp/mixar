@@ -10,6 +10,7 @@ import 'package:gui_flutter/mixer/deck_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
@@ -23,6 +24,17 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
+
+class _HeaderCueEngineUi extends EngineUi {
+  @override
+  EngineUiSnapshot build() => const EngineUiSnapshot(
+    running: true,
+    titles: {},
+    cueMix: 0.7,
+    masterCue: true,
+  );
+}
 
 class _SeededEngineUi extends EngineUi {
   @override
@@ -53,8 +65,11 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
       .any((s) => s.enabled);
 }
 
-_settingsOverrides() => [
-  appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+// ignore: strict_top_level_inference
+_settingsOverrides([AppSettings? settings]) => [
+  appSettingsProvider.overrideWith(
+    (ref) async => settings ?? defaultAppSettings(),
+  ),
   audioDevicesProvider.overrideWith((ref, backend) async => const []),
   audioBackendNamesProvider.overrideWith(
     (ref) => const ['cpal', 'auto', 'null'],
@@ -104,6 +119,7 @@ void main() {
     WidgetTester tester, {
     List extraOverrides = const [],
     bool settle = true,
+    AppSettings? settings,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
@@ -122,7 +138,7 @@ void main() {
             final id = ref.watch(activeCollectionIdProvider);
             return id == collection.id ? [track] : const [];
           }),
-          ..._settingsOverrides(),
+          ..._settingsOverrides(settings),
           ...extraOverrides,
         ],
         child: MaterialApp(
@@ -155,6 +171,44 @@ void main() {
     expect(find.textContaining('Filter tracks'), findsOneWidget);
     expect(find.text('Engine idle'), findsOneWidget);
     expect(find.text('No track loaded'), findsWidgets);
+    expect(find.text('Master Cue'), findsOneWidget);
+    expect(find.text('CUE/MST'), findsOneWidget);
+    final masterCue = tester.widget<FButton>(
+      find.ancestor(
+        of: find.text('Master Cue'),
+        matching: find.byType(FButton),
+      ),
+    );
+    expect(masterCue.onPress, isNull);
+    final cueMix = tester.widget<RotaryKnob>(
+      find.byWidgetPredicate((w) => w is RotaryKnob && w.label == 'Cue/Mst'),
+    );
+    expect(cueMix.disabled, isTrue);
+  });
+
+  testWidgets('header cue controls enable with preview bus and follow status', (
+    tester,
+  ) async {
+    await pumpShell(
+      tester,
+      extraOverrides: [engineUiProvider.overrideWith(_HeaderCueEngineUi.new)],
+      settings: copyAppSettings(defaultAppSettings(), previewEnabled: true),
+    );
+
+    final masterCue = tester.widget<FButton>(
+      find.ancestor(
+        of: find.text('Master Cue'),
+        matching: find.byType(FButton),
+      ),
+    );
+    expect(masterCue.onPress, isNotNull);
+    expect(masterCue.variant == .secondary, isTrue);
+
+    final cueMix = tester.widget<RotaryKnob>(
+      find.byWidgetPredicate((w) => w is RotaryKnob && w.label == 'Cue/Mst'),
+    );
+    expect(cueMix.disabled, isFalse);
+    expect(cueMix.value, 0.7);
   });
 
   testWidgets('settings switches waveform display mode', (tester) async {

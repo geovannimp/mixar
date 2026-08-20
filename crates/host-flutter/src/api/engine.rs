@@ -195,6 +195,8 @@ pub struct EngineEvt {
     pub gain_trim: Option<f32>,
     pub headphone_cue: Option<bool>,
     pub crossfader: Option<f32>,
+    pub cue_mix: Option<f32>,
+    pub master_cue: Option<bool>,
     pub duration_ms: Option<i32>,
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
@@ -226,6 +228,8 @@ impl EngineEvt {
             gain_trim: None,
             headphone_cue: None,
             crossfader: None,
+            cue_mix: None,
+            master_cue: None,
             duration_ms: None,
             speed: None,
             tempo_range: None,
@@ -1046,6 +1050,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             let mut status_evt = EngineEvt::bare(EngineEvtKind::Status);
             status_evt.running = Some(status.running);
             status_evt.crossfader = Some(status.crossfader);
+            status_evt.cue_mix = Some(status.cue_mix);
+            status_evt.master_cue = Some(status.master_cue);
             status_evt.master_deck = Some(status.master_deck);
             let mut out = Vec::with_capacity(1 + status.decks.len());
             out.push(status_evt);
@@ -1217,8 +1223,8 @@ mod tests {
                     running: true,
                     sample_rate: 48_000,
                     crossfader: 0.25,
-                    cue_mix: 0.0,
-                    master_cue: false,
+                    cue_mix: 0.4,
+                    master_cue: true,
                     master_deck: 1,
                     decks: vec![sample_deck(0, 0.3), deck1],
                     sampler: SamplerStatus {
@@ -1236,6 +1242,8 @@ mod tests {
         assert_eq!(mapped[0].kind, EngineEvtKind::Status);
         assert_eq!(mapped[0].running, Some(true));
         assert_eq!(mapped[0].crossfader, Some(0.25));
+        assert_eq!(mapped[0].cue_mix, Some(0.4));
+        assert_eq!(mapped[0].master_cue, Some(true));
         assert_eq!(mapped[0].master_deck, Some(1));
         assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
         assert_eq!(mapped[1].deck_id, Some(0));

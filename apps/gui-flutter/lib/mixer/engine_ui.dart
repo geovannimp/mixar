@@ -66,6 +66,8 @@ class EngineUiSnapshot {
     this.padModes = const {},
     this.syncModes = const {},
     this.masterDeck = 0,
+    this.cueMix = 0.0,
+    this.masterCue = false,
   });
 
   static const empty = EngineUiSnapshot(running: false, titles: {});
@@ -76,6 +78,8 @@ class EngineUiSnapshot {
   final Map<int, MixerChannelUi> channels;
   final Map<int, DeckLevels> levels;
   final double crossfader;
+  final double cueMix;
+  final bool masterCue;
   final Map<int, String> trackIds;
   final Map<int, int> durationMs;
   final Map<int, double> speeds;
@@ -121,6 +125,8 @@ class EngineUiSnapshot {
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
     int? masterDeck,
+    double? cueMix,
+    bool? masterCue,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
     titles: titles ?? this.titles,
@@ -135,6 +141,8 @@ class EngineUiSnapshot {
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
     masterDeck: masterDeck ?? this.masterDeck,
+    cueMix: cueMix ?? this.cueMix,
+    masterCue: masterCue ?? this.masterCue,
   );
 }
 
@@ -145,6 +153,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         running: evt.running ?? prev.running,
         crossfader: evt.crossfader ?? prev.crossfader,
         masterDeck: evt.masterDeck ?? prev.masterDeck,
+        cueMix: evt.cueMix ?? prev.cueMix,
+        masterCue: evt.masterCue ?? prev.masterCue,
       );
     case EngineEvtKind.updated:
       final id = evt.deckId;

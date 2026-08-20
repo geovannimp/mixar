@@ -4422,8 +4422,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 26)
-      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
+    if (arr.length != 28)
+      throw Exception('unexpected arr length: expect 28 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -4445,12 +4445,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       gainTrim: dco_decode_opt_box_autoadd_f_32(arr[17]),
       headphoneCue: dco_decode_opt_box_autoadd_bool(arr[18]),
       crossfader: dco_decode_opt_box_autoadd_f_32(arr[19]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[20]),
-      speed: dco_decode_opt_box_autoadd_f_32(arr[21]),
-      tempoRange: dco_decode_opt_box_autoadd_f_32(arr[22]),
-      padMode: dco_decode_opt_box_autoadd_pad_mode(arr[23]),
-      syncMode: dco_decode_opt_box_autoadd_sync_mode(arr[24]),
-      masterDeck: dco_decode_opt_box_autoadd_u_16(arr[25]),
+      cueMix: dco_decode_opt_box_autoadd_f_32(arr[20]),
+      masterCue: dco_decode_opt_box_autoadd_bool(arr[21]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[22]),
+      speed: dco_decode_opt_box_autoadd_f_32(arr[23]),
+      tempoRange: dco_decode_opt_box_autoadd_f_32(arr[24]),
+      padMode: dco_decode_opt_box_autoadd_pad_mode(arr[25]),
+      syncMode: dco_decode_opt_box_autoadd_sync_mode(arr[26]),
+      masterDeck: dco_decode_opt_box_autoadd_u_16(arr[27]),
     );
   }
 
@@ -5586,6 +5588,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_gainTrim = sse_decode_opt_box_autoadd_f_32(deserializer);
     var var_headphoneCue = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_crossfader = sse_decode_opt_box_autoadd_f_32(deserializer);
+    var var_cueMix = sse_decode_opt_box_autoadd_f_32(deserializer);
+    var var_masterCue = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_speed = sse_decode_opt_box_autoadd_f_32(deserializer);
     var var_tempoRange = sse_decode_opt_box_autoadd_f_32(deserializer);
@@ -5613,6 +5617,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       gainTrim: var_gainTrim,
       headphoneCue: var_headphoneCue,
       crossfader: var_crossfader,
+      cueMix: var_cueMix,
+      masterCue: var_masterCue,
       durationMs: var_durationMs,
       speed: var_speed,
       tempoRange: var_tempoRange,
@@ -6974,6 +6980,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_f_32(self.gainTrim, serializer);
     sse_encode_opt_box_autoadd_bool(self.headphoneCue, serializer);
     sse_encode_opt_box_autoadd_f_32(self.crossfader, serializer);
+    sse_encode_opt_box_autoadd_f_32(self.cueMix, serializer);
+    sse_encode_opt_box_autoadd_bool(self.masterCue, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_opt_box_autoadd_f_32(self.speed, serializer);
     sse_encode_opt_box_autoadd_f_32(self.tempoRange, serializer);

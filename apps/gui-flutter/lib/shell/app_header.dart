@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/shell/headphone_monitor_controls.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
@@ -63,6 +64,10 @@ class AppHeader extends ConsumerWidget {
                 desktop: desktop,
                 child: const SizedBox.expand(),
               ),
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: HeadphoneMonitorControls(),
             ),
             _maybeDrag(
               desktop: desktop,
