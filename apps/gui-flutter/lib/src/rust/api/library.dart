@@ -32,6 +32,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses();
 
+  /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
+  Future<void> deleteLoop({required String trackId, required int slot});
+
   /// Analyzed beat grid, if present.
   Future<BeatGridData?> getBeatGrid({required String trackId});
 
@@ -74,6 +77,14 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Resolve library tracks for the given filesystem paths.
   Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
     required List<String> paths,
+  });
+
+  /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
+  Future<void> saveLoop({
+    required String trackId,
+    required int slot,
+    required int inMs,
+    required int outMs,
   });
 
   /// Forward thin typed library events to Dart via FRB `StreamSink`.

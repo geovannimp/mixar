@@ -10,6 +10,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
+import 'package:gui_flutter/src/rust/api/library.dart' show SavedLoopInfo;
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
@@ -205,6 +206,22 @@ final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
   ];
 });
 
+final deckActiveLoopProvider = Provider.family<ActiveLoopInfo?, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.activeLoopFor(deckId))),
+);
+
+final deckSavedLoopsProvider = Provider.family<List<SavedLoopInfo>, int>((
+  ref,
+  deckId,
+) {
+  final trackId = ref.watch(deckTrackIdProvider(deckId));
+  if (trackId == null) {
+    return const [];
+  }
+  return ref.watch(trackSavedLoopsProvider)[trackId] ?? const [];
+});
+
 final deckMixerChannelProvider = Provider.family<MixerChannelUi, int>(
   (ref, deckId) =>
       ref.watch(engineUiProvider.select((s) => s.channelFor(deckId))),
@@ -255,6 +272,11 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
   if (transportAsync case AsyncData(:final value) when value != null) {
     final sub = value.subscribeEvents().listen((evt) {
       ref.read(engineUiProvider.notifier).apply(evt);
+      if (evt.kind == EngineEvtKind.error) {
+        ref
+            .read(libraryMessageProvider.notifier)
+            .setError(evt.message ?? 'Engine error');
+      }
     });
     ref.onDispose(sub.cancel);
   }

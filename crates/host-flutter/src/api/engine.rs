@@ -172,6 +172,24 @@ pub enum _SyncMode {
     Beat,
 }
 
+/// Active loop region for Dart (`engine_api::LoopRegion`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ActiveLoopInfo {
+    pub in_ms: i32,
+    pub out_ms: i32,
+    pub active: bool,
+}
+
+impl From<engine_api::LoopRegion> for ActiveLoopInfo {
+    fn from(region: engine_api::LoopRegion) -> Self {
+        Self {
+            in_ms: region.in_ms,
+            out_ms: region.out_ms,
+            active: region.active,
+        }
+    }
+}
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 #[derive(Clone, Debug)]
 pub struct EngineEvt {
@@ -203,6 +221,10 @@ pub struct EngineEvt {
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
     pub master_deck: Option<u16>,
+    /// Set on every [`EngineEvtKind::Updated`] (including `None` when cleared).
+    pub active_loop: Option<ActiveLoopInfo>,
+    /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
+    pub active_loop_known: bool,
 }
 
 impl EngineEvt {
@@ -236,6 +258,8 @@ impl EngineEvt {
             pad_mode: None,
             sync_mode: None,
             master_deck: None,
+            active_loop: None,
+            active_loop_known: false,
         }
     }
 }
@@ -1037,6 +1061,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.tempo_range = Some(snap.tempo_range);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
+    evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
+    evt.active_loop_known = true;
     evt
 }
 
@@ -1074,6 +1100,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             tempo_range,
             pad_mode,
             sync_mode,
+            active_loop,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1094,6 +1121,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.tempo_range = Some(tempo_range);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
+            evt.active_loop = active_loop.map(ActiveLoopInfo::from);
+            evt.active_loop_known = true;
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -1257,5 +1286,44 @@ mod tests {
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
         assert_eq!(mapped[2].sync_mode, Some(SyncMode::Tempo));
+    }
+
+    #[test]
+    fn map_status_forwards_active_loop() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.active_loop = Some(engine_api::LoopRegion {
+            in_ms: 1000,
+            out_ms: 5000,
+            active: true,
+        });
+        let mapped = recv_mapped(
+            Origin::Mixer,
+            Kind::Status,
+            EvtBody::EngineStatus {
+                status: EngineStatus {
+                    running: true,
+                    sample_rate: 48_000,
+                    crossfader: 0.5,
+                    cue_mix: 0.0,
+                    master_cue: false,
+                    master_deck: 0,
+                    decks: vec![deck],
+                    sampler: SamplerStatus {
+                        banks: Vec::new(),
+                        active_bank_id: None,
+                        active_bank_name: None,
+                        bank_play_mode: None,
+                        deck_slots: Vec::new(),
+                        effective_play_modes: Vec::new(),
+                    },
+                },
+            },
+        );
+        assert_eq!(mapped.len(), 2);
+        assert!(mapped[1].active_loop_known);
+        let region = mapped[1].active_loop.as_ref().expect("active_loop");
+        assert_eq!(region.in_ms, 1000);
+        assert_eq!(region.out_ms, 5000);
+        assert!(region.active);
     }
 }

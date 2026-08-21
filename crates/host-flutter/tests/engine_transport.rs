@@ -214,14 +214,34 @@ fn loop_in_after_load_publishes_active_loop() {
     let rx = transport.subscribe_evt_all().unwrap();
     load_fixture(&transport, &rx, 0);
     transport.loop_in(0).unwrap();
-    let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
+    // Fixture has no tag BPM — same requirement as set_auto_loop.
+    let event = recv_kind(&rx, Kind::Error, Duration::from_secs(2));
     assert_eq!(*event.origin(), Origin::Deck(0));
-    let EvtBody::DeckUpdated { active_loop, .. } = decode_evt_body(event.payload()).unwrap() else {
-        panic!("expected DeckUpdated");
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected Error");
     };
-    let region = active_loop.expect("loop region");
-    assert!(region.active);
-    assert!(region.out_ms > region.in_ms);
+    assert!(
+        message.contains("Track BPM is required for loop in"),
+        "unexpected error: {message}"
+    );
+}
+
+#[test]
+fn set_auto_loop_without_tag_bpm_publishes_error() {
+    let library = LibraryTransport::open_in_memory().unwrap();
+    let transport = EngineTransport::start(&library, null_start_config()).unwrap();
+    let rx = transport.subscribe_evt_all().unwrap();
+    load_fixture(&transport, &rx, 0);
+    transport.set_auto_loop(0, 4.0).unwrap();
+    let event = recv_kind(&rx, Kind::Error, Duration::from_secs(2));
+    assert_eq!(*event.origin(), Origin::Deck(0));
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).unwrap() else {
+        panic!("expected Error");
+    };
+    assert!(
+        message.contains("Track BPM is required for auto loop"),
+        "unexpected error: {message}"
+    );
 }
 
 #[test]

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Tauri `AUTO_LOOP_BEATS`.
 const kAutoLoopBeats = [1, 2, 4, 8, 16, 32];
@@ -18,20 +19,88 @@ int stepAutoLoopBeats(int beats, int delta) {
   return kAutoLoopBeats[next];
 }
 
-/// Tauri-shaped deck loop controls (local state shell).
+/// Slot used for save/recall of the loop length chip (Tauri: beat index, max 7).
+int autoLoopSlotForBeats(int beats) => autoLoopBeatIndex(beats).clamp(0, 7);
+
+/// Saved loop under [positionMs]: playhead inside `[in, out]`, tightest span,
+/// then lowest slot.
+SavedLoopInfo? savedLoopAtPosition(
+  List<SavedLoopInfo> loops,
+  int positionMs,
+) {
+  SavedLoopInfo? best;
+  var bestSpan = 1 << 30;
+  for (final loop in loops) {
+    if (positionMs < loop.inMs || positionMs > loop.outMs) {
+      continue;
+    }
+    final span = loop.outMs - loop.inMs;
+    if (best == null ||
+        span < bestSpan ||
+        (span == bestSpan && loop.slot < best.slot)) {
+      best = loop;
+      bestSpan = span;
+    }
+  }
+  return best;
+}
+
+/// Nearest listed auto-loop beat length for a region, given track [bpm].
+int beatsFromLoopMs({
+  required int inMs,
+  required int outMs,
+  required double? bpm,
+}) {
+  if (bpm == null || !bpm.isFinite || bpm <= 0) {
+    return 4;
+  }
+  final ms = (outMs - inMs).clamp(1, 1 << 30);
+  final beats = ms * bpm / 60000.0;
+  var best = kAutoLoopBeats.first;
+  var bestDist = (beats - best).abs();
+  for (final candidate in kAutoLoopBeats.skip(1)) {
+    final dist = (beats - candidate).abs();
+    if (dist < bestDist) {
+      best = candidate;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+/// Tauri-shaped deck loop controls.
 ///
 /// ```
 /// Loop
 /// ‹ beats ›
 /// IN  OUT
 /// ```
-class DeckLoopPanel extends StatefulWidget {
+class DeckLoopPanel extends StatelessWidget {
   const DeckLoopPanel({
+    required this.loopActive,
+    required this.loopBeats,
+    required this.onToggleLoop,
+    required this.onHalveBeats,
+    required this.onDoubleBeats,
+    required this.onLoopIn,
+    required this.onLoopOut,
+    required this.onBeatsChipPress,
+    this.savedLoopAtSlot = false,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
     super.key,
   });
+
+  final bool loopActive;
+  final int loopBeats;
+  final bool savedLoopAtSlot;
+  final VoidCallback onToggleLoop;
+  final VoidCallback onHalveBeats;
+  final VoidCallback onDoubleBeats;
+  final VoidCallback onLoopIn;
+  final VoidCallback onLoopOut;
+  final VoidCallback onBeatsChipPress;
 
   /// When false, controls are disabled (Tauri `!deck.track`).
   final bool hasTrack;
@@ -41,26 +110,14 @@ class DeckLoopPanel extends StatefulWidget {
   /// When false, skips the outer bordered chrome (parent supplies it).
   final bool bordered;
 
-  @override
-  State<DeckLoopPanel> createState() => _DeckLoopPanelState();
-}
-
-class _DeckLoopPanelState extends State<DeckLoopPanel> {
-  bool _loopActive = false;
-  int _loopBeats = 4;
-
-  bool get _controlsDisabled => widget.disabled || !widget.hasTrack;
-
-  void _setLoopLength(int beats) {
-    setState(() => _loopBeats = beats);
-  }
+  bool get _controlsDisabled => disabled || !hasTrack;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final active = _loopActive;
+    final active = loopActive;
     final disabled = _controlsDisabled;
-    final beatIndex = autoLoopBeatIndex(_loopBeats);
+    final beatIndex = autoLoopBeatIndex(loopBeats);
     final chipStyle = theme.typography.body.sm.copyWith(
       fontWeight: FontWeight.w700,
     );
@@ -102,9 +159,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
             variant: activeVariant(active),
             size: .sm,
             style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
-            onPress: disabled
-                ? null
-                : () => setState(() => _loopActive = !_loopActive),
+            onPress: disabled ? null : onToggleLoop,
             child: Text('Loop', style: chipStyle),
           ),
           const SizedBox(height: 12),
@@ -114,13 +169,13 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 label: '‹',
                 lit: active,
                 forceDisabled: beatIndex <= 0,
-                onPress: () =>
-                    _setLoopLength(stepAutoLoopBeats(_loopBeats, -1)),
+                onPress: onHalveBeats,
               ),
               const SizedBox(width: 8),
               cellButton(
-                label: '$_loopBeats',
-                onPress: null,
+                label: '$loopBeats',
+                lit: savedLoopAtSlot,
+                onPress: savedLoopAtSlot ? onBeatsChipPress : null,
                 style: chipStyle.copyWith(
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -130,25 +185,16 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
                 label: '›',
                 lit: active,
                 forceDisabled: beatIndex >= kAutoLoopBeats.length - 1,
-                onPress: () =>
-                    _setLoopLength(stepAutoLoopBeats(_loopBeats, 1)),
+                onPress: onDoubleBeats,
               ),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              cellButton(
-                label: 'IN',
-                lit: active,
-                onPress: () => setState(() => _loopActive = true),
-              ),
+              cellButton(label: 'IN', lit: active, onPress: onLoopIn),
               const SizedBox(width: 8),
-              cellButton(
-                label: 'OUT',
-                lit: active,
-                onPress: () => setState(() => _loopActive = true),
-              ),
+              cellButton(label: 'OUT', lit: active, onPress: onLoopOut),
             ],
           ),
         ],
@@ -160,7 +206,7 @@ class _DeckLoopPanelState extends State<DeckLoopPanel> {
       child: Center(child: controls),
     );
 
-    if (!widget.bordered) {
+    if (!bordered) {
       return ColoredBox(
         color: active ? fillColor : const Color(0x00000000),
         child: body,

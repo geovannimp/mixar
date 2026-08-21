@@ -195,6 +195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
+  ActiveLoopInfo dco_decode_active_loop_info(dynamic raw);
+
+  @protected
   AddFolderCollectionResult dco_decode_add_folder_collection_result(
     dynamic raw,
   );
@@ -210,6 +213,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool dco_decode_bool(dynamic raw);
+
+  @protected
+  ActiveLoopInfo dco_decode_box_autoadd_active_loop_info(dynamic raw);
 
   @protected
   AppSettings dco_decode_box_autoadd_app_settings(dynamic raw);
@@ -388,6 +394,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? dco_decode_opt_String(dynamic raw);
+
+  @protected
+  ActiveLoopInfo? dco_decode_opt_box_autoadd_active_loop_info(dynamic raw);
 
   @protected
   BeatGridData? dco_decode_opt_box_autoadd_beat_grid_data(dynamic raw);
@@ -636,6 +645,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
+  ActiveLoopInfo sse_decode_active_loop_info(SseDeserializer deserializer);
+
+  @protected
   AddFolderCollectionResult sse_decode_add_folder_collection_result(
     SseDeserializer deserializer,
   );
@@ -653,6 +665,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
+
+  @protected
+  ActiveLoopInfo sse_decode_box_autoadd_active_loop_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   AppSettings sse_decode_box_autoadd_app_settings(SseDeserializer deserializer);
@@ -869,6 +886,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   String? sse_decode_opt_String(SseDeserializer deserializer);
+
+  @protected
+  ActiveLoopInfo? sse_decode_opt_box_autoadd_active_loop_info(
+    SseDeserializer deserializer,
+  );
 
   @protected
   BeatGridData? sse_decode_opt_box_autoadd_beat_grid_data(
@@ -1158,6 +1180,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
+  void sse_encode_active_loop_info(
+    ActiveLoopInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_add_folder_collection_result(
     AddFolderCollectionResult self,
     SseSerializer serializer,
@@ -1177,6 +1205,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_active_loop_info(
+    ActiveLoopInfo self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_app_settings(
@@ -1447,6 +1481,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_opt_String(String? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_active_loop_info(
+    ActiveLoopInfo? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_beat_grid_data(

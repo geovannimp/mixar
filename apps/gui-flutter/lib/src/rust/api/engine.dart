@@ -10,7 +10,7 @@ import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -198,6 +198,31 @@ abstract class EngineTransport implements RustOpaqueInterface {
   });
 }
 
+/// Active loop region for Dart (`engine_api::LoopRegion`).
+class ActiveLoopInfo {
+  final int inMs;
+  final int outMs;
+  final bool active;
+
+  const ActiveLoopInfo({
+    required this.inMs,
+    required this.outMs,
+    required this.active,
+  });
+
+  @override
+  int get hashCode => inMs.hashCode ^ outMs.hashCode ^ active.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ActiveLoopInfo &&
+          runtimeType == other.runtimeType &&
+          inMs == other.inMs &&
+          outMs == other.outMs &&
+          active == other.active;
+}
+
 /// Thin typed engine egress for Dart (no MessagePack on the Flutter side).
 class EngineEvt {
   final EngineEvtKind kind;
@@ -229,6 +254,12 @@ class EngineEvt {
   final SyncMode? syncMode;
   final int? masterDeck;
 
+  /// Set on every [`EngineEvtKind::Updated`] (including `None` when cleared).
+  final ActiveLoopInfo? activeLoop;
+
+  /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
+  final bool activeLoopKnown;
+
   const EngineEvt({
     required this.kind,
     this.deckId,
@@ -258,6 +289,8 @@ class EngineEvt {
     this.padMode,
     this.syncMode,
     this.masterDeck,
+    this.activeLoop,
+    this.activeLoopKnown = false,
   });
 
   @override
@@ -289,7 +322,9 @@ class EngineEvt {
       tempoRange.hashCode ^
       padMode.hashCode ^
       syncMode.hashCode ^
-      masterDeck.hashCode;
+      masterDeck.hashCode ^
+      activeLoop.hashCode ^
+      activeLoopKnown.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -323,7 +358,9 @@ class EngineEvt {
           tempoRange == other.tempoRange &&
           padMode == other.padMode &&
           syncMode == other.syncMode &&
-          masterDeck == other.masterDeck;
+          masterDeck == other.masterDeck &&
+          activeLoop == other.activeLoop &&
+          activeLoopKnown == other.activeLoopKnown;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).

@@ -34,6 +34,14 @@ fn beat_ms(bpm: f64) -> f64 {
     60_000.0 / bpm
 }
 
+/// Require a finite BPM > 0 for loop / beat-timed ops.
+pub(crate) fn require_positive_bpm(bpm: Option<f64>, op: &str) -> anyhow::Result<f64> {
+    match bpm {
+        Some(b) if b.is_finite() && b > 0.0 => Ok(b),
+        _ => Err(anyhow::anyhow!("Track BPM is required for {op}.")),
+    }
+}
+
 /// Snap media time to the nearest beat when quantize is on. Stays in ms end-to-end.
 pub(crate) fn snap_ms(ms: i32, bpm: Option<f64>, quantize: bool) -> i32 {
     if !quantize {
@@ -103,5 +111,19 @@ mod tests {
         // 120 BPM → 500 ms per beat; 620 → 500, 760 → 1000
         assert_eq!(snap_ms(620, Some(120.0), true), 500);
         assert_eq!(snap_ms(760, Some(120.0), true), 1000);
+    }
+
+    #[test]
+    fn require_positive_bpm_rejects_missing_zero_and_non_finite() {
+        assert!(require_positive_bpm(Some(128.0), "auto loop").is_ok());
+        assert!(require_positive_bpm(None, "auto loop").is_err());
+        assert!(require_positive_bpm(Some(0.0), "auto loop").is_err());
+        assert!(require_positive_bpm(Some(-1.0), "loop in").is_err());
+        assert!(require_positive_bpm(Some(f64::NAN), "loop out").is_err());
+        assert!(require_positive_bpm(Some(f64::INFINITY), "auto loop").is_err());
+        let err = require_positive_bpm(None, "loop in")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("loop in"));
     }
 }
