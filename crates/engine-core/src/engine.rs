@@ -1594,28 +1594,23 @@ impl Engine {
             ));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        // ponytail: fall back like loop-in when tags/analysis left BPM unset.
-        // Upgrade: prefer beat-grid BPM from the library when control.bpm is None.
-        let bpm = bpm.unwrap_or(120.0);
+        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let mut out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
-        // Near EOF the duration clamp can collapse the region; keep a minimal loop.
-        if out_ms <= in_ms {
-            out_ms = in_ms + 10;
-        }
+        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
-    /// Move loop-in to the snapped playhead (keeps existing out, or default 4 beats).
+    /// Move loop-in to the nearest beat at the playhead (keeps existing out, or default 4 beats).
     pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
+        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let in_ms = snap_ms(position_ms, bpm, quantize);
-        let default_out = in_ms + secs_to_ms(60.0 / bpm.unwrap_or(120.0) * 4.0);
+        let in_ms = snap_ms(position_ms, Some(bpm), true);
+        let default_out = in_ms + secs_to_ms(60.0 / bpm * 4.0);
         let out_ms = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region.map(|(_, out)| out))
@@ -1623,11 +1618,12 @@ impl Engine {
         self.set_deck_loop_region(deck_id, in_ms, out_ms.max(in_ms + 10))
     }
 
-    /// Move loop-out to the snapped playhead (keeps existing in, or 0).
+    /// Move loop-out to the nearest beat at the playhead (keeps existing in, or 0).
     pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
+        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let out_ms = snap_ms(position_ms, bpm, quantize);
+        let out_ms = snap_ms(position_ms, Some(bpm), true);
         let in_ms = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region.map(|(inn, _)| inn))

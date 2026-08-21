@@ -145,6 +145,93 @@ fn set_quantize_and_cue_point_roundtrip() {
 }
 
 #[test]
+fn loop_in_snaps_to_nearest_beat_even_when_quantize_off() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    // 120 BPM → 500 ms/beat; 620 ms → nearest beat 500.
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
+        )
+        .expect("seek");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopIn,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop in");
+    let loop_in = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(loop_in.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("loop region");
+    assert_eq!(region.in_ms, 500);
+}
+
+#[test]
+fn loop_in_without_bpm_publishes_error() {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    TrackId::new("no-bpm.wav"),
+                    short_tone_fixture(),
+                    TrackMetadata::default(),
+                )),
+            )?;
+            Ok(())
+        })
+        .expect("load");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopIn,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop in");
+    let event = recv_evt_kind(&evt, Kind::Error);
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+        panic!("expected Error");
+    };
+    assert!(
+        message.contains("Track BPM is required for auto loop"),
+        "unexpected: {message}"
+    );
+}
+
+#[test]
 fn unload_clears_duration() {
     let session = null_session_loaded();
     let evt = session
