@@ -1,5 +1,6 @@
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -90,6 +91,16 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
     expect(_loadChip(tester, 'A').onPress, isNull);
     expect(_loadChip(tester, 'B').onPress, isNull);
+  });
+
+  testWidgets('right-click opens the track actions menu', (tester) async {
+    await pumpMenu(tester, inLibrary: true);
+    await tester.tap(
+      find.byIcon(FLucideIcons.ellipsisVertical),
+      buttons: kSecondaryButton,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Load to deck'), findsOneWidget);
   });
 
   testWidgets('Load to A/B is enabled when the engine is running', (

@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -145,5 +146,44 @@ void main() {
           .currentRowIdx,
       1,
     );
+  });
+
+  testWidgets('right-click on a track row opens the actions menu', (
+    tester,
+  ) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+
+    final theme = FTheme.neutral.light.desktop;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [collection]),
+          collectionTracksProvider.overrideWith((ref) async => [track]),
+          libraryEventsBootstrapProvider.overrideWith((ref) {}),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: const Scaffold(
+            body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Demo Track'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Load to deck'), findsOneWidget);
   });
 }

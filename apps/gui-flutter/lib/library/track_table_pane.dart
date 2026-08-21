@@ -216,7 +216,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                             columns: _columns(theme, tableColumns),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
-                            rowWrapper: engineRunning ? _dragRowWrapper : null,
+                            rowWrapper: _rowWrapper,
                             onLoaded: (e) {
                               _manager = e.stateManager;
                               e.stateManager.setShowColumnFilter(false);
@@ -398,6 +398,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
               title: title,
               inLibrary: inLibrary,
               analyzing: analyzing,
+              enableSecondaryPress: false,
             ),
           );
         },
@@ -507,6 +508,37 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ];
   }
 
+  Widget _rowWrapper(
+    BuildContext context,
+    Widget rowWidget,
+    TrinaRow rowData,
+    TrinaGridStateManager stateManager,
+  ) {
+    final engineRunning = ref.read(engineRunningProvider);
+    final inner = engineRunning
+        ? _dragRowWrapper(context, rowWidget, rowData, stateManager)
+        : rowWidget;
+    final path = rowData.cells['path']?.value as String?;
+    final trackId = rowData.cells['trackId']?.value as String?;
+    if (path == null || trackId == null) {
+      return inner;
+    }
+    final inLibrary = rowData.cells['inLibrary']?.value == true;
+    final title =
+        rowData.cells['dragTitle']?.value as String? ??
+        rowData.cells['title']?.value as String? ??
+        '';
+    final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
+    return _TrackActionsContextMenu(
+      trackId: trackId,
+      path: path,
+      title: title,
+      inLibrary: inLibrary,
+      analyzing: analyzing,
+      child: inner,
+    );
+  }
+
   Widget _dragRowWrapper(
     BuildContext context,
     Widget rowWidget,
@@ -592,6 +624,7 @@ class TrackActionsMenu extends ConsumerWidget {
     required this.title,
     required this.inLibrary,
     required this.analyzing,
+    this.enableSecondaryPress = true,
     super.key,
   });
 
@@ -600,6 +633,7 @@ class TrackActionsMenu extends ConsumerWidget {
   final String title;
   final bool inLibrary;
   final bool analyzing;
+  final bool enableSecondaryPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -607,76 +641,24 @@ class TrackActionsMenu extends ConsumerWidget {
     return FPopoverMenu(
       faded: null,
       overlayLocation: OverlayChildLocation.rootOverlay,
-      menuBuilder: (context, controller, _) => [
-        .group(
-          children: [
-            .raw(
-              style: .delta(
-                rawContentStyle: .delta(padding: .value(.fromLTRB(8, 8, 8, 2))),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 4,
-                children: [
-                  const Text('Load to deck'),
-                  Row(
-                    spacing: 4,
-                    children: [
-                      _LoadDeckChip(
-                        letter: 'A',
-                        color: FaderColors.a.grip,
-                        enabled: engineRunning,
-                        onPress: () {
-                          unawaited(controller.hide());
-                          unawaited(_loadToDeck(ref, 0));
-                        },
-                      ),
-                      _LoadDeckChip(
-                        letter: 'B',
-                        color: FaderColors.b.grip,
-                        enabled: engineRunning,
-                        onPress: () {
-                          unawaited(controller.hide());
-                          unawaited(_loadToDeck(ref, 1));
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        .group(
-          children: [
-            .item(
-              title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
-              enabled: inLibrary && !analyzing,
-              onPress: !inLibrary || analyzing
-                  ? null
-                  : () {
-                      unawaited(controller.hide());
-                      unawaited(analyzeTrackAction(ref, trackId));
-                    },
-            ),
-            .item(
-              title: const Text('Refresh'),
-              enabled: inLibrary,
-              onPress: inLibrary
-                  ? () {
-                      unawaited(controller.hide());
-                      unawaited(refreshTrackAction(ref, trackId));
-                    }
-                  : null,
-            ),
-          ],
-        ),
-      ],
+      menuBuilder: (context, controller, _) => _trackActionGroups(
+        ref: ref,
+        controller: controller,
+        trackId: trackId,
+        path: path,
+        title: title,
+        inLibrary: inLibrary,
+        analyzing: analyzing,
+        engineRunning: engineRunning,
+      ),
       builder: (context, controller, child) => FButton.icon(
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
         onPress: analyzing ? null : controller.toggle,
+        onSecondaryPress: analyzing || !enableSecondaryPress
+            ? null
+            : controller.toggle,
         child: child!,
       ),
       child: analyzing
@@ -684,8 +666,58 @@ class TrackActionsMenu extends ConsumerWidget {
           : const Icon(FLucideIcons.ellipsisVertical),
     );
   }
+}
 
-  Future<void> _loadToDeck(WidgetRef ref, int deckId) {
+class _TrackActionsContextMenu extends ConsumerWidget {
+  const _TrackActionsContextMenu({
+    required this.trackId,
+    required this.path,
+    required this.title,
+    required this.inLibrary,
+    required this.analyzing,
+    required this.child,
+  });
+
+  final String trackId;
+  final String path;
+  final String title;
+  final bool inLibrary;
+  final bool analyzing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final engineRunning = ref.watch(engineRunningProvider);
+    return FContextMenu(
+      faded: null,
+      overlayLocation: OverlayChildLocation.rootOverlay,
+      secondaryPress: !analyzing,
+      menuBuilder: (context, controller, _) => _trackActionGroups(
+        ref: ref,
+        controller: controller,
+        trackId: trackId,
+        path: path,
+        title: title,
+        inLibrary: inLibrary,
+        analyzing: analyzing,
+        engineRunning: engineRunning,
+      ),
+      child: child,
+    );
+  }
+}
+
+List<FItemGroupMixin> _trackActionGroups({
+  required WidgetRef ref,
+  required FPopoverController controller,
+  required String trackId,
+  required String path,
+  required String title,
+  required bool inLibrary,
+  required bool analyzing,
+  required bool engineRunning,
+}) {
+  Future<void> load(int deckId) {
     return loadPayloadToDeck(
       ref,
       deckId,
@@ -699,6 +731,72 @@ class TrackActionsMenu extends ConsumerWidget {
       ),
     );
   }
+
+  return [
+    .group(
+      children: [
+        .raw(
+          style: .delta(
+            rawContentStyle: .delta(padding: .value(.fromLTRB(8, 8, 8, 2))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 4,
+            children: [
+              const Text('Load to deck'),
+              Row(
+                spacing: 4,
+                children: [
+                  _LoadDeckChip(
+                    letter: 'A',
+                    color: FaderColors.a.grip,
+                    enabled: engineRunning,
+                    onPress: () {
+                      unawaited(controller.hide());
+                      unawaited(load(0));
+                    },
+                  ),
+                  _LoadDeckChip(
+                    letter: 'B',
+                    color: FaderColors.b.grip,
+                    enabled: engineRunning,
+                    onPress: () {
+                      unawaited(controller.hide());
+                      unawaited(load(1));
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    .group(
+      children: [
+        .item(
+          title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
+          enabled: inLibrary && !analyzing,
+          onPress: !inLibrary || analyzing
+              ? null
+              : () {
+                  unawaited(controller.hide());
+                  unawaited(analyzeTrackAction(ref, trackId));
+                },
+        ),
+        .item(
+          title: const Text('Refresh'),
+          enabled: inLibrary,
+          onPress: inLibrary
+              ? () {
+                  unawaited(controller.hide());
+                  unawaited(refreshTrackAction(ref, trackId));
+                }
+              : null,
+        ),
+      ],
+    ),
+  ];
 }
 
 class _LoadDeckChip extends StatelessWidget {
