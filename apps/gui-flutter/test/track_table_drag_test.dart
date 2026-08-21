@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -11,6 +12,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:trina_grid/trina_grid.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,7 +55,9 @@ void main() {
             collectionsProvider.overrideWith((ref) async => [collection]),
             collectionTracksProvider.overrideWith((ref) async => [track]),
             libraryEventsBootstrapProvider.overrideWith((ref) {}),
-            appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+            appSettingsProvider.overrideWith(
+              (ref) async => defaultAppSettings(),
+            ),
           ],
           child: MaterialApp(
             theme: materialUiThemeFromForui(theme),
@@ -62,11 +66,7 @@ void main() {
               child: FTheme(data: theme, child: child!),
             ),
             home: const Scaffold(
-              body: SizedBox(
-                width: 800,
-                height: 600,
-                child: TrackTablePane(),
-              ),
+              body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
             ),
           ),
         ),
@@ -85,4 +85,105 @@ void main() {
       expect(find.byType(DragItemWidget), findsWidgets);
     },
   );
+
+  testWidgets('MIDI focus survives analysis-state row rebuild', (tester) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+
+    const trackB = LibraryTrackSummary(
+      id: 't2',
+      displayName: 'Other Track',
+      title: 'Other Track',
+      path: '/tmp/samples/other.wav',
+    );
+    final theme = FTheme.neutral.light.desktop;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [collection]),
+          collectionTracksProvider.overrideWith((ref) async => [track, trackB]),
+          libraryEventsBootstrapProvider.overrideWith((ref) {}),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: const Scaffold(
+            body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TrackTablePane)),
+    );
+    container.read(focusedTrackRowIndexProvider.notifier).navigate(1);
+    await tester.pump();
+    expect(
+      tester
+          .state<TrinaGridState>(find.byType(TrinaGrid))
+          .stateManager
+          .currentRowIdx,
+      1,
+    );
+
+    container.read(analyzingTrackIdProvider.notifier).set(track.id);
+    await tester.pump();
+    expect(
+      tester
+          .state<TrinaGridState>(find.byType(TrinaGrid))
+          .stateManager
+          .currentRowIdx,
+      1,
+    );
+  });
+
+  testWidgets('right-click on a track row opens the actions menu', (
+    tester,
+  ) async {
+    debugOverrideDesktopWindow = false;
+    addTearDown(() => debugOverrideDesktopWindow = null);
+
+    final theme = FTheme.neutral.light.desktop;
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          collectionsProvider.overrideWith((ref) async => [collection]),
+          collectionTracksProvider.overrideWith((ref) async => [track]),
+          libraryEventsBootstrapProvider.overrideWith((ref) {}),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: const Scaffold(
+            body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Demo Track'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Load to deck'), findsOneWidget);
+  });
 }

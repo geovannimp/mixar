@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
@@ -46,9 +47,20 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
+      if (!mounted) {
+        return;
+      }
+      final settings = await ref.read(appSettingsProvider.future);
+      if (!mounted) {
+        return;
+      }
       final result = await transport.addFolderCollection(
         folderPath: folderPath,
+        scanFolderTree: settings.scanFolderTree,
       );
+      if (!mounted) {
+        return;
+      }
       ref.invalidate(collectionsProvider);
       ref.invalidate(collectionTracksProvider);
       ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
@@ -56,6 +68,9 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
           .read(librarySourceTabProvider.notifier)
           .set(LibrarySourceTab.collections);
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ref.read(libraryMessageProvider.notifier).setError('$e');
     }
   }

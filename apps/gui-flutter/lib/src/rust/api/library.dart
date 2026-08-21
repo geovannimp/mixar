@@ -19,6 +19,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Add a folder as a collection and sync its tracks.
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
+    required bool scanFolderTree,
   });
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).

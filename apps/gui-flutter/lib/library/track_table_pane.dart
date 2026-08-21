@@ -5,8 +5,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -112,12 +114,22 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       }
       manager.removeAllRows();
       manager.appendRows(_rowsFor(_tracks, next));
+      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
     ref.listen(artworkCacheProvider, (_, _) {
       _manager?.notifyListeners();
     });
+    ref.listen(focusedTrackRowIndexProvider, (_, index) {
+      final manager = _manager;
+      if (manager != null) {
+        _applyMidiFocus(manager, index);
+      }
+    });
 
     ref.listen(libraryTableTracksProvider, (_, next) {
+      ref
+          .read(focusedTrackRowIndexProvider.notifier)
+          .setCount(next.asData?.value.length ?? 0);
       final manager = _manager;
       if (manager == null) {
         return;
@@ -128,6 +140,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         if (tracks.isNotEmpty) {
           manager.appendRows(_rowsFor(tracks, analyzingId));
         }
+        _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
         _requestVisibleArtwork(manager);
       });
     });
@@ -204,12 +217,19 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                             columns: _columns(theme, tableColumns),
                             rows: _rowsFor(tracks, analyzingId),
                             mode: TrinaGridMode.readOnly,
-                            rowWrapper: engineRunning ? _dragRowWrapper : null,
+                            rowWrapper: _rowWrapper,
                             onLoaded: (e) {
                               _manager = e.stateManager;
                               e.stateManager.setShowColumnFilter(false);
                               _attachScrollListener(e.stateManager);
                               _requestVisibleArtwork(e.stateManager);
+                              ref
+                                  .read(focusedTrackRowIndexProvider.notifier)
+                                  .setCount(_tracks.length);
+                              _applyMidiFocus(
+                                e.stateManager,
+                                ref.read(focusedTrackRowIndexProvider),
+                              );
                             },
                             configuration: config,
                           ),
@@ -362,16 +382,24 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         enableSorting: false,
         renderer: (ctx) {
           final trackId = ctx.row.cells['trackId']?.value as String?;
-          if (trackId == null) {
+          final path = ctx.row.cells['path']?.value as String?;
+          if (trackId == null || path == null) {
             return const SizedBox.shrink();
           }
           final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
+          final title =
+              ctx.row.cells['dragTitle']?.value as String? ??
+              ctx.row.cells['title']?.value as String? ??
+              '';
           return Center(
             child: TrackActionsMenu(
               trackId: trackId,
+              path: path,
+              title: title,
               inLibrary: inLibrary,
               analyzing: analyzing,
+              enableSecondaryPress: false,
             ),
           );
         },
@@ -481,6 +509,37 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ];
   }
 
+  Widget _rowWrapper(
+    BuildContext context,
+    Widget rowWidget,
+    TrinaRow rowData,
+    TrinaGridStateManager stateManager,
+  ) {
+    final engineRunning = ref.read(engineRunningProvider);
+    final inner = engineRunning
+        ? _dragRowWrapper(context, rowWidget, rowData, stateManager)
+        : rowWidget;
+    final path = rowData.cells['path']?.value as String?;
+    final trackId = rowData.cells['trackId']?.value as String?;
+    if (path == null || trackId == null) {
+      return inner;
+    }
+    final inLibrary = rowData.cells['inLibrary']?.value == true;
+    final title =
+        rowData.cells['dragTitle']?.value as String? ??
+        rowData.cells['title']?.value as String? ??
+        '';
+    final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
+    return _TrackActionsContextMenu(
+      trackId: trackId,
+      path: path,
+      title: title,
+      inLibrary: inLibrary,
+      analyzing: analyzing,
+      child: inner,
+    );
+  }
+
   Widget _dragRowWrapper(
     BuildContext context,
     Widget rowWidget,
@@ -521,6 +580,41 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
+  void _applyMidiFocus(TrinaGridStateManager manager, int index) {
+    final visualIndex = visualRowIndexForFocusedTrack(
+      [
+        for (final row in manager.refRows)
+          row.cells['trackId']?.value as String?,
+      ],
+      [for (final track in _tracks) track.id],
+      index,
+    );
+    if (visualIndex == null || visualIndex >= manager.refRows.length) {
+      return;
+    }
+    final row = manager.refRows[visualIndex];
+    final cell = row.cells['title'] ?? row.cells.values.first;
+    manager.setCurrentCell(cell, visualIndex);
+    final scroll = manager.scroll.bodyRowsVertical;
+    if (scroll == null || !scroll.hasClients) {
+      return;
+    }
+    final rowH = manager.rowTotalHeight;
+    if (rowH <= 0) {
+      return;
+    }
+    final target = visualIndex * rowH;
+    final view = scroll.position.viewportDimension;
+    final offset = scroll.offset;
+    if (target < offset) {
+      scroll.jumpTo(target.clamp(0, scroll.position.maxScrollExtent));
+    } else if (target + rowH > offset + view) {
+      scroll.jumpTo(
+        (target + rowH - view).clamp(0, scroll.position.maxScrollExtent),
+      );
+    }
+  }
+
   String _formatDuration(int? ms) {
     if (ms == null || ms <= 0) {
       return '';
@@ -535,58 +629,215 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 class TrackActionsMenu extends ConsumerWidget {
   const TrackActionsMenu({
     required this.trackId,
+    required this.path,
+    required this.title,
     required this.inLibrary,
     required this.analyzing,
+    this.enableSecondaryPress = true,
     super.key,
   });
 
   final String trackId;
+  final String path;
+  final String title;
   final bool inLibrary;
   final bool analyzing;
+  final bool enableSecondaryPress;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final engineRunning = ref.watch(engineRunningProvider);
     return FPopoverMenu(
-      style: const .delta(maxWidth: 250),
       faded: null,
-      divider: .full,
       overlayLocation: OverlayChildLocation.rootOverlay,
-      menuBuilder: (context, controller, _) => [
-        .group(
-          children: [
-            .item(
-              title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
-              enabled: inLibrary && !analyzing,
-              onPress: !inLibrary || analyzing
-                  ? null
-                  : () {
-                      unawaited(controller.hide());
-                      unawaited(analyzeTrackAction(ref, trackId));
-                    },
-            ),
-            .item(
-              title: const Text('Refresh'),
-              enabled: inLibrary,
-              onPress: inLibrary
-                  ? () {
-                      unawaited(controller.hide());
-                      unawaited(refreshTrackAction(ref, trackId));
-                    }
-                  : null,
-            ),
-          ],
-        ),
-      ],
+      menuBuilder: (context, controller, _) => _trackActionGroups(
+        ref: ref,
+        controller: controller,
+        trackId: trackId,
+        path: path,
+        title: title,
+        inLibrary: inLibrary,
+        analyzing: analyzing,
+        engineRunning: engineRunning,
+      ),
       builder: (context, controller, child) => FButton.icon(
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
         onPress: analyzing ? null : controller.toggle,
+        onSecondaryPress: analyzing || !enableSecondaryPress
+            ? null
+            : controller.toggle,
         child: child!,
       ),
       child: analyzing
           ? const FCircularProgress()
           : const Icon(FLucideIcons.ellipsisVertical),
+    );
+  }
+}
+
+class _TrackActionsContextMenu extends ConsumerWidget {
+  const _TrackActionsContextMenu({
+    required this.trackId,
+    required this.path,
+    required this.title,
+    required this.inLibrary,
+    required this.analyzing,
+    required this.child,
+  });
+
+  final String trackId;
+  final String path;
+  final String title;
+  final bool inLibrary;
+  final bool analyzing;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final engineRunning = ref.watch(engineRunningProvider);
+    return FContextMenu(
+      faded: null,
+      overlayLocation: OverlayChildLocation.rootOverlay,
+      secondaryPress: !analyzing,
+      menuBuilder: (context, controller, _) => _trackActionGroups(
+        ref: ref,
+        controller: controller,
+        trackId: trackId,
+        path: path,
+        title: title,
+        inLibrary: inLibrary,
+        analyzing: analyzing,
+        engineRunning: engineRunning,
+      ),
+      child: child,
+    );
+  }
+}
+
+List<FItemGroupMixin> _trackActionGroups({
+  required WidgetRef ref,
+  required FPopoverController controller,
+  required String trackId,
+  required String path,
+  required String title,
+  required bool inLibrary,
+  required bool analyzing,
+  required bool engineRunning,
+}) {
+  Future<void> load(int deckId) {
+    return loadPayloadToDeck(
+      ref,
+      deckId,
+      TrackDragPayload(
+        source: inLibrary
+            ? TrackDragSource.library
+            : TrackDragSource.filesystem,
+        trackId: inLibrary ? trackId : null,
+        path: path,
+        title: trackDisplayTitle(title: title, path: path),
+      ),
+    );
+  }
+
+  return [
+    .group(
+      children: [
+        .raw(
+          style: .delta(
+            rawContentStyle: .delta(padding: .value(.fromLTRB(8, 8, 8, 2))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 4,
+            children: [
+              const Text('Load to deck'),
+              Row(
+                spacing: 4,
+                children: [
+                  _LoadDeckChip(
+                    letter: 'A',
+                    color: FaderColors.a.grip,
+                    enabled: engineRunning,
+                    onPress: () {
+                      unawaited(controller.hide());
+                      unawaited(load(0));
+                    },
+                  ),
+                  _LoadDeckChip(
+                    letter: 'B',
+                    color: FaderColors.b.grip,
+                    enabled: engineRunning,
+                    onPress: () {
+                      unawaited(controller.hide());
+                      unawaited(load(1));
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    .group(
+      children: [
+        .item(
+          title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
+          enabled: inLibrary && !analyzing,
+          onPress: !inLibrary || analyzing
+              ? null
+              : () {
+                  unawaited(controller.hide());
+                  unawaited(analyzeTrackAction(ref, trackId));
+                },
+        ),
+        .item(
+          title: const Text('Refresh'),
+          enabled: inLibrary,
+          onPress: inLibrary
+              ? () {
+                  unawaited(controller.hide());
+                  unawaited(refreshTrackAction(ref, trackId));
+                }
+              : null,
+        ),
+      ],
+    ),
+  ];
+}
+
+class _LoadDeckChip extends StatelessWidget {
+  const _LoadDeckChip({
+    required this.letter,
+    required this.color,
+    required this.enabled,
+    required this.onPress,
+  });
+
+  final String letter;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Expanded(
+      child: FButton(
+        semanticsLabel: 'Load to $letter',
+        onPress: enabled ? onPress : null,
+        variant: .ghost,
+        size: .xs,
+        child: Text(
+          letter,
+          style: theme.typography.body.xs.copyWith(
+            fontWeight: FontWeight.w700,
+            color: enabled ? color : color.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
     );
   }
 }

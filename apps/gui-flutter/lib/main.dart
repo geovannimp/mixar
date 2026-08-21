@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
@@ -11,6 +13,9 @@ import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    await BrowserContextMenu.disableContextMenu();
+  }
   await RustLib.init();
 
   final appTitle = appDisplayName();
@@ -77,7 +82,8 @@ class Application extends StatelessWidget {
         // Resolve touch vs desktop via Forui's platformVariant:
         // https://forui.dev/docs/concepts/responsive
         // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
-        return MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        return MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FAdaptiveScope(
             child: Builder(
               builder: (context) {

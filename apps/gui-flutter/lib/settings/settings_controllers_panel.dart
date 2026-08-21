@@ -36,6 +36,7 @@ class _SettingsControllersPanelState
   Widget build(BuildContext context) {
     final theme = context.theme;
     final mappings = ref.watch(controllerMappingsProvider);
+    final devices = ref.watch(controllerDevicesProvider);
     final attachedId = ref.watch(attachedMappingIdProvider);
     final transport = ref.watch(controllerTransportProvider).value;
     return Column(
@@ -84,6 +85,56 @@ class _SettingsControllersPanelState
                       ),
                       onUpdate: () => _run(
                         () => transport!.updateMapping(mappingId: mapping.id),
+                      ),
+                    ),
+                ],
+              );
+            },
+            loading: () => Text(
+              'Loading…',
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.mutedForeground,
+              ),
+            ),
+            error: (e, _) => Text(
+              '$e',
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.destructive,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsField(
+          label: 'MIDI ports',
+          child: devices.when(
+            data: (rows) {
+              if (rows.isEmpty) {
+                return Text(
+                  'No MIDI ports detected.',
+                  style: theme.typography.body.sm.copyWith(
+                    color: theme.colors.mutedForeground,
+                  ),
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final device in rows)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        [
+                          device.direction.name,
+                          device.portName,
+                          if (device.matchedMappingId != null)
+                            '→ ${device.matchedMappingId}',
+                        ].join(' '),
+                        style: theme.typography.body.xs.copyWith(
+                          color: theme.colors.mutedForeground,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                 ],

@@ -3408,6 +3408,7 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
             >>::sse_decode(&mut deserializer);
             let api_folder_path = <String>::sse_decode(&mut deserializer);
+            let api_scan_folder_tree = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -3428,6 +3429,7 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                     let output_ok = crate::api::library::LibraryTransport::add_folder_collection(
                         &*api_that_guard,
                         api_folder_path,
+                        api_scan_folder_tree,
                     )?;
                     Ok(output_ok)
                 })())
@@ -4903,6 +4905,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_tempoRangeSteps = <Vec<f32>>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
+        let mut var_scanFolderTree = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -4924,6 +4927,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             default_tempo_range: var_defaultTempoRange,
             tempo_range_steps: var_tempoRangeSteps,
             waveform_display_mode: var_waveformDisplayMode,
+            scan_folder_tree: var_scanFolderTree,
         };
     }
 }
@@ -6700,6 +6704,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.default_tempo_range.into_into_dart().into_dart(),
             self.tempo_range_steps.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
+            self.scan_folder_tree.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7737,6 +7742,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.waveform_display_mode,
             serializer,
         );
+        <bool>::sse_encode(self.scan_folder_tree, serializer);
     }
 }
 

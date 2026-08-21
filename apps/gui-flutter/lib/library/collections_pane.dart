@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
 class CollectionsPane extends ConsumerStatefulWidget {
@@ -25,7 +26,17 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
-      final result = await transport.addFolderCollection(folderPath: path);
+      if (!mounted) {
+        return;
+      }
+      final settings = await ref.read(appSettingsProvider.future);
+      if (!mounted) {
+        return;
+      }
+      final result = await transport.addFolderCollection(
+        folderPath: path,
+        scanFolderTree: settings.scanFolderTree,
+      );
       if (!mounted) {
         return;
       }
