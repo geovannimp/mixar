@@ -146,12 +146,12 @@ void _paintCueFlag(
   required double laneHeight,
 }) {
   // Strip pictures are authored at kWaveformStripHeight then scaled down to the
-  // lane; oversize there so flags stay readable. Overview paints 1:1 (~28px).
+  // lane; size for post-scale readability without dominating the waveform.
   final flagH = laneHeight >= 64
-      ? 36.0
-      : (laneHeight * 0.55).clamp(14.0, 20.0);
-  final flagW = flagH * 1.2;
-  final fontSize = flagH * 0.62;
+      ? 24.0
+      : (laneHeight * 0.5).clamp(12.0, 16.0);
+  final flagW = flagH * 1.15;
+  final fontSize = flagH * 0.58;
   final left = (x - flagW / 2).clamp(0.0, double.infinity);
   final rect = Rect.fromLTWH(left, 1, flagW, flagH);
   final rrect = RRect.fromRectAndRadius(rect, Radius.circular(flagH * 0.18));
