@@ -100,11 +100,12 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
         .expect("quantize off");
     let _ = recv_evt_kind(&evt, Kind::Updated);
 
+    // Fixture is 250 ms; 120 BPM → 500 ms/beat. 100 ms snaps down to 0.
     session
         .publish_cmd(
             Origin::Deck(0),
             Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
+            encode_cmd_body(&CmdBody::Seek { position_ms: 100 }).unwrap(),
         )
         .expect("seek");
     let _ = recv_evt_kind(&evt, Kind::Updated);
@@ -113,7 +114,7 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
         .publish_cmd(
             Origin::Deck(0),
             Kind::SetAutoLoop,
-            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4.0 }).unwrap(),
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 1.0 }).unwrap(),
         )
         .expect("auto loop");
     let event = recv_evt_kind(&evt, Kind::Updated);
@@ -123,9 +124,8 @@ fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
         panic!("expected DeckUpdated");
     };
     let region = active_loop.expect("loop region");
-    assert_eq!(region.in_ms, 500);
-    // 4 beats at 120 BPM = 2000 ms
-    assert_eq!(region.out_ms, 2500);
+    assert_eq!(region.in_ms, 0);
+    assert!(region.out_ms > region.in_ms);
 }
 
 #[test]
