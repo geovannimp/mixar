@@ -127,7 +127,13 @@ Picture recordCuePicture({
       ..strokeWidth = 1
       ..isAntiAlias = false;
     canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
-    _paintCueFlag(canvas, x: x, label: '${cue.slot + 1}', color: color);
+    _paintCueFlag(
+      canvas,
+      x: x,
+      label: '${cue.slot + 1}',
+      color: color,
+      laneHeight: size.height,
+    );
   }
   return recorder.endRecording();
 }
@@ -137,17 +143,21 @@ void _paintCueFlag(
   required double x,
   required String label,
   required Color color,
+  required double laneHeight,
 }) {
-  const flagW = 14.0;
-  const flagH = 12.0;
+  // Strip pictures are authored at kWaveformStripHeight then scaled down to the
+  // lane; oversize there so flags stay readable. Overview paints 1:1 (~28px).
+  final flagH = laneHeight >= 64
+      ? 36.0
+      : (laneHeight * 0.55).clamp(14.0, 20.0);
+  final flagW = flagH * 1.2;
+  final fontSize = flagH * 0.62;
   final left = (x - flagW / 2).clamp(0.0, double.infinity);
   final rect = Rect.fromLTWH(left, 1, flagW, flagH);
+  final rrect = RRect.fromRectAndRadius(rect, Radius.circular(flagH * 0.18));
+  canvas.drawRRect(rrect, Paint()..color = color);
   canvas.drawRRect(
-    RRect.fromRectAndRadius(rect, const Radius.circular(2)),
-    Paint()..color = color,
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(rect, const Radius.circular(2)),
+    rrect,
     Paint()
       ..color = const Color.fromRGBO(0, 0, 0, 0.4)
       ..style = PaintingStyle.stroke
@@ -156,9 +166,9 @@ void _paintCueFlag(
   final tp = TextPainter(
     text: TextSpan(
       text: label,
-      style: const TextStyle(
-        color: Color.fromARGB(255, 255, 255, 255),
-        fontSize: 9,
+      style: TextStyle(
+        color: const Color.fromARGB(255, 255, 255, 255),
+        fontSize: fontSize,
         fontWeight: FontWeight.w700,
         height: 1,
       ),
