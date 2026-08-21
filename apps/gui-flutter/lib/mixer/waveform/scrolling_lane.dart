@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -23,13 +22,7 @@ class ScrollingLane extends ConsumerStatefulWidget {
 
 class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  final _playhead = ValueNotifier(0.0);
-  var _displayMs = 0.0;
-  var _anchorMs = 0.0;
-  var _anchorElapsed = Duration.zero;
-  var _elapsed = Duration.zero;
-  var _lastElapsed = Duration.zero;
+  late final AnimationController _playhead;
   var _scrubbing = false;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
@@ -38,54 +31,74 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker(_onTick);
+    _playhead = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
     _playhead.dispose();
     super.dispose();
   }
 
-  void _onTick(Duration elapsed) {
-    final dt = (elapsed - _lastElapsed).inMicroseconds / 1e3;
-    _lastElapsed = elapsed;
-    _elapsed = elapsed;
-    if (_scrubbing || !mounted || dt <= 0) {
+  double _displayMs(int durationMs) {
+    if (durationMs <= 0) {
+      return 0;
+    }
+    return _playhead.value * durationMs;
+  }
+
+  void _setDisplayMs(
+    double ms, {
+    required int durationMs,
+    required double speed,
+    required bool playing,
+  }) {
+    if (durationMs <= 0) {
+      _playhead
+        ..stop()
+        ..value = 0;
       return;
     }
-    final playing = ref.read(deckPlayingProvider(widget.deckId));
-    if (!playing) {
+    _playhead
+      ..stop()
+      ..duration = playheadWallDuration(durationMs: durationMs, speed: speed)
+      ..value = (ms / durationMs).clamp(0.0, 1.0);
+    if (playing && !_scrubbing) {
+      _playhead.forward();
+    }
+  }
+
+  void _syncPlayback({
+    required bool playing,
+    required int durationMs,
+    required double speed,
+  }) {
+    if (durationMs <= 0) {
+      _playhead.stop();
       return;
     }
-    final speed = ref.read(deckSpeedRatioProvider(widget.deckId));
-    final estimate = engineEstimateMs(
-      anchorMs: _anchorMs,
-      ageMs: (elapsed - _anchorElapsed).inMicroseconds / 1e3,
-      speed: speed,
-    );
-    _displayMs = correctPlayheadDrift(
-      displayMs: _displayMs + dt * speed,
-      estimateMs: estimate,
-    );
-    _playhead.value = _displayMs;
+    final ms = _displayMs(durationMs);
+    final wall = playheadWallDuration(durationMs: durationMs, speed: speed);
+    if (_playhead.duration != wall) {
+      _playhead
+        ..stop()
+        ..duration = wall
+        ..value = (ms / durationMs).clamp(0.0, 1.0);
+    }
+    if (playing && !_scrubbing) {
+      if (!_playhead.isAnimating) {
+        _playhead.forward();
+      }
+    } else if (_playhead.isAnimating) {
+      _playhead.stop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final playing = ref.watch(deckPlayingProvider(widget.deckId));
-    if (playing && !_ticker.isTicking) {
-      _elapsed = Duration.zero;
-      _lastElapsed = Duration.zero;
-      _anchorElapsed = Duration.zero;
-      _anchorMs = _displayMs;
-      _playhead.value = _displayMs;
-      _ticker.start();
-    } else if (!playing && _ticker.isTicking) {
-      _ticker.stop();
-    }
+    final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
     final strip = trackId == null || durationMs <= 0
@@ -106,26 +119,51 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         ? null
         : ref.watch(stripCuePictureProvider((trackId, durationMs)));
 
+    _syncPlayback(playing: playing, durationMs: durationMs, speed: speed);
+
     ref.listen(deckPositionMsProvider(widget.deckId), (prev, next) {
-      _anchorMs = next.toDouble();
-      _anchorElapsed = _elapsed;
-      if (_scrubbing) {
+      if (_scrubbing || durationMs <= 0) {
         return;
       }
+      final display = _displayMs(durationMs);
+      final engineMs = next.toDouble();
       final playingNow = ref.read(deckPlayingProvider(widget.deckId));
-      if (!playheadShouldSnap(
-        displayMs: _displayMs,
-        engineMs: next.toDouble(),
+      final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
+      if (playheadShouldSnap(
+        displayMs: display,
+        engineMs: engineMs,
         playing: playingNow,
       )) {
+        _setDisplayMs(
+          engineMs,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: playingNow,
+        );
         return;
       }
-      _displayMs = next.toDouble();
-      _playhead.value = _displayMs;
+      final corrected = correctPlayheadDrift(
+        displayMs: display,
+        estimateMs: engineMs,
+      );
+      if (corrected != display) {
+        _setDisplayMs(
+          corrected,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: playingNow,
+        );
+      }
     });
     ref.listen(deckSpeedRatioProvider(widget.deckId), (prev, next) {
-      _anchorMs = _displayMs;
-      _anchorElapsed = _elapsed;
+      if (durationMs <= 0) {
+        return;
+      }
+      _syncPlayback(
+        playing: ref.read(deckPlayingProvider(widget.deckId)),
+        durationMs: durationMs,
+        speed: next,
+      );
     });
 
     return LayoutBuilder(
@@ -143,11 +181,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               ? null
               : (e) {
                   _scrubbing = true;
+                  _playhead.stop();
                   _scrubAnchorX = e.localPosition.dx;
-                  _scrubAnchorMs = _displayMs;
+                  _scrubAnchorMs = _displayMs(durationMs);
                 },
           onPointerMove: (e) {
-            if (!_scrubbing) {
+            if (!_scrubbing || durationMs <= 0) {
               return;
             }
             final ms = centerScrubMs(
@@ -159,27 +198,45 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                 viewportWidth: width,
               ).toDouble(),
             );
-            _displayMs = ms;
-            _playhead.value = ms;
+            _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
             _throttledSeek(ms.round());
           },
           onPointerUp: (e) {
             if (!_scrubbing) {
               return;
             }
-            final ms = centerScrubMs(
-              anchorPosMs: _scrubAnchorMs,
-              deltaX: e.localPosition.dx - _scrubAnchorX,
-              width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-              ).toDouble(),
-            ).round();
+            final ms = durationMs <= 0
+                ? 0
+                : centerScrubMs(
+                    anchorPosMs: _scrubAnchorMs,
+                    deltaX: e.localPosition.dx - _scrubAnchorX,
+                    width: width,
+                    spanMs: cropVisibleMs(
+                      durationMs: durationMs,
+                      viewportWidth: width,
+                    ).toDouble(),
+                  ).round();
             _scrubbing = false;
+            if (durationMs > 0) {
+              _setDisplayMs(
+                ms.toDouble(),
+                durationMs: durationMs,
+                speed: speed,
+                playing: playing,
+              );
+            }
             unawaited(_seek(ms));
           },
-          onPointerCancel: (_) => _scrubbing = false,
+          onPointerCancel: (_) {
+            _scrubbing = false;
+            if (playing && durationMs > 0) {
+              _syncPlayback(
+                playing: playing,
+                durationMs: durationMs,
+                speed: speed,
+              );
+            }
+          },
           child: ClipRect(
             child: Stack(
               fit: StackFit.expand,
@@ -189,10 +246,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                   AnimatedBuilder(
                     animation: _playhead,
                     builder: (context, child) {
+                      final positionMs = _displayMs(durationMs);
                       return Positioned(
                         left: snapPx(
                           stripTranslateX(
-                            positionMs: _playhead.value,
+                            positionMs: positionMs,
                             viewportWidth: width,
                             pxPerMs: pxPerMs,
                           ),
