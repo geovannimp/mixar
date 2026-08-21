@@ -65,6 +65,7 @@ class EngineUiSnapshot {
     this.tempoRanges = const {},
     this.padModes = const {},
     this.syncModes = const {},
+    this.activeLoops = const {},
     this.masterDeck = 0,
     this.cueMix = 0.0,
     this.masterCue = false,
@@ -86,6 +87,7 @@ class EngineUiSnapshot {
   final Map<int, double> tempoRanges;
   final Map<int, PadMode> padModes;
   final Map<int, SyncMode> syncModes;
+  final Map<int, ActiveLoopInfo> activeLoops;
   final int masterDeck;
 
   String? titleFor(int deckId) => titles[deckId];
@@ -103,6 +105,8 @@ class EngineUiSnapshot {
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
   SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
+
+  ActiveLoopInfo? activeLoopFor(int deckId) => activeLoops[deckId];
 
   bool isMaster(int deckId) => masterDeck == deckId;
 
@@ -124,6 +128,7 @@ class EngineUiSnapshot {
     Map<int, double>? tempoRanges,
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
+    Map<int, ActiveLoopInfo>? activeLoops,
     int? masterDeck,
     double? cueMix,
     bool? masterCue,
@@ -140,6 +145,7 @@ class EngineUiSnapshot {
     tempoRanges: tempoRanges ?? this.tempoRanges,
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
+    activeLoops: activeLoops ?? this.activeLoops,
     masterDeck: masterDeck ?? this.masterDeck,
     cueMix: cueMix ?? this.cueMix,
     masterCue: masterCue ?? this.masterCue,
@@ -200,6 +206,15 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (evt.syncMode != null) {
         nextSyncModes[id] = evt.syncMode!;
       }
+      final nextActiveLoops = Map<int, ActiveLoopInfo>.from(prev.activeLoops);
+      if (evt.activeLoopKnown) {
+        final region = evt.activeLoop;
+        if (region != null && region.active) {
+          nextActiveLoops[id] = region;
+        } else {
+          nextActiveLoops.remove(id);
+        }
+      }
       return prev.copyWith(
         titles: nextTitles,
         playing: nextPlaying,
@@ -210,6 +225,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         tempoRanges: nextRanges,
         padModes: nextPadModes,
         syncModes: nextSyncModes,
+        activeLoops: nextActiveLoops,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

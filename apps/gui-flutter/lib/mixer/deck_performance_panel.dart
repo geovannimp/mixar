@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_loop_host.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/deck_pads_host.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
@@ -98,11 +99,26 @@ class DeckPerformancePanel extends StatelessWidget {
                                   disabled: disabled,
                                   bordered: false,
                                 ),
-                          DeckPerformanceMode.loop => DeckLoopPanel(
-                            hasTrack: hasTrack,
-                            disabled: disabled,
-                            bordered: false,
-                          ),
+                          DeckPerformanceMode.loop => deckId != null
+                              ? DeckLoopHost(
+                                  deckId: deckId!,
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                )
+                              : DeckLoopPanel(
+                                  loopActive: false,
+                                  loopBeats: 4,
+                                  onToggleLoop: () {},
+                                  onHalveBeats: () {},
+                                  onDoubleBeats: () {},
+                                  onLoopIn: () {},
+                                  onLoopOut: () {},
+                                  onBeatsChipPress: () {},
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                ),
                           DeckPerformanceMode.jog => const Center(
                             child: _JogPlaceholder(),
                           ),

@@ -443,6 +443,37 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
+    /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
+    pub fn save_loop(
+        &self,
+        track_id: String,
+        slot: u8,
+        in_ms: i32,
+        out_ms: i32,
+    ) -> Result<(), String> {
+        let bytes = encode_cmd_body(&CmdBody::SaveLoop {
+            track_id,
+            slot,
+            in_ms,
+            out_ms,
+            label: None,
+            color: None,
+        })
+        .map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::SaveLoop, bytes)
+            .map_err(|e| e.to_string())
+    }
+
+    /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
+    pub fn delete_loop(&self, track_id: String, slot: u8) -> Result<(), String> {
+        let bytes =
+            encode_cmd_body(&CmdBody::DeleteLoop { track_id, slot }).map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::DeleteLoop, bytes)
+            .map_err(|e| e.to_string())
+    }
+
     /// Forward thin typed library events to Dart via FRB `StreamSink`.
     ///
     /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
