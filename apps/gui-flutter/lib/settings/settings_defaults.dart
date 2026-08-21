@@ -67,6 +67,7 @@ AppSettings defaultAppSettings() {
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
+    scanFolderTree: true,
   );
 }
 
@@ -131,6 +132,7 @@ AppSettings copyAppSettings(
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
   WaveformDisplayModeSetting? waveformDisplayMode,
+  bool? scanFolderTree,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -155,6 +157,7 @@ AppSettings copyAppSettings(
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
+    scanFolderTree: scanFolderTree ?? base.scanFolderTree,
   );
 }
 
@@ -181,6 +184,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
+      draft.scanFolderTree != baseline.scanFolderTree ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

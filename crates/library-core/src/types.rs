@@ -226,13 +226,18 @@ pub struct NewCollection {
 }
 
 impl NewCollection {
-    /// Create a disk-folder collection.
+    /// Create a disk-folder collection (recurses into subfolders).
     pub fn folder(path: impl AsRef<std::path::Path>) -> Self {
+        Self::folder_scan(path, true)
+    }
+
+    /// Create a disk-folder collection with an explicit recurse flag.
+    pub fn folder_scan(path: impl AsRef<std::path::Path>, scan_folder_tree: bool) -> Self {
         Self {
             name: None,
             config: CollectionConfig::Folder {
                 fs_path: path.as_ref().to_path_buf(),
-                scan_folder_tree: true,
+                scan_folder_tree,
             },
         }
     }

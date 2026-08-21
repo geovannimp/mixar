@@ -66,7 +66,7 @@ fn add_folder_resolve_and_track_artwork_metadata() {
 
     let transport = LibraryTransport::open_in_memory().unwrap();
     let added = transport
-        .add_folder_collection(dir.path().to_string_lossy().into_owned())
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), true)
         .unwrap();
     assert_eq!(added.added, 2);
     assert_eq!(added.collection.track_count, 2);
@@ -101,6 +101,27 @@ fn add_folder_resolve_and_track_artwork_metadata() {
 
     let full_cover = transport.get_track(cover_row.id.clone()).unwrap().unwrap();
     assert_eq!(full_cover.artwork.as_deref(), Some(art_bytes));
+}
+
+#[test]
+fn add_folder_collection_skips_nested_when_not_recursive() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("root.wav"));
+    let nested = dir.path().join("nested");
+    std::fs::create_dir(&nested).unwrap();
+    write_minimal_wav(&nested.join("child.wav"));
+
+    let shallow = LibraryTransport::open_in_memory().unwrap();
+    let added = shallow
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), false)
+        .unwrap();
+    assert_eq!(added.added, 1);
+
+    let deep = LibraryTransport::open_in_memory().unwrap();
+    let added = deep
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), true)
+        .unwrap();
+    assert_eq!(added.added, 2);
 }
 
 #[test]
@@ -155,7 +176,7 @@ fn refresh_existing_track_emits_track_updated() {
 
     let transport = LibraryTransport::open_in_memory().unwrap();
     let added = transport
-        .add_folder_collection(dir.path().to_string_lossy().into_owned())
+        .add_folder_collection(dir.path().to_string_lossy().into_owned(), true)
         .unwrap();
     let tracks = transport
         .list_collection_tracks(added.collection.id.clone())

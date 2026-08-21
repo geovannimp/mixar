@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/focused_load.dart';
+import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
@@ -194,6 +196,31 @@ final trackSavedLoopsProvider =
       TrackSavedLoops.new,
     );
 
+class FocusedTrackRowIndex extends Notifier<int> {
+  var _count = 0;
+
+  @override
+  int build() => 0;
+
+  void setCount(int count) {
+    _count = count < 0 ? 0 : count;
+    if (_count == 0) {
+      state = 0;
+      return;
+    }
+    if (state >= _count) {
+      state = _count - 1;
+    }
+  }
+
+  void navigate(int delta) {
+    state = navigateIndex(state, _count, delta);
+  }
+}
+
+final focusedTrackRowIndexProvider =
+    NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
+
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
@@ -231,10 +258,13 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
             .read(trackSavedLoopsProvider.notifier)
             .set(trackId, evt.loops ?? const []);
       }
-    // MIDI row-focus / load-to-deck UI is a later sub-issue; payload is on the evt.
     case LibraryEvtKind.navigate:
+      ref.read(focusedTrackRowIndexProvider.notifier).navigate(evt.delta ?? 0);
     case LibraryEvtKind.load:
-      break;
+      final deck = evt.deck;
+      if (deck != null) {
+        unawaited(loadFocusedRowToDeck(ref, deck));
+      }
   }
 }
 

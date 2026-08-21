@@ -64,6 +64,20 @@ class SettingsLibraryPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        SettingsToggle(
+          label: 'Scan folder collections recursively',
+          value: draft.scanFolderTree,
+          onChanged: (v) =>
+              onChanged(copyAppSettings(draft, scanFolderTree: v)),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Include audio files in subfolders when adding a folder collection.',
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 16),
         SettingsField(
           label: 'Track table columns',
           child: DecoratedBox(

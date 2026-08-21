@@ -216,6 +216,13 @@ pub struct AppSettings {
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
     pub waveform_display_mode: WaveformDisplayModeSetting,
+    /// Default recurse flag used when adding a folder collection.
+    #[serde(default = "default_scan_folder_tree")]
+    pub scan_folder_tree: bool,
+}
+
+fn default_scan_folder_tree() -> bool {
+    true
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -233,6 +240,7 @@ struct SettingsHost {
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
+    scan_folder_tree: bool,
 }
 
 impl Default for SettingsHost {
@@ -250,6 +258,7 @@ impl Default for SettingsHost {
             default_top_jog_mode: JogModeSetting::Vinyl,
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
+            scan_folder_tree: true,
         }
     }
 }
@@ -471,6 +480,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
         waveform_display_mode: host.waveform_display_mode,
+        scan_folder_tree: host.scan_folder_tree,
     }
 }
 
@@ -500,6 +510,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
+    host.scan_folder_tree = settings.scan_folder_tree;
     host.configured = true;
     Ok(())
 }
@@ -605,6 +616,7 @@ mod tests {
             parsed.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
+        assert!(parsed.scan_folder_tree);
     }
 
     #[test]
@@ -695,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_scan_folder_tree_field_is_ignored() {
+    fn scan_folder_tree_field_round_trips() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
@@ -708,7 +720,7 @@ mod tests {
         let mut host = SettingsHost::default();
         apply_to_host(&mut host, loaded).expect("apply");
         let restored = settings_from_host(&host);
-        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
+        assert!(!restored.scan_folder_tree);
     }
 
     #[test]

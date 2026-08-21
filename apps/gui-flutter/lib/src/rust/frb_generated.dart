@@ -428,6 +428,7 @@ abstract class RustLibApi extends BaseApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
+    required bool scanFolderTree,
   });
 
   Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
@@ -3047,6 +3048,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
+    required bool scanFolderTree,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3057,6 +3059,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(folderPath, serializer);
+          sse_encode_bool(scanFolderTree, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3069,7 +3072,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta,
-        argValues: [that, folderPath],
+        argValues: [that, folderPath, scanFolderTree],
         apiImpl: this,
       ),
     );
@@ -3079,7 +3082,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_add_folder_collection",
-        argNames: ["that", "folderPath"],
+        argNames: ["that", "folderPath", "scanFolderTree"],
       );
 
   @override
@@ -4209,8 +4212,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 20)
-      throw Exception('unexpected arr length: expect 20 but see ${arr.length}');
+    if (arr.length != 21)
+      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -4232,6 +4235,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
+      scanFolderTree: dco_decode_bool(arr[20]),
     );
   }
 
@@ -5333,6 +5337,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
+    var var_scanFolderTree = sse_decode_bool(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -5354,6 +5359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
       waveformDisplayMode: var_waveformDisplayMode,
+      scanFolderTree: var_scanFolderTree,
     );
   }
 
@@ -6762,6 +6768,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.waveformDisplayMode,
       serializer,
     );
+    sse_encode_bool(self.scanFolderTree, serializer);
   }
 
   @protected
@@ -8176,9 +8183,11 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   /// Add a folder as a collection and sync its tracks.
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
+    required bool scanFolderTree,
   }) => RustLib.instance.api.crateApiLibraryLibraryTransportAddFolderCollection(
     that: this,
     folderPath: folderPath,
+    scanFolderTree: scanFolderTree,
   );
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).

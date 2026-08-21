@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
@@ -46,8 +47,11 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
+      final scanFolderTree =
+          ref.read(appSettingsProvider).asData?.value.scanFolderTree ?? true;
       final result = await transport.addFolderCollection(
         folderPath: folderPath,
+        scanFolderTree: scanFolderTree,
       );
       ref.invalidate(collectionsProvider);
       ref.invalidate(collectionTracksProvider);

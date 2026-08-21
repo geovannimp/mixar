@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
@@ -264,11 +265,50 @@ Future<void> loadPayloadToDeck(
   WidgetRef ref,
   int deckId,
   TrackDragPayload payload,
-) async {
-  final loading = ref.read(deckLoadInFlightProvider.notifier);
+) {
+  return _applyPayloadToDeck(
+    engineFuture: ref.read(engineTransportProvider.future),
+    loading: ref.read(deckLoadInFlightProvider.notifier),
+    ui: ref.read(engineUiProvider.notifier),
+    deckId: deckId,
+    payload: payload,
+  );
+}
+
+Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
+  final tracks = ref.read(libraryTableTracksProvider).asData?.value ?? const [];
+  final index = ref.read(focusedTrackRowIndexProvider);
+  final tab = ref.read(librarySourceTabProvider);
+  final resolved =
+      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
+  final payload = focusedLoadPayload(
+    tracks,
+    index,
+    inLibrary: (track) =>
+        trackIsInLibrary(track, tab: tab, driveResolvedByPath: resolved),
+  );
+  if (payload == null) {
+    return;
+  }
+  await _applyPayloadToDeck(
+    engineFuture: ref.read(engineTransportProvider.future),
+    loading: ref.read(deckLoadInFlightProvider.notifier),
+    ui: ref.read(engineUiProvider.notifier),
+    deckId: deckId,
+    payload: payload,
+  );
+}
+
+Future<void> _applyPayloadToDeck({
+  required Future<EngineTransport?> engineFuture,
+  required DeckLoadInFlight loading,
+  required EngineUi ui,
+  required int deckId,
+  required TrackDragPayload payload,
+}) async {
   loading.set(deckId, true);
   try {
-    final engine = await ref.read(engineTransportProvider.future);
+    final engine = await engineFuture;
     if (engine == null) {
       return;
     }
@@ -279,13 +319,11 @@ Future<void> loadPayloadToDeck(
           engine.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
     );
-    ref
-        .read(engineUiProvider.notifier)
-        .setDeckTitle(
-          deckId,
-          trackDisplayTitle(title: payload.title, path: payload.path),
-        );
-    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
+    ui.setDeckTitle(
+      deckId,
+      trackDisplayTitle(title: payload.title, path: payload.path),
+    );
+    ui.setDeckTrackId(deckId, payload.trackId);
   } finally {
     loading.set(deckId, false);
   }

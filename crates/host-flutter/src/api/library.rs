@@ -300,13 +300,14 @@ impl LibraryTransport {
     pub fn add_folder_collection(
         &self,
         folder_path: String,
+        scan_folder_tree: bool,
     ) -> Result<AddFolderCollectionResult, String> {
         let collection_id = {
             let mut lib = self
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            lib.add_collection(&NewCollection::folder(folder_path))
+            lib.add_collection(&NewCollection::folder_scan(folder_path, scan_folder_tree))
                 .map_err(|e| e.to_string())?
                 .id
         };

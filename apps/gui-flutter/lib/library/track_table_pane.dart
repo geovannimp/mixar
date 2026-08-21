@@ -7,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -116,8 +117,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ref.listen(artworkCacheProvider, (_, _) {
       _manager?.notifyListeners();
     });
+    ref.listen(focusedTrackRowIndexProvider, (_, index) {
+      final manager = _manager;
+      if (manager != null) {
+        _applyMidiFocus(manager, index);
+      }
+    });
 
     ref.listen(libraryTableTracksProvider, (_, next) {
+      ref
+          .read(focusedTrackRowIndexProvider.notifier)
+          .setCount(next.asData?.value.length ?? 0);
       final manager = _manager;
       if (manager == null) {
         return;
@@ -210,6 +220,13 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                               e.stateManager.setShowColumnFilter(false);
                               _attachScrollListener(e.stateManager);
                               _requestVisibleArtwork(e.stateManager);
+                              ref
+                                  .read(focusedTrackRowIndexProvider.notifier)
+                                  .setCount(_tracks.length);
+                              _applyMidiFocus(
+                                e.stateManager,
+                                ref.read(focusedTrackRowIndexProvider),
+                              );
                             },
                             configuration: config,
                           ),
@@ -362,14 +379,21 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         enableSorting: false,
         renderer: (ctx) {
           final trackId = ctx.row.cells['trackId']?.value as String?;
-          if (trackId == null) {
+          final path = ctx.row.cells['path']?.value as String?;
+          if (trackId == null || path == null) {
             return const SizedBox.shrink();
           }
           final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
+          final title =
+              ctx.row.cells['dragTitle']?.value as String? ??
+              ctx.row.cells['title']?.value as String? ??
+              '';
           return Center(
             child: TrackActionsMenu(
               trackId: trackId,
+              path: path,
+              title: title,
               inLibrary: inLibrary,
               analyzing: analyzing,
             ),
@@ -521,6 +545,33 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
+  void _applyMidiFocus(TrinaGridStateManager manager, int index) {
+    if (index < 0 || index >= manager.refRows.length) {
+      return;
+    }
+    final row = manager.refRows[index];
+    final cell = row.cells['title'] ?? row.cells.values.first;
+    manager.setCurrentCell(cell, index);
+    final scroll = manager.scroll.bodyRowsVertical;
+    if (scroll == null || !scroll.hasClients) {
+      return;
+    }
+    final rowH = manager.rowTotalHeight;
+    if (rowH <= 0) {
+      return;
+    }
+    final target = index * rowH;
+    final view = scroll.position.viewportDimension;
+    final offset = scroll.offset;
+    if (target < offset) {
+      scroll.jumpTo(target.clamp(0, scroll.position.maxScrollExtent));
+    } else if (target + rowH > offset + view) {
+      scroll.jumpTo(
+        (target + rowH - view).clamp(0, scroll.position.maxScrollExtent),
+      );
+    }
+  }
+
   String _formatDuration(int? ms) {
     if (ms == null || ms <= 0) {
       return '';
@@ -535,23 +586,65 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 class TrackActionsMenu extends ConsumerWidget {
   const TrackActionsMenu({
     required this.trackId,
+    required this.path,
+    required this.title,
     required this.inLibrary,
     required this.analyzing,
     super.key,
   });
 
   final String trackId;
+  final String path;
+  final String title;
   final bool inLibrary;
   final bool analyzing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final engineRunning = ref.watch(engineRunningProvider);
     return FPopoverMenu(
-      style: const .delta(maxWidth: 250),
       faded: null,
-      divider: .full,
       overlayLocation: OverlayChildLocation.rootOverlay,
       menuBuilder: (context, controller, _) => [
+        .group(
+          children: [
+            .raw(
+              style: .delta(
+                rawContentStyle: .delta(padding: .value(.fromLTRB(8, 8, 8, 2))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 4,
+                children: [
+                  const Text('Load to deck'),
+                  Row(
+                    spacing: 4,
+                    children: [
+                      _LoadDeckChip(
+                        letter: 'A',
+                        color: FaderColors.a.grip,
+                        enabled: engineRunning,
+                        onPress: () {
+                          unawaited(controller.hide());
+                          unawaited(_loadToDeck(ref, 0));
+                        },
+                      ),
+                      _LoadDeckChip(
+                        letter: 'B',
+                        color: FaderColors.b.grip,
+                        enabled: engineRunning,
+                        onPress: () {
+                          unawaited(controller.hide());
+                          unawaited(_loadToDeck(ref, 1));
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         .group(
           children: [
             .item(
@@ -587,6 +680,55 @@ class TrackActionsMenu extends ConsumerWidget {
       child: analyzing
           ? const FCircularProgress()
           : const Icon(FLucideIcons.ellipsisVertical),
+    );
+  }
+
+  Future<void> _loadToDeck(WidgetRef ref, int deckId) {
+    return loadPayloadToDeck(
+      ref,
+      deckId,
+      TrackDragPayload(
+        source: inLibrary
+            ? TrackDragSource.library
+            : TrackDragSource.filesystem,
+        trackId: inLibrary ? trackId : null,
+        path: path,
+        title: trackDisplayTitle(title: title, path: path),
+      ),
+    );
+  }
+}
+
+class _LoadDeckChip extends StatelessWidget {
+  const _LoadDeckChip({
+    required this.letter,
+    required this.color,
+    required this.enabled,
+    required this.onPress,
+  });
+
+  final String letter;
+  final Color color;
+  final bool enabled;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Expanded(
+      child: FButton(
+        semanticsLabel: 'Load to $letter',
+        onPress: enabled ? onPress : null,
+        variant: .ghost,
+        size: .xs,
+        child: Text(
+          letter,
+          style: theme.typography.body.xs.copyWith(
+            fontWeight: FontWeight.w700,
+            color: enabled ? color : color.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
     );
   }
 }
