@@ -92,6 +92,19 @@ double engineEstimateMs({
   required double speed,
 }) => anchorMs + ageMs * speed;
 
+/// Wall-clock duration for an [AnimationController] whose 0..1 value is
+/// track progress, so `forward()` reaches the end in `durationMs / speed`.
+Duration playheadWallDuration({
+  required int durationMs,
+  required double speed,
+}) {
+  if (durationMs <= 0) {
+    return const Duration(milliseconds: 1);
+  }
+  final s = speed.isFinite && speed > 0 ? speed : 1.0;
+  return Duration(milliseconds: (durationMs / s).round().clamp(1, 86400000));
+}
+
 /// Keep interpolating; only pull 25% when drift exceeds [kWaveformDriftCorrectMs].
 /// A late ~33ms position poll must not yank the playhead backward.
 double correctPlayheadDrift({

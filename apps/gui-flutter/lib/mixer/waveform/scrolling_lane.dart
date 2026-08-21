@@ -1,17 +1,14 @@
 import 'dart:async';
+import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
+import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
   const ScrollingLane({required this.deckId, required this.label, super.key});
@@ -25,13 +22,7 @@ class ScrollingLane extends ConsumerStatefulWidget {
 
 class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     with SingleTickerProviderStateMixin {
-  late final Ticker _ticker;
-  final _playhead = ValueNotifier(0.0);
-  var _displayMs = 0.0;
-  var _anchorMs = 0.0;
-  var _anchorElapsed = Duration.zero;
-  var _elapsed = Duration.zero;
-  var _lastElapsed = Duration.zero;
+  late final AnimationController _playhead;
   var _scrubbing = false;
   var _scrubAnchorX = 0.0;
   var _scrubAnchorMs = 0.0;
@@ -40,83 +31,139 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   @override
   void initState() {
     super.initState();
-    _ticker = createTicker(_onTick);
+    _playhead = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
-    _ticker.dispose();
     _playhead.dispose();
     super.dispose();
   }
 
-  void _onTick(Duration elapsed) {
-    final dt = (elapsed - _lastElapsed).inMicroseconds / 1e3;
-    _lastElapsed = elapsed;
-    _elapsed = elapsed;
-    if (_scrubbing || !mounted || dt <= 0) {
+  double _displayMs(int durationMs) {
+    if (durationMs <= 0) {
+      return 0;
+    }
+    return _playhead.value * durationMs;
+  }
+
+  void _setDisplayMs(
+    double ms, {
+    required int durationMs,
+    required double speed,
+    required bool playing,
+  }) {
+    if (durationMs <= 0) {
+      _playhead
+        ..stop()
+        ..value = 0;
       return;
     }
-    final playing = ref.read(deckPlayingProvider(widget.deckId));
-    if (!playing) {
+    _playhead
+      ..stop()
+      ..duration = playheadWallDuration(durationMs: durationMs, speed: speed)
+      ..value = (ms / durationMs).clamp(0.0, 1.0);
+    if (playing && !_scrubbing) {
+      _playhead.forward();
+    }
+  }
+
+  void _syncPlayback({
+    required bool playing,
+    required int durationMs,
+    required double speed,
+  }) {
+    if (durationMs <= 0) {
+      _playhead.stop();
       return;
     }
-    final speed = ref.read(deckSpeedRatioProvider(widget.deckId));
-    final estimate = engineEstimateMs(
-      anchorMs: _anchorMs,
-      ageMs: (elapsed - _anchorElapsed).inMicroseconds / 1e3,
-      speed: speed,
-    );
-    _displayMs = correctPlayheadDrift(
-      displayMs: _displayMs + dt * speed,
-      estimateMs: estimate,
-    );
-    _playhead.value = _displayMs;
+    final ms = _displayMs(durationMs);
+    final wall = playheadWallDuration(durationMs: durationMs, speed: speed);
+    if (_playhead.duration != wall) {
+      _playhead
+        ..stop()
+        ..duration = wall
+        ..value = (ms / durationMs).clamp(0.0, 1.0);
+    }
+    if (playing && !_scrubbing) {
+      if (!_playhead.isAnimating) {
+        _playhead.forward();
+      }
+    } else if (_playhead.isAnimating) {
+      _playhead.stop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final playing = ref.watch(deckPlayingProvider(widget.deckId));
-    if (playing && !_ticker.isTicking) {
-      _elapsed = Duration.zero;
-      _lastElapsed = Duration.zero;
-      _anchorElapsed = Duration.zero;
-      _anchorMs = _displayMs;
-      _playhead.value = _displayMs;
-      _ticker.start();
-    } else if (!playing && _ticker.isTicking) {
-      _ticker.stop();
-    }
+    final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
     final strip = trackId == null || durationMs <= 0
         ? null
         : ref.watch(waveformStripProvider((trackId, durationMs)));
-    final grid = trackId == null
+    final beatGrid = trackId == null || durationMs <= 0
         ? null
-        : ref.watch(beatGridProvider(trackId)).value;
+        : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
+    final loops = trackId == null || durationMs <= 0
+        ? null
+        : ref.watch(stripLoopPictureProvider((trackId, durationMs)));
+    final activeLoop = durationMs <= 0
+        ? null
+        : ref.watch(
+            stripActiveLoopPictureProvider((widget.deckId, durationMs)),
+          );
+    final cues = trackId == null || durationMs <= 0
+        ? null
+        : ref.watch(stripCuePictureProvider((trackId, durationMs)));
+
+    _syncPlayback(playing: playing, durationMs: durationMs, speed: speed);
 
     ref.listen(deckPositionMsProvider(widget.deckId), (prev, next) {
-      _anchorMs = next.toDouble();
-      _anchorElapsed = _elapsed;
-      if (_scrubbing) {
+      if (_scrubbing || durationMs <= 0) {
         return;
       }
+      final display = _displayMs(durationMs);
+      final engineMs = next.toDouble();
       final playingNow = ref.read(deckPlayingProvider(widget.deckId));
-      if (!playheadShouldSnap(
-        displayMs: _displayMs,
-        engineMs: next.toDouble(),
+      final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
+      if (playheadShouldSnap(
+        displayMs: display,
+        engineMs: engineMs,
         playing: playingNow,
       )) {
+        _setDisplayMs(
+          engineMs,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: playingNow,
+        );
         return;
       }
-      _displayMs = next.toDouble();
-      _playhead.value = _displayMs;
+      final corrected = correctPlayheadDrift(
+        displayMs: display,
+        estimateMs: engineMs,
+      );
+      if (corrected != display) {
+        _setDisplayMs(
+          corrected,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: playingNow,
+        );
+      }
     });
     ref.listen(deckSpeedRatioProvider(widget.deckId), (prev, next) {
-      _anchorMs = _displayMs;
-      _anchorElapsed = _elapsed;
+      if (durationMs <= 0) {
+        return;
+      }
+      _syncPlayback(
+        playing: ref.read(deckPlayingProvider(widget.deckId)),
+        durationMs: durationMs,
+        speed: next,
+      );
     });
 
     return LayoutBuilder(
@@ -134,11 +181,12 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               ? null
               : (e) {
                   _scrubbing = true;
+                  _playhead.stop();
                   _scrubAnchorX = e.localPosition.dx;
-                  _scrubAnchorMs = _displayMs;
+                  _scrubAnchorMs = _displayMs(durationMs);
                 },
           onPointerMove: (e) {
-            if (!_scrubbing) {
+            if (!_scrubbing || durationMs <= 0) {
               return;
             }
             final ms = centerScrubMs(
@@ -150,27 +198,45 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                 viewportWidth: width,
               ).toDouble(),
             );
-            _displayMs = ms;
-            _playhead.value = ms;
+            _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
             _throttledSeek(ms.round());
           },
           onPointerUp: (e) {
             if (!_scrubbing) {
               return;
             }
-            final ms = centerScrubMs(
-              anchorPosMs: _scrubAnchorMs,
-              deltaX: e.localPosition.dx - _scrubAnchorX,
-              width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-              ).toDouble(),
-            ).round();
+            final ms = durationMs <= 0
+                ? 0
+                : centerScrubMs(
+                    anchorPosMs: _scrubAnchorMs,
+                    deltaX: e.localPosition.dx - _scrubAnchorX,
+                    width: width,
+                    spanMs: cropVisibleMs(
+                      durationMs: durationMs,
+                      viewportWidth: width,
+                    ).toDouble(),
+                  ).round();
             _scrubbing = false;
+            if (durationMs > 0) {
+              _setDisplayMs(
+                ms.toDouble(),
+                durationMs: durationMs,
+                speed: speed,
+                playing: playing,
+              );
+            }
             unawaited(_seek(ms));
           },
-          onPointerCancel: (_) => _scrubbing = false,
+          onPointerCancel: (_) {
+            _scrubbing = false;
+            if (playing && durationMs > 0) {
+              _syncPlayback(
+                playing: playing,
+                durationMs: durationMs,
+                speed: speed,
+              );
+            }
+          },
           child: ClipRect(
             child: Stack(
               fit: StackFit.expand,
@@ -180,10 +246,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                   AnimatedBuilder(
                     animation: _playhead,
                     builder: (context, child) {
+                      final positionMs = _displayMs(durationMs);
                       return Positioned(
                         left: snapPx(
                           stripTranslateX(
-                            positionMs: _playhead.value,
+                            positionMs: positionMs,
                             viewportWidth: width,
                             pxPerMs: pxPerMs,
                           ),
@@ -199,7 +266,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                       child: _StripLayer(
                         strip: strip,
                         height: height,
-                        grid: grid,
+                        beatGrid: beatGrid,
+                        loops: loops,
+                        activeLoop: activeLoop,
+                        cues: cues,
                       ),
                     ),
                   ),
@@ -257,46 +327,52 @@ class _StripLayer extends StatelessWidget {
   const _StripLayer({
     required this.strip,
     required this.height,
-    required this.grid,
+    required this.beatGrid,
+    required this.loops,
+    required this.activeLoop,
+    required this.cues,
   });
 
   final WaveformStrip strip;
   final double height;
-  final BeatGridData? grid;
+  final Picture? beatGrid;
+  final Picture? loops;
+  final Picture? activeLoop;
+  final Picture? cues;
 
   @override
   Widget build(BuildContext context) {
-    final grid = this.grid;
-    final marks = grid == null || grid.bpm == null
-        ? const <BeatMark>[]
-        : beatGridXs(
-            bpm: grid.bpm!,
-            firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
-            originMs: 0,
-            spanMs: strip.durationMs.toDouble(),
-            width: strip.widthPx.toDouble(),
-          );
     return SizedBox(
       width: strip.widthPx.toDouble(),
       height: height,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CustomPaint(
-            painter: _StripPainter(strip: strip),
-            size: Size(strip.widthPx.toDouble(), height),
-          ),
-          CustomPaint(painter: _BeatGridPainter(marks: marks)),
-        ],
+      child: CustomPaint(
+        painter: _StripPainter(
+          strip: strip,
+          beatGrid: beatGrid,
+          loops: loops,
+          activeLoop: activeLoop,
+          cues: cues,
+        ),
+        size: Size(strip.widthPx.toDouble(), height),
       ),
     );
   }
 }
 
 class _StripPainter extends CustomPainter {
-  _StripPainter({required this.strip});
+  _StripPainter({
+    required this.strip,
+    required this.beatGrid,
+    required this.loops,
+    required this.activeLoop,
+    required this.cues,
+  });
 
   final WaveformStrip strip;
+  final Picture? beatGrid;
+  final Picture? loops;
+  final Picture? activeLoop;
+  final Picture? cues;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -304,6 +380,7 @@ class _StripPainter extends CustomPainter {
       return;
     }
     final sy = size.height / strip.heightPx;
+    canvas.save();
     canvas.scale(1, sy);
     canvas.drawPicture(strip.l0);
     for (final tile in strip.tiles) {
@@ -312,39 +389,20 @@ class _StripPainter extends CustomPainter {
       canvas.drawPicture(tile.picture);
       canvas.restore();
     }
+    // Overlays are authored at strip height; scale with the waveform.
+    for (final picture in [beatGrid, loops, activeLoop, cues]) {
+      if (picture != null) {
+        canvas.drawPicture(picture);
+      }
+    }
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_StripPainter oldDelegate) =>
-      !identical(strip, oldDelegate.strip);
-}
-
-class _BeatGridPainter extends CustomPainter {
-  _BeatGridPainter({required this.marks});
-
-  final List<BeatMark> marks;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bar = Paint()
-      ..color = const Color.fromARGB(80, 200, 205, 215)
-      ..strokeWidth = 1
-      ..isAntiAlias = false;
-    final beat = Paint()
-      ..color = const Color.fromARGB(55, 170, 175, 185)
-      ..strokeWidth = 1
-      ..isAntiAlias = false;
-    for (final mark in marks) {
-      final x = mark.x.roundToDouble();
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        mark.isBar ? bar : beat,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BeatGridPainter oldDelegate) =>
-      !listEquals(marks, oldDelegate.marks);
+      !identical(strip, oldDelegate.strip) ||
+      !identical(beatGrid, oldDelegate.beatGrid) ||
+      !identical(loops, oldDelegate.loops) ||
+      !identical(activeLoop, oldDelegate.activeLoop) ||
+      !identical(cues, oldDelegate.cues);
 }

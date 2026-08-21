@@ -296,4 +296,23 @@ void main() {
       expect(dx, closeTo(-width, 1e-6));
     },
   );
+
+  test('playheadWallDuration is track length scaled by speed', () {
+    expect(
+      playheadWallDuration(durationMs: 60_000, speed: 1),
+      const Duration(milliseconds: 60_000),
+    );
+    expect(
+      playheadWallDuration(durationMs: 60_000, speed: 2),
+      const Duration(milliseconds: 30_000),
+    );
+    expect(
+      playheadWallDuration(durationMs: 60_000, speed: 0.5),
+      const Duration(milliseconds: 120_000),
+    );
+    expect(
+      playheadWallDuration(durationMs: 0, speed: 1),
+      const Duration(milliseconds: 1),
+    );
+  });
 }
