@@ -47,11 +47,20 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
+      if (!mounted) {
+        return;
+      }
       final settings = await ref.read(appSettingsProvider.future);
+      if (!mounted) {
+        return;
+      }
       final result = await transport.addFolderCollection(
         folderPath: folderPath,
         scanFolderTree: settings.scanFolderTree,
       );
+      if (!mounted) {
+        return;
+      }
       ref.invalidate(collectionsProvider);
       ref.invalidate(collectionTracksProvider);
       ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
@@ -59,6 +68,9 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
           .read(librarySourceTabProvider.notifier)
           .set(LibrarySourceTab.collections);
     } catch (e) {
+      if (!mounted) {
+        return;
+      }
       ref.read(libraryMessageProvider.notifier).setError('$e');
     }
   }

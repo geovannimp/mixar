@@ -60,6 +60,19 @@ void main() {
     );
   });
 
+  test('visualRowIndexForFocusedTrack follows track id after sort', () {
+    expect(
+      visualRowIndexForFocusedTrack(['c', 'b', 'a'], ['a', 'b', 'c'], 1),
+      1,
+    );
+    expect(
+      visualRowIndexForFocusedTrack(['c', 'b', 'a'], ['a', 'b', 'c'], 0),
+      2,
+    );
+    expect(visualRowIndexForFocusedTrack(['c', 'b'], ['a', 'b', 'c'], 0), isNull);
+    expect(visualRowIndexForFocusedTrack(['a'], ['a'], 1), isNull);
+  });
+
   test('FocusedTrackRowIndex navigates then clamps to row count', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);

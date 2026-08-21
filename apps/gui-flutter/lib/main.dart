@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
@@ -12,7 +13,9 @@ import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await BrowserContextMenu.disableContextMenu();
+  if (kIsWeb) {
+    await BrowserContextMenu.disableContextMenu();
+  }
   await RustLib.init();
 
   final appTitle = appDisplayName();

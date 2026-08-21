@@ -26,6 +26,9 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
+      if (!mounted) {
+        return;
+      }
       final settings = await ref.read(appSettingsProvider.future);
       if (!mounted) {
         return;

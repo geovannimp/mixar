@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
@@ -580,12 +581,20 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   }
 
   void _applyMidiFocus(TrinaGridStateManager manager, int index) {
-    if (index < 0 || index >= manager.refRows.length) {
+    final visualIndex = visualRowIndexForFocusedTrack(
+      [
+        for (final row in manager.refRows)
+          row.cells['trackId']?.value as String?,
+      ],
+      [for (final track in _tracks) track.id],
+      index,
+    );
+    if (visualIndex == null || visualIndex >= manager.refRows.length) {
       return;
     }
-    final row = manager.refRows[index];
+    final row = manager.refRows[visualIndex];
     final cell = row.cells['title'] ?? row.cells.values.first;
-    manager.setCurrentCell(cell, index);
+    manager.setCurrentCell(cell, visualIndex);
     final scroll = manager.scroll.bodyRowsVertical;
     if (scroll == null || !scroll.hasClients) {
       return;
@@ -594,7 +603,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (rowH <= 0) {
       return;
     }
-    final target = index * rowH;
+    final target = visualIndex * rowH;
     final view = scroll.position.viewportDimension;
     final offset = scroll.offset;
     if (target < offset) {
