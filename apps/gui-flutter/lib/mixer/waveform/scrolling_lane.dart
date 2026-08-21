@@ -1,17 +1,15 @@
 import 'dart:async';
+import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
+import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
   const ScrollingLane({required this.deckId, required this.label, super.key});
@@ -93,9 +91,20 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final strip = trackId == null || durationMs <= 0
         ? null
         : ref.watch(waveformStripProvider((trackId, durationMs)));
-    final grid = trackId == null
+    final beatGrid = trackId == null || durationMs <= 0
         ? null
-        : ref.watch(beatGridProvider(trackId)).value;
+        : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
+    final loops = trackId == null || durationMs <= 0
+        ? null
+        : ref.watch(stripLoopPictureProvider((trackId, durationMs)));
+    final activeLoop = durationMs <= 0
+        ? null
+        : ref.watch(
+            stripActiveLoopPictureProvider((widget.deckId, durationMs)),
+          );
+    final cues = trackId == null || durationMs <= 0
+        ? null
+        : ref.watch(stripCuePictureProvider((trackId, durationMs)));
 
     ref.listen(deckPositionMsProvider(widget.deckId), (prev, next) {
       _anchorMs = next.toDouble();
@@ -199,7 +208,10 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                       child: _StripLayer(
                         strip: strip,
                         height: height,
-                        grid: grid,
+                        beatGrid: beatGrid,
+                        loops: loops,
+                        activeLoop: activeLoop,
+                        cues: cues,
                       ),
                     ),
                   ),
@@ -257,46 +269,52 @@ class _StripLayer extends StatelessWidget {
   const _StripLayer({
     required this.strip,
     required this.height,
-    required this.grid,
+    required this.beatGrid,
+    required this.loops,
+    required this.activeLoop,
+    required this.cues,
   });
 
   final WaveformStrip strip;
   final double height;
-  final BeatGridData? grid;
+  final Picture? beatGrid;
+  final Picture? loops;
+  final Picture? activeLoop;
+  final Picture? cues;
 
   @override
   Widget build(BuildContext context) {
-    final grid = this.grid;
-    final marks = grid == null || grid.bpm == null
-        ? const <BeatMark>[]
-        : beatGridXs(
-            bpm: grid.bpm!,
-            firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
-            originMs: 0,
-            spanMs: strip.durationMs.toDouble(),
-            width: strip.widthPx.toDouble(),
-          );
     return SizedBox(
       width: strip.widthPx.toDouble(),
       height: height,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CustomPaint(
-            painter: _StripPainter(strip: strip),
-            size: Size(strip.widthPx.toDouble(), height),
-          ),
-          CustomPaint(painter: _BeatGridPainter(marks: marks)),
-        ],
+      child: CustomPaint(
+        painter: _StripPainter(
+          strip: strip,
+          beatGrid: beatGrid,
+          loops: loops,
+          activeLoop: activeLoop,
+          cues: cues,
+        ),
+        size: Size(strip.widthPx.toDouble(), height),
       ),
     );
   }
 }
 
 class _StripPainter extends CustomPainter {
-  _StripPainter({required this.strip});
+  _StripPainter({
+    required this.strip,
+    required this.beatGrid,
+    required this.loops,
+    required this.activeLoop,
+    required this.cues,
+  });
 
   final WaveformStrip strip;
+  final Picture? beatGrid;
+  final Picture? loops;
+  final Picture? activeLoop;
+  final Picture? cues;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -304,6 +322,7 @@ class _StripPainter extends CustomPainter {
       return;
     }
     final sy = size.height / strip.heightPx;
+    canvas.save();
     canvas.scale(1, sy);
     canvas.drawPicture(strip.l0);
     for (final tile in strip.tiles) {
@@ -312,39 +331,20 @@ class _StripPainter extends CustomPainter {
       canvas.drawPicture(tile.picture);
       canvas.restore();
     }
+    // Overlays are authored at strip height; scale with the waveform.
+    for (final picture in [beatGrid, loops, activeLoop, cues]) {
+      if (picture != null) {
+        canvas.drawPicture(picture);
+      }
+    }
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_StripPainter oldDelegate) =>
-      !identical(strip, oldDelegate.strip);
-}
-
-class _BeatGridPainter extends CustomPainter {
-  _BeatGridPainter({required this.marks});
-
-  final List<BeatMark> marks;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bar = Paint()
-      ..color = const Color.fromARGB(80, 200, 205, 215)
-      ..strokeWidth = 1
-      ..isAntiAlias = false;
-    final beat = Paint()
-      ..color = const Color.fromARGB(55, 170, 175, 185)
-      ..strokeWidth = 1
-      ..isAntiAlias = false;
-    for (final mark in marks) {
-      final x = mark.x.roundToDouble();
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        mark.isBar ? bar : beat,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_BeatGridPainter oldDelegate) =>
-      !listEquals(marks, oldDelegate.marks);
+      !identical(strip, oldDelegate.strip) ||
+      !identical(beatGrid, oldDelegate.beatGrid) ||
+      !identical(loops, oldDelegate.loops) ||
+      !identical(activeLoop, oldDelegate.activeLoop) ||
+      !identical(cues, oldDelegate.cues);
 }

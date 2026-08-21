@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
+import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 const _waveformSkeletonEffect = ShimmerEffect(
@@ -34,6 +39,8 @@ class OverviewStrip extends ConsumerWidget {
         : (ref.watch(waveformOverviewProvider(trackId)).value ??
               const <SpectralPeak>[]);
     final mode = ref.watch(waveformDisplayModeProvider);
+    final hotCues = ref.watch(deckHotCuesProvider(deckId));
+    final savedLoops = ref.watch(deckSavedLoopsProvider(deckId));
 
     return Skeletonizer(
       enabled: skeleton,
@@ -80,6 +87,16 @@ class OverviewStrip extends ConsumerWidget {
                         mode: mode,
                       ),
                     ),
+                    if (durationMs > 0 && width > 0)
+                      IgnorePointer(
+                        child: _OverviewOverlayLayer(
+                          durationMs: durationMs,
+                          width: width,
+                          height: height,
+                          hotCues: hotCues,
+                          savedLoops: savedLoops,
+                        ),
+                      ),
                     if (durationMs > 0)
                       Positioned(
                         left: window.left * width,
@@ -115,6 +132,128 @@ class OverviewStrip extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Cached Loop + Cue pictures for the overview (no beat grid / active loop).
+class _OverviewOverlayLayer extends StatefulWidget {
+  const _OverviewOverlayLayer({
+    required this.durationMs,
+    required this.width,
+    required this.height,
+    required this.hotCues,
+    required this.savedLoops,
+  });
+
+  final int durationMs;
+  final double width;
+  final double height;
+  final List<DeckHotCue> hotCues;
+  final List<SavedLoopInfo> savedLoops;
+
+  @override
+  State<_OverviewOverlayLayer> createState() => _OverviewOverlayLayerState();
+}
+
+class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
+  ui.Picture? _loops;
+  ui.Picture? _cues;
+  int? _loopKey;
+  int? _cueKey;
+
+  @override
+  void didUpdateWidget(covariant _OverviewOverlayLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncPictures();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncPictures();
+  }
+
+  @override
+  void dispose() {
+    _drop(_loops);
+    _drop(_cues);
+    super.dispose();
+  }
+
+  void _drop(ui.Picture? picture) {
+    if (picture == null) {
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      picture.dispose();
+    });
+  }
+
+  void _syncPictures() {
+    final size = Size(widget.width, widget.height);
+    final loopKey = Object.hash(
+      widget.durationMs,
+      widget.width,
+      widget.height,
+      Object.hashAll(widget.savedLoops),
+    );
+    if (loopKey != _loopKey) {
+      _drop(_loops);
+      _loops = widget.savedLoops.isEmpty
+          ? null
+          : recordLoopPicture(
+              loops: widget.savedLoops,
+              durationMs: widget.durationMs,
+              size: size,
+            );
+      _loopKey = loopKey;
+    }
+    final cueKey = Object.hash(
+      widget.durationMs,
+      widget.width,
+      widget.height,
+      Object.hashAll(widget.hotCues.map((c) => Object.hash(c.slot, c.positionMs))),
+    );
+    if (cueKey != _cueKey) {
+      _drop(_cues);
+      _cues = widget.hotCues.isEmpty
+          ? null
+          : recordCuePicture(
+              cues: widget.hotCues,
+              durationMs: widget.durationMs,
+              size: size,
+            );
+      _cueKey = cueKey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _OverviewOverlayPainter(loops: _loops, cues: _cues),
+      size: Size(widget.width, widget.height),
+    );
+  }
+}
+
+class _OverviewOverlayPainter extends CustomPainter {
+  _OverviewOverlayPainter({required this.loops, required this.cues});
+
+  final ui.Picture? loops;
+  final ui.Picture? cues;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (loops != null) {
+      canvas.drawPicture(loops!);
+    }
+    if (cues != null) {
+      canvas.drawPicture(cues!);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OverviewOverlayPainter oldDelegate) =>
+      !identical(loops, oldDelegate.loops) || !identical(cues, oldDelegate.cues);
 }
 
 Future<void> _seek(
