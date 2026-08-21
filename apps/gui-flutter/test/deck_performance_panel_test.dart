@@ -53,7 +53,7 @@ void main() {
 
     await tester.tap(find.byIcon(FLucideIcons.disc3));
     await tester.pumpAndSettle();
-    expect(find.text('JOG'), findsOneWidget);
+    expect(find.bySemanticsLabel('Jog wheel'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('IN'), findsNothing);
 

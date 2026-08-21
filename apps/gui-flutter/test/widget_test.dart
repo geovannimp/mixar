@@ -175,6 +175,8 @@ void main() {
     expect(find.textContaining('Filter tracks'), findsOneWidget);
     expect(find.text('Engine idle'), findsOneWidget);
     expect(find.text('No track loaded'), findsWidgets);
+    expect(find.text('Q'), findsWidgets);
+    expect(find.text('Load'), findsWidgets);
     expect(find.byKey(const ValueKey('mixer-panel-toggle')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('crossfader-panel-toggle')),

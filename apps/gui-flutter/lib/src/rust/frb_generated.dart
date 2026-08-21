@@ -4543,8 +4543,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 30)
-      throw Exception('unexpected arr length: expect 30 but see ${arr.length}');
+    if (arr.length != 35)
+      throw Exception('unexpected arr length: expect 35 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -4576,6 +4576,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       masterDeck: dco_decode_opt_box_autoadd_u_16(arr[27]),
       activeLoop: dco_decode_opt_box_autoadd_active_loop_info(arr[28]),
       activeLoopKnown: dco_decode_bool(arr[29]),
+      durationKnown: dco_decode_bool(arr[30]),
+      quantize: dco_decode_opt_box_autoadd_bool(arr[31]),
+      jogTouching: dco_decode_opt_box_autoadd_bool(arr[32]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[33]),
+      autoGainDb: dco_decode_opt_box_autoadd_f_32(arr[34]),
     );
   }
 
@@ -5748,6 +5753,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_activeLoopKnown = sse_decode_bool(deserializer);
+    var var_durationKnown = sse_decode_bool(deserializer);
+    var var_quantize = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_jogTouching = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_loudnessLufs = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_autoGainDb = sse_decode_opt_box_autoadd_f_32(deserializer);
     return EngineEvt(
       kind: var_kind,
       deckId: var_deckId,
@@ -5779,6 +5789,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       masterDeck: var_masterDeck,
       activeLoop: var_activeLoop,
       activeLoopKnown: var_activeLoopKnown,
+      durationKnown: var_durationKnown,
+      quantize: var_quantize,
+      jogTouching: var_jogTouching,
+      loudnessLufs: var_loudnessLufs,
+      autoGainDb: var_autoGainDb,
     );
   }
 
@@ -7178,6 +7193,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_16(self.masterDeck, serializer);
     sse_encode_opt_box_autoadd_active_loop_info(self.activeLoop, serializer);
     sse_encode_bool(self.activeLoopKnown, serializer);
+    sse_encode_bool(self.durationKnown, serializer);
+    sse_encode_opt_box_autoadd_bool(self.quantize, serializer);
+    sse_encode_opt_box_autoadd_bool(self.jogTouching, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.loudnessLufs, serializer);
+    sse_encode_opt_box_autoadd_f_32(self.autoGainDb, serializer);
   }
 
   @protected

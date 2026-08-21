@@ -66,6 +66,10 @@ class EngineUiSnapshot {
     this.padModes = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
+    this.quantize = const {},
+    this.jogTouching = const {},
+    this.loudnessLufs = const {},
+    this.autoGainDb = const {},
     this.masterDeck = 0,
     this.cueMix = 0.0,
     this.masterCue = false,
@@ -88,6 +92,10 @@ class EngineUiSnapshot {
   final Map<int, PadMode> padModes;
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
+  final Map<int, bool> quantize;
+  final Map<int, bool> jogTouching;
+  final Map<int, double> loudnessLufs;
+  final Map<int, double> autoGainDb;
   final int masterDeck;
 
   String? titleFor(int deckId) => titles[deckId];
@@ -107,6 +115,14 @@ class EngineUiSnapshot {
   SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
 
   ActiveLoopInfo? activeLoopFor(int deckId) => activeLoops[deckId];
+
+  bool quantizeFor(int deckId) => quantize[deckId] ?? true;
+
+  bool jogTouchingFor(int deckId) => jogTouching[deckId] ?? false;
+
+  double? loudnessLufsFor(int deckId) => loudnessLufs[deckId];
+
+  double autoGainDbFor(int deckId) => autoGainDb[deckId] ?? 0;
 
   bool isMaster(int deckId) => masterDeck == deckId;
 
@@ -129,6 +145,10 @@ class EngineUiSnapshot {
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
+    Map<int, bool>? quantize,
+    Map<int, bool>? jogTouching,
+    Map<int, double>? loudnessLufs,
+    Map<int, double>? autoGainDb,
     int? masterDeck,
     double? cueMix,
     bool? masterCue,
@@ -146,6 +166,10 @@ class EngineUiSnapshot {
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
+    quantize: quantize ?? this.quantize,
+    jogTouching: jogTouching ?? this.jogTouching,
+    loudnessLufs: loudnessLufs ?? this.loudnessLufs,
+    autoGainDb: autoGainDb ?? this.autoGainDb,
     masterDeck: masterDeck ?? this.masterDeck,
     cueMix: cueMix ?? this.cueMix,
     masterCue: masterCue ?? this.masterCue,
@@ -167,12 +191,18 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (id == null) {
         return prev;
       }
+      final unloaded =
+          evt.durationKnown &&
+          prev.durationMsFor(id) != null &&
+          evt.durationMs == null;
       final nextTitles = Map<int, String>.from(prev.titles);
       final title = evt.track;
       // Engine snapshots omit library metadata (`track`/`title` are always
       // null). Keep the host title from load; only replace when the evt
-      // actually carries one.
-      if (title != null && title.isNotEmpty) {
+      // actually carries one. Unload (duration_ms → null) clears host identity.
+      if (unloaded) {
+        nextTitles.remove(id);
+      } else if (title != null && title.isNotEmpty) {
         nextTitles[id] = title;
       }
       final nextPlaying = Map<int, bool>.from(prev.playing);
@@ -182,11 +212,15 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       final nextChannels = Map<int, MixerChannelUi>.from(prev.channels);
       nextChannels[id] = prev.channelFor(id).patchedFrom(evt);
       final nextTrackIds = Map<int, String>.from(prev.trackIds);
-      if (evt.trackId != null && evt.trackId!.isNotEmpty) {
+      if (unloaded) {
+        nextTrackIds.remove(id);
+      } else if (evt.trackId != null && evt.trackId!.isNotEmpty) {
         nextTrackIds[id] = evt.trackId!;
       }
       final nextDurations = Map<int, int>.from(prev.durationMs);
-      if (evt.durationMs != null) {
+      if (unloaded) {
+        nextDurations.remove(id);
+      } else if (evt.durationMs != null) {
         nextDurations[id] = evt.durationMs!;
       }
       final nextSpeeds = Map<int, double>.from(prev.speeds);
@@ -215,6 +249,32 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
           nextActiveLoops.remove(id);
         }
       }
+      if (unloaded) {
+        nextActiveLoops.remove(id);
+      }
+      final nextQuantize = Map<int, bool>.from(prev.quantize);
+      if (evt.quantize != null) {
+        nextQuantize[id] = evt.quantize!;
+      }
+      final nextJog = Map<int, bool>.from(prev.jogTouching);
+      if (unloaded) {
+        nextJog[id] = false;
+      } else if (evt.jogTouching != null) {
+        nextJog[id] = evt.jogTouching!;
+      }
+      final nextLoudness = Map<int, double>.from(prev.loudnessLufs);
+      final nextAutoGain = Map<int, double>.from(prev.autoGainDb);
+      if (unloaded) {
+        nextLoudness.remove(id);
+        nextAutoGain.remove(id);
+      } else {
+        if (evt.loudnessLufs != null) {
+          nextLoudness[id] = evt.loudnessLufs!;
+        }
+        if (evt.autoGainDb != null) {
+          nextAutoGain[id] = evt.autoGainDb!;
+        }
+      }
       return prev.copyWith(
         titles: nextTitles,
         playing: nextPlaying,
@@ -226,6 +286,10 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         padModes: nextPadModes,
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,
+        quantize: nextQuantize,
+        jogTouching: nextJog,
+        loudnessLufs: nextLoudness,
+        autoGainDb: nextAutoGain,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

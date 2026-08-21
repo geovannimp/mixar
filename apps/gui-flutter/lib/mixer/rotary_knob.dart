@@ -9,6 +9,15 @@ const kControlNormMax = 1.0;
 const kControlNormCenter = 0.5;
 const kControlNormStep = 0.1 / 48.0;
 
+/// Strip fader/trim `0..1` → ±24 dB (Tauri `normToStripDb`).
+const kEqMinDb = -24.0;
+const kEqMaxDb = 24.0;
+
+double normToStripDb(double norm) {
+  final n = norm.clamp(kControlNormMin, kControlNormMax);
+  return kEqMinDb + n * (kEqMaxDb - kEqMinDb);
+}
+
 /// Travel arc matches typical DJ pots: -135° … +135° (270° total).
 const _angleMinDeg = -135.0;
 const _angleSpanDeg = 270.0;

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
@@ -11,7 +12,8 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
-import 'package:gui_flutter/src/rust/api/library.dart' show SavedLoopInfo;
+import 'package:gui_flutter/src/rust/api/library.dart'
+    show LibraryTrackSummary, SavedLoopInfo;
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
@@ -26,13 +28,17 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       return;
     }
+    final prev = state;
     state = applyEngineEvt(state, evt);
-    if (evt.kind == EngineEvtKind.updated &&
-        evt.deckId != null &&
-        evt.positionMs != null) {
-      ref
-          .read(deckPlayheadsProvider.notifier)
-          .put(evt.deckId!, evt.positionMs!);
+    if (evt.kind == EngineEvtKind.updated && evt.deckId != null) {
+      final id = evt.deckId!;
+      if (evt.positionMs != null) {
+        ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
+      } else if (prev.durationMsFor(id) != null &&
+          evt.durationKnown &&
+          evt.durationMs == null) {
+        ref.read(deckPlayheadsProvider.notifier).remove(id);
+      }
     }
   }
 
@@ -72,6 +78,13 @@ class DeckPlayheads extends Notifier<Map<int, int>> {
       return;
     }
     state = {...state, deckId: ms};
+  }
+
+  void remove(int deckId) {
+    if (!state.containsKey(deckId)) {
+      return;
+    }
+    state = {...state}..remove(deckId);
   }
 }
 
@@ -188,6 +201,46 @@ final deckIsMasterProvider = Provider.family<bool, int>(
   (ref, deckId) =>
       ref.watch(engineUiProvider.select((s) => s.isMaster(deckId))),
 );
+
+final deckQuantizeProvider = Provider.family<bool, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.quantizeFor(deckId))),
+);
+
+final deckJogTouchingProvider = Provider.family<bool, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.jogTouchingFor(deckId))),
+);
+
+final deckLoudnessLufsProvider = Provider.family<double?, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.loudnessLufsFor(deckId))),
+);
+
+final deckAutoGainDbProvider = Provider.family<double, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.autoGainDbFor(deckId))),
+);
+
+final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
+  ref,
+  deckId,
+) {
+  final id = ref.watch(deckTrackIdProvider(deckId));
+  if (id == null) {
+    return null;
+  }
+  final tracks = ref.watch(libraryTableTracksProvider).asData?.value;
+  if (tracks == null) {
+    return null;
+  }
+  for (final t in tracks) {
+    if (t.id == id) {
+      return t;
+    }
+  }
+  return null;
+});
 
 final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
   ref,
@@ -443,4 +496,65 @@ Future<void> toggleDeckSync(
 Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setMasterDeck(deckId: deckId);
+}
+
+Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setQuantize(deckId: deckId, enabled: enabled);
+}
+
+Future<void> beginDeckCueHold(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.beginCueHold(deckId: deckId);
+}
+
+Future<void> endDeckCueHold(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.endCueHold(deckId: deckId);
+}
+
+Future<void> setDeckCuePoint(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setCuePoint(deckId: deckId);
+}
+
+Future<void> jogTouch(WidgetRef ref, int deckId, bool touching) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.jogTouch(deckId: deckId, touching: touching);
+}
+
+Future<void> jogTurn(WidgetRef ref, int deckId, int delta) async {
+  if (delta == 0) {
+    return;
+  }
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.jogTurn(deckId: deckId, delta: delta);
+}
+
+Future<void> unloadDeck(WidgetRef ref, int deckId) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  if (engine == null) {
+    return;
+  }
+  await engine.unload(deckId: deckId);
+  ref.read(engineUiProvider.notifier).setDeckTitle(deckId, '');
+  ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, null);
+}
+
+Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: supportedAudioExtensions,
+  );
+  final path = result?.files.single.path;
+  if (path == null || path.isEmpty) {
+    return;
+  }
+  await _applyPayloadToDeck(
+    engineFuture: ref.read(engineTransportProvider.future),
+    loading: ref.read(deckLoadInFlightProvider.notifier),
+    ui: ref.read(engineUiProvider.notifier),
+    deckId: deckId,
+    payload: payloadFromOsPath(path),
+  );
 }

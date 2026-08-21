@@ -37,31 +37,34 @@ class _MixerStripState extends State<MixerStrip> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: _anyOpen ? _mixerInnerWidth : null,
-      child: Column(
-        children: [
-          CollapsibleSection(
-            label: 'Mixer',
-            fillRemaining: true,
-            expandHeader: _anyOpen,
-            onOpenChanged: (open) => setState(() => _mixerOpen = open),
-            child: const _MixerChannels(),
-          ),
-          CollapsibleSection(
-            label: 'Crossfader',
-            expandHeader: _anyOpen,
-            onOpenChanged: (open) => setState(() => _crossfaderOpen = open),
-            child: const _CrossfaderStrip(),
-          ),
-          CollapsibleSection(
-            label: 'Master',
-            initiallyOpen: false,
-            expandHeader: _anyOpen,
-            onOpenChanged: (open) => setState(() => _masterOpen = open),
-            child: const MasterStrip(),
-          ),
-        ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SizedBox(
+        width: _anyOpen ? _mixerInnerWidth : null,
+        child: Column(
+          children: [
+            CollapsibleSection(
+              label: 'Mixer',
+              fillRemaining: true,
+              expandHeader: _anyOpen,
+              onOpenChanged: (open) => setState(() => _mixerOpen = open),
+              child: const _MixerChannels(),
+            ),
+            CollapsibleSection(
+              label: 'Crossfader',
+              expandHeader: _anyOpen,
+              onOpenChanged: (open) => setState(() => _crossfaderOpen = open),
+              child: const _CrossfaderStrip(),
+            ),
+            CollapsibleSection(
+              label: 'Master',
+              initiallyOpen: false,
+              expandHeader: _anyOpen,
+              onOpenChanged: (open) => setState(() => _masterOpen = open),
+              child: const MasterStrip(),
+            ),
+          ],
+        ),
       ),
     );
   }
