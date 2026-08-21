@@ -84,6 +84,51 @@ fn set_auto_loop_publishes_active_loop() {
 }
 
 #[test]
+fn set_auto_loop_snaps_in_to_nearest_beat_even_when_quantize_off() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
+        )
+        .expect("seek");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetAutoLoop,
+            encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4.0 }).unwrap(),
+        )
+        .expect("auto loop");
+    let event = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { active_loop, .. } =
+        decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("loop region");
+    assert_eq!(region.in_ms, 500);
+    // 4 beats at 120 BPM = 2000 ms
+    assert_eq!(region.out_ms, 2500);
+}
+
+#[test]
 fn set_quantize_and_cue_point_roundtrip() {
     let session = null_session_loaded();
     let evt = session

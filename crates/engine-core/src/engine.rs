@@ -1586,18 +1586,18 @@ impl Engine {
         self.set_deck_cue_point(deck_id, target)
     }
 
-    /// Auto-loop `beats` from the snapped playhead.
+    /// Auto-loop `beats` from the playhead, snapped to the nearest beat.
     pub fn set_deck_auto_loop(&mut self, deck_id: usize, beats: f32) -> Result<()> {
         if !beats.is_finite() || beats <= 0.0 {
             return Err(anyhow::anyhow!(
                 "Loop length must be a positive finite beat count."
             ));
         }
-        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
         let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
-        let in_ms = snap_ms(position_ms, Some(bpm), quantize);
+        let in_ms = snap_ms(position_ms, Some(bpm), true);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
         let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
