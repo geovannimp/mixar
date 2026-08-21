@@ -1594,13 +1594,19 @@ impl Engine {
             ));
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
+        // ponytail: fall back like loop-in when tags/analysis left BPM unset.
+        // Upgrade: prefer beat-grid BPM from the library when control.bpm is None.
+        let bpm = bpm.unwrap_or(120.0);
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
-        let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
+        let mut out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
+        // Near EOF the duration clamp can collapse the region; keep a minimal loop.
+        if out_ms <= in_ms {
+            out_ms = in_ms + 10;
+        }
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 

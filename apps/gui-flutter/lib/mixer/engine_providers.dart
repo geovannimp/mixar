@@ -272,6 +272,11 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
   if (transportAsync case AsyncData(:final value) when value != null) {
     final sub = value.subscribeEvents().listen((evt) {
       ref.read(engineUiProvider.notifier).apply(evt);
+      if (evt.kind == EngineEvtKind.error) {
+        ref
+            .read(libraryMessageProvider.notifier)
+            .setError(evt.message ?? 'Engine error');
+      }
     });
     ref.onDispose(sub.cancel);
   }
