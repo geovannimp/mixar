@@ -707,6 +707,17 @@ mod tests {
     }
 
     #[test]
+    fn legacy_settings_default_scan_folder_tree() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("scan_folder_tree");
+        let loaded: AppSettings = serde_json::from_value(value).expect("legacy settings");
+        assert!(loaded.scan_folder_tree);
+    }
+
+    #[test]
     fn scan_folder_tree_field_round_trips() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");

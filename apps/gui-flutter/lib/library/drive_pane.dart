@@ -47,11 +47,10 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
-      final scanFolderTree =
-          ref.read(appSettingsProvider).asData?.value.scanFolderTree ?? true;
+      final settings = await ref.read(appSettingsProvider.future);
       final result = await transport.addFolderCollection(
         folderPath: folderPath,
-        scanFolderTree: scanFolderTree,
+        scanFolderTree: settings.scanFolderTree,
       );
       ref.invalidate(collectionsProvider);
       ref.invalidate(collectionTracksProvider);

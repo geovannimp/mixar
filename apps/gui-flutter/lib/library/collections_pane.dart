@@ -26,11 +26,13 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
     ref.read(libraryMessageProvider.notifier).clear();
     try {
       final transport = await ref.read(libraryTransportProvider.future);
-      final scanFolderTree =
-          ref.read(appSettingsProvider).asData?.value.scanFolderTree ?? true;
+      final settings = await ref.read(appSettingsProvider.future);
+      if (!mounted) {
+        return;
+      }
       final result = await transport.addFolderCollection(
         folderPath: path,
-        scanFolderTree: scanFolderTree,
+        scanFolderTree: settings.scanFolderTree,
       );
       if (!mounted) {
         return;

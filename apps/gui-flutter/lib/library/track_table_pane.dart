@@ -113,6 +113,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       }
       manager.removeAllRows();
       manager.appendRows(_rowsFor(_tracks, next));
+      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
     ref.listen(artworkCacheProvider, (_, _) {
       _manager?.notifyListeners();
@@ -138,6 +139,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         if (tracks.isNotEmpty) {
           manager.appendRows(_rowsFor(tracks, analyzingId));
         }
+        _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
         _requestVisibleArtwork(manager);
       });
     });
