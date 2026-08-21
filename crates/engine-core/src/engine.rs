@@ -6,7 +6,9 @@ use crate::producer::{
     create_device_ring_buffer, producer_thread_loop, start_device_streams, DeviceStreamSetup,
 };
 use crate::routing::DeviceStreamPlan;
-use crate::sync::{beat_align_target, snap_ms, target_sync_speed, DeckControlState};
+use crate::sync::{
+    beat_align_target, require_positive_bpm, snap_ms, target_sync_speed, DeckControlState,
+};
 use crate::transport::TransportEvent;
 use anyhow::Result;
 use audio_core::LoadedAudio;
@@ -1594,7 +1596,7 @@ impl Engine {
             ));
         }
         let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
+        let bpm = require_positive_bpm(bpm, "auto loop")?;
         let (position_ms, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let beat_len = 60.0 / bpm;
         let in_ms = snap_ms(position_ms, Some(bpm), true);
@@ -1607,7 +1609,7 @@ impl Engine {
     /// Move loop-in to the nearest beat at the playhead (keeps existing out, or default 4 beats).
     pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
+        let bpm = require_positive_bpm(bpm, "loop in")?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let in_ms = snap_ms(position_ms, Some(bpm), true);
         let default_out = in_ms + secs_to_ms(60.0 / bpm * 4.0);
@@ -1621,7 +1623,7 @@ impl Engine {
     /// Move loop-out to the nearest beat at the playhead (keeps existing in, or 0).
     pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = bpm.ok_or_else(|| anyhow::anyhow!("Track BPM is required for auto loop."))?;
+        let bpm = require_positive_bpm(bpm, "loop out")?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let out_ms = snap_ms(position_ms, Some(bpm), true);
         let in_ms = self

@@ -221,7 +221,7 @@ fn loop_in_after_load_publishes_active_loop() {
         panic!("expected Error");
     };
     assert!(
-        message.contains("Track BPM is required for auto loop"),
+        message.contains("Track BPM is required for loop in"),
         "unexpected error: {message}"
     );
 }

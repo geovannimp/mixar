@@ -151,6 +151,15 @@ pub fn save_loop(
         });
     }
 
+    // Preserve label/color when the caller omits them (None) on update.
+    let existing = TrackLoopEntity::find()
+        .filter(track_loop::Column::TrackId.eq(track_id.as_str()))
+        .filter(track_loop::Column::SlotIndex.eq(i32::from(slot_index)))
+        .one(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    let label = label.or_else(|| existing.as_ref().and_then(|row| row.label.clone()));
+    let color = color.or_else(|| existing.as_ref().and_then(|row| row.color.clone()));
+
     TrackLoopEntity::insert(track_loop::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
         slot_index: Set(i32::from(slot_index)),
@@ -222,5 +231,39 @@ mod tests {
         assert!(save_loop(&db, &id, 2, 1000, 1000, None, None).is_err());
         assert!(save_hot_cue(&db, &id, 0, -500, None, None, None).is_ok());
         assert_eq!(list_hot_cues(&db, &id).unwrap()[0].position_ms, -500);
+    }
+
+    #[test]
+    fn save_loop_preserves_label_color_when_omitted_on_update() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/b.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/b.wav"),
+                &TrackMetadata::default(),
+                "1",
+            )
+            .unwrap();
+
+        save_loop(
+            &db,
+            &id,
+            0,
+            0,
+            1000,
+            Some("intro".into()),
+            Some("#ff00ff".into()),
+        )
+        .unwrap();
+        save_loop(&db, &id, 0, 100, 2000, None, None).unwrap();
+
+        let loops = list_loops(&db, &id).unwrap();
+        assert_eq!(loops.len(), 1);
+        assert_eq!(loops[0].in_ms, 100);
+        assert_eq!(loops[0].out_ms, 2000);
+        assert_eq!(loops[0].label.as_deref(), Some("intro"));
+        assert_eq!(loops[0].color.as_deref(), Some("#ff00ff"));
     }
 }

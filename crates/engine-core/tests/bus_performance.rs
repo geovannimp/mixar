@@ -271,9 +271,57 @@ fn loop_in_without_bpm_publishes_error() {
         panic!("expected Error");
     };
     assert!(
-        message.contains("Track BPM is required for auto loop"),
+        message.contains("Track BPM is required for loop in"),
         "unexpected: {message}"
     );
+}
+
+#[test]
+fn auto_loop_rejects_zero_and_non_finite_bpm_metadata() {
+    for (id, bpm) in [("zero-bpm.wav", Some(0.0)), ("nan-bpm.wav", Some(f64::NAN))] {
+        let config = EngineConfig {
+            backend: "null".to_string(),
+            ..Default::default()
+        };
+        let session = EngineSession::new(config).expect("session");
+        session.with_engine(|engine| engine.start()).expect("start");
+        session
+            .with_engine(|engine| {
+                engine.load_track(
+                    0,
+                    AudioSource::File(FileAudioSource::new(
+                        TrackId::new(id),
+                        short_tone_fixture(),
+                        TrackMetadata {
+                            bpm,
+                            ..Default::default()
+                        },
+                    )),
+                )?;
+                Ok(())
+            })
+            .expect("load");
+        let evt = session
+            .evt_bus()
+            .subscribe(Filter::Any, Filter::Any)
+            .expect("sub");
+
+        session
+            .publish_cmd(
+                Origin::Deck(0),
+                Kind::SetAutoLoop,
+                encode_cmd_body(&CmdBody::SetAutoLoop { beats: 4.0 }).unwrap(),
+            )
+            .expect("auto loop");
+        let event = recv_evt_kind(&evt, Kind::Error);
+        let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+            panic!("expected Error for {id}");
+        };
+        assert!(
+            message.contains("Track BPM is required for auto loop"),
+            "unexpected for {id}: {message}"
+        );
+    }
 }
 
 #[test]

@@ -20,8 +20,7 @@ int stepAutoLoopBeats(int beats, int delta) {
 }
 
 /// Slot used for save/recall of the loop length chip (Tauri: beat index, max 7).
-int autoLoopSlotForBeats(int beats) =>
-    autoLoopBeatIndex(beats).clamp(0, 7).toInt();
+int autoLoopSlotForBeats(int beats) => autoLoopBeatIndex(beats).clamp(0, 7);
 
 /// Saved loop under [positionMs]: playhead inside `[in, out]`, tightest span,
 /// then lowest slot.

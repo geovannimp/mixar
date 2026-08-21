@@ -451,6 +451,12 @@ impl LibraryTransport {
         in_ms: i32,
         out_ms: i32,
     ) -> Result<(), String> {
+        if slot > 15 {
+            return Err("loop slot must be 0..=15".into());
+        }
+        if out_ms <= in_ms {
+            return Err("loop out must be after loop in".into());
+        }
         let bytes = encode_cmd_body(&CmdBody::SaveLoop {
             track_id,
             slot,
@@ -467,6 +473,9 @@ impl LibraryTransport {
 
     /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
     pub fn delete_loop(&self, track_id: String, slot: u8) -> Result<(), String> {
+        if slot > 15 {
+            return Err("loop slot must be 0..=15".into());
+        }
         let bytes =
             encode_cmd_body(&CmdBody::DeleteLoop { track_id, slot }).map_err(|e| e.to_string())?;
         self.buses

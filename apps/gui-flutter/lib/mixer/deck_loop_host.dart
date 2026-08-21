@@ -190,16 +190,30 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     );
   }
 
+  void _hydrateTrack(String? trackId) {
+    if (trackId == _hydratedTrackId) {
+      return;
+    }
+    _hydratedTrackId = trackId;
+    final library = _library;
+    if (library != null && trackId != null && trackId.isNotEmpty) {
+      unawaited(library.refreshTrack(trackId: trackId));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<String?>(
+      deckTrackIdProvider(widget.deckId),
+      (prev, next) => _hydrateTrack(next),
+      fireImmediately: true,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
-    if (trackId != _hydratedTrackId) {
-      _hydratedTrackId = trackId;
-      final library = _library;
-      if (library != null && trackId != null && trackId.isNotEmpty) {
-        unawaited(library.refreshTrack(trackId: trackId));
-      }
-    }
 
     ref.listen<ActiveLoopInfo?>(deckActiveLoopProvider(widget.deckId), (
       prev,
