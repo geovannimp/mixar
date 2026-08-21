@@ -220,6 +220,8 @@ class EngineEvt {
   final double? gainTrim;
   final bool? headphoneCue;
   final double? crossfader;
+  final double? cueMix;
+  final bool? masterCue;
   final int? durationMs;
   final double? speed;
   final double? tempoRange;
@@ -248,6 +250,8 @@ class EngineEvt {
     this.gainTrim,
     this.headphoneCue,
     this.crossfader,
+    this.cueMix,
+    this.masterCue,
     this.durationMs,
     this.speed,
     this.tempoRange,
@@ -278,6 +282,8 @@ class EngineEvt {
       gainTrim.hashCode ^
       headphoneCue.hashCode ^
       crossfader.hashCode ^
+      cueMix.hashCode ^
+      masterCue.hashCode ^
       durationMs.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
@@ -310,6 +316,8 @@ class EngineEvt {
           gainTrim == other.gainTrim &&
           headphoneCue == other.headphoneCue &&
           crossfader == other.crossfader &&
+          cueMix == other.cueMix &&
+          masterCue == other.masterCue &&
           durationMs == other.durationMs &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&

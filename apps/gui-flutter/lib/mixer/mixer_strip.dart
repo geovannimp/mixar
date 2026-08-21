@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/collapsible_section.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
@@ -15,117 +17,136 @@ const _columnFooterHeight = 32.0;
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
 const _faderMinHitWidth = 36.0;
 
+/// Mixer column width.
+const _mixerInnerWidth = 212.0;
+
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
-class MixerStrip extends ConsumerStatefulWidget {
+class MixerStrip extends StatefulWidget {
   const MixerStrip({super.key});
 
   @override
-  ConsumerState<MixerStrip> createState() => _MixerStripState();
+  State<MixerStrip> createState() => _MixerStripState();
 }
 
-class _MixerStripState extends ConsumerState<MixerStrip> {
+class _MixerStripState extends State<MixerStrip> {
+  var _mixerOpen = true;
+  var _crossfaderOpen = true;
+  var _masterOpen = false;
+
+  bool get _anyOpen => _mixerOpen || _crossfaderOpen || _masterOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _anyOpen ? _mixerInnerWidth : null,
+      child: Column(
+        children: [
+          CollapsibleSection(
+            label: 'Mixer',
+            fillRemaining: true,
+            expandHeader: _anyOpen,
+            onOpenChanged: (open) => setState(() => _mixerOpen = open),
+            child: const _MixerChannels(),
+          ),
+          CollapsibleSection(
+            label: 'Crossfader',
+            expandHeader: _anyOpen,
+            onOpenChanged: (open) => setState(() => _crossfaderOpen = open),
+            child: const _CrossfaderStrip(),
+          ),
+          CollapsibleSection(
+            label: 'Master',
+            initiallyOpen: false,
+            expandHeader: _anyOpen,
+            onOpenChanged: (open) => setState(() => _masterOpen = open),
+            child: const MasterStrip(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MixerChannels extends ConsumerStatefulWidget {
+  const _MixerChannels();
+
+  @override
+  ConsumerState<_MixerChannels> createState() => _MixerChannelsState();
+}
+
+class _MixerChannelsState extends ConsumerState<_MixerChannels> {
   var _meterMono = true;
 
   @override
   Widget build(BuildContext context) {
+    final enabled = ref.watch(engineRunningProvider);
+    return Row(
+      mainAxisAlignment: .center,
+      crossAxisAlignment: .stretch,
+      spacing: 8,
+      children: [
+        _EqColumn(deckId: 0, accent: .a, enabled: enabled),
+        _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
+        _LevelMetersColumn(
+          mono: _meterMono,
+          onMonoChanged: (mono) => setState(() => _meterMono = mono),
+        ),
+        _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
+        _EqColumn(deckId: 1, accent: .b, enabled: enabled),
+      ],
+    );
+  }
+}
+
+class _CrossfaderStrip extends ConsumerWidget {
+  const _CrossfaderStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final enabled = ref.watch(engineRunningProvider);
     final crossfader = ref.watch(crossfaderProvider) * 100;
-
     return SizedBox(
-      width: 232,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          children: [
-            Text(
-              'Mixer',
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-                fontWeight: .w600,
-                letterSpacing: 1.6,
-              ),
+      height: 24,
+      child: Row(
+        spacing: 10,
+        children: [
+          Text(
+            'A',
+            style: theme.typography.body.xs.copyWith(
+              color: FaderColors.a.grip,
+              fontWeight: .w600,
+              fontSize: 8,
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: .center,
-                crossAxisAlignment: .stretch,
-                spacing: 8,
-                children: [
-                  _EqColumn(deckId: 0, accent: .a, enabled: enabled),
-                  _VolumeColumn(deckId: 0, accent: .a, enabled: enabled),
-                  _LevelMetersColumn(
-                    mono: _meterMono,
-                    onMonoChanged: (mono) => setState(() => _meterMono = mono),
-                  ),
-                  _VolumeColumn(deckId: 1, accent: .b, enabled: enabled),
-                  _EqColumn(deckId: 1, accent: .b, enabled: enabled),
-                ],
-              ),
+          ),
+          Expanded(
+            child: FaderSlider(
+              orientation: .horizontal,
+              value: crossfader,
+              min: 0,
+              max: 100,
+              step: 0.05,
+              showIndicator: false,
+              showMarkers: true,
+              centerNotch: true,
+              crossfaderTrack: true,
+              disabled: !enabled,
+              onValueChange: (next) {
+                unawaited(
+                  _mixerCmd(context, () => setCrossfader(ref, next / 100)),
+                );
+              },
             ),
-            const FDivider(
-              style: .delta(padding: .value(.symmetric(vertical: 8))),
+          ),
+          Text(
+            'B',
+            style: theme.typography.body.xs.copyWith(
+              color: FaderColors.b.grip,
+              fontWeight: .w600,
+              fontSize: 8,
             ),
-            Text(
-              'Crossfader',
-              style: theme.typography.body.xs.copyWith(
-                color: theme.colors.mutedForeground,
-                fontWeight: .w600,
-                letterSpacing: 1.2,
-                fontSize: 8,
-              ),
-            ),
-            const SizedBox(height: 4),
-            SizedBox(
-              height: 36,
-              child: Row(
-                children: [
-                  Text(
-                    'A',
-                    style: theme.typography.body.xs.copyWith(
-                      color: FaderColors.a.grip,
-                      fontWeight: .w600,
-                      fontSize: 8,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: FaderSlider(
-                      orientation: .horizontal,
-                      value: crossfader,
-                      min: 0,
-                      max: 100,
-                      step: 0.05,
-                      showIndicator: false,
-                      showMarkers: true,
-                      centerNotch: true,
-                      crossfaderTrack: true,
-                      disabled: !enabled,
-                      onValueChange: (next) {
-                        unawaited(
-                          _mixerCmd(
-                            context,
-                            () => setCrossfader(ref, next / 100),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'B',
-                    style: theme.typography.body.xs.copyWith(
-                      color: FaderColors.b.grip,
-                      fontWeight: .w600,
-                      fontSize: 8,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -179,28 +200,33 @@ class _EqColumn extends ConsumerWidget {
       );
     }
 
-    return Column(
-      children: [
-        knob(
-          'HI',
-          ch.eqHigh,
-          send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
-        ),
-        const SizedBox(height: 4),
-        knob(
-          'MID',
-          ch.eqMid,
-          send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
-        ),
-        const SizedBox(height: 4),
-        knob(
-          'LOW',
-          ch.eqLow,
-          send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
-        ),
-        const SizedBox(height: 4),
-        knob('FLT', ch.filter, send: (v) => setDeckFilter(ref, deckId, v)),
-      ],
+    return FittedBox(
+      fit: .scaleDown,
+      alignment: .topCenter,
+      child: Column(
+        mainAxisSize: .min,
+        children: [
+          knob(
+            'HI',
+            ch.eqHigh,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.high, v),
+          ),
+          const SizedBox(height: 4),
+          knob(
+            'MID',
+            ch.eqMid,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.mid, v),
+          ),
+          const SizedBox(height: 4),
+          knob(
+            'LOW',
+            ch.eqLow,
+            send: (v) => setDeckEqBand(ref, deckId, EqBand.low, v),
+          ),
+          const SizedBox(height: 4),
+          knob('FLT', ch.filter, send: (v) => setDeckFilter(ref, deckId, v)),
+        ],
+      ),
     );
   }
 }

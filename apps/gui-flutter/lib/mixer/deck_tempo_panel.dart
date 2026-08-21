@@ -20,7 +20,6 @@ class DeckTempoPanel extends StatelessWidget {
     required this.onSetMaster,
     this.trackBpm,
     this.loading = false,
-    this.disabled = false,
     this.tempoRangeSteps = kTempoRangeSteps,
     super.key,
   });
@@ -41,7 +40,6 @@ class DeckTempoPanel extends StatelessWidget {
   /// Skeletonize the BPM readout while a track is loading.
   final bool loading;
 
-  final bool disabled;
   final List<double> tempoRangeSteps;
 
   bool get _syncActive => syncMode != SyncMode.off;
@@ -52,7 +50,7 @@ class DeckTempoPanel extends StatelessWidget {
     final accent = FaderColors.forAccent(this.accent).grip;
     final liveBpm = effectiveBpm(trackBpm, speed, tempoRange);
     final sliderValue = speedToPitchSlider(speed);
-    final faderDisabled = disabled || _syncActive;
+    final faderDisabled = _syncActive;
 
     final chipStyle = theme.typography.body.xs.copyWith(
       fontWeight: .w600,
@@ -61,7 +59,7 @@ class DeckTempoPanel extends StatelessWidget {
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 114,
+      width: 84,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
@@ -103,7 +101,7 @@ class DeckTempoPanel extends StatelessWidget {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: disabled || isMaster
+                  onPress: isMaster
                       ? null
                       : () => onToggleSync(shiftKeyPressed()),
                   child: Text(
@@ -127,7 +125,7 @@ class DeckTempoPanel extends StatelessWidget {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: disabled || isMaster ? null : onSetMaster,
+                  onPress: isMaster ? null : onSetMaster,
                   child: Text(
                     isMaster ? 'Master' : 'Set master',
                     textAlign: .center,
@@ -143,10 +141,9 @@ class DeckTempoPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   child: FaderSlider(
                     orientation: .vertical,
                     accent: this.accent,
@@ -164,18 +161,15 @@ class DeckTempoPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: FButton(
                   variant: .ghost,
                   size: .xs,
                   mainAxisSize: .min,
-                  onPress: disabled
-                      ? null
-                      : () => onTempoRangeChange(
-                          nextTempoRange(tempoRange, tempoRangeSteps),
-                        ),
+                  onPress: () => onTempoRangeChange(
+                    nextTempoRange(tempoRange, tempoRangeSteps),
+                  ),
                   child: Text(
                     formatTempoRange(tempoRange),
                     style: theme.typography.body.xs.copyWith(

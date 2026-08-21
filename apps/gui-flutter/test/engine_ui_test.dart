@@ -122,6 +122,26 @@ void main() {
       expect(snap.channelFor(1).volume, 1.0);
     });
 
+    test('status sets cueMix and masterCue without clobbering volume', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, volume: 0.3),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.status,
+          running: true,
+          cueMix: 0.4,
+          masterCue: true,
+        ),
+      );
+      expect(snap.running, isTrue);
+      expect(snap.cueMix, 0.4);
+      expect(snap.masterCue, isTrue);
+      expect(snap.channelFor(0).volume, 0.3);
+    });
+
     test('status sets crossfader without clobbering volume', () {
       var snap = applyEngineEvt(
         EngineUiSnapshot.empty,

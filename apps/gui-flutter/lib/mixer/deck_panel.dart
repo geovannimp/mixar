@@ -38,8 +38,6 @@ class DeckPanel extends ConsumerWidget {
     final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
-    final engineRunning = ref.watch(engineRunningProvider);
-    final tempoDisabled = !hasTrack || !engineRunning;
     final tempo = DeckTempoPanel(
       accent: accent,
       speed: ref.watch(deckSpeedProvider(deckId)),
@@ -48,7 +46,6 @@ class DeckPanel extends ConsumerWidget {
       isMaster: ref.watch(deckIsMasterProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
-      disabled: tempoDisabled,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
       onSpeedChange: (speed) {
         unawaited(_engineCmd(context, () => setDeckSpeed(ref, deckId, speed)));
@@ -98,6 +95,7 @@ class DeckPanel extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
         Row(
+          spacing: 8,
           children: [
             Expanded(
               child: FButton(
@@ -106,7 +104,6 @@ class DeckPanel extends ConsumerWidget {
                 child: const Text('Cue'),
               ),
             ),
-            const SizedBox(width: 8),
             Expanded(
               child: FButton(
                 onPress: !hasTrack
@@ -127,16 +124,13 @@ class DeckPanel extends ConsumerWidget {
 
     return TrackDropZone(
       deckId: deckId,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-            Expanded(child: body),
-            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
-          ],
-        ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
+          Expanded(child: body),
+          if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
+        ],
       ),
     );
   }
