@@ -38,7 +38,7 @@ class _MixerStripState extends State<MixerStrip> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: SizedBox(
         width: _anyOpen ? _mixerInnerWidth : null,
         child: Column(

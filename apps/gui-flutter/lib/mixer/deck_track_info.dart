@@ -52,89 +52,166 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
 
-    return Row(
-      crossAxisAlignment: .start,
-      children: [
-        _ArtworkThumb(bytes: artwork, hasTrack: widget.hasTrack),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: .stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Skeletonizer(
-                      enabled: skeleton,
-                      child: Text(
-                        widget.title ?? 'No track loaded',
-                        maxLines: 1,
-                        overflow: .ellipsis,
-                        style: theme.typography.body.sm.copyWith(
-                          fontWeight: .w700,
-                        ),
-                      ),
-                    ),
+    return FCard(
+      clipBehavior: .antiAlias,
+      child: Column(
+        mainAxisSize: .min,
+        children: [
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: .stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: _ArtworkThumb(
+                    bytes: artwork,
+                    hasTrack: widget.hasTrack,
                   ),
-                  GestureDetector(
-                    onTap: !widget.hasTrack
-                        ? null
-                        : () => setState(() {
-                            _keyMode = _keyMode == KeyDisplayMode.musical
-                                ? KeyDisplayMode.camelot
-                                : KeyDisplayMode.musical;
-                          }),
-                    child: Padding(
-                      padding: const .symmetric(horizontal: 4, vertical: 2),
-                      child: Text(
-                        widget.hasTrack ? key : '—',
-                        style: theme.typography.body.xs.copyWith(
-                          color: theme.colors.mutedForeground,
-                          fontWeight: .w600,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                widget.hasTrack
-                    ? (artist == null || artist.isEmpty ? '—' : artist)
-                    : 'Drop or load a track',
-                maxLines: 1,
-                overflow: .ellipsis,
-                style: theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
                 ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      formatDeckRemainingDisplay(
-                        widget.hasTrack ? positionMs : null,
-                        durationMs,
-                      ),
-                      style: theme.typography.body.sm.copyWith(
-                        fontWeight: .w600,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                FDivider(
+                  axis: .vertical,
+                  style: .delta(padding: .value(.all(0))),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const .symmetric(horizontal: 8, vertical: 4),
+                    child: Column(
+                      crossAxisAlignment: .stretch,
+                      mainAxisAlignment: .start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _DeckTitleArtist(
+                                hasTrack: widget.hasTrack,
+                                title: widget.title,
+                                artist: artist,
+                                skeleton: skeleton,
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: !widget.hasTrack
+                                  ? null
+                                  : () => setState(() {
+                                      _keyMode =
+                                          _keyMode == KeyDisplayMode.musical
+                                          ? KeyDisplayMode.camelot
+                                          : KeyDisplayMode.musical;
+                                    }),
+                              child: Padding(
+                                padding: const .symmetric(
+                                  horizontal: 4,
+                                  vertical: 2,
+                                ),
+                                child: Text(
+                                  widget.hasTrack ? key : '—',
+                                  style: theme.typography.body.xs.copyWith(
+                                    color: theme.colors.mutedForeground,
+                                    fontWeight: .w600,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        _DeckTimeRow(
+                          hasTrack: widget.hasTrack,
+                          positionMs: positionMs,
+                          durationMs: durationMs,
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    formatDeckTotalDisplay(durationMs),
-                    style: theme.typography.body.xs.copyWith(
-                      color: theme.colors.mutedForeground,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              OverviewStrip(deckId: widget.deckId, height: 36),
-            ],
+                ),
+              ],
+            ),
+          ),
+          FDivider(style: .delta(padding: .value(.all(0)))),
+          OverviewStrip(deckId: widget.deckId, height: 36),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeckTitleArtist extends StatelessWidget {
+  const _DeckTitleArtist({
+    required this.hasTrack,
+    required this.skeleton,
+    this.title,
+    this.artist,
+  });
+
+  final bool hasTrack;
+  final bool skeleton;
+  final String? title;
+  final String? artist;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final artistName = artist;
+    return Column(
+      crossAxisAlignment: .start,
+      mainAxisAlignment: .start,
+      mainAxisSize: .min,
+      children: [
+        Skeletonizer(
+          enabled: skeleton,
+          child: Text(
+            title ?? 'No track loaded',
+            maxLines: 1,
+            overflow: .ellipsis,
+            style: theme.typography.body.sm.copyWith(fontWeight: .w700),
+          ),
+        ),
+        Text(
+          hasTrack
+              ? (artistName == null || artistName.isEmpty ? '—' : artistName)
+              : 'Drop or load a track',
+          maxLines: 1,
+          overflow: .ellipsis,
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DeckTimeRow extends StatelessWidget {
+  const _DeckTimeRow({
+    required this.hasTrack,
+    required this.positionMs,
+    required this.durationMs,
+  });
+
+  final bool hasTrack;
+  final int positionMs;
+  final int? durationMs;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Row(
+      children: [
+        Text(
+          formatDeckRemainingDisplay(hasTrack ? positionMs : null, durationMs),
+          style: theme.typography.body.sm.copyWith(
+            fontWeight: .w600,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const Spacer(),
+        Text(
+          formatDeckTotalDisplay(durationMs),
+          style: theme.typography.body.xs.copyWith(
+            color: theme.colors.mutedForeground,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
@@ -151,27 +228,27 @@ class _ArtworkThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: theme.colors.border),
-          borderRadius: theme.style.borderRadius.md,
-          color: theme.colors.background,
-        ),
-        child: ClipRRect(
-          borderRadius: theme.style.borderRadius.md,
-          child: bytes != null && bytes!.isNotEmpty
-              ? Image.memory(bytes!, fit: .cover)
-              : Icon(
-                  FLucideIcons.disc3,
-                  size: 20,
-                  color: hasTrack
-                      ? theme.colors.mutedForeground
-                      : theme.colors.border,
-                ),
-        ),
+    final borderRadius = theme.style.borderRadius.md.copyWith(
+      topRight: Radius.circular(0),
+      bottomRight: Radius.circular(0),
+      bottomLeft: Radius.circular(0),
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: borderRadius,
+        color: theme.colors.background,
+      ),
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: bytes != null && bytes!.isNotEmpty
+            ? Image.memory(bytes!, fit: .cover)
+            : Icon(
+                FLucideIcons.disc3,
+                size: 20,
+                color: hasTrack
+                    ? theme.colors.mutedForeground
+                    : theme.colors.border,
+              ),
       ),
     );
   }

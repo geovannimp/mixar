@@ -86,23 +86,21 @@ class DeckPanel extends ConsumerWidget {
       },
     );
     final play = Expanded(
-      child: FittedBox(
-        fit: .scaleDown,
-        child: FButton(
-          onPress: transportDisabled
-              ? null
-              : () {
-                  unawaited(_togglePlay(context, ref, deckId));
-                },
-          semanticsLabel: playing ? 'Pause' : 'Play',
-          child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
-        ),
+      child: FButton(
+        onPress: transportDisabled
+            ? null
+            : () {
+                unawaited(_togglePlay(context, ref, deckId));
+              },
+        semanticsLabel: playing ? 'Pause' : 'Play',
+        child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
       ),
     );
     final cueWrap = Expanded(child: cue);
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
       children: [
         Row(
           children: [
@@ -116,10 +114,8 @@ class DeckPanel extends ConsumerWidget {
             const SizedBox(width: 4),
             DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
             const Spacer(),
-            _HeaderChip(
-              label: 'Q',
-              semanticsLabel: quantize ? 'Quantize on' : 'Quantize off',
-              selected: quantize,
+            _QuantizeButton(
+              quantize: quantize,
               disabled: transportDisabled,
               onPress: () {
                 unawaited(
@@ -131,9 +127,8 @@ class DeckPanel extends ConsumerWidget {
               },
             ),
             const SizedBox(width: 4),
-            _HeaderChip(
-              label: hasTrack ? 'Eject' : 'Load',
-              semanticsLabel: hasTrack ? 'Eject track' : 'Load track',
+            _EjectLoadButton(
+              hasTrack: hasTrack,
               disabled: loadDisabled,
               onPress: () {
                 unawaited(
@@ -149,9 +144,7 @@ class DeckPanel extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 8),
         DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
-        const SizedBox(height: 8),
         Expanded(
           child: DeckPerformancePanel(
             deckId: deckId,
@@ -160,7 +153,6 @@ class DeckPanel extends ConsumerWidget {
             disabled: transportDisabled,
           ),
         ),
-        const SizedBox(height: 8),
         Row(
           spacing: 8,
           children: accent == FaderAccent.a ? [cueWrap, play] : [play, cueWrap],
@@ -184,49 +176,70 @@ class DeckPanel extends ConsumerWidget {
   }
 }
 
-class _HeaderChip extends StatelessWidget {
-  const _HeaderChip({
-    required this.label,
+class _EjectLoadButton extends StatelessWidget {
+  const _EjectLoadButton({
     required this.onPress,
-    this.semanticsLabel,
-    this.selected = false,
+    required this.hasTrack,
     this.disabled = false,
   });
 
-  final String label;
   final VoidCallback onPress;
-  final String? semanticsLabel;
-  final bool selected;
+  final bool disabled;
+  final bool hasTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    return FButton(
+      variant: .outline,
+      size: .xs,
+      mainAxisSize: .min,
+      onPress: disabled ? null : onPress,
+      semanticsLabel: hasTrack ? 'Eject track' : 'Load track',
+      style: .delta(
+        contentStyle: .delta(
+          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+        ),
+      ),
+      child: Icon(LucideIcons.eject600),
+    );
+  }
+}
+
+class _QuantizeButton extends StatelessWidget {
+  const _QuantizeButton({
+    required this.onPress,
+    required this.quantize,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool quantize;
   final bool disabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final fg = disabled
-        ? theme.colors.mutedForeground
-        : theme.colors.foreground;
-    return Semantics(
-      button: true,
-      enabled: !disabled,
-      label: semanticsLabel ?? label,
-      child: GestureDetector(
-        onTap: disabled ? null : onPress,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: selected ? theme.colors.secondary : theme.colors.background,
-            border: Border.all(color: theme.colors.border),
-            borderRadius: theme.style.borderRadius.sm,
-          ),
-          child: Padding(
-            padding: const .symmetric(horizontal: 8, vertical: 4),
-            child: Text(
-              label,
-              style: theme.typography.body.xs.copyWith(
-                fontWeight: .w600,
-                color: fg,
-              ),
-            ),
-          ),
+    // Same emerald as mixer headphone cue (`mixer_strip.dart`).
+    const cueOn = Color.fromARGB(191, 52, 211, 153);
+    const cueFill = Color.fromARGB(28, 52, 211, 153); // emerald-400 @ ~25%
+    final on = quantize && !disabled;
+    return FButton(
+      variant: .outline,
+      size: .xs,
+      mainAxisSize: .min,
+      onPress: disabled ? null : onPress,
+      semanticsLabel: quantize ? 'Quantize on' : 'Quantize off',
+      style: .delta(
+        decoration: on ? .delta([.all(.shapeDelta(color: cueFill))]) : null,
+        contentStyle: .delta(
+          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+        ),
+      ),
+      child: Text(
+        'Q',
+        style: TextStyle(
+          fontWeight: .w600,
+          color: on ? cueOn : theme.colors.mutedForeground,
         ),
       ),
     );

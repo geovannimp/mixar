@@ -206,32 +206,39 @@ class _JogPlatterState extends State<JogPlatter> {
         ? (widget.positionMs / widget.durationMs!).clamp(0.0, 1.0)
         : 0.0;
 
-    return Semantics(
-      label: 'Jog wheel',
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final size = Size(constraints.maxWidth, constraints.maxHeight);
-            return Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: _interactive ? (e) => _pointerDown(e, size) : null,
-              onPointerMove: _interactive ? (e) => _pointerMove(e, size) : null,
-              onPointerUp: _interactive ? (_) => _pointerUp() : null,
-              onPointerCancel: _interactive ? (_) => _pointerUp() : null,
-              child: CustomPaint(
-                painter: _JogPainter(
-                  border: theme.colors.border,
-                  fill: theme.colors.background.withValues(alpha: 0.9),
-                  accent: colors.grip,
-                  progress: progress,
-                  rotationDeg: _rotationDeg,
-                  hasTrack: widget.hasTrack,
-                  touching: widget.jogTouching || _dragging,
+    return Padding(
+      padding: const .symmetric(vertical: 12),
+      child: Semantics(
+        label: 'Jog wheel',
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = Size(constraints.maxWidth, constraints.maxHeight);
+              return Listener(
+                behavior: HitTestBehavior.opaque,
+                onPointerDown: _interactive
+                    ? (e) => _pointerDown(e, size)
+                    : null,
+                onPointerMove: _interactive
+                    ? (e) => _pointerMove(e, size)
+                    : null,
+                onPointerUp: _interactive ? (_) => _pointerUp() : null,
+                onPointerCancel: _interactive ? (_) => _pointerUp() : null,
+                child: CustomPaint(
+                  painter: _JogPainter(
+                    border: theme.colors.border,
+                    fill: theme.colors.background.withValues(alpha: 0.9),
+                    accent: colors.grip,
+                    progress: progress,
+                    rotationDeg: _rotationDeg,
+                    hasTrack: widget.hasTrack,
+                    touching: widget.jogTouching || _dragging,
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

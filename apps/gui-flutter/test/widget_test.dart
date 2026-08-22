@@ -203,7 +203,7 @@ void main() {
     final masterCue = tester.widget<FButton>(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithIcon(FButton, FLucideIcons.headphones),
       ),
     );
     expect(masterCue.onPress, isNull);
@@ -234,7 +234,7 @@ void main() {
     final masterCue = tester.widget<FButton>(
       find.descendant(
         of: master,
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithIcon(FButton, FLucideIcons.headphones),
       ),
     );
     expect(masterCue.onPress, isNotNull);
