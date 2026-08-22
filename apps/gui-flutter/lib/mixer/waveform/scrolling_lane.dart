@@ -94,10 +94,18 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     }
   }
 
+  bool _advancingNow() => playheadAdvancing(
+    playing: ref.read(deckPlayingProvider(widget.deckId)),
+    jogTouching: ref.read(deckJogTouchingProvider(widget.deckId)),
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final playing = ref.watch(deckPlayingProvider(widget.deckId));
+    final advancing = playheadAdvancing(
+      playing: ref.watch(deckPlayingProvider(widget.deckId)),
+      jogTouching: ref.watch(deckJogTouchingProvider(widget.deckId)),
+    );
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
@@ -119,7 +127,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         ? null
         : ref.watch(stripCuePictureProvider((trackId, durationMs)));
 
-    _syncPlayback(playing: playing, durationMs: durationMs, speed: speed);
+    _syncPlayback(playing: advancing, durationMs: durationMs, speed: speed);
 
     ref.listen(deckPositionMsProvider(widget.deckId), (prev, next) {
       if (_scrubbing || durationMs <= 0) {
@@ -127,18 +135,18 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       }
       final display = _displayMs(durationMs);
       final engineMs = next.toDouble();
-      final playingNow = ref.read(deckPlayingProvider(widget.deckId));
+      final advancingNow = _advancingNow();
       final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
       if (playheadShouldSnap(
         displayMs: display,
         engineMs: engineMs,
-        playing: playingNow,
+        playing: advancingNow,
       )) {
         _setDisplayMs(
           engineMs,
           durationMs: durationMs,
           speed: speedNow,
-          playing: playingNow,
+          playing: advancingNow,
         );
         return;
       }
@@ -151,16 +159,36 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
           corrected,
           durationMs: durationMs,
           speed: speedNow,
-          playing: playingNow,
+          playing: advancingNow,
         );
       }
+    });
+    ref.listen(deckJogTouchingProvider(widget.deckId), (prev, next) {
+      if (_scrubbing || durationMs <= 0) {
+        return;
+      }
+      final advancingNow = playheadAdvancing(
+        playing: ref.read(deckPlayingProvider(widget.deckId)),
+        jogTouching: next,
+      );
+      final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
+      if (!advancingNow) {
+        _setDisplayMs(
+          ref.read(deckPositionMsProvider(widget.deckId)).toDouble(),
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: false,
+        );
+        return;
+      }
+      _syncPlayback(playing: true, durationMs: durationMs, speed: speedNow);
     });
     ref.listen(deckSpeedRatioProvider(widget.deckId), (prev, next) {
       if (durationMs <= 0) {
         return;
       }
       _syncPlayback(
-        playing: ref.read(deckPlayingProvider(widget.deckId)),
+        playing: _advancingNow(),
         durationMs: durationMs,
         speed: next,
       );
@@ -222,16 +250,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                 ms.toDouble(),
                 durationMs: durationMs,
                 speed: speed,
-                playing: playing,
+                playing: advancing,
               );
             }
             unawaited(_seek(ms));
           },
           onPointerCancel: (_) {
             _scrubbing = false;
-            if (playing && durationMs > 0) {
+            if (advancing && durationMs > 0) {
               _syncPlayback(
-                playing: playing,
+                playing: advancing,
                 durationMs: durationMs,
                 speed: speed,
               );

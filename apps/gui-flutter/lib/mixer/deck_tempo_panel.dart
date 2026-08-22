@@ -126,17 +126,23 @@ class DeckTempoPanel extends StatelessWidget {
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
                   onPress: isMaster ? null : onSetMaster,
-                  child: Text(
-                    isMaster ? 'Master' : 'Set master',
-                    textAlign: .center,
-                    maxLines: 1,
-                    style: theme.typography.body.xs.copyWith(
-                      color: isMaster
-                          ? const Color(0xe634d399) // emerald-400
-                          : theme.colors.mutedForeground,
-                      fontWeight: .w600,
-                      fontSize: 9,
-                      height: 1.1,
+                  child: SizedBox(
+                    width: 52,
+                    child: FittedBox(
+                      fit: .scaleDown,
+                      child: Text(
+                        isMaster ? 'Master' : 'Set master',
+                        textAlign: .center,
+                        maxLines: 1,
+                        style: theme.typography.body.xs.copyWith(
+                          color: isMaster
+                              ? const Color(0xe634d399) // emerald-400
+                              : theme.colors.mutedForeground,
+                          fontWeight: .w600,
+                          fontSize: 9,
+                          height: 1.1,
+                        ),
+                      ),
                     ),
                   ),
                 ),

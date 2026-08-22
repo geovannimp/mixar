@@ -124,6 +124,11 @@ bool playheadShouldSnap({
   required bool playing,
 }) => !playing || (displayMs - engineMs).abs() >= kWaveformSeekSnapMs;
 
+/// Vinyl touch zeros `jog_rate` but leaves `playing` true, so interpolation
+/// must treat touch like pause or the lane keeps scrolling with no audio.
+bool playheadAdvancing({required bool playing, required bool jogTouching}) =>
+    playing && !jogTouching;
+
 int l1StartMs({required int positionMs, required int visibleMs}) =>
     positionMs - (visibleMs * 3 / 2).round();
 

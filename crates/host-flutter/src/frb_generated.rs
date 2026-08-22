@@ -5093,6 +5093,11 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_activeLoop =
             <Option<crate::api::engine::ActiveLoopInfo>>::sse_decode(deserializer);
         let mut var_activeLoopKnown = <bool>::sse_decode(deserializer);
+        let mut var_durationKnown = <bool>::sse_decode(deserializer);
+        let mut var_quantize = <Option<bool>>::sse_decode(deserializer);
+        let mut var_jogTouching = <Option<bool>>::sse_decode(deserializer);
+        let mut var_loudnessLufs = <Option<f64>>::sse_decode(deserializer);
+        let mut var_autoGainDb = <Option<f32>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
             kind: var_kind,
             deck_id: var_deckId,
@@ -5124,6 +5129,11 @@ impl SseDecode for crate::api::engine::EngineEvt {
             master_deck: var_masterDeck,
             active_loop: var_activeLoop,
             active_loop_known: var_activeLoopKnown,
+            duration_known: var_durationKnown,
+            quantize: var_quantize,
+            jog_touching: var_jogTouching,
+            loudness_lufs: var_loudnessLufs,
+            auto_gain_db: var_autoGainDb,
         };
     }
 }
@@ -6934,6 +6944,11 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.master_deck.into_into_dart().into_dart(),
             self.active_loop.into_into_dart().into_dart(),
             self.active_loop_known.into_into_dart().into_dart(),
+            self.duration_known.into_into_dart().into_dart(),
+            self.quantize.into_into_dart().into_dart(),
+            self.jog_touching.into_into_dart().into_dart(),
+            self.loudness_lufs.into_into_dart().into_dart(),
+            self.auto_gain_db.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7886,6 +7901,11 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<u16>>::sse_encode(self.master_deck, serializer);
         <Option<crate::api::engine::ActiveLoopInfo>>::sse_encode(self.active_loop, serializer);
         <bool>::sse_encode(self.active_loop_known, serializer);
+        <bool>::sse_encode(self.duration_known, serializer);
+        <Option<bool>>::sse_encode(self.quantize, serializer);
+        <Option<bool>>::sse_encode(self.jog_touching, serializer);
+        <Option<f64>>::sse_encode(self.loudness_lufs, serializer);
+        <Option<f32>>::sse_encode(self.auto_gain_db, serializer);
     }
 }
 

@@ -175,6 +175,8 @@ void main() {
     expect(find.textContaining('Filter tracks'), findsOneWidget);
     expect(find.text('Engine idle'), findsOneWidget);
     expect(find.text('No track loaded'), findsWidgets);
+    expect(find.text('Q'), findsWidgets);
+    expect(find.text('Load'), findsWidgets);
     expect(find.byKey(const ValueKey('mixer-panel-toggle')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('crossfader-panel-toggle')),
@@ -201,7 +203,7 @@ void main() {
     final masterCue = tester.widget<FButton>(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithIcon(FButton, FLucideIcons.headphones),
       ),
     );
     expect(masterCue.onPress, isNull);
@@ -232,7 +234,7 @@ void main() {
     final masterCue = tester.widget<FButton>(
       find.descendant(
         of: master,
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithIcon(FButton, FLucideIcons.headphones),
       ),
     );
     expect(masterCue.onPress, isNotNull);

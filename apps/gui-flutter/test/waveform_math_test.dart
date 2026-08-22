@@ -253,6 +253,12 @@ void main() {
     );
   });
 
+  test('vinyl jog touch does not advance the interpolated playhead', () {
+    expect(playheadAdvancing(playing: true, jogTouching: false), isTrue);
+    expect(playheadAdvancing(playing: true, jogTouching: true), isFalse);
+    expect(playheadAdvancing(playing: false, jogTouching: true), isFalse);
+  });
+
   test('snapPx rounds to device pixels', () {
     expect(snapPx(1.4, 1), 1);
     expect(snapPx(1.4, 2), 1.5);

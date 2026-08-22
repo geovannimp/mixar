@@ -10,37 +10,24 @@ class DeckGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: FCard(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: const [
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(10),
-                child: DeckPanel(
-                  deckId: 0,
-                  label: 'Deck A',
-                  accent: FaderAccent.a,
-                ),
-              ),
-            ),
-            MixerStrip(),
-            Expanded(
-              child: Padding(
-                padding: EdgeInsets.all(10),
-                child: DeckPanel(
-                  deckId: 1,
-                  label: 'Deck B',
-                  accent: FaderAccent.b,
-                ),
-              ),
-            ),
-          ],
+    return const Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(10),
+            child: DeckPanel(deckId: 0, label: 'Deck A', accent: FaderAccent.a),
+          ),
         ),
-      ),
+        MixerStrip(),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.all(10),
+            child: DeckPanel(deckId: 1, label: 'Deck B', accent: FaderAccent.b),
+          ),
+        ),
+      ],
     );
   }
 }
