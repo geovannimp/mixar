@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/mixer_strip.dart';

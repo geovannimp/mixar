@@ -12,7 +12,8 @@ use engine_core::{
 };
 use library::{LibraryConfig, LibraryManager, LibrarySession, NewCollection, WritableLibrary};
 use library_core::{
-    AudioSource, CollectionId, FileAudioSource, Library, TrackId, SUPPORTED_AUDIO_EXTENSIONS,
+    AudioSource, CollectionId, FileAudioSource, KeyDisplayMode, Library, TrackId,
+    SUPPORTED_AUDIO_EXTENSIONS,
 };
 use resampler::normalize_resampler_quality;
 use serde::{Deserialize, Serialize};
@@ -99,6 +100,7 @@ pub(crate) struct AppState {
     pub draft_sampler_bank: Option<SamplerBankInfo>,
     pub default_top_jog_mode: engine_api::JogMode,
     pub default_outer_jog_mode: engine_api::JogMode,
+    pub key_display_mode: KeyDisplayMode,
 }
 
 const MASTER_BUS_ID: &str = "master";
@@ -161,6 +163,8 @@ struct AppSettings {
     default_tempo_range: f32,
     #[serde(default = "default_tempo_range_steps")]
     tempo_range_steps: Vec<f32>,
+    #[serde(default)]
+    key_display_mode: KeyDisplayMode,
 }
 
 fn default_outer_jog_mode() -> engine_api::JogMode {
@@ -296,6 +300,7 @@ fn settings_from_state(state: &AppState) -> AppSettings {
         default_outer_jog_mode: state.default_outer_jog_mode,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
+        key_display_mode: state.key_display_mode,
     }
 }
 
@@ -318,6 +323,7 @@ fn apply_settings(state: &mut AppState, settings: AppSettings) -> Result<(), Str
     state.deck_default_sampler_bank_id = settings.deck_default_sampler_bank_id;
     state.default_top_jog_mode = settings.default_top_jog_mode;
     state.default_outer_jog_mode = settings.default_outer_jog_mode;
+    state.key_display_mode = settings.key_display_mode;
     Ok(())
 }
 
@@ -1076,6 +1082,7 @@ pub fn run() {
                 draft_sampler_bank: None,
                 default_top_jog_mode: engine_api::JogMode::Vinyl,
                 default_outer_jog_mode: engine_api::JogMode::PitchBend,
+                key_display_mode: KeyDisplayMode::default(),
             })));
             Ok(())
         })
@@ -1136,6 +1143,7 @@ mod tests {
             default_outer_jog_mode: engine_api::JogMode::PitchBend,
             default_tempo_range: DEFAULT_TEMPO_RANGE,
             tempo_range_steps: DEFAULT_TEMPO_RANGE_STEPS.to_vec(),
+            key_display_mode: library_core::KeyDisplayMode::default(),
         }
     }
 
@@ -1164,6 +1172,10 @@ mod tests {
 
         assert!(settings.volume_normalizer_enabled);
         assert_eq!(settings.target_lufs, -18.0);
+        assert_eq!(
+            settings.key_display_mode,
+            library_core::KeyDisplayMode::Musical
+        );
     }
 
     #[test]

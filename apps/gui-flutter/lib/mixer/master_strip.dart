@@ -43,9 +43,10 @@ class MasterStrip extends ConsumerWidget {
             },
           ),
           FButton(
-            variant: masterCue ? .secondary : .ghost,
+            variant: masterCue ? .secondary : .outline,
             size: .sm,
             mainAxisSize: .min,
+            selected: masterCue,
             semanticsLabel: 'Cue',
             onPress: previewEnabled
                 ? () {
@@ -54,10 +55,14 @@ class MasterStrip extends ConsumerWidget {
                     );
                   }
                 : null,
-            child: Icon(
-              FLucideIcons.headphones,
-              size: 14,
-              color: masterCue ? _cueOn : theme.colors.mutedForeground,
+            child: Text(
+              'Cue',
+              style: theme.typography.body.xs.copyWith(
+                fontWeight: .w600,
+                letterSpacing: 0.6,
+                fontSize: 9,
+                color: masterCue ? _cueOn : theme.colors.mutedForeground,
+              ),
             ),
           ),
         ],

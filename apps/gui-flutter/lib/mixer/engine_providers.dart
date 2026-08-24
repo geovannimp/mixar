@@ -1,7 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
@@ -28,15 +27,12 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       }
       return;
     }
-    final prev = state;
     state = applyEngineEvt(state, evt);
     if (evt.kind == EngineEvtKind.updated && evt.deckId != null) {
       final id = evt.deckId!;
       if (evt.positionMs != null) {
         ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
-      } else if (prev.durationMsFor(id) != null &&
-          evt.durationKnown &&
-          evt.durationMs == null) {
+      } else if (evt.durationKnown && evt.durationMs == null) {
         ref.read(deckPlayheadsProvider.notifier).remove(id);
       }
     }
@@ -340,50 +336,11 @@ Future<void> loadPayloadToDeck(
   WidgetRef ref,
   int deckId,
   TrackDragPayload payload,
-) {
-  return _applyPayloadToDeck(
-    engineFuture: ref.read(engineTransportProvider.future),
-    loading: ref.read(deckLoadInFlightProvider.notifier),
-    ui: ref.read(engineUiProvider.notifier),
-    deckId: deckId,
-    payload: payload,
-  );
-}
-
-Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
-  final tracks = ref.read(libraryTableTracksProvider).asData?.value ?? const [];
-  final index = ref.read(focusedTrackRowIndexProvider);
-  final tab = ref.read(librarySourceTabProvider);
-  final resolved =
-      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
-  final payload = focusedLoadPayload(
-    tracks,
-    index,
-    inLibrary: (track) =>
-        trackIsInLibrary(track, tab: tab, driveResolvedByPath: resolved),
-  );
-  if (payload == null) {
-    return;
-  }
-  await _applyPayloadToDeck(
-    engineFuture: ref.read(engineTransportProvider.future),
-    loading: ref.read(deckLoadInFlightProvider.notifier),
-    ui: ref.read(engineUiProvider.notifier),
-    deckId: deckId,
-    payload: payload,
-  );
-}
-
-Future<void> _applyPayloadToDeck({
-  required Future<EngineTransport?> engineFuture,
-  required DeckLoadInFlight loading,
-  required EngineUi ui,
-  required int deckId,
-  required TrackDragPayload payload,
-}) async {
+) async {
+  final loading = ref.read(deckLoadInFlightProvider.notifier);
   loading.set(deckId, true);
   try {
-    final engine = await engineFuture;
+    final engine = await ref.read(engineTransportProvider.future);
     if (engine == null) {
       return;
     }
@@ -394,11 +351,13 @@ Future<void> _applyPayloadToDeck({
           engine.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
     );
-    ui.setDeckTitle(
-      deckId,
-      trackDisplayTitle(title: payload.title, path: payload.path),
-    );
-    ui.setDeckTrackId(deckId, payload.trackId);
+    ref
+        .read(engineUiProvider.notifier)
+        .setDeckTitle(
+          deckId,
+          trackDisplayTitle(title: payload.title, path: payload.path),
+        );
+    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
   } finally {
     loading.set(deckId, false);
   }
@@ -550,11 +509,5 @@ Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
   if (path == null || path.isEmpty) {
     return;
   }
-  await _applyPayloadToDeck(
-    engineFuture: ref.read(engineTransportProvider.future),
-    loading: ref.read(deckLoadInFlightProvider.notifier),
-    ui: ref.read(engineUiProvider.notifier),
-    deckId: deckId,
-    payload: payloadFromOsPath(path),
-  );
+  await loadPayloadToDeck(ref, deckId, payloadFromOsPath(path));
 }

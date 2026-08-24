@@ -76,73 +76,70 @@ class DeckPerformancePanel extends StatelessWidget {
                       child: Directionality(
                         textDirection: TextDirection.ltr,
                         child: switch (mode) {
-                          DeckPerformanceMode.pads =>
-                            deckId != null
-                                ? DeckPadsHost(
+                          DeckPerformanceMode.pads => deckId != null
+                              ? DeckPadsHost(
+                                  deckId: deckId!,
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                )
+                              : DeckPadsPanel(
+                                  padMode: PadMode.hotCue,
+                                  onPadMode: (_) {},
+                                  hotCues: const [],
+                                  onHotCuePress: (_, _) {},
+                                  onHotCueRelease: (_) {},
+                                  onLoopRollPress: (_) {},
+                                  onLoopRollRelease: (_) {},
+                                  onBeatJumpPress: (_) {},
+                                  onBeatJumpRelease: (_) {},
+                                  samplerSlots: const [],
+                                  samplerBanks: const [],
+                                  onSamplerPress: (_, _) {},
+                                  onSamplerRelease: (_) {},
+                                  onSelectBank: (_) {},
+                                  onSaveBank: (_, _, _) {},
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                ),
+                          DeckPerformanceMode.loop => deckId != null
+                              ? DeckLoopHost(
+                                  deckId: deckId!,
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                )
+                              : DeckLoopPanel(
+                                  loopActive: false,
+                                  loopBeats: 4,
+                                  onToggleLoop: () {},
+                                  onHalveBeats: () {},
+                                  onDoubleBeats: () {},
+                                  onLoopIn: () {},
+                                  onLoopOut: () {},
+                                  onBeatsChipPress: () {},
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                ),
+                          DeckPerformanceMode.jog => deckId != null
+                              ? Center(
+                                  child: DeckJogHost(
                                     deckId: deckId!,
                                     hasTrack: hasTrack,
+                                    accent: accent,
                                     disabled: disabled,
-                                    bordered: false,
-                                  )
-                                : DeckPadsPanel(
-                                    padMode: PadMode.hotCue,
-                                    onPadMode: (_) {},
-                                    hotCues: const [],
-                                    onHotCuePress: (_, _) {},
-                                    onHotCueRelease: (_) {},
-                                    onLoopRollPress: (_) {},
-                                    onLoopRollRelease: (_) {},
-                                    onBeatJumpPress: (_) {},
-                                    onBeatJumpRelease: (_) {},
-                                    samplerSlots: const [],
-                                    samplerBanks: const [],
-                                    onSamplerPress: (_, _) {},
-                                    onSamplerRelease: (_) {},
-                                    onSelectBank: (_) {},
-                                    onSaveBank: (_, _, _) {},
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
                                   ),
-                          DeckPerformanceMode.loop =>
-                            deckId != null
-                                ? DeckLoopHost(
-                                    deckId: deckId!,
+                                )
+                              : Center(
+                                  child: JogPlatter(
+                                    accent: accent,
+                                    playing: false,
                                     hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  )
-                                : DeckLoopPanel(
-                                    loopActive: false,
-                                    loopBeats: 4,
-                                    onToggleLoop: () {},
-                                    onHalveBeats: () {},
-                                    onDoubleBeats: () {},
-                                    onLoopIn: () {},
-                                    onLoopOut: () {},
-                                    onBeatsChipPress: () {},
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
+                                    enabled: false,
                                   ),
-                          DeckPerformanceMode.jog =>
-                            deckId != null
-                                ? Center(
-                                    child: DeckJogHost(
-                                      deckId: deckId!,
-                                      hasTrack: hasTrack,
-                                      accent: accent,
-                                      disabled: disabled,
-                                    ),
-                                  )
-                                : Center(
-                                    child: JogPlatter(
-                                      accent: accent,
-                                      playing: false,
-                                      hasTrack: hasTrack,
-                                      enabled: false,
-                                    ),
-                                  ),
+                                ),
                         },
                       ),
                     ),

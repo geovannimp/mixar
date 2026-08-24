@@ -10,11 +10,14 @@ import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
-class DeckTrackInfo extends ConsumerStatefulWidget {
+class DeckTrackInfo extends ConsumerWidget {
   const DeckTrackInfo({
     required this.deckId,
     required this.hasTrack,
@@ -27,30 +30,29 @@ class DeckTrackInfo extends ConsumerStatefulWidget {
   final String? title;
 
   @override
-  ConsumerState<DeckTrackInfo> createState() => _DeckTrackInfoState();
-}
-
-class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
-  var _keyMode = KeyDisplayMode.musical;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
-    final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
+    final trackId = ref.watch(deckTrackIdProvider(deckId));
     if (trackId != null) {
-      unawaited(
-        ref.read(artworkCacheProvider.notifier).ensureLoaded([trackId]),
-      );
+      unawaited(ref.read(artworkCacheProvider.notifier).ensureLoaded([trackId]));
     }
     final artwork = trackId == null
         ? null
         : ref.watch(artworkCacheProvider)[trackId];
-    final lib = ref.watch(deckLibraryTrackProvider(widget.deckId));
+    final lib = ref.watch(deckLibraryTrackProvider(deckId));
     final artist = lib?.artist;
-    final key = formatDeckKey(lib?.key, _keyMode);
-    final skeleton = ref.watch(deckSkeletonProvider(widget.deckId));
-    final durationMs = ref.watch(deckDurationMsProvider(widget.deckId));
-    final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
+    final keyMode = keyModeFromSettings(
+      ref
+          .watch(appSettingsProvider)
+          .maybeWhen(
+            data: (s) => s.keyDisplayMode,
+            orElse: () => KeyDisplayModeSetting.musical,
+          ),
+    );
+    final key = formatDeckKey(lib?.key, keyMode);
+    final skeleton = ref.watch(deckSkeletonProvider(deckId));
+    final durationMs = ref.watch(deckDurationMsProvider(deckId));
+    final positionMs = ref.watch(deckPositionMsProvider(deckId));
 
     return FCard(
       clipBehavior: .antiAlias,
@@ -65,7 +67,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                   aspectRatio: 1,
                   child: _ArtworkThumb(
                     bytes: artwork,
-                    hasTrack: widget.hasTrack,
+                    hasTrack: hasTrack,
                   ),
                 ),
                 FDivider(
@@ -83,28 +85,21 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                           children: [
                             Expanded(
                               child: _DeckTitleArtist(
-                                hasTrack: widget.hasTrack,
-                                title: widget.title,
+                                hasTrack: hasTrack,
+                                title: title,
                                 artist: artist,
                                 skeleton: skeleton,
                               ),
                             ),
-                            GestureDetector(
-                              onTap: !widget.hasTrack
-                                  ? null
-                                  : () => setState(() {
-                                      _keyMode =
-                                          _keyMode == KeyDisplayMode.musical
-                                          ? KeyDisplayMode.camelot
-                                          : KeyDisplayMode.musical;
-                                    }),
-                              child: Padding(
-                                padding: const .symmetric(
-                                  horizontal: 4,
-                                  vertical: 2,
-                                ),
+                            Padding(
+                              padding: const .symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              child: Semantics(
+                                label: hasTrack ? 'Key $key' : 'Key',
                                 child: Text(
-                                  widget.hasTrack ? key : '—',
+                                  hasTrack ? key : '—',
                                   style: theme.typography.body.xs.copyWith(
                                     color: theme.colors.mutedForeground,
                                     fontWeight: .w600,
@@ -118,7 +113,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
                           ],
                         ),
                         _DeckTimeRow(
-                          hasTrack: widget.hasTrack,
+                          hasTrack: hasTrack,
                           positionMs: positionMs,
                           durationMs: durationMs,
                         ),
@@ -130,7 +125,7 @@ class _DeckTrackInfoState extends ConsumerState<DeckTrackInfo> {
             ),
           ),
           FDivider(style: .delta(padding: .value(.all(0)))),
-          OverviewStrip(deckId: widget.deckId, height: 36),
+          OverviewStrip(deckId: deckId, height: 36),
         ],
       ),
     );
@@ -233,6 +228,11 @@ class _ArtworkThumb extends StatelessWidget {
       bottomRight: Radius.circular(0),
       bottomLeft: Radius.circular(0),
     );
+    final disc = Icon(
+      FLucideIcons.disc3,
+      size: 20,
+      color: hasTrack ? theme.colors.mutedForeground : theme.colors.border,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
@@ -241,14 +241,12 @@ class _ArtworkThumb extends StatelessWidget {
       child: ClipRRect(
         borderRadius: borderRadius,
         child: bytes != null && bytes!.isNotEmpty
-            ? Image.memory(bytes!, fit: .cover)
-            : Icon(
-                FLucideIcons.disc3,
-                size: 20,
-                color: hasTrack
-                    ? theme.colors.mutedForeground
-                    : theme.colors.border,
-              ),
+            ? Image.memory(
+                bytes!,
+                fit: .cover,
+                errorBuilder: (_, _, _) => Center(child: disc),
+              )
+            : disc,
       ),
     );
   }

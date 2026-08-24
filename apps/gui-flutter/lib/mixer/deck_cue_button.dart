@@ -75,29 +75,34 @@ class _DeckCueButtonState extends State<DeckCueButton> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: widget.disabled ? null : (_) => _down(),
-      onPointerUp: widget.disabled ? null : (_) => _up(),
-      onPointerCancel: widget.disabled ? null : (_) => _up(),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: widget.disabled
-                ? theme.colors.secondary.withValues(alpha: 0.35)
-                : theme.colors.secondary.withValues(alpha: 0.45),
-            border: Border.all(color: theme.colors.border),
-            borderRadius: theme.style.borderRadius.md,
-          ),
-          child: Center(
-            child: Text(
-              'Cue',
-              style: theme.typography.body.sm.copyWith(
-                color: widget.disabled
-                    ? theme.colors.mutedForeground
-                    : theme.colors.foreground,
-                fontWeight: .w600,
+    return Semantics(
+      button: true,
+      enabled: !widget.disabled,
+      label: 'Cue',
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: widget.disabled ? null : (_) => _down(),
+        onPointerUp: widget.disabled ? null : (_) => _up(),
+        onPointerCancel: widget.disabled ? null : (_) => _up(),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: widget.disabled
+                  ? theme.colors.secondary.withValues(alpha: 0.35)
+                  : theme.colors.secondary.withValues(alpha: 0.45),
+              border: Border.all(color: theme.colors.border),
+              borderRadius: theme.style.borderRadius.md,
+            ),
+            child: Center(
+              child: Text(
+                'Cue',
+                style: theme.typography.body.sm.copyWith(
+                  color: widget.disabled
+                      ? theme.colors.mutedForeground
+                      : theme.colors.foreground,
+                  fontWeight: .w600,
+                ),
               ),
             ),
           ),

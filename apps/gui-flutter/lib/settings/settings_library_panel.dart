@@ -64,17 +64,17 @@ class SettingsLibraryPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        SettingsToggle(
-          label: 'Scan folder collections recursively',
-          value: draft.scanFolderTree,
-          onChanged: (v) =>
-              onChanged(copyAppSettings(draft, scanFolderTree: v)),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Include audio files in subfolders when adding a folder collection.',
-          style: theme.typography.body.xs.copyWith(
-            color: theme.colors.mutedForeground,
+        SettingsField(
+          label: 'Key display mode',
+          child: SettingsSelect(
+            value: draft.keyDisplayMode,
+            options: KeyDisplayModeSetting.values,
+            labelBuilder: (m) => switch (m) {
+              KeyDisplayModeSetting.musical => 'Musical',
+              KeyDisplayModeSetting.camelot => 'Camelot',
+            },
+            onChanged: (m) =>
+                onChanged(copyAppSettings(draft, keyDisplayMode: m)),
           ),
         ),
         const SizedBox(height: 16),

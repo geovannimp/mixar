@@ -137,6 +137,7 @@ export function LibraryPanel() {
       default_outer_jog_mode: "pitch_bend",
       default_tempo_range: DEFAULT_TEMPO_RANGE,
       tempo_range_steps: [...TEMPO_RANGE_STEPS],
+      key_display_mode: "musical",
     },
   );
 

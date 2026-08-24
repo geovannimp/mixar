@@ -200,7 +200,7 @@ class _EjectLoadButton extends StatelessWidget {
           padding: .value(.symmetric(horizontal: 14, vertical: 2)),
         ),
       ),
-      child: Icon(LucideIcons.eject600),
+      child: Icon(hasTrack ? LucideIcons.circleX600 : LucideIcons.fileInput600),
     );
   }
 }

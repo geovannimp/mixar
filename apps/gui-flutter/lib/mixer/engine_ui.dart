@@ -191,10 +191,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (id == null) {
         return prev;
       }
-      final unloaded =
-          evt.durationKnown &&
-          prev.durationMsFor(id) != null &&
-          evt.durationMs == null;
+      final unloaded = evt.durationKnown && evt.durationMs == null;
       final nextTitles = Map<int, String>.from(prev.titles);
       final title = evt.track;
       // Engine snapshots omit library metadata (`track`/`title` are always

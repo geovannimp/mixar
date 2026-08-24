@@ -181,6 +181,7 @@ export interface AppSettings {
   default_tempo_range: number;
   /** Cycle steps for tempo-range controls (pitch fractions). */
   tempo_range_steps: number[];
+  key_display_mode: KeyDisplayMode;
 }
 
 export type LibraryTableColumn =

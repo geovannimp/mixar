@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -7,6 +8,13 @@ WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
   return switch (mode) {
     WaveformDisplayModeSetting.rgb => WaveformDisplayMode.rgb,
     WaveformDisplayModeSetting.filtered => WaveformDisplayMode.filtered,
+  };
+}
+
+KeyDisplayMode keyModeFromSettings(KeyDisplayModeSetting mode) {
+  return switch (mode) {
+    KeyDisplayModeSetting.musical => KeyDisplayMode.musical,
+    KeyDisplayModeSetting.camelot => KeyDisplayMode.camelot,
   };
 }
 
@@ -67,7 +75,7 @@ AppSettings defaultAppSettings() {
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
-    scanFolderTree: true,
+    keyDisplayMode: KeyDisplayModeSetting.musical,
   );
 }
 
@@ -132,7 +140,7 @@ AppSettings copyAppSettings(
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
   WaveformDisplayModeSetting? waveformDisplayMode,
-  bool? scanFolderTree,
+  KeyDisplayModeSetting? keyDisplayMode,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -157,7 +165,7 @@ AppSettings copyAppSettings(
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
-    scanFolderTree: scanFolderTree ?? base.scanFolderTree,
+    keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
   );
 }
 
@@ -184,7 +192,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
-      draft.scanFolderTree != baseline.scanFolderTree ||
+      draft.keyDisplayMode != baseline.keyDisplayMode ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

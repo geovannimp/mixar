@@ -10,9 +10,15 @@ import {
   findAnalysisModeOption,
   type AnalysisModeOption,
 } from "@/lib/analysis-mode";
-import type { AppSettings, LibraryTableColumn } from "@/types";
+import type { AppSettings, KeyDisplayMode, LibraryTableColumn } from "@/types";
 import { SettingsField, SettingsSectionHeader } from "./settings-field";
+import { SettingsSelect } from "./settings-select";
 import { LIBRARY_TABLE_COLUMNS, normalizeLibraryTableColumns } from "@/lib/library-table";
+
+const KEY_DISPLAY_OPTIONS: { label: string; value: KeyDisplayMode }[] = [
+  { label: "Musical", value: "musical" },
+  { label: "Camelot", value: "camelot" },
+];
 
 interface SettingsLibraryPanelProps {
   draft: AppSettings;
@@ -64,6 +70,15 @@ export function SettingsLibraryPanel({ draft, onChange }: SettingsLibraryPanelPr
             ))}
           </SelectPopup>
         </Select>
+      </SettingsField>
+
+      <SettingsField label="Key display">
+        <SettingsSelect
+          aria-label="Key display"
+          value={draft.key_display_mode}
+          options={KEY_DISPLAY_OPTIONS}
+          onValueChange={(key_display_mode) => onChange({ ...draft, key_display_mode })}
+        />
       </SettingsField>
 
       <SettingsField label="Track table columns">

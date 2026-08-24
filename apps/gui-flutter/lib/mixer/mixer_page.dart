@@ -36,7 +36,10 @@ class MixerPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: .stretch,
               children: [
-                SizedBox(height: _deckRowHeight, child: DeckGrid()),
+                SizedBox(
+                  height: _deckRowHeight,
+                  child: const ClipRect(child: DeckGrid()),
+                ),
                 FDivider(style: .delta(padding: .value(.all(0)))),
                 Expanded(child: LibraryPanel()),
               ],

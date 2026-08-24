@@ -365,6 +365,8 @@ class _MixerCueFooter extends StatelessWidget {
           variant: cue ? .secondary : .ghost,
           size: .sm,
           mainAxisSize: .min,
+          selected: cue,
+          semanticsLabel: 'Cue',
           onPress: disabled ? null : onCue,
           child: Icon(
             FLucideIcons.headphones,

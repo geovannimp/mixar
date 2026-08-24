@@ -103,6 +103,12 @@ class _JogPlatterState extends State<JogPlatter> {
   @override
   void didUpdateWidget(covariant JogPlatter oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final wasInteractive = oldWidget.enabled && oldWidget.hasTrack;
+    if (wasInteractive && !_interactive && _dragging) {
+      _dragging = false;
+      _lastAngleDeg = null;
+      widget.onJogTouch?.call(false);
+    }
     _syncRotationFromPlayhead();
   }
 
