@@ -101,23 +101,9 @@ fn normalize_key_notation(raw: &str) -> String {
     if !(1..=12).contains(&num) {
         return trimmed.to_string();
     }
-    let minor = upper.ends_with('B');
-    camelot_to_musical(num, minor).unwrap_or_else(|| trimmed.to_string())
-}
-
-fn camelot_to_musical(code: usize, minor: bool) -> Option<String> {
-    const MAJOR: [&str; 12] = [
-        "C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F",
-    ];
-    const MINOR: [&str; 12] = [
-        "Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m", "A#m", "Fm", "Cm", "Gm", "Dm",
-    ];
-    let idx = code - 1;
-    if minor {
-        MINOR.get(idx).map(|s| (*s).to_string())
-    } else {
-        MAJOR.get(idx).map(|s| (*s).to_string())
-    }
+    // Mixed In Key: A = minor, B = major.
+    let minor = upper.ends_with('A');
+    library_core::camelot_code_to_musical(num, minor).unwrap_or_else(|| trimmed.to_string())
 }
 
 /// Read embedded album artwork from an audio file, if present.
@@ -165,9 +151,10 @@ mod tests {
 
     #[test]
     fn normalize_camelot_key_to_musical() {
-        assert_eq!(camelot_to_musical(8, false), Some("C#".into()));
-        assert_eq!(camelot_to_musical(1, true), Some("Am".into()));
-        assert_eq!(normalize_key_notation("8A"), "C#");
+        assert_eq!(library_core::camelot_code_to_musical(8, false).as_deref(), Some("C"));
+        assert_eq!(library_core::camelot_code_to_musical(8, true).as_deref(), Some("Am"));
+        assert_eq!(normalize_key_notation("8A"), "Am");
+        assert_eq!(normalize_key_notation("8B"), "C");
         assert_eq!(normalize_key_notation("F#m"), "F#m");
     }
 

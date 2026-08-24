@@ -9,6 +9,7 @@
 mod audio_extensions;
 mod audio_source;
 mod error;
+mod key_format;
 mod source;
 mod traits;
 mod types;
@@ -19,6 +20,10 @@ pub use audio_extensions::{
     is_supported_audio_extension, is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
 };
 pub use error::{LibraryError, Result};
+pub use key_format::{
+    camelot_code_to_musical, camelot_to_musical, format_key, musical_to_camelot, KeyDisplayMode,
+    MAJOR_KEYS, MINOR_KEYS,
+};
 pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider};
 pub use traits::{Library, WritableLibrary};
 pub use types::{
