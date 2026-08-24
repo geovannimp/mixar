@@ -26,11 +26,11 @@ function musicalToCamelot(key: string): string | null {
   const trimmed = key.trim();
   const majorIndex = MAJOR_KEYS.indexOf(trimmed as (typeof MAJOR_KEYS)[number]);
   if (majorIndex >= 0) {
-    return `${(majorIndex + CAMELOT_OFFSET) % 12 + 1}B`;
+    return `${((majorIndex + CAMELOT_OFFSET) % 12) + 1}B`;
   }
   const minorIndex = MINOR_KEYS.indexOf(trimmed as (typeof MINOR_KEYS)[number]);
   if (minorIndex >= 0) {
-    return `${(minorIndex + CAMELOT_OFFSET) % 12 + 1}A`;
+    return `${((minorIndex + CAMELOT_OFFSET) % 12) + 1}A`;
   }
   return null;
 }
