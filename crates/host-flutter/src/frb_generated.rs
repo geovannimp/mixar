@@ -3408,7 +3408,6 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
             >>::sse_decode(&mut deserializer);
             let api_folder_path = <String>::sse_decode(&mut deserializer);
-            let api_scan_folder_tree = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -3429,7 +3428,6 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                     let output_ok = crate::api::library::LibraryTransport::add_folder_collection(
                         &*api_that_guard,
                         api_folder_path,
-                        api_scan_folder_tree,
                     )?;
                     Ok(output_ok)
                 })())
@@ -4905,7 +4903,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_tempoRangeSteps = <Vec<f32>>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
-        let mut var_scanFolderTree = <bool>::sse_decode(deserializer);
+        let mut var_keyDisplayMode =
+            <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -4927,7 +4926,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             default_tempo_range: var_defaultTempoRange,
             tempo_range_steps: var_tempoRangeSteps,
             waveform_display_mode: var_waveformDisplayMode,
-            scan_folder_tree: var_scanFolderTree,
+            key_display_mode: var_keyDisplayMode,
         };
     }
 }
@@ -5964,6 +5963,18 @@ impl SseDecode for usize {
     }
 }
 
+impl SseDecode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::KeyDisplayModeSetting::Musical,
+            1 => crate::api::settings::KeyDisplayModeSetting::Camelot,
+            _ => unreachable!("Invalid variant for KeyDisplayModeSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::settings::WaveformDisplayModeSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6714,7 +6725,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.default_tempo_range.into_into_dart().into_dart(),
             self.tempo_range_steps.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
-            self.scan_folder_tree.into_into_dart().into_dart(),
+            self.key_display_mode.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7464,6 +7475,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyDisplayModeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Musical => 0.into_dart(),
+            Self::Camelot => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::KeyDisplayModeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyDisplayModeSetting>
+    for crate::api::settings::KeyDisplayModeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::KeyDisplayModeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformDisplayModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7757,7 +7789,10 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.waveform_display_mode,
             serializer,
         );
-        <bool>::sse_encode(self.scan_folder_tree, serializer);
+        <crate::api::settings::KeyDisplayModeSetting>::sse_encode(
+            self.key_display_mode,
+            serializer,
+        );
     }
 }
 
@@ -8607,6 +8642,22 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
+    }
+}
+
+impl SseEncode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::KeyDisplayModeSetting::Musical => 0,
+                crate::api::settings::KeyDisplayModeSetting::Camelot => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
