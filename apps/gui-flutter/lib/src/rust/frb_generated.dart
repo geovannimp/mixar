@@ -428,7 +428,6 @@ abstract class RustLibApi extends BaseApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
-    required bool scanFolderTree,
   });
 
   Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
@@ -3062,7 +3061,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
-    required bool scanFolderTree,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3073,7 +3071,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(folderPath, serializer);
-          sse_encode_bool(scanFolderTree, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3086,7 +3083,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta,
-        argValues: [that, folderPath, scanFolderTree],
+        argValues: [that, folderPath],
         apiImpl: this,
       ),
     );
@@ -3096,7 +3093,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_add_folder_collection",
-        argNames: ["that", "folderPath", "scanFolderTree"],
+        argNames: ["that", "folderPath"],
       );
 
   @override
@@ -4346,7 +4343,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: dco_decode_f_32(arr[17]),
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
-      scanFolderTree: dco_decode_bool(arr[20]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[20]),
     );
   }
 
@@ -5097,6 +5094,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KeyDisplayModeSetting.values[raw as int];
+  }
+
+  @protected
   WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
     dynamic raw,
   ) {
@@ -5476,7 +5479,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
-    var var_scanFolderTree = sse_decode_bool(deserializer);
+    var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -5498,7 +5501,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultTempoRange: var_defaultTempoRange,
       tempoRangeSteps: var_tempoRangeSteps,
       waveformDisplayMode: var_waveformDisplayMode,
-      scanFolderTree: var_scanFolderTree,
+      keyDisplayMode: var_keyDisplayMode,
     );
   }
 
@@ -6531,6 +6534,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KeyDisplayModeSetting sse_decode_key_display_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return KeyDisplayModeSetting.values[inner];
+  }
+
+  @protected
   WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
     SseDeserializer deserializer,
   ) {
@@ -6955,7 +6967,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.waveformDisplayMode,
       serializer,
     );
-    sse_encode_bool(self.scanFolderTree, serializer);
+    sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
   }
 
   @protected
@@ -7856,6 +7868,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_key_display_mode_setting(
+    KeyDisplayModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_waveform_display_mode_setting(
     WaveformDisplayModeSetting self,
     SseSerializer serializer,
@@ -8399,11 +8420,9 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   /// Add a folder as a collection and sync its tracks.
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
-    required bool scanFolderTree,
   }) => RustLib.instance.api.crateApiLibraryLibraryTransportAddFolderCollection(
     that: this,
     folderPath: folderPath,
-    scanFolderTree: scanFolderTree,
   );
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
