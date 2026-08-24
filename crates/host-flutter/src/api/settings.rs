@@ -638,10 +638,7 @@ mod tests {
             parsed.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
-        assert_eq!(
-            parsed.key_display_mode,
-            KeyDisplayModeSetting::Musical
-        );
+        assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
     }
 
     #[test]

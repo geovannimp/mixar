@@ -151,8 +151,14 @@ mod tests {
 
     #[test]
     fn normalize_camelot_key_to_musical() {
-        assert_eq!(library_core::camelot_code_to_musical(8, false).as_deref(), Some("C"));
-        assert_eq!(library_core::camelot_code_to_musical(8, true).as_deref(), Some("Am"));
+        assert_eq!(
+            library_core::camelot_code_to_musical(8, false).as_deref(),
+            Some("C")
+        );
+        assert_eq!(
+            library_core::camelot_code_to_musical(8, true).as_deref(),
+            Some("Am")
+        );
         assert_eq!(normalize_key_notation("8A"), "Am");
         assert_eq!(normalize_key_notation("8B"), "C");
         assert_eq!(normalize_key_notation("F#m"), "F#m");

@@ -4,17 +4,14 @@
 //! user's [`KeyDisplayMode`] from app settings.
 
 /// How keys are shown in the UI.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum KeyDisplayMode {
+    #[default]
     Musical,
     Camelot,
-}
-
-impl Default for KeyDisplayMode {
-    fn default() -> Self {
-        Self::Musical
-    }
 }
 
 /// Circle-of-fifths majors starting at C. Index `i` → Camelot `(i + 7) % 12 + 1` + `B`.
@@ -36,10 +33,12 @@ pub fn format_key(key: &str, mode: KeyDisplayMode) -> String {
         return String::new();
     }
     match mode {
-        KeyDisplayMode::Musical => camelot_to_musical(trimmed)
-            .unwrap_or_else(|| trimmed.to_string()),
-        KeyDisplayMode::Camelot => musical_to_camelot(trimmed)
-            .unwrap_or_else(|| trimmed.to_string()),
+        KeyDisplayMode::Musical => {
+            camelot_to_musical(trimmed).unwrap_or_else(|| trimmed.to_string())
+        }
+        KeyDisplayMode::Camelot => {
+            musical_to_camelot(trimmed).unwrap_or_else(|| trimmed.to_string())
+        }
     }
 }
 
@@ -64,10 +63,9 @@ pub fn camelot_to_musical(code: &str) -> Option<String> {
     let upper = trimmed.to_uppercase();
     let (number_text, minor) = if let Some(rest) = upper.strip_suffix('A') {
         (rest, true)
-    } else if let Some(rest) = upper.strip_suffix('B') {
-        (rest, false)
     } else {
-        return None;
+        let rest = upper.strip_suffix('B')?;
+        (rest, false)
     };
     let number: usize = number_text.parse().ok()?;
     if !(1..=12).contains(&number) {
