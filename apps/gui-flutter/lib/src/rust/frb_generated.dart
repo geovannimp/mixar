@@ -428,6 +428,7 @@ abstract class RustLibApi extends BaseApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
+    required bool scanFolderTree,
   });
 
   Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
@@ -3061,6 +3062,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   crateApiLibraryLibraryTransportAddFolderCollection({
     required LibraryTransport that,
     required String folderPath,
+    required bool scanFolderTree,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3071,6 +3073,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_String(folderPath, serializer);
+          sse_encode_bool(scanFolderTree, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3083,7 +3086,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta,
-        argValues: [that, folderPath],
+        argValues: [that, folderPath, scanFolderTree],
         apiImpl: this,
       ),
     );
@@ -3093,7 +3096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_add_folder_collection",
-        argNames: ["that", "folderPath"],
+        argNames: ["that", "folderPath", "scanFolderTree"],
       );
 
   @override
@@ -8420,9 +8423,11 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   /// Add a folder as a collection and sync its tracks.
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
+    required bool scanFolderTree,
   }) => RustLib.instance.api.crateApiLibraryLibraryTransportAddFolderCollection(
     that: this,
     folderPath: folderPath,
+    scanFolderTree: scanFolderTree,
   );
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).

@@ -3408,6 +3408,7 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
             >>::sse_decode(&mut deserializer);
             let api_folder_path = <String>::sse_decode(&mut deserializer);
+            let api_scan_folder_tree = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -3428,6 +3429,7 @@ fn wire__crate__api__library__LibraryTransport_add_folder_collection_impl(
                     let output_ok = crate::api::library::LibraryTransport::add_folder_collection(
                         &*api_that_guard,
                         api_folder_path,
+                        api_scan_folder_tree,
                     )?;
                     Ok(output_ok)
                 })())
