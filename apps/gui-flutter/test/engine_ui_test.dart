@@ -277,5 +277,28 @@ void main() {
       expect(snap.autoGainDbFor(0), 0);
       expect(snap.quantizeFor(0), isFalse);
     });
+
+    test('unload without prior duration still clears host identity', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: 'Keep',
+          trackId: 'abc',
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          durationKnown: true,
+        ),
+      );
+      expect(snap.titleFor(0), isNull);
+      expect(snap.trackIdFor(0), isNull);
+      expect(snap.durationMsFor(0), isNull);
+    });
   });
 }

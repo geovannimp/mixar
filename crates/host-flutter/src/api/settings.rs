@@ -193,6 +193,33 @@ pub enum WaveformDisplayModeSetting {
     Filtered,
 }
 
+/// Musical vs Camelot key labels in the UI (maps to [`library_core::KeyDisplayMode`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyDisplayModeSetting {
+    #[default]
+    Musical,
+    Camelot,
+}
+
+impl From<KeyDisplayModeSetting> for library_core::KeyDisplayMode {
+    fn from(value: KeyDisplayModeSetting) -> Self {
+        match value {
+            KeyDisplayModeSetting::Musical => Self::Musical,
+            KeyDisplayModeSetting::Camelot => Self::Camelot,
+        }
+    }
+}
+
+impl From<library_core::KeyDisplayMode> for KeyDisplayModeSetting {
+    fn from(value: library_core::KeyDisplayMode) -> Self {
+        match value {
+            library_core::KeyDisplayMode::Musical => Self::Musical,
+            library_core::KeyDisplayMode::Camelot => Self::Camelot,
+        }
+    }
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -216,13 +243,8 @@ pub struct AppSettings {
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
     pub waveform_display_mode: WaveformDisplayModeSetting,
-    /// Default recurse flag used when adding a folder collection.
-    #[serde(default = "default_scan_folder_tree")]
-    pub scan_folder_tree: bool,
-}
-
-fn default_scan_folder_tree() -> bool {
-    true
+    #[serde(default)]
+    pub key_display_mode: KeyDisplayModeSetting,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -240,7 +262,7 @@ struct SettingsHost {
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
-    scan_folder_tree: bool,
+    key_display_mode: KeyDisplayModeSetting,
 }
 
 impl Default for SettingsHost {
@@ -258,7 +280,7 @@ impl Default for SettingsHost {
             default_top_jog_mode: JogModeSetting::Vinyl,
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
-            scan_folder_tree: true,
+            key_display_mode: KeyDisplayModeSetting::Musical,
         }
     }
 }
@@ -480,7 +502,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
         waveform_display_mode: host.waveform_display_mode,
-        scan_folder_tree: host.scan_folder_tree,
+        key_display_mode: host.key_display_mode,
     }
 }
 
@@ -510,7 +532,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
-    host.scan_folder_tree = settings.scan_folder_tree;
+    host.key_display_mode = settings.key_display_mode;
     host.configured = true;
     Ok(())
 }
@@ -616,7 +638,10 @@ mod tests {
             parsed.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
-        assert!(parsed.scan_folder_tree);
+        assert_eq!(
+            parsed.key_display_mode,
+            KeyDisplayModeSetting::Musical
+        );
     }
 
     #[test]
@@ -707,18 +732,7 @@ mod tests {
     }
 
     #[test]
-    fn legacy_settings_default_scan_folder_tree() {
-        let mut value = serde_json::to_value(sample_settings()).expect("json");
-        value
-            .as_object_mut()
-            .expect("object")
-            .remove("scan_folder_tree");
-        let loaded: AppSettings = serde_json::from_value(value).expect("legacy settings");
-        assert!(loaded.scan_folder_tree);
-    }
-
-    #[test]
-    fn scan_folder_tree_field_round_trips() {
+    fn legacy_scan_folder_tree_field_is_ignored() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
@@ -731,7 +745,7 @@ mod tests {
         let mut host = SettingsHost::default();
         apply_to_host(&mut host, loaded).expect("apply");
         let restored = settings_from_host(&host);
-        assert!(!restored.scan_folder_tree);
+        assert_eq!(restored.sample_rate, sample_settings().sample_rate);
     }
 
     #[test]
