@@ -313,8 +313,10 @@ pub struct EngineEvt {
     /// Set on every [`EngineEvtKind::Updated`] (including `None` when cleared).
     pub active_loop: Option<ActiveLoopInfo>,
     /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
+    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub active_loop_known: bool,
     /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
+    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub duration_known: bool,
     pub quantize: Option<bool>,
     pub jog_touching: Option<bool>,
@@ -323,10 +325,12 @@ pub struct EngineEvt {
     /// Active sampler bank for this deck (`None` when cleared / unset).
     pub active_sampler_bank_id: Option<String>,
     /// True when [`Self::active_sampler_bank_id`] was authored on this Updated evt.
+    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub active_sampler_bank_id_known: bool,
     /// Pad chrome for this deck when [`Self::sampler_slots_known`].
     pub sampler_slots: Option<Vec<SamplerSlotChrome>>,
     /// True when [`Self::sampler_slots`] was authored on this Updated evt.
+    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub sampler_slots_known: bool,
 }
 

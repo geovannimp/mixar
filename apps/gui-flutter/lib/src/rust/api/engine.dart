@@ -309,16 +309,16 @@ class EngineEvt {
     this.syncMode,
     this.masterDeck,
     this.activeLoop,
-    required this.activeLoopKnown,
-    required this.durationKnown,
+    this.activeLoopKnown = false,
+    this.durationKnown = false,
     this.quantize,
     this.jogTouching,
     this.loudnessLufs,
     this.autoGainDb,
     this.activeSamplerBankId,
-    required this.activeSamplerBankIdKnown,
+    this.activeSamplerBankIdKnown = false,
     this.samplerSlots,
-    required this.samplerSlotsKnown,
+    this.samplerSlotsKnown = false,
   });
 
   @override
