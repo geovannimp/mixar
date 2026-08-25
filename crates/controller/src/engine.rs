@@ -66,6 +66,8 @@ pub enum DeviceDirection {
 pub enum ControllerEvent {
     MappingOffer {
         mapping_id: String,
+        /// `device.toml` id (trust key), e.g. `pioneer.ddj-400`.
+        device_id: String,
         device_name: String,
         port_name: String,
     },
@@ -133,6 +135,8 @@ pub struct ControllerEngine {
     known_input_ports: HashSet<String>,
     /// Ports already event-emitted this appearance (cleared when port disappears).
     offered_ports: HashSet<String>,
+    /// `device.toml` ids the host trusts — auto-attach on match, no offer.
+    trusted_device_ids: HashSet<String>,
     /// Snapshot of unmatched mapped ports — no MIDI I/O to read.
     pending_offers_cache: Vec<ControllerEvent>,
     events: VecDeque<ControllerEvent>,
@@ -161,6 +165,7 @@ impl ControllerEngine {
             catalog: HashMap::new(),
             known_input_ports: HashSet::new(),
             offered_ports: HashSet::new(),
+            trusted_device_ids: HashSet::new(),
             pending_offers_cache: Vec::new(),
             events: VecDeque::new(),
             midi_tx,
@@ -171,6 +176,11 @@ impl ControllerEngine {
         };
         this.ensure_seeded()?;
         Ok(this)
+    }
+
+    /// Replace the in-memory trust allow-list (`device.toml` ids). Host persists separately.
+    pub fn set_trusted_device_ids(&mut self, ids: impl IntoIterator<Item = String>) {
+        self.trusted_device_ids = ids.into_iter().collect();
     }
 
     fn ensure_enum_clients(&mut self) -> Result<(), EngineError> {
@@ -362,7 +372,7 @@ impl ControllerEngine {
         Ok(current)
     }
 
-    /// Diff input ports; push [`ControllerEvent::MappingOffer`] for new matches.
+    /// Diff input ports; auto-attach trusted matches, else offer for new ports.
     pub fn apply_input_ports(&mut self, current: HashSet<String>) {
         for gone in self
             .known_input_ports
@@ -382,28 +392,37 @@ impl ControllerEngine {
         }
 
         for name in &current {
+            if self.attached.as_ref().is_some_and(|a| &a.port_name == name) {
+                continue;
+            }
+            let Some(mapping_id) = self.match_port(name) else {
+                continue;
+            };
+            let (device_id, device_name) = self
+                .catalog
+                .get(&mapping_id)
+                .map(|e| (e.device_id.clone(), e.display_name()))
+                .unwrap_or_else(|| (mapping_id.clone(), mapping_id.clone()));
+
+            if self.trusted_device_ids.contains(&device_id) {
+                // Retry each poll until MIDI open succeeds; do not emit offers.
+                let _ = self.enable_mapping(&mapping_id, Some(name));
+                continue;
+            }
+
             if self.known_input_ports.contains(name) {
                 continue;
             }
             if self.offered_ports.contains(name) {
                 continue;
             }
-            if self.attached.as_ref().is_some_and(|a| &a.port_name == name) {
-                continue;
-            }
-            if let Some(mapping_id) = self.match_port(name) {
-                let device_name = self
-                    .catalog
-                    .get(&mapping_id)
-                    .map(CatalogEntry::display_name)
-                    .unwrap_or_else(|| mapping_id.clone());
-                self.offered_ports.insert(name.clone());
-                self.events.push_back(ControllerEvent::MappingOffer {
-                    mapping_id,
-                    device_name,
-                    port_name: name.clone(),
-                });
-            }
+            self.offered_ports.insert(name.clone());
+            self.events.push_back(ControllerEvent::MappingOffer {
+                mapping_id,
+                device_id,
+                device_name,
+                port_name: name.clone(),
+            });
         }
 
         self.known_input_ports = current;
@@ -435,14 +454,18 @@ impl ControllerEngine {
             let Some(mapping_id) = self.match_port(name) else {
                 continue;
             };
-            let device_name = self
+            let (device_id, device_name) = self
                 .catalog
                 .get(&mapping_id)
-                .map(CatalogEntry::display_name)
-                .unwrap_or_else(|| mapping_id.clone());
+                .map(|e| (e.device_id.clone(), e.display_name()))
+                .unwrap_or_else(|| (mapping_id.clone(), mapping_id.clone()));
+            if self.trusted_device_ids.contains(&device_id) {
+                continue;
+            }
             self.pending_offers_cache
                 .push(ControllerEvent::MappingOffer {
                     mapping_id,
+                    device_id,
                     device_name,
                     port_name: name.clone(),
                 });

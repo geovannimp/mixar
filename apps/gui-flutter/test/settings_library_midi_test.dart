@@ -47,7 +47,12 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const Scaffold(body: SettingsControllersPanel()),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (_) {},
+            ),
+          ),
         ),
       ),
     );
@@ -84,7 +89,12 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const Scaffold(body: SettingsControllersPanel()),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (_) {},
+            ),
+          ),
         ),
       ),
     );

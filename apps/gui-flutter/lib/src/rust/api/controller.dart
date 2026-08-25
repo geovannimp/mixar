@@ -30,11 +30,13 @@ abstract class ControllerTransport implements RustOpaqueInterface {
     required LibraryBusHandle libraryBuses,
     required String mappingsDir,
     String? shippedMappingsDir,
+    required List<String> trustedDeviceIds,
   }) => RustLib.instance.api.crateApiControllerControllerTransportStart(
     engineBuses: engineBuses,
     libraryBuses: libraryBuses,
     mappingsDir: mappingsDir,
     shippedMappingsDir: shippedMappingsDir,
+    trustedDeviceIds: trustedDeviceIds,
   );
 
   /// Forward mapping offer/attach/detach events to Dart via FRB `StreamSink`.
@@ -79,12 +81,14 @@ class ControllerDeviceInfo {
 class ControllerEvt {
   final ControllerEvtKind kind;
   final String? mappingId;
+  final String? deviceId;
   final String? deviceName;
   final String? portName;
 
   const ControllerEvt({
     required this.kind,
     this.mappingId,
+    this.deviceId,
     this.deviceName,
     this.portName,
   });
@@ -93,6 +97,7 @@ class ControllerEvt {
   int get hashCode =>
       kind.hashCode ^
       mappingId.hashCode ^
+      deviceId.hashCode ^
       deviceName.hashCode ^
       portName.hashCode;
 
@@ -103,6 +108,7 @@ class ControllerEvt {
           runtimeType == other.runtimeType &&
           kind == other.kind &&
           mappingId == other.mappingId &&
+          deviceId == other.deviceId &&
           deviceName == other.deviceName &&
           portName == other.portName;
 }

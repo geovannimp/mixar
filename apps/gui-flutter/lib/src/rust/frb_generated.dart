@@ -125,6 +125,7 @@ abstract class RustLibApi extends BaseApi {
     required LibraryBusHandle libraryBuses,
     required String mappingsDir,
     String? shippedMappingsDir,
+    required List<String> trustedDeviceIds,
   });
 
   Stream<ControllerEvt> crateApiControllerControllerTransportSubscribeEvents({
@@ -920,6 +921,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required LibraryBusHandle libraryBuses,
     required String mappingsDir,
     String? shippedMappingsDir,
+    required List<String> trustedDeviceIds,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -935,6 +937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(mappingsDir, serializer);
           sse_encode_opt_String(shippedMappingsDir, serializer);
+          sse_encode_list_String(trustedDeviceIds, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -948,7 +951,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiControllerControllerTransportStartConstMeta,
-        argValues: [engineBuses, libraryBuses, mappingsDir, shippedMappingsDir],
+        argValues: [
+          engineBuses,
+          libraryBuses,
+          mappingsDir,
+          shippedMappingsDir,
+          trustedDeviceIds,
+        ],
         apiImpl: this,
       ),
     );
@@ -962,6 +971,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           "libraryBuses",
           "mappingsDir",
           "shippedMappingsDir",
+          "trustedDeviceIds",
         ],
       );
 
@@ -4387,8 +4397,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 21)
-      throw Exception('unexpected arr length: expect 21 but see ${arr.length}');
+    if (arr.length != 22)
+      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -4411,6 +4421,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[20]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[21]),
     );
   }
 
@@ -4570,13 +4581,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ControllerEvt dco_decode_controller_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 5)
+      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return ControllerEvt(
       kind: dco_decode_controller_evt_kind(arr[0]),
       mappingId: dco_decode_opt_String(arr[1]),
-      deviceName: dco_decode_opt_String(arr[2]),
-      portName: dco_decode_opt_String(arr[3]),
+      deviceId: dco_decode_opt_String(arr[2]),
+      deviceName: dco_decode_opt_String(arr[3]),
+      portName: dco_decode_opt_String(arr[4]),
     );
   }
 
@@ -5579,6 +5591,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
+    var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -5601,6 +5614,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: var_tempoRangeSteps,
       waveformDisplayMode: var_waveformDisplayMode,
       keyDisplayMode: var_keyDisplayMode,
+      trustedControllerDeviceIds: var_trustedControllerDeviceIds,
     );
   }
 
@@ -5778,11 +5792,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_kind = sse_decode_controller_evt_kind(deserializer);
     var var_mappingId = sse_decode_opt_String(deserializer);
+    var var_deviceId = sse_decode_opt_String(deserializer);
     var var_deviceName = sse_decode_opt_String(deserializer);
     var var_portName = sse_decode_opt_String(deserializer);
     return ControllerEvt(
       kind: var_kind,
       mappingId: var_mappingId,
+      deviceId: var_deviceId,
       deviceName: var_deviceName,
       portName: var_portName,
     );
@@ -7121,6 +7137,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       serializer,
     );
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
+    sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
   }
 
   @protected
@@ -7297,6 +7314,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_controller_evt_kind(self.kind, serializer);
     sse_encode_opt_String(self.mappingId, serializer);
+    sse_encode_opt_String(self.deviceId, serializer);
     sse_encode_opt_String(self.deviceName, serializer);
     sse_encode_opt_String(self.portName, serializer);
   }

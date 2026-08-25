@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 
@@ -114,30 +116,76 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       return;
     }
     _shownPorts.add(port);
+    var alwaysAllow = false;
     showFToast(
       context: context,
       duration: null,
       onDismiss: () => _shownPorts.remove(port),
       title: Text('${evt.deviceName ?? mappingId} connected'),
-      description: const Text('Do you want to use this controller?'),
+      description: StatefulBuilder(
+        builder: (context, setLocal) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Do you want to use this controller?'),
+              const SizedBox(height: 8),
+              FCheckbox(
+                value: alwaysAllow,
+                label: const Text('Always allow this device'),
+                onChange: (v) => setLocal(() => alwaysAllow = v),
+              ),
+            ],
+          );
+        },
+      ),
       suffixBuilder: (context, entry) => FButton(
         size: .sm,
         mainAxisSize: .min,
         onPress: () {
           entry.dismiss();
-          unawaited(_enable(transport, mappingId, port));
+          unawaited(
+            _enable(
+              transport: transport,
+              mappingId: mappingId,
+              portName: port,
+              deviceId: evt.deviceId,
+              alwaysAllow: alwaysAllow,
+            ),
+          );
         },
         child: const Text('Enable'),
       ),
     );
   }
 
-  Future<void> _enable(
-    ControllerTransport transport,
-    String mappingId,
-    String portName,
-  ) async {
+  Future<void> _enable({
+    required ControllerTransport transport,
+    required String mappingId,
+    required String portName,
+    required String? deviceId,
+    required bool alwaysAllow,
+  }) async {
     try {
+      if (alwaysAllow && deviceId != null && deviceId.isNotEmpty) {
+        final settings = await ref.read(settingsTransportProvider.future);
+        final current = await settings.getSettings();
+        final trusted = List<String>.from(current.trustedControllerDeviceIds);
+        if (!trusted.contains(deviceId)) {
+          trusted.add(deviceId);
+        }
+        await settings.saveSettings(
+          settings: copyAppSettings(
+            current,
+            trustedControllerDeviceIds: trusted,
+          ),
+        );
+        ref.invalidate(appSettingsProvider);
+        ref.invalidate(controllerTransportProvider);
+        ref.invalidate(controllerMappingsProvider);
+        ref.invalidate(controllerDevicesProvider);
+        return;
+      }
       await transport.enableMapping(mappingId: mappingId, portName: portName);
     } catch (e) {
       if (!mounted) {

@@ -245,6 +245,9 @@ pub struct AppSettings {
     pub waveform_display_mode: WaveformDisplayModeSetting,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
+    /// `device.toml` ids the user trusts (auto-attach, no connect prompt).
+    #[serde(default)]
+    pub trusted_controller_device_ids: Vec<String>,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -263,6 +266,7 @@ struct SettingsHost {
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
     key_display_mode: KeyDisplayModeSetting,
+    trusted_controller_device_ids: Vec<String>,
 }
 
 impl Default for SettingsHost {
@@ -281,6 +285,7 @@ impl Default for SettingsHost {
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
             key_display_mode: KeyDisplayModeSetting::Musical,
+            trusted_controller_device_ids: Vec::new(),
         }
     }
 }
@@ -503,6 +508,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         tempo_range_steps: config.tempo_range_steps(),
         waveform_display_mode: host.waveform_display_mode,
         key_display_mode: host.key_display_mode,
+        trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
     }
 }
 
@@ -533,6 +539,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
     host.key_display_mode = settings.key_display_mode;
+    host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
     host.configured = true;
     Ok(())
 }
@@ -639,6 +646,40 @@ mod tests {
             WaveformDisplayModeSetting::Rgb
         );
         assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
+        assert!(parsed.trusted_controller_device_ids.is_empty());
+    }
+
+    #[test]
+    fn trusted_controller_device_ids_round_trip() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.trusted_controller_device_ids =
+            vec!["pioneer.ddj-400".into(), "example.generic".into()];
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(
+            restored.trusted_controller_device_ids,
+            vec!["pioneer.ddj-400".to_string(), "example.generic".to_string()]
+        );
+    }
+
+    #[test]
+    fn missing_trusted_controller_device_ids_defaults_empty() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("trusted_controller_device_ids");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert!(settings_from_host(&host)
+            .trusted_controller_device_ids
+            .is_empty());
     }
 
     #[test]

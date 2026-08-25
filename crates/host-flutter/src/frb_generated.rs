@@ -455,6 +455,7 @@ fn wire__crate__api__controller__ControllerTransport_start_impl(
             >>::sse_decode(&mut deserializer);
             let api_mappings_dir = <String>::sse_decode(&mut deserializer);
             let api_shipped_mappings_dir = <Option<String>>::sse_decode(&mut deserializer);
+            let api_trusted_device_ids = <Vec<String>>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -493,6 +494,7 @@ fn wire__crate__api__controller__ControllerTransport_start_impl(
                         &*api_library_buses_guard,
                         api_mappings_dir,
                         api_shipped_mappings_dir,
+                        api_trusted_device_ids,
                     )?;
                     Ok(output_ok)
                 })())
@@ -4974,6 +4976,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
         let mut var_keyDisplayMode =
             <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
+        let mut var_trustedControllerDeviceIds = <Vec<String>>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -4996,6 +4999,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             tempo_range_steps: var_tempoRangeSteps,
             waveform_display_mode: var_waveformDisplayMode,
             key_display_mode: var_keyDisplayMode,
+            trusted_controller_device_ids: var_trustedControllerDeviceIds,
         };
     }
 }
@@ -5081,11 +5085,13 @@ impl SseDecode for crate::api::controller::ControllerEvt {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_kind = <crate::api::controller::ControllerEvtKind>::sse_decode(deserializer);
         let mut var_mappingId = <Option<String>>::sse_decode(deserializer);
+        let mut var_deviceId = <Option<String>>::sse_decode(deserializer);
         let mut var_deviceName = <Option<String>>::sse_decode(deserializer);
         let mut var_portName = <Option<String>>::sse_decode(deserializer);
         return crate::api::controller::ControllerEvt {
             kind: var_kind,
             mapping_id: var_mappingId,
+            device_id: var_deviceId,
             device_name: var_deviceName,
             port_name: var_portName,
         };
@@ -6859,6 +6865,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.tempo_range_steps.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
             self.key_display_mode.into_into_dart().into_dart(),
+            self.trusted_controller_device_ids
+                .into_into_dart()
+                .into_dart(),
         ]
         .into_dart()
     }
@@ -6989,6 +6998,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerEvt {
         [
             self.kind.into_into_dart().into_dart(),
             self.mapping_id.into_into_dart().into_dart(),
+            self.device_id.into_into_dart().into_dart(),
             self.device_name.into_into_dart().into_dart(),
             self.port_name.into_into_dart().into_dart(),
         ]
@@ -7955,6 +7965,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.key_display_mode,
             serializer,
         );
+        <Vec<String>>::sse_encode(self.trusted_controller_device_ids, serializer);
     }
 }
 
@@ -8030,6 +8041,7 @@ impl SseEncode for crate::api::controller::ControllerEvt {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <crate::api::controller::ControllerEvtKind>::sse_encode(self.kind, serializer);
         <Option<String>>::sse_encode(self.mapping_id, serializer);
+        <Option<String>>::sse_encode(self.device_id, serializer);
         <Option<String>>::sse_encode(self.device_name, serializer);
         <Option<String>>::sse_encode(self.port_name, serializer);
     }
