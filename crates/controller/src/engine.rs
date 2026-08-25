@@ -82,7 +82,6 @@ pub enum ControllerEvent {
 
 struct Attached {
     mapping_id: String,
-    port_name: String,
     session: MappingSession,
     _input: MidiInputConnection<()>,
     output: Option<MidiOutputConnection>,
@@ -124,8 +123,7 @@ impl CatalogEntry {
 /// Glue midir + app-data mapping bundles for a host (Tauri / WASM).
 ///
 /// Port listing uses long-lived [`Self::enum_in`] / [`Self::enum_out`].
-/// Each attach still opens its own midir clients — `connect` consumes them —
-/// so multiple controllers can each own a connection pair later.
+/// Each attach opens its own midir clients — multiple controllers may attach at once.
 pub struct ControllerEngine {
     app_name: String,
     app_dir: PathBuf,
@@ -137,15 +135,18 @@ pub struct ControllerEngine {
     offered_ports: HashSet<String>,
     /// `device.toml` ids the host trusts — auto-attach on match, no offer.
     trusted_device_ids: HashSet<String>,
+    /// User detached this port; skip trusted auto-attach until reconnect.
+    suppressed_ports: HashSet<String>,
     /// Snapshot of unmatched mapped ports — no MIDI I/O to read.
     pending_offers_cache: Vec<ControllerEvent>,
     events: VecDeque<ControllerEvent>,
-    midi_tx: Sender<Vec<u8>>,
-    midi_rx: Receiver<Vec<u8>>,
+    midi_tx: Sender<(String, Vec<u8>)>,
+    midi_rx: Receiver<(String, Vec<u8>)>,
     /// Enumeration-only midir clients (never `connect`ed). Lazy so seed/open works without ALSA.
     enum_in: Option<MidiInput>,
     enum_out: Option<MidiOutput>,
-    attached: Option<Attached>,
+    /// Live input port name → attached mapping session.
+    attached: HashMap<String, Attached>,
 }
 
 impl ControllerEngine {
@@ -166,13 +167,14 @@ impl ControllerEngine {
             known_input_ports: HashSet::new(),
             offered_ports: HashSet::new(),
             trusted_device_ids: HashSet::new(),
+            suppressed_ports: HashSet::new(),
             pending_offers_cache: Vec::new(),
             events: VecDeque::new(),
             midi_tx,
             midi_rx,
             enum_in: None,
             enum_out: None,
-            attached: None,
+            attached: HashMap::new(),
         };
         this.ensure_seeded()?;
         Ok(this)
@@ -181,6 +183,11 @@ impl ControllerEngine {
     /// Replace the in-memory trust allow-list (`device.toml` ids). Host persists separately.
     pub fn set_trusted_device_ids(&mut self, ids: impl IntoIterator<Item = String>) {
         self.trusted_device_ids = ids.into_iter().collect();
+    }
+
+    #[doc(hidden)]
+    pub fn suppress_port_for_test(&mut self, port_name: &str) {
+        self.suppressed_ports.insert(port_name.to_string());
     }
 
     fn ensure_enum_clients(&mut self) -> Result<(), EngineError> {
@@ -241,17 +248,16 @@ impl ControllerEngine {
         }
         copy_dir_all(&src, &dest)?;
         self.rescan_catalog()?;
-        if self
+        let ports: Vec<String> = self
             .attached
-            .as_ref()
-            .is_some_and(|a| a.mapping_id == mapping_id)
-        {
-            let port = self
-                .attached
-                .as_ref()
-                .map(|a| a.port_name.clone())
-                .expect("attached");
-            self.disable_mapping(mapping_id)?;
+            .iter()
+            .filter(|(_, a)| a.mapping_id == mapping_id)
+            .map(|(port, _)| port.clone())
+            .collect();
+        for port in &ports {
+            self.disable_mapping_on_port(port, false)?;
+        }
+        for port in ports {
             let _ = self.enable_mapping(mapping_id, Some(&port));
         }
         Ok(())
@@ -310,7 +316,6 @@ impl ControllerEngine {
     }
 
     pub fn list_mappings(&self) -> Result<Vec<MappingInfo>, EngineError> {
-        let attached_id = self.attached.as_ref().map(|a| a.mapping_id.as_str());
         let mut out: Vec<MappingInfo> = self
             .catalog
             .iter()
@@ -321,7 +326,7 @@ impl ControllerEngine {
                 product_name: entry.product_name.clone(),
                 description: entry.description.clone(),
                 midi_name_contains: entry.midi_name_contains.clone(),
-                attached: attached_id == Some(id.as_str()),
+                attached: self.attached.values().any(|a| a.mapping_id == *id),
             })
             .collect();
         out.sort_by(|a, b| a.id.cmp(&b.id));
@@ -381,18 +386,14 @@ impl ControllerEngine {
             .collect::<Vec<_>>()
         {
             self.offered_ports.remove(&gone);
-            if self.attached.as_ref().is_some_and(|a| a.port_name == gone) {
-                let id = self
-                    .attached
-                    .as_ref()
-                    .map(|a| a.mapping_id.clone())
-                    .expect("attached");
-                let _ = self.disable_mapping(&id);
+            self.suppressed_ports.remove(&gone);
+            if self.attached.contains_key(&gone) {
+                let _ = self.disable_mapping_on_port(&gone, false);
             }
         }
 
         for name in &current {
-            if self.attached.as_ref().is_some_and(|a| &a.port_name == name) {
+            if self.attached.contains_key(name.as_str()) {
                 continue;
             }
             let Some(mapping_id) = self.match_port(name) else {
@@ -405,6 +406,9 @@ impl ControllerEngine {
                 .unwrap_or_else(|| (mapping_id.clone(), mapping_id.clone()));
 
             if self.trusted_device_ids.contains(&device_id) {
+                if self.suppressed_ports.contains(name.as_str()) {
+                    continue;
+                }
                 // Retry each poll until MIDI open succeeds; do not emit offers.
                 let _ = self.enable_mapping(&mapping_id, Some(name));
                 continue;
@@ -448,7 +452,7 @@ impl ControllerEngine {
     fn refresh_pending_offers_cache(&mut self) {
         self.pending_offers_cache.clear();
         for name in &self.known_input_ports {
-            if self.attached.as_ref().is_some_and(|a| &a.port_name == name) {
+            if self.attached.contains_key(name) {
                 continue;
             }
             let Some(mapping_id) = self.match_port(name) else {
@@ -492,12 +496,15 @@ impl ControllerEngine {
                 .ok_or_else(|| EngineError::NoMatchingPort(mapping_id.to_string()))?
         };
 
-        if let Some(attached) = &self.attached {
-            if attached.mapping_id == mapping_id && attached.port_name == port_name {
-                return Ok(());
-            }
-            let old = attached.mapping_id.clone();
-            self.disable_mapping(&old)?;
+        if self
+            .attached
+            .get(&port_name)
+            .is_some_and(|a| a.mapping_id == mapping_id)
+        {
+            return Ok(());
+        }
+        if self.attached.contains_key(&port_name) {
+            self.disable_mapping_on_port(&port_name, false)?;
         }
 
         // Fresh client: midir `connect` consumes MidiInput (one per attached controller).
@@ -512,12 +519,13 @@ impl ControllerEngine {
             .ok_or_else(|| EngineError::NoMatchingPort(mapping_id.to_string()))?;
 
         let tx = self.midi_tx.clone();
+        let port_key = port_name.clone();
         let input = midi_in
             .connect(
                 &port,
                 "in",
                 move |_stamp, message, _| {
-                    let _ = tx.send(message.to_vec());
+                    let _ = tx.send((port_key.clone(), message.to_vec()));
                 },
                 (),
             )
@@ -531,13 +539,16 @@ impl ControllerEngine {
             let mut sink = MidiSink { out: &mut output };
             session.on_init(&mut NullPublish, &mut sink)?;
         }
-        self.attached = Some(Attached {
-            mapping_id: mapping_id.to_string(),
-            port_name: port_name.clone(),
-            session,
-            _input: input,
-            output,
-        });
+        self.suppressed_ports.remove(&port_name);
+        self.attached.insert(
+            port_name.clone(),
+            Attached {
+                mapping_id: mapping_id.to_string(),
+                session,
+                _input: input,
+                output,
+            },
+        );
         self.refresh_pending_offers_cache();
 
         self.events.push_back(ControllerEvent::MappingAttached {
@@ -548,19 +559,35 @@ impl ControllerEngine {
     }
 
     pub fn disable_mapping(&mut self, mapping_id: &str) -> Result<(), EngineError> {
-        let Some(mut attached) = self.attached.take() else {
+        let ports: Vec<String> = self
+            .attached
+            .iter()
+            .filter(|(_, a)| a.mapping_id == mapping_id)
+            .map(|(port, _)| port.clone())
+            .collect();
+        for port in ports {
+            self.disable_mapping_on_port(&port, true)?;
+        }
+        Ok(())
+    }
+
+    fn disable_mapping_on_port(
+        &mut self,
+        port_name: &str,
+        suppress: bool,
+    ) -> Result<(), EngineError> {
+        let Some(mut attached) = self.attached.remove(port_name) else {
             return Ok(());
         };
-        if attached.mapping_id != mapping_id {
-            self.attached = Some(attached);
-            return Ok(());
+        if suppress {
+            self.suppressed_ports.insert(port_name.to_string());
         }
         let mut sink = MidiSink {
             out: &mut attached.output,
         };
         let _ = attached.session.on_shutdown(&mut NullPublish, &mut sink);
         self.events.push_back(ControllerEvent::MappingDetached {
-            mapping_id: mapping_id.to_string(),
+            mapping_id: attached.mapping_id,
         });
         self.refresh_pending_offers_cache();
         Ok(())
@@ -569,8 +596,8 @@ impl ControllerEngine {
     pub fn pump(&mut self, bus: &mut impl ActionPublish) {
         loop {
             match self.midi_rx.try_recv() {
-                Ok(bytes) => {
-                    if let Some(attached) = self.attached.as_mut() {
+                Ok((port_name, bytes)) => {
+                    if let Some(attached) = self.attached.get_mut(&port_name) {
                         let mut sink = MidiSink {
                             out: &mut attached.output,
                         };
@@ -581,7 +608,7 @@ impl ControllerEngine {
                 Err(TryRecvError::Disconnected) => break,
             }
         }
-        if let Some(attached) = self.attached.as_mut() {
+        for attached in self.attached.values_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };
@@ -591,7 +618,7 @@ impl ControllerEngine {
     }
 
     pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
-        if let Some(attached) = self.attached.as_mut() {
+        for attached in self.attached.values_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };
@@ -599,9 +626,9 @@ impl ControllerEngine {
         }
     }
 
-    /// Mirror library hot cues into the attached mapping (pad Trigger vs Save + LEDs).
+    /// Mirror library hot cues into attached mappings (pad Trigger vs Save + LEDs).
     pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT]) {
-        if let Some(attached) = self.attached.as_mut() {
+        for attached in self.attached.values_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };
@@ -611,7 +638,7 @@ impl ControllerEngine {
 
     /// Mirror engine pad mode so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
-        if let Some(attached) = self.attached.as_mut() {
+        for attached in self.attached.values_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };
@@ -621,7 +648,7 @@ impl ControllerEngine {
 
     /// Push deck peak level to `vu_meter` MIDI out (no-op if mapping has none).
     pub fn set_deck_vu(&mut self, deck: u16, level: f32) {
-        if let Some(attached) = self.attached.as_mut() {
+        for attached in self.attached.values_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
             };

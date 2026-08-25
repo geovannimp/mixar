@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -76,7 +77,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final library = await ref.read(libraryTransportProvider.future);
   final previous = await ref.read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
-  final trustedChanged = !_sameTrusted(
+  final trustedChanged = !const ListEquality<String>().equals(
     previous.trustedControllerDeviceIds,
     normalized.trustedControllerDeviceIds,
   );
@@ -106,18 +107,4 @@ Future<SaveAppSettingsResult> saveAppSettings(
     applyError: applyError,
     trustedControllersChanged: trustedChanged,
   );
-}
-
-bool _sameTrusted(List<String> a, List<String> b) {
-  if (a.length != b.length) {
-    return false;
-  }
-  final left = [...a]..sort();
-  final right = [...b]..sort();
-  for (var i = 0; i < left.length; i++) {
-    if (left[i] != right[i]) {
-      return false;
-    }
-  }
-  return true;
 }

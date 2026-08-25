@@ -132,6 +132,22 @@ fn multiple_trusted_ids_skip_offers() {
 }
 
 #[test]
+fn suppressed_trusted_port_skips_auto_attach() {
+    let mut fx = open_with_map();
+    fx.engine.set_trusted_device_ids(["test.map".into()]);
+    fx.engine.suppress_port_for_test("TestDev Port");
+    fx.engine
+        .apply_input_ports(HashSet::from(["TestDev Port".into()]));
+    let ev = fx.engine.take_events();
+    assert!(
+        ev.iter()
+            .all(|e| !matches!(e, ControllerEvent::MappingAttached { .. })),
+        "suppressed port must not auto-attach: {ev:?}"
+    );
+    assert!(fx.engine.pending_offers().is_empty());
+}
+
+#[test]
 fn pending_offers_omit_trusted_matches() {
     let mut fx = open_with_map();
     fx.engine.set_trusted_device_ids(["test.map".into()]);

@@ -245,7 +245,6 @@ pub struct AppSettings {
     pub waveform_display_mode: WaveformDisplayModeSetting,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
-    /// `device.toml` ids the user trusts (auto-attach, no connect prompt).
     #[serde(default)]
     pub trusted_controller_device_ids: Vec<String>,
 }

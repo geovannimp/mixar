@@ -60,7 +60,7 @@ class _SettingsControllersPanelState
     final theme = context.theme;
     final mappings = ref.watch(controllerMappingsProvider);
     final devices = ref.watch(controllerDevicesProvider);
-    final attachedId = ref.watch(attachedMappingIdProvider);
+    final attachedIds = ref.watch(attachedMappingIdsProvider);
     final transport = ref.watch(controllerTransportProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,11 +99,12 @@ class _SettingsControllersPanelState
                   for (final mapping in rows)
                     _mappingItem(
                       mapping: mapping,
-                      attached: mapping.id == attachedId,
+                      attached: attachedIds.contains(mapping.id),
                       trusted: widget.draft.trustedControllerDeviceIds.contains(
                         mapping.deviceId,
                       ),
-                      busy: _busy || transport == null,
+                      attachBusy: _busy || transport == null,
+                      trustBusy: _busy,
                       onToggleAttach: (enabled) => _run(
                         () => enabled
                             ? transport!.enableMapping(mappingId: mapping.id)
@@ -191,7 +192,8 @@ FItem _mappingItem({
   required ControllerMappingInfo mapping,
   required bool attached,
   required bool trusted,
-  required bool busy,
+  required bool attachBusy,
+  required bool trustBusy,
   required ValueChanged<bool> onToggleAttach,
   required ValueChanged<bool> onToggleTrust,
   required VoidCallback onUpdate,
@@ -213,7 +215,7 @@ FItem _mappingItem({
           variant: .outline,
           size: .sm,
           mainAxisSize: .min,
-          onPress: busy ? null : onUpdate,
+          onPress: attachBusy ? null : onUpdate,
           child: const Text('Update'),
         ),
         Column(
@@ -230,9 +232,9 @@ FItem _mappingItem({
                   child: FittedBox(
                     child: FSwitch(
                       value: trusted,
-                      enabled: !busy,
+                      enabled: !trustBusy,
                       semanticsLabel: 'Trust device $name',
-                      onChange: busy ? null : onToggleTrust,
+                      onChange: trustBusy ? null : onToggleTrust,
                     ),
                   ),
                 ),
@@ -249,9 +251,9 @@ FItem _mappingItem({
                   child: FittedBox(
                     child: FSwitch(
                       value: attached,
-                      enabled: !busy,
+                      enabled: !attachBusy,
                       semanticsLabel: 'Enable $name',
-                      onChange: busy ? null : onToggleAttach,
+                      onChange: attachBusy ? null : onToggleAttach,
                     ),
                   ),
                 ),

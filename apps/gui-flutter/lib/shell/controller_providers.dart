@@ -52,12 +52,9 @@ final controllerMappingsProvider = FutureProvider<List<ControllerMappingInfo>>((
     return const [];
   }
   final rows = await transport.listMappings();
-  for (final row in rows) {
-    if (row.attached) {
-      ref.read(attachedMappingIdProvider.notifier).seed(row.id);
-      break;
-    }
-  }
+  ref
+      .read(attachedMappingIdsProvider.notifier)
+      .sync(rows.where((row) => row.attached).map((row) => row.id));
   return rows;
 });
 
@@ -72,14 +69,23 @@ final controllerDevicesProvider = FutureProvider<List<ControllerDeviceInfo>>((
   return transport.listDevices();
 });
 
-class AttachedMappingId extends Notifier<String?> {
+class AttachedMappingIds extends Notifier<Set<String>> {
   @override
-  String? build() => null;
+  Set<String> build() => {};
 
-  void seed(String id) => state ??= id;
-
-  void set(String? id) => state = id;
+  void sync(Iterable<String> ids) => state = ids.toSet();
 }
 
-final attachedMappingIdProvider =
-    NotifierProvider<AttachedMappingId, String?>(AttachedMappingId.new);
+final attachedMappingIdsProvider =
+    NotifierProvider<AttachedMappingIds, Set<String>>(AttachedMappingIds.new);
+
+Future<void> syncAttachedMappingIds(WidgetRef ref) async {
+  final transport = ref.read(controllerTransportProvider).value;
+  if (transport == null) {
+    return;
+  }
+  final rows = await transport.listMappings();
+  ref
+      .read(attachedMappingIdsProvider.notifier)
+      .sync(rows.where((row) => row.attached).map((row) => row.id));
+}
