@@ -4905,7 +4905,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_tempoRangeSteps = <Vec<f32>>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
-        let mut var_scanFolderTree = <bool>::sse_decode(deserializer);
+        let mut var_keyDisplayMode =
+            <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -4927,7 +4928,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             default_tempo_range: var_defaultTempoRange,
             tempo_range_steps: var_tempoRangeSteps,
             waveform_display_mode: var_waveformDisplayMode,
-            scan_folder_tree: var_scanFolderTree,
+            key_display_mode: var_keyDisplayMode,
         };
     }
 }
@@ -5093,6 +5094,11 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_activeLoop =
             <Option<crate::api::engine::ActiveLoopInfo>>::sse_decode(deserializer);
         let mut var_activeLoopKnown = <bool>::sse_decode(deserializer);
+        let mut var_durationKnown = <bool>::sse_decode(deserializer);
+        let mut var_quantize = <Option<bool>>::sse_decode(deserializer);
+        let mut var_jogTouching = <Option<bool>>::sse_decode(deserializer);
+        let mut var_loudnessLufs = <Option<f64>>::sse_decode(deserializer);
+        let mut var_autoGainDb = <Option<f32>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
             kind: var_kind,
             deck_id: var_deckId,
@@ -5124,6 +5130,11 @@ impl SseDecode for crate::api::engine::EngineEvt {
             master_deck: var_masterDeck,
             active_loop: var_activeLoop,
             active_loop_known: var_activeLoopKnown,
+            duration_known: var_durationKnown,
+            quantize: var_quantize,
+            jog_touching: var_jogTouching,
+            loudness_lufs: var_loudnessLufs,
+            auto_gain_db: var_autoGainDb,
         };
     }
 }
@@ -5954,6 +5965,18 @@ impl SseDecode for usize {
     }
 }
 
+impl SseDecode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::KeyDisplayModeSetting::Musical,
+            1 => crate::api::settings::KeyDisplayModeSetting::Camelot,
+            _ => unreachable!("Invalid variant for KeyDisplayModeSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::settings::WaveformDisplayModeSetting {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -6704,7 +6727,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.default_tempo_range.into_into_dart().into_dart(),
             self.tempo_range_steps.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
-            self.scan_folder_tree.into_into_dart().into_dart(),
+            self.key_display_mode.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -6934,6 +6957,11 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.master_deck.into_into_dart().into_dart(),
             self.active_loop.into_into_dart().into_dart(),
             self.active_loop_known.into_into_dart().into_dart(),
+            self.duration_known.into_into_dart().into_dart(),
+            self.quantize.into_into_dart().into_dart(),
+            self.jog_touching.into_into_dart().into_dart(),
+            self.loudness_lufs.into_into_dart().into_dart(),
+            self.auto_gain_db.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7449,6 +7477,27 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyDisplayModeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Musical => 0.into_dart(),
+            Self::Camelot => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::KeyDisplayModeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyDisplayModeSetting>
+    for crate::api::settings::KeyDisplayModeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::KeyDisplayModeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::WaveformDisplayModeSetting {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7742,7 +7791,10 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.waveform_display_mode,
             serializer,
         );
-        <bool>::sse_encode(self.scan_folder_tree, serializer);
+        <crate::api::settings::KeyDisplayModeSetting>::sse_encode(
+            self.key_display_mode,
+            serializer,
+        );
     }
 }
 
@@ -7886,6 +7938,11 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<u16>>::sse_encode(self.master_deck, serializer);
         <Option<crate::api::engine::ActiveLoopInfo>>::sse_encode(self.active_loop, serializer);
         <bool>::sse_encode(self.active_loop_known, serializer);
+        <bool>::sse_encode(self.duration_known, serializer);
+        <Option<bool>>::sse_encode(self.quantize, serializer);
+        <Option<bool>>::sse_encode(self.jog_touching, serializer);
+        <Option<f64>>::sse_encode(self.loudness_lufs, serializer);
+        <Option<f32>>::sse_encode(self.auto_gain_db, serializer);
     }
 }
 
@@ -8587,6 +8644,22 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
+    }
+}
+
+impl SseEncode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::KeyDisplayModeSetting::Musical => 0,
+                crate::api::settings::KeyDisplayModeSetting::Camelot => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

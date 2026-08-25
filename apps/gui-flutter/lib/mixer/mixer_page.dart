@@ -6,8 +6,8 @@ import 'package:gui_flutter/mixer/waveform_section.dart';
 
 /// Mixer page with Tauri-like resizable regions (Forui [FResizable]).
 ///
-/// Vertical: waveforms | (decks + library)
-/// Nested vertical: decks (fixed) | library
+/// Vertical: waveforms | (fixed decks + library). Decks are not a resizable
+/// region — only the waveform/library split moves.
 class MixerPage extends StatelessWidget {
   const MixerPage({super.key});
 
@@ -31,23 +31,19 @@ class MixerPage extends StatelessWidget {
           flex: 1,
           minFlex: 1,
           builder: _fill,
-          child: FResizable(
-            axis: .vertical,
-            divider: .dividerWithThumb,
-            children: [
-              FResizableRegion.fixed(
-                extent: _deckRowHeight,
-                minExtent: 300,
-                builder: _fill,
-                child: const DeckGrid(),
-              ),
-              FResizableRegion.flex(
-                flex: 1,
-                minFlex: 1,
-                builder: _fill,
-                child: const LibraryPanel(),
-              ),
-            ],
+          child: ColoredBox(
+            color: context.theme.colors.card,
+            child: Column(
+              crossAxisAlignment: .stretch,
+              children: [
+                SizedBox(
+                  height: _deckRowHeight,
+                  child: const ClipRect(child: DeckGrid()),
+                ),
+                FDivider(style: .delta(padding: .value(.all(0)))),
+                Expanded(child: LibraryPanel()),
+              ],
+            ),
           ),
         ),
       ],

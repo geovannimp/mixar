@@ -225,6 +225,12 @@ pub struct EngineEvt {
     pub active_loop: Option<ActiveLoopInfo>,
     /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
     pub active_loop_known: bool,
+    /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
+    pub duration_known: bool,
+    pub quantize: Option<bool>,
+    pub jog_touching: Option<bool>,
+    pub loudness_lufs: Option<f64>,
+    pub auto_gain_db: Option<f32>,
 }
 
 impl EngineEvt {
@@ -260,6 +266,11 @@ impl EngineEvt {
             master_deck: None,
             active_loop: None,
             active_loop_known: false,
+            duration_known: false,
+            quantize: None,
+            jog_touching: None,
+            loudness_lufs: None,
+            auto_gain_db: None,
         }
     }
 }
@@ -1057,12 +1068,17 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.gain_trim = Some(snap.gain_trim);
     evt.headphone_cue = Some(snap.headphone_cue);
     evt.duration_ms = snap.duration_ms;
+    evt.duration_known = true;
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
     evt.active_loop_known = true;
+    evt.quantize = Some(snap.quantize);
+    evt.jog_touching = Some(snap.jog_touching);
+    evt.loudness_lufs = snap.loudness_lufs;
+    evt.auto_gain_db = Some(snap.auto_gain_db);
     evt
 }
 
@@ -1101,6 +1117,10 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             pad_mode,
             sync_mode,
             active_loop,
+            quantize,
+            jog_touching,
+            loudness_lufs,
+            auto_gain_db,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1117,12 +1137,17 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.gain_trim = Some(gain_trim);
             evt.headphone_cue = Some(headphone_cue);
             evt.duration_ms = duration_ms;
+            evt.duration_known = true;
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
             evt.active_loop_known = true;
+            evt.quantize = Some(quantize);
+            evt.jog_touching = Some(jog_touching);
+            evt.loudness_lufs = loudness_lufs;
+            evt.auto_gain_db = Some(auto_gain_db);
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -1283,6 +1308,11 @@ mod tests {
         assert_eq!(mapped[1].tempo_range, Some(0.08));
         assert_eq!(mapped[1].pad_mode, Some(super::PadMode::HotCue));
         assert_eq!(mapped[1].sync_mode, Some(SyncMode::Off));
+        assert_eq!(mapped[1].quantize, Some(true));
+        assert!(mapped[1].duration_known);
+        assert_eq!(mapped[1].jog_touching, Some(false));
+        assert_eq!(mapped[1].loudness_lufs, None);
+        assert_eq!(mapped[1].auto_gain_db, Some(0.0));
         assert_eq!(mapped[2].deck_id, Some(1));
         assert_eq!(mapped[2].volume, Some(0.7));
         assert_eq!(mapped[2].sync_mode, Some(SyncMode::Tempo));
@@ -1325,5 +1355,42 @@ mod tests {
         assert_eq!(region.in_ms, 1000);
         assert_eq!(region.out_ms, 5000);
         assert!(region.active);
+    }
+
+    #[test]
+    fn map_status_forwards_quantize_gain_and_jog() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.quantize = false;
+        deck.jog_touching = true;
+        deck.loudness_lufs = Some(-14.5);
+        deck.auto_gain_db = -3.5;
+        let mapped = recv_mapped(
+            Origin::Mixer,
+            Kind::Status,
+            EvtBody::EngineStatus {
+                status: EngineStatus {
+                    running: true,
+                    sample_rate: 48_000,
+                    crossfader: 0.5,
+                    cue_mix: 0.0,
+                    master_cue: false,
+                    master_deck: 0,
+                    decks: vec![deck],
+                    sampler: SamplerStatus {
+                        banks: Vec::new(),
+                        active_bank_id: None,
+                        active_bank_name: None,
+                        bank_play_mode: None,
+                        deck_slots: Vec::new(),
+                        effective_play_modes: Vec::new(),
+                    },
+                },
+            },
+        );
+        assert_eq!(mapped.len(), 2);
+        assert_eq!(mapped[1].quantize, Some(false));
+        assert_eq!(mapped[1].jog_touching, Some(true));
+        assert_eq!(mapped[1].loudness_lufs, Some(-14.5));
+        assert_eq!(mapped[1].auto_gain_db, Some(-3.5));
     }
 }

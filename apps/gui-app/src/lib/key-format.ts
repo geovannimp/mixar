@@ -1,7 +1,9 @@
 import type { KeyDisplayMode } from "@/types";
 
+/** Circle-of-fifths majors starting at C. Index `i` → Camelot `(i + 7) % 12 + 1` + `B`. */
 const MAJOR_KEYS = ["C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#", "F"] as const;
 
+/** Relative minors starting at Am. Index `i` → Camelot `(i + 7) % 12 + 1` + `A`. */
 const MINOR_KEYS = [
   "Am",
   "Em",
@@ -17,43 +19,40 @@ const MINOR_KEYS = [
   "Dm",
 ] as const;
 
-const KEY_DISPLAY_MODE_STORAGE = "dj-key-display-mode";
-
-export function getKeyDisplayMode(): KeyDisplayMode {
-  const stored = localStorage.getItem(KEY_DISPLAY_MODE_STORAGE);
-  return stored === "camelot" ? "camelot" : "musical";
-}
-
-export function setKeyDisplayMode(mode: KeyDisplayMode): void {
-  localStorage.setItem(KEY_DISPLAY_MODE_STORAGE, mode);
-}
+/** Mixed In Key: C→8B, Am→8A (A=minor, B=major). */
+const CAMELOT_OFFSET = 7;
 
 function musicalToCamelot(key: string): string | null {
   const trimmed = key.trim();
   const majorIndex = MAJOR_KEYS.indexOf(trimmed as (typeof MAJOR_KEYS)[number]);
   if (majorIndex >= 0) {
-    return `${majorIndex + 1}A`;
+    return `${((majorIndex + CAMELOT_OFFSET) % 12) + 1}B`;
   }
   const minorIndex = MINOR_KEYS.indexOf(trimmed as (typeof MINOR_KEYS)[number]);
   if (minorIndex >= 0) {
-    return `${minorIndex + 1}B`;
+    return `${((minorIndex + CAMELOT_OFFSET) % 12) + 1}A`;
   }
   return null;
 }
 
 function camelotToMusical(code: string): string | null {
-  const trimmed = code.trim().toUpperCase();
-  const minor = trimmed.endsWith("B");
-  const major = trimmed.endsWith("A");
+  const trimmed = code.trim();
+  if (trimmed.length < 2) {
+    return null;
+  }
+  const upper = trimmed.toUpperCase();
+  const minor = upper.endsWith("A");
+  const major = upper.endsWith("B");
   if (!minor && !major) {
     return null;
   }
-  const numberText = trimmed.slice(0, -1);
-  const number = Number.parseInt(numberText, 10);
-  if (!Number.isFinite(number) || number < 1 || number > 12) {
+  const numberText = upper.slice(0, -1);
+  // Reject trailing junk / decimals (`8junkB`, `8.5B`); parseInt alone accepts those.
+  if (!/^(1[0-2]|[1-9])$/.test(numberText)) {
     return null;
   }
-  const index = number - 1;
+  const number = Number.parseInt(numberText, 10);
+  const index = (number + 12 - 1 - CAMELOT_OFFSET) % 12;
   if (minor) {
     return MINOR_KEYS[index] ?? null;
   }

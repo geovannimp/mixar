@@ -3,18 +3,18 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_cue_button.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
+import 'package:gui_flutter/mixer/deck_track_info.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
-import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
-/// Placeholder deck chrome (track info, performance tabs, transport) + tempo column.
+/// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
   const DeckPanel({
     required this.deckId,
@@ -37,7 +37,12 @@ class DeckPanel extends ConsumerWidget {
     final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
     final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
+    final engineRunning = ref.watch(engineRunningProvider);
+    final loading = ref.watch(deckLoadingProvider(deckId));
+    final quantize = ref.watch(deckQuantizeProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
+    final loadDisabled = loading || !engineRunning;
+    final transportDisabled = loadDisabled || !hasTrack;
     final tempo = DeckTempoPanel(
       accent: accent,
       speed: ref.watch(deckSpeedProvider(deckId)),
@@ -68,69 +73,174 @@ class DeckPanel extends ConsumerWidget {
       },
     );
 
+    final cue = DeckCueButton(
+      disabled: transportDisabled,
+      onBeginHold: () {
+        unawaited(_engineCmd(context, () => beginDeckCueHold(ref, deckId)));
+      },
+      onEndHold: () {
+        unawaited(_engineCmd(context, () => endDeckCueHold(ref, deckId)));
+      },
+      onSetCue: () {
+        unawaited(_engineCmd(context, () => setDeckCuePoint(ref, deckId)));
+      },
+    );
+    final play = Expanded(
+      child: FButton(
+        onPress: transportDisabled
+            ? null
+            : () {
+                unawaited(_togglePlay(context, ref, deckId));
+              },
+        semanticsLabel: playing ? 'Pause' : 'Play',
+        child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
+      ),
+    );
+    final cueWrap = Expanded(child: cue);
+
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
       children: [
-        Text(
-          label,
-          style: theme.typography.body.sm.copyWith(
-            fontWeight: FontWeight.w700,
-            color: accentColor,
-          ),
-        ),
-        Skeletonizer(
-          enabled: skeleton,
-          child: Text(
-            loadedTitle ?? 'No track loaded',
-            style: theme.typography.body.xs.copyWith(
-              color: theme.colors.mutedForeground,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        OverviewStrip(deckId: deckId, height: 36),
-        const SizedBox(height: 8),
-        Expanded(
-          child: DeckPerformancePanel(deckId: deckId, hasTrack: hasTrack),
-        ),
-        const SizedBox(height: 8),
         Row(
-          spacing: 8,
           children: [
-            Expanded(
-              child: FButton(
-                variant: .secondary,
-                onPress: () {},
-                child: const Text('Cue'),
+            Text(
+              label,
+              style: theme.typography.body.sm.copyWith(
+                fontWeight: FontWeight.w700,
+                color: accentColor,
               ),
             ),
-            Expanded(
-              child: FButton(
-                onPress: !hasTrack
-                    ? null
-                    : () {
-                        unawaited(_togglePlay(context, ref, deckId));
-                      },
-                semanticsLabel: playing ? 'Pause' : 'Play',
-                child: Icon(
-                  playing ? LucideIcons.pause600 : LucideIcons.play600,
-                ),
-              ),
+            const SizedBox(width: 4),
+            DeckGainPopover(deckId: deckId, hasTrack: hasTrack),
+            const Spacer(),
+            _QuantizeButton(
+              quantize: quantize,
+              disabled: transportDisabled,
+              onPress: () {
+                unawaited(
+                  _engineCmd(
+                    context,
+                    () => setDeckQuantize(ref, deckId, !quantize),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+            _EjectLoadButton(
+              hasTrack: hasTrack,
+              disabled: loadDisabled,
+              onPress: () {
+                unawaited(
+                  _engineCmd(context, () async {
+                    if (hasTrack) {
+                      await unloadDeck(ref, deckId);
+                      return;
+                    }
+                    await pickTrackForDeck(ref, deckId);
+                  }),
+                );
+              },
             ),
           ],
+        ),
+        DeckTrackInfo(deckId: deckId, hasTrack: hasTrack, title: loadedTitle),
+        Expanded(
+          child: DeckPerformancePanel(
+            deckId: deckId,
+            hasTrack: hasTrack,
+            accent: accent,
+            disabled: transportDisabled,
+          ),
+        ),
+        Row(
+          spacing: 8,
+          children: accent == FaderAccent.a ? [cueWrap, play] : [play, cueWrap],
         ),
       ],
     );
 
     return TrackDropZone(
       deckId: deckId,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
-          Expanded(child: body),
-          if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
-        ],
+      child: ClipRect(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_tempoOnRight) ...[tempo, const SizedBox(width: 8)],
+            Expanded(child: body),
+            if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EjectLoadButton extends StatelessWidget {
+  const _EjectLoadButton({
+    required this.onPress,
+    required this.hasTrack,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool disabled;
+  final bool hasTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    return FButton(
+      variant: .outline,
+      size: .xs,
+      mainAxisSize: .min,
+      onPress: disabled ? null : onPress,
+      semanticsLabel: hasTrack ? 'Eject track' : 'Load track',
+      style: .delta(
+        contentStyle: .delta(
+          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+        ),
+      ),
+      child: Icon(hasTrack ? LucideIcons.circleX600 : LucideIcons.fileInput600),
+    );
+  }
+}
+
+class _QuantizeButton extends StatelessWidget {
+  const _QuantizeButton({
+    required this.onPress,
+    required this.quantize,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool quantize;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    // Same emerald as mixer headphone cue (`mixer_strip.dart`).
+    const cueOn = Color.fromARGB(191, 52, 211, 153);
+    const cueFill = Color.fromARGB(28, 52, 211, 153); // emerald-400 @ ~25%
+    final on = quantize && !disabled;
+    return FButton(
+      variant: .outline,
+      size: .xs,
+      mainAxisSize: .min,
+      onPress: disabled ? null : onPress,
+      semanticsLabel: quantize ? 'Quantize on' : 'Quantize off',
+      style: .delta(
+        decoration: on ? .delta([.all(.shapeDelta(color: cueFill))]) : null,
+        contentStyle: .delta(
+          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+        ),
+      ),
+      child: Text(
+        'Q',
+        style: TextStyle(
+          fontWeight: .w600,
+          color: on ? cueOn : theme.colors.mutedForeground,
+        ),
       ),
     );
   }

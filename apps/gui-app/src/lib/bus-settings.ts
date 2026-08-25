@@ -3,6 +3,7 @@ import type {
   BusChannelMode,
   BusRouteSettings,
   JogMode,
+  KeyDisplayMode,
   SamplerPlayMode,
   SamplerStripRoute,
 } from "@/types";
@@ -18,6 +19,7 @@ export const DEFAULT_SAMPLER_PLAY_MODE: SamplerPlayMode = "oneshot";
 export const DEFAULT_SAMPLER_STRIP_ROUTE: SamplerStripRoute = "before";
 export const DEFAULT_TOP_JOG_MODE: JogMode = "vinyl";
 export const DEFAULT_OUTER_JOG_MODE: JogMode = "pitch_bend";
+export const DEFAULT_KEY_DISPLAY_MODE: KeyDisplayMode = "musical";
 export const MIN_TARGET_LUFS = -24;
 export const MAX_TARGET_LUFS = -9;
 
@@ -82,7 +84,12 @@ export function normalizeAppSettings(settings: AppSettings): AppSettings {
     default_outer_jog_mode: settings.default_outer_jog_mode ?? DEFAULT_OUTER_JOG_MODE,
     default_tempo_range: normalizeTempoRange(settings.default_tempo_range ?? DEFAULT_TEMPO_RANGE),
     tempo_range_steps: normalizeTempoRangeSteps(settings.tempo_range_steps),
+    key_display_mode: normalizeKeyDisplayMode(settings.key_display_mode),
   };
+}
+
+function normalizeKeyDisplayMode(mode: KeyDisplayMode | undefined): KeyDisplayMode {
+  return mode === "camelot" ? "camelot" : DEFAULT_KEY_DISPLAY_MODE;
 }
 
 function normalizeTempoRange(value: number): number {

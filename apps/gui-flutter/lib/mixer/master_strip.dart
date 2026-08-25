@@ -46,6 +46,8 @@ class MasterStrip extends ConsumerWidget {
             variant: masterCue ? .secondary : .outline,
             size: .sm,
             mainAxisSize: .min,
+            selected: masterCue,
+            semanticsLabel: 'Cue',
             onPress: previewEnabled
                 ? () {
                     unawaited(

@@ -225,5 +225,80 @@ void main() {
       expect(snap.isMaster(1), isTrue);
       expect(snap.isMaster(0), isFalse);
     });
+
+    test('updated stores quantize loudness autoGain and jogTouching', () {
+      expect(EngineUiSnapshot.empty.quantizeFor(0), isTrue);
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          durationMs: 4000,
+          quantize: false,
+          jogTouching: true,
+          loudnessLufs: -14.5,
+          autoGainDb: -3.5,
+        ),
+      );
+      expect(snap.quantizeFor(0), isFalse);
+      expect(snap.jogTouchingFor(0), isTrue);
+      expect(snap.loudnessLufsFor(0), -14.5);
+      expect(snap.autoGainDbFor(0), -3.5);
+    });
+
+    test('duration_ms going null clears host identity and gain', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: 'Keep',
+          trackId: 'abc',
+          durationMs: 8000,
+          loudnessLufs: -18,
+          autoGainDb: 2,
+          quantize: false,
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          playing: false,
+          durationKnown: true,
+          quantize: false,
+        ),
+      );
+      expect(snap.titleFor(0), isNull);
+      expect(snap.trackIdFor(0), isNull);
+      expect(snap.durationMsFor(0), isNull);
+      expect(snap.loudnessLufsFor(0), isNull);
+      expect(snap.autoGainDbFor(0), 0);
+      expect(snap.quantizeFor(0), isFalse);
+    });
+
+    test('unload without prior duration still clears host identity', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: 'Keep',
+          trackId: 'abc',
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          durationKnown: true,
+        ),
+      );
+      expect(snap.titleFor(0), isNull);
+      expect(snap.trackIdFor(0), isNull);
+      expect(snap.durationMsFor(0), isNull);
+    });
   });
 }

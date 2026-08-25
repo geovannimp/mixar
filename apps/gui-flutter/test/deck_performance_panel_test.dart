@@ -43,6 +43,7 @@ void main() {
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
     expect(find.text('JOG'), findsNothing);
+    expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.repeat2));
     await tester.pumpAndSettle();
@@ -50,10 +51,11 @@ void main() {
     expect(find.text('OUT'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('JOG'), findsNothing);
+    expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.disc3));
     await tester.pumpAndSettle();
-    expect(find.text('JOG'), findsOneWidget);
+    expect(find.bySemanticsLabel('Jog wheel'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('IN'), findsNothing);
 
@@ -62,5 +64,6 @@ void main() {
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
     expect(find.text('JOG'), findsNothing);
+    expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
   });
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_jog.dart';
 import 'package:gui_flutter/mixer/deck_loop_host.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/deck_pads_host.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 
@@ -16,12 +18,14 @@ class DeckPerformancePanel extends StatelessWidget {
     this.deckId,
     this.hasTrack = false,
     this.disabled = false,
+    this.accent = FaderAccent.a,
     super.key,
   });
 
   final int? deckId;
   final bool hasTrack;
   final bool disabled;
+  final FaderAccent accent;
 
   @override
   Widget build(BuildContext context) {
@@ -119,40 +123,28 @@ class DeckPerformancePanel extends StatelessWidget {
                                   disabled: disabled,
                                   bordered: false,
                                 ),
-                          DeckPerformanceMode.jog => const Center(
-                            child: _JogPlaceholder(),
-                          ),
+                          DeckPerformanceMode.jog => deckId != null
+                              ? Center(
+                                  child: DeckJogHost(
+                                    deckId: deckId!,
+                                    hasTrack: hasTrack,
+                                    accent: accent,
+                                    disabled: disabled,
+                                  ),
+                                )
+                              : Center(
+                                  child: JogPlatter(
+                                    accent: accent,
+                                    playing: false,
+                                    hasTrack: hasTrack,
+                                    enabled: false,
+                                  ),
+                                ),
                         },
                       ),
                     ),
                   ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _JogPlaceholder extends StatelessWidget {
-  const _JogPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return AspectRatio(
-      aspectRatio: 1,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: theme.colors.border, width: 3),
-        ),
-        child: Center(
-          child: Text(
-            'JOG',
-            style: theme.typography.body.xs.copyWith(
-              color: theme.colors.mutedForeground,
             ),
           ),
         ),

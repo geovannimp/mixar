@@ -41,4 +41,11 @@ void main() {
     expect(formatDeckTimeTenth(6500), '0:06.5');
     expect(formatDeckTimeTenth(125100), '2:05.1');
   });
+
+  test('formatDeckRemainingDisplay and total', () {
+    expect(formatDeckRemainingDisplay(null, 10000), '—');
+    expect(formatDeckRemainingDisplay(2500, 10000), '-0:07.5');
+    expect(formatDeckRemainingDisplay(12000, 10000), '-0:00.0');
+    expect(formatDeckTotalDisplay(6500), '0:06.5');
+  });
 }

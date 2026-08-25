@@ -260,6 +260,13 @@ class EngineEvt {
   /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
   final bool activeLoopKnown;
 
+  /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
+  final bool durationKnown;
+  final bool? quantize;
+  final bool? jogTouching;
+  final double? loudnessLufs;
+  final double? autoGainDb;
+
   const EngineEvt({
     required this.kind,
     this.deckId,
@@ -291,6 +298,11 @@ class EngineEvt {
     this.masterDeck,
     this.activeLoop,
     this.activeLoopKnown = false,
+    this.durationKnown = false,
+    this.quantize,
+    this.jogTouching,
+    this.loudnessLufs,
+    this.autoGainDb,
   });
 
   @override
@@ -324,7 +336,12 @@ class EngineEvt {
       syncMode.hashCode ^
       masterDeck.hashCode ^
       activeLoop.hashCode ^
-      activeLoopKnown.hashCode;
+      activeLoopKnown.hashCode ^
+      durationKnown.hashCode ^
+      quantize.hashCode ^
+      jogTouching.hashCode ^
+      loudnessLufs.hashCode ^
+      autoGainDb.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -360,7 +377,12 @@ class EngineEvt {
           syncMode == other.syncMode &&
           masterDeck == other.masterDeck &&
           activeLoop == other.activeLoop &&
-          activeLoopKnown == other.activeLoopKnown;
+          activeLoopKnown == other.activeLoopKnown &&
+          durationKnown == other.durationKnown &&
+          quantize == other.quantize &&
+          jogTouching == other.jogTouching &&
+          loudnessLufs == other.loudnessLufs &&
+          autoGainDb == other.autoGainDb;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).

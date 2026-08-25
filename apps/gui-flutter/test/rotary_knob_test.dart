@@ -44,6 +44,12 @@ void main() {
     expect(() => valueToAngle(0, double.nan, 1), throwsArgumentError);
   });
 
+  test('normToStripDb maps 0..1 to ±24 dB', () {
+    expect(normToStripDb(0), -24);
+    expect(normToStripDb(0.5), 0);
+    expect(normToStripDb(1), 24);
+  });
+
   testWidgets('drag updates value via onValueChange', (tester) async {
     final theme = FTheme.neutral.dark.desktop;
     var value = 0.5;
@@ -51,7 +57,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: Scaffold(
