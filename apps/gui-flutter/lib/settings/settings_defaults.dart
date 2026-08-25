@@ -76,6 +76,7 @@ AppSettings defaultAppSettings() {
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     keyDisplayMode: KeyDisplayModeSetting.musical,
+    trustedControllerDeviceIds: const [],
   );
 }
 
@@ -141,6 +142,7 @@ AppSettings copyAppSettings(
   Float32List? tempoRangeSteps,
   WaveformDisplayModeSetting? waveformDisplayMode,
   KeyDisplayModeSetting? keyDisplayMode,
+  List<String>? trustedControllerDeviceIds,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -166,6 +168,8 @@ AppSettings copyAppSettings(
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
+    trustedControllerDeviceIds:
+        trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
   );
 }
 
@@ -198,7 +202,11 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
         draft.deckDefaultSamplerBankId,
         baseline.deckDefaultSamplerBankId,
       ) ||
-      !_sameList(draft.tempoRangeSteps, baseline.tempoRangeSteps);
+      !_sameList(draft.tempoRangeSteps, baseline.tempoRangeSteps) ||
+      !_sameList(
+        draft.trustedControllerDeviceIds,
+        baseline.trustedControllerDeviceIds,
+      );
 }
 
 bool _sameList<T>(List<T> a, List<T> b) {

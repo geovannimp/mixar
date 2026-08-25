@@ -57,6 +57,7 @@ fn start_seeds_and_lists_shipped_mapping() {
         &LibraryBusHandle::from_buses(LibraryBuses::new()),
         app.to_string_lossy().into_owned(),
         Some(shipped.to_string_lossy().into_owned()),
+        Vec::new(),
     )
     .unwrap();
 

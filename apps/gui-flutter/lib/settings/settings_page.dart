@@ -11,6 +11,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/settings/settings_sidebar.dart';
 import 'package:gui_flutter/settings/settings_waveform_panel.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -176,6 +177,11 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       if (!mounted) {
         return;
       }
+      if (result.trustedControllersChanged) {
+        ref.invalidate(controllerTransportProvider);
+        ref.invalidate(controllerMappingsProvider);
+        ref.invalidate(controllerDevicesProvider);
+      }
       setState(() {
         _draft = result.saved;
         _baseline = result.saved;
@@ -311,7 +317,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.controllers => const SettingsControllersPanel(),
+      SettingsSection.controllers => SettingsControllersPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
     };
   }
 }

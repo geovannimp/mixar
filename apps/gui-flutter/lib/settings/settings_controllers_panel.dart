@@ -2,11 +2,20 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
-  const SettingsControllersPanel({super.key});
+  const SettingsControllersPanel({
+    required this.draft,
+    required this.onChanged,
+    super.key,
+  });
+
+  final AppSettings draft;
+  final ValueChanged<AppSettings> onChanged;
 
   @override
   ConsumerState<SettingsControllersPanel> createState() =>
@@ -32,12 +41,26 @@ class _SettingsControllersPanelState
     }
   }
 
+  void _setTrusted(String deviceId, bool trusted) {
+    final next = List<String>.from(widget.draft.trustedControllerDeviceIds);
+    if (trusted) {
+      if (!next.contains(deviceId)) {
+        next.add(deviceId);
+      }
+    } else {
+      next.remove(deviceId);
+    }
+    widget.onChanged(
+      copyAppSettings(widget.draft, trustedControllerDeviceIds: next),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final mappings = ref.watch(controllerMappingsProvider);
     final devices = ref.watch(controllerDevicesProvider);
-    final attachedId = ref.watch(attachedMappingIdProvider);
+    final attachedIds = ref.watch(attachedMappingIdsProvider);
     final transport = ref.watch(controllerTransportProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +68,7 @@ class _SettingsControllersPanelState
         const SettingsSectionHeader(
           title: 'Controllers',
           description:
-              'MIDI mappings live in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle.',
+              'MIDI mappings live in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle. Trust device auto-enables on connect after Save.',
         ),
         const SizedBox(height: 16),
         SettingsField(
@@ -76,13 +99,19 @@ class _SettingsControllersPanelState
                   for (final mapping in rows)
                     _mappingItem(
                       mapping: mapping,
-                      attached: mapping.id == attachedId,
-                      busy: _busy || transport == null,
-                      onToggle: (enabled) => _run(
+                      attached: attachedIds.contains(mapping.id),
+                      trusted: widget.draft.trustedControllerDeviceIds.contains(
+                        mapping.deviceId,
+                      ),
+                      attachBusy: _busy || transport == null,
+                      trustBusy: _busy,
+                      onToggleAttach: (enabled) => _run(
                         () => enabled
                             ? transport!.enableMapping(mappingId: mapping.id)
                             : transport!.disableMapping(mappingId: mapping.id),
                       ),
+                      onToggleTrust: (trusted) =>
+                          _setTrusted(mapping.deviceId, trusted),
                       onUpdate: () => _run(
                         () => transport!.updateMapping(mappingId: mapping.id),
                       ),
@@ -162,8 +191,11 @@ class _SettingsControllersPanelState
 FItem _mappingItem({
   required ControllerMappingInfo mapping,
   required bool attached,
-  required bool busy,
-  required ValueChanged<bool> onToggle,
+  required bool trusted,
+  required bool attachBusy,
+  required bool trustBusy,
+  required ValueChanged<bool> onToggleAttach,
+  required ValueChanged<bool> onToggleTrust,
   required VoidCallback onUpdate,
 }) {
   final name = [
@@ -172,8 +204,9 @@ FItem _mappingItem({
   ].where((s) => s.isNotEmpty).join(' ');
   return FItem(
     title: Text(name),
-    subtitle: Text('${mapping.id} · ${mapping.deviceId}'),
-    details: attached ? const Text('attached') : null,
+    subtitle: Text(
+      '${mapping.id} · ${mapping.deviceId}${attached ? ' · attached' : ''}',
+    ),
     suffix: Row(
       mainAxisSize: MainAxisSize.min,
       spacing: 8,
@@ -182,19 +215,51 @@ FItem _mappingItem({
           variant: .outline,
           size: .sm,
           mainAxisSize: .min,
-          onPress: busy ? null : onUpdate,
+          onPress: attachBusy ? null : onUpdate,
           child: const Text('Update'),
         ),
-        SizedBox(
-          height: 23,
-          child: FittedBox(
-            child: FSwitch(
-              value: attached,
-              enabled: !busy,
-              semanticsLabel: 'Enable $name',
-              onChange: busy ? null : onToggle,
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                Text('Trust', style: TextStyle(fontSize: 11)),
+                SizedBox(
+                  height: 23,
+                  child: FittedBox(
+                    child: FSwitch(
+                      value: trusted,
+                      enabled: !trustBusy,
+                      semanticsLabel: 'Trust device $name',
+                      onChange: trustBusy ? null : onToggleTrust,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                Text('Attach', style: TextStyle(fontSize: 11)),
+                SizedBox(
+                  height: 23,
+                  child: FittedBox(
+                    child: FSwitch(
+                      value: attached,
+                      enabled: !attachBusy,
+                      semanticsLabel: 'Enable $name',
+                      onChange: attachBusy ? null : onToggleAttach,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     ),

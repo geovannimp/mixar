@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -57,10 +58,15 @@ LibraryAnalysisDurationSetting _libraryAnalysisDuration(
 }
 
 class SaveAppSettingsResult {
-  const SaveAppSettingsResult({required this.saved, this.applyError});
+  const SaveAppSettingsResult({
+    required this.saved,
+    this.applyError,
+    this.trustedControllersChanged = false,
+  });
 
   final AppSettings saved;
   final String? applyError;
+  final bool trustedControllersChanged;
 }
 
 Future<SaveAppSettingsResult> saveAppSettings(
@@ -69,7 +75,12 @@ Future<SaveAppSettingsResult> saveAppSettings(
 ) async {
   final settings = await ref.read(settingsTransportProvider.future);
   final library = await ref.read(libraryTransportProvider.future);
+  final previous = await ref.read(appSettingsProvider.future);
   final normalized = normalizeAppSettings(draft);
+  final trustedChanged = !const ListEquality<String>().equals(
+    previous.trustedControllerDeviceIds,
+    normalized.trustedControllerDeviceIds,
+  );
   final saved = await settings.saveSettings(settings: normalized);
   ref.invalidate(appSettingsProvider);
   ref.invalidate(libraryTableColumnsProvider);
@@ -91,5 +102,9 @@ Future<SaveAppSettingsResult> saveAppSettings(
   } catch (e) {
     applyError = '$e';
   }
-  return SaveAppSettingsResult(saved: saved, applyError: applyError);
+  return SaveAppSettingsResult(
+    saved: saved,
+    applyError: applyError,
+    trustedControllersChanged: trustedChanged,
+  );
 }

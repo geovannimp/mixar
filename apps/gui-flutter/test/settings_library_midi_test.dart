@@ -8,6 +8,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {
   testWidgets('library settings shows analysis quality', (tester) async {
@@ -47,7 +48,12 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const Scaffold(body: SettingsControllersPanel()),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (_) {},
+            ),
+          ),
         ),
       ),
     );
@@ -84,12 +90,59 @@ void main() {
             // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
-          home: const Scaffold(body: SettingsControllersPanel()),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (_) {},
+            ),
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
     expect(find.text('input DDJ-400 → pioneer-ddj-400'), findsOneWidget);
     expect(find.text('output Virtual Out'), findsOneWidget);
+  }, semanticsEnabled: false);
+
+  testWidgets('controllers trust toggle updates draft trusted ids', (
+    tester,
+  ) async {
+    const mapping = ControllerMappingInfo(
+      id: 'ddj-400',
+      deviceId: 'pioneer.ddj-400',
+      vendorName: 'Pioneer',
+      productName: 'DDJ-400',
+      description: null,
+      midiNameContains: ['DDJ-400'],
+      attached: false,
+    );
+    AppSettings? changed;
+    final theme = FTheme.neutral.dark.desktop;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          controllerTransportProvider.overrideWith((ref) async => null),
+          controllerMappingsProvider.overrideWith((ref) async => [mapping]),
+          controllerDevicesProvider.overrideWith((ref) async => const []),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (next) => changed = next,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FSwitch).first);
+    await tester.pumpAndSettle();
+    expect(changed?.trustedControllerDeviceIds, ['pioneer.ddj-400']);
   }, semanticsEnabled: false);
 }

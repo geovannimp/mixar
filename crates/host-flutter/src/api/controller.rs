@@ -68,6 +68,7 @@ pub enum ControllerEvtKind {
 pub struct ControllerEvt {
     pub kind: ControllerEvtKind,
     pub mapping_id: Option<String>,
+    pub device_id: Option<String>,
     pub device_name: Option<String>,
     pub port_name: Option<String>,
 }
@@ -119,12 +120,15 @@ impl ControllerTransport {
         library_buses: &LibraryBusHandle,
         mappings_dir: String,
         shipped_mappings_dir: Option<String>,
+        trusted_device_ids: Vec<String>,
     ) -> Result<Self, String> {
         let shipped = shipped_mappings_dir
             .map(PathBuf::from)
             .unwrap_or_else(resolve_shipped_mappings);
-        let engine = ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped)
-            .map_err(|e| e.to_string())?;
+        let mut engine =
+            ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped)
+                .map_err(|e| e.to_string())?;
+        engine.set_trusted_device_ids(trusted_device_ids);
         let engine = Arc::new(Mutex::new(engine));
         let stop = Arc::new(AtomicBool::new(false));
         let sink: Arc<Mutex<Option<StreamSink<ControllerEvt>>>> = Arc::new(Mutex::new(None));
@@ -323,11 +327,13 @@ fn map_evt(ev: ControllerEvent) -> ControllerEvt {
     match ev {
         ControllerEvent::MappingOffer {
             mapping_id,
+            device_id,
             device_name,
             port_name,
         } => ControllerEvt {
             kind: ControllerEvtKind::MappingOffer,
             mapping_id: Some(mapping_id),
+            device_id: Some(device_id),
             device_name: Some(device_name),
             port_name: Some(port_name),
         },
@@ -337,12 +343,14 @@ fn map_evt(ev: ControllerEvent) -> ControllerEvt {
         } => ControllerEvt {
             kind: ControllerEvtKind::MappingAttached,
             mapping_id: Some(mapping_id),
+            device_id: None,
             device_name: None,
             port_name: Some(port_name),
         },
         ControllerEvent::MappingDetached { mapping_id } => ControllerEvt {
             kind: ControllerEvtKind::MappingDetached,
             mapping_id: Some(mapping_id),
+            device_id: None,
             device_name: None,
             port_name: None,
         },

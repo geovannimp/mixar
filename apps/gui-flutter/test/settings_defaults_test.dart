@@ -33,4 +33,18 @@ void main() {
       isTrue,
     );
   });
+
+  test('trusted controller edits are dirty', () {
+    final baseline = defaultAppSettings();
+    expect(
+      appSettingsDirty(
+        copyAppSettings(
+          baseline,
+          trustedControllerDeviceIds: ['pioneer.ddj-400'],
+        ),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
 }

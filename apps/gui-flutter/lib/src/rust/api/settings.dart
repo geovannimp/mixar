@@ -55,6 +55,9 @@ class AppSettings {
   final WaveformDisplayModeSetting waveformDisplayMode;
   final KeyDisplayModeSetting keyDisplayMode;
 
+  /// `device.toml` ids the user trusts (auto-attach, no connect prompt).
+  final List<String> trustedControllerDeviceIds;
+
   const AppSettings({
     required this.backend,
     required this.sampleRate,
@@ -77,6 +80,7 @@ class AppSettings {
     required this.tempoRangeSteps,
     required this.waveformDisplayMode,
     required this.keyDisplayMode,
+    required this.trustedControllerDeviceIds,
   });
 
   @override
@@ -101,7 +105,8 @@ class AppSettings {
       defaultTempoRange.hashCode ^
       tempoRangeSteps.hashCode ^
       waveformDisplayMode.hashCode ^
-      keyDisplayMode.hashCode;
+      keyDisplayMode.hashCode ^
+      trustedControllerDeviceIds.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -128,7 +133,8 @@ class AppSettings {
           defaultTempoRange == other.defaultTempoRange &&
           tempoRangeSteps == other.tempoRangeSteps &&
           waveformDisplayMode == other.waveformDisplayMode &&
-          keyDisplayMode == other.keyDisplayMode;
+          keyDisplayMode == other.keyDisplayMode &&
+          trustedControllerDeviceIds == other.trustedControllerDeviceIds;
 }
 
 /// Bus channel routing mode.
