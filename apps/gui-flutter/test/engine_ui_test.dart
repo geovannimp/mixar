@@ -324,5 +324,42 @@ void main() {
       expect(snap.samplerSlotsFor(0).single.path, '/samples/kick.wav');
       expect(snap.samplerSlotsFor(0).single.durationMs, 250);
     });
+
+    test('unload keeps sampler bank and slots from the same Updated evt', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: 'Song',
+          trackId: 't1',
+          durationMs: 1000,
+          activeSamplerBankId: 'bank-1',
+          activeSamplerBankIdKnown: true,
+          samplerSlotsKnown: true,
+          samplerSlots: [
+            SamplerSlotChrome(label: 'kick', path: '/samples/kick.wav'),
+          ],
+        ),
+      );
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          durationKnown: true,
+          activeSamplerBankId: 'bank-1',
+          activeSamplerBankIdKnown: true,
+          samplerSlotsKnown: true,
+          samplerSlots: [
+            SamplerSlotChrome(label: 'kick', path: '/samples/kick.wav'),
+          ],
+        ),
+      );
+      expect(snap.titleFor(0), isNull);
+      expect(snap.trackIdFor(0), isNull);
+      expect(snap.activeSamplerBankIdFor(0), 'bank-1');
+      expect(snap.samplerSlotsFor(0).single.label, 'kick');
+    });
   });
 }

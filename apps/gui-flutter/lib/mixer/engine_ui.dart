@@ -281,8 +281,6 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (unloaded) {
         nextLoudness.remove(id);
         nextAutoGain.remove(id);
-        nextSamplerBanks.remove(id);
-        nextSamplerSlots.remove(id);
       } else {
         if (evt.loudnessLufs != null) {
           nextLoudness[id] = evt.loudnessLufs!;
@@ -290,19 +288,21 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         if (evt.autoGainDb != null) {
           nextAutoGain[id] = evt.autoGainDb!;
         }
-        if (evt.activeSamplerBankIdKnown) {
-          final bankId = evt.activeSamplerBankId;
-          if (bankId != null && bankId.isNotEmpty) {
-            nextSamplerBanks[id] = bankId;
-          } else {
-            nextSamplerBanks.remove(id);
-          }
+      }
+      // Sampler bank/slots are deck-scoped; Updated always carries them when
+      // known, including on unload — do not clear them with track identity.
+      if (evt.activeSamplerBankIdKnown) {
+        final bankId = evt.activeSamplerBankId;
+        if (bankId != null && bankId.isNotEmpty) {
+          nextSamplerBanks[id] = bankId;
+        } else {
+          nextSamplerBanks.remove(id);
         }
-        if (evt.samplerSlotsKnown) {
-          nextSamplerSlots[id] = List<SamplerSlotChrome>.from(
-            evt.samplerSlots ?? const [],
-          );
-        }
+      }
+      if (evt.samplerSlotsKnown) {
+        nextSamplerSlots[id] = List<SamplerSlotChrome>.from(
+          evt.samplerSlots ?? const [],
+        );
       }
       return prev.copyWith(
         titles: nextTitles,
