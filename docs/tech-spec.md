@@ -99,7 +99,7 @@ mixar/
 │  ├─ analyzer-core/      # offline analysis traits and types
 │  ├─ analyzer-stratum/   # stratum-dsp backend
 │  └─ analyzer/           # decode + analyze_file facade
-├─ apps/gui-app/          # Tauri + React UI (separate Cargo package under src-tauri)
+├─ apps/gui-flutter/      # Flutter desktop UI (FRB host: crates/host-flutter)
 └─ samples/               # sample audio for local demos
 ```
 
@@ -797,7 +797,7 @@ Linux x86_64 build + test job.
 - Stable `audio-core` trait surface; minimize breaking changes.
 - Use semantic versioning and a changelog.
 - Document per-backend caveats and supported devices.
-- `apps/gui-app` is the reference desktop host (config, backend discovery, `FileAudioSource`, play/pause).
+- `apps/gui-flutter` is the reference desktop host (config, backend discovery, `FileAudioSource`, play/pause).
 
 ## 13 — Build Flags & Runtime Tweaks
 

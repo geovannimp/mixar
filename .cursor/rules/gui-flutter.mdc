@@ -1,0 +1,40 @@
+---
+description: Rules for gui-flutter — Flutter + FRB deck UI conventions
+globs: apps/gui-flutter/**/*.{dart,yaml}
+alwaysApply: false
+---
+
+# gui-flutter Module Rules
+
+Reference: `docs/deck-spec.md`, `docs/tech-spec.md`. App root: `apps/gui-flutter` (Flutter desktop); Rust host: `crates/host-flutter` via flutter_rust_bridge.
+
+## Modules & imports
+
+- Keep imports at the top of the file (no inline imports).
+- Prefer `package:gui_flutter/...` imports for app source.
+- Feature UI lives under domain folders: `lib/mixer/` (+ `mixer/pads/`, `mixer/waveform/`), `lib/library/`, `lib/settings/`, `lib/shell/`. Generated FRB stays under `lib/src/rust/` (do not hand-edit; regenerate with `moon run gui-flutter:generate`).
+- **Filenames are snake_case** Dart style, e.g. `deck_panel.dart`, `engine_providers.dart`.
+
+## UI
+
+- Follow `docs/deck-spec.md` for deck layout and phased features.
+- Prefer **Forui** components and existing host patterns; use Forui toast / snackbar (`showFToast`) for errors and async engine start failures — avoid verbose inline status text.
+- Prefer minimal, focused UI diffs; match existing deck visual language.
+- Pad mode grids: mode widgets live under `lib/mixer/pads/` (e.g. `hot_cue_pads.dart`).
+- Custom title bar via `window_manager` (decorations off) with in-app min/max/close.
+
+## Host I/O (transports)
+
+- **Never call host FFI / FRB wire APIs ad hoc from widgets.** Go through typed transports (`EngineTransport`, `LibraryTransport`, `ControllerTransport`) and Riverpod providers so UI stays host-agnostic.
+- Engine/library/controller state syncs via FRB event streams → `applyEngineEvt` / library handlers — do not invent a second source of truth.
+- Prepare heavy library work (e.g. track playback prep) outside the host session lock; never hold that lock while waiting on `library`.
+
+## State & exhaustiveness
+
+- Prefer exhaustive `switch` on enums / sealed kinds with a `never`-style default where Dart allows, so new variants fail at analyze time.
+- Disable performance controls (tempo, loops, hot cues) when no track is loaded; do not persist deck/waveform layout resizes across sessions.
+
+## Tooling
+
+- Analyze/test: `moon run gui-flutter:analyze` / `gui-flutter:test` (also required in CI when affected). Format/lint Dart via Flutter tooling; regenerate FRB after Rust API changes.
+- Library DB / settings: `{getApplicationSupportDirectory()}/library.db` and `settings.json` (app id `top.mixar.app`).

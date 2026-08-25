@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-/// Opens the shared app-support `library.db` (same folder as Tauri when app IDs match).
+/// Opens the app-support `library.db` (app id `top.mixar.app`).
 final libraryTransportProvider = FutureProvider<LibraryTransport>((ref) async {
   final support = await getApplicationSupportDirectory();
   final dbPath = p.join(support.path, 'library.db');
@@ -265,6 +266,52 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       if (deck != null) {
         unawaited(loadFocusedRowToDeck(ref, deck));
       }
+  }
+}
+
+/// MIDI / controller load: focused table row → deck via [focusedLoadPayload].
+Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
+  final tracks = ref.read(libraryTableTracksProvider).asData?.value;
+  if (tracks == null || tracks.isEmpty) {
+    return;
+  }
+  final index = ref.read(focusedTrackRowIndexProvider);
+  final tab = ref.read(librarySourceTabProvider);
+  final resolved =
+      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
+  final payload = focusedLoadPayload(
+    tracks,
+    index,
+    inLibrary: (t) =>
+        trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved),
+  );
+  if (payload == null) {
+    return;
+  }
+
+  final loading = ref.read(deckLoadInFlightProvider.notifier);
+  loading.set(deckId, true);
+  try {
+    final engine = await ref.read(engineTransportProvider.future);
+    if (engine == null) {
+      return;
+    }
+    await applyTrackDrop(
+      deckId: deckId,
+      payload: payload,
+      loadLibraryTrack: (id, trackId) =>
+          engine.loadLibraryTrack(deckId: id, trackId: trackId),
+      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
+    );
+    ref
+        .read(engineUiProvider.notifier)
+        .setDeckTitle(
+          deckId,
+          trackDisplayTitle(title: payload.title, path: payload.path),
+        );
+    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
+  } finally {
+    loading.set(deckId, false);
   }
 }
 

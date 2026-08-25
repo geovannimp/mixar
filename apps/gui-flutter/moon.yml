@@ -57,7 +57,17 @@ tasks:
       - "@group(sources)"
       - "analysis_options.yaml"
     options:
-      runInCI: false
+      runInCI: true
+
+  test:
+    command: "mise"
+    args: ["exec", "--", "flutter", "test"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "test/**/*"
+    options:
+      runInCI: true
 
   generate:
     command: "bash"

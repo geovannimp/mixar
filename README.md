@@ -20,25 +20,21 @@ Linux is the primary development platform. The app is under active development a
 - MIDI controller mappings
 - Runtime-selectable audio backends: CPAL (PipeWire on Linux when available), miniaudio, or `null` for tests
 
-Two desktop hosts share the same engine: **Tauri + React** (`apps/gui-app`, primary) and an experimental **Flutter** host (`apps/gui-flutter`).
+The desktop UI is **Flutter** (`apps/gui-flutter`), bridged to Rust via flutter_rust_bridge (`crates/host-flutter`).
 
 ## Quick start
 
-**Prerequisites:** [Node](https://nodejs.org/), Rust stable with rustfmt/clippy, and a working sound device. On Linux, install [Tauri’s native deps](https://v2.tauri.app/start/prerequisites/#linux) plus ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu).
-
-[mise](https://mise.jdx.dev) is recommended: it reads `.node-version` and `rust-toolchain.toml`.
+**Prerequisites:** [mise](https://mise.jdx.dev) (recommended), Rust stable with rustfmt/clippy, Flutter (pinned in `mise.toml`), and a working sound device. On Linux, install ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu) plus Flutter Linux desktop deps (GTK, etc.).
 
 ```bash
 git clone https://github.com/geovannimp/mixar.git
 cd mixar
 mise install
 npm install
-npm run tauri:dev
+npm run flutter:dev
 ```
 
 Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so they do not need an audio device.
-
-The Flutter host (Linux): `npm run flutter:dev`.
 
 ## Development
 
@@ -47,14 +43,14 @@ The Flutter host (Linux): `npm run flutter:dev`.
 ```bash
 npm run lint            # moon run :lint
 npm run format:check    # moon run :format-check
-npm run test            # moon run :test
+npm run test            # moon run :test (includes Flutter analyze/test when affected)
 npm run build           # moon run :build
 npx moon ci --base main # mimic affected CI locally
 ```
 
 Skip a hook job with `LEFTHOOK_EXCLUDE=lint,format`. Disable hooks with `LEFTHOOK=0`. Emergency only: `git commit --no-verify`.
 
-CI (GitHub Actions) runs affected lint, format, build, tests, and a cargo audit. A secondary Rust beta/nightly job runs when Rust paths change.
+CI (GitHub Actions) runs affected lint, format, build, tests (including Flutter analyze), and a cargo audit. A secondary Rust beta/nightly job runs when Rust paths change.
 
 ## Architecture
 
@@ -70,13 +66,12 @@ Library / AudioSource
 Producer thread ──► ring buffer ──► audio callback (CPAL / miniaudio / null)
 ```
 
-Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread.
+Hosts talk to the engine and library over MessagePack buses (`engine-api`, `library-api`), not by calling `Engine` from the UI thread. Flutter uses FRB transports (`EngineTransport`, `LibraryTransport`, `ControllerTransport`).
 
 ```text
 mixar/
-├─ apps/gui-app/       # Tauri + React desktop UI
-├─ apps/gui-flutter/   # Experimental Flutter host
-├─ crates/             # Cargo workspace (engine, backends, library, controller, …)
+├─ apps/gui-flutter/   # Flutter desktop UI
+├─ crates/             # Cargo workspace (engine, backends, library, host-flutter, …)
 └─ samples/            # Local demo audio
 ```
 
@@ -102,7 +97,7 @@ engine.play(0)?;
 
 ## Contributing
 
-Open a pull request against `main`. Run `npm install` once so git hooks are installed, then keep `cargo fmt` / `cargo clippy` and the npm format/lint scripts clean.
+Open a pull request against `main`. Run `npm install` once so git hooks are installed, then keep `cargo fmt` / `cargo clippy` and Flutter analyze clean.
 
 ## License
 

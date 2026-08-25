@@ -1,7 +1,9 @@
-# gui-flutter (experimental)
+# gui-flutter
 
 Flutter desktop host for Mixar, bridged to Rust via
 [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
+
+This is the **primary** desktop UI.
 
 ## Layout
 
@@ -10,9 +12,7 @@ Flutter desktop host for Mixar, bridged to Rust via
 | `apps/gui-flutter` | Flutter app (linux / macOS / windows / web enabled; Linux verified) |
 | `crates/host-flutter` | FRB Rust host (`host_flutter`) over `engine-core` + library browse |
 
-Tauri (`apps/gui-app`) stays the primary UI until this experiment replaces it.
-
-Library browse opens `{getApplicationSupportDirectory()}/library.db` (app id `top.mixar.app`, shared with Tauri; desktop only — web shows a placeholder). UI: Forui collections/drive tabs, add-folder, analyze/refresh, visible-row artwork, and [trina_grid](https://github.com/doonfrs/trina_grid) tracks. FRB `LibraryTransport` also exposes add-folder / resolve / track list + `getTrack` (artwork only on `getTrack` until covers live in `library.db`) and a thin typed analyze/refresh event stream; waveform rasterization stays in Flutter.
+Library browse opens `{getApplicationSupportDirectory()}/library.db` (app id `top.mixar.app`; desktop only — web shows a placeholder). UI: Forui collections/drive tabs, add-folder, analyze/refresh, visible-row artwork, and [trina_grid](https://github.com/doonfrs/trina_grid) tracks. FRB `LibraryTransport` also exposes add-folder / resolve / track list + `getTrack` (artwork only on `getTrack` until covers live in `library.db`) and a thin typed analyze/refresh event stream; waveform rasterization stays in Flutter.
 
 Generated FRB outputs under `lib/src/rust/` and `crates/host-flutter/src/frb_generated.rs` are **committed** (FRB’s usual workflow so clones build without running codegen first). Regenerate after Rust API changes.
 

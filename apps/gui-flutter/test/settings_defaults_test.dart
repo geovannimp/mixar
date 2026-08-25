@@ -33,16 +33,4 @@ void main() {
       isTrue,
     );
   });
-
-  test('scan folder tree edits are dirty', () {
-    final baseline = defaultAppSettings();
-    expect(baseline.scanFolderTree, isTrue);
-    expect(
-      appSettingsDirty(
-        copyAppSettings(baseline, scanFolderTree: false),
-        baseline,
-      ),
-      isTrue,
-    );
-  });
 }

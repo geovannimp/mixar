@@ -94,16 +94,16 @@ Common expectations across all products:
 
 ## 3 — Current State (Mixar)
 
-### GUI (`gui-app`)
+### GUI (`gui-flutter`)
 
 | Area | Implemented | Missing / next |
 |------|-------------|----------------|
 | Deck panel | Load (picker + drag-drop), play/pause, metadata, transport, pads, sync, sampler | Layout polish; some Phase 4+ (slip, FX UI) |
 | Waveforms | Dual-lane scroll + overview preview, beat grid when analyzed | Zoom; richer cue/loop overlays |
 | Mixer strip | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU | — |
-| Engine start | Auto-start on Decks via store `ensureEngineRunning` → `publishCmd("engine", "start_engine")` | — |
-| State sync | **`EngineTransport`** → `engine://bus` → store (`applyBusEvent`) | MIDI host; optional richer hydrate cmd on the bus |
-| Library UI | **`LibraryTransport`** for tracks / artwork / waveform raster | — |
+| Engine start | Auto-start on Decks via FRB `EngineTransport.start` (host opens streams) | — |
+| State sync | FRB **`EngineTransport.subscribeEvents`** → Riverpod (`engine_ui` / `applyEngineEvt`) | MIDI host; optional richer hydrate on the evt bus |
+| Library UI | FRB **`LibraryTransport`** for tracks / artwork / waveform peaks | — |
 
 ### Engine / DSP (`engine-dsp`, `engine-core`)
 
@@ -122,12 +122,12 @@ Common expectations across all products:
 
 Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_ms`, beat grid, loudness, artwork) feed deck status via host-enriched bus payloads and `LibraryTransport`.
 
-### Runtime playback time (in `DeckStatus`)
+### Runtime playback time (deck status / `EngineEvt`)
 
 | Field | Source | Meaning |
 |-------|--------|---------|
-| `position_ms` | High-rate `position` on `engine://bus` | Current playhead (elapsed) |
-| `duration_ms` | Loaded track metadata on deck snapshot | Total track length |
+| `position_ms` / `positionMs` | High-rate `position` evt on the MessagePack omnibus (FRB → `EngineEvt`) | Current playhead (elapsed) |
+| `duration_ms` / `durationMs` | Loaded track metadata on deck snapshot | Total track length |
 
 `remaining_ms` is derived in the UI as `duration_ms - position_ms` when both are set.
 
@@ -192,7 +192,7 @@ UI layout zones (match competitor ergonomics):
 | M10 | **Track rating / color** | Optional library field on deck | Serato, Traktor | P3 |
 | M11 | **Loading / analyzing state** | Spinner when decode or waveform job running | All | P0 |
 
-**Data source:** `library` track row + live `DeckStatus` from engine.
+**Data source:** `library` track row + live deck status from engine (`EngineEvt` / `EngineUiSnapshot`).
 
 ---
 
@@ -306,7 +306,7 @@ When `pad_mode = hot_cue`, pads behave as hot cues:
 
 **Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue in Phase 2).
 
-**Implementation note:** Current Mixar code (`DeckPadsPanel`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
+**Implementation note:** Current Mixar code (`deck_pads_panel.dart`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
 
 ---
 
@@ -526,34 +526,34 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 6.3 GUI view model
 
-**Today** (`DeckStatus` in `apps/gui-app/src/types.ts`):
+**Today** (Flutter host view model: `EngineUiSnapshot` / per-deck fields in `apps/gui-flutter/lib/mixer/engine_ui.dart`, fed by FRB `EngineEvt` in `lib/src/rust/api/engine.dart`):
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `position_ms` | `number \| null` | Live playhead; null when no track loaded |
-| `duration_ms` | `number \| null` | From loaded track; null when unknown |
-| `playing`, `volume`, `eq`, `track`, `track_id` | — | Already wired |
+| `positionMs` | high-rate via playhead map | Live playhead; absent when no track loaded |
+| `durationMs` | `int?` per deck | From loaded track; null when unknown |
+| `playing`, volume / EQ channel, `track` / title, `trackId` | — | Already wired |
 
-**Target:** extend `DeckStatus` to expose everything in §4 for 60 fps-safe polling (waveform remains separate invoke). `remaining_ms` stays a UI-derived field unless we add it to the API for convenience.
+**Target:** extend the host snapshot / `EngineEvt` surface to expose everything in §4 for 60 fps-safe updates (waveform peaks stay on `LibraryTransport`). `remaining_ms` stays a UI-derived field unless we add it to the API for convenience.
 
 ---
 
 ## 7 — Engine vs GUI Responsibilities
 
-| Concern | Engine (Rust) | GUI (React) |
+| Concern | Engine (Rust) | GUI (Flutter) |
 |---------|---------------|-------------|
 | Audio playback, EQ, FX | Yes | Controls only |
 | Beat grid math, sync, quantize | Yes | Display grid lines |
-| Waveform rasterization | Yes ([dj-waveform-spec.md](dj-waveform-spec.md)) | Blit images |
+| Waveform peaks | Library builds overview / window peaks ([dj-waveform-spec.md](dj-waveform-spec.md)) | Flutter paints lanes |
 | Hot cue / loop persistence | Via `library` commands (hot cues = pad mode data) | Pad UI + mode selector |
 | Keyboard shortcuts | — | Yes |
 | Jog/scratch gesture | Receives delta commands | Pointer events |
 | State sync to UI | **Emit engine events** (§9) | Subscribe; render only |
-| Toast / errors | Returns structured errors | coss toast |
+| Toast / errors | Returns structured errors | Flutter host UI (`showFToast` / Forui) |
 
 **Rule:** Any action that affects audio within **<10 ms** must be engine-side; UI sends commands, never computes audio.
 
-**Rule:** The UI must **not** assume it is the only writer of engine state. All consumers (React, future MIDI mapper, future OSC) observe the same **event stream** from the backend (§9).
+**Rule:** The UI must **not** assume it is the only writer of engine state. All consumers (Flutter host, future MIDI mapper, future OSC) observe the same **event stream** from the backend (§9).
 
 ---
 
@@ -561,12 +561,12 @@ Extend `Deck` in `engine-dsp` with:
 
 ### 8.1 Current (implemented)
 
-There is **no** `get_deck_state` command. Authoritative deck/engine state for the UI is the **evt omnibus** (`engine://bus`), mirrored in the Zustand store.
+There is **no** `get_deck_state` command. Authoritative deck/engine state for the UI is the **evt omnibus** (MessagePack in `engine-core`); the Flutter host bridges to typed FRB `EngineEvt` and mirrors it in Riverpod (`engine_ui`).
 
 ```text
 EngineStatus (hydrate + status events)
 ├── running, backend, sample_rate, crossfader, cue_mix, master_cue, master_deck?
-└── decks: DeckStatus[]     // one entry per deck (0 = A, 1 = B)
+└── decks: per-deck snapshot     // one entry per deck (0 = A, 1 = B)
         ├── id, track, track_id, title, artist, bpm, key, playing, volume, eq, …
         ├── position_ms, duration_ms, hot_cues, loops, sampler bank, …
         └── levels (from high-rate levels events)
@@ -574,18 +574,18 @@ EngineStatus (hydrate + status events)
 
 | Path | Role |
 |------|------|
-| `EngineTransport.publish` → `engine_publish` | All engine cmds (transport, mixer, load, pads, sampler, **start_engine**, …) |
-| `EngineTransport.subscribe` → `engine://bus` | Status / updated / position / levels / notice / error (store owns subscribe) |
-| Settings / devices / FS | Non-engine host APIs (`get_settings`, `save_settings`, device list, …) |
-| `LibraryTransport` | Tracks, artwork, waveform raster; **analyze** via publish/subscribe on library bus |
+| FRB `EngineTransport` methods (play, seek, setVolume, …) | All engine cmds (transport, mixer, load, pads, sampler, **start**, …) |
+| FRB `EngineTransport.subscribeEvents` | Status / updated / position / levels / notice / error → host UI state |
+| Settings / devices / FS | Non-engine host APIs (settings FRB, device list, …) |
+| FRB `LibraryTransport` | Tracks, artwork, waveform peaks; **analyze** via library bus publish/subscribe |
 
-Deck mutations do **not** return `DeckStatus` for the UI to merge. The store updates from bus events. There is no `get_status` hydrate — status arrives after `start_engine` emits on the bus.
+Deck mutations do **not** return a full deck snapshot for the UI to merge. The host updates from bus/FRB events. There is no `get_status` hydrate — status arrives after engine start emits on the evt bus.
 
 **Not planned:** a separate `get_deck_state`. Prefer richer `DeckSnapshot` / `EngineStatus` on the bus.
 
-### 8.2 Engine cmds (via `publishCmd` / omnibus)
+### 8.2 Engine cmds (via host / omnibus)
 
-Host-handled (library + `AppState` in `bus_bridge`, then emit on bus): load path / library track, sampler bank assign/clear/select, related bank CRUD.
+Host-handled (library + `AppState` in the Flutter host bridge, then emit on bus): load path / library track, sampler bank assign/clear/select, related bank CRUD.
 
 Engine-native (forwarded to cmd omnibus): play/pause, seek, volume/EQ/speed, crossfader, cue mix, pads, sync, sampler trigger, etc.
 
@@ -607,11 +607,11 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Current implementation:** [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire, Tauri bridges bytes only, frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is `engine_publish` / `engine://bus` only.
+**Current implementation:** [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire; hosts (Flutter FRB) bridge bytes / typed events only; frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is the MessagePack omnibus (Flutter: FRB methods + `subscribeEvents`).
 
-Library metadata / decode / waveform / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
+Library metadata / decode / waveform peaks / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
 
-**Library bus:** [`2026-07-31-library-event-bus-design.md`](superpowers/specs/2026-07-31-library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`), Tauri `library_publish` / `library://bus`, FE `LibraryTransport.publish` / `subscribe`. First migrated domain: track analysis.
+**Library bus:** [`2026-07-31-library-event-bus-design.md`](superpowers/specs/2026-07-31-library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`); Flutter FRB `LibraryTransport` publish / subscribe. First migrated domain: track analysis.
 
 ### 9.1 Problem
 
@@ -630,7 +630,7 @@ The UI must subscribe to **engine-originated changes**, not only refresh after i
 |------|----------|
 | Single source of truth | Engine state lives in Rust; UI is a read-only mirror |
 | Any input path | UI, MIDI, keyboard shortcuts, automation → same cmd bus |
-| Push, not poll | `engine://bus` for discrete + high-rate kinds |
+| Push, not poll | Evt omnibus (MessagePack) → host stream for discrete + high-rate kinds |
 | Efficient | Coalesce noisy sources (MIDI CC); don’t emit full status at audio rate |
 | Testable | Headless omnibus + `MemoryEngineTransport` without a window |
 
@@ -640,23 +640,20 @@ The UI must subscribe to **engine-originated changes**, not only refresh after i
 UI / MIDI / host
       │
       ▼
-EngineTransport.publish  →  invoke("engine_publish")  →  cmd omnibus
-                                                              │
-                                                     control thread
-                                                              │
-                                                              ▼
-                                                         evt omnibus
-                                                              │
-                                                     Tauri forwarder
-                                                              │
-                                                              ▼
-                                              emit("engine://bus", bytes)
-                                                              │
-                                                              ▼
-                                   EngineTransport.subscribe → applyBusEvent → store
+EngineTransport (FRB)  →  cmd omnibus (MessagePack)
+                              │
+                     control thread
+                              │
+                              ▼
+                         evt omnibus (MessagePack)
+                              │
+                     Flutter FRB forwarder (typed EngineEvt)
+                              │
+                              ▼
+              EngineTransport.subscribeEvents → applyEngineEvt → Riverpod
 ```
 
-Host-only cmds (load path/library track, sampler bank persistence) are handled in `bus_bridge` (library + `AppState`), then emit rich `status` / `updated` payloads on `engine://bus`. Engine-native cmds forward to the omnibus.
+Host-only cmds (load path/library track, sampler bank persistence) are handled in the Flutter host bridge (library + `AppState`), then emit rich `status` / `updated` payloads on the evt omnibus. Engine-native cmds forward to the omnibus.
 
 ### 9.4 Event kinds (wire)
 
@@ -688,22 +685,22 @@ Increment **`revision`** on every emit so the UI can ignore out-of-order duplica
 
 ### 9.6 Position updates vs full status
 
-`position_ms` changes continuously during playback. **Current:** high-rate `position` (and `levels`) on `engine://bus`; waveform hooks extrapolate between updates. Do not resurrect a separate `engine://position` channel unless the bus path is insufficient.
+`position_ms` changes continuously during playback. **Current:** high-rate `position` (and `levels`) on the evt omnibus → FRB `EngineEvt`; waveform widgets extrapolate between updates. Do not resurrect a separate `engine://position` channel unless the bus path is insufficient.
 
 ### 9.7 UI integration
 
 ```text
 Mount / enter decks
-  └─ engine store ensureEngineRunning
-       ├─ await EngineTransport.subscribe (engine://bus → applyBusEvent)
-       └─ publishCmd("engine", "start_engine")   // host emits status
+  └─ host ensure engine running
+       ├─ EngineTransport.subscribeEvents → applyEngineEvt (Riverpod)
+       └─ EngineTransport.start(...)   // host emits status on evt bus
 
 User action (e.g. play)
-  ├─ EngineTransport.publish(...)      // fire-and-forget OK
-  └─ UI updates from bus events, not command return values
+  ├─ EngineTransport.play(...)         // fire-and-forget OK
+  └─ UI updates from events, not command return values
 ```
 
-Library hooks use `LibraryTransport` (not raw `invoke`) for tracks, artwork, waveforms.
+Library hooks use FRB `LibraryTransport` for tracks, artwork, waveform peaks.
 
 ### 9.8 MIDI (future consumer)
 
@@ -715,7 +712,7 @@ Same events the UI sees from mouse clicks.
 
 ### 9.9 Implementation notes (Rust)
 
-- Audio callback must **not** emit to Tauri — control thread / forwarder only.
+- Audio callback must **not** emit to the host UI — control thread / FRB forwarder only.
 - Host load path: prepare (`prepare_*_for_playback` / `ensure_track_waveform` on `&Mutex<LibraryManager>`) **outside** `AppState` and without holding `library` across decode/waveform generation; emit bus payload **after** unlock; sampler bank select after first deck emit.
 - Never hold `AppState` while waiting on `library` (starves every other host command).
 - Unit tests: headless session + `MemoryEngineTransport` / `MemoryLibraryTransport`.
@@ -734,9 +731,9 @@ Make **what we already have** reliable and **look like** professional deck softw
 - `position_ms` / `duration_ms` polled and shown (elapsed + remaining)
 - Volume faders, 3-band EQ, crossfader — responsive, no stale UI
 - Waveform scroll tracks playhead smoothly during playback
-- Engine auto-start + errors via coss toasts (done)
+- Engine auto-start + errors via Flutter host UI toasts (done)
 - Load library track metadata: **title, artist, BPM, key** on deck (from `TrackSummary` / analysis, not just filename)
-- **Engine event bus (§9):** `engine://bus` via `EngineTransport`; UI subscribes in bootstrap (foundation for MIDI)
+- **Engine event bus (§9):** MessagePack omnibus via FRB `EngineTransport`; UI subscribes in bootstrap (foundation for MIDI)
 
 **UI layout (visual parity, placeholders OK):**
 
@@ -800,8 +797,8 @@ Make **what we already have** reliable and **look like** professional deck softw
 4. **Volume, EQ, crossfader** reflect engine state; changes apply without glitching audio.
 5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.
 6. Disabled placeholders for future controls (cue, sync, hot cues) do not clutter — clear “coming later” or omitted until Phase 2.
-7. Engine errors use **coss toasts** only.
-8. **`engine://bus`** delivered to UI: headless / simulated publish updates React state without a matching UI invoke return value.
+7. Engine errors use **Flutter host UI** toasts only (`showFToast` / Forui).
+8. Evt omnibus delivered to UI: headless / simulated publish updates Flutter host state without a matching UI command return value.
 
 **Phase 2 adds:** overview, beat grid, **pads in Hot Cue mode**, loops with **`save_hot_cue`** / **`save_loop`** persistence; high-rate position already on the bus (§9.6).
 
@@ -824,8 +821,10 @@ Make **what we already have** reliable and **look like** professional deck softw
 | Resource | Path |
 |----------|------|
 | Engine deck DSP | `crates/engine-dsp/src/deck.rs` |
-| GUI deck panel | `apps/gui-app/src/components/DeckPanel.tsx` |
-| GUI deck grid | `apps/gui-app/src/components/DeckGrid.tsx` |
+| GUI deck panel | `apps/gui-flutter/lib/mixer/deck_panel.dart` |
+| GUI deck grid | `apps/gui-flutter/lib/mixer/deck_grid.dart` |
+| GUI mixer page | `apps/gui-flutter/lib/mixer/mixer_page.dart` |
+| Waveform section | `apps/gui-flutter/lib/mixer/waveform_section.dart` |
 | Waveform spec | `docs/dj-waveform-spec.md` |
 | Analyzer / beat grid | `docs/audio-analyzer-spec.md` |
 
@@ -851,7 +850,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 | DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (Phase 2) |
 | DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (Phase 2) |
 | DK8 | Deck state API | Bus `status` / `updated` snapshots — no `get_deck_state`; no `get_status` hydrate |
-| DK9 | Error UX | **coss toast**; engine start uses **promise toast** |
+| DK9 | Error UX | **Flutter host UI** toasts (`showFToast` / Forui); engine start surfaces start failures in host error UX |
 | DK10 | Phase 1 scope | **Polish existing features + DJ app look** — no new performance engine features |
 | DK11 | Position stream | Poll in Phase 1; **`engine://position`** push in Phase 2 |
-| DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (`EvtForwarder` → `engine://bus`) |
+| DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (FRB forwarder → typed `EngineEvt`) |
