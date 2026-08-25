@@ -70,6 +70,8 @@ class EngineUiSnapshot {
     this.jogTouching = const {},
     this.loudnessLufs = const {},
     this.autoGainDb = const {},
+    this.activeSamplerBankIds = const {},
+    this.samplerSlots = const {},
     this.masterDeck = 0,
     this.cueMix = 0.0,
     this.masterCue = false,
@@ -96,6 +98,8 @@ class EngineUiSnapshot {
   final Map<int, bool> jogTouching;
   final Map<int, double> loudnessLufs;
   final Map<int, double> autoGainDb;
+  final Map<int, String> activeSamplerBankIds;
+  final Map<int, List<SamplerSlotChrome>> samplerSlots;
   final int masterDeck;
 
   String? titleFor(int deckId) => titles[deckId];
@@ -124,6 +128,11 @@ class EngineUiSnapshot {
 
   double autoGainDbFor(int deckId) => autoGainDb[deckId] ?? 0;
 
+  String? activeSamplerBankIdFor(int deckId) => activeSamplerBankIds[deckId];
+
+  List<SamplerSlotChrome> samplerSlotsFor(int deckId) =>
+      samplerSlots[deckId] ?? const [];
+
   bool isMaster(int deckId) => masterDeck == deckId;
 
   MixerChannelUi channelFor(int deckId) =>
@@ -149,6 +158,8 @@ class EngineUiSnapshot {
     Map<int, bool>? jogTouching,
     Map<int, double>? loudnessLufs,
     Map<int, double>? autoGainDb,
+    Map<int, String>? activeSamplerBankIds,
+    Map<int, List<SamplerSlotChrome>>? samplerSlots,
     int? masterDeck,
     double? cueMix,
     bool? masterCue,
@@ -170,6 +181,8 @@ class EngineUiSnapshot {
     jogTouching: jogTouching ?? this.jogTouching,
     loudnessLufs: loudnessLufs ?? this.loudnessLufs,
     autoGainDb: autoGainDb ?? this.autoGainDb,
+    activeSamplerBankIds: activeSamplerBankIds ?? this.activeSamplerBankIds,
+    samplerSlots: samplerSlots ?? this.samplerSlots,
     masterDeck: masterDeck ?? this.masterDeck,
     cueMix: cueMix ?? this.cueMix,
     masterCue: masterCue ?? this.masterCue,
@@ -261,15 +274,34 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       }
       final nextLoudness = Map<int, double>.from(prev.loudnessLufs);
       final nextAutoGain = Map<int, double>.from(prev.autoGainDb);
+      final nextSamplerBanks = Map<int, String>.from(prev.activeSamplerBankIds);
+      final nextSamplerSlots = Map<int, List<SamplerSlotChrome>>.from(
+        prev.samplerSlots,
+      );
       if (unloaded) {
         nextLoudness.remove(id);
         nextAutoGain.remove(id);
+        nextSamplerBanks.remove(id);
+        nextSamplerSlots.remove(id);
       } else {
         if (evt.loudnessLufs != null) {
           nextLoudness[id] = evt.loudnessLufs!;
         }
         if (evt.autoGainDb != null) {
           nextAutoGain[id] = evt.autoGainDb!;
+        }
+        if (evt.activeSamplerBankIdKnown) {
+          final bankId = evt.activeSamplerBankId;
+          if (bankId != null && bankId.isNotEmpty) {
+            nextSamplerBanks[id] = bankId;
+          } else {
+            nextSamplerBanks.remove(id);
+          }
+        }
+        if (evt.samplerSlotsKnown) {
+          nextSamplerSlots[id] = List<SamplerSlotChrome>.from(
+            evt.samplerSlots ?? const [],
+          );
         }
       }
       return prev.copyWith(
@@ -287,6 +319,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         jogTouching: nextJog,
         loudnessLufs: nextLoudness,
         autoGainDb: nextAutoGain,
+        activeSamplerBankIds: nextSamplerBanks,
+        samplerSlots: nextSamplerSlots,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;

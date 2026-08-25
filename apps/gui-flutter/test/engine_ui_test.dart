@@ -300,5 +300,29 @@ void main() {
       expect(snap.trackIdFor(0), isNull);
       expect(snap.durationMsFor(0), isNull);
     });
+
+    test('updated stores sampler bank id and slot chrome', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          activeSamplerBankId: 'bank-1',
+          activeSamplerBankIdKnown: true,
+          samplerSlotsKnown: true,
+          samplerSlots: [
+            SamplerSlotChrome(
+              label: 'kick',
+              path: '/samples/kick.wav',
+              durationMs: 250,
+            ),
+          ],
+        ),
+      );
+      expect(snap.activeSamplerBankIdFor(0), 'bank-1');
+      expect(snap.samplerSlotsFor(0).single.label, 'kick');
+      expect(snap.samplerSlotsFor(0).single.path, '/samples/kick.wav');
+      expect(snap.samplerSlotsFor(0).single.durationMs, 250);
+    });
   });
 }

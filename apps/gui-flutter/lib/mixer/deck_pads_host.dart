@@ -33,8 +33,6 @@ class DeckPadsHost extends ConsumerStatefulWidget {
 }
 
 class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
-  var _slots = List<SamplerSlot>.filled(8, const SamplerSlot());
-  String? _activeBankId;
   String? _hydratedTrackId;
 
   rust.EngineTransport? get _engine =>
@@ -57,8 +55,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       return true;
     } catch (e) {
       _toastError(e);
-      return false;
     }
+    return false;
   }
 
   void _toastError(Object e) {
@@ -67,6 +65,27 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     }
     showFToast(context: context, variant: .destructive, title: Text('$e'));
   }
+
+  List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {
+    return [
+      for (var i = 0; i < 8; i++)
+        if (i < chrome.length)
+          SamplerSlot(
+            label: chrome[i].label,
+            durationMs: chrome[i].durationMs,
+            path: chrome[i].path,
+          )
+        else
+          const SamplerSlot(),
+    ];
+  }
+
+  SamplerPlayMode? _playModeFromWire(String? playMode) => switch (playMode) {
+    kSamplerPlayModeOneshot => SamplerPlayMode.oneshot,
+    kSamplerPlayModeHold => SamplerPlayMode.hold,
+    kSamplerPlayModeLoop => SamplerPlayMode.loop,
+    _ => null,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -94,10 +113,13 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           },
         ),
     ];
-    final activeBankId = _activeBankId != null &&
-            banks.any((b) => b.id == _activeBankId)
-        ? _activeBankId
+    final activeBankId = ref.watch(deckActiveSamplerBankIdProvider(widget.deckId));
+    final resolvedBankId = activeBankId != null && banks.any((b) => b.id == activeBankId)
+        ? activeBankId
         : (banks.isNotEmpty ? banks.first.id : null);
+    final slots = _slotsFromChrome(
+      ref.watch(deckSamplerSlotsProvider(widget.deckId)),
+    );
 
     return DeckPadsPanel(
       padMode: padMode,
@@ -161,27 +183,30 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      samplerSlots: _slots,
+      samplerSlots: slots,
       samplerBanks: banks,
-      activeBankId: activeBankId,
+      activeBankId: resolvedBankId,
       onSamplerPress: (slot, shift) {
+        if (shift) {
+          unawaited(
+            _run(
+              (engine) => engine.clearSampler(
+                deckId: widget.deckId,
+                slot: slot,
+              ),
+            ),
+          );
+          return;
+        }
         unawaited(
           _run(
             (engine) => engine.samplerPadPress(
               deckId: widget.deckId,
               slot: slot,
-              shift: shift,
+              shift: false,
             ),
           ),
         );
-        if (shift) {
-          setState(() {
-            _slots = [
-              for (var i = 0; i < _slots.length; i++)
-                if (i == slot) const SamplerSlot() else _slots[i],
-            ];
-          });
-        }
       },
       onSamplerRelease: (slot) {
         unawaited(
@@ -191,11 +216,18 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      onSelectBank: (id) => setState(() => _activeBankId = id),
+      onSelectBank: (id) {
+        unawaited(
+          _run(
+            (engine) => engine.setSamplerBank(
+              deckId: widget.deckId,
+              bankId: id,
+            ),
+          ),
+        );
+      },
       onSaveBank: (bankId, name, playMode) {
-        // ponytail: bank name/play-mode edits are dropped; only the picker
-        // selection is kept. Upgrade: send SetSamplerBank once the cmd lands.
-        setState(() => _activeBankId = bankId);
+        unawaited(_saveBank(bankId, name, playMode));
       },
       onSamplerAssign: (slot, payload) {
         unawaited(_assignSampler(slot, payload));
@@ -206,8 +238,21 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     );
   }
 
+  Future<void> _saveBank(String bankId, String name, String? playMode) async {
+    final ok = await _run(
+      (engine) => engine.updateSamplerBank(
+        bankId: bankId,
+        name: name,
+        playMode: _playModeFromWire(playMode),
+      ),
+    );
+    if (ok) {
+      ref.invalidate(samplerBanksProvider);
+    }
+  }
+
   Future<void> _assignSampler(int slot, TrackDragPayload payload) async {
-    final ok = await _run((engine) async {
+    await _run((engine) async {
       if (payload.trackId != null && payload.trackId!.isNotEmpty) {
         await engine.assignSamplerTrack(
           deckId: widget.deckId,
@@ -221,18 +266,6 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           path: payload.path,
         );
       }
-    });
-    if (!ok || !mounted) {
-      return;
-    }
-    setState(() {
-      _slots = [
-        for (var i = 0; i < _slots.length; i++)
-          if (i == slot)
-            SamplerSlot(label: payload.title, path: payload.path)
-          else
-            _slots[i],
-      ];
     });
   }
 }
