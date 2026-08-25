@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 403783715;
+  int get rustContentHash => 1438418607;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -543,7 +543,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiMetaInitApp();
 
+  Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault();
+
   Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes();
+
+  Future<SamplerSlotChrome> crateApiEngineSamplerSlotChromeDefault();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport;
@@ -3978,7 +3982,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes() {
+  Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -3987,6 +3991,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 88,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_key_display_mode_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsKeyDisplayModeSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsKeyDisplayModeSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "key_display_mode_setting_default",
+        argNames: [],
+      );
+
+  @override
+  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 89,
             port: port_,
           );
         },
@@ -4003,6 +4037,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiFsBrowserListFsVolumesConstMeta =>
       const TaskConstMeta(debugName: "list_fs_volumes", argNames: []);
+
+  @override
+  Future<SamplerSlotChrome> crateApiEngineSamplerSlotChromeDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 90,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_sampler_slot_chrome,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiEngineSamplerSlotChromeDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiEngineSamplerSlotChromeDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "sampler_slot_chrome_default",
+        argNames: [],
+      );
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport => wire
@@ -4543,8 +4607,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 35)
-      throw Exception('unexpected arr length: expect 35 but see ${arr.length}');
+    if (arr.length != 39)
+      throw Exception('unexpected arr length: expect 39 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -4581,6 +4645,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       jogTouching: dco_decode_opt_box_autoadd_bool(arr[32]),
       loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[33]),
       autoGainDb: dco_decode_opt_box_autoadd_f_32(arr[34]),
+      activeSamplerBankId: dco_decode_opt_String(arr[35]),
+      activeSamplerBankIdKnown: dco_decode_bool(arr[36]),
+      samplerSlots: dco_decode_opt_list_sampler_slot_chrome(arr[37]),
+      samplerSlotsKnown: dco_decode_bool(arr[38]),
     );
   }
 
@@ -4683,6 +4751,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return JogModeSetting.values[raw as int];
+  }
+
+  @protected
+  KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KeyDisplayModeSetting.values[raw as int];
   }
 
   @protected
@@ -4868,6 +4942,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SamplerSlotChrome> dco_decode_list_sampler_slot_chrome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_sampler_slot_chrome).toList();
+  }
+
+  @protected
   List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_saved_loop_info).toList();
@@ -4974,6 +5054,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SamplerSlotChrome>? dco_decode_opt_list_sampler_slot_chrome(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_sampler_slot_chrome(raw);
+  }
+
+  @protected
   List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_saved_loop_info(raw);
@@ -5039,6 +5127,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerSlotChrome dco_decode_sampler_slot_chrome(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return SamplerSlotChrome(
+      label: dco_decode_opt_String(arr[0]),
+      trackId: dco_decode_opt_String(arr[1]),
+      path: dco_decode_opt_String(arr[2]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[3]),
+    );
+  }
+
+  @protected
   SamplerStripRouteSettingFrb dco_decode_sampler_strip_route_setting_frb(
     dynamic raw,
   ) {
@@ -5094,12 +5196,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt dco_decode_usize(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dcoDecodeU64(raw);
-  }
-
-  @protected
-  KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return KeyDisplayModeSetting.values[raw as int];
   }
 
   @protected
@@ -5764,6 +5860,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_jogTouching = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_loudnessLufs = sse_decode_opt_box_autoadd_f_64(deserializer);
     var var_autoGainDb = sse_decode_opt_box_autoadd_f_32(deserializer);
+    var var_activeSamplerBankId = sse_decode_opt_String(deserializer);
+    var var_activeSamplerBankIdKnown = sse_decode_bool(deserializer);
+    var var_samplerSlots = sse_decode_opt_list_sampler_slot_chrome(
+      deserializer,
+    );
+    var var_samplerSlotsKnown = sse_decode_bool(deserializer);
     return EngineEvt(
       kind: var_kind,
       deckId: var_deckId,
@@ -5800,6 +5902,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       jogTouching: var_jogTouching,
       loudnessLufs: var_loudnessLufs,
       autoGainDb: var_autoGainDb,
+      activeSamplerBankId: var_activeSamplerBankId,
+      activeSamplerBankIdKnown: var_activeSamplerBankIdKnown,
+      samplerSlots: var_samplerSlots,
+      samplerSlotsKnown: var_samplerSlotsKnown,
     );
   }
 
@@ -5906,6 +6012,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return JogModeSetting.values[inner];
+  }
+
+  @protected
+  KeyDisplayModeSetting sse_decode_key_display_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return KeyDisplayModeSetting.values[inner];
   }
 
   @protected
@@ -6195,6 +6310,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SamplerSlotChrome> sse_decode_list_sampler_slot_chrome(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SamplerSlotChrome>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_sampler_slot_chrome(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
   List<SavedLoopInfo> sse_decode_list_saved_loop_info(
     SseDeserializer deserializer,
   ) {
@@ -6397,6 +6526,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<SamplerSlotChrome>? sse_decode_opt_list_sampler_slot_chrome(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_sampler_slot_chrome(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
     SseDeserializer deserializer,
   ) {
@@ -6477,6 +6619,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SamplerSlotChrome sse_decode_sampler_slot_chrome(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_label = sse_decode_opt_String(deserializer);
+    var var_trackId = sse_decode_opt_String(deserializer);
+    var var_path = sse_decode_opt_String(deserializer);
+    var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
+    return SamplerSlotChrome(
+      label: var_label,
+      trackId: var_trackId,
+      path: var_path,
+      durationMs: var_durationMs,
+    );
+  }
+
+  @protected
   SamplerStripRouteSettingFrb sse_decode_sampler_strip_route_setting_frb(
     SseDeserializer deserializer,
   ) {
@@ -6534,15 +6693,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   BigInt sse_decode_usize(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getBigUint64();
-  }
-
-  @protected
-  KeyDisplayModeSetting sse_decode_key_display_mode_setting(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return KeyDisplayModeSetting.values[inner];
   }
 
   @protected
@@ -7213,6 +7363,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_bool(self.jogTouching, serializer);
     sse_encode_opt_box_autoadd_f_64(self.loudnessLufs, serializer);
     sse_encode_opt_box_autoadd_f_32(self.autoGainDb, serializer);
+    sse_encode_opt_String(self.activeSamplerBankId, serializer);
+    sse_encode_bool(self.activeSamplerBankIdKnown, serializer);
+    sse_encode_opt_list_sampler_slot_chrome(self.samplerSlots, serializer);
+    sse_encode_bool(self.samplerSlotsKnown, serializer);
   }
 
   @protected
@@ -7297,6 +7451,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_jog_mode_setting(
     JogModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_key_display_mode_setting(
+    KeyDisplayModeSetting self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
@@ -7547,6 +7710,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_list_sampler_slot_chrome(
+    List<SamplerSlotChrome> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_sampler_slot_chrome(item, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_list_saved_loop_info(
     List<SavedLoopInfo> self,
     SseSerializer serializer,
@@ -7746,6 +7921,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_list_sampler_slot_chrome(
+    List<SamplerSlotChrome>? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_sampler_slot_chrome(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_list_saved_loop_info(
     List<SavedLoopInfo>? self,
     SseSerializer serializer,
@@ -7815,6 +8003,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sampler_slot_chrome(
+    SamplerSlotChrome self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.label, serializer);
+    sse_encode_opt_String(self.trackId, serializer);
+    sse_encode_opt_String(self.path, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
+  }
+
+  @protected
   void sse_encode_sampler_strip_route_setting_frb(
     SamplerStripRouteSettingFrb self,
     SseSerializer serializer,
@@ -7868,15 +8068,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_usize(BigInt self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putBigUint64(self);
-  }
-
-  @protected
-  void sse_encode_key_display_mode_setting(
-    KeyDisplayModeSetting self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

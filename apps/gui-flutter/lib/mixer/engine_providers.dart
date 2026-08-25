@@ -179,6 +179,17 @@ final deckPadModeProvider = Provider.family<PadMode, int>(
       ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
 );
 
+final deckActiveSamplerBankIdProvider = Provider.family<String?, int>(
+  (ref, deckId) => ref.watch(
+    engineUiProvider.select((s) => s.activeSamplerBankIdFor(deckId)),
+  ),
+);
+
+final deckSamplerSlotsProvider = Provider.family<List<SamplerSlotChrome>, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.samplerSlotsFor(deckId))),
+);
+
 final deckSpeedProvider = Provider.family<double, int>(
   (ref, deckId) =>
       ref.watch(engineUiProvider.select((s) => s.speedFor(deckId))),

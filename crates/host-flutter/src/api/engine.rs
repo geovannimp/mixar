@@ -12,8 +12,8 @@ use engine_core::{
     deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, AudioBackendTrait, Engine,
     EngineBuses, EngineConfig, EngineWorker, Evt,
 };
-use library::{LibraryManager, PreparedTrackPlayback};
-use library_core::TrackId;
+use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
+use library_core::{AudioSource, TrackId};
 
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
@@ -21,6 +21,9 @@ use crate::api::settings::{
     JogModeSetting,
 };
 use crate::frb_generated::StreamSink;
+
+const NUM_DECKS: usize = 2;
+const SAMPLER_SLOT_COUNT: usize = library::SAMPLER_BANK_SIZE;
 
 /// Output device summary for the Flutter settings / smoke UI.
 #[derive(Clone, Debug)]
@@ -180,6 +183,92 @@ pub struct ActiveLoopInfo {
     pub active: bool,
 }
 
+/// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SamplerSlotChrome {
+    pub label: Option<String>,
+    pub track_id: Option<String>,
+    pub path: Option<String>,
+    pub duration_ms: Option<i32>,
+}
+
+fn empty_deck_sampler_chrome() -> Vec<SamplerSlotChrome> {
+    vec![SamplerSlotChrome::default(); SAMPLER_SLOT_COUNT]
+}
+
+fn empty_all_sampler_chrome() -> Vec<Vec<SamplerSlotChrome>> {
+    vec![empty_deck_sampler_chrome(); NUM_DECKS]
+}
+
+fn source_path(source: &AudioSource) -> Option<String> {
+    source
+        .file()
+        .map(|f| f.path().to_string_lossy().into_owned())
+}
+
+fn source_label(source: &AudioSource) -> String {
+    if let Some(title) = source.metadata().title.as_ref().filter(|t| !t.is_empty()) {
+        return title.clone();
+    }
+    source
+        .file()
+        .and_then(|f| {
+            f.path()
+                .file_stem()
+                .map(|s| s.to_string_lossy().into_owned())
+        })
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| source.id().as_str().to_string())
+}
+
+fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
+    SamplerSlotChrome {
+        label: Some(source_label(&prepared.source)),
+        track_id: {
+            let id = prepared.track_id.as_str();
+            if id.is_empty() {
+                None
+            } else {
+                Some(id.to_string())
+            }
+        },
+        path: source_path(&prepared.source),
+        duration_ms: prepared.source.metadata().duration_ms,
+    }
+}
+
+fn chrome_from_bank_slot(
+    record: &SamplerSlotRecord,
+    prepared: &PreparedTrackPlayback,
+) -> SamplerSlotChrome {
+    let mut chrome = chrome_from_prepared(prepared);
+    if let Some(label) = record.label.clone().filter(|s| !s.is_empty()) {
+        chrome.label = Some(label);
+    }
+    if record.track_id.is_some() {
+        chrome.track_id = record.track_id.clone();
+    }
+    if record.path.is_some() {
+        chrome.path = record.path.clone();
+    }
+    chrome
+}
+
+fn attach_sampler_chrome(evt: &mut EngineEvt, chrome: &[Vec<SamplerSlotChrome>]) {
+    if evt.kind != EngineEvtKind::Updated {
+        return;
+    }
+    let Some(deck_id) = evt.deck_id else {
+        return;
+    };
+    let idx = usize::from(deck_id);
+    if idx >= chrome.len() {
+        return;
+    }
+    evt.sampler_slots = Some(chrome[idx].clone());
+    evt.sampler_slots_known = true;
+}
+
 impl From<engine_api::LoopRegion> for ActiveLoopInfo {
     fn from(region: engine_api::LoopRegion) -> Self {
         Self {
@@ -231,6 +320,14 @@ pub struct EngineEvt {
     pub jog_touching: Option<bool>,
     pub loudness_lufs: Option<f64>,
     pub auto_gain_db: Option<f32>,
+    /// Active sampler bank for this deck (`None` when cleared / unset).
+    pub active_sampler_bank_id: Option<String>,
+    /// True when [`Self::active_sampler_bank_id`] was authored on this Updated evt.
+    pub active_sampler_bank_id_known: bool,
+    /// Pad chrome for this deck when [`Self::sampler_slots_known`].
+    pub sampler_slots: Option<Vec<SamplerSlotChrome>>,
+    /// True when [`Self::sampler_slots`] was authored on this Updated evt.
+    pub sampler_slots_known: bool,
 }
 
 impl EngineEvt {
@@ -271,6 +368,10 @@ impl EngineEvt {
             jog_touching: None,
             loudness_lufs: None,
             auto_gain_db: None,
+            active_sampler_bank_id: None,
+            active_sampler_bank_id_known: false,
+            sampler_slots: None,
+            sampler_slots_known: false,
         }
     }
 }
@@ -316,6 +417,8 @@ pub struct EngineTransport {
     buses: EngineBuses,
     library: Arc<Mutex<LibraryManager>>,
     library_cmd_bus: library::LibraryBus,
+    /// Ephemeral pad chrome (Tauri `AppState.sampler_slots`).
+    sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
 }
 
@@ -368,6 +471,7 @@ impl EngineTransport {
             buses,
             library: library_arc,
             library_cmd_bus: library_transport.cmd_bus(),
+            sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
@@ -791,15 +895,42 @@ impl EngineTransport {
     }
 
     pub fn clear_sampler(&self, deck_id: u16, slot: u8) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::ClearSampler,
-            &CmdBody::ClearSampler { slot },
-        )
+        let deck = usize::from(deck_id);
+        let slot_i = usize::from(slot);
+        if deck >= NUM_DECKS || slot_i >= SAMPLER_SLOT_COUNT {
+            return Err(format!("Invalid sampler deck/slot: {deck_id}/{slot}"));
+        }
+        let snap = {
+            let mut guard = self
+                .engine
+                .lock()
+                .map_err(|_| "engine lock poisoned".to_string())?;
+            let engine = guard
+                .as_mut()
+                .ok_or_else(|| "engine not available".to_string())?;
+            engine
+                .clear_sampler_slot(deck, slot_i)
+                .map_err(|e| e.to_string())?;
+            engine
+                .deck_snapshot(deck)
+                .ok_or_else(|| "deck snapshot unavailable".to_string())?
+        };
+        {
+            let mut chrome = self
+                .sampler_slots
+                .lock()
+                .map_err(|_| "sampler chrome lock poisoned".to_string())?;
+            chrome[deck][slot_i] = SamplerSlotChrome::default();
+        }
+        self.publish_deck_updated(deck_id, snap)
     }
 
     /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
     pub fn set_sampler_bank(&self, deck_id: u16, bank_id: String) -> Result<(), String> {
+        let deck = usize::from(deck_id);
+        if deck >= NUM_DECKS {
+            return Err(format!("Invalid deck ID: {deck_id}"));
+        }
         let slots = {
             let lib = self
                 .library
@@ -815,27 +946,29 @@ impl EngineTransport {
             lib.list_sampler_bank_slots(&bank_id)
                 .map_err(|e| e.to_string())?
         };
-        let mut prepared = Vec::new();
+        let mut prepared: Vec<(u8, PreparedTrackPlayback, SamplerSlotChrome)> = Vec::new();
         for record in slots {
-            if usize::from(record.slot_index) >= library::SAMPLER_BANK_SIZE {
+            if usize::from(record.slot_index) >= SAMPLER_SLOT_COUNT {
                 continue;
             }
-            let item = if let Some(track_id) = record.track_id {
+            let item = if let Some(track_id) = record.track_id.as_ref() {
                 LibraryManager::prepare_track_for_playback(
                     self.library.as_ref(),
-                    &TrackId::new(track_id),
+                    &TrackId::new(track_id.clone()),
                 )
-            } else if let Some(path) = record.path {
+            } else if let Some(path) = record.path.as_ref() {
                 LibraryManager::prepare_file_path_for_playback(
                     self.library.as_ref(),
-                    Path::new(&path),
+                    Path::new(path),
                 )
             } else {
                 continue;
             }
             .map_err(|e| e.to_string())?;
-            prepared.push((record.slot_index, item));
+            let chrome = chrome_from_bank_slot(&record, &item);
+            prepared.push((record.slot_index, item, chrome));
         }
+        let mut deck_chrome = empty_deck_sampler_chrome();
         let snap = {
             let mut guard = self
                 .engine
@@ -845,20 +978,28 @@ impl EngineTransport {
                 .as_mut()
                 .ok_or_else(|| "engine not available".to_string())?;
             engine
-                .clear_all_sampler_slots(deck_id as usize)
+                .clear_all_sampler_slots(deck)
                 .map_err(|e| e.to_string())?;
-            for (slot, item) in prepared {
+            for (slot, item, chrome) in prepared {
                 engine
-                    .assign_prepared_sampler(deck_id as usize, slot as usize, item)
+                    .assign_prepared_sampler(deck, usize::from(slot), item)
                     .map_err(|e| e.to_string())?;
+                deck_chrome[usize::from(slot)] = chrome;
             }
             engine
-                .set_deck_sampler_bank(deck_id as usize, Some(bank_id))
+                .set_deck_sampler_bank(deck, Some(bank_id))
                 .map_err(|e| e.to_string())?;
             engine
-                .deck_snapshot(deck_id as usize)
+                .deck_snapshot(deck)
                 .ok_or_else(|| "deck snapshot unavailable".to_string())?
         };
+        {
+            let mut chrome = self
+                .sampler_slots
+                .lock()
+                .map_err(|_| "sampler chrome lock poisoned".to_string())?;
+            chrome[deck] = deck_chrome;
+        }
         self.publish_deck_updated(deck_id, snap)
     }
 
@@ -929,6 +1070,12 @@ impl EngineTransport {
         slot: u8,
         prepared: PreparedTrackPlayback,
     ) -> Result<(), String> {
+        let deck = usize::from(deck_id);
+        let slot_i = usize::from(slot);
+        if deck >= NUM_DECKS || slot_i >= SAMPLER_SLOT_COUNT {
+            return Err(format!("Invalid sampler deck/slot: {deck_id}/{slot}"));
+        }
+        let chrome = chrome_from_prepared(&prepared);
         let snap = {
             let mut guard = self
                 .engine
@@ -938,12 +1085,19 @@ impl EngineTransport {
                 .as_mut()
                 .ok_or_else(|| "engine not available".to_string())?;
             engine
-                .assign_prepared_sampler(deck_id as usize, slot as usize, prepared)
+                .assign_prepared_sampler(deck, slot_i, prepared)
                 .map_err(|e| e.to_string())?;
             engine
-                .deck_snapshot(deck_id as usize)
+                .deck_snapshot(deck)
                 .ok_or_else(|| "deck snapshot unavailable".to_string())?
         };
+        {
+            let mut slots = self
+                .sampler_slots
+                .lock()
+                .map_err(|_| "sampler chrome lock poisoned".to_string())?;
+            slots[deck][slot_i] = chrome;
+        }
         self.publish_deck_updated(deck_id, snap)
     }
 
@@ -989,6 +1143,7 @@ impl EngineTransport {
     /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
     pub fn subscribe_events(&self, sink: StreamSink<EngineEvt>) -> Result<(), String> {
         let rx = self.buses.subscribe_evt_all().map_err(|e| e.to_string())?;
+        let chrome = Arc::clone(&self.sampler_slots);
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_flag = Arc::clone(&shutdown);
         let handle = std::thread::Builder::new()
@@ -1013,8 +1168,10 @@ impl EngineTransport {
                     while let Ok(Some(ev)) = rx.recv_timeout(Duration::ZERO) {
                         push(ev);
                     }
+                    let chrome_snap = chrome.lock().map(|g| g.clone()).unwrap_or_default();
                     for ev in discrete.into_iter().chain(coalesced.into_values()) {
-                        for mapped in map_engine_evts(ev.as_ref()) {
+                        for mut mapped in map_engine_evts(ev.as_ref()) {
+                            attach_sampler_chrome(&mut mapped, &chrome_snap);
                             if sink.add(mapped).is_err() {
                                 return;
                             }
@@ -1079,6 +1236,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.jog_touching = Some(snap.jog_touching);
     evt.loudness_lufs = snap.loudness_lufs;
     evt.auto_gain_db = Some(snap.auto_gain_db);
+    evt.active_sampler_bank_id = snap.active_sampler_bank_id.clone();
+    evt.active_sampler_bank_id_known = true;
     evt
 }
 
@@ -1121,6 +1280,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             jog_touching,
             loudness_lufs,
             auto_gain_db,
+            active_sampler_bank_id,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1148,6 +1308,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.jog_touching = Some(jog_touching);
             evt.loudness_lufs = loudness_lufs;
             evt.auto_gain_db = Some(auto_gain_db);
+            evt.active_sampler_bank_id = active_sampler_bank_id;
+            evt.active_sampler_bank_id_known = true;
             vec![evt]
         }
         EvtBody::Position { position_ms } => {
@@ -1392,5 +1554,57 @@ mod tests {
         assert_eq!(mapped[1].jog_touching, Some(true));
         assert_eq!(mapped[1].loudness_lufs, Some(-14.5));
         assert_eq!(mapped[1].auto_gain_db, Some(-3.5));
+    }
+
+    #[test]
+    fn map_status_forwards_active_sampler_bank_id() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.active_sampler_bank_id = Some("bank-1".into());
+        let mapped = recv_mapped(
+            Origin::Mixer,
+            Kind::Status,
+            EvtBody::EngineStatus {
+                status: EngineStatus {
+                    running: true,
+                    sample_rate: 48_000,
+                    crossfader: 0.5,
+                    cue_mix: 0.0,
+                    master_cue: false,
+                    master_deck: 0,
+                    decks: vec![deck],
+                    sampler: SamplerStatus {
+                        banks: Vec::new(),
+                        active_bank_id: None,
+                        active_bank_name: None,
+                        bank_play_mode: None,
+                        deck_slots: Vec::new(),
+                        effective_play_modes: Vec::new(),
+                    },
+                },
+            },
+        );
+        assert_eq!(mapped.len(), 2);
+        assert!(mapped[1].active_sampler_bank_id_known);
+        assert_eq!(mapped[1].active_sampler_bank_id.as_deref(), Some("bank-1"));
+    }
+
+    #[test]
+    fn attach_sampler_chrome_fills_updated_evt() {
+        let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
+        evt.deck_id = Some(0);
+        let mut chrome = empty_all_sampler_chrome();
+        chrome[0][0] = SamplerSlotChrome {
+            label: Some("kick".into()),
+            track_id: None,
+            path: Some("/samples/kick.wav".into()),
+            duration_ms: Some(250),
+        };
+        attach_sampler_chrome(&mut evt, &chrome);
+        assert!(evt.sampler_slots_known);
+        let slots = evt.sampler_slots.expect("slots");
+        assert_eq!(slots.len(), SAMPLER_SLOT_COUNT);
+        assert_eq!(slots[0].label.as_deref(), Some("kick"));
+        assert_eq!(slots[0].path.as_deref(), Some("/samples/kick.wav"));
+        assert_eq!(slots[0].duration_ms, Some(250));
     }
 }

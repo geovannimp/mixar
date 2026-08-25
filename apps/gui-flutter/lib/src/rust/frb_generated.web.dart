@@ -319,6 +319,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw);
 
   @protected
+  KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw);
+
+  @protected
   LibraryAnalysisDurationSetting dco_decode_library_analysis_duration_setting(
     dynamic raw,
   );
@@ -392,6 +395,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SamplerBankInfo> dco_decode_list_sampler_bank_info(dynamic raw);
 
   @protected
+  List<SamplerSlotChrome> dco_decode_list_sampler_slot_chrome(dynamic raw);
+
+  @protected
   List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw);
 
   @protected
@@ -445,6 +451,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw);
 
   @protected
+  List<SamplerSlotChrome>? dco_decode_opt_list_sampler_slot_chrome(dynamic raw);
+
+  @protected
   List<SavedLoopInfo>? dco_decode_opt_list_saved_loop_info(dynamic raw);
 
   @protected
@@ -464,6 +473,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SamplerPlayModeSetting dco_decode_sampler_play_mode_setting(dynamic raw);
+
+  @protected
+  SamplerSlotChrome dco_decode_sampler_slot_chrome(dynamic raw);
 
   @protected
   SamplerStripRouteSettingFrb dco_decode_sampler_strip_route_setting_frb(
@@ -490,9 +502,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt dco_decode_usize(dynamic raw);
-
-  @protected
-  KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw);
 
   @protected
   WaveformDisplayModeSetting dco_decode_waveform_display_mode_setting(
@@ -798,6 +807,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer);
 
   @protected
+  KeyDisplayModeSetting sse_decode_key_display_mode_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryAnalysisDurationSetting sse_decode_library_analysis_duration_setting(
     SseDeserializer deserializer,
   );
@@ -885,6 +899,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<SamplerSlotChrome> sse_decode_list_sampler_slot_chrome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SavedLoopInfo> sse_decode_list_saved_loop_info(
     SseDeserializer deserializer,
   );
@@ -950,6 +969,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List? sse_decode_opt_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
+  List<SamplerSlotChrome>? sse_decode_opt_list_sampler_slot_chrome(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<SavedLoopInfo>? sse_decode_opt_list_saved_loop_info(
     SseDeserializer deserializer,
   );
@@ -973,6 +997,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SamplerPlayModeSetting sse_decode_sampler_play_mode_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SamplerSlotChrome sse_decode_sampler_slot_chrome(
     SseDeserializer deserializer,
   );
 
@@ -1001,11 +1030,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   BigInt sse_decode_usize(SseDeserializer deserializer);
-
-  @protected
-  KeyDisplayModeSetting sse_decode_key_display_mode_setting(
-    SseDeserializer deserializer,
-  );
 
   @protected
   WaveformDisplayModeSetting sse_decode_waveform_display_mode_setting(
@@ -1370,6 +1394,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_key_display_mode_setting(
+    KeyDisplayModeSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_library_analysis_duration_setting(
     LibraryAnalysisDurationSetting self,
     SseSerializer serializer,
@@ -1484,6 +1514,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_sampler_slot_chrome(
+    List<SamplerSlotChrome> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_saved_loop_info(
     List<SavedLoopInfo> self,
     SseSerializer serializer,
@@ -1565,6 +1601,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_list_sampler_slot_chrome(
+    List<SamplerSlotChrome>? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_list_saved_loop_info(
     List<SavedLoopInfo>? self,
     SseSerializer serializer,
@@ -1601,6 +1643,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sampler_slot_chrome(
+    SamplerSlotChrome self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_sampler_strip_route_setting_frb(
     SamplerStripRouteSettingFrb self,
     SseSerializer serializer,
@@ -1626,12 +1674,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_usize(BigInt self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_key_display_mode_setting(
-    KeyDisplayModeSetting self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_waveform_display_mode_setting(

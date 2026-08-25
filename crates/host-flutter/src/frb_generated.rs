@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 403783715;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1438418607;
 
 // Section: executor
 
@@ -4580,6 +4580,40 @@ fn wire__crate__api__meta__init_app_impl(
         },
     )
 }
+fn wire__crate__api__settings__key_display_mode_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "key_display_mode_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok(
+                        crate::api::settings::KeyDisplayModeSetting::default(),
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__fs_browser__list_fs_volumes_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -4606,6 +4640,39 @@ fn wire__crate__api__fs_browser__list_fs_volumes_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::api::fs_browser::list_fs_volumes()?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__engine__sampler_slot_chrome_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "sampler_slot_chrome_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::engine::SamplerSlotChrome::default())?;
                     Ok(output_ok)
                 })())
             }
@@ -5099,6 +5166,11 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_jogTouching = <Option<bool>>::sse_decode(deserializer);
         let mut var_loudnessLufs = <Option<f64>>::sse_decode(deserializer);
         let mut var_autoGainDb = <Option<f32>>::sse_decode(deserializer);
+        let mut var_activeSamplerBankId = <Option<String>>::sse_decode(deserializer);
+        let mut var_activeSamplerBankIdKnown = <bool>::sse_decode(deserializer);
+        let mut var_samplerSlots =
+            <Option<Vec<crate::api::engine::SamplerSlotChrome>>>::sse_decode(deserializer);
+        let mut var_samplerSlotsKnown = <bool>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
             kind: var_kind,
             deck_id: var_deckId,
@@ -5135,6 +5207,10 @@ impl SseDecode for crate::api::engine::EngineEvt {
             jog_touching: var_jogTouching,
             loudness_lufs: var_loudnessLufs,
             auto_gain_db: var_autoGainDb,
+            active_sampler_bank_id: var_activeSamplerBankId,
+            active_sampler_bank_id_known: var_activeSamplerBankIdKnown,
+            sampler_slots: var_samplerSlots,
+            sampler_slots_known: var_samplerSlotsKnown,
         };
     }
 }
@@ -5268,6 +5344,18 @@ impl SseDecode for crate::api::settings::JogModeSetting {
             1 => crate::api::settings::JogModeSetting::PitchBend,
             2 => crate::api::settings::JogModeSetting::Ignore,
             _ => unreachable!("Invalid variant for JogModeSetting: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::KeyDisplayModeSetting::Musical,
+            1 => crate::api::settings::KeyDisplayModeSetting::Camelot,
+            _ => unreachable!("Invalid variant for KeyDisplayModeSetting: {}", inner),
         };
     }
 }
@@ -5589,6 +5677,20 @@ impl SseDecode for Vec<crate::api::library::SamplerBankInfo> {
     }
 }
 
+impl SseDecode for Vec<crate::api::engine::SamplerSlotChrome> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::api::engine::SamplerSlotChrome>::sse_decode(
+                deserializer,
+            ));
+        }
+        return ans_;
+    }
+}
+
 impl SseDecode for Vec<crate::api::library::SavedLoopInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5791,6 +5893,19 @@ impl SseDecode for Option<Vec<u8>> {
     }
 }
 
+impl SseDecode for Option<Vec<crate::api::engine::SamplerSlotChrome>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<crate::api::engine::SamplerSlotChrome>>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<Vec<crate::api::library::SavedLoopInfo>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5891,6 +6006,22 @@ impl SseDecode for crate::api::settings::SamplerPlayModeSetting {
     }
 }
 
+impl SseDecode for crate::api::engine::SamplerSlotChrome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_label = <Option<String>>::sse_decode(deserializer);
+        let mut var_trackId = <Option<String>>::sse_decode(deserializer);
+        let mut var_path = <Option<String>>::sse_decode(deserializer);
+        let mut var_durationMs = <Option<i32>>::sse_decode(deserializer);
+        return crate::api::engine::SamplerSlotChrome {
+            label: var_label,
+            track_id: var_trackId,
+            path: var_path,
+            duration_ms: var_durationMs,
+        };
+    }
+}
+
 impl SseDecode for crate::api::settings::SamplerStripRouteSettingFrb {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5962,18 +6093,6 @@ impl SseDecode for usize {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_u64::<NativeEndian>().unwrap() as _
-    }
-}
-
-impl SseDecode for crate::api::settings::KeyDisplayModeSetting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::settings::KeyDisplayModeSetting::Musical,
-            1 => crate::api::settings::KeyDisplayModeSetting::Camelot,
-            _ => unreachable!("Invalid variant for KeyDisplayModeSetting: {}", inner),
-        };
     }
 }
 
@@ -6495,7 +6614,19 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         87 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        89 => wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -6962,6 +7093,12 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.jog_touching.into_into_dart().into_dart(),
             self.loudness_lufs.into_into_dart().into_dart(),
             self.auto_gain_db.into_into_dart().into_dart(),
+            self.active_sampler_bank_id.into_into_dart().into_dart(),
+            self.active_sampler_bank_id_known
+                .into_into_dart()
+                .into_dart(),
+            self.sampler_slots.into_into_dart().into_dart(),
+            self.sampler_slots_known.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -7145,6 +7282,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::JogModeSetting>
     for crate::api::settings::JogModeSetting
 {
     fn into_into_dart(self) -> crate::api::settings::JogModeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyDisplayModeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Musical => 0.into_dart(),
+            Self::Camelot => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::KeyDisplayModeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyDisplayModeSetting>
+    for crate::api::settings::KeyDisplayModeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::KeyDisplayModeSetting {
         self
     }
 }
@@ -7411,6 +7569,29 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SamplerPlayModeSett
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::engine::SamplerSlotChrome {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.label.into_into_dart().into_dart(),
+            self.track_id.into_into_dart().into_dart(),
+            self.path.into_into_dart().into_dart(),
+            self.duration_ms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::engine::SamplerSlotChrome
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::engine::SamplerSlotChrome>
+    for crate::api::engine::SamplerSlotChrome
+{
+    fn into_into_dart(self) -> crate::api::engine::SamplerSlotChrome {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::settings::SamplerStripRouteSettingFrb {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -7474,27 +7655,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::api::engine::SyncMode>>
 {
     fn into_into_dart(self) -> FrbWrapper<crate::api::engine::SyncMode> {
         self.into()
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyDisplayModeSetting {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Musical => 0.into_dart(),
-            Self::Camelot => 1.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::settings::KeyDisplayModeSetting
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyDisplayModeSetting>
-    for crate::api::settings::KeyDisplayModeSetting
-{
-    fn into_into_dart(self) -> crate::api::settings::KeyDisplayModeSetting {
-        self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -7943,6 +8103,13 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<bool>>::sse_encode(self.jog_touching, serializer);
         <Option<f64>>::sse_encode(self.loudness_lufs, serializer);
         <Option<f32>>::sse_encode(self.auto_gain_db, serializer);
+        <Option<String>>::sse_encode(self.active_sampler_bank_id, serializer);
+        <bool>::sse_encode(self.active_sampler_bank_id_known, serializer);
+        <Option<Vec<crate::api::engine::SamplerSlotChrome>>>::sse_encode(
+            self.sampler_slots,
+            serializer,
+        );
+        <bool>::sse_encode(self.sampler_slots_known, serializer);
     }
 }
 
@@ -8057,6 +8224,22 @@ impl SseEncode for crate::api::settings::JogModeSetting {
                 crate::api::settings::JogModeSetting::Vinyl => 0,
                 crate::api::settings::JogModeSetting::PitchBend => 1,
                 crate::api::settings::JogModeSetting::Ignore => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::settings::KeyDisplayModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::KeyDisplayModeSetting::Musical => 0,
+                crate::api::settings::KeyDisplayModeSetting::Camelot => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -8307,6 +8490,16 @@ impl SseEncode for Vec<crate::api::library::SamplerBankInfo> {
     }
 }
 
+impl SseEncode for Vec<crate::api::engine::SamplerSlotChrome> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::api::engine::SamplerSlotChrome>::sse_encode(item, serializer);
+        }
+    }
+}
+
 impl SseEncode for Vec<crate::api::library::SavedLoopInfo> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8477,6 +8670,16 @@ impl SseEncode for Option<Vec<u8>> {
     }
 }
 
+impl SseEncode for Option<Vec<crate::api::engine::SamplerSlotChrome>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<crate::api::engine::SamplerSlotChrome>>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<Vec<crate::api::library::SavedLoopInfo>> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8568,6 +8771,16 @@ impl SseEncode for crate::api::settings::SamplerPlayModeSetting {
     }
 }
 
+impl SseEncode for crate::api::engine::SamplerSlotChrome {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.label, serializer);
+        <Option<String>>::sse_encode(self.track_id, serializer);
+        <Option<String>>::sse_encode(self.path, serializer);
+        <Option<i32>>::sse_encode(self.duration_ms, serializer);
+    }
+}
+
 impl SseEncode for crate::api::settings::SamplerStripRouteSettingFrb {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -8644,22 +8857,6 @@ impl SseEncode for usize {
             .cursor
             .write_u64::<NativeEndian>(self as _)
             .unwrap();
-    }
-}
-
-impl SseEncode for crate::api::settings::KeyDisplayModeSetting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::settings::KeyDisplayModeSetting::Musical => 0,
-                crate::api::settings::KeyDisplayModeSetting::Camelot => 1,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
     }
 }
 

@@ -8,9 +8,9 @@ import 'library.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `bare`, `build_started_engine`, `buses`, `deck_id_of`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<AudioBackendTransport>>
@@ -267,6 +267,18 @@ class EngineEvt {
   final double? loudnessLufs;
   final double? autoGainDb;
 
+  /// Active sampler bank for this deck (`None` when cleared / unset).
+  final String? activeSamplerBankId;
+
+  /// True when [`Self::active_sampler_bank_id`] was authored on this Updated evt.
+  final bool activeSamplerBankIdKnown;
+
+  /// Pad chrome for this deck when [`Self::sampler_slots_known`].
+  final List<SamplerSlotChrome>? samplerSlots;
+
+  /// True when [`Self::sampler_slots`] was authored on this Updated evt.
+  final bool samplerSlotsKnown;
+
   const EngineEvt({
     required this.kind,
     this.deckId,
@@ -303,6 +315,10 @@ class EngineEvt {
     this.jogTouching,
     this.loudnessLufs,
     this.autoGainDb,
+    this.activeSamplerBankId,
+    this.activeSamplerBankIdKnown = false,
+    this.samplerSlots,
+    this.samplerSlotsKnown = false,
   });
 
   @override
@@ -341,7 +357,11 @@ class EngineEvt {
       quantize.hashCode ^
       jogTouching.hashCode ^
       loudnessLufs.hashCode ^
-      autoGainDb.hashCode;
+      autoGainDb.hashCode ^
+      activeSamplerBankId.hashCode ^
+      activeSamplerBankIdKnown.hashCode ^
+      samplerSlots.hashCode ^
+      samplerSlotsKnown.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -382,7 +402,11 @@ class EngineEvt {
           quantize == other.quantize &&
           jogTouching == other.jogTouching &&
           loudnessLufs == other.loudnessLufs &&
-          autoGainDb == other.autoGainDb;
+          autoGainDb == other.autoGainDb &&
+          activeSamplerBankId == other.activeSamplerBankId &&
+          activeSamplerBankIdKnown == other.activeSamplerBankIdKnown &&
+          samplerSlots == other.samplerSlots &&
+          samplerSlotsKnown == other.samplerSlotsKnown;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -455,6 +479,38 @@ class OutputDevice {
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
 enum PadMode { hotCue, loopRoll, beatJump, sampler }
+
+/// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
+class SamplerSlotChrome {
+  final String? label;
+  final String? trackId;
+  final String? path;
+  final int? durationMs;
+
+  const SamplerSlotChrome({
+    this.label,
+    this.trackId,
+    this.path,
+    this.durationMs,
+  });
+
+  static Future<SamplerSlotChrome> default_() =>
+      RustLib.instance.api.crateApiEngineSamplerSlotChromeDefault();
+
+  @override
+  int get hashCode =>
+      label.hashCode ^ trackId.hashCode ^ path.hashCode ^ durationMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SamplerSlotChrome &&
+          runtimeType == other.runtimeType &&
+          label == other.label &&
+          trackId == other.trackId &&
+          path == other.path &&
+          durationMs == other.durationMs;
+}
 
 /// Deck sync follow mode (slave → master).
 enum SyncMode { off, tempo, beat }
