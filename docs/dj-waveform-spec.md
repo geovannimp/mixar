@@ -17,7 +17,7 @@ This document synthesizes how professional DJ applications build, store, and ren
 - [7 — EQ and Waveform Display](#7--eq-and-waveform-display)
 - [8 — Rendering Architecture](#8--rendering-architecture)
   - [8.4 Progressive resolution](#84-progressive-resolution-agreed-design)
-  - [8.5 Rust-side rendering](#85-rust-side-rendering-decided)
+  - [8.5 Peak buffers + Flutter paint](#85-peak-buffers-rust--host-paint-flutter-decided)
   - [8.6 EQ-aware rendering (future)](#86-eq-aware-rendering-future--architecture-now-wiring-later)
 - [9 — Data Model & Storage](#9--data-model--storage)
   - [9.1 Size math](#91-size-math-order-of-magnitude)
@@ -279,27 +279,26 @@ Community and Mixxx developer consensus ([mixxx#14901](https://github.com/mixxxd
 ### 8.3 Performance
 
 - **Never** decode audio or run filters in the render loop.
-- **Rasterization in Rust** (§8.5): build pixel/band buffers in the Tauri backend; frontend displays the result (texture / image strip), not per-column JS Canvas math.
+- **Peaks in Rust, paint in Flutter** (§8.5): library builds overview / window spectral peak buffers; the Flutter host paints lanes (`CustomPainter`), not a separate JS Canvas path.
 - Beat grid lines: derive from library `beat_grid` (BPM + first beat offset), not from waveform data.
 
-### 8.5 Rust-side rendering (decided)
+### 8.5 Peak buffers (Rust) + host paint (Flutter) (decided)
 
-Waveform **analysis** and **rasterization** run in Rust for performance. The React layer is a thin view:
+Waveform **analysis** (spectral peaks) runs in Rust (`library` / `audio-core`). **Rasterization for display** stays in the Flutter host (see `apps/gui-flutter` README). The UI is a thin consumer of peak arrays:
 
 ```text
-Rust (Tauri)
+Rust (library / host-flutter FRB)
   ├─ load overview / window peaks from library or JIT
   ├─ apply display gains (future: deck EQ → band multipliers, §8.6)
-  ├─ rasterize lanes → RGBA buffer (or GPU path later)
-  └─ expose to UI: invoke + shared buffer / image bytes / texture handle
+  └─ expose peaks to UI: LibraryTransport.get_waveform_overview / get_waveform_window
 
-Frontend (React)
-  └─ blit image(s) per deck lane; handle zoom/seek input only
+Frontend (Flutter)
+  └─ paint lanes per deck (CustomPainter); handle zoom/seek input only
 ```
 
-MVP can ship as **RGBA byte buffers** per lane per frame (or dirty-region updates). Canvas2D in TS is a stopgap until this path exists.
+MVP ships peak arrays (overview + window detail) over FRB; Flutter paints bars each frame (or dirty-region updates).
 
-Library access: `Library::get_track_waveform(track_id)` in Rust; Tauri commands wrap it — not a separate “JS fetches peaks and draws” architecture long term.
+Library access: `Library::get_track_waveform` / window APIs in Rust; Flutter FRB `LibraryTransport` wraps them — not a separate “Dart fetches PCM and analyzes” architecture.
 
 ### 8.6 EQ-aware rendering (future — architecture now, wiring later)
 
@@ -360,7 +359,7 @@ Track load / seek
 
 **Terminology — “buckets” (O11):** one **bucket** = one visual sample: aggregated `(low, mid, high)` for a short audio slice. **Overview:** fixed bucket count for the full track. **Scrolling:** ~**one bucket per horizontal pixel** over the analyzed region. L1 targets the **visible** width; L2 uses the **same bucket density** for **buffer ahead and behind** (not stored in DB).
 
-**UI feedback:** subtle loading state on the lane (e.g. faint pulse or “soft” bars) until L1 arrives — same pattern as the current `animate-pulse` placeholder, but driven by resolution tier rather than missing data.
+**UI feedback:** subtle loading state on the lane (e.g. faint pulse or “soft” bars) until L1 arrives — driven by resolution tier rather than missing data.
 
 **Why this works:**
 
@@ -381,7 +380,7 @@ drawScrollingLane(
 )
 ```
 
-Rust rasterizer (§8.5) maps overview for gaps; prefers `detail` buckets where available.
+Flutter paint (§8.5) maps overview for gaps; prefers `detail` buckets where available.
 
 ---
 
@@ -533,7 +532,7 @@ Analysis pipeline selects implementation from config / `WaveformAnalysisConfig`.
 
 1. Persist overview during `analyze_track`; if missing on **first deck load**, call `analyze_track` then read `track_waveform`.
 2. Rust: `Library::get_track_waveform(track_id)`; `analyze_waveform_window(track_id, start, duration)` for visible + buffer spans; shared decode cache.
-3. Rust rasterizer → image/buffer; frontend blits. Progressive L0 → L1 → L2 (ahead + behind).
+3. Flutter paints overview + detail peaks; progressive L0 → L1 → L2 (ahead + behind).
 
 ### 9.8 Generation parameters (decided defaults)
 
@@ -557,20 +556,20 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 
 ## 10 — Mixar Today
 
-**Location:** `audio-core/src/waveform.rs`, `gui-app` waveform components.
+**Location:** `audio-core` / library waveform APIs; Flutter paint in `apps/gui-flutter/lib/mixer/waveform/`.
 
 | Aspect | Current implementation |
 |--------|------------------------|
 | Amplitude | **Peak** (`max(abs)`) per bucket per band |
 | Filters | One-pole IIR (~250 Hz / ~4000 Hz) — simpler than Mixxx |
 | Bands | low / mid / high `SpectralPeak` |
-| When computed | JIT via `get_track_waveform` on deck load |
+| When computed | JIT via library overview / window APIs on deck load |
 | Cache | In-memory per path + bucket count |
 | Resolution | Adaptive 4096–16384 buckets (~13 ms/bucket) |
-| Display | Dual-lane Canvas2D, center playhead, 24 s window |
+| Display | Dual-lane Flutter `CustomPainter`, center playhead, 24 s window |
 | EQ link | **None** — static colors |
-| Overview strip | Not implemented (deck panels show title only) |
-| Beat grid overlay | Not implemented |
+| Overview strip | Implemented in Flutter (`overview_strip.dart`) |
+| Beat grid overlay | Implemented when analysis present |
 | RMS option | Not implemented |
 
 ---
@@ -631,7 +630,7 @@ Bump `version` when changing filters, crossovers, or amplitude mode. Invalid ove
 | D20 | **Colors (O15)** | **Rekordbox RGB** (red / green / blue) |
 | D21 | **Beat grid (O17)** | **Live overlay** on scrolling lanes |
 | D22 | **Library UI (O18)** | **Decks only** for now |
-| D23 | **Rendering (O19)** | **Confirmed:** Rust rasterization; React displays buffers/textures only |
+| D23 | **Rendering (O19)** | **Confirmed:** Rust library peak buffers; Flutter paints lanes (`CustomPainter`) |
 | D24 | **Window API (O20)** | By **`track_id`**; reuse decode cache |
 
 ---
@@ -679,6 +678,7 @@ All product decisions are locked (§12). Remaining items are **engineering choic
 
 | Resource | Path |
 |----------|------|
-| Current peak generator | `audio-core/src/waveform.rs` |
-| GUI scrolling view | `gui-app/src/components/DualDeckWaveform.tsx` |
+| Current peak generator | `audio-core` / library waveform APIs |
+| GUI scrolling lane | `apps/gui-flutter/lib/mixer/waveform/scrolling_lane.dart` |
+| GUI waveform section | `apps/gui-flutter/lib/mixer/waveform_section.dart` |
 | Analyzer roadmap (waveforms) | `docs/audio-analyzer-spec.md` §2, §14 |

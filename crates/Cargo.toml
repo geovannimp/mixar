@@ -20,7 +20,7 @@ members = [
     "controller",
     "host-flutter",
 ]
-# Standalone midir probe — optional debug tool (own workspace; not required for gui-app).
+# Standalone midir probe — optional debug tool (own workspace; not required for the Flutter host).
 resolver = "2"
 
 [workspace.package]
