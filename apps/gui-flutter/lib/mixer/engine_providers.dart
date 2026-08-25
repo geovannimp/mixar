@@ -30,10 +30,11 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
     state = applyEngineEvt(state, evt);
     if (evt.kind == EngineEvtKind.updated && evt.deckId != null) {
       final id = evt.deckId!;
-      if (evt.positionMs != null) {
-        ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
-      } else if (evt.durationKnown && evt.durationMs == null) {
+      // Unload before positionMs: authored null duration can still carry positionMs: 0.
+      if (evt.durationKnown && evt.durationMs == null) {
         ref.read(deckPlayheadsProvider.notifier).remove(id);
+      } else if (evt.positionMs != null) {
+        ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
       }
     }
   }

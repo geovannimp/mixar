@@ -47,10 +47,11 @@ function camelotToMusical(code: string): string | null {
     return null;
   }
   const numberText = upper.slice(0, -1);
-  const number = Number.parseInt(numberText, 10);
-  if (!Number.isFinite(number) || number < 1 || number > 12) {
+  // Reject trailing junk / decimals (`8junkB`, `8.5B`); parseInt alone accepts those.
+  if (!/^(1[0-2]|[1-9])$/.test(numberText)) {
     return null;
   }
+  const number = Number.parseInt(numberText, 10);
   const index = (number + 12 - 1 - CAMELOT_OFFSET) % 12;
   if (minor) {
     return MINOR_KEYS[index] ?? null;
