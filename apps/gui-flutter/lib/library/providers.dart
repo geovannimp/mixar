@@ -81,6 +81,7 @@ bool trackIsInLibrary(
   return switch (tab) {
     LibrarySourceTab.collections => true,
     LibrarySourceTab.drive => driveResolvedByPath.containsKey(t.path),
+    LibrarySourceTab.history => false,
   };
 }
 
@@ -350,7 +351,7 @@ Future<void> refreshTrackAction(WidgetRef ref, String trackId) async {
 
 // --- Drive browse (Task 6) ---
 
-enum LibrarySourceTab { collections, drive }
+enum LibrarySourceTab { collections, drive, history }
 
 class LibrarySourceTabNotifier extends Notifier<LibrarySourceTab> {
   @override
@@ -483,5 +484,7 @@ final libraryTableTracksProvider =
           return ref.watch(filteredTracksProvider);
         case LibrarySourceTab.drive:
           return ref.watch(driveTableTracksProvider);
+        case LibrarySourceTab.history:
+          return const AsyncData([]);
       }
     });

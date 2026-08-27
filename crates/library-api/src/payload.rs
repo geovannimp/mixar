@@ -13,6 +13,7 @@ pub struct TrackSummary {
     pub key: Option<String>,
     pub duration_ms: Option<i32>,
     pub path: String,
+    pub isrc: Option<String>,
 }
 
 /// Persisted hot cue row for bus payloads.

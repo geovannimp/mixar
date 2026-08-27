@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/collection_actions.dart';
+import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
@@ -43,31 +45,21 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
   }
 
   Future<void> _createCollection(String folderPath) async {
-    ref.read(libraryMessageProvider.notifier).clear();
-    try {
-      final transport = await ref.read(libraryTransportProvider.future);
-      if (!mounted) {
-        return;
-      }
-      final result = await transport.addFolderCollection(
-        folderPath: folderPath,
-        scanFolderTree: true,
-      );
-      if (!mounted) {
-        return;
-      }
-      ref.invalidate(collectionsProvider);
-      ref.invalidate(collectionTracksProvider);
-      ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
-      ref
-          .read(librarySourceTabProvider.notifier)
-          .set(LibrarySourceTab.collections);
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ref.read(libraryMessageProvider.notifier).setError('$e');
+    final result = await showCreateCollectionDialog(
+      context,
+      input: CreateCollectionInput(
+        initialType: CreateCollectionType.folder,
+        initialFolderPath: folderPath,
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
     }
+    final collection = await createCollection(ref, result);
+    if (!mounted || collection == null) {
+      return;
+    }
+    selectCreatedCollection(ref, collection);
   }
 
   @override

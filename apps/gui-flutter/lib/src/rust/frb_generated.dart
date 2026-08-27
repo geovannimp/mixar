@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1438418607;
+  int get rustContentHash => 1807949118;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -430,12 +430,28 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
     required String folderPath,
     required bool scanFolderTree,
+    String? name,
+  });
+
+  Future<LibraryCollectionSummary>
+  crateApiLibraryLibraryTransportAddPlaylistCollection({
+    required LibraryTransport that,
+    required String name,
+    required bool sortable,
   });
 
   Future<void> crateApiLibraryLibraryTransportAnalyzeTrack({
     required LibraryTransport that,
     required String trackId,
     required bool force,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportApplyHistorySettings({
+    required LibraryTransport that,
+    required bool enabled,
+    required int sessionIdleMinutes,
+    required int minPlaySeconds,
+    required double minDeckVolume,
   });
 
   Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
@@ -447,10 +463,22 @@ abstract class RustLibApi extends BaseApi {
     required LibraryTransport that,
   });
 
+  Future<void> crateApiLibraryLibraryTransportDeleteHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+  });
+
   Future<void> crateApiLibraryLibraryTransportDeleteLoop({
     required LibraryTransport that,
     required String trackId,
     required int slot,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportExportHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+    required HistoryExportFormatSetting format,
+    required String destPath,
   });
 
   Future<BeatGridData?> crateApiLibraryLibraryTransportGetBeatGrid({
@@ -476,6 +504,42 @@ abstract class RustLibApi extends BaseApi {
     required int buckets,
   });
 
+  Future<bool> crateApiLibraryLibraryTransportHistoryCanResume({
+    required LibraryTransport that,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportHistoryDeclineRestore({
+    required LibraryTransport that,
+  });
+
+  Future<String> crateApiLibraryLibraryTransportHistoryDir({
+    required LibraryTransport that,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportHistoryNewSession({
+    required LibraryTransport that,
+  });
+
+  Future<HistoryRestorePromptInfo?>
+  crateApiLibraryLibraryTransportHistoryRestorePrompt({
+    required LibraryTransport that,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportHistoryRestoreSession({
+    required LibraryTransport that,
+    required String sessionId,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportHistoryResumeSession({
+    required LibraryTransport that,
+  });
+
+  Future<List<HistoryEntryInfo>>
+  crateApiLibraryLibraryTransportHistorySessionEntries({
+    required LibraryTransport that,
+    required String sessionId,
+  });
+
   Future<List<LibraryTrackSummary>>
   crateApiLibraryLibraryTransportListCollectionTracks({
     required LibraryTransport that,
@@ -484,6 +548,11 @@ abstract class RustLibApi extends BaseApi {
 
   Future<List<LibraryCollectionSummary>>
   crateApiLibraryLibraryTransportListCollections({
+    required LibraryTransport that,
+  });
+
+  Future<List<HistorySessionSummary>>
+  crateApiLibraryLibraryTransportListHistorySessions({
     required LibraryTransport that,
   });
 
@@ -503,10 +572,28 @@ abstract class RustLibApi extends BaseApi {
     required String trackId,
   });
 
+  Future<void> crateApiLibraryLibraryTransportRenameHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+    required String title,
+  });
+
   Future<List<ResolvedLibraryTrack>>
   crateApiLibraryLibraryTransportResolveTracksForPaths({
     required LibraryTransport that,
     required List<String> paths,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportRevealHistoryFolder({
+    required LibraryTransport that,
+  });
+
+  Future<LibraryCollectionSummary>
+  crateApiLibraryLibraryTransportSaveHistoryAsPlaylist({
+    required LibraryTransport that,
+    required String sessionId,
+    required String name,
+    required bool sortable,
   });
 
   Future<void> crateApiLibraryLibraryTransportSaveLoop({
@@ -519,6 +606,12 @@ abstract class RustLibApi extends BaseApi {
 
   Stream<LibraryEvt> crateApiLibraryLibraryTransportSubscribeEvents({
     required LibraryTransport that,
+  });
+
+  Future<void> crateApiLibraryLibraryTransportUpdateTrackIsrc({
+    required LibraryTransport that,
+    required String trackId,
+    String? isrc,
   });
 
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
@@ -3077,6 +3170,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     required LibraryTransport that,
     required String folderPath,
     required bool scanFolderTree,
+    String? name,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3088,6 +3182,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           );
           sse_encode_String(folderPath, serializer);
           sse_encode_bool(scanFolderTree, serializer);
+          sse_encode_opt_String(name, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3100,7 +3195,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta,
-        argValues: [that, folderPath, scanFolderTree],
+        argValues: [that, folderPath, scanFolderTree, name],
         apiImpl: this,
       ),
     );
@@ -3110,7 +3205,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportAddFolderCollectionConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_add_folder_collection",
-        argNames: ["that", "folderPath", "scanFolderTree"],
+        argNames: ["that", "folderPath", "scanFolderTree", "name"],
+      );
+
+  @override
+  Future<LibraryCollectionSummary>
+  crateApiLibraryLibraryTransportAddPlaylistCollection({
+    required LibraryTransport that,
+    required String name,
+    required bool sortable,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(name, serializer);
+          sse_encode_bool(sortable, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 64,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_library_collection_summary,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportAddPlaylistCollectionConstMeta,
+        argValues: [that, name, sortable],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportAddPlaylistCollectionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_add_playlist_collection",
+        argNames: ["that", "name", "sortable"],
       );
 
   @override
@@ -3132,7 +3270,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 64,
+            funcId: 65,
             port: port_,
           );
         },
@@ -3151,6 +3289,64 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "LibraryTransport_analyze_track",
         argNames: ["that", "trackId", "force"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportApplyHistorySettings({
+    required LibraryTransport that,
+    required bool enabled,
+    required int sessionIdleMinutes,
+    required int minPlaySeconds,
+    required double minDeckVolume,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_bool(enabled, serializer);
+          sse_encode_u_32(sessionIdleMinutes, serializer);
+          sse_encode_u_32(minPlaySeconds, serializer);
+          sse_encode_f_32(minDeckVolume, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 66,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportApplyHistorySettingsConstMeta,
+        argValues: [
+          that,
+          enabled,
+          sessionIdleMinutes,
+          minPlaySeconds,
+          minDeckVolume,
+        ],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportApplyHistorySettingsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_apply_history_settings",
+        argNames: [
+          "that",
+          "enabled",
+          "sessionIdleMinutes",
+          "minPlaySeconds",
+          "minDeckVolume",
+        ],
       );
 
   @override
@@ -3173,7 +3369,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 65,
+            funcId: 67,
             port: port_,
           );
         },
@@ -3211,7 +3407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 66,
+            funcId: 68,
             port: port_,
           );
         },
@@ -3234,6 +3430,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportDeleteHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 69,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportDeleteHistorySessionConstMeta,
+        argValues: [that, sessionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportDeleteHistorySessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_delete_history_session",
+        argNames: ["that", "sessionId"],
+      );
+
+  @override
   Future<void> crateApiLibraryLibraryTransportDeleteLoop({
     required LibraryTransport that,
     required String trackId,
@@ -3252,7 +3488,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 67,
+            funcId: 70,
             port: port_,
           );
         },
@@ -3274,6 +3510,50 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportExportHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+    required HistoryExportFormatSetting format,
+    required String destPath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          sse_encode_history_export_format_setting(format, serializer);
+          sse_encode_String(destPath, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 71,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportExportHistorySessionConstMeta,
+        argValues: [that, sessionId, format, destPath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportExportHistorySessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_export_history_session",
+        argNames: ["that", "sessionId", "format", "destPath"],
+      );
+
+  @override
   Future<BeatGridData?> crateApiLibraryLibraryTransportGetBeatGrid({
     required LibraryTransport that,
     required String trackId,
@@ -3290,7 +3570,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 68,
+            funcId: 72,
             port: port_,
           );
         },
@@ -3328,7 +3608,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 69,
+            funcId: 73,
             port: port_,
           );
         },
@@ -3366,7 +3646,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 70,
+            funcId: 74,
             port: port_,
           );
         },
@@ -3411,7 +3691,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 71,
+            funcId: 75,
             port: port_,
           );
         },
@@ -3434,6 +3714,312 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<bool> crateApiLibraryLibraryTransportHistoryCanResume({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 76,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_bool,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportHistoryCanResumeConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportHistoryCanResumeConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_can_resume",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportHistoryDeclineRestore({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 77,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportHistoryDeclineRestoreConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistoryDeclineRestoreConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_decline_restore",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<String> crateApiLibraryLibraryTransportHistoryDir({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 78,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_String,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportHistoryDirConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportHistoryDirConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_dir",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportHistoryNewSession({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 79,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportHistoryNewSessionConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistoryNewSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_new_session",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<HistoryRestorePromptInfo?>
+  crateApiLibraryLibraryTransportHistoryRestorePrompt({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 80,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData:
+              sse_decode_opt_box_autoadd_history_restore_prompt_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportHistoryRestorePromptConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistoryRestorePromptConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_restore_prompt",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportHistoryRestoreSession({
+    required LibraryTransport that,
+    required String sessionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 81,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportHistoryRestoreSessionConstMeta,
+        argValues: [that, sessionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistoryRestoreSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_restore_session",
+        argNames: ["that", "sessionId"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportHistoryResumeSession({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 82,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportHistoryResumeSessionConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistoryResumeSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_resume_session",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<List<HistoryEntryInfo>>
+  crateApiLibraryLibraryTransportHistorySessionEntries({
+    required LibraryTransport that,
+    required String sessionId,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 83,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_history_entry_info,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportHistorySessionEntriesConstMeta,
+        argValues: [that, sessionId],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportHistorySessionEntriesConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_history_session_entries",
+        argNames: ["that", "sessionId"],
+      );
+
+  @override
   Future<List<LibraryTrackSummary>>
   crateApiLibraryLibraryTransportListCollectionTracks({
     required LibraryTransport that,
@@ -3451,7 +4037,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 72,
+            funcId: 84,
             port: port_,
           );
         },
@@ -3490,7 +4076,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 73,
+            funcId: 85,
             port: port_,
           );
         },
@@ -3512,6 +4098,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<List<HistorySessionSummary>>
+  crateApiLibraryLibraryTransportListHistorySessions({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 86,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_list_history_session_summary,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportListHistorySessionsConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportListHistorySessionsConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_list_history_sessions",
+        argNames: ["that"],
+      );
+
+  @override
   Future<List<SamplerBankInfo>>
   crateApiLibraryLibraryTransportListSamplerBanks({
     required LibraryTransport that,
@@ -3527,7 +4151,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 74,
+            funcId: 87,
             port: port_,
           );
         },
@@ -3560,7 +4184,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 75,
+            funcId: 88,
             port: port_,
           );
         },
@@ -3591,7 +4215,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 76,
+            funcId: 89,
             port: port_,
           );
         },
@@ -3630,7 +4254,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 77,
+            funcId: 90,
             port: port_,
           );
         },
@@ -3652,6 +4276,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportRenameHistorySession({
+    required LibraryTransport that,
+    required String sessionId,
+    required String title,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          sse_encode_String(title, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 91,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportRenameHistorySessionConstMeta,
+        argValues: [that, sessionId, title],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportRenameHistorySessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_rename_history_session",
+        argNames: ["that", "sessionId", "title"],
+      );
+
+  @override
   Future<List<ResolvedLibraryTrack>>
   crateApiLibraryLibraryTransportResolveTracksForPaths({
     required LibraryTransport that,
@@ -3669,7 +4335,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 78,
+            funcId: 92,
             port: port_,
           );
         },
@@ -3690,6 +4356,88 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "LibraryTransport_resolve_tracks_for_paths",
         argNames: ["that", "paths"],
+      );
+
+  @override
+  Future<void> crateApiLibraryLibraryTransportRevealHistoryFolder({
+    required LibraryTransport that,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 93,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportRevealHistoryFolderConstMeta,
+        argValues: [that],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportRevealHistoryFolderConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_reveal_history_folder",
+        argNames: ["that"],
+      );
+
+  @override
+  Future<LibraryCollectionSummary>
+  crateApiLibraryLibraryTransportSaveHistoryAsPlaylist({
+    required LibraryTransport that,
+    required String sessionId,
+    required String name,
+    required bool sortable,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(sessionId, serializer);
+          sse_encode_String(name, serializer);
+          sse_encode_bool(sortable, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 94,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_library_collection_summary,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta:
+            kCrateApiLibraryLibraryTransportSaveHistoryAsPlaylistConstMeta,
+        argValues: [that, sessionId, name, sortable],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLibraryLibraryTransportSaveHistoryAsPlaylistConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_save_history_as_playlist",
+        argNames: ["that", "sessionId", "name", "sortable"],
       );
 
   @override
@@ -3715,7 +4463,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 79,
+            funcId: 95,
             port: port_,
           );
         },
@@ -3754,7 +4502,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 80,
+              funcId: 96,
               port: port_,
             );
           },
@@ -3778,6 +4526,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiLibraryLibraryTransportUpdateTrackIsrc({
+    required LibraryTransport that,
+    required String trackId,
+    String? isrc,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerLibraryTransport(
+            that,
+            serializer,
+          );
+          sse_encode_String(trackId, serializer);
+          sse_encode_opt_String(isrc, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 97,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: sse_decode_String,
+        ),
+        constMeta: kCrateApiLibraryLibraryTransportUpdateTrackIsrcConstMeta,
+        argValues: [that, trackId, isrc],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLibraryLibraryTransportUpdateTrackIsrcConstMeta =>
+      const TaskConstMeta(
+        debugName: "LibraryTransport_update_track_isrc",
+        argNames: ["that", "trackId", "isrc"],
+      );
+
+  @override
   Future<AppSettings> crateApiSettingsSettingsTransportGetSettings({
     required SettingsTransport that,
   }) {
@@ -3792,7 +4580,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 81,
+            funcId: 98,
             port: port_,
           );
         },
@@ -3825,7 +4613,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 82,
+            funcId: 99,
             port: port_,
           );
         },
@@ -3864,7 +4652,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 83,
+            funcId: 100,
             port: port_,
           );
         },
@@ -3891,7 +4679,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 84)!;
+          return pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 101,
+          )!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_String,
@@ -3919,7 +4711,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 85,
+            funcId: 102,
             port: port_,
           );
         },
@@ -3946,7 +4738,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 86,
+            funcId: 103,
             port: port_,
           );
         },
@@ -3973,7 +4765,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 87,
+            funcId: 104,
             port: port_,
           );
         },
@@ -4000,7 +4792,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 88,
+            funcId: 105,
             port: port_,
           );
         },
@@ -4030,7 +4822,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 89,
+            funcId: 106,
             port: port_,
           );
         },
@@ -4057,7 +4849,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 90,
+            funcId: 107,
             port: port_,
           );
         },
@@ -4397,8 +5189,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 22)
-      throw Exception('unexpected arr length: expect 22 but see ${arr.length}');
+    if (arr.length != 26)
+      throw Exception('unexpected arr length: expect 26 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -4422,6 +5214,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[19]),
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[20]),
       trustedControllerDeviceIds: dco_decode_list_String(arr[21]),
+      historyEnabled: dco_decode_bool(arr[22]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[23]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[24]),
+      historyMinDeckVolume: dco_decode_f_32(arr[25]),
     );
   }
 
@@ -4487,9 +5283,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryRestorePromptInfo dco_decode_box_autoadd_history_restore_prompt_info(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_history_restore_prompt_info(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_i_64(raw);
   }
 
   @protected
@@ -4741,6 +5551,67 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryEntryInfo dco_decode_history_entry_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 14)
+      throw Exception('unexpected arr length: expect 14 but see ${arr.length}');
+    return HistoryEntryInfo(
+      id: dco_decode_String(arr[0]),
+      deck: dco_decode_u_16(arr[1]),
+      trackId: dco_decode_opt_String(arr[2]),
+      location: dco_decode_String(arr[3]),
+      title: dco_decode_opt_String(arr[4]),
+      artist: dco_decode_opt_String(arr[5]),
+      album: dco_decode_opt_String(arr[6]),
+      durationSec: dco_decode_opt_box_autoadd_i_32(arr[7]),
+      bpm: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      key: dco_decode_opt_String(arr[9]),
+      isrc: dco_decode_opt_String(arr[10]),
+      startedAt: dco_decode_String(arr[11]),
+      endedAt: dco_decode_opt_String(arr[12]),
+      playedDurationMs: dco_decode_opt_box_autoadd_i_64(arr[13]),
+    );
+  }
+
+  @protected
+  HistoryExportFormatSetting dco_decode_history_export_format_setting(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return HistoryExportFormatSetting.values[raw as int];
+  }
+
+  @protected
+  HistoryRestorePromptInfo dco_decode_history_restore_prompt_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return HistoryRestorePromptInfo(
+      sessionId: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      lastActivityAt: dco_decode_String(arr[2]),
+    );
+  }
+
+  @protected
+  HistorySessionSummary dco_decode_history_session_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    return HistorySessionSummary(
+      id: dco_decode_String(arr[0]),
+      title: dco_decode_String(arr[1]),
+      startedAt: dco_decode_String(arr[2]),
+      lastActivityAt: dco_decode_String(arr[3]),
+      closed: dco_decode_bool(arr[4]),
+      entryCount: dco_decode_u_32(arr[5]),
+    );
+  }
+
+  @protected
   HotCueInfo dco_decode_hot_cue_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -4757,6 +5628,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dcoDecodeI64(raw);
   }
 
   @protected
@@ -4822,8 +5699,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return LibraryTrackSummary(
       id: dco_decode_String(arr[0]),
       displayName: dco_decode_String(arr[1]),
@@ -4835,7 +5712,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: dco_decode_opt_String(arr[7]),
       durationMs: dco_decode_opt_box_autoadd_i_32(arr[8]),
       path: dco_decode_String(arr[9]),
-      artwork: dco_decode_opt_list_prim_u_8_strict(arr[10]),
+      isrc: dco_decode_opt_String(arr[10]),
+      artwork: dco_decode_opt_list_prim_u_8_strict(arr[11]),
     );
   }
 
@@ -4881,6 +5759,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_fs_volume_info).toList();
+  }
+
+  @protected
+  List<HistoryEntryInfo> dco_decode_list_history_entry_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_history_entry_info).toList();
+  }
+
+  @protected
+  List<HistorySessionSummary> dco_decode_list_history_session_summary(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_history_session_summary)
+        .toList();
   }
 
   @protected
@@ -5002,9 +5896,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryRestorePromptInfo?
+  dco_decode_opt_box_autoadd_history_restore_prompt_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_history_restore_prompt_info(raw);
+  }
+
+  @protected
   int? dco_decode_opt_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_i_32(raw);
+  }
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_i_64(raw);
   }
 
   @protected
@@ -5592,6 +6501,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
+    var var_historyEnabled = sse_decode_bool(deserializer);
+    var var_historySessionIdleMinutes = sse_decode_u_32(deserializer);
+    var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
+    var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -5615,6 +6528,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       waveformDisplayMode: var_waveformDisplayMode,
       keyDisplayMode: var_keyDisplayMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
+      historyEnabled: var_historyEnabled,
+      historySessionIdleMinutes: var_historySessionIdleMinutes,
+      historyMinPlaySeconds: var_historyMinPlaySeconds,
+      historyMinDeckVolume: var_historyMinDeckVolume,
     );
   }
 
@@ -5688,9 +6605,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryRestorePromptInfo sse_decode_box_autoadd_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_history_restore_prompt_info(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_32(deserializer));
+  }
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_i_64(deserializer));
   }
 
   @protected
@@ -6005,6 +6936,86 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryEntryInfo sse_decode_history_entry_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_deck = sse_decode_u_16(deserializer);
+    var var_trackId = sse_decode_opt_String(deserializer);
+    var var_location = sse_decode_String(deserializer);
+    var var_title = sse_decode_opt_String(deserializer);
+    var var_artist = sse_decode_opt_String(deserializer);
+    var var_album = sse_decode_opt_String(deserializer);
+    var var_durationSec = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_bpm = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_key = sse_decode_opt_String(deserializer);
+    var var_isrc = sse_decode_opt_String(deserializer);
+    var var_startedAt = sse_decode_String(deserializer);
+    var var_endedAt = sse_decode_opt_String(deserializer);
+    var var_playedDurationMs = sse_decode_opt_box_autoadd_i_64(deserializer);
+    return HistoryEntryInfo(
+      id: var_id,
+      deck: var_deck,
+      trackId: var_trackId,
+      location: var_location,
+      title: var_title,
+      artist: var_artist,
+      album: var_album,
+      durationSec: var_durationSec,
+      bpm: var_bpm,
+      key: var_key,
+      isrc: var_isrc,
+      startedAt: var_startedAt,
+      endedAt: var_endedAt,
+      playedDurationMs: var_playedDurationMs,
+    );
+  }
+
+  @protected
+  HistoryExportFormatSetting sse_decode_history_export_format_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return HistoryExportFormatSetting.values[inner];
+  }
+
+  @protected
+  HistoryRestorePromptInfo sse_decode_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sessionId = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_lastActivityAt = sse_decode_String(deserializer);
+    return HistoryRestorePromptInfo(
+      sessionId: var_sessionId,
+      title: var_title,
+      lastActivityAt: var_lastActivityAt,
+    );
+  }
+
+  @protected
+  HistorySessionSummary sse_decode_history_session_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_title = sse_decode_String(deserializer);
+    var var_startedAt = sse_decode_String(deserializer);
+    var var_lastActivityAt = sse_decode_String(deserializer);
+    var var_closed = sse_decode_bool(deserializer);
+    var var_entryCount = sse_decode_u_32(deserializer);
+    return HistorySessionSummary(
+      id: var_id,
+      title: var_title,
+      startedAt: var_startedAt,
+      lastActivityAt: var_lastActivityAt,
+      closed: var_closed,
+      entryCount: var_entryCount,
+    );
+  }
+
+  @protected
   HotCueInfo sse_decode_hot_cue_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_slot = sse_decode_u_8(deserializer);
@@ -6021,6 +7032,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return deserializer.buffer.getPlatformInt64();
   }
 
   @protected
@@ -6114,6 +7131,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_key = sse_decode_opt_String(deserializer);
     var var_durationMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_path = sse_decode_String(deserializer);
+    var var_isrc = sse_decode_opt_String(deserializer);
     var var_artwork = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return LibraryTrackSummary(
       id: var_id,
@@ -6126,6 +7144,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       key: var_key,
       durationMs: var_durationMs,
       path: var_path,
+      isrc: var_isrc,
       artwork: var_artwork,
     );
   }
@@ -6206,6 +7225,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <FsVolumeInfo>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_fs_volume_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<HistoryEntryInfo> sse_decode_list_history_entry_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HistoryEntryInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_history_entry_info(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<HistorySessionSummary> sse_decode_list_history_session_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <HistorySessionSummary>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_history_session_summary(deserializer));
     }
     return ans_;
   }
@@ -6424,11 +7471,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HistoryRestorePromptInfo?
+  sse_decode_opt_box_autoadd_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_history_restore_prompt_info(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_i_32(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_i_64(deserializer));
     } else {
       return null;
     }
@@ -7138,6 +8210,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     );
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
+    sse_encode_bool(self.historyEnabled, serializer);
+    sse_encode_u_32(self.historySessionIdleMinutes, serializer);
+    sse_encode_u_32(self.historyMinPlaySeconds, serializer);
+    sse_encode_f_32(self.historyMinDeckVolume, serializer);
   }
 
   @protected
@@ -7209,9 +8285,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_history_restore_prompt_info(
+    HistoryRestorePromptInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_history_restore_prompt_info(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_64(self, serializer);
   }
 
   @protected
@@ -7453,6 +8547,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_history_entry_info(
+    HistoryEntryInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_u_16(self.deck, serializer);
+    sse_encode_opt_String(self.trackId, serializer);
+    sse_encode_String(self.location, serializer);
+    sse_encode_opt_String(self.title, serializer);
+    sse_encode_opt_String(self.artist, serializer);
+    sse_encode_opt_String(self.album, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.durationSec, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.bpm, serializer);
+    sse_encode_opt_String(self.key, serializer);
+    sse_encode_opt_String(self.isrc, serializer);
+    sse_encode_String(self.startedAt, serializer);
+    sse_encode_opt_String(self.endedAt, serializer);
+    sse_encode_opt_box_autoadd_i_64(self.playedDurationMs, serializer);
+  }
+
+  @protected
+  void sse_encode_history_export_format_setting(
+    HistoryExportFormatSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_history_restore_prompt_info(
+    HistoryRestorePromptInfo self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.sessionId, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.lastActivityAt, serializer);
+  }
+
+  @protected
+  void sse_encode_history_session_summary(
+    HistorySessionSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.title, serializer);
+    sse_encode_String(self.startedAt, serializer);
+    sse_encode_String(self.lastActivityAt, serializer);
+    sse_encode_bool(self.closed, serializer);
+    sse_encode_u_32(self.entryCount, serializer);
+  }
+
+  @protected
   void sse_encode_hot_cue_info(HotCueInfo self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_u_8(self.slot, serializer);
@@ -7464,6 +8614,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    serializer.buffer.putPlatformInt64(self);
   }
 
   @protected
@@ -7544,6 +8700,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.key, serializer);
     sse_encode_opt_box_autoadd_i_32(self.durationMs, serializer);
     sse_encode_String(self.path, serializer);
+    sse_encode_opt_String(self.isrc, serializer);
     sse_encode_opt_list_prim_u_8_strict(self.artwork, serializer);
   }
 
@@ -7610,6 +8767,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_fs_volume_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_history_entry_info(
+    List<HistoryEntryInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_history_entry_info(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_history_session_summary(
+    List<HistorySessionSummary> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_history_session_summary(item, serializer);
     }
   }
 
@@ -7818,12 +8999,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_history_restore_prompt_info(
+    HistoryRestorePromptInfo? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_history_restore_prompt_info(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_i_32(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_i_64(self, serializer);
     }
   }
 
@@ -8633,11 +9840,24 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
     required bool scanFolderTree,
+    String? name,
   }) => RustLib.instance.api.crateApiLibraryLibraryTransportAddFolderCollection(
     that: this,
     folderPath: folderPath,
     scanFolderTree: scanFolderTree,
+    name: name,
   );
+
+  /// Create an empty playlist collection.
+  Future<LibraryCollectionSummary> addPlaylistCollection({
+    required String name,
+    required bool sortable,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportAddPlaylistCollection(
+        that: this,
+        name: name,
+        sortable: sortable,
+      );
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force}) =>
@@ -8645,6 +9865,21 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         that: this,
         trackId: trackId,
         force: force,
+      );
+
+  /// Apply performance history settings from app settings.
+  Future<void> applyHistorySettings({
+    required bool enabled,
+    required int sessionIdleMinutes,
+    required int minPlaySeconds,
+    required double minDeckVolume,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportApplyHistorySettings(
+        that: this,
+        enabled: enabled,
+        sessionIdleMinutes: sessionIdleMinutes,
+        minPlaySeconds: minPlaySeconds,
+        minDeckVolume: minDeckVolume,
       );
 
   /// Apply library analysis duration from app settings.
@@ -8660,12 +9895,30 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   Future<LibraryBusHandle> buses() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportBuses(that: this);
 
+  Future<void> deleteHistorySession({required String sessionId}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportDeleteHistorySession(
+        that: this,
+        sessionId: sessionId,
+      );
+
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
   Future<void> deleteLoop({required String trackId, required int slot}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportDeleteLoop(
         that: this,
         trackId: trackId,
         slot: slot,
+      );
+
+  Future<void> exportHistorySession({
+    required String sessionId,
+    required HistoryExportFormatSetting format,
+    required String destPath,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportExportHistorySession(
+        that: this,
+        sessionId: sessionId,
+        format: format,
+        destPath: destPath,
       );
 
   /// Analyzed beat grid, if present.
@@ -8701,6 +9954,41 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
     buckets: buckets,
   );
 
+  Future<bool> historyCanResume() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportHistoryCanResume(that: this);
+
+  Future<void> historyDeclineRestore() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportHistoryDeclineRestore(that: this);
+
+  Future<String> historyDir() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportHistoryDir(that: this);
+
+  Future<void> historyNewSession() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportHistoryNewSession(that: this);
+
+  /// Restore prompt when the last session is still inside the idle window.
+  Future<HistoryRestorePromptInfo?> historyRestorePrompt() => RustLib
+      .instance
+      .api
+      .crateApiLibraryLibraryTransportHistoryRestorePrompt(that: this);
+
+  Future<void> historyRestoreSession({required String sessionId}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportHistoryRestoreSession(
+        that: this,
+        sessionId: sessionId,
+      );
+
+  Future<void> historyResumeSession() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportHistoryResumeSession(that: this);
+
+  Future<List<HistoryEntryInfo>> historySessionEntries({
+    required String sessionId,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportHistorySessionEntries(
+        that: this,
+        sessionId: sessionId,
+      );
+
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
@@ -8716,6 +10004,11 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportListCollections(that: this);
 
+  Future<List<HistorySessionSummary>> listHistorySessions() => RustLib
+      .instance
+      .api
+      .crateApiLibraryLibraryTransportListHistorySessions(that: this);
+
   /// Sampler banks stored in the library DB.
   Future<List<SamplerBankInfo>> listSamplerBanks() => RustLib.instance.api
       .crateApiLibraryLibraryTransportListSamplerBanks(that: this);
@@ -8727,6 +10020,16 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         trackId: trackId,
       );
 
+  Future<void> renameHistorySession({
+    required String sessionId,
+    required String title,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportRenameHistorySession(
+        that: this,
+        sessionId: sessionId,
+        title: title,
+      );
+
   /// Resolve library tracks for the given filesystem paths.
   Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
     required List<String> paths,
@@ -8734,6 +10037,21 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       RustLib.instance.api.crateApiLibraryLibraryTransportResolveTracksForPaths(
         that: this,
         paths: paths,
+      );
+
+  Future<void> revealHistoryFolder() => RustLib.instance.api
+      .crateApiLibraryLibraryTransportRevealHistoryFolder(that: this);
+
+  Future<LibraryCollectionSummary> saveHistoryAsPlaylist({
+    required String sessionId,
+    required String name,
+    required bool sortable,
+  }) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportSaveHistoryAsPlaylist(
+        that: this,
+        sessionId: sessionId,
+        name: name,
+        sortable: sortable,
       );
 
   /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -8755,6 +10073,13 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<LibraryEvt> subscribeEvents() => RustLib.instance.api
       .crateApiLibraryLibraryTransportSubscribeEvents(that: this);
+
+  Future<void> updateTrackIsrc({required String trackId, String? isrc}) =>
+      RustLib.instance.api.crateApiLibraryLibraryTransportUpdateTrackIsrc(
+        that: this,
+        trackId: trackId,
+        isrc: isrc,
+      );
 }
 
 @sealed

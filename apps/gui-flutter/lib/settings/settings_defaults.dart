@@ -77,6 +77,10 @@ AppSettings defaultAppSettings() {
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     keyDisplayMode: KeyDisplayModeSetting.musical,
     trustedControllerDeviceIds: const [],
+    historyEnabled: true,
+    historySessionIdleMinutes: 5,
+    historyMinPlaySeconds: 5,
+    historyMinDeckVolume: 0.05,
   );
 }
 
@@ -143,6 +147,10 @@ AppSettings copyAppSettings(
   WaveformDisplayModeSetting? waveformDisplayMode,
   KeyDisplayModeSetting? keyDisplayMode,
   List<String>? trustedControllerDeviceIds,
+  bool? historyEnabled,
+  int? historySessionIdleMinutes,
+  int? historyMinPlaySeconds,
+  double? historyMinDeckVolume,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -170,6 +178,11 @@ AppSettings copyAppSettings(
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
     trustedControllerDeviceIds:
         trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
+    historyEnabled: historyEnabled ?? base.historyEnabled,
+    historySessionIdleMinutes:
+        historySessionIdleMinutes ?? base.historySessionIdleMinutes,
+    historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
+    historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
   );
 }
 
@@ -197,6 +210,10 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
+      draft.historyEnabled != baseline.historyEnabled ||
+      draft.historySessionIdleMinutes != baseline.historySessionIdleMinutes ||
+      draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
+      draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

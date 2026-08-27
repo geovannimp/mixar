@@ -22,6 +22,7 @@ pub fn track_metadata(model: &tracks::Model) -> TrackMetadata {
         channels: model.channels.map(|v| v as u16),
         bitrate_kbps: model.bitrate_kbps.map(|v| v as u32),
         replaygain_track_gain_db: model.replaygain_track_gain_db,
+        isrc: model.isrc.clone(),
         loudness_lufs: None,
     }
 }

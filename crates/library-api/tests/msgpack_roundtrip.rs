@@ -50,6 +50,7 @@ fn cmd_and_evt_bodies_roundtrip() {
         key: Some("8A".into()),
         duration_ms: Some(180_000),
         path: "/music/a.mp3".into(),
+        isrc: None,
     };
     let evt = EvtBody::TrackAnalyzed {
         track: track.clone(),

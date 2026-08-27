@@ -4,7 +4,10 @@ use std::path::Path;
 
 use library_core::{CollectionId, Result, TrackId, TrackMetadata};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
-use sea_orm::{ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    Set,
+};
 
 use crate::db::{self, Db};
 use crate::entity::{
@@ -46,6 +49,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
@@ -69,6 +73,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
                         tracks::Column::ReplaygainTrackGainDb,
+                        tracks::Column::Isrc,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -103,6 +108,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
@@ -126,6 +132,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
                         tracks::Column::ReplaygainTrackGainDb,
+                        tracks::Column::Isrc,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -140,6 +147,29 @@ impl<'a> Store<'a> {
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::track_source).transpose()
+    }
+
+    pub fn get_track_isrc(&self, id: &TrackId) -> Result<Option<String>> {
+        let row = TrackEntity::find_by_id(id.as_str())
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(row.and_then(|r| r.isrc))
+    }
+
+    pub fn update_track_isrc(&self, id: &TrackId, isrc: Option<String>, now: &str) -> Result<()> {
+        let Some(row) = TrackEntity::find_by_id(id.as_str())
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?
+        else {
+            return Ok(());
+        };
+        let mut active: tracks::ActiveModel = row.into();
+        active.isrc = Set(isrc);
+        active.updated_at = Set(now.to_string());
+        active
+            .update(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(())
     }
 
     pub fn find_file_track_by_source_ref(

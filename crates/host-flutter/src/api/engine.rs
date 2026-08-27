@@ -15,6 +15,7 @@ use engine_core::{
 use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
 use library_core::{AudioSource, TrackId};
 
+use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
 use crate::api::settings::{
     seed_engine_config_if_unconfigured, settings_engine_config, settings_host_runtime,
@@ -385,6 +386,8 @@ struct EngineEvtForwarder {
     handle: JoinHandle<()>,
 }
 
+struct EngineHistoryWorker(HistoryWorker);
+
 fn is_coalescible(kind: &Kind) -> bool {
     matches!(
         kind,
@@ -424,10 +427,16 @@ pub struct EngineTransport {
     /// Ephemeral pad chrome (Tauri `AppState.sampler_slots`).
     sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
+    history_worker: Mutex<Option<EngineHistoryWorker>>,
 }
 
 impl Drop for EngineTransport {
     fn drop(&mut self) {
+        let mut history = self
+            .history_worker
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        history.take();
         let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(fwd) = slot.take() {
             fwd.shutdown.store(true, Ordering::Relaxed);
@@ -472,11 +481,16 @@ impl EngineTransport {
         let transport = Self {
             worker,
             engine,
-            buses,
-            library: library_arc,
+            buses: buses.clone(),
+            library: library_arc.clone(),
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
+            history_worker: Mutex::new(
+                HistoryWorker::start(&buses, library_arc)
+                    .ok()
+                    .map(EngineHistoryWorker),
+            ),
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);

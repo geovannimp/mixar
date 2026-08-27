@@ -98,6 +98,8 @@ pub struct TrackMetadata {
     pub bitrate_kbps: Option<u32>,
     /// ReplayGain track gain from tags (dB), when present (`REPLAYGAIN_TRACK_GAIN`).
     pub replaygain_track_gain_db: Option<f64>,
+    /// International Standard Recording Code, when present in file tags.
+    pub isrc: Option<String>,
     /// Measured / effective loudness (LUFS) for normalization when known (e.g. analysis).
     pub loudness_lufs: Option<f64>,
 }

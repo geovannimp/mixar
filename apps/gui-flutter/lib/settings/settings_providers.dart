@@ -89,6 +89,12 @@ Future<SaveAppSettingsResult> saveAppSettings(
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
     );
+    await library.applyHistorySettings(
+      enabled: normalized.historyEnabled,
+      sessionIdleMinutes: normalized.historySessionIdleMinutes,
+      minPlaySeconds: normalized.historyMinPlaySeconds,
+      minDeckVolume: normalized.historyMinDeckVolume,
+    );
     final engine = await ref.read(engineTransportProvider.future);
     if (engine != null && await engine.isRunning()) {
       await engine.restartFromSettings();

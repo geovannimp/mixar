@@ -478,8 +478,10 @@ impl Engine {
         }
 
         let track_id = source.id().clone();
-        let loudness_lufs = loudness_from_metadata(source.metadata());
-        let bpm = source.metadata().bpm;
+        let metadata = source.metadata().clone();
+        let track_path = source.source_ref();
+        let loudness_lufs = loudness_from_metadata(&metadata);
+        let bpm = metadata.bpm;
         let audio = if let Some(cached) = self.decode_cache.get(&track_id) {
             Arc::clone(cached)
         } else {
@@ -499,8 +501,7 @@ impl Engine {
             .expect("validated above")
             .set_loudness_lufs(loudness_lufs);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.reset_for_load(bpm);
-            control.track_id = Some(track_id);
+            control.apply_loaded_metadata(track_id, track_path, &metadata);
         }
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
@@ -544,8 +545,7 @@ impl Engine {
             .expect("validated above")
             .set_loudness_lufs(loudness_lufs);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.reset_for_load(bpm);
-            control.track_id = Some(track_id);
+            control.apply_source_load(&prepared.source, track_id);
         }
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
@@ -1001,7 +1001,7 @@ impl Engine {
             .expect("validated above")
             .set_loudness_lufs(None);
         if let Some(control) = self.deck_control.get_mut(deck_id) {
-            control.reset_for_load(None);
+            control.clear_loaded_track();
         }
         Ok(())
     }
@@ -1955,12 +1955,12 @@ fn deck_snapshot_from_dsp(
     });
     Some(DeckSnapshot {
         id: deck_id as u16,
-        track: None,
+        track: control.track_path.clone(),
         track_id: control.track_id.as_ref().map(|id| id.as_str().to_string()),
-        title: None,
-        artist: None,
+        title: control.title.clone(),
+        artist: control.artist.clone(),
         bpm: control.bpm,
-        key: None,
+        key: control.key.clone(),
         playing: matches!(deck.state(), DeckState::Playing),
         volume: channel.volume(),
         speed: deck.speed(),

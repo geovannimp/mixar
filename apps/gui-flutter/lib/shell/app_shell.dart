@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/history_restore_bridge.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
@@ -36,6 +37,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       child: Column(
         children: [
           const ControllerOfferBridge(),
+          const HistoryRestoreBridge(),
           Expanded(
             child: switch (_tab) {
               ShellTab.mixer => const MixerPage(),

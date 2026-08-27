@@ -48,7 +48,7 @@ class SettingsLibraryPanel extends StatelessWidget {
       children: [
         const SettingsSectionHeader(
           title: 'Library',
-          description: 'Track import and offline analysis behavior.',
+          description: 'Track import, offline analysis, and table display.',
         ),
         const SizedBox(height: 20),
         SettingsField(

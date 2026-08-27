@@ -2,6 +2,7 @@
 
 pub mod collection_tracks;
 pub mod collections;
+pub mod history_sessions;
 pub mod sampler_bank;
 pub mod sampler_slot;
 pub mod track_analysis;
@@ -12,6 +13,7 @@ pub mod tracks;
 
 pub use collection_tracks::Entity as CollectionTrackEntity;
 pub use collections::Entity as CollectionEntity;
+pub use history_sessions::Entity as HistorySessionEntity;
 pub use sampler_bank::{Entity as SamplerBankEntity, SamplerPlayMode};
 pub use sampler_slot::Entity as SamplerSlotEntity;
 pub use track_analysis::Entity as TrackAnalysisEntity;

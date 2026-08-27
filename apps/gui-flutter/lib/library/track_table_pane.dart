@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/focused_load.dart';
+import 'package:gui_flutter/library/track_detail_dialog.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
@@ -651,6 +652,7 @@ class TrackActionsMenu extends ConsumerWidget {
       faded: null,
       overlayLocation: OverlayChildLocation.rootOverlay,
       menuBuilder: (context, controller, _) => _trackActionGroups(
+        context: context,
         ref: ref,
         controller: controller,
         trackId: trackId,
@@ -702,6 +704,7 @@ class _TrackActionsContextMenu extends ConsumerWidget {
       overlayLocation: OverlayChildLocation.rootOverlay,
       secondaryPress: !analyzing,
       menuBuilder: (context, controller, _) => _trackActionGroups(
+        context: context,
         ref: ref,
         controller: controller,
         trackId: trackId,
@@ -717,6 +720,7 @@ class _TrackActionsContextMenu extends ConsumerWidget {
 }
 
 List<FItemGroupMixin> _trackActionGroups({
+  required BuildContext context,
   required WidgetRef ref,
   required FPopoverController controller,
   required String trackId,
@@ -800,6 +804,22 @@ List<FItemGroupMixin> _trackActionGroups({
               ? () {
                   unawaited(controller.hide());
                   unawaited(refreshTrackAction(ref, trackId));
+                }
+              : null,
+        ),
+        .item(
+          title: const Text('Track details…'),
+          enabled: inLibrary,
+          onPress: inLibrary
+              ? () {
+                  unawaited(controller.hide());
+                  unawaited(
+                    showTrackDetailDialog(
+                      context,
+                      ref,
+                      trackId: trackId,
+                    ),
+                  );
                 }
               : null,
         ),

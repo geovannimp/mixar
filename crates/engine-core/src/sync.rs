@@ -13,6 +13,12 @@ pub(crate) struct DeckControlState {
     pub loop_roll_restore: Option<LoopRegion>,
     /// Library track id when the deck holds a library-backed (or id'd) load.
     pub track_id: Option<TrackId>,
+    /// Filesystem path or stream URI for the loaded source.
+    pub track_path: Option<String>,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub key: Option<String>,
     /// Runtime hot-cue positions (library hydrate + in-session save/delete).
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
     /// Library sampler bank currently loaded onto this deck's pads.
@@ -20,13 +26,44 @@ pub(crate) struct DeckControlState {
 }
 
 impl DeckControlState {
-    pub fn reset_for_load(&mut self, bpm: Option<f64>) {
-        self.bpm = bpm.filter(|b| b.is_finite() && *b > 0.0);
+    pub fn clear_loaded_track(&mut self) {
+        self.bpm = None;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
         self.track_id = None;
+        self.track_path = None;
+        self.title = None;
+        self.artist = None;
+        self.album = None;
+        self.key = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
     }
+
+    pub fn apply_source_load(&mut self, source: &library_core::AudioSource, track_id: TrackId) {
+        self.apply_loaded_metadata(track_id, source.source_ref(), source.metadata());
+    }
+
+    pub fn apply_loaded_metadata(
+        &mut self,
+        track_id: TrackId,
+        track_path: String,
+        metadata: &library_core::TrackMetadata,
+    ) {
+        self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
+        self.sync_mode = SyncMode::Off;
+        self.loop_roll_restore = None;
+        self.track_id = Some(track_id);
+        self.track_path = Some(track_path);
+        self.title = non_empty_opt(metadata.title.clone());
+        self.artist = non_empty_opt(metadata.artist.clone());
+        self.album = non_empty_opt(metadata.album.clone());
+        self.key = non_empty_opt(metadata.key.clone());
+        self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
+    }
+}
+
+fn non_empty_opt(value: Option<String>) -> Option<String> {
+    value.filter(|s| !s.is_empty())
 }
 
 /// Beat length in milliseconds for a given BPM.

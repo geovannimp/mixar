@@ -25,10 +25,9 @@ class SettingsToggle extends StatelessWidget {
             label,
             style:
                 labelStyle ??
-                theme.typography.body.xs.copyWith(
-                  color: theme.colors.mutedForeground,
+                theme.typography.body.sm.copyWith(
+                  color: theme.colors.foreground,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.8,
                 ),
           ),
         ),

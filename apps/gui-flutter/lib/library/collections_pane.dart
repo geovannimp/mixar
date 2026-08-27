@@ -1,7 +1,8 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/collection_actions.dart';
+import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 
@@ -16,37 +17,21 @@ class CollectionsPane extends ConsumerStatefulWidget {
 class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
   var _adding = false;
 
-  Future<void> _addFolder() async {
-    final path = await FilePicker.platform.getDirectoryPath();
-    if (path == null || !mounted) {
+  Future<void> _addCollection() async {
+    final result = await showCreateCollectionDialog(context);
+    if (result == null || !mounted) {
       return;
     }
     setState(() => _adding = true);
-    ref.read(libraryMessageProvider.notifier).clear();
-    try {
-      final transport = await ref.read(libraryTransportProvider.future);
-      if (!mounted) {
-        return;
-      }
-      final result = await transport.addFolderCollection(
-        folderPath: path,
-        scanFolderTree: true,
-      );
-      if (!mounted) {
-        return;
-      }
-      ref.invalidate(collectionsProvider);
-      ref.invalidate(collectionTracksProvider);
-      ref.read(selectedCollectionIdProvider.notifier).set(result.collection.id);
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      ref.read(libraryMessageProvider.notifier).setError('$e');
-    } finally {
-      if (mounted) {
-        setState(() => _adding = false);
-      }
+    final collection = await createCollection(ref, result);
+    if (!mounted) {
+      return;
+    }
+    if (collection != null) {
+      selectCreatedCollection(ref, collection);
+    }
+    if (mounted) {
+      setState(() => _adding = false);
     }
   }
 
@@ -71,8 +56,8 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
             children: [
               const Expanded(child: LibraryPaneLabel('Collections')),
               FTappable(
-                onPress: _adding ? null : _addFolder,
-                semanticsLabel: 'Add folder collection',
+                onPress: _adding ? null : _addCollection,
+                semanticsLabel: 'Create collection',
                 builder: (context, variants, _) {
                   final hovered = variants.contains(FTappableVariant.hovered);
                   return Container(
@@ -120,7 +105,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Text(
-                    'No collections yet. Add a folder to scan audio files.',
+                    'No collections yet. Create a folder or playlist collection.',
                     style: theme.typography.body.sm.copyWith(
                       color: colors.mutedForeground,
                     ),
