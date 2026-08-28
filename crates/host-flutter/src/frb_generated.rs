@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1807949118;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2065604215;
 
 // Section: executor
 
@@ -4995,6 +4995,63 @@ fn wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
         },
     )
 }
+fn wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "LibraryTransport_save_beat_grid",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
+            >>::sse_decode(&mut deserializer);
+            let api_track_id = <String>::sse_decode(&mut deserializer);
+            let api_bpm = <f64>::sse_decode(&mut deserializer);
+            let api_first_beat_secs = <f32>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::LibraryTransport::save_beat_grid(
+                        &*api_that_guard,
+                        api_track_id,
+                        api_bpm,
+                        api_first_beat_secs,
+                    )?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -6420,6 +6477,8 @@ impl SseDecode for crate::api::library::LibraryEvt {
         let mut var_deck = <Option<u16>>::sse_decode(deserializer);
         let mut var_loops =
             <Option<Vec<crate::api::library::SavedLoopInfo>>>::sse_decode(deserializer);
+        let mut var_beatGrid =
+            <Option<crate::api::library::BeatGridData>>::sse_decode(deserializer);
         return crate::api::library::LibraryEvt {
             kind: var_kind,
             track: var_track,
@@ -6429,6 +6488,7 @@ impl SseDecode for crate::api::library::LibraryEvt {
             delta: var_delta,
             deck: var_deck,
             loops: var_loops,
+            beat_grid: var_beatGrid,
         };
     }
 }
@@ -6446,6 +6506,7 @@ impl SseDecode for crate::api::library::LibraryEvtKind {
             5 => crate::api::library::LibraryEvtKind::Navigate,
             6 => crate::api::library::LibraryEvtKind::Load,
             7 => crate::api::library::LibraryEvtKind::LoopsChanged,
+            8 => crate::api::library::LibraryEvtKind::BeatGridChanged,
             _ => unreachable!("Invalid variant for LibraryEvtKind: {}", inner),
         };
     }
@@ -7727,71 +7788,77 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
+        94 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => wire__crate__api__library__LibraryTransport_save_loop_impl(
+        95 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        96 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
+        96 => wire__crate__api__library__LibraryTransport_save_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
+        97 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
+        98 => wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__settings__SettingsTransport_open_impl(
+        99 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
+        100 => wire__crate__api__settings__SettingsTransport_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        101 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        103 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        105 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        104 => wire__crate__api__settings__bus_channel_mode_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => {
+        105 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        106 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        107 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        107 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
+        108 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -7814,7 +7881,7 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        102 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -8646,6 +8713,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvt {
             self.delta.into_into_dart().into_dart(),
             self.deck.into_into_dart().into_dart(),
             self.loops.into_into_dart().into_dart(),
+            self.beat_grid.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -8673,6 +8741,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvtKind {
             Self::Navigate => 5.into_dart(),
             Self::Load => 6.into_dart(),
             Self::LoopsChanged => 7.into_dart(),
+            Self::BeatGridChanged => 8.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -9642,6 +9711,7 @@ impl SseEncode for crate::api::library::LibraryEvt {
         <Option<i32>>::sse_encode(self.delta, serializer);
         <Option<u16>>::sse_encode(self.deck, serializer);
         <Option<Vec<crate::api::library::SavedLoopInfo>>>::sse_encode(self.loops, serializer);
+        <Option<crate::api::library::BeatGridData>>::sse_encode(self.beat_grid, serializer);
     }
 }
 
@@ -9658,6 +9728,7 @@ impl SseEncode for crate::api::library::LibraryEvtKind {
                 crate::api::library::LibraryEvtKind::Navigate => 5,
                 crate::api::library::LibraryEvtKind::Load => 6,
                 crate::api::library::LibraryEvtKind::LoopsChanged => 7,
+                crate::api::library::LibraryEvtKind::BeatGridChanged => 8,
                 _ => {
                     unimplemented!("");
                 }

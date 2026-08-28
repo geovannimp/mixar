@@ -26,6 +26,14 @@ pub struct HotCue {
     pub label: Option<String>,
 }
 
+/// Beat grid snapshot for bus payloads (matches library JSON storage).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BeatGrid {
+    pub beats: Vec<f32>,
+    pub downbeats: Vec<f32>,
+    pub bpm: f64,
+}
+
 /// Persisted saved-loop row for bus payloads.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SavedLoop {
@@ -77,6 +85,11 @@ pub enum CmdBody {
         track_id: String,
         slot: u8,
     },
+    SaveBeatGrid {
+        track_id: String,
+        bpm: f64,
+        first_beat_secs: f32,
+    },
 }
 
 /// Nested event body on the library evt bus.
@@ -97,6 +110,10 @@ pub enum EvtBody {
     LoopsChanged {
         track_id: String,
         loops: Vec<SavedLoop>,
+    },
+    BeatGridChanged {
+        track_id: String,
+        beat_grid: BeatGrid,
     },
     Error {
         message: String,

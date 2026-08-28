@@ -131,6 +131,13 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   Future<void> revealHistoryFolder();
 
+  /// Persist a manually edited beat grid (worker emits [`LibraryEvtKind::BeatGridChanged`]).
+  Future<void> saveBeatGrid({
+    required String trackId,
+    required double bpm,
+    required double firstBeatSecs,
+  });
+
   Future<LibraryCollectionSummary> saveHistoryAsPlaylist({
     required String sessionId,
     required String name,
@@ -423,6 +430,7 @@ class LibraryEvt {
   final int? delta;
   final int? deck;
   final List<SavedLoopInfo>? loops;
+  final BeatGridData? beatGrid;
 
   const LibraryEvt({
     required this.kind,
@@ -433,6 +441,7 @@ class LibraryEvt {
     this.delta,
     this.deck,
     this.loops,
+    this.beatGrid,
   });
 
   @override
@@ -444,7 +453,8 @@ class LibraryEvt {
       hotCues.hashCode ^
       delta.hashCode ^
       deck.hashCode ^
-      loops.hashCode;
+      loops.hashCode ^
+      beatGrid.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -458,7 +468,8 @@ class LibraryEvt {
           hotCues == other.hotCues &&
           delta == other.delta &&
           deck == other.deck &&
-          loops == other.loops;
+          loops == other.loops &&
+          beatGrid == other.beatGrid;
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
@@ -471,6 +482,7 @@ enum LibraryEvtKind {
   navigate,
   load,
   loopsChanged,
+  beatGridChanged,
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).

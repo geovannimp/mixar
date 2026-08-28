@@ -198,6 +198,29 @@ final trackSavedLoopsProvider =
       TrackSavedLoops.new,
     );
 
+class TrackBeatGrids extends Notifier<Map<String, BeatGridData?>> {
+  @override
+  Map<String, BeatGridData?> build() => const {};
+
+  void set(String trackId, BeatGridData? grid) {
+    state = {...state, trackId: grid};
+  }
+
+  void remove(String trackId) {
+    if (!state.containsKey(trackId)) {
+      return;
+    }
+    final next = Map<String, BeatGridData?>.from(state);
+    next.remove(trackId);
+    state = next;
+  }
+}
+
+final trackBeatGridsProvider =
+    NotifierProvider<TrackBeatGrids, Map<String, BeatGridData?>>(
+      TrackBeatGrids.new,
+    );
+
 class FocusedTrackRowIndex extends Notifier<int> {
   var _count = 0;
 
@@ -233,6 +256,10 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref
             .read(analyzingTrackIdProvider.notifier)
             .clearIf(evt.trackId ?? evt.track?.id);
+        final trackId = evt.trackId ?? evt.track?.id;
+        if (trackId != null) {
+          ref.read(trackBeatGridsProvider.notifier).remove(trackId);
+        }
         ref.read(libraryAnalysisEpochProvider.notifier).bump();
       }
     case LibraryEvtKind.error:
@@ -259,6 +286,11 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
         ref
             .read(trackSavedLoopsProvider.notifier)
             .set(trackId, evt.loops ?? const []);
+      }
+    case LibraryEvtKind.beatGridChanged:
+      final trackId = evt.trackId;
+      if (trackId != null) {
+        ref.read(trackBeatGridsProvider.notifier).set(trackId, evt.beatGrid);
       }
     case LibraryEvtKind.navigate:
       ref.read(focusedTrackRowIndexProvider.notifier).navigate(evt.delta ?? 0);

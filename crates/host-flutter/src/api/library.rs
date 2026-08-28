@@ -201,6 +201,7 @@ pub enum LibraryEvtKind {
     Navigate,
     Load,
     LoopsChanged,
+    BeatGridChanged,
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -233,6 +234,7 @@ pub struct LibraryEvt {
     pub delta: Option<i32>,
     pub deck: Option<u16>,
     pub loops: Option<Vec<SavedLoopInfo>>,
+    pub beat_grid: Option<BeatGridData>,
 }
 
 struct EvtForwarder {
@@ -576,6 +578,27 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
+    /// Persist a manually edited beat grid (worker emits [`LibraryEvtKind::BeatGridChanged`]).
+    pub fn save_beat_grid(
+        &self,
+        track_id: String,
+        bpm: f64,
+        first_beat_secs: f32,
+    ) -> Result<(), String> {
+        if !(bpm > 20.0 && bpm < 400.0) {
+            return Err("beat grid bpm must be between 20 and 400".into());
+        }
+        let bytes = encode_cmd_body(&CmdBody::SaveBeatGrid {
+            track_id,
+            bpm,
+            first_beat_secs,
+        })
+        .map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::SaveBeatGrid, bytes)
+            .map_err(|e| e.to_string())
+    }
+
     /// Forward thin typed library events to Dart via FRB `StreamSink`.
     ///
     /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
@@ -877,6 +900,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
             kind: LibraryEvtKind::TrackUpdated,
@@ -887,6 +911,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
             kind: LibraryEvtKind::Error,
@@ -897,6 +922,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::Notice { message } => Some(LibraryEvt {
             kind: LibraryEvtKind::Notice,
@@ -907,6 +933,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
             kind: LibraryEvtKind::HotCuesChanged,
@@ -926,6 +953,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::LoopsChanged { track_id, loops } => Some(LibraryEvt {
             kind: LibraryEvtKind::LoopsChanged,
@@ -946,6 +974,25 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
+            beat_grid: None,
+        }),
+        EvtBody::BeatGridChanged {
+            track_id,
+            beat_grid,
+        } => Some(LibraryEvt {
+            kind: LibraryEvtKind::BeatGridChanged,
+            track: None,
+            message: None,
+            track_id: Some(track_id),
+            hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
+            beat_grid: Some(BeatGridData {
+                beats: beat_grid.beats,
+                downbeats: beat_grid.downbeats,
+                bpm: Some(beat_grid.bpm),
+            }),
         }),
         EvtBody::Navigate { delta } => Some(LibraryEvt {
             kind: LibraryEvtKind::Navigate,
@@ -956,6 +1003,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: Some(delta),
             deck: None,
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::Load { deck } => Some(LibraryEvt {
             kind: LibraryEvtKind::Load,
@@ -966,6 +1014,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             delta: None,
             deck: Some(deck),
             loops: None,
+            beat_grid: None,
         }),
         EvtBody::Empty => None,
     }

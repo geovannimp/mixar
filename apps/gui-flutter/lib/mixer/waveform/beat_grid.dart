@@ -1,3 +1,32 @@
+import 'package:gui_flutter/src/rust/api/library.dart';
+
+/// Phase shift applied when nudging the beat grid (matches Serato/Traktor fine nudge).
+const kGridNudgeMs = 10;
+
+const kGridBpmStep = 0.01;
+
+const kGridBpmCoarseStep = 1.0;
+
+const defaultGridBpm = 128.0;
+
+double beatGridFirstBeatSecs(BeatGridData? grid) =>
+    grid == null || grid.beats.isEmpty ? 0 : grid.beats.first;
+
+double nudgeFirstBeatSecs(double firstBeatSecs, int deltaMs) =>
+    firstBeatSecs + deltaMs / 1000.0;
+
+double stepGridBpm(double bpm, double delta) =>
+    (bpm + delta).clamp(20.01, 399.99);
+
+/// Parse a typed BPM; null if empty/invalid/out of range.
+double? parseGridBpm(String raw) {
+  final v = double.tryParse(raw.trim());
+  if (v == null || !v.isFinite || v <= 20 || v >= 400) {
+    return null;
+  }
+  return v.clamp(20.01, 399.99);
+}
+
 class BeatMark {
   const BeatMark({required this.x, required this.isBar});
 

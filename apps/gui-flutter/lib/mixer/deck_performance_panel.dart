@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/deck_grid_host.dart';
+import 'package:gui_flutter/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/mixer/deck_jog.dart';
 import 'package:gui_flutter/mixer/deck_loop_host.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
@@ -9,7 +11,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 
-/// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Jog content.
+/// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Grid / Jog content.
 ///
 /// Forui tabs are horizontal-only; [RotatedBox] stands the tab bar on the left
 /// and un-rotates each pane.
@@ -52,7 +54,7 @@ class DeckPerformancePanel extends StatelessWidget {
                 indicatorSize: .tab,
                 minHeight: 24,
                 padding: .value(const .all(4)),
-                decoration: DecorationDelta.boxDelta(
+                decoration: .boxDelta(
                   borderRadius: BorderRadius.zero,
                 ),
               ),
@@ -65,6 +67,7 @@ class DeckPerformancePanel extends StatelessWidget {
                         switch (mode) {
                           DeckPerformanceMode.pads => FLucideIcons.layoutGrid,
                           DeckPerformanceMode.loop => FLucideIcons.repeat2,
+                          DeckPerformanceMode.grid => FLucideIcons.audioLines,
                           DeckPerformanceMode.jog => FLucideIcons.disc3,
                         },
                         size: 16,
@@ -119,6 +122,25 @@ class DeckPerformancePanel extends StatelessWidget {
                                   onLoopIn: () {},
                                   onLoopOut: () {},
                                   onBeatsChipPress: () {},
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                ),
+                          DeckPerformanceMode.grid => deckId != null
+                              ? DeckGridHost(
+                                  deckId: deckId!,
+                                  hasTrack: hasTrack,
+                                  disabled: disabled,
+                                  bordered: false,
+                                )
+                              : DeckGridPanel(
+                                  bpm: null,
+                                  onSetDownbeat: () {},
+                                  onNudgeBack: () {},
+                                  onNudgeForward: () {},
+                                  onBpmDown: () {},
+                                  onBpmUp: () {},
+                                  onBpmSubmit: (_) {},
                                   hasTrack: hasTrack,
                                   disabled: disabled,
                                   bordered: false,

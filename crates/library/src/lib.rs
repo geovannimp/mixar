@@ -455,6 +455,15 @@ impl LibraryManager {
         waveform::get_track_beat_grid(&self.db, id)
     }
 
+    pub fn save_track_beat_grid(
+        &self,
+        id: &TrackId,
+        bpm: f64,
+        first_beat_secs: f32,
+    ) -> Result<waveform::BeatGridSnapshot> {
+        waveform::save_track_beat_grid(&self.db, id, bpm, first_beat_secs)
+    }
+
     /// Hi-res spectral peaks for a time window (L1). Uses the decode cache when present.
     ///
     /// Takes `&Mutex<Self>` so decode / analysis does not hold the library lock.

@@ -22,13 +22,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('Pads / Loop / Jog tabs switch exclusive content', (
+  testWidgets('Pads / Loop / Grid / Jog tabs switch exclusive content', (
     tester,
   ) async {
     await pumpPanel(tester);
 
     expect(find.byIcon(FLucideIcons.layoutGrid), findsOneWidget);
     expect(find.byIcon(FLucideIcons.repeat2), findsOneWidget);
+    expect(find.byIcon(FLucideIcons.audioLines), findsOneWidget);
     expect(find.byIcon(FLucideIcons.disc3), findsOneWidget);
     expect(
       tester.getCenter(find.byIcon(FLucideIcons.layoutGrid)).dy <
@@ -37,12 +38,17 @@ void main() {
     );
     expect(
       tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy <
+          tester.getCenter(find.byIcon(FLucideIcons.audioLines)).dy,
+      isTrue,
+    );
+    expect(
+      tester.getCenter(find.byIcon(FLucideIcons.audioLines)).dy <
           tester.getCenter(find.byIcon(FLucideIcons.disc3)).dy,
       isTrue,
     );
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
-    expect(find.text('JOG'), findsNothing);
+    expect(find.text('Beat 1'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.repeat2));
@@ -50,7 +56,14 @@ void main() {
     expect(find.text('IN'), findsOneWidget);
     expect(find.text('OUT'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
-    expect(find.text('JOG'), findsNothing);
+    expect(find.text('Beat 1'), findsNothing);
+    expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
+
+    await tester.tap(find.byIcon(FLucideIcons.audioLines));
+    await tester.pumpAndSettle();
+    expect(find.text('Beat 1'), findsOneWidget);
+    expect(find.text('CUE'), findsNothing);
+    expect(find.text('IN'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.disc3));
@@ -58,12 +71,13 @@ void main() {
     expect(find.bySemanticsLabel('Jog wheel'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('IN'), findsNothing);
+    expect(find.text('Beat 1'), findsNothing);
 
     await tester.tap(find.byIcon(FLucideIcons.layoutGrid));
     await tester.pumpAndSettle();
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
-    expect(find.text('JOG'), findsNothing);
+    expect(find.text('Beat 1'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
   });
 }

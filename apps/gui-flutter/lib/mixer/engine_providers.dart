@@ -159,7 +159,7 @@ final deckSkeletonProvider = Provider.family<bool, int>((ref, deckId) {
     return false;
   }
   return ref.watch(waveformOverviewProvider(trackId)).isLoading ||
-      ref.watch(beatGridProvider(trackId)).isLoading;
+      ref.watch(beatGridLoadingProvider(trackId));
 });
 
 final deckBpmProvider = Provider.family<double?, int>((ref, deckId) {
@@ -167,7 +167,7 @@ final deckBpmProvider = Provider.family<double?, int>((ref, deckId) {
   if (trackId == null) {
     return null;
   }
-  return ref.watch(beatGridProvider(trackId)).value?.bpm;
+  return ref.watch(beatGridProvider(trackId))?.bpm;
 });
 
 final deckPlayingProvider = Provider.family<bool, int>(
