@@ -384,14 +384,6 @@ impl HistoryRecorder {
     fn build_entry(&self, db: &Db, pending: &PendingPlay) -> Result<HistoryEntry> {
         let mut snap = pending.snapshot.clone();
         enrich_snapshot_from_library(db, &mut snap);
-        let isrc = snap.isrc.clone().or_else(|| {
-            snap.track_id.as_ref().and_then(|id| {
-                Store::new(db)
-                    .get_track_isrc(&TrackId::new(id))
-                    .ok()
-                    .flatten()
-            })
-        });
         Ok(HistoryEntry {
             id: pending.entry_id.clone(),
             deck: pending.deck,
@@ -403,7 +395,7 @@ impl HistoryRecorder {
             duration_sec: snap.duration_ms.map(|ms| ms / 1000),
             bpm: snap.bpm,
             key: snap.key.clone(),
-            isrc,
+            isrc: snap.isrc.clone(),
             started_at: pending.started_at.clone(),
             ended_at: None,
             played_duration_ms: None,
