@@ -424,7 +424,7 @@ impl LibraryManager {
         waveform::get_track_waveform_row(&self.db, id)
     }
 
-    /// Generate and persist the overview when missing (e.g. first deck load).
+    /// Generate and persist the overview when missing (e.g. first waveform fetch).
     ///
     /// Takes `&Mutex<Self>` so overview generation does not hold the library lock.
     pub fn ensure_track_waveform(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
@@ -448,6 +448,68 @@ impl LibraryManager {
             return Ok(());
         }
         waveform::store_overview(&lib.db, id, &peaks)
+    }
+
+    /// True when BPM, key, or loudness needed for playback is missing.
+    ///
+    /// ponytail: if an analysis row already exists with loudness but BPM/key stay
+    /// empty (analyzer could not detect them), do not re-run forever. Upgrade:
+    /// surface "analysis incomplete" in UI and allow manual force re-analyze.
+    pub fn needs_playback_analysis(&self, id: &TrackId) -> Result<bool> {
+        let source = self
+            .get_track(id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+        let meta = source.metadata();
+        if self.track_loudness_lufs(id)?.is_none() {
+            return Ok(true);
+        }
+        let bpm_ok = meta.bpm.is_some();
+        let key_ok = meta.key.as_ref().is_some_and(|key| !key.trim().is_empty());
+        if bpm_ok && key_ok {
+            return Ok(false);
+        }
+        Ok(self.store().count_track_analysis(id)? == 0)
+    }
+
+    /// Run Fast analysis when playback fields are missing (BPM, key, loudness).
+    ///
+    /// Does not generate waveform peaks. Takes `&Mutex<Self>` so Stratum DSP does
+    /// not hold the library lock.
+    #[cfg(feature = "analysis")]
+    pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+        let path = {
+            let lib = library.lock().expect("library lock");
+            if !lib.needs_playback_analysis(id)? {
+                return Ok(());
+            }
+            lib.get_track(id)?
+                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+                .file()
+                .ok_or(LibraryError::Unsupported(
+                    "stream track analysis not implemented",
+                ))?
+                .path()
+                .to_path_buf()
+        };
+
+        let options = AnalyzeTrackOptions {
+            force: false,
+            analysis_duration: AnalysisDurationMode::Fast,
+        };
+        let computed = compute_file_analysis(&path, options)?;
+
+        let lib = library.lock().expect("library lock");
+        if !lib.needs_playback_analysis(id)? {
+            return Ok(());
+        }
+        lib.persist_file_analysis(&path, &computed, false)?;
+        Ok(())
+    }
+
+    #[cfg(not(feature = "analysis"))]
+    pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
+        let _ = (library, id);
+        Ok(())
     }
 
     /// Beat grid overlay data when the track has been analyzed.
@@ -572,7 +634,12 @@ impl LibraryManager {
     ) -> Result<PreparedTrackPlayback> {
         let track_id = source.id().clone();
         if source.file().is_some() {
-            Self::ensure_track_waveform(library, &track_id)?;
+            Self::ensure_track_analysis(library, &track_id)?;
+            source = {
+                let lib = library.lock().expect("library lock");
+                lib.get_track(&track_id)?
+                    .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
+            };
         }
         let loudness_lufs = {
             let lib = library.lock().expect("library lock");
@@ -968,43 +1035,23 @@ impl LibraryManager {
         path: &Path,
         options: AnalyzeTrackOptions,
     ) -> Result<AudioSource> {
+        let computed = compute_file_analysis(path, options)?;
+        self.persist_file_analysis(path, &computed, true)
+    }
+
+    #[cfg(feature = "analysis")]
+    fn persist_file_analysis(
+        &self,
+        path: &Path,
+        computed: &ComputedFileAnalysis,
+        persist_waveform: bool,
+    ) -> Result<AudioSource> {
         let path = normalize_path(path)?;
-        if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path));
+        let source = self.upsert_file_source(&path, &computed.metadata)?;
+        analysis::upsert_track_analysis(&self.db, source.id(), &computed.analysis)?;
+        if persist_waveform {
+            waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         }
-        if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path));
-        }
-
-        let mut config = AnalysisConfig::default();
-        let tag_metadata = tags::read_tags(&path)?;
-        config.max_duration_ms = options
-            .analysis_duration
-            .resolve_max_duration_ms(tag_metadata.duration_ms);
-        let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
-        let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
-        analysis.loudness_lufs =
-            preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
-
-        let tag_side = TagMetadata {
-            bpm: tag_metadata.bpm,
-            key: tag_metadata.key.clone(),
-        };
-        let merged = merge_track_metadata(
-            &tag_side,
-            &analysis,
-            options.force,
-            config.min_bpm_confidence,
-            config.min_key_confidence,
-        );
-
-        let mut metadata = tag_metadata;
-        metadata.bpm = merged.bpm;
-        metadata.key = merged.key;
-
-        let source = self.upsert_file_source(&path, &metadata)?;
-        analysis::upsert_track_analysis(&self.db, source.id(), &analysis)?;
-        waveform::generate_and_store_overview(&self.db, source.id(), &path)?;
         Ok(source)
     }
 
@@ -1016,6 +1063,54 @@ impl LibraryManager {
     ) -> Result<AudioSource> {
         self.refresh_file_source(path)
     }
+}
+
+#[cfg(feature = "analysis")]
+struct ComputedFileAnalysis {
+    metadata: library_core::TrackMetadata,
+    analysis: analyzer::TrackAnalysis,
+}
+
+#[cfg(feature = "analysis")]
+fn compute_file_analysis(
+    path: &Path,
+    options: AnalyzeTrackOptions,
+) -> Result<ComputedFileAnalysis> {
+    let path = normalize_path(path)?;
+    if !path.is_file() {
+        return Err(LibraryError::PathNotFound(path));
+    }
+    if !is_audio_file(&path) {
+        return Err(LibraryError::UnsupportedFile(path));
+    }
+
+    let mut config = AnalysisConfig::default();
+    let tag_metadata = tags::read_tags(&path)?;
+    config.max_duration_ms = options
+        .analysis_duration
+        .resolve_max_duration_ms(tag_metadata.duration_ms);
+    let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
+    let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
+    analysis.loudness_lufs =
+        preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
+
+    let tag_side = TagMetadata {
+        bpm: tag_metadata.bpm,
+        key: tag_metadata.key.clone(),
+    };
+    let merged = merge_track_metadata(
+        &tag_side,
+        &analysis,
+        options.force,
+        config.min_bpm_confidence,
+        config.min_key_confidence,
+    );
+
+    let mut metadata = tag_metadata;
+    metadata.bpm = merged.bpm;
+    metadata.key = merged.key;
+
+    Ok(ComputedFileAnalysis { metadata, analysis })
 }
 
 #[cfg(feature = "analysis")]
@@ -1355,7 +1450,7 @@ mod tests {
     fn prepare_track_for_playback_reuses_cached_decode() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("track.wav");
-        write_minimal_wav(&wav);
+        write_analysis_wav(&wav);
 
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
         let track_id = {
@@ -1416,10 +1511,10 @@ mod tests {
     }
 
     #[test]
-    fn prepare_track_for_playback_stores_waveform_without_holding_lock_across_generate() {
+    fn prepare_track_for_playback_does_not_require_waveform() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("track.wav");
-        write_minimal_wav(&wav);
+        write_analysis_wav(&wav);
 
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
         let track_id = {
@@ -1436,6 +1531,15 @@ mod tests {
 
         let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
         assert_eq!(prepared.track_id, track_id);
+        assert!(prepared.loudness_lufs.is_some());
+        assert!(library
+            .lock()
+            .unwrap()
+            .get_track_waveform_overview(&track_id)
+            .unwrap()
+            .is_none());
+
+        LibraryManager::ensure_track_waveform(&library, &track_id).unwrap();
         assert!(library
             .lock()
             .unwrap()
@@ -1660,6 +1764,70 @@ mod tests {
         let count = lib.store().count_track_analysis(track.id()).unwrap();
         assert_eq!(count, 1);
         assert!(lib.track_loudness_lufs(track.id()).unwrap().is_some());
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
+    fn prepare_ensures_playback_analysis_without_waveform() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("song.wav");
+        write_analysis_wav(&wav);
+
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        let track_id = track.id().clone();
+        assert!(lib.needs_playback_analysis(&track_id).unwrap());
+
+        let library = Mutex::new(lib);
+        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert!(prepared.loudness_lufs.is_some());
+        {
+            let lib = library.lock().unwrap();
+            assert!(!lib.needs_playback_analysis(&track_id).unwrap());
+            assert!(lib
+                .get_track_waveform_overview(&track_id)
+                .unwrap()
+                .is_none());
+        }
+        let again = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert_eq!(again.loudness_lufs, prepared.loudness_lufs);
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
+    fn ensure_track_analysis_fills_missing_loudness() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("song.wav");
+        write_analysis_wav(&wav);
+
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        let track_id = track.id().clone();
+        // Simulate tags with BPM/key but no analysis loudness yet.
+        lib.upsert_file_source(
+            &wav,
+            &TrackMetadata {
+                title: Some("song".into()),
+                bpm: Some(128.0),
+                key: Some("Am".into()),
+                duration_ms: Some(3_000),
+                sample_rate: Some(48_000),
+                channels: Some(1),
+                ..TrackMetadata::default()
+            },
+        )
+        .unwrap();
+        assert!(lib.needs_playback_analysis(&track_id).unwrap());
+
+        let library = Mutex::new(lib);
+        LibraryManager::ensure_track_analysis(&library, &track_id).unwrap();
+        let lib = library.lock().unwrap();
+        assert!(!lib.needs_playback_analysis(&track_id).unwrap());
+        assert!(lib.track_loudness_lufs(&track_id).unwrap().is_some());
+        assert!(lib
+            .get_track_waveform_overview(&track_id)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

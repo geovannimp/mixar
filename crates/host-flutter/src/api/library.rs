@@ -469,9 +469,11 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
-    /// L0 overview peaks from the library DB, if present.
+    /// L0 overview peaks from the library DB (generates overview when missing).
     pub fn get_waveform_overview(&self, track_id: String) -> Result<Option<WaveformPeaks>, String> {
         let id = TrackId::new(track_id);
+        LibraryManager::ensure_track_waveform(self.library.as_ref(), &id)
+            .map_err(|e| e.to_string())?;
         let lib = self
             .library
             .lock()
