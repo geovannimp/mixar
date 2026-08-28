@@ -1700,6 +1700,14 @@ impl Engine {
         Some(matches!(deck.state(), engine_dsp::DeckState::Playing))
     }
 
+    /// Whether jog may be moving the playhead (scratch / bend / release).
+    pub fn deck_jog_driving_audio(&self, deck_id: usize) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some(deck.jog_driving_audio())
+    }
+
     /// Set crossfader position (0.0 = deck A, 1.0 = deck B).
     pub fn set_crossfader(&mut self, position: f32) -> Result<()> {
         let dsp_engine = self

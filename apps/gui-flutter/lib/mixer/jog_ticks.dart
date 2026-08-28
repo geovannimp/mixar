@@ -3,11 +3,25 @@ import 'dart:math' as math;
 /// Must match engine-dsp `JOG_INTERVALS_PER_REV`.
 const kJogIntervalsPerRev = 720;
 
+/// Must match engine-dsp `JOG_RPM` (33⅓).
+const kJogRpm = 100.0 / 3.0;
+
 /// Default DJ time signature: 4/4.
 const kDefaultBeatsPerBar = 4;
 
 /// Bars per jog position cycle.
 const kJogBarCycleLength = 4;
+
+/// Music milliseconds for one vinyl jog tick at 1× platter speed.
+double vinylMsPerTick() => (60.0 / kJogRpm) * 1000.0 / kJogIntervalsPerRev;
+
+/// Relative music-time delta for vinyl [ticks] (paused scrub / UI estimate).
+int vinylTicksToDeltaMs(int ticks) {
+  if (ticks == 0) {
+    return 0;
+  }
+  return (ticks * vinylMsPerTick()).round();
+}
 
 /// Convert an angular delta in degrees to relative jog ticks.
 int degreesToJogTicks(double deltaDeg) {

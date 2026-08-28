@@ -109,6 +109,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
+    final enginePosMs = ref.watch(deckPositionMsProvider(widget.deckId));
     final strip = trackId == null || durationMs <= 0
         ? null
         : ref.watch(waveformStripProvider((trackId, durationMs)));
@@ -126,6 +127,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final cues = trackId == null || durationMs <= 0
         ? null
         : ref.watch(stripCuePictureProvider((trackId, durationMs)));
+
+    // When not interpolating (pause / vinyl touch), drive the lane from the
+    // engine playhead every build so jog Position updates cannot be missed.
+    if (!advancing && !_scrubbing && durationMs > 0) {
+      final v = (enginePosMs / durationMs).clamp(0.0, 1.0);
+      if ((_playhead.value - v).abs() > 1e-12) {
+        _playhead.value = v;
+      }
+    }
 
     _syncPlayback(playing: advancing, durationMs: durationMs, speed: speed);
 

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/jog_ticks.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
@@ -59,6 +60,15 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       next[deckId] = trackId;
     }
     state = state.copyWith(trackIds: next);
+  }
+
+  void setJogTouching(int deckId, bool touching) {
+    if (state.jogTouchingFor(deckId) == touching) {
+      return;
+    }
+    final next = Map<int, bool>.from(state.jogTouching);
+    next[deckId] = touching;
+    state = state.copyWith(jogTouching: next);
   }
 }
 
@@ -490,6 +500,8 @@ Future<void> setDeckCuePoint(WidgetRef ref, int deckId) async {
 }
 
 Future<void> jogTouch(WidgetRef ref, int deckId, bool touching) async {
+  // Eager so paused jogTurn can nudge the playhead before DeckUpdated lands.
+  ref.read(engineUiProvider.notifier).setJogTouching(deckId, touching);
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.jogTouch(deckId: deckId, touching: touching);
 }
@@ -497,6 +509,15 @@ Future<void> jogTouch(WidgetRef ref, int deckId, bool touching) async {
 Future<void> jogTurn(WidgetRef ref, int deckId, int delta) async {
   if (delta == 0) {
     return;
+  }
+  // Paused vinyl: playhead only moves in the audio callback, so Position can
+  // lag. Nudge the UI playhead from ticks; engine Position corrects drift.
+  if (!ref.read(deckPlayingProvider(deckId)) &&
+      ref.read(deckJogTouchingProvider(deckId))) {
+    final cur = ref.read(deckPositionMsProvider(deckId));
+    ref
+        .read(deckPlayheadsProvider.notifier)
+        .put(deckId, cur + vinylTicksToDeltaMs(delta));
   }
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.jogTurn(deckId: deckId, delta: delta);

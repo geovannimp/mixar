@@ -9,6 +9,12 @@ void main() {
     expect(degreesToJogTicks(double.nan), 0);
   });
 
+  test('vinylTicksToDeltaMs matches 33⅓ platter mapping', () {
+    expect(vinylTicksToDeltaMs(0), 0);
+    expect(vinylTicksToDeltaMs(kJogIntervalsPerRev), 1800);
+    expect(vinylTicksToDeltaMs(-kJogIntervalsPerRev ~/ 2), -900);
+  });
+
   test('barCycleRotationDeg scales with position', () {
     expect(barCycleRotationDeg(0, 120), 0);
     expect(barCycleDurationMs(120), 8000);
