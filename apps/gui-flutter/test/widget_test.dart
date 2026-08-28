@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_panel.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
@@ -142,6 +143,8 @@ void main() {
             final id = ref.watch(activeCollectionIdProvider);
             return id == collection.id ? [track] : const [];
           }),
+          historySessionsProvider.overrideWith((ref) async => const []),
+          historyCanResumeProvider.overrideWith((ref) async => false),
           ..._settingsOverrides(settings),
           ...extraOverrides,
         ],
@@ -169,7 +172,7 @@ void main() {
     expect(find.text('Deck A'), findsWidgets);
     expect(find.text('Deck B'), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
-    expect(find.text('Collections'), findsOneWidget);
+    expect(find.text('COLLECTIONS'), findsOneWidget);
     expect(find.text('samples'), findsOneWidget);
     expect(find.text('Demo Track'), findsWidgets);
     expect(find.textContaining('Filter tracks'), findsOneWidget);

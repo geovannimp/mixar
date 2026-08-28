@@ -713,7 +713,7 @@ mod tests {
         let merged = merge_deck_play_snapshot(&prev, next);
         assert_eq!(merged.track_path.as_deref(), Some("/music/a.flac"));
         assert_eq!(merged.title.as_deref(), Some("Title"));
-        assert_eq!(merged.playing, false);
+        assert!(!merged.playing);
         assert!((merged.volume - 0.5).abs() < f32::EPSILON);
     }
 
@@ -722,8 +722,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let db_path = dir.path().join("library.db");
         let db = open(&db_path).expect("db");
-        let mut settings = HistorySettings::default();
-        settings.session_idle_minutes = 1;
+        let settings = HistorySettings {
+            session_idle_minutes: 1,
+            ..Default::default()
+        };
         let mut recorder = HistoryRecorder::new(&db_path, settings).expect("recorder");
         let mut doc = HistoryDocument::new_session("test");
         doc.session.last_activity_at = "2020-01-01T00:00:00Z".into();

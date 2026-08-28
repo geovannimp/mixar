@@ -208,7 +208,7 @@ fn parse_document(bytes: &[u8]) -> std::result::Result<HistoryDocument, String> 
             },
             Ok(Event::Text(e)) => {
                 if text_target.is_some() {
-                    text_buf.push_str(&e.unescape().unwrap_or_default());
+                    text_buf.push_str(&e.decode().unwrap_or_default());
                 }
             }
             Ok(Event::End(e)) => match e.name().as_ref() {
