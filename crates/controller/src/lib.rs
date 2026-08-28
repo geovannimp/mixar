@@ -14,7 +14,7 @@ mod session;
 pub mod check;
 pub mod script;
 
-pub use action::{resolve_action, RoutedAction, HOT_CUE_SLOT_COUNT};
+pub use action::{resolve_action, ControlValue, RoutedAction, HOT_CUE_SLOT_COUNT};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,
@@ -35,7 +35,7 @@ pub use map_file::{
     SoftTakeoverDefault,
 };
 pub use midi::{
-    match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint, MidiIdentity,
-    MidiMsgType, ParsedMidi, ShortMsg,
+    decode_relative, match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint,
+    MidiIdentity, MidiMsgType, ParsedMidi, RelativeMode, ShortMsg,
 };
 pub use session::{ActionPublish, BusPublish, MappingSession, MidiOut, MidiPort};

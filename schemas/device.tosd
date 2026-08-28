@@ -43,6 +43,11 @@ type = "string"
 optional = true
 allowedvalues = ["in", "out", "inout"]
 
+[types.midi_endpoint.relative]
+type = "string"
+optional = true
+allowedvalues = ["BINARY_OFFSET", "TWOS_COMPLEMENT", "SIGN_MAGNITUDE"]
+
 [types.audio_hints]
 type = "table"
 

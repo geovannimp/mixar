@@ -30,6 +30,15 @@ pub enum MidiMsgType {
     Cc14,
 }
 
+/// Relative 7-bit CC encoding (Arduino Control Surface / Ableton names).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RelativeMode {
+    BinaryOffset,
+    TwosComplement,
+    SignMagnitude,
+}
+
 /// 7-bit CC number or 14-bit MSB/LSB pair under `cc = …`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -54,6 +63,9 @@ pub struct MidiEndpoint {
     pub value: Option<u8>,
     #[serde(default)]
     pub direction: Direction,
+    /// When set, 7-bit CC values are relative ticks (see [`decode_relative`]).
+    #[serde(default)]
+    pub relative: Option<RelativeMode>,
 }
 
 impl MidiEndpoint {
@@ -62,6 +74,11 @@ impl MidiEndpoint {
             return Err(format!(
                 "{path}: channel must be 1..=16, got {}",
                 self.channel
+            ));
+        }
+        if self.relative.is_some() && self.msg_type != MidiMsgType::Cc {
+            return Err(format!(
+                "{path}: `relative` is only valid on type=cc (7-bit)"
             ));
         }
         match self.msg_type {
@@ -290,6 +307,31 @@ pub fn norm_from_cc14(msb: u8, lsb: u8) -> f32 {
     v as f32 / 16383.0
 }
 
+/// Decode a 7-bit relative CC data byte into a signed tick delta.
+pub fn decode_relative(mode: RelativeMode, value: u8) -> i32 {
+    let v = (value & 0x7F) as i32;
+    match mode {
+        RelativeMode::BinaryOffset => v - 64,
+        RelativeMode::TwosComplement => {
+            if v == 0 {
+                0
+            } else if v < 64 {
+                v
+            } else {
+                v - 128
+            }
+        }
+        RelativeMode::SignMagnitude => {
+            let magnitude = v & 0x3F;
+            if v & 0x40 != 0 {
+                -magnitude
+            } else {
+                magnitude
+            }
+        }
+    }
+}
+
 /// USB / name identity for autoload matching.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MidiIdentity {
@@ -368,5 +410,56 @@ mod tests {
             cc: 0x33
         }));
         assert!((norm_from_cc14(0x40, 0x00) - (0x40u16 << 7) as f32 / 16383.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn relative_binary_offset_decodes_from_center_64() {
+        assert_eq!(decode_relative(RelativeMode::BinaryOffset, 65), 1);
+        assert_eq!(decode_relative(RelativeMode::BinaryOffset, 63), -1);
+        assert_eq!(decode_relative(RelativeMode::BinaryOffset, 67), 3);
+        assert_eq!(decode_relative(RelativeMode::BinaryOffset, 64), 0);
+    }
+
+    #[test]
+    fn relative_twos_complement_decodes_signed_7bit() {
+        assert_eq!(decode_relative(RelativeMode::TwosComplement, 1), 1);
+        assert_eq!(decode_relative(RelativeMode::TwosComplement, 127), -1);
+        assert_eq!(decode_relative(RelativeMode::TwosComplement, 3), 3);
+        assert_eq!(decode_relative(RelativeMode::TwosComplement, 0), 0);
+    }
+
+    #[test]
+    fn relative_sign_magnitude_uses_bit6_as_sign() {
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 3), 3);
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 0x43), -3);
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 1), 1);
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 0x41), -1);
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 0), 0);
+        assert_eq!(decode_relative(RelativeMode::SignMagnitude, 0x40), 0);
+    }
+
+    #[test]
+    fn relative_endpoint_parses_control_surface_names() {
+        let toml = r#"
+            type = "cc"
+            channel = 1
+            cc = 0x22
+            relative = "BINARY_OFFSET"
+        "#;
+        let ep: MidiEndpoint = toml::from_str(toml).unwrap();
+        ep.validate("jog_turn").unwrap();
+        assert_eq!(ep.relative, Some(RelativeMode::BinaryOffset));
+    }
+
+    #[test]
+    fn relative_rejected_on_cc14() {
+        let toml = r#"
+            type = "cc14"
+            channel = 1
+            cc = { msb = 0x13, lsb = 0x33 }
+            relative = "TWOS_COMPLEMENT"
+        "#;
+        let ep: MidiEndpoint = toml::from_str(toml).unwrap();
+        assert!(ep.validate("volume").is_err());
     }
 }
