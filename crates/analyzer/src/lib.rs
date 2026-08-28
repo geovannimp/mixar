@@ -29,7 +29,7 @@ pub fn analyze_pcm(
     let processed = preprocess::prepare(samples, sample_rate, config);
     let mut track =
         default_analyzer().analyze_pcm(&processed.samples, processed.sample_rate, config)?;
-    track.loudness_lufs = Some(integrated_lufs_mono(
+    track.loudness_lufs = Some(loudness_lufs_or_quiet(
         &processed.samples,
         processed.sample_rate,
     )?);
@@ -52,11 +52,25 @@ pub fn analyze_pcm_with<A: AudioAnalyzer>(
 ) -> Result<TrackAnalysis> {
     let processed = preprocess::prepare(samples, sample_rate, config);
     let mut track = analyzer.analyze_pcm(&processed.samples, processed.sample_rate, config)?;
-    track.loudness_lufs = Some(integrated_lufs_mono(
+    track.loudness_lufs = Some(loudness_lufs_or_quiet(
         &processed.samples,
         processed.sample_rate,
     )?);
     Ok(track)
+}
+
+/// ponytail: EBU R128 returns non-finite for silence / sub-gate clips. Map to a
+/// very-quiet LUFS so deck load ensure can finish; auto-gain clamps the boost.
+const UNMEASURABLE_LOUDNESS_LUFS: f64 = -70.0;
+
+fn loudness_lufs_or_quiet(samples: &[f32], sample_rate: u32) -> Result<f64> {
+    match integrated_lufs_mono(samples, sample_rate) {
+        Ok(value) => Ok(value),
+        Err(AnalyzerError::Analysis(message)) if message == "non-finite loudness" => {
+            Ok(UNMEASURABLE_LOUDNESS_LUFS)
+        }
+        Err(error) => Err(error),
+    }
 }
 
 /// Decode a file and analyze with a custom backend.
