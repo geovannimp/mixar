@@ -22,6 +22,7 @@ mod bus;
 mod db;
 mod deck_data;
 mod entity;
+mod history;
 mod model;
 mod sampler_data;
 mod session;
@@ -54,6 +55,11 @@ pub use deck_data::{
     delete_hot_cue, delete_loop, list_hot_cues, list_loops, save_hot_cue, save_loop, HotCueRecord,
     LoopRecord,
 };
+pub use history::{
+    crossfader_gain, export_document, history_dir_for_db, DeckPlaySnapshot, HistoryDocument,
+    HistoryEntry, HistoryExportFormat, HistoryRecorder, HistoryRestorePrompt, HistorySessionRow,
+    HistorySettings,
+};
 pub use sampler_data::{
     assign_slot as assign_sampler_slot, clear_slot as clear_sampler_slot, create_bank, delete_bank,
     get_bank, get_track_last_sampler_bank_id, list_banks, list_slots as list_sampler_slots,
@@ -77,6 +83,7 @@ pub struct PreparedTrackPlayback {
 /// The user’s library manager (canonical writable store).
 pub struct LibraryManager {
     db: db::Db,
+    history: HistoryRecorder,
     config: LibraryConfig,
     decode_cache: Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
     /// Host-injected omnibus buses (None until [`Self::set_buses`]).
@@ -86,8 +93,13 @@ pub struct LibraryManager {
 impl LibraryManager {
     /// Open (or create) a library database at `db_path`.
     pub fn open(db_path: impl AsRef<Path>, config: LibraryConfig) -> Result<Self> {
+        let path = db_path.as_ref().to_path_buf();
+        let db = db::open(&path)?;
+        let mut history = HistoryRecorder::new(&path, HistorySettings::default())?;
+        history.bootstrap(&db)?;
         Ok(Self {
-            db: db::open(db_path.as_ref())?,
+            db,
+            history,
             config,
             decode_cache: Mutex::new(HashMap::new()),
             buses: None,
@@ -96,8 +108,13 @@ impl LibraryManager {
 
     /// Open an in-memory library (for tests).
     pub fn open_in_memory(config: LibraryConfig) -> Result<Self> {
+        let db = db::open_in_memory()?;
+        let path = PathBuf::from(":memory:");
+        let mut history = HistoryRecorder::new(&path, HistorySettings::default())?;
+        history.bootstrap(&db)?;
         Ok(Self {
-            db: db::open_in_memory()?,
+            db,
+            history,
             config,
             decode_cache: Mutex::new(HashMap::new()),
             buses: None,
@@ -123,6 +140,117 @@ impl LibraryManager {
             backend: "library",
             message: "library buses not attached; call set_buses first".into(),
         })
+    }
+
+    /// History recorder settings.
+    pub fn set_history_settings(&mut self, settings: HistorySettings) {
+        self.history.set_settings(settings);
+    }
+
+    pub fn history_settings(&self) -> &HistorySettings {
+        self.history.settings()
+    }
+
+    pub fn history_restore_prompt(&self) -> Option<HistoryRestorePrompt> {
+        self.history.restore_prompt().cloned()
+    }
+
+    pub fn history_tick(&mut self) -> Result<()> {
+        self.history.tick(&self.db)
+    }
+
+    pub fn history_on_crossfader(&mut self, crossfader: f32) -> Result<()> {
+        self.history.on_crossfader(&self.db, crossfader)
+    }
+
+    pub fn history_on_deck_updated(
+        &mut self,
+        deck_id: usize,
+        snapshot: DeckPlaySnapshot,
+    ) -> Result<()> {
+        self.history.on_deck_updated(&self.db, deck_id, snapshot)
+    }
+
+    pub fn history_restore_session(&mut self, session_id: &str) -> Result<()> {
+        self.history.restore_session(&self.db, session_id)
+    }
+
+    pub fn history_decline_restore(&mut self) -> Result<()> {
+        self.history.decline_restore(&self.db)
+    }
+
+    pub fn history_new_session(&mut self) -> Result<()> {
+        self.history.new_session(&self.db)
+    }
+
+    pub fn history_resume_session(&mut self) -> Result<()> {
+        self.history.resume_session(&self.db)
+    }
+
+    pub fn history_can_resume(&self) -> bool {
+        self.history.can_resume_session(&self.db)
+    }
+
+    pub fn list_history_sessions(&self) -> Result<Vec<HistorySessionRow>> {
+        self.history.list_sessions(&self.db)
+    }
+
+    pub fn history_session_entries(&self, session_id: &str) -> Result<Vec<HistoryEntry>> {
+        self.history.session_entries(&self.db, session_id)
+    }
+
+    pub fn rename_history_session(&mut self, session_id: &str, title: &str) -> Result<()> {
+        self.history.rename_session(&self.db, session_id, title)
+    }
+
+    pub fn delete_history_session(&mut self, session_id: &str) -> Result<()> {
+        self.history.delete_session(&self.db, session_id)
+    }
+
+    pub fn history_dir(&self) -> &Path {
+        self.history.history_dir()
+    }
+
+    pub fn export_history_session(
+        &self,
+        session_id: &str,
+        format: HistoryExportFormat,
+        dest: &Path,
+    ) -> Result<()> {
+        let row = crate::history::store::get_session(&self.db, session_id)?.ok_or_else(|| {
+            LibraryError::Backend {
+                backend: "history",
+                message: "session not found".into(),
+            }
+        })?;
+        let doc = history::store::load_document(Path::new(&row.xspf_path))?;
+        export_document(&doc, format, dest)
+    }
+
+    pub fn update_track_isrc(&self, track_id: &TrackId, isrc: Option<String>) -> Result<()> {
+        self.store().update_track_isrc(track_id, isrc, &now_stamp())
+    }
+
+    pub fn save_history_as_playlist(
+        &mut self,
+        session_id: &str,
+        name: &str,
+        sortable: bool,
+    ) -> Result<Collection> {
+        let entries = self.history.session_entries(&self.db, session_id)?;
+        let playlist = self.add_collection(&NewCollection::playlist(name, sortable))?;
+        for (position, entry) in entries.iter().enumerate() {
+            let Some(track_id) = entry.track_id.as_ref() else {
+                continue;
+            };
+            let track_id = TrackId::new(track_id);
+            if self.get_track(&track_id)?.is_none() {
+                continue;
+            }
+            self.store()
+                .insert_collection_track(&playlist.id, &track_id, Some(position as i32))?;
+        }
+        Ok(playlist)
     }
 
     /// Fire-and-forget publish of a command (nested `CmdBody` bytes in payload).

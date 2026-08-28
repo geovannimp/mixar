@@ -8,14 +8,17 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    read_artwork, spawn_library_worker, Evt, LibraryBuses, LibraryConfig, LibraryManager,
-    LibraryWorker, NewCollection, SamplerBankRecord, TrackId, WritableLibrary,
+    read_artwork, spawn_library_worker, Evt, HistoryExportFormat, HistorySettings, LibraryBuses,
+    LibraryConfig, LibraryManager, LibraryWorker, NewCollection, SamplerBankRecord, TrackId,
+    WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
     TrackSummary as ApiTrackSummary,
 };
-use library_core::{AnalysisDurationMode, AudioSource, Collection, CollectionId, Library};
+use library_core::{
+    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, Library,
+};
 
 use crate::frb_generated::StreamSink;
 
@@ -91,6 +94,7 @@ pub struct LibraryTrackSummary {
     pub key: Option<String>,
     pub duration_ms: Option<i32>,
     pub path: String,
+    pub isrc: Option<String>,
     /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
     /// Lists leave this `None` until artwork is persisted in the library DB.
     pub artwork: Option<Vec<u8>>,
@@ -128,6 +132,62 @@ pub struct BeatGridData {
     pub beats: Vec<f32>,
     pub downbeats: Vec<f32>,
     pub bpm: Option<f64>,
+}
+
+/// Performance history session row for the Flutter History pane.
+#[derive(Clone, Debug)]
+pub struct HistorySessionSummary {
+    pub id: String,
+    pub title: String,
+    pub started_at: String,
+    pub last_activity_at: String,
+    pub closed: bool,
+    pub entry_count: u32,
+}
+
+/// One committed play in a history session.
+#[derive(Clone, Debug)]
+pub struct HistoryEntryInfo {
+    pub id: String,
+    pub deck: u16,
+    pub track_id: Option<String>,
+    pub location: String,
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub duration_sec: Option<i32>,
+    pub bpm: Option<f64>,
+    pub key: Option<String>,
+    pub isrc: Option<String>,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub played_duration_ms: Option<i64>,
+}
+
+/// Prompt shown on app launch when the last session is still inside the idle window.
+#[derive(Clone, Debug)]
+pub struct HistoryRestorePromptInfo {
+    pub session_id: String,
+    pub title: String,
+    pub last_activity_at: String,
+}
+
+/// Derived export format for history sessions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HistoryExportFormatSetting {
+    Csv,
+    M3u8,
+    Txt,
+}
+
+impl From<HistoryExportFormatSetting> for HistoryExportFormat {
+    fn from(value: HistoryExportFormatSetting) -> Self {
+        match value {
+            HistoryExportFormatSetting::Csv => Self::Csv,
+            HistoryExportFormatSetting::M3u8 => Self::M3u8,
+            HistoryExportFormatSetting::Txt => Self::Txt,
+        }
+    }
 }
 
 /// Discriminator for thin library egress (unit enum — no freezed on Dart).
@@ -301,13 +361,24 @@ impl LibraryTransport {
         &self,
         folder_path: String,
         scan_folder_tree: bool,
+        name: Option<String>,
     ) -> Result<AddFolderCollectionResult, String> {
+        let new_collection = match name.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
+            Some(display_name) => NewCollection {
+                name: Some(display_name.to_string()),
+                config: CollectionConfig::Folder {
+                    fs_path: PathBuf::from(&folder_path),
+                    scan_folder_tree,
+                },
+            },
+            None => NewCollection::folder_scan(folder_path, scan_folder_tree),
+        };
         let collection_id = {
             let mut lib = self
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            lib.add_collection(&NewCollection::folder_scan(folder_path, scan_folder_tree))
+            lib.add_collection(&new_collection)
                 .map_err(|e| e.to_string())?
                 .id
         };
@@ -340,6 +411,27 @@ impl LibraryTransport {
             skipped: scan.skipped as u32,
             failed: scan.failed as u32,
         })
+    }
+
+    /// Create an empty playlist collection.
+    pub fn add_playlist_collection(
+        &self,
+        name: String,
+        sortable: bool,
+    ) -> Result<LibraryCollectionSummary, String> {
+        let collection = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.add_collection(&NewCollection::playlist(name.trim(), sortable))
+                .map_err(|e| e.to_string())?
+        };
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        collection_summary(&lib, collection)
     }
 
     /// Resolve library tracks for the given filesystem paths.
@@ -551,6 +643,215 @@ impl LibraryTransport {
         Ok(())
     }
 
+    /// Apply performance history settings from app settings.
+    pub fn apply_history_settings(
+        &self,
+        enabled: bool,
+        session_idle_minutes: u32,
+        min_play_seconds: u32,
+        min_deck_volume: f32,
+    ) -> Result<(), String> {
+        if session_idle_minutes == 0 {
+            return Err("history_session_idle_minutes must be > 0".into());
+        }
+        if min_play_seconds == 0 {
+            return Err("history_min_play_seconds must be > 0".into());
+        }
+        if !min_deck_volume.is_finite() || !(0.0..=1.0).contains(&min_deck_volume) {
+            return Err("history_min_deck_volume must be between 0 and 1".into());
+        }
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.set_history_settings(HistorySettings {
+            enabled,
+            session_idle_minutes,
+            min_play_seconds,
+            min_deck_volume,
+        });
+        Ok(())
+    }
+
+    /// Restore prompt when the last session is still inside the idle window.
+    pub fn history_restore_prompt(&self) -> Result<Option<HistoryRestorePromptInfo>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        Ok(lib
+            .history_restore_prompt()
+            .map(|p| HistoryRestorePromptInfo {
+                session_id: p.session_id,
+                title: p.title,
+                last_activity_at: p.last_activity_at,
+            }))
+    }
+
+    pub fn history_restore_session(&self, session_id: String) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.history_restore_session(&session_id)
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn history_decline_restore(&self) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.history_decline_restore().map_err(|e| e.to_string())
+    }
+
+    pub fn history_new_session(&self) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.history_new_session().map_err(|e| e.to_string())
+    }
+
+    pub fn history_resume_session(&self) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.history_resume_session().map_err(|e| e.to_string())
+    }
+
+    pub fn history_can_resume(&self) -> Result<bool, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        Ok(lib.history_can_resume())
+    }
+
+    pub fn list_history_sessions(&self) -> Result<Vec<HistorySessionSummary>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.list_history_sessions()
+            .map(|rows| {
+                rows.into_iter()
+                    .map(|row| HistorySessionSummary {
+                        id: row.id,
+                        title: row.title,
+                        started_at: row.started_at,
+                        last_activity_at: row.last_activity_at,
+                        closed: row.closed,
+                        entry_count: row.entry_count,
+                    })
+                    .collect()
+            })
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn history_session_entries(
+        &self,
+        session_id: String,
+    ) -> Result<Vec<HistoryEntryInfo>, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.history_session_entries(&session_id)
+            .map(|entries| entries.into_iter().map(history_entry_info).collect())
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn rename_history_session(&self, session_id: String, title: String) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.rename_history_session(&session_id, title.trim())
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn delete_history_session(&self, session_id: String) -> Result<(), String> {
+        let mut lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.delete_history_session(&session_id)
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn export_history_session(
+        &self,
+        session_id: String,
+        format: HistoryExportFormatSetting,
+        dest_path: String,
+    ) -> Result<(), String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.export_history_session(&session_id, format.into(), Path::new(&dest_path))
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn save_history_as_playlist(
+        &self,
+        session_id: String,
+        name: String,
+        sortable: bool,
+    ) -> Result<LibraryCollectionSummary, String> {
+        let collection = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.save_history_as_playlist(&session_id, name.trim(), sortable)
+                .map_err(|e| e.to_string())?
+        };
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        collection_summary(&lib, collection)
+    }
+
+    pub fn history_dir(&self) -> Result<String, String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        Ok(lib.history_dir().to_string_lossy().into_owned())
+    }
+
+    pub fn reveal_history_folder(&self) -> Result<(), String> {
+        let dir = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.history_dir().to_path_buf()
+        };
+        reveal_path_in_file_manager(&dir)
+    }
+
+    pub fn update_track_isrc(&self, track_id: String, isrc: Option<String>) -> Result<(), String> {
+        let normalized = isrc.and_then(|value| {
+            let trimmed = value.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        });
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.update_track_isrc(&TrackId::new(track_id), normalized)
+            .map_err(|e| e.to_string())
+    }
+
     /// Sampler banks stored in the library DB.
     pub fn list_sampler_banks(&self) -> Result<Vec<SamplerBankInfo>, String> {
         let lib = self
@@ -682,8 +983,54 @@ fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
         key: track.key,
         duration_ms: track.duration_ms,
         path: track.path,
+        isrc: track.isrc,
         artwork: None,
     }
+}
+
+fn history_entry_info(entry: library::HistoryEntry) -> HistoryEntryInfo {
+    HistoryEntryInfo {
+        id: entry.id,
+        deck: entry.deck,
+        track_id: entry.track_id,
+        location: entry.location,
+        title: entry.title,
+        artist: entry.artist,
+        album: entry.album,
+        duration_sec: entry.duration_sec,
+        bpm: entry.bpm,
+        key: entry.key,
+        isrc: entry.isrc,
+        started_at: entry.started_at,
+        ended_at: entry.ended_at,
+        played_duration_ms: entry.played_duration_ms,
+    }
+}
+
+fn reveal_path_in_file_manager(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    let mut command = {
+        let mut cmd = std::process::Command::new("xdg-open");
+        cmd.arg(path);
+        cmd
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut cmd = std::process::Command::new("open");
+        cmd.arg(path);
+        cmd
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut cmd = std::process::Command::new("explorer");
+        cmd.arg(path);
+        cmd
+    };
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    return Err("reveal in folder is unsupported on this platform".into());
+
+    command.spawn().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn collection_summary(
@@ -725,6 +1072,7 @@ fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryT
         key: metadata.key.clone(),
         duration_ms: metadata.duration_ms,
         path: path.to_string_lossy().into_owned(),
+        isrc: metadata.isrc.clone(),
         artwork,
     })
 }
@@ -771,6 +1119,7 @@ mod tests {
             key: Some("Am".into()),
             duration_ms: Some(60_000),
             path: "/music/one.wav".into(),
+            isrc: None,
         }
     }
 

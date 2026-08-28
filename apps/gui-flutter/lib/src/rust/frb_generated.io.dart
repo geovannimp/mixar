@@ -236,7 +236,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double dco_decode_box_autoadd_f_64(dynamic raw);
 
   @protected
+  HistoryRestorePromptInfo dco_decode_box_autoadd_history_restore_prompt_info(
+    dynamic raw,
+  );
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
@@ -308,10 +316,27 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo dco_decode_fs_volume_info(dynamic raw);
 
   @protected
+  HistoryEntryInfo dco_decode_history_entry_info(dynamic raw);
+
+  @protected
+  HistoryExportFormatSetting dco_decode_history_export_format_setting(
+    dynamic raw,
+  );
+
+  @protected
+  HistoryRestorePromptInfo dco_decode_history_restore_prompt_info(dynamic raw);
+
+  @protected
+  HistorySessionSummary dco_decode_history_session_summary(dynamic raw);
+
+  @protected
   HotCueInfo dco_decode_hot_cue_info(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw);
@@ -357,6 +382,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FsVolumeInfo> dco_decode_list_fs_volume_info(dynamic raw);
+
+  @protected
+  List<HistoryEntryInfo> dco_decode_list_history_entry_info(dynamic raw);
+
+  @protected
+  List<HistorySessionSummary> dco_decode_list_history_session_summary(
+    dynamic raw,
+  );
 
   @protected
   List<HotCueInfo> dco_decode_list_hot_cue_info(dynamic raw);
@@ -417,7 +450,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? dco_decode_opt_box_autoadd_f_64(dynamic raw);
 
   @protected
+  HistoryRestorePromptInfo?
+  dco_decode_opt_box_autoadd_history_restore_prompt_info(dynamic raw);
+
+  @protected
   int? dco_decode_opt_box_autoadd_i_32(dynamic raw);
+
+  @protected
+  PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
   LibraryTrackSummary? dco_decode_opt_box_autoadd_library_track_summary(
@@ -706,7 +746,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double sse_decode_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  HistoryRestorePromptInfo sse_decode_box_autoadd_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   LibraryTrackSummary sse_decode_box_autoadd_library_track_summary(
@@ -796,10 +844,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   FsVolumeInfo sse_decode_fs_volume_info(SseDeserializer deserializer);
 
   @protected
+  HistoryEntryInfo sse_decode_history_entry_info(SseDeserializer deserializer);
+
+  @protected
+  HistoryExportFormatSetting sse_decode_history_export_format_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HistoryRestorePromptInfo sse_decode_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  HistorySessionSummary sse_decode_history_session_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   HotCueInfo sse_decode_hot_cue_info(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
 
   @protected
   JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer);
@@ -853,6 +922,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<FsVolumeInfo> sse_decode_list_fs_volume_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HistoryEntryInfo> sse_decode_list_history_entry_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<HistorySessionSummary> sse_decode_list_history_session_summary(
     SseDeserializer deserializer,
   );
 
@@ -929,7 +1008,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   double? sse_decode_opt_box_autoadd_f_64(SseDeserializer deserializer);
 
   @protected
+  HistoryRestorePromptInfo?
+  sse_decode_opt_box_autoadd_history_restore_prompt_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   int? sse_decode_opt_box_autoadd_i_32(SseDeserializer deserializer);
+
+  @protected
+  PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
   LibraryTrackSummary? sse_decode_opt_box_autoadd_library_track_summary(
@@ -1272,7 +1360,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_f_64(double self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_history_restore_prompt_info(
+    HistoryRestorePromptInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_i_64(
+    PlatformInt64 self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_box_autoadd_library_track_summary(
@@ -1380,10 +1480,37 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_fs_volume_info(FsVolumeInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_history_entry_info(
+    HistoryEntryInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_export_format_setting(
+    HistoryExportFormatSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_restore_prompt_info(
+    HistoryRestorePromptInfo self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_history_session_summary(
+    HistorySessionSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_hot_cue_info(HotCueInfo self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
 
   @protected
   void sse_encode_jog_mode_setting(
@@ -1451,6 +1578,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_fs_volume_info(
     List<FsVolumeInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_history_entry_info(
+    List<HistoryEntryInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_history_session_summary(
+    List<HistorySessionSummary> self,
     SseSerializer serializer,
   );
 
@@ -1548,7 +1687,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_f_64(double? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_history_restore_prompt_info(
+    HistoryRestorePromptInfo? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_i_32(int? self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_opt_box_autoadd_i_64(
+    PlatformInt64? self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_opt_box_autoadd_library_track_summary(

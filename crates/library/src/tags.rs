@@ -45,6 +45,8 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
         metadata.key = tag
             .get_string(&lofty::tag::ItemKey::InitialKey)
             .map(normalize_key_notation);
+
+        metadata.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
     }
 
     metadata.replaygain_track_gain_db = replaygain_track_gain_db(&tagged);

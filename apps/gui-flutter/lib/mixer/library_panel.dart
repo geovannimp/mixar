@@ -3,20 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/collections_pane.dart';
 import 'package:gui_flutter/library/drive_pane.dart';
+import 'package:gui_flutter/library/history_detail_pane.dart';
+import 'package:gui_flutter/library/history_pane.dart';
+import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 
 /// Library panel: left [FTabs](https://forui.dev/docs/widgets/navigation/tabs)
-/// (Collections / Drive); right pane follows the selected tab.
+/// (Collections / Drive / History); right pane follows the selected tab.
 class LibraryPanel extends ConsumerWidget {
   const LibraryPanel({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(libraryEventsBootstrapProvider);
+    ref.watch(historySettingsBootstrapProvider);
     final theme = context.theme;
     final message = ref.watch(libraryMessageProvider);
-    final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
+    final tab = ref.watch(librarySourceTabProvider);
 
     return Padding(
       padding: const EdgeInsets.all(8),
@@ -55,23 +59,43 @@ class LibraryPanel extends ConsumerWidget {
                         ),
                       ),
                       control: .lifted(
-                        index: drive ? 1 : 0,
+                        index: switch (tab) {
+                          LibrarySourceTab.collections => 0,
+                          LibrarySourceTab.drive => 1,
+                          LibrarySourceTab.history => 2,
+                        },
                         onChange: (index) {
-                          ref
-                              .read(librarySourceTabProvider.notifier)
-                              .set(
-                                index == 1
-                                    ? LibrarySourceTab.drive
-                                    : LibrarySourceTab.collections,
+                          ref.read(librarySourceTabProvider.notifier).set(
+                                switch (index) {
+                                  1 => LibrarySourceTab.drive,
+                                  2 => LibrarySourceTab.history,
+                                  _ => LibrarySourceTab.collections,
+                                },
                               );
                         },
                       ),
-                      children: const [
+                      children: [
                         FTabEntry(
-                          label: Text('Collections'),
-                          child: CollectionsPane(),
+                          label: Semantics(
+                            label: 'Collections',
+                            child: Icon(FLucideIcons.library, size: 16),
+                          ),
+                          child: const CollectionsPane(),
                         ),
-                        FTabEntry(label: Text('Drive'), child: DrivePane()),
+                        FTabEntry(
+                          label: Semantics(
+                            label: 'Drive',
+                            child: Icon(FLucideIcons.hardDrive, size: 16),
+                          ),
+                          child: const DrivePane(),
+                        ),
+                        FTabEntry(
+                          label: Semantics(
+                            label: 'History',
+                            child: Icon(FLucideIcons.history, size: 16),
+                          ),
+                          child: const HistoryPane(),
+                        ),
                       ],
                     ),
                   ),
@@ -80,7 +104,9 @@ class LibraryPanel extends ConsumerWidget {
                   flex: 3,
                   minFlex: 1,
                   builder: _fill,
-                  child: const TrackTablePane(),
+                  child: tab == LibrarySourceTab.history
+                      ? const HistoryDetailPane()
+                      : const TrackTablePane(),
                 ),
               ],
             ),

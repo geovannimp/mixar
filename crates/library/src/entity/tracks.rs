@@ -24,6 +24,7 @@ pub struct Model {
     pub channels: Option<i32>,
     pub bitrate_kbps: Option<i32>,
     pub replaygain_track_gain_db: Option<f64>,
+    pub isrc: Option<String>,
     pub last_sampler_bank_id: Option<String>,
     pub added_at: String,
     pub updated_at: String,

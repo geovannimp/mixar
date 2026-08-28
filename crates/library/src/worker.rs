@@ -578,5 +578,6 @@ fn track_summary(source: &AudioSource) -> Option<TrackSummary> {
         key: metadata.key.clone(),
         duration_ms: metadata.duration_ms,
         path: file.path().to_string_lossy().into_owned(),
+        isrc: metadata.isrc.clone(),
     })
 }

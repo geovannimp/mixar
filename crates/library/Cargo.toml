@@ -23,8 +23,12 @@ sea-orm-sync = { version = "2.0.0", features = [
     "schema-sync",
 ] }
 rusqlite = { version = "0.38", features = ["bundled"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core", optional = true }
+xspf = "0.4.2"
+xml = "0.8"
 
 [features]
 default = ["analysis"]

@@ -2130,6 +2130,7 @@ dependencies = [
  "analyzer",
  "analyzer-core",
  "audio-core 0.1.0",
+ "chrono",
  "library-api",
  "library-core",
  "lofty",
@@ -2140,6 +2141,9 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "uuid",
+ "xml",
+ "xspf",
  "zstd",
 ]
 
@@ -4421,6 +4425,7 @@ version = "1.23.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf80a72845275afea99e7f2b434723d3bc7e38470fcd1c7ed39a599c73319a53"
 dependencies = [
+ "getrandom 0.4.3",
  "js-sys",
  "serde_core",
  "wasm-bindgen",
@@ -4915,6 +4920,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
+]
+
+[[package]]
+name = "xml"
+version = "0.8.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ede1c99c55b4b3ad0349018ef0eccbe954ce9c342334410707ee87177fcf2ab4"
+dependencies = [
+ "xml-rs",
+]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e450f9b2ed1dff33c94c12589a87338689467b9c4f5d8a5710bd09a847d2c8a7"
+
+[[package]]
+name = "xspf"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "914c946648f8fad57d59206c5e5f99c578ab3ac2e0c91794419c91311b158639"
+dependencies = [
+ "xml",
 ]
 
 [[package]]

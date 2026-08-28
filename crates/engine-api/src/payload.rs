@@ -120,6 +120,10 @@ pub struct DeckSnapshot {
     pub track_id: Option<String>,
     pub title: Option<String>,
     pub artist: Option<String>,
+    #[serde(default)]
+    pub album: Option<String>,
+    #[serde(default)]
+    pub isrc: Option<String>,
     pub bpm: Option<f64>,
     pub key: Option<String>,
     pub playing: bool,
@@ -357,6 +361,10 @@ pub enum EvtBody {
         track_id: Option<String>,
         title: Option<String>,
         artist: Option<String>,
+        #[serde(default)]
+        album: Option<String>,
+        #[serde(default)]
+        isrc: Option<String>,
         bpm: Option<f64>,
         key: Option<String>,
         playing: bool,

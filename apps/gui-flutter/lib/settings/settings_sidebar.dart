@@ -49,6 +49,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.waveform => FLucideIcons.audioWaveform,
     SettingsSection.deck => FLucideIcons.disc3,
     SettingsSection.library => FLucideIcons.library,
+    SettingsSection.session => FLucideIcons.history,
     SettingsSection.controllers => FLucideIcons.gamepad2,
   };
 }

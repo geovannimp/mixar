@@ -4,7 +4,10 @@ use std::path::Path;
 
 use library_core::{CollectionId, Result, TrackId, TrackMetadata};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
-use sea_orm::{ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder, Set};
+use sea_orm::{
+    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+    Set,
+};
 
 use crate::db::{self, Db};
 use crate::entity::{
@@ -12,6 +15,7 @@ use crate::entity::{
     TrackAnalysisEntity, TrackEntity,
 };
 use crate::model;
+use uuid::Uuid;
 
 pub struct Store<'a> {
     db: &'a Db,
@@ -46,6 +50,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
@@ -69,6 +74,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
                         tracks::Column::ReplaygainTrackGainDb,
+                        tracks::Column::Isrc,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -103,6 +109,7 @@ impl<'a> Store<'a> {
             channels: Set(metadata.channels.map(|v| v as i32)),
             bitrate_kbps: Set(metadata.bitrate_kbps.map(|v| v as i32)),
             replaygain_track_gain_db: Set(metadata.replaygain_track_gain_db),
+            isrc: Set(metadata.isrc.clone()),
             last_sampler_bank_id: Set(None),
             added_at: Set(now.to_string()),
             updated_at: Set(now.to_string()),
@@ -126,6 +133,7 @@ impl<'a> Store<'a> {
                         tracks::Column::Channels,
                         tracks::Column::BitrateKbps,
                         tracks::Column::ReplaygainTrackGainDb,
+                        tracks::Column::Isrc,
                         tracks::Column::UpdatedAt,
                     ])
                     .to_owned(),
@@ -140,6 +148,22 @@ impl<'a> Store<'a> {
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         row.map(model::track_source).transpose()
+    }
+
+    pub fn update_track_isrc(&self, id: &TrackId, isrc: Option<String>, now: &str) -> Result<()> {
+        let Some(row) = TrackEntity::find_by_id(id.as_str())
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?
+        else {
+            return Ok(());
+        };
+        let mut active: tracks::ActiveModel = row.into();
+        active.isrc = Set(isrc);
+        active.updated_at = Set(now.to_string());
+        active
+            .update(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(())
     }
 
     pub fn find_file_track_by_source_ref(
@@ -290,29 +314,44 @@ impl<'a> Store<'a> {
             .collect())
     }
 
-    pub fn upsert_collection_track(
+    pub fn insert_collection_track(
         &self,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
     ) -> Result<()> {
         let active = collection_tracks::ActiveModel {
+            id: Set(Uuid::new_v4().to_string()),
             collection_id: Set(collection_id.as_str().to_string()),
             track_id: Set(track_id.as_str().to_string()),
             position: Set(position),
         };
         CollectionTrackEntity::insert(active)
-            .on_conflict(
-                OnConflict::columns([
-                    collection_tracks::Column::CollectionId,
-                    collection_tracks::Column::TrackId,
-                ])
-                .update_columns([collection_tracks::Column::Position])
-                .to_owned(),
-            )
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
+    }
+
+    pub fn upsert_collection_track(
+        &self,
+        collection_id: &CollectionId,
+        track_id: &TrackId,
+        position: Option<i32>,
+    ) -> Result<()> {
+        let conn = self.db.conn()?;
+        let connection = conn.as_connection();
+        let existing = CollectionTrackEntity::find()
+            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
+            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+            .one(connection)
+            .map_err(db::db_err)?;
+        if let Some(row) = existing {
+            let mut active: collection_tracks::ActiveModel = row.into();
+            active.position = Set(position);
+            active.update(connection).map_err(db::db_err)?;
+            return Ok(());
+        }
+        self.insert_collection_track(collection_id, track_id, position)
     }
 
     pub fn delete_collection_track(

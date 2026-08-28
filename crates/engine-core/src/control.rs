@@ -206,6 +206,8 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         track_id: snap.track_id,
         title: snap.title,
         artist: snap.artist,
+        album: snap.album,
+        isrc: snap.isrc,
         bpm: snap.bpm,
         key: snap.key,
         playing: snap.playing,

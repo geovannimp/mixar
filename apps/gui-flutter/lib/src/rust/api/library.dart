@@ -6,9 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `map_library_evt`, `pack_peaks`, `track_display_name`, `track_summary`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -20,10 +20,25 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<AddFolderCollectionResult> addFolderCollection({
     required String folderPath,
     required bool scanFolderTree,
+    String? name,
+  });
+
+  /// Create an empty playlist collection.
+  Future<LibraryCollectionSummary> addPlaylistCollection({
+    required String name,
+    required bool sortable,
   });
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
   Future<void> analyzeTrack({required String trackId, required bool force});
+
+  /// Apply performance history settings from app settings.
+  Future<void> applyHistorySettings({
+    required bool enabled,
+    required int sessionIdleMinutes,
+    required int minPlaySeconds,
+    required double minDeckVolume,
+  });
 
   /// Apply library analysis duration from app settings.
   Future<void> applyLibrarySettings({
@@ -33,8 +48,16 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses();
 
+  Future<void> deleteHistorySession({required String sessionId});
+
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
   Future<void> deleteLoop({required String trackId, required int slot});
+
+  Future<void> exportHistorySession({
+    required String sessionId,
+    required HistoryExportFormatSetting format,
+    required String destPath,
+  });
 
   /// Analyzed beat grid, if present.
   Future<BeatGridData?> getBeatGrid({required String trackId});
@@ -53,6 +76,25 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required int buckets,
   });
 
+  Future<bool> historyCanResume();
+
+  Future<void> historyDeclineRestore();
+
+  Future<String> historyDir();
+
+  Future<void> historyNewSession();
+
+  /// Restore prompt when the last session is still inside the idle window.
+  Future<HistoryRestorePromptInfo?> historyRestorePrompt();
+
+  Future<void> historyRestoreSession({required String sessionId});
+
+  Future<void> historyResumeSession();
+
+  Future<List<HistoryEntryInfo>> historySessionEntries({
+    required String sessionId,
+  });
+
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionTracks({
     required String collectionId,
@@ -60,6 +102,8 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// List all collections with track counts.
   Future<List<LibraryCollectionSummary>> listCollections();
+
+  Future<List<HistorySessionSummary>> listHistorySessions();
 
   /// Sampler banks stored in the library DB.
   Future<List<SamplerBankInfo>> listSamplerBanks();
@@ -75,9 +119,22 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Queue metadata refresh for a track via the library cmd bus only.
   Future<void> refreshTrack({required String trackId});
 
+  Future<void> renameHistorySession({
+    required String sessionId,
+    required String title,
+  });
+
   /// Resolve library tracks for the given filesystem paths.
   Future<List<ResolvedLibraryTrack>> resolveTracksForPaths({
     required List<String> paths,
+  });
+
+  Future<void> revealHistoryFolder();
+
+  Future<LibraryCollectionSummary> saveHistoryAsPlaylist({
+    required String sessionId,
+    required String name,
+    required bool sortable,
   });
 
   /// Persist an active loop region for a track (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -92,6 +149,8 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   ///
   /// Replaces any previous forwarder so repeated subscribe calls do not leak threads.
   Stream<LibraryEvt> subscribeEvents();
+
+  Future<void> updateTrackIsrc({required String trackId, String? isrc});
 }
 
 /// Result of adding a folder collection and syncing it.
@@ -149,6 +208,147 @@ class BeatGridData {
           beats == other.beats &&
           downbeats == other.downbeats &&
           bpm == other.bpm;
+}
+
+/// One committed play in a history session.
+class HistoryEntryInfo {
+  final String id;
+  final int deck;
+  final String? trackId;
+  final String location;
+  final String? title;
+  final String? artist;
+  final String? album;
+  final int? durationSec;
+  final double? bpm;
+  final String? key;
+  final String? isrc;
+  final String startedAt;
+  final String? endedAt;
+  final PlatformInt64? playedDurationMs;
+
+  const HistoryEntryInfo({
+    required this.id,
+    required this.deck,
+    this.trackId,
+    required this.location,
+    this.title,
+    this.artist,
+    this.album,
+    this.durationSec,
+    this.bpm,
+    this.key,
+    this.isrc,
+    required this.startedAt,
+    this.endedAt,
+    this.playedDurationMs,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      deck.hashCode ^
+      trackId.hashCode ^
+      location.hashCode ^
+      title.hashCode ^
+      artist.hashCode ^
+      album.hashCode ^
+      durationSec.hashCode ^
+      bpm.hashCode ^
+      key.hashCode ^
+      isrc.hashCode ^
+      startedAt.hashCode ^
+      endedAt.hashCode ^
+      playedDurationMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryEntryInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          deck == other.deck &&
+          trackId == other.trackId &&
+          location == other.location &&
+          title == other.title &&
+          artist == other.artist &&
+          album == other.album &&
+          durationSec == other.durationSec &&
+          bpm == other.bpm &&
+          key == other.key &&
+          isrc == other.isrc &&
+          startedAt == other.startedAt &&
+          endedAt == other.endedAt &&
+          playedDurationMs == other.playedDurationMs;
+}
+
+/// Derived export format for history sessions.
+enum HistoryExportFormatSetting { csv, m3U8, txt }
+
+/// Prompt shown on app launch when the last session is still inside the idle window.
+class HistoryRestorePromptInfo {
+  final String sessionId;
+  final String title;
+  final String lastActivityAt;
+
+  const HistoryRestorePromptInfo({
+    required this.sessionId,
+    required this.title,
+    required this.lastActivityAt,
+  });
+
+  @override
+  int get hashCode =>
+      sessionId.hashCode ^ title.hashCode ^ lastActivityAt.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistoryRestorePromptInfo &&
+          runtimeType == other.runtimeType &&
+          sessionId == other.sessionId &&
+          title == other.title &&
+          lastActivityAt == other.lastActivityAt;
+}
+
+/// Performance history session row for the Flutter History pane.
+class HistorySessionSummary {
+  final String id;
+  final String title;
+  final String startedAt;
+  final String lastActivityAt;
+  final bool closed;
+  final int entryCount;
+
+  const HistorySessionSummary({
+    required this.id,
+    required this.title,
+    required this.startedAt,
+    required this.lastActivityAt,
+    required this.closed,
+    required this.entryCount,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      title.hashCode ^
+      startedAt.hashCode ^
+      lastActivityAt.hashCode ^
+      closed.hashCode ^
+      entryCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HistorySessionSummary &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          title == other.title &&
+          startedAt == other.startedAt &&
+          lastActivityAt == other.lastActivityAt &&
+          closed == other.closed &&
+          entryCount == other.entryCount;
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -285,6 +485,7 @@ class LibraryTrackSummary {
   final String? key;
   final int? durationMs;
   final String path;
+  final String? isrc;
 
   /// Embedded artwork bytes when loaded via [`LibraryTransport::get_track`].
   /// Lists leave this `None` until artwork is persisted in the library DB.
@@ -301,6 +502,7 @@ class LibraryTrackSummary {
     this.key,
     this.durationMs,
     required this.path,
+    this.isrc,
     this.artwork,
   });
 
@@ -316,6 +518,7 @@ class LibraryTrackSummary {
       key.hashCode ^
       durationMs.hashCode ^
       path.hashCode ^
+      isrc.hashCode ^
       artwork.hashCode;
 
   @override
@@ -333,6 +536,7 @@ class LibraryTrackSummary {
           key == other.key &&
           durationMs == other.durationMs &&
           path == other.path &&
+          isrc == other.isrc &&
           artwork == other.artwork;
 }
 

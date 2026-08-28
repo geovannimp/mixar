@@ -70,6 +70,18 @@ class FaderColors {
   };
 }
 
+FaderAccent? faderAccentForDeck(int deckId) => switch (deckId) {
+  0 => FaderAccent.a,
+  1 => FaderAccent.b,
+  _ => null,
+};
+
+String deckDisplayLabel(int deckId) => switch (deckId) {
+  0 => 'Deck A',
+  1 => 'Deck B',
+  _ => 'Deck ${deckId + 1}',
+};
+
 void _requireValidRange(double min, double max) {
   if (!(min.isFinite && max.isFinite && min < max)) {
     throw ArgumentError.value(

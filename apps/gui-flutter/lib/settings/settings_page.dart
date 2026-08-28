@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_deck_panel.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
+import 'package:gui_flutter/settings/settings_session_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -314,6 +315,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         onChanged: onChanged,
       ),
       SettingsSection.library => SettingsLibraryPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.session => SettingsSessionPanel(
         draft: draft,
         onChanged: onChanged,
       ),
