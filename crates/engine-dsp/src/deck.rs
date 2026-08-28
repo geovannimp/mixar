@@ -384,9 +384,15 @@ impl Deck {
     }
 
     fn begin_jog_release(&mut self) {
-        self.jog_releasing = true;
         self.jog_velocity = 0.0;
         self.jog_velocity_deriv = 0.0;
+        if self.state != DeckState::Playing {
+            // No motor to re-engage — a 0→1 ramp would scrub while paused/stopped.
+            self.jog_releasing = false;
+            self.jog_rate = 1.0;
+            return;
+        }
+        self.jog_releasing = true;
     }
 
     /// Advance jog filters for one output buffer (`frames` at engine sample rate).
@@ -447,7 +453,9 @@ impl Deck {
         self.playback_ratio() * self.jog_rate
     }
 
-    fn jog_driving_audio(&self) -> bool {
+    /// True while jog may advance the playhead without transport Playing
+    /// (vinyl scratch, release ramp, pitch bend).
+    pub fn jog_driving_audio(&self) -> bool {
         self.jog_touching
             || self.jog_releasing
             || (self.jog_rate - 1.0).abs() > 1e-4
@@ -1185,6 +1193,56 @@ mod tests {
             stopped.iter().all(|&s| s == 0.0),
             "stopped deck must output silence, got stale samples: max={}",
             stopped.iter().map(|s| s.abs()).fold(0.0f32, f32::max)
+        );
+    }
+
+    #[test]
+    fn paused_vinyl_touch_release_does_not_nudge_playhead() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 5000], ENGINE_RATE);
+        deck.play().unwrap();
+        deck.pause().unwrap();
+        deck.seek_ms(100).unwrap();
+        let start = deck.position_ms().unwrap();
+        deck.set_jog_touch(true);
+        for _ in 0..5 {
+            deck.process(CHUNK).unwrap();
+        }
+        deck.set_jog_touch(false);
+        for _ in 0..50 {
+            deck.process(CHUNK).unwrap();
+        }
+        let end = deck.position_ms().unwrap();
+        assert_eq!(
+            end, start,
+            "touch/release without turns must not scrub while paused"
+        );
+        assert!(
+            (deck.jog_rate() - 1.0).abs() < 1e-4,
+            "rate={}",
+            deck.jog_rate()
+        );
+        assert!(!deck.jog_driving_audio());
+    }
+
+    #[test]
+    fn paused_vinyl_jog_advances_position_ms() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 5000], ENGINE_RATE);
+        deck.play().unwrap();
+        deck.pause().unwrap();
+        assert_eq!(deck.state(), &DeckState::Paused);
+        let start = deck.position_ms().unwrap();
+        deck.set_jog_touch(true);
+        for _ in 0..40 {
+            let _ = deck.process(48);
+            deck.jog_turn(20);
+            let _ = deck.process(CHUNK);
+        }
+        let end = deck.position_ms().unwrap();
+        assert!(
+            (end - start).abs() >= 5,
+            "paused vinyl jog should move playhead, start={start} end={end}"
         );
     }
 

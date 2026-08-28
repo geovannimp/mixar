@@ -22,6 +22,8 @@ enum CmdOutcome {
     DeckUpdated(usize),
     DecksUpdated(Vec<usize>),
     EngineStatus,
+    /// Publish a Position evt for `deck_id` (playhead moved without a full DeckUpdated).
+    Position(usize),
     Silent,
 }
 
@@ -297,6 +299,19 @@ fn handle_cmd_event(
                         Origin::Mixer,
                         Kind::Status,
                         EvtBody::EngineStatus { status },
+                    );
+                }
+                Ok(())
+            });
+        }
+        Ok(CmdOutcome::Position(deck_id)) => {
+            let _ = with_engine_ref(engine, |eng| {
+                if let Some((position_ms, _)) = eng.deck_playback_ms(deck_id) {
+                    publish_evt(
+                        evt_bus,
+                        Origin::Deck(deck_id as u16),
+                        Kind::Position,
+                        EvtBody::Position { position_ms },
                     );
                 }
                 Ok(())
@@ -793,7 +808,9 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.deck_jog_turn(deck_id, delta)?;
-            Ok(CmdOutcome::Silent)
+            // So paused vinyl scrub updates UI playhead/time without waiting for
+            // the next 33ms tick (JogTouch release used to be the only cue).
+            Ok(CmdOutcome::Position(deck_id))
         }
         Kind::SetJogMode => {
             let CmdBody::SetJogMode { top, outer } = decode_cmd_body_for(kind, payload)? else {
@@ -886,7 +903,11 @@ fn tick(
 
     let playback = eng.deck_playback_snapshot();
     for (deck_id, position, _duration) in playback {
-        if eng.deck_is_playing(deck_id) == Some(true) {
+        // Vinyl scratch while paused still advances the playhead; UI time/waveform
+        // need Position ticks, not only DeckUpdated on jog-touch release.
+        let playing = eng.deck_is_playing(deck_id) == Some(true);
+        let jog_driving = eng.deck_jog_driving_audio(deck_id) == Some(true);
+        if playing || jog_driving {
             publish_evt(
                 evt_bus,
                 Origin::Deck(deck_id as u16),
