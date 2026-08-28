@@ -8,15 +8,13 @@ use audio_core::{
     WAVEFORM_SCHEMA_VERSION,
 };
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
+use sea_orm::{EntityTrait, Set};
 use serde::{Deserialize, Serialize};
 
 use library_core::{FileAudioSource, LibraryError, Result, TrackId};
 
 use crate::db::{self, Db};
-use crate::entity::{
-    track_analysis, track_waveform, tracks, TrackAnalysisEntity, TrackEntity, TrackWaveformEntity,
-};
+use crate::entity::{track_waveform, TrackAnalysisEntity, TrackWaveformEntity};
 
 #[derive(Debug, Clone)]
 pub struct TrackWaveformOverview {
@@ -203,20 +201,24 @@ pub(crate) fn generate_even_beat_grid(
     let mut beats = Vec::new();
     let mut bars = Vec::new();
     let mut downbeats = Vec::new();
-    let mut beat_index: i32 = -1;
+    // Index 0 is always `first_beat_secs` (downbeat phase). Skip straight to the first
+    // non-negative beat so large negative offsets cannot hang the library worker.
+    let mut beat_index = if first_beat_secs >= 0.0 {
+        0
+    } else {
+        ((-first_beat_secs) / beat_period).ceil() as i32
+    };
     loop {
-        beat_index += 1;
         let t = first_beat_secs + beat_index as f32 * beat_period;
         if t > duration_secs {
             break;
         }
-        if t >= 0.0 {
-            beats.push(t);
-            if beat_index.rem_euclid(4) == 0 {
-                downbeats.push(t);
-                bars.push(t);
-            }
+        beats.push(t);
+        if beat_index.rem_euclid(4) == 0 {
+            downbeats.push(t);
+            bars.push(t);
         }
+        beat_index += 1;
     }
     BeatGridJson {
         beats,
@@ -237,18 +239,17 @@ pub(crate) fn save_track_beat_grid(
             message: "beat grid bpm must be between 20 and 400".into(),
         });
     }
-
-    let track = TrackEntity::find_by_id(track_id.as_str())
-        .one(db.conn()?.as_connection())
-        .map_err(db::db_err)?
-        .ok_or_else(|| LibraryError::Backend {
+    if !first_beat_secs.is_finite() {
+        return Err(LibraryError::Backend {
             backend: "library",
-            message: format!("track not found: {}", track_id.as_str()),
-        })?;
+            message: "beat grid first_beat_secs must be finite".into(),
+        });
+    }
 
-    let duration_secs = track.duration_ms.unwrap_or(0).max(0) as f32 / 1000.0;
-    let duration_secs = if duration_secs > 0.0 {
-        duration_secs
+    let store = crate::store::Store::new(db);
+    let ctx = store.track_beat_grid_context(track_id)?;
+    let duration_secs = if ctx.duration_ms > 0 {
+        ctx.duration_ms as f32 / 1000.0
     } else {
         600.0
     };
@@ -259,45 +260,7 @@ pub(crate) fn save_track_beat_grid(
         message: e.to_string(),
     })?;
 
-    let analyzed_at = now_iso();
-    let active = track_analysis::ActiveModel {
-        track_id: Set(track_id.as_str().to_string()),
-        backend: Set("manual".into()),
-        backend_version: Set("1".into()),
-        analyzed_at: Set(analyzed_at),
-        bpm: Set(Some(bpm)),
-        bpm_confidence: Set(None),
-        key: Set(track.key.clone()),
-        key_confidence: Set(None),
-        key_clarity: Set(None),
-        grid_stability: Set(Some(1.0)),
-        sample_rate: Set(track.sample_rate.unwrap_or(48_000)),
-        duration_analyzed_ms: Set(track.duration_ms.unwrap_or(0)),
-        loudness_lufs: Set(None),
-        beat_grid_json: Set(Some(beat_grid_json)),
-    };
-
-    TrackAnalysisEntity::insert(active)
-        .on_conflict(
-            OnConflict::column(track_analysis::Column::TrackId)
-                .update_columns([
-                    track_analysis::Column::Backend,
-                    track_analysis::Column::BackendVersion,
-                    track_analysis::Column::AnalyzedAt,
-                    track_analysis::Column::Bpm,
-                    track_analysis::Column::GridStability,
-                    track_analysis::Column::BeatGridJson,
-                ])
-                .to_owned(),
-        )
-        .exec(db.conn()?.as_connection())
-        .map_err(db::db_err)?;
-
-    TrackEntity::update_many()
-        .col_expr(tracks::Column::Bpm, sea_orm::sea_query::Expr::value(bpm))
-        .filter(tracks::Column::Id.eq(track_id.as_str()))
-        .exec(db.conn()?.as_connection())
-        .map_err(db::db_err)?;
+    store.upsert_manual_beat_grid(track_id, bpm, beat_grid_json, &ctx, &now_iso())?;
 
     Ok(BeatGridSnapshot {
         beats: grid.beats,
@@ -367,6 +330,36 @@ mod tests {
     }
 
     #[test]
+    fn generate_even_beat_grid_skips_to_first_visible_beat() {
+        let grid = generate_even_beat_grid(120.0, -1.0, 2.0);
+        assert_eq!(grid.beats.first(), Some(&0.0));
+        assert!(grid.beats.iter().all(|&t| t >= 0.0));
+        // beat index 2 at t=0 is not a downbeat; next downbeat is index 4 at t=1.0
+        assert_eq!(grid.downbeats, vec![1.0]);
+    }
+
+    #[test]
+    fn save_track_beat_grid_rejects_non_finite_first_beat() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/grid.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/grid.wav"),
+                &TrackMetadata {
+                    bpm: Some(128.0),
+                    duration_ms: Some(60_000),
+                    ..TrackMetadata::default()
+                },
+                "1",
+            )
+            .unwrap();
+        assert!(save_track_beat_grid(&db, &id, 128.0, f32::NAN).is_err());
+        assert!(save_track_beat_grid(&db, &id, 128.0, f32::INFINITY).is_err());
+    }
+
+    #[test]
     fn save_track_beat_grid_persists_and_updates_track_bpm() {
         let db = db::open_in_memory().unwrap();
         let store = Store::new(&db);
@@ -392,10 +385,7 @@ mod tests {
         assert_eq!(loaded.bpm, Some(130.0));
         assert_eq!(loaded.beats.first(), Some(&0.25));
 
-        let track = TrackEntity::find_by_id(id.as_str())
-            .one(db.conn().unwrap().as_connection())
-            .unwrap()
-            .unwrap();
-        assert_eq!(track.bpm, Some(130.0));
+        let track = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(track.metadata().bpm, Some(130.0));
     }
 }

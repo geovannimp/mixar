@@ -588,6 +588,9 @@ impl LibraryTransport {
         if !(bpm > 20.0 && bpm < 400.0) {
             return Err("beat grid bpm must be between 20 and 400".into());
         }
+        if !first_beat_secs.is_finite() {
+            return Err("beat grid first_beat_secs must be finite".into());
+        }
         let bytes = encode_cmd_body(&CmdBody::SaveBeatGrid {
             track_id,
             bpm,
