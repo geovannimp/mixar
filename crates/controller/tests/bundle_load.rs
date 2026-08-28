@@ -18,6 +18,17 @@ fn rejects_unknown_input_alias() {
 }
 
 #[test]
+fn rejects_relative_cc_bound_to_absolute_action() {
+    let err =
+        controller::load_bundle(Path::new("tests/fixtures/invalid-relative-absolute")).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("relative CC") || msg.contains("mismatch"),
+        "unexpected error: {msg}"
+    );
+}
+
+#[test]
 fn parses_toml_schema_metadata_and_ignores_it() {
     // `[toml-schema]` must follow root scalars — TOML attaches following keys to the open table.
     let device = controller::DeviceFile::parse(

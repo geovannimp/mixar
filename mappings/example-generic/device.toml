@@ -17,7 +17,7 @@ cue = { type = "note", channel = 1, note = 0x0C }
 volume = { type = "cc", channel = 1, cc = 0x13 }
 filter = { type = "cc", channel = 1, cc = 0x14 }
 jog_touch = { type = "note", channel = 1, note = 0x36 }
-jog_turn = { type = "cc", channel = 1, cc = 0x21 }
+jog_turn = { type = "cc", channel = 1, cc = 0x21, relative = "BINARY_OFFSET" }
 play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
 pause_led = { type = "note", channel = 1, note = 0x0D, velocity = 0x7F, direction = "out" }
 

@@ -14,13 +14,13 @@ mod session;
 pub mod check;
 pub mod script;
 
-pub use action::{resolve_action, RoutedAction, HOT_CUE_SLOT_COUNT};
+pub use action::{resolve_action, ControlValue, RoutedAction, HOT_CUE_SLOT_COUNT};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,
 };
 pub use bundle::{load_bundle, MappingBundle};
-pub use catalog::{is_closed_input_alias, is_known_action, ActionName};
+pub use catalog::{is_closed_input_alias, is_known_action, is_relative_action, ActionName};
 pub use check::check_bundle_dir;
 pub use device::{
     AudioHints, DeviceFile, SectionName, TomlSchemaRef, SECTION_CUSTOM, SECTION_MASTER,
@@ -35,7 +35,7 @@ pub use map_file::{
     SoftTakeoverDefault,
 };
 pub use midi::{
-    match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint, MidiIdentity,
-    MidiMsgType, ParsedMidi, ShortMsg,
+    decode_relative, match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint,
+    MidiIdentity, MidiMsgType, ParsedMidi, RelativeMode, ShortMsg,
 };
 pub use session::{ActionPublish, BusPublish, MappingSession, MidiOut, MidiPort};

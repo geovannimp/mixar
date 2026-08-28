@@ -37,9 +37,9 @@ filter = { type = "cc14", channel = 7, cc = { msb = 0x17, lsb = 0x37 } }
 
 jog_touch = { type = "note", channel = 1, note = 0x36 }
 jog_touch_shift = { type = "note", channel = 1, note = 0x67 }
-jog_turn = { type = "cc", channel = 1, cc = 0x22 }
-jog_side = { type = "cc", channel = 1, cc = 0x21 }
-jog_search = { type = "cc", channel = 1, cc = 0x29 }
+jog_turn = { type = "cc", channel = 1, cc = 0x22, relative = "BINARY_OFFSET" }
+jog_side = { type = "cc", channel = 1, cc = 0x21, relative = "BINARY_OFFSET" }
+jog_search = { type = "cc", channel = 1, cc = 0x29, relative = "BINARY_OFFSET" }
 
 loop_in = { type = "note", channel = 1, note = 0x10 }
 loop_out = { type = "note", channel = 1, note = 0x11 }
@@ -123,9 +123,9 @@ filter = { type = "cc14", channel = 7, cc = { msb = 0x18, lsb = 0x38 } }
 
 jog_touch = { type = "note", channel = 2, note = 0x36 }
 jog_touch_shift = { type = "note", channel = 2, note = 0x67 }
-jog_turn = { type = "cc", channel = 2, cc = 0x22 }
-jog_side = { type = "cc", channel = 2, cc = 0x21 }
-jog_search = { type = "cc", channel = 2, cc = 0x29 }
+jog_turn = { type = "cc", channel = 2, cc = 0x22, relative = "BINARY_OFFSET" }
+jog_side = { type = "cc", channel = 2, cc = 0x21, relative = "BINARY_OFFSET" }
+jog_search = { type = "cc", channel = 2, cc = 0x29, relative = "BINARY_OFFSET" }
 
 loop_in = { type = "note", channel = 2, note = 0x10 }
 loop_out = { type = "note", channel = 2, note = 0x11 }
@@ -195,7 +195,7 @@ hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, dir
 crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
 cue_mix = { type = "cc14", channel = 7, cc = { msb = 0x0C, lsb = 0x2C } }
 # Browse encoder (Mixxx SelectKnob): relative CC ch7 / 0x40
-browse = { type = "cc", channel = 7, cc = 0x40 }
+browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
 # LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
 load_deck_1 = { type = "note", channel = 7, note = 0x46 }
 load_deck_2 = { type = "note", channel = 7, note = 0x47 }

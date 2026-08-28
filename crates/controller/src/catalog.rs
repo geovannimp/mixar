@@ -146,6 +146,9 @@ pub const ABSOLUTE_LEAVES: &[&str] = &[
     "set_speed",
 ];
 
+/// Leaves that consume relative CC tick deltas (device `relative = …`).
+pub const RELATIVE_LEAVES: &[&str] = &["jog_turn", "navigate"];
+
 const DECK_LEAVES: &[&str] = &[
     "toggle_play",
     "play",
@@ -272,6 +275,13 @@ pub fn is_absolute_action(name: &str) -> bool {
         return ABSOLUTE_LEAVES.contains(&name);
     };
     ABSOLUTE_LEAVES.contains(&leaf)
+}
+
+pub fn is_relative_action(name: &str) -> bool {
+    let Ok((_, leaf, _)) = parse_action_id(name) else {
+        return RELATIVE_LEAVES.contains(&name);
+    };
+    RELATIVE_LEAVES.contains(&leaf)
 }
 
 pub fn is_closed_input_alias(section: &str, alias: &str) -> bool {

@@ -8,6 +8,7 @@ location = "../../../../../schemas/map.tosd"
 play_pause = "Deck(_)::toggle_play"
 headphone_cue = "Deck(_)::set_headphone_cue"
 pad_1 = "Deck(_)::hot_cue_pad(n:1)"
+jog_turn = "Deck(_)::jog_turn"
 volume = [
   { action = "Deck(_)::set_volume", soft_takeover = true },
   { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },

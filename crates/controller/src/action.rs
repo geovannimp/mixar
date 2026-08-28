@@ -132,11 +132,34 @@ fn engine_cmd(origin: Origin, kind: Kind, body: CmdBody) -> RoutedAction {
     RoutedAction::EngineCmd { origin, kind, body }
 }
 
-/// Resolve qualified action to a routable cmd/evt. `norm` is MIDI 0..1; `active` for buttons.
+/// Wire value after device decode: absolute `0..1` or relative tick delta.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ControlValue {
+    Absolute(f32),
+    Relative(i32),
+}
+
+impl ControlValue {
+    fn as_absolute(self) -> Option<f32> {
+        match self {
+            Self::Absolute(v) => Some(v),
+            Self::Relative(_) => None,
+        }
+    }
+
+    fn as_relative(self) -> Option<i32> {
+        match self {
+            Self::Relative(d) => Some(d),
+            Self::Absolute(_) => None,
+        }
+    }
+}
+
+/// Resolve qualified action to a routable cmd/evt.
 pub fn resolve_action(
     action: &str,
     section: &str,
-    norm: f32,
+    value: ControlValue,
     active: bool,
     soft_takeover: bool,
     snap: &ControlSnapshot,
@@ -166,16 +189,9 @@ pub fn resolve_action(
                     body: LibraryEvtBody::Navigate { delta: -1 },
                 });
             }
-            // Relative select-knob CC (Pioneer: +1..=+63 / 127..=64 as signed 7-bit).
+            // Relative select-knob: delta already decoded from device `relative` mode.
             "navigate" => {
-                let value = (norm * 127.0).round() as i32;
-                let delta = if value == 0 {
-                    0
-                } else if value < 64 {
-                    value
-                } else {
-                    value - 128
-                };
+                let delta = value.as_relative()?;
                 if delta == 0 {
                     return None;
                 }
@@ -207,6 +223,12 @@ pub fn resolve_action(
     let BoundOrigin::Engine(origin) = bound else {
         return None;
     };
+
+    // Relative ticks are only for jog_turn (navigate handled above). Never coerce to 0.0.
+    if matches!(value, ControlValue::Relative(_)) && leaf != "jog_turn" {
+        return None;
+    }
+    let norm = value.as_absolute().unwrap_or(0.0);
 
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
@@ -327,7 +349,7 @@ pub fn resolve_action(
             CmdBody::JogTouch { touching: active },
         )),
         "jog_turn" => {
-            let delta = ((norm - 0.5) * 128.0).round() as i32;
+            let delta = value.as_relative()?;
             if delta == 0 {
                 return None;
             }
@@ -564,8 +586,15 @@ mod tests {
     #[test]
     fn eq_knob_max_maps_to_full_norm() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::set_eq_low", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::set_eq_low",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body:
@@ -583,8 +612,15 @@ mod tests {
     #[test]
     fn eq_knob_center_maps_to_half_norm() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::set_eq_mid", "deck_1", 0.5, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::set_eq_mid",
+            "deck_1",
+            ControlValue::Absolute(0.5),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body:
@@ -602,8 +638,15 @@ mod tests {
     #[test]
     fn filter_knob_passes_norm() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::set_filter", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::set_filter",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body:
@@ -620,8 +663,15 @@ mod tests {
     #[test]
     fn gain_knob_passes_norm() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::set_gain", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::set_gain",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body:
@@ -638,7 +688,15 @@ mod tests {
     #[test]
     fn generic_pad_publishes_pad_press_release() {
         let mut snap = ControlSnapshot::default();
-        let press = resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let press = resolve_action(
+            "Deck(_)::pad(n:1)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match press {
             RoutedAction::EngineCmd {
                 body: CmdBody::PadPress { slot, shift },
@@ -649,8 +707,15 @@ mod tests {
             }
             other => panic!("expected PadPress, got {other:?}"),
         }
-        let release =
-            resolve_action("Deck(_)::pad(n:1)", "deck_1", 0.0, false, false, &snap).unwrap();
+        let release = resolve_action(
+            "Deck(_)::pad(n:1)",
+            "deck_1",
+            ControlValue::Absolute(0.0),
+            false,
+            false,
+            &snap,
+        )
+        .unwrap();
         assert!(matches!(
             release,
             RoutedAction::EngineCmd {
@@ -661,8 +726,15 @@ mod tests {
 
         snap.pad_mode[0] = PadMode::BeatJump;
         snap.hot_cues[0][0] = Some(12_500);
-        let still_generic =
-            resolve_action("Deck(_)::pad(n:1)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let still_generic = resolve_action(
+            "Deck(_)::pad(n:1)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         assert!(
             matches!(
                 still_generic,
@@ -684,7 +756,7 @@ mod tests {
         let press = resolve_action(
             "Deck(_)::hot_cue_pad(n:1)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -700,7 +772,7 @@ mod tests {
         let release = resolve_action(
             "Deck(_)::hot_cue_pad(n:1)",
             "deck_1",
-            0.0,
+            ControlValue::Absolute(0.0),
             false,
             false,
             &snap,
@@ -717,7 +789,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::beat_jump_pad(n:1)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -734,7 +806,7 @@ mod tests {
         let begin = resolve_action(
             "Deck(_)::loop_roll_pad(n:3)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -750,7 +822,7 @@ mod tests {
         let end = resolve_action(
             "Deck(_)::loop_roll_pad(n:3)",
             "deck_1",
-            0.0,
+            ControlValue::Absolute(0.0),
             false,
             false,
             &snap,
@@ -767,7 +839,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::sampler_pad(n:2)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -783,7 +855,7 @@ mod tests {
         let end = resolve_action(
             "Deck(_)::sampler_pad(n:2)",
             "deck_1",
-            0.0,
+            ControlValue::Absolute(0.0),
             false,
             false,
             &snap,
@@ -801,8 +873,15 @@ mod tests {
     #[test]
     fn midi_pad_n_is_not_capped_at_eight() {
         let snap = ControlSnapshot::default();
-        let routed =
-            resolve_action("Deck(_)::pad(n:9)", "deck_1", 1.0, true, false, &snap).unwrap();
+        let routed = resolve_action(
+            "Deck(_)::pad(n:9)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
         match routed {
             RoutedAction::EngineCmd {
                 body: CmdBody::PadPress { slot, shift: false },
@@ -810,11 +889,19 @@ mod tests {
             } => assert_eq!(slot, 8),
             other => panic!("expected PadPress slot 8, got {other:?}"),
         }
-        assert!(resolve_action("Deck(_)::pad(n:0)", "deck_1", 1.0, true, false, &snap).is_none());
+        assert!(resolve_action(
+            "Deck(_)::pad(n:0)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap
+        )
+        .is_none());
         let named = resolve_action(
             "Deck(_)::hot_cue_pad(n:9)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -835,7 +922,7 @@ mod tests {
         let press = resolve_action(
             "Deck(_)::trigger_sampler(slot:2)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -851,7 +938,7 @@ mod tests {
         let release = resolve_action(
             "Deck(_)::trigger_sampler(slot:2)",
             "deck_1",
-            0.0,
+            ControlValue::Absolute(0.0),
             false,
             false,
             &snap,
@@ -872,7 +959,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::pad_mode(mode:loop_roll)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -893,7 +980,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::auto_loop(beats:0.25)",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -909,13 +996,12 @@ mod tests {
     }
 
     #[test]
-    fn relative_browse_navigate_maps_signed_cc() {
+    fn relative_browse_navigate_uses_decoded_delta() {
         let snap = ControlSnapshot::default();
-        // Pioneer SelectKnob: +1 → value 1, −1 → value 127
         let next = resolve_action(
             "LibraryNavigation::navigate",
             "master",
-            1.0 / 127.0,
+            ControlValue::Relative(1),
             true,
             false,
             &snap,
@@ -932,7 +1018,7 @@ mod tests {
         let prev = resolve_action(
             "LibraryNavigation::navigate",
             "master",
-            1.0,
+            ControlValue::Relative(-1),
             true,
             false,
             &snap,
@@ -946,6 +1032,74 @@ mod tests {
             } => assert_eq!(delta, -1),
             other => panic!("expected Navigate -1, got {other:?}"),
         }
+        assert!(
+            resolve_action(
+                "LibraryNavigation::navigate",
+                "master",
+                ControlValue::Absolute(1.0 / 127.0),
+                true,
+                false,
+                &snap,
+            )
+            .is_none(),
+            "absolute wire value must not decode inside navigate"
+        );
+    }
+
+    #[test]
+    fn jog_turn_requires_relative_delta() {
+        let snap = ControlSnapshot::default();
+        let routed = resolve_action(
+            "Deck(_)::jog_turn",
+            "deck_1",
+            ControlValue::Relative(3),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match routed {
+            RoutedAction::EngineCmd {
+                body: CmdBody::JogTurn { delta },
+                ..
+            } => assert_eq!(delta, 3),
+            other => panic!("expected JogTurn, got {other:?}"),
+        }
+        assert!(resolve_action(
+            "Deck(_)::jog_turn",
+            "deck_1",
+            ControlValue::Absolute(0.6),
+            true,
+            false,
+            &snap,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn relative_value_rejected_for_absolute_action() {
+        let snap = ControlSnapshot::default();
+        assert!(
+            resolve_action(
+                "Deck(_)::set_volume",
+                "deck_1",
+                ControlValue::Relative(3),
+                true,
+                true,
+                &snap,
+            )
+            .is_none(),
+            "relative ticks must not become SetVolume(0.0)"
+        );
+        assert!(resolve_action(
+            "Deck(_)::set_filter",
+            "deck_1",
+            ControlValue::Relative(-1),
+            true,
+            true,
+            &snap,
+        )
+        .is_none());
     }
 
     #[test]
@@ -954,7 +1108,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::cycle_tempo_range",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -971,7 +1125,7 @@ mod tests {
         let routed = resolve_action(
             "Deck(_)::cycle_tempo_range",
             "deck_1",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -992,7 +1146,7 @@ mod tests {
         let routed = resolve_action(
             "LibraryNavigation::load_to_deck(deck:2)",
             "master",
-            1.0,
+            ControlValue::Absolute(1.0),
             true,
             false,
             &snap,
@@ -1009,7 +1163,7 @@ mod tests {
         assert!(resolve_action(
             "LibraryNavigation::load_to_deck(deck:1)",
             "master",
-            1.0,
+            ControlValue::Absolute(1.0),
             false,
             false,
             &snap

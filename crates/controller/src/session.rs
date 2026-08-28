@@ -6,12 +6,12 @@ use std::time::{Duration, Instant};
 use engine_api::{CmdBody, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
-use crate::action::{resolve_action, ControlSnapshot, RoutedAction};
+use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
 use crate::bundle::MappingBundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
 use crate::map_file::{InputBinding, OutputTarget};
-use crate::midi::{norm_from_cc14, parse_short, MidiEndpoint, ShortMsg};
+use crate::midi::{decode_relative, norm_from_cc14, parse_short, MidiEndpoint, ShortMsg};
 use crate::script::{ScriptHost, ScriptRuntime};
 
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
@@ -23,12 +23,12 @@ fn deck_slot(d: u16) -> usize {
     (d as usize).min(3)
 }
 
-/// Latest absolute CC waiting for ≤60 Hz flush.
+/// CC waiting for ≤60 Hz flush: absolute keeps latest; relative sums ticks.
 #[derive(Clone, Debug)]
 struct PendingCc {
     section: String,
     alias: String,
-    norm: f32,
+    value: ControlValue,
     active: bool,
 }
 
@@ -252,6 +252,7 @@ impl MappingSession {
         // Clone endpoint fields we need after borrow ends.
         let is_cc14 = ep.is_cc14();
         let cc14_pair = ep.cc14_pair();
+        let relative_mode = ep.relative;
         let section = section.to_string();
         let alias = alias.to_string();
         let key = format!("{section}.{alias}");
@@ -267,11 +268,11 @@ impl MappingSession {
             return;
         }
 
-        // Resolve 0..1 value (cc14 pairs MSB+LSB).
-        let mut value_01 = parsed.value_01();
+        // Resolve absolute 0..1 (cc14 pairs MSB+LSB) or relative tick delta.
+        let mut value = ControlValue::Absolute(parsed.value_01());
         let is_cc = matches!(parsed.msg, ShortMsg::Cc { .. });
         if is_cc14 {
-            let ShortMsg::Cc { cc, value, .. } = parsed.msg else {
+            let ShortMsg::Cc { cc, value: raw, .. } = parsed.msg else {
                 return;
             };
             let Some((msb_cc, lsb_cc)) = cc14_pair else {
@@ -279,16 +280,27 @@ impl MappingSession {
             };
             let entry = self.cc14_state.entry(key.clone()).or_insert((None, None));
             if cc == msb_cc {
-                entry.0 = Some(value);
+                entry.0 = Some(raw);
             } else if cc == lsb_cc {
-                entry.1 = Some(value);
+                entry.1 = Some(raw);
             } else {
                 return;
             }
             let (Some(msb), Some(lsb)) = *entry else {
                 return; // wait until both bytes seen
             };
-            value_01 = norm_from_cc14(msb, lsb);
+            value = ControlValue::Absolute(norm_from_cc14(msb, lsb));
+        } else if is_cc {
+            if let Some(mode) = relative_mode {
+                let ShortMsg::Cc { value: raw, .. } = parsed.msg else {
+                    return;
+                };
+                let delta = decode_relative(mode, raw);
+                if delta == 0 {
+                    return;
+                }
+                value = ControlValue::Relative(delta);
+            }
         }
 
         // Edge for notes: only process transitions for button-like msgs.
@@ -302,7 +314,7 @@ impl MappingSession {
                 &section,
                 &alias,
                 &key,
-                value_01,
+                value,
                 parsed.active(),
                 false,
                 bus,
@@ -311,30 +323,39 @@ impl MappingSession {
             return;
         }
 
-        // Absolute CCs: keep latest value; publish at ≤60 Hz (flush covers the final move).
-        // Relative library browse must not coalesce — each tick is a discrete row step.
-        if self.is_relative_library_nav(&section, &alias) {
-            self.dispatch_input(
-                &section,
-                &alias,
-                &key,
-                value_01,
-                parsed.active(),
-                false,
-                bus,
-                midi,
-            );
-            return;
-        }
-        self.cc_pending.insert(
-            key.clone(),
-            PendingCc {
-                section: section.clone(),
-                alias: alias.clone(),
-                norm: value_01,
-                active: parsed.active(),
+        // Absolute: keep latest. Relative: sum deltas. Both publish at ≤60 Hz.
+        match value {
+            ControlValue::Relative(delta) => match self.cc_pending.get_mut(&key) {
+                Some(PendingCc {
+                    value: ControlValue::Relative(sum),
+                    ..
+                }) => {
+                    *sum = sum.saturating_add(delta);
+                }
+                _ => {
+                    self.cc_pending.insert(
+                        key.clone(),
+                        PendingCc {
+                            section: section.clone(),
+                            alias: alias.clone(),
+                            value: ControlValue::Relative(delta),
+                            active: parsed.active(),
+                        },
+                    );
+                }
             },
-        );
+            ControlValue::Absolute(norm) => {
+                self.cc_pending.insert(
+                    key.clone(),
+                    PendingCc {
+                        section: section.clone(),
+                        alias: alias.clone(),
+                        value: ControlValue::Absolute(norm),
+                        active: parsed.active(),
+                    },
+                );
+            }
+        }
         let now = Instant::now();
         if let Some(last) = self.cc_last.get(&key) {
             if now.duration_since(*last) < CC_COALESCE {
@@ -342,15 +363,6 @@ impl MappingSession {
             }
         }
         self.flush_pending_key(&key, bus, midi);
-    }
-
-    /// Relative select-knob bindings (e.g. `LibraryNavigation::navigate`) skip CC coalesce.
-    fn is_relative_library_nav(&self, section: &str, alias: &str) -> bool {
-        self.bundle
-            .map
-            .bindings_for(section, alias)
-            .iter()
-            .any(|b| b.action.as_deref() == Some("LibraryNavigation::navigate"))
     }
 
     /// Publish any rate-limited CCs whose coalesce window has elapsed (call from MIDI pump).
@@ -381,11 +393,15 @@ impl MappingSession {
         let Some(pending) = self.cc_pending.get(key).cloned() else {
             return;
         };
+        if matches!(pending.value, ControlValue::Relative(0)) {
+            self.cc_pending.remove(key);
+            return;
+        }
         if self.dispatch_input(
             &pending.section,
             &pending.alias,
             key,
-            pending.norm,
+            pending.value,
             pending.active,
             true,
             bus,
@@ -403,7 +419,7 @@ impl MappingSession {
         section: &str,
         alias: &str,
         key: &str,
-        norm: f32,
+        value: ControlValue,
         active: bool,
         is_cc: bool,
         bus: &mut impl ActionPublish,
@@ -431,7 +447,11 @@ impl MappingSession {
                     midi: &mut null,
                     modifiers: &self.modifiers,
                 };
-                let _ = script.call_named(script_fn, &mut host, norm, active);
+                let script_norm = match value {
+                    ControlValue::Absolute(n) => n,
+                    ControlValue::Relative(d) => d as f32,
+                };
+                let _ = script.call_named(script_fn, &mut host, script_norm, active);
             }
             if is_cc {
                 self.cc_last.insert(key.to_string(), Instant::now());
@@ -444,11 +464,14 @@ impl MappingSession {
             None => return false,
         };
         let soft = binding.soft_takeover_effective();
-        let mut norm = norm;
+        let mut value = value;
         if binding.invert_effective() {
-            norm = 1.0 - norm;
+            value = match value {
+                ControlValue::Absolute(n) => ControlValue::Absolute(1.0 - n),
+                ControlValue::Relative(d) => ControlValue::Relative(-d),
+            };
         }
-        let Some(routed) = resolve_action(action, section, norm, active, soft, &self.snapshot)
+        let Some(routed) = resolve_action(action, section, value, active, soft, &self.snapshot)
         else {
             return false;
         };
@@ -723,6 +746,35 @@ mod tests {
                 assert!((*volume - 1.0).abs() < 1e-5, "volume={volume}");
             }
             other => panic!("expected SetVolume, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn relative_cc_sums_deltas_until_flush() {
+        let mut s = session();
+        let mut bus = CaptureBus { cmds: vec![] };
+
+        // BINARY_OFFSET 65=+1 — first publishes immediately.
+        s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1);
+        match &bus.cmds[0].2 {
+            CmdBody::JogTurn { delta } => assert_eq!(*delta, 1),
+            other => panic!("expected JogTurn, got {other:?}"),
+        }
+
+        // Burst: +1 then +3 → pending sum 4.
+        s.handle_midi(&[0xB0, 0x22, 65], &mut bus, &mut NullMidi);
+        s.handle_midi(&[0xB0, 0x22, 67], &mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 1, "relative burst must coalesce by sum");
+
+        if let Some(t) = s.cc_last.get_mut("deck_1.jog_turn") {
+            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+        }
+        s.flush_coalesced(&mut bus, &mut NullMidi);
+        assert_eq!(bus.cmds.len(), 2);
+        match &bus.cmds[1].2 {
+            CmdBody::JogTurn { delta } => assert_eq!(*delta, 4),
+            other => panic!("expected JogTurn sum, got {other:?}"),
         }
     }
 }
