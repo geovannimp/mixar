@@ -203,11 +203,11 @@ pub(crate) fn generate_even_beat_grid(
     let mut beats = Vec::new();
     let mut bars = Vec::new();
     let mut downbeats = Vec::new();
-    let mut beat_index = ((first_beat_secs / beat_period).floor() as i32) - 1;
+    let mut beat_index: i32 = -1;
     loop {
         beat_index += 1;
         let t = first_beat_secs + beat_index as f32 * beat_period;
-        if t > duration_secs + beat_period {
+        if t > duration_secs {
             break;
         }
         if t >= 0.0 {
@@ -362,7 +362,7 @@ mod tests {
     #[test]
     fn generate_even_beat_grid_produces_downbeats_every_four_beats() {
         let grid = generate_even_beat_grid(120.0, 0.0, 4.0);
-        assert_eq!(grid.downbeats, vec![0.0, 1.0, 2.0, 3.0, 4.0]);
+        assert_eq!(grid.downbeats, vec![0.0, 2.0, 4.0]);
         assert_eq!(grid.beats.len(), 9);
     }
 
