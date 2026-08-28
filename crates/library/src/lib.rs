@@ -243,11 +243,12 @@ impl LibraryManager {
             let Some(track_id) = entry.track_id.as_ref() else {
                 continue;
             };
-            self.add_collection_track(
-                &playlist.id,
-                &TrackId::new(track_id),
-                Some(position as i32),
-            )?;
+            let track_id = TrackId::new(track_id);
+            if self.get_track(&track_id)?.is_none() {
+                continue;
+            }
+            self.store()
+                .insert_collection_track(&playlist.id, &track_id, Some(position as i32))?;
         }
         Ok(playlist)
     }

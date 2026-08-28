@@ -487,11 +487,13 @@ impl EngineTransport {
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
-            history_worker: Mutex::new(
-                HistoryWorker::start(&buses, library_arc)
-                    .ok()
-                    .map(EngineHistoryWorker),
-            ),
+            history_worker: Mutex::new(match HistoryWorker::start(&buses, library_arc) {
+                Ok(worker) => Some(EngineHistoryWorker(worker)),
+                Err(e) => {
+                    eprintln!("history worker failed to start: {e}");
+                    None
+                }
+            }),
         };
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);

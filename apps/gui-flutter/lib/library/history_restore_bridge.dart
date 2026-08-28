@@ -28,61 +28,61 @@ class _HistoryRestoreBridgeState extends ConsumerState<HistoryRestoreBridge> {
     if (_prompted || !mounted) {
       return;
     }
-    final library = await ref.read(libraryTransportProvider.future);
-    final prompt = await library.historyRestorePrompt();
-    if (!mounted || prompt == null) {
-      return;
-    }
-    _prompted = true;
-    final restore = await showFDialog<bool>(
-      context: context,
-      builder: (context, _, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, _) {
-            final theme = context.theme;
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Restore session?',
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '“${prompt.title}” was still active. Restore it or start a new session?',
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    spacing: 8,
-                    children: [
-                      FButton(
-                        variant: .outline,
-                        onPress: () => Navigator.of(context).pop(false),
-                        child: const Text('Start new'),
-                      ),
-                      FButton(
-                        onPress: () => Navigator.of(context).pop(true),
-                        child: const Text('Restore'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-    if (!mounted) {
-      return;
-    }
     try {
+      final library = await ref.read(libraryTransportProvider.future);
+      final prompt = await library.historyRestorePrompt();
+      if (!mounted || prompt == null) {
+        return;
+      }
+      _prompted = true;
+      final restore = await showFDialog<bool>(
+        context: context,
+        builder: (context, _, animation) {
+          return FDialog(
+            animation: animation,
+            builder: (context, _) {
+              final theme = context.theme;
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Restore session?',
+                      style: theme.typography.body.md.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '“${prompt.title}” was still active. Restore it or start a new session?',
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      spacing: 8,
+                      children: [
+                        FButton(
+                          variant: .outline,
+                          onPress: () => Navigator.of(context).pop(false),
+                          child: const Text('Start new'),
+                        ),
+                        FButton(
+                          onPress: () => Navigator.of(context).pop(true),
+                          child: const Text('Restore'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+      if (!mounted) {
+        return;
+      }
       if (restore == true) {
         await library.historyRestoreSession(sessionId: prompt.sessionId);
       } else {
@@ -90,7 +90,9 @@ class _HistoryRestoreBridgeState extends ConsumerState<HistoryRestoreBridge> {
       }
       invalidateHistory(ref);
     } catch (e) {
-      ref.read(libraryMessageProvider.notifier).setError('$e');
+      if (mounted) {
+        ref.read(libraryMessageProvider.notifier).setError('$e');
+      }
     }
   }
 

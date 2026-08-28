@@ -71,6 +71,7 @@ Future<void> showTrackDetailDialog(
                             isrc: isrc.trim().isEmpty ? null : isrc.trim(),
                           );
                           ref.invalidate(collectionTracksProvider);
+                          ref.invalidate(driveResolvedByPathProvider);
                           if (context.mounted) {
                             Navigator.of(context).pop();
                           }

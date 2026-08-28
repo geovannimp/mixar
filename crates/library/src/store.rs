@@ -15,6 +15,7 @@ use crate::entity::{
     TrackAnalysisEntity, TrackEntity,
 };
 use crate::model;
+use uuid::Uuid;
 
 pub struct Store<'a> {
     db: &'a Db,
@@ -320,29 +321,44 @@ impl<'a> Store<'a> {
             .collect())
     }
 
-    pub fn upsert_collection_track(
+    pub fn insert_collection_track(
         &self,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
     ) -> Result<()> {
         let active = collection_tracks::ActiveModel {
+            id: Set(Uuid::new_v4().to_string()),
             collection_id: Set(collection_id.as_str().to_string()),
             track_id: Set(track_id.as_str().to_string()),
             position: Set(position),
         };
         CollectionTrackEntity::insert(active)
-            .on_conflict(
-                OnConflict::columns([
-                    collection_tracks::Column::CollectionId,
-                    collection_tracks::Column::TrackId,
-                ])
-                .update_columns([collection_tracks::Column::Position])
-                .to_owned(),
-            )
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
+    }
+
+    pub fn upsert_collection_track(
+        &self,
+        collection_id: &CollectionId,
+        track_id: &TrackId,
+        position: Option<i32>,
+    ) -> Result<()> {
+        let conn = self.db.conn()?;
+        let connection = conn.as_connection();
+        let existing = CollectionTrackEntity::find()
+            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
+            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+            .one(connection)
+            .map_err(db::db_err)?;
+        if let Some(row) = existing {
+            let mut active: collection_tracks::ActiveModel = row.into();
+            active.position = Set(position);
+            active.update(connection).map_err(db::db_err)?;
+            return Ok(());
+        }
+        self.insert_collection_track(collection_id, track_id, position)
     }
 
     pub fn delete_collection_track(

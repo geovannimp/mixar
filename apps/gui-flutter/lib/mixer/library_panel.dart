@@ -76,15 +76,24 @@ class LibraryPanel extends ConsumerWidget {
                       ),
                       children: [
                         FTabEntry(
-                          label: Icon(FLucideIcons.library, size: 16),
+                          label: Semantics(
+                            label: 'Collections',
+                            child: Icon(FLucideIcons.library, size: 16),
+                          ),
                           child: const CollectionsPane(),
                         ),
                         FTabEntry(
-                          label: Icon(FLucideIcons.hardDrive, size: 16),
+                          label: Semantics(
+                            label: 'Drive',
+                            child: Icon(FLucideIcons.hardDrive, size: 16),
+                          ),
                           child: const DrivePane(),
                         ),
                         FTabEntry(
-                          label: Icon(FLucideIcons.history, size: 16),
+                          label: Semantics(
+                            label: 'History',
+                            child: Icon(FLucideIcons.history, size: 16),
+                          ),
                           child: const HistoryPane(),
                         ),
                       ],

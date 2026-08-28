@@ -5,8 +5,8 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "collection_tracks")]
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
+    pub id: String,
     pub collection_id: String,
-    #[sea_orm(primary_key, auto_increment = false)]
     pub track_id: String,
     pub position: Option<i32>,
     #[sea_orm(

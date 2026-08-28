@@ -274,6 +274,10 @@ struct SettingsHost {
     waveform_display_mode: WaveformDisplayModeSetting,
     key_display_mode: KeyDisplayModeSetting,
     trusted_controller_device_ids: Vec<String>,
+    history_enabled: bool,
+    history_session_idle_minutes: u32,
+    history_min_play_seconds: u32,
+    history_min_deck_volume: f32,
 }
 
 impl Default for SettingsHost {
@@ -293,6 +297,10 @@ impl Default for SettingsHost {
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
             key_display_mode: KeyDisplayModeSetting::Musical,
             trusted_controller_device_ids: Vec::new(),
+            history_enabled: default_history_enabled(),
+            history_session_idle_minutes: default_history_session_idle_minutes(),
+            history_min_play_seconds: default_history_min_play_seconds(),
+            history_min_deck_volume: default_history_min_deck_volume(),
         }
     }
 }
@@ -544,10 +552,10 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         waveform_display_mode: host.waveform_display_mode,
         key_display_mode: host.key_display_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
-        history_enabled: default_history_enabled(),
-        history_session_idle_minutes: default_history_session_idle_minutes(),
-        history_min_play_seconds: default_history_min_play_seconds(),
-        history_min_deck_volume: default_history_min_deck_volume(),
+        history_enabled: host.history_enabled,
+        history_session_idle_minutes: host.history_session_idle_minutes,
+        history_min_play_seconds: host.history_min_play_seconds,
+        history_min_deck_volume: host.history_min_deck_volume,
     }
 }
 
@@ -579,6 +587,10 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.waveform_display_mode = settings.waveform_display_mode;
     host.key_display_mode = settings.key_display_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
+    host.history_enabled = settings.history_enabled;
+    host.history_session_idle_minutes = settings.history_session_idle_minutes;
+    host.history_min_play_seconds = settings.history_min_play_seconds;
+    host.history_min_deck_volume = settings.history_min_deck_volume;
     host.configured = true;
     Ok(())
 }

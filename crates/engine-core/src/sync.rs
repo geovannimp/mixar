@@ -19,6 +19,8 @@ pub(crate) struct DeckControlState {
     pub artist: Option<String>,
     pub album: Option<String>,
     pub key: Option<String>,
+    /// International Standard Recording Code when known at load time.
+    pub isrc: Option<String>,
     /// Runtime hot-cue positions (library hydrate + in-session save/delete).
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
     /// Library sampler bank currently loaded onto this deck's pads.
@@ -36,6 +38,7 @@ impl DeckControlState {
         self.artist = None;
         self.album = None;
         self.key = None;
+        self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
     }
 
@@ -58,6 +61,7 @@ impl DeckControlState {
         self.artist = non_empty_opt(metadata.artist.clone());
         self.album = non_empty_opt(metadata.album.clone());
         self.key = non_empty_opt(metadata.key.clone());
+        self.isrc = non_empty_opt(metadata.isrc.clone());
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
     }
 }

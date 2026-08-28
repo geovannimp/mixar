@@ -35,6 +35,13 @@ class SettingsSessionPanel extends StatelessWidget {
                 description:
                     'Log deck playback to XSPF session files under app support.',
               ),
+              SettingsToggle(
+                label: 'Record performance history',
+                value: draft.historyEnabled,
+                onChanged: (enabled) => onChanged(
+                  copyAppSettings(draft, historyEnabled: enabled),
+                ),
+              ),
               const SizedBox(height: 0),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

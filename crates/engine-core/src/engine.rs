@@ -1959,6 +1959,8 @@ fn deck_snapshot_from_dsp(
         track_id: control.track_id.as_ref().map(|id| id.as_str().to_string()),
         title: control.title.clone(),
         artist: control.artist.clone(),
+        album: control.album.clone(),
+        isrc: control.isrc.clone(),
         bpm: control.bpm,
         key: control.key.clone(),
         playing: matches!(deck.state(), DeckState::Playing),

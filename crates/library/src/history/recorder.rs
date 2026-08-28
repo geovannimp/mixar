@@ -44,6 +44,7 @@ pub struct DeckPlaySnapshot {
     pub album: Option<String>,
     pub bpm: Option<f64>,
     pub key: Option<String>,
+    pub isrc: Option<String>,
     pub duration_ms: Option<i32>,
 }
 
@@ -173,6 +174,7 @@ impl HistoryRecorder {
                     album: None,
                     bpm: None,
                     key: None,
+                    isrc: None,
                     duration_ms: None,
                 },
                 pending: None,
@@ -382,11 +384,13 @@ impl HistoryRecorder {
     fn build_entry(&self, db: &Db, pending: &PendingPlay) -> Result<HistoryEntry> {
         let mut snap = pending.snapshot.clone();
         enrich_snapshot_from_library(db, &mut snap);
-        let isrc = snap.track_id.as_ref().and_then(|id| {
-            Store::new(db)
-                .get_track_isrc(&TrackId::new(id))
-                .ok()
-                .flatten()
+        let isrc = snap.isrc.clone().or_else(|| {
+            snap.track_id.as_ref().and_then(|id| {
+                Store::new(db)
+                    .get_track_isrc(&TrackId::new(id))
+                    .ok()
+                    .flatten()
+            })
         });
         Ok(HistoryEntry {
             id: pending.entry_id.clone(),
@@ -560,6 +564,7 @@ fn merge_deck_play_snapshot(prev: &DeckPlaySnapshot, next: DeckPlaySnapshot) -> 
         album: next.album.or_else(|| prev.album.clone()),
         bpm: next.bpm.or(prev.bpm),
         key: next.key.or_else(|| prev.key.clone()),
+        isrc: next.isrc.or_else(|| prev.isrc.clone()),
         duration_ms: next.duration_ms.or(prev.duration_ms),
     }
 }
@@ -620,6 +625,9 @@ fn enrich_snapshot_from_library(db: &Db, snap: &mut DeckPlaySnapshot) {
     }
     if snap.bpm.is_none() {
         snap.bpm = meta.bpm;
+    }
+    if snap.isrc.as_ref().is_none_or(|isrc| isrc.is_empty()) {
+        snap.isrc = meta.isrc.clone().filter(|isrc| !isrc.is_empty());
     }
     if snap.duration_ms.is_none() {
         snap.duration_ms = meta.duration_ms;
@@ -696,6 +704,7 @@ mod tests {
             album: None,
             bpm: Some(128.0),
             key: None,
+            isrc: None,
             duration_ms: Some(180_000),
         };
         let next = DeckPlaySnapshot {
@@ -708,6 +717,7 @@ mod tests {
             album: None,
             bpm: None,
             key: None,
+            isrc: None,
             duration_ms: None,
         };
         let merged = merge_deck_play_snapshot(&prev, next);

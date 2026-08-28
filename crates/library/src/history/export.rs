@@ -63,10 +63,15 @@ fn csv_row(position: usize, entry: &HistoryEntry) -> String {
 }
 
 fn csv_field(raw: &str) -> String {
+    let raw = if matches!(raw.as_bytes().first(), Some(b'=' | b'+' | b'-' | b'@')) {
+        format!("'{raw}")
+    } else {
+        raw.to_owned()
+    };
     if raw.contains(',') || raw.contains('"') || raw.contains('\n') {
         format!("\"{}\"", raw.replace('"', "\"\""))
     } else {
-        raw.to_string()
+        raw
     }
 }
 
