@@ -1395,6 +1395,8 @@ mod tests {
             track_id: None,
             title: None,
             artist: None,
+            album: None,
+            isrc: None,
             bpm: None,
             key: None,
             playing: false,
