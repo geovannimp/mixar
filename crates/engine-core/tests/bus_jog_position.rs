@@ -14,12 +14,9 @@ fn recv_evt_kind(
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == kind {
-            return (*event).clone();
+        match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) if *event.kind() == kind => return (*event).clone(),
+            Ok(Some(_)) | Ok(None) | Err(_) => {}
         }
     }
     panic!("timeout waiting for evt kind {kind:?}");
