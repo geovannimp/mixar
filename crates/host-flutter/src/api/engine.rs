@@ -386,6 +386,7 @@ struct EngineEvtForwarder {
     handle: JoinHandle<()>,
 }
 
+#[allow(dead_code)]
 struct EngineHistoryWorker(HistoryWorker);
 
 fn is_coalescible(kind: &Kind) -> bool {
