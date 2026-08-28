@@ -9,7 +9,7 @@ use audio_core::{
 };
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use library_core::{FileAudioSource, LibraryError, Result, TrackId};
 
@@ -183,11 +183,91 @@ pub struct BeatGridSnapshot {
     pub bpm: Option<f64>,
 }
 
-#[derive(Deserialize)]
-struct BeatGridJson {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct BeatGridJson {
     beats: Vec<f32>,
     bars: Vec<f32>,
     downbeats: Vec<f32>,
+}
+
+/// ponytail: constant-tempo grid only. Manual edits assume even spacing; variable-tempo
+/// tracks keep stored beat times until a future editor maps phase/BPM onto beat indices.
+pub(crate) fn generate_even_beat_grid(
+    bpm: f64,
+    first_beat_secs: f32,
+    duration_secs: f32,
+) -> BeatGridJson {
+    let beat_period = (60.0 / bpm) as f32;
+    let mut beats = Vec::new();
+    let mut bars = Vec::new();
+    let mut downbeats = Vec::new();
+    // Index 0 is always `first_beat_secs` (downbeat phase). Skip straight to the first
+    // non-negative beat so large negative offsets cannot hang the library worker.
+    let mut beat_index = if first_beat_secs >= 0.0 {
+        0
+    } else {
+        ((-first_beat_secs) / beat_period).ceil() as i32
+    };
+    loop {
+        let t = first_beat_secs + beat_index as f32 * beat_period;
+        if t > duration_secs {
+            break;
+        }
+        beats.push(t);
+        if beat_index.rem_euclid(4) == 0 {
+            downbeats.push(t);
+            bars.push(t);
+        }
+        beat_index += 1;
+    }
+    BeatGridJson {
+        beats,
+        bars,
+        downbeats,
+    }
+}
+
+pub(crate) fn save_track_beat_grid(
+    db: &Db,
+    track_id: &TrackId,
+    bpm: f64,
+    first_beat_secs: f32,
+) -> Result<BeatGridSnapshot> {
+    if !(bpm > 20.0 && bpm < 400.0) {
+        return Err(LibraryError::Backend {
+            backend: "library",
+            message: "beat grid bpm must be between 20 and 400".into(),
+        });
+    }
+    if !first_beat_secs.is_finite() {
+        return Err(LibraryError::Backend {
+            backend: "library",
+            message: "beat grid first_beat_secs must be finite".into(),
+        });
+    }
+
+    let store = crate::store::Store::new(db);
+    let ctx = store.track_beat_grid_context(track_id)?;
+    let duration_secs = if ctx.duration_ms > 0 {
+        ctx.duration_ms as f32 / 1000.0
+    } else {
+        600.0
+    };
+
+    let grid = generate_even_beat_grid(bpm, first_beat_secs, duration_secs);
+    let beat_grid_json = serde_json::to_string(&grid).map_err(|e| LibraryError::Backend {
+        backend: "library",
+        message: e.to_string(),
+    })?;
+
+    store.upsert_manual_beat_grid(track_id, bpm, beat_grid_json, &ctx, &now_iso())?;
+
+    Ok(BeatGridSnapshot {
+        beats: grid.beats,
+        bars: grid.bars,
+        downbeats: grid.downbeats,
+        bpm: Some(bpm),
+    })
 }
 
 pub(crate) fn get_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<Option<BeatGridSnapshot>> {
@@ -229,6 +309,10 @@ pub(crate) fn generate_and_store_overview(db: &Db, track_id: &TrackId, path: &Pa
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db;
+    use crate::store::Store;
+    use library_core::TrackMetadata;
+    use std::path::Path;
 
     #[test]
     fn zstd_round_trip() {
@@ -236,5 +320,72 @@ mod tests {
         let compressed = zstd_compress(&data).unwrap();
         let decoded = zstd_decompress(&compressed).unwrap();
         assert_eq!(data, decoded);
+    }
+
+    #[test]
+    fn generate_even_beat_grid_produces_downbeats_every_four_beats() {
+        let grid = generate_even_beat_grid(120.0, 0.0, 4.0);
+        assert_eq!(grid.downbeats, vec![0.0, 2.0, 4.0]);
+        assert_eq!(grid.beats.len(), 9);
+    }
+
+    #[test]
+    fn generate_even_beat_grid_skips_to_first_visible_beat() {
+        let grid = generate_even_beat_grid(120.0, -1.0, 2.0);
+        assert_eq!(grid.beats.first(), Some(&0.0));
+        assert!(grid.beats.iter().all(|&t| t >= 0.0));
+        // beat index 2 at t=0 is not a downbeat; next downbeat is index 4 at t=1.0
+        assert_eq!(grid.downbeats, vec![1.0]);
+    }
+
+    #[test]
+    fn save_track_beat_grid_rejects_non_finite_first_beat() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/grid.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/grid.wav"),
+                &TrackMetadata {
+                    bpm: Some(128.0),
+                    duration_ms: Some(60_000),
+                    ..TrackMetadata::default()
+                },
+                "1",
+            )
+            .unwrap();
+        assert!(save_track_beat_grid(&db, &id, 128.0, f32::NAN).is_err());
+        assert!(save_track_beat_grid(&db, &id, 128.0, f32::INFINITY).is_err());
+    }
+
+    #[test]
+    fn save_track_beat_grid_persists_and_updates_track_bpm() {
+        let db = db::open_in_memory().unwrap();
+        let store = Store::new(&db);
+        let id = TrackId::new("/music/grid.wav");
+        store
+            .upsert_file_track(
+                &id,
+                Path::new("/music/grid.wav"),
+                &TrackMetadata {
+                    bpm: Some(128.0),
+                    duration_ms: Some(60_000),
+                    ..TrackMetadata::default()
+                },
+                "1",
+            )
+            .unwrap();
+
+        let saved = save_track_beat_grid(&db, &id, 130.0, 0.25).unwrap();
+        assert_eq!(saved.bpm, Some(130.0));
+        assert_eq!(saved.beats.first(), Some(&0.25));
+
+        let loaded = get_track_beat_grid(&db, &id).unwrap().unwrap();
+        assert_eq!(loaded.bpm, Some(130.0));
+        assert_eq!(loaded.beats.first(), Some(&0.25));
+
+        let track = store.get_track(&id).unwrap().unwrap();
+        assert_eq!(track.metadata().bpm, Some(130.0));
     }
 }

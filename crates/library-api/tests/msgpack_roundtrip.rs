@@ -111,6 +111,29 @@ fn cmd_and_evt_bodies_roundtrip() {
         decode_evt_body(&encode_evt_body(&loops).unwrap()).unwrap(),
         loops
     );
+
+    let grid = EvtBody::BeatGridChanged {
+        track_id: "t1".into(),
+        beat_grid: library_api::BeatGrid {
+            beats: vec![0.5, 1.0],
+            downbeats: vec![0.5],
+            bpm: 128.0,
+        },
+    };
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&grid).unwrap()).unwrap(),
+        grid
+    );
+
+    let save = CmdBody::SaveBeatGrid {
+        track_id: "t1".into(),
+        bpm: 128.0,
+        first_beat_secs: 0.25,
+    };
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&save).unwrap()).unwrap(),
+        save
+    );
 }
 
 #[test]

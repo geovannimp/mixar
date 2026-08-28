@@ -18,13 +18,30 @@ final waveformOverviewProvider =
       return decodeRgbPeaks(packed.rgb);
     });
 
-final beatGridProvider = FutureProvider.family<BeatGridData?, String>((
+final beatGridFetchProvider = FutureProvider.family<BeatGridData?, String>((
   ref,
   trackId,
 ) async {
   ref.watch(libraryAnalysisEpochProvider);
   final lib = await ref.watch(libraryTransportProvider.future);
   return lib.getBeatGrid(trackId: trackId);
+});
+
+/// Beat grid for a track: event cache first, otherwise the initial library fetch.
+final beatGridProvider = Provider.family<BeatGridData?, String>((ref, trackId) {
+  final cache = ref.watch(trackBeatGridsProvider);
+  if (cache.containsKey(trackId)) {
+    return cache[trackId];
+  }
+  return ref.watch(beatGridFetchProvider(trackId)).value;
+});
+
+/// True only while the first fetch is in flight (not after grid edits).
+final beatGridLoadingProvider = Provider.family<bool, String>((ref, trackId) {
+  if (ref.watch(trackBeatGridsProvider).containsKey(trackId)) {
+    return false;
+  }
+  return ref.watch(beatGridFetchProvider(trackId)).isLoading;
 });
 
 final waveformDisplayModeProvider = Provider<WaveformDisplayMode>((ref) {

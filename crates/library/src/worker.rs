@@ -3,7 +3,7 @@
 use crate::bus::LibraryBus;
 use crate::{HotCueRecord, LibraryError, LibraryManager, LoopRecord};
 use library_api::{
-    decode_cmd_body, encode_evt_body, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
+    decode_cmd_body, encode_evt_body, BeatGrid, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
     TrackSummary,
 };
 use library_core::{
@@ -119,10 +119,12 @@ fn handle_cmd(
         Kind::DeleteHotCue => handle_delete_hot_cue(event, library, evt_bus, revision),
         Kind::SaveLoop => handle_save_loop(event, library, evt_bus, revision),
         Kind::DeleteLoop => handle_delete_loop(event, library, evt_bus, revision),
+        Kind::SaveBeatGrid => handle_save_beat_grid(event, library, evt_bus, revision),
         Kind::TrackAnalyzed
         | Kind::TrackUpdated
         | Kind::HotCuesChanged
         | Kind::LoopsChanged
+        | Kind::BeatGridChanged
         | Kind::Navigate
         | Kind::Load
         | Kind::Error
@@ -444,6 +446,88 @@ fn handle_delete_loop(
             .and_then(|_| lib.list_track_loops(&id))
     };
     publish_loops_result(evt_bus, revision, track_id, result);
+}
+
+fn handle_save_beat_grid(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+) {
+    let (track_id, bpm, first_beat_secs) = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::SaveBeatGrid {
+            track_id,
+            bpm,
+            first_beat_secs,
+        }) => (track_id, bpm, first_beat_secs),
+        Ok(_) => {
+            publish_error(
+                evt_bus,
+                revision,
+                Origin::Library,
+                "save_beat_grid body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    let id = TrackId::new(track_id.clone());
+    let result = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.save_track_beat_grid(&id, bpm, first_beat_secs)
+            .and_then(|grid| lib.get_track(&id).map(|source| (grid, source)))
+    };
+    publish_beat_grid_result(evt_bus, revision, track_id, result);
+}
+
+fn publish_beat_grid_result(
+    evt_bus: &LibraryBus,
+    revision: &Arc<AtomicU64>,
+    track_id: String,
+    result: crate::Result<(crate::waveform::BeatGridSnapshot, Option<AudioSource>)>,
+) {
+    match result {
+        Ok((grid, source)) => {
+            let bpm = grid.bpm.unwrap_or(0.0);
+            let _ = publish_evt(
+                evt_bus,
+                revision,
+                Origin::Track(track_id.clone()),
+                Kind::BeatGridChanged,
+                EvtBody::BeatGridChanged {
+                    track_id: track_id.clone(),
+                    beat_grid: BeatGrid {
+                        beats: grid.beats,
+                        downbeats: grid.downbeats,
+                        bpm,
+                    },
+                },
+            );
+            if let Some(source) = source {
+                if let Some(track) = track_summary(&source) {
+                    let _ = publish_evt(
+                        evt_bus,
+                        revision,
+                        Origin::Track(track_id),
+                        Kind::TrackUpdated,
+                        EvtBody::TrackUpdated { track },
+                    );
+                }
+            }
+        }
+        Err(err) => publish_error(
+            evt_bus,
+            revision,
+            Origin::Track(track_id.clone()),
+            err.to_string(),
+            Some(track_id),
+        ),
+    }
 }
 
 fn publish_hot_cues_result(

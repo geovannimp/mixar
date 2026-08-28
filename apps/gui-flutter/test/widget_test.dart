@@ -357,7 +357,7 @@ void main() {
         waveformOverviewProvider.overrideWith(
           (ref, id) async => const <SpectralPeak>[],
         ),
-        beatGridProvider.overrideWith((ref, id) async => null),
+        beatGridFetchProvider.overrideWith((ref, id) async => null),
       ],
     );
 
@@ -436,7 +436,7 @@ void main() {
         waveformOverviewProvider.overrideWith(
           (ref, id) => Completer<List<SpectralPeak>>().future,
         ),
-        beatGridProvider.overrideWith((ref, id) async => null),
+        beatGridFetchProvider.overrideWith((ref, id) async => null),
       ],
     );
 

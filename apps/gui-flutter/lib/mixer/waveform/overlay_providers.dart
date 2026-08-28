@@ -35,7 +35,7 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?> {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    final grid = ref.watch(beatGridProvider(trackId)).value;
+    final grid = ref.watch(beatGridProvider(trackId));
     if (grid == null || grid.bpm == null || durationMs <= 0) {
       _dropPictureAfterFrame(_owned);
       _owned = null;

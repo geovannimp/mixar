@@ -423,6 +423,81 @@ impl<'a> Store<'a> {
             .map(|row| TrackId::new(row.track_id))
             .collect())
     }
+
+    /// Track fields needed to persist a manual beat grid.
+    pub fn track_beat_grid_context(&self, track_id: &TrackId) -> Result<TrackBeatGridContext> {
+        let track = TrackEntity::find_by_id(track_id.as_str())
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?
+            .ok_or_else(|| library_core::LibraryError::Backend {
+                backend: "library",
+                message: format!("track not found: {}", track_id.as_str()),
+            })?;
+        Ok(TrackBeatGridContext {
+            duration_ms: track.duration_ms.unwrap_or(0).max(0),
+            key: track.key,
+            sample_rate: track.sample_rate.unwrap_or(48_000),
+        })
+    }
+
+    /// Upsert manual beat-grid analysis and mirror BPM onto the track row.
+    pub fn upsert_manual_beat_grid(
+        &self,
+        track_id: &TrackId,
+        bpm: f64,
+        beat_grid_json: String,
+        ctx: &TrackBeatGridContext,
+        analyzed_at: &str,
+    ) -> Result<()> {
+        use crate::entity::track_analysis;
+
+        let active = track_analysis::ActiveModel {
+            track_id: Set(track_id.as_str().to_string()),
+            backend: Set("manual".into()),
+            backend_version: Set("1".into()),
+            analyzed_at: Set(analyzed_at.to_string()),
+            bpm: Set(Some(bpm)),
+            bpm_confidence: Set(None),
+            key: Set(ctx.key.clone()),
+            key_confidence: Set(None),
+            key_clarity: Set(None),
+            grid_stability: Set(Some(1.0)),
+            sample_rate: Set(ctx.sample_rate),
+            duration_analyzed_ms: Set(ctx.duration_ms),
+            loudness_lufs: Set(None),
+            beat_grid_json: Set(Some(beat_grid_json)),
+        };
+
+        TrackAnalysisEntity::insert(active)
+            .on_conflict(
+                OnConflict::column(track_analysis::Column::TrackId)
+                    .update_columns([
+                        track_analysis::Column::Backend,
+                        track_analysis::Column::BackendVersion,
+                        track_analysis::Column::AnalyzedAt,
+                        track_analysis::Column::Bpm,
+                        track_analysis::Column::GridStability,
+                        track_analysis::Column::BeatGridJson,
+                    ])
+                    .to_owned(),
+            )
+            .exec(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+
+        TrackEntity::update_many()
+            .col_expr(tracks::Column::Bpm, Expr::value(bpm))
+            .filter(tracks::Column::Id.eq(track_id.as_str()))
+            .exec(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(())
+    }
+}
+
+/// Snapshot of track fields used when writing a manual beat grid.
+pub struct TrackBeatGridContext {
+    pub duration_ms: i32,
+    pub key: Option<String>,
+    pub sample_rate: i32,
 }
 
 enum CollectionTypeWire {

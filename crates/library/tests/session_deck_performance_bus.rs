@@ -125,3 +125,41 @@ fn save_loop_cmd_emits_loops_changed_for_track() {
         other => panic!("unexpected evt body: {other:?}"),
     }
 }
+
+#[test]
+fn save_beat_grid_cmd_emits_beat_grid_changed_for_track() {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("song.wav");
+    write_tiny_wav(&wav);
+
+    let session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
+    let track_id = import_one_track(&session, dir.path());
+
+    let rx = session.subscribe_evt_track(track_id.clone()).unwrap();
+    let body = encode_cmd_body(&CmdBody::SaveBeatGrid {
+        track_id: track_id.clone(),
+        bpm: 128.0,
+        first_beat_secs: 0.5,
+    })
+    .unwrap();
+    session
+        .publish_cmd(Origin::Library, Kind::SaveBeatGrid, body)
+        .unwrap();
+
+    let event = rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("evt bus alive")
+        .expect("BeatGridChanged evt");
+    assert_eq!(event.kind(), &Kind::BeatGridChanged);
+    match decode_evt_body(event.payload()).unwrap() {
+        EvtBody::BeatGridChanged {
+            track_id: tid,
+            beat_grid,
+        } => {
+            assert_eq!(tid, track_id);
+            assert_eq!(beat_grid.bpm, 128.0);
+            assert_eq!(beat_grid.beats.first(), Some(&0.5));
+        }
+        other => panic!("unexpected evt body: {other:?}"),
+    }
+}
