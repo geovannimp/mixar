@@ -150,13 +150,6 @@ impl<'a> Store<'a> {
         row.map(model::track_source).transpose()
     }
 
-    pub fn get_track_isrc(&self, id: &TrackId) -> Result<Option<String>> {
-        let row = TrackEntity::find_by_id(id.as_str())
-            .one(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(row.and_then(|r| r.isrc))
-    }
-
     pub fn update_track_isrc(&self, id: &TrackId, isrc: Option<String>, now: &str) -> Result<()> {
         let Some(row) = TrackEntity::find_by_id(id.as_str())
             .one(self.db.conn()?.as_connection())
