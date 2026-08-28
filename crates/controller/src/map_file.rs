@@ -5,10 +5,12 @@ use std::path::Path;
 
 use serde::Deserialize;
 
-use crate::catalog::{is_absolute_action, is_closed_input_alias, is_known_action};
+use crate::catalog::{
+    is_absolute_action, is_closed_input_alias, is_known_action, is_relative_action,
+};
 use crate::device::{is_section_key, DeviceFile, TomlSchemaRef, SECTION_CUSTOM};
 use crate::error::LoadError;
-use crate::midi::MidiEndpoint;
+use crate::midi::{MidiEndpoint, MidiMsgType};
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -237,6 +239,18 @@ impl MapFile {
                 for (i, b) in bindings.iter().enumerate() {
                     let path = format!("inputs.{section}.{alias}[{i}]");
                     b.validate(&path)?;
+                    if let (Some(ep), Some(action)) = (device.endpoint(section, alias), &b.action) {
+                        if ep.msg_type == MidiMsgType::Cc {
+                            let ep_rel = ep.relative.is_some();
+                            let act_rel = is_relative_action(action);
+                            if ep_rel != act_rel {
+                                return Err(LoadError::Validation(format!(
+                                    "{path}: relative CC endpoint mismatch for action `{action}` \
+                                     (set `relative = …` on device only for jog_turn/navigate)"
+                                )));
+                            }
+                        }
+                    }
                     if let Some(m) = &b.modifier {
                         if device.resolve_ref(m).is_none() {
                             return Err(LoadError::Validation(format!(

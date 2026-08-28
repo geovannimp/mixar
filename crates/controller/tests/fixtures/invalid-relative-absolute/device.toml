@@ -1,0 +1,13 @@
+schema_version = 1
+id = "test.invalid-rel-abs"
+vendor_name = "Test"
+product_name = "InvalidRelAbs"
+midi_name_contains = ["InvalidRelAbs"]
+
+[toml-schema]
+version = "1.0.0"
+location = "../../../../../schemas/device.tosd"
+
+[deck_1]
+# Relative encoding on a fader — must fail when bound to set_volume.
+volume = { type = "cc", channel = 1, cc = 0x13, relative = "BINARY_OFFSET" }

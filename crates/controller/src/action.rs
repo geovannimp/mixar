@@ -166,7 +166,6 @@ pub fn resolve_action(
 ) -> Option<RoutedAction> {
     let (template, leaf, args) = parse_action_id(action).ok()?;
     let bound = bind_origin(template, section).ok()?;
-    let norm = value.as_absolute().unwrap_or(0.0);
 
     if let BoundOrigin::LibraryNavigation = bound {
         match leaf {
@@ -224,6 +223,12 @@ pub fn resolve_action(
     let BoundOrigin::Engine(origin) = bound else {
         return None;
     };
+
+    // Relative ticks are only for jog_turn (navigate handled above). Never coerce to 0.0.
+    if matches!(value, ControlValue::Relative(_)) && leaf != "jog_turn" {
+        return None;
+    }
+    let norm = value.as_absolute().unwrap_or(0.0);
 
     // Buttons: only fire on press (active edge handled by caller).
     match leaf {
@@ -1066,6 +1071,32 @@ mod tests {
             ControlValue::Absolute(0.6),
             true,
             false,
+            &snap,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn relative_value_rejected_for_absolute_action() {
+        let snap = ControlSnapshot::default();
+        assert!(
+            resolve_action(
+                "Deck(_)::set_volume",
+                "deck_1",
+                ControlValue::Relative(3),
+                true,
+                true,
+                &snap,
+            )
+            .is_none(),
+            "relative ticks must not become SetVolume(0.0)"
+        );
+        assert!(resolve_action(
+            "Deck(_)::set_filter",
+            "deck_1",
+            ControlValue::Relative(-1),
+            true,
+            true,
             &snap,
         )
         .is_none());
