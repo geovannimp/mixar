@@ -30,7 +30,11 @@ class WaveformBarPainter extends CustomPainter {
     if (fillBackground) {
       canvas.drawRect(Offset.zero & size, Paint()..color = kWaveformBg);
     }
-    if (overview.isEmpty || durationMs <= 0 || spanMs <= 0 || size.width <= 0) {
+    final hasDetail = detail != null && detail!.peaks.length > 1;
+    if ((!hasDetail && overview.isEmpty) ||
+        durationMs <= 0 ||
+        spanMs <= 0 ||
+        size.width <= 0) {
       return;
     }
     final midY = size.height / 2;

@@ -207,8 +207,17 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         startMs: packed.startMs,
         endMs: packed.endMs,
       );
+      if (detail.peaks.length < 2) {
+        if (gen == _zoomGen) {
+          _zoomPendingKey = '';
+        }
+        return;
+      }
       final spanMs = (detail.endMs - detail.startMs).toDouble();
       if (spanMs <= 0) {
+        if (gen == _zoomGen) {
+          _zoomPendingKey = '';
+        }
         return;
       }
       final picW = buckets.toDouble().clamp(16.0, 16384.0).toDouble();
@@ -220,7 +229,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         spanMs: spanMs,
         size: Size(picW, kWaveformStripHeight),
         fallbackToOverview: false,
-        fillBackground: true,
+        // Overlay on strip L0/L1 — never blank the layers underneath.
+        fillBackground: false,
         mode: mode,
       );
       final prev = _zoomPicture;
@@ -234,7 +244,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       });
       _dropZoomPicture(prev);
     } catch (_) {
-      // Keep previous zoom window on failure.
+      if (gen == _zoomGen) {
+        _zoomPendingKey = '';
+      }
     }
   }
 
