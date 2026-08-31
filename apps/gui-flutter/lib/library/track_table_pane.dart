@@ -467,10 +467,12 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         oddRowColor: surface,
         evenRowColor: surface,
         activatedColor: theme.colors.muted,
-        activatedBorderColor: theme.colors.primary,
+        // Keep selectingMode.none for deck drag; transparent current-cell
+        // border so focus reads as a full-row activatedColor fill.
+        activatedBorderColor: const Color(0x00000000),
         borderColor: theme.colors.border,
         gridBorderColor: theme.colors.border,
-        inactivatedBorderColor: theme.colors.border,
+        inactivatedBorderColor: const Color(0x00000000),
         cellColorInEditState: surface,
         cellColorInReadOnlyState: surface,
         cellTextStyle: text,

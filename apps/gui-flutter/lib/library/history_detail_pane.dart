@@ -666,10 +666,11 @@ TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
       oddRowColor: surface,
       evenRowColor: surface,
       activatedColor: theme.colors.muted,
-      activatedBorderColor: theme.colors.primary,
+      // Transparent current-cell border so focus reads as full-row fill.
+      activatedBorderColor: const Color(0x00000000),
       borderColor: theme.colors.border,
       gridBorderColor: theme.colors.border,
-      inactivatedBorderColor: theme.colors.border,
+      inactivatedBorderColor: const Color(0x00000000),
       cellColorInEditState: surface,
       cellColorInReadOnlyState: surface,
       cellTextStyle: text,
