@@ -354,8 +354,8 @@ impl<'a> Store<'a> {
         position: Option<i32>,
     ) -> Result<()> {
         let conn = self.db.conn()?;
-        // IMMEDIATE takes the write lock up front so a concurrent connection cannot
-        // SELECT-miss then INSERT a duplicate between our lookup and insert.
+        // IMMEDIATE: crate membership is a set; serialize writers so two connections
+        // cannot both observe absence and insert a second row for the same pair.
         let txn = conn
             .as_connection()
             .begin_with_options(TransactionOptions {

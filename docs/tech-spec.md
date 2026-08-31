@@ -530,7 +530,8 @@ pub struct CollectionTrack {
 - `Playlist` collections **must not** have `fs_path`.
 - Only `Playlist` collections appear in `collection_tracks`.
 - Tracks “in” a folder = `track.path` is under that folder’s `fs_path` (path-prefix query).
-- `(collection_id, track_id)` is unique in `collection_tracks`.
+- Unsortable playlists (crates) treat membership as a set: at most one `(collection_id, track_id)` row.
+- Sortable playlists may list the same track more than once (separate `collection_tracks` rows).
 - No `parent_id` / collection tree — collections are a **flat** list (playlist folders unsupported).
 - Deleting a Folder collection does **not** delete tracks (they may still sit under that path; optional policy: leave tracks or mark orphaned).
 - Deleting a playlist removes only its `collection_tracks` rows; tracks remain.
@@ -652,11 +653,12 @@ CREATE TABLE collections (
 );
 
 -- Many-to-many: playlist ↔ track only (never folder ids).
+-- Row `id` is the primary key so sortable playlists may list a track more than once.
 CREATE TABLE collection_tracks (
+  id TEXT PRIMARY KEY NOT NULL,
   collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
   track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
-  position INTEGER,
-  PRIMARY KEY (collection_id, track_id)
+  position INTEGER
 );
 
 CREATE INDEX idx_collection_tracks_track ON collection_tracks(track_id);
