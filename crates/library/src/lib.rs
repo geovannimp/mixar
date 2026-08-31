@@ -1292,8 +1292,14 @@ impl WritableLibrary for LibraryManager {
             None
         };
 
-        self.store()
-            .upsert_collection_track(collection_id, track_id, position)?;
+        // Sortable playlists may list the same track more than once; crates are a set.
+        if playlist.sortable() {
+            self.store()
+                .insert_collection_track(collection_id, track_id, position)?;
+        } else {
+            self.store()
+                .upsert_collection_track(collection_id, track_id, position)?;
+        }
         Ok(())
     }
 
@@ -1679,6 +1685,26 @@ mod tests {
 
         lib.remove_collection_track(&pl.id, ta.id()).unwrap();
         assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn sortable_playlist_allows_duplicate_tracks() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Set", true))
+            .unwrap();
+        lib.add_collection_track(&pl.id, track.id(), None).unwrap();
+        lib.add_collection_track(&pl.id, track.id(), None).unwrap();
+
+        let tracks = lib.get_collection_tracks(&pl.id).unwrap();
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(tracks[0].id(), track.id());
+        assert_eq!(tracks[1].id(), track.id());
     }
 
     #[test]
