@@ -463,7 +463,7 @@ String _historyExportFileName(String? sessionTitle, String ext) {
 }
 
 List<TrinaColumn> _historyColumns(FThemeData theme) {
-  return [
+  final columns = [
     TrinaColumn(
       title: '#',
       field: 'position',
@@ -599,6 +599,14 @@ List<TrinaColumn> _historyColumns(FThemeData theme) {
       textAlign: TrinaColumnTextAlign.right,
     ),
   ];
+  final headerBg = Color.alphaBlend(
+    theme.colors.foreground.withValues(alpha: 0.08),
+    theme.colors.secondary,
+  );
+  for (final column in columns) {
+    column.backgroundColor = headerBg;
+  }
+  return columns;
 }
 
 List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {

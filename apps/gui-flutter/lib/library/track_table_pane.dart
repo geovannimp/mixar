@@ -263,7 +263,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       for (final col in kLibraryColumnDefs)
         if (col.required || activeColumns.contains(col.id)) col.id,
     };
-    return [
+    final columns = [
       TrinaColumn(
         title: '',
         field: 'artwork',
@@ -420,6 +420,14 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         },
       ),
     ];
+    final headerBg = Color.alphaBlend(
+      theme.colors.foreground.withValues(alpha: 0.08),
+      theme.colors.secondary,
+    );
+    for (final column in columns) {
+      column.backgroundColor = headerBg;
+    }
+    return columns;
   }
 
   TrinaGridConfiguration _gridConfig(FThemeData theme) {
