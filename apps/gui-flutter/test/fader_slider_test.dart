@@ -146,6 +146,27 @@ void main() {
     );
   });
 
+  test('thumb ends sit on inset travel (lane/marker span)', () {
+    const size = Size(40, 120);
+    final half = kFaderThumbV.height / 2;
+    final maxCenter = faderThumbCenter(
+      size: size,
+      orientation: FaderOrientation.vertical,
+      t: 1,
+    );
+    final minCenter = faderThumbCenter(
+      size: size,
+      orientation: FaderOrientation.vertical,
+      t: 0,
+    );
+    expect(maxCenter.dy, half);
+    expect(minCenter.dy, size.height - half);
+    expect(
+      faderTravelLength(size, FaderOrientation.vertical),
+      size.height - kFaderThumbV.height,
+    );
+  });
+
   testWidgets('vertical drag down decreases value', (tester) async {
     final theme = FTheme.neutral.dark.desktop;
     var value = 80.0;

@@ -549,15 +549,18 @@ class _FaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final vertical = orientation == FaderOrientation.vertical;
+    final half = faderThumbExtentAlongAxis(orientation) / 2;
+    final travel = faderTravelLength(size, orientation);
+    // Lane spans thumb travel (plus small aesthetic extend), not the full layout box.
     final trackRect = vertical
         ? Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
             width: _trackThickness,
-            height: size.height + _laneExtend * 2,
+            height: travel + _laneExtend * 2,
           )
         : Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
-            width: size.width + _laneExtend * 2,
+            width: travel + _laneExtend * 2,
             height: _trackThickness,
           );
 
@@ -577,7 +580,7 @@ class _FaderPainter extends CustomPainter {
     }
 
     if (showMarkers) {
-      _paintMarkers(canvas, size, vertical);
+      _paintMarkers(canvas, size, vertical, half, travel);
     }
 
     if (showIndicator) {
@@ -669,17 +672,24 @@ class _FaderPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _paintMarkers(Canvas canvas, Size size, bool vertical) {
+  void _paintMarkers(
+    Canvas canvas,
+    Size size,
+    bool vertical,
+    double half,
+    double travel,
+  ) {
     for (final tick in _faderTicks) {
       final emphasize = centerNotch && tick.pos == 50;
       final len = _tickLength[emphasize ? _TickSize.major : tick.size]!;
       final tone = emphasize ? _tickEmphasize : _tickTone;
       final paint = Paint()..color = tone;
+      // Tick 0 = max end (top/left of travel), 100 = min end — matches thumb.
+      final axis = half + (tick.pos / 100) * travel;
 
       if (vertical) {
-        final y = tick.pos / 100 * size.height;
+        final y = axis;
         final cx = size.width / 2;
-        // Left tick (extends left from gap).
         canvas.drawRect(
           Rect.fromLTWH(
             cx - _tickGap - len,
@@ -689,7 +699,6 @@ class _FaderPainter extends CustomPainter {
           ),
           paint,
         );
-        // Right tick.
         canvas.drawRect(
           Rect.fromLTWH(
             cx + _tickGap,
@@ -700,7 +709,7 @@ class _FaderPainter extends CustomPainter {
           paint,
         );
       } else {
-        final x = tick.pos / 100 * size.width;
+        final x = axis;
         final cy = size.height / 2;
         canvas.drawRect(
           Rect.fromLTWH(
@@ -725,14 +734,15 @@ class _FaderPainter extends CustomPainter {
 
     if (centerNotch) {
       final paint = Paint()..color = _tickTone;
+      final mid = faderThumbCenter(
+        size: size,
+        orientation: orientation,
+        t: 0.5,
+      );
       if (vertical) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(
-              center: Offset(size.width / 2, size.height / 2),
-              width: 14,
-              height: 2,
-            ),
+            Rect.fromCenter(center: mid, width: 14, height: 2),
             const Radius.circular(2),
           ),
           paint,
@@ -740,11 +750,7 @@ class _FaderPainter extends CustomPainter {
       } else {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(
-              center: Offset(size.width / 2, size.height / 2),
-              width: 2,
-              height: 14,
-            ),
+            Rect.fromCenter(center: mid, width: 2, height: 14),
             const Radius.circular(2),
           ),
           paint,
