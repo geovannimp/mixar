@@ -18,6 +18,13 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
 
+/// Row selection fill. Forui neutral dark uses the same hex for `muted` and
+/// `secondary`, so `theme.colors.muted` is invisible on the table surface.
+Color libraryTableSelectedRowColor(FThemeData theme) => Color.alphaBlend(
+  theme.colors.primary.withValues(alpha: 0.14),
+  theme.colors.secondary,
+);
+
 /// Opacity applied to rows already committed in the open history session.
 const kSessionPlayedRowOpacity = 0.3;
 
@@ -222,31 +229,46 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                         ),
                         child: ClipRRect(
                           borderRadius: theme.style.borderRadius.md,
-                          child: TrinaGrid(
-                            // TrinaGrid only reads rowWrapper at construct.
-                            key: ValueKey((
-                              drive ? drivePath : selectedId,
-                              engineRunning,
-                              tableColumns.join(','),
-                            )),
-                            columns: _columns(theme, tableColumns),
-                            rows: _rowsFor(tracks, analyzingId),
-                            mode: TrinaGridMode.readOnly,
-                            rowWrapper: _rowWrapper,
-                            onLoaded: (e) {
-                              _manager = e.stateManager;
-                              e.stateManager.setShowColumnFilter(false);
-                              _attachScrollListener(e.stateManager);
-                              _requestVisibleArtwork(e.stateManager);
-                              ref
-                                  .read(focusedTrackRowIndexProvider.notifier)
-                                  .setCount(_tracks.length);
-                              _applyMidiFocus(
-                                e.stateManager,
-                                ref.read(focusedTrackRowIndexProvider),
-                              );
-                            },
-                            configuration: config,
+                          child: SizedBox.expand(
+                            child: TrinaGrid(
+                              // TrinaGrid only reads rowWrapper at construct.
+                              key: ValueKey((
+                                drive ? drivePath : selectedId,
+                                engineRunning,
+                                tableColumns.join(','),
+                              )),
+                              columns: _columns(theme, tableColumns),
+                              rows: _rowsFor(tracks, analyzingId),
+                              mode: TrinaGridMode.readOnly,
+                              rowWrapper: _rowWrapper,
+                              onLoaded: (e) {
+                                _manager = e.stateManager;
+                                e.stateManager.setShowColumnFilter(false);
+                                _attachScrollListener(e.stateManager);
+                                _requestVisibleArtwork(e.stateManager);
+                                ref
+                                    .read(focusedTrackRowIndexProvider.notifier)
+                                    .setCount(_tracks.length);
+                                _applyMidiFocus(
+                                  e.stateManager,
+                                  ref.read(focusedTrackRowIndexProvider),
+                                );
+                              },
+                              onActiveCellChanged: (event) {
+                                if (event.idx < 0) {
+                                  return;
+                                }
+                                _syncFocusedIndexFromVisual(event.idx);
+                              },
+                              rowColorCallback: (ctx) {
+                                final current = ctx.stateManager.currentRowIdx;
+                                if (current != null && current == ctx.rowIdx) {
+                                  return libraryTableSelectedRowColor(theme);
+                                }
+                                return theme.colors.secondary;
+                              },
+                              configuration: config,
+                            ),
                           ),
                         ),
                       );
@@ -268,8 +290,12 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: '',
         field: 'artwork',
         type: TrinaColumnType.text(),
-        width: 44,
-        minWidth: 44,
+        width: 36,
+        minWidth: 36,
+        // Default cell padding is horizontal:10; that leaves 16px in a 36px
+        // column and squashes a square thumb into a tall rectangle.
+        cellPadding: EdgeInsets.zero,
+        suppressedAutoSize: true,
         enableContextMenu: false,
         enableDropToResize: false,
         enableSorting: false,
@@ -278,24 +304,38 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           if (trackId == null) {
             return const SizedBox.shrink();
           }
+          const size = 28.0;
+          Widget placeholder() => SizedBox.square(
+            dimension: size,
+            child: ColoredBox(
+              color: theme.colors.muted,
+              child: Center(
+                child: Icon(
+                  FLucideIcons.disc2,
+                  size: 16,
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+            ),
+          );
           final bytes = ref.read(artworkCacheProvider)[trackId];
           if (bytes != null && bytes.isNotEmpty) {
             return Center(
-              child: Image.memory(
-                bytes,
-                width: 28,
-                height: 28,
-                fit: BoxFit.cover,
-                cacheWidth: 56,
-                cacheHeight: 56,
-                errorBuilder: (_, _, _) =>
-                    Container(width: 28, height: 28, color: theme.colors.muted),
+              child: SizedBox.square(
+                dimension: size,
+                child: Image.memory(
+                  bytes,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  cacheWidth: 56,
+                  cacheHeight: 56,
+                  errorBuilder: (_, _, _) => placeholder(),
+                ),
               ),
             );
           }
-          return Center(
-            child: Container(width: 28, height: 28, color: theme.colors.muted),
-          );
+          return Center(child: placeholder());
         },
       ),
       if (visible.contains('title'))
@@ -432,6 +472,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 
   TrinaGridConfiguration _gridConfig(FThemeData theme) {
     final surface = theme.colors.secondary;
+    final selected = libraryTableSelectedRowColor(theme);
     final text = theme.typography.body.sm.copyWith(
       color: theme.colors.foreground,
     );
@@ -452,6 +493,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           PointerDeviceKind.invertedStylus,
           PointerDeviceKind.trackpad,
         },
+        // Trina subtracts scrollbar thickness from column auto-size when this
+        // is true, leaving an empty gutter even if the thumb is hidden.
+        columnShowScrollWidth: false,
+        showHorizontal: false,
       ),
       columnSize: const TrinaGridColumnSizeConfig(
         autoSizeMode: TrinaAutoSizeMode.scale,
@@ -466,10 +511,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         rowColor: surface,
         oddRowColor: surface,
         evenRowColor: surface,
-        activatedColor: theme.colors.muted,
+        activatedColor: selected,
         // Keep selectingMode.none for deck drag; transparent current-cell
-        // border so focus reads as a full-row activatedColor fill.
+        // border so focus reads as a full-row fill (rowColorCallback + this).
         activatedBorderColor: const Color(0x00000000),
+        unfocusedSelectionColor: selected,
         borderColor: theme.colors.border,
         gridBorderColor: theme.colors.border,
         inactivatedBorderColor: const Color(0x00000000),
@@ -558,14 +604,50 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         rowData.cells['title']?.value as String? ??
         '';
     final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
-    return _TrackActionsContextMenu(
-      trackId: trackId,
-      path: path,
-      title: title,
-      inLibrary: inLibrary,
-      analyzing: analyzing,
-      child: row,
+    // Pointer-down (not tap): super_dnd's drag recognizer often wins the
+    // gesture arena, so Trina's onTapUp never selects the row.
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _selectVisualRow(stateManager, rowData),
+      child: _TrackActionsContextMenu(
+        trackId: trackId,
+        path: path,
+        title: title,
+        inLibrary: inLibrary,
+        analyzing: analyzing,
+        child: row,
+      ),
     );
+  }
+
+  void _selectVisualRow(TrinaGridStateManager manager, TrinaRow rowData) {
+    final visualIndex = manager.refRows.indexOf(rowData);
+    if (visualIndex < 0) {
+      return;
+    }
+    final cell = rowData.cells['title'] ?? rowData.cells.values.first;
+    manager.setCurrentCell(cell, visualIndex);
+    manager.setKeepFocus(true);
+    _syncFocusedIndexFromVisual(visualIndex);
+  }
+
+  void _syncFocusedIndexFromVisual(int visualIndex) {
+    final manager = _manager;
+    if (manager == null ||
+        visualIndex < 0 ||
+        visualIndex >= manager.refRows.length) {
+      return;
+    }
+    final trackId =
+        manager.refRows[visualIndex].cells['trackId']?.value as String?;
+    if (trackId == null) {
+      return;
+    }
+    final tableIndex = _tracks.indexWhere((t) => t.id == trackId);
+    if (tableIndex < 0) {
+      return;
+    }
+    ref.read(focusedTrackRowIndexProvider.notifier).set(tableIndex);
   }
 
   Widget _dragRowWrapper(

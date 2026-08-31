@@ -51,5 +51,5 @@ class MixerPage extends StatelessWidget {
   }
 
   static Widget _fill(BuildContext _, FResizableRegionData _, Widget? child) =>
-      child!;
+      SizedBox.expand(child: child);
 }
