@@ -131,16 +131,6 @@ void main() {
     expect(visibleSourceMs(0), kWaveformVisibleMs);
   });
 
-  test('overviewWindowRect is the visible span as 0..1', () {
-    final rect = overviewWindowRect(
-      positionMs: 12_000,
-      durationMs: 48_000,
-      visibleMs: 24_000,
-    );
-    expect(rect.left, closeTo(0, 1e-6));
-    expect(rect.right, closeTo(0.5, 1e-6));
-  });
-
   test('l1Range clamps to the track so t=0 maps to the first L1 peak', () {
     final range = l1Range(
       positionMs: 0,

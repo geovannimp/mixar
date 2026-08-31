@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
-import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
@@ -55,15 +54,9 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final visibleMs = cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-              );
-              final window = overviewWindowRect(
-                positionMs: positionMs,
-                durationMs: durationMs,
-                visibleMs: visibleMs,
-              );
+              final playheadX = durationMs > 0
+                  ? (positionMs / durationMs).clamp(0.0, 1.0) * width
+                  : 0.0;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: durationMs <= 0
@@ -87,6 +80,16 @@ class OverviewStrip extends ConsumerWidget {
                         mode: mode,
                       ),
                     ),
+                    if (durationMs > 0)
+                      Positioned(
+                        left: 0,
+                        width: playheadX,
+                        top: 0,
+                        bottom: 0,
+                        child: ColoredBox(
+                          color: const Color.fromRGBO(0, 0, 0, 0.6),
+                        ),
+                      ),
                     if (durationMs > 0 && width > 0)
                       IgnorePointer(
                         child: _OverviewOverlayLayer(
@@ -99,21 +102,7 @@ class OverviewStrip extends ConsumerWidget {
                       ),
                     if (durationMs > 0)
                       Positioned(
-                        left: window.left * width,
-                        width:
-                            (window.right - window.left).clamp(0.0, 1.0) *
-                            width,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: theme.colors.foreground.withValues(
-                            alpha: 0.12,
-                          ),
-                        ),
-                      ),
-                    if (durationMs > 0)
-                      Positioned(
-                        left: (positionMs / durationMs).clamp(0.0, 1.0) * width,
+                        left: playheadX,
                         top: 0,
                         bottom: 0,
                         child: ColoredBox(
@@ -211,7 +200,9 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
       widget.durationMs,
       widget.width,
       widget.height,
-      Object.hashAll(widget.hotCues.map((c) => Object.hash(c.slot, c.positionMs))),
+      Object.hashAll(
+        widget.hotCues.map((c) => Object.hash(c.slot, c.positionMs)),
+      ),
     );
     if (cueKey != _cueKey) {
       _drop(_cues);
@@ -253,7 +244,8 @@ class _OverviewOverlayPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_OverviewOverlayPainter oldDelegate) =>
-      !identical(loops, oldDelegate.loops) || !identical(cues, oldDelegate.cues);
+      !identical(loops, oldDelegate.loops) ||
+      !identical(cues, oldDelegate.cues);
 }
 
 Future<void> _seek(
