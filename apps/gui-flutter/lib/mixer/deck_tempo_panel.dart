@@ -21,6 +21,7 @@ class DeckTempoPanel extends StatelessWidget {
     this.trackBpm,
     this.loading = false,
     this.tempoRangeSteps = kTempoRangeSteps,
+    this.enabled = true,
     super.key,
   });
 
@@ -41,6 +42,9 @@ class DeckTempoPanel extends StatelessWidget {
   final bool loading;
 
   final List<double> tempoRangeSteps;
+
+  /// When false (engine not running), disable tempo controls.
+  final bool enabled;
 
   bool get _syncActive => syncMode != SyncMode.off;
 
@@ -101,7 +105,7 @@ class DeckTempoPanel extends StatelessWidget {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: isMaster
+                  onPress: (!enabled || isMaster)
                       ? null
                       : () => onToggleSync(shiftKeyPressed()),
                   child: Text(
@@ -125,7 +129,7 @@ class DeckTempoPanel extends StatelessWidget {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: isMaster ? null : onSetMaster,
+                  onPress: (!enabled || isMaster) ? null : onSetMaster,
                   child: SizedBox(
                     width: 52,
                     child: FittedBox(
@@ -160,7 +164,7 @@ class DeckTempoPanel extends StatelessWidget {
                     showIndicator: false,
                     showMarkers: true,
                     centerNotch: true,
-                    disabled: faderDisabled,
+                    disabled: faderDisabled || !enabled,
                     semanticLabel: 'Tempo',
                     onValueChange: (next) =>
                         onSpeedChange(pitchSliderToSpeed(next)),
@@ -173,9 +177,11 @@ class DeckTempoPanel extends StatelessWidget {
                   variant: .ghost,
                   size: .xs,
                   mainAxisSize: .min,
-                  onPress: () => onTempoRangeChange(
-                    nextTempoRange(tempoRange, tempoRangeSteps),
-                  ),
+                  onPress: enabled
+                      ? () => onTempoRangeChange(
+                          nextTempoRange(tempoRange, tempoRangeSteps),
+                        )
+                      : null,
                   child: Text(
                     formatTempoRange(tempoRange),
                     style: theme.typography.body.xs.copyWith(

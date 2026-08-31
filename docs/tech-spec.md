@@ -60,7 +60,7 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 
 ## 2 — Non-goals for MVP
 
-- Time-stretching / professional pitch-shift (plan modular extension later).
+- Semitone key shift / stems (beyond key-lock tempo stretch via `stretch` + timestretch).
 - Mixer GUI or UI (library is headless).
 - Telemetry / opt-in data collection.
 - Recording/streaming.

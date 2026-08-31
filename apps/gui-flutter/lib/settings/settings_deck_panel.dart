@@ -76,6 +76,21 @@ class SettingsDeckPanel extends ConsumerWidget {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+
+        SettingsPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              const SettingsSectionHeader(
+                title: 'Tempo and Key',
+                description:
+                    'Default pitch-fader range and key lock for new decks.',
+              ),
+              const SizedBox(height: 0),
               SettingsField(
                 label: 'Default tempo range',
                 child: SettingsSelect(
@@ -85,6 +100,17 @@ class SettingsDeckPanel extends ConsumerWidget {
                   onChanged: (step) => onChanged(
                     copyAppSettings(draft, defaultTempoRange: step),
                   ),
+                ),
+              ),
+              SettingsField(
+                label: 'Default key lock',
+                hint:
+                    'Tempo-only pitch when on (time-stretch). Off = vinyl tempo.',
+                child: SettingsToggle(
+                  label: 'Key lock',
+                  value: draft.defaultKeyLock,
+                  onChanged: (v) =>
+                      onChanged(copyAppSettings(draft, defaultKeyLock: v)),
                 ),
               ),
             ],

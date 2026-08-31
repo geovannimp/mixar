@@ -167,7 +167,7 @@ UI layout zones (match competitor ergonomics):
 | **C — Controller pads** | P1 | 8 performance pads (2×4); **mode selector**; default **Hot Cue** mode |
 | **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel; Virtual DJ “LOOP” side label) |
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
-| **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range, key lock |
+| **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
 | **H — Extended pad modes** | P3+ | Stems, Sampler, Beat Jump, Slicer (reuse same 8 pads) |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
@@ -237,7 +237,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 |----|---------|-------------|--------------|----------|
 | P1 | **Pitch fader** | Vertical slider; selectable range ±6 / ±10 / ±50 % | Maps to `Deck::set_speed` | P1 |
 | P2 | **Pitch bend buttons** | Momentary ± adjustment | Temporary speed offset | P2 |
-| P3 | **Key lock / Master Tempo** | Change tempo without changing key | Requires time-stretch (not in MVP engine) | P2 |
+| P3 | **Key lock / Master Tempo** | Change tempo without changing key | [`timestretch`](https://crates.io/crates/timestretch) WideKeylock via `SetKeyLock` | P2 |
 | P4 | **Key shift** | ± semitones independent of tempo | Pitch shift DSP | P3 |
 | P5 | **Sync (beat)** | Match phase and tempo to master deck | Compare beat grids + positions | P1 |
 | P6 | **Sync (tempo only)** | Match BPM without phase lock | Adjust pitch fader target | P1 |
@@ -246,7 +246,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | P9 | **BPM display (live)** | Updates during pitch fader move | Derived | P1 |
 | P10 | **Snap pitch to BPM** | Optional: round effective BPM to 0.01 | UX nicety | P3 |
 
-**Critical dependency:** True **key lock** and **quality tempo change** need a time-stretch engine (Rubber Band, SoundTouch, or phase-vocoder). Until then, pitch fader changes **both** tempo and key (classic vinyl behavior) and UI must label this honestly (“Vinyl tempo”).
+**Key lock:** Toggle on the track-key ghost control (`lock` / `lock-open`). Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl).
 
 ---
 
@@ -843,7 +843,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 |---|--------|----------|
 | DK1 | Pad count | **8 slots** (2×4 grid); schema allows **16** for Hot Cue mode expansion |
 | DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode** (Virtual DJ / Serato model); `track_hot_cue` stores Hot Cue mode data only |
-| DK2 | Key lock | **Deferred** until time-stretch exists; pitch fader = vinyl mode |
+| DK2 | Key lock | Tempo fader + sync use [`timestretch`](https://crates.io/crates/timestretch) WideKeylock (`SetKeyLock`); vinyl jog stays fractional |
 | DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
 | DK4 | Stems | **Phase 4**; separate spec when chosen |
 | DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |

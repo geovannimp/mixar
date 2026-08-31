@@ -52,6 +52,7 @@ class AppSettings {
   final JogModeSetting defaultOuterJogMode;
   final double defaultTempoRange;
   final Float32List tempoRangeSteps;
+  final bool defaultKeyLock;
   final WaveformDisplayModeSetting waveformDisplayMode;
   final KeyDisplayModeSetting keyDisplayMode;
   final List<String> trustedControllerDeviceIds;
@@ -80,6 +81,7 @@ class AppSettings {
     required this.defaultOuterJogMode,
     required this.defaultTempoRange,
     required this.tempoRangeSteps,
+    required this.defaultKeyLock,
     required this.waveformDisplayMode,
     required this.keyDisplayMode,
     required this.trustedControllerDeviceIds,
@@ -110,6 +112,7 @@ class AppSettings {
       defaultOuterJogMode.hashCode ^
       defaultTempoRange.hashCode ^
       tempoRangeSteps.hashCode ^
+      defaultKeyLock.hashCode ^
       waveformDisplayMode.hashCode ^
       keyDisplayMode.hashCode ^
       trustedControllerDeviceIds.hashCode ^
@@ -142,6 +145,7 @@ class AppSettings {
           defaultOuterJogMode == other.defaultOuterJogMode &&
           defaultTempoRange == other.defaultTempoRange &&
           tempoRangeSteps == other.tempoRangeSteps &&
+          defaultKeyLock == other.defaultKeyLock &&
           waveformDisplayMode == other.waveformDisplayMode &&
           keyDisplayMode == other.keyDisplayMode &&
           trustedControllerDeviceIds == other.trustedControllerDeviceIds &&

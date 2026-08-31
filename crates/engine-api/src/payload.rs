@@ -133,6 +133,9 @@ pub struct DeckSnapshot {
     pub speed: f32,
     /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
     pub tempo_range: f32,
+    /// Key lock (time-stretch); tempo changes without pitch when true.
+    #[serde(default)]
+    pub key_lock: bool,
     pub eq: DeckEq,
     /// Filter knob `0..1` (center `0.5` = flat).
     pub filter: f32,
@@ -204,6 +207,10 @@ pub enum CmdBody {
     /// Tempo fader half-span as pitch fraction (`0.06` = ±6%).
     SetTempoRange {
         tempo_range: f32,
+    },
+    /// Key lock / master tempo (time-stretch; pitch held).
+    SetKeyLock {
+        enabled: bool,
     },
     SetFilter {
         /// Filter knob `0..1`.
@@ -371,6 +378,8 @@ pub enum EvtBody {
         volume: f32,
         speed: f32,
         tempo_range: f32,
+        #[serde(default)]
+        key_lock: bool,
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,

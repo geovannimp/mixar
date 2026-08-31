@@ -303,7 +303,7 @@ mod tests {
         assert_eq!(channel.eq_gains(), DeckEqGains::default());
         assert_eq!(channel.filter_db(), 0.0);
         assert!(!channel.headphone_cue());
-        assert_eq!(channel.pre_fader_buffer(), &[]);
+        assert_eq!(channel.pre_fader_buffer(), &[] as &[f32]);
         assert_eq!(channel.level_peaks().peak_l, 0.0);
         assert_eq!(channel.level_peaks().peak_r, 0.0);
 

@@ -339,10 +339,12 @@ impl Engine {
         )));
         {
             let default_range = self.config.default_tempo_range();
+            let default_key_lock = self.config.default_key_lock();
             let mut dsp = dsp_engine.lock().unwrap();
             for deck_id in 0..dsp.num_decks() {
                 if let Some(deck) = dsp.deck_mut(deck_id) {
                     deck.set_tempo_range(default_range);
+                    let _ = deck.set_key_lock(default_key_lock);
                 }
             }
         }
@@ -740,6 +742,19 @@ impl Engine {
             }
         }
         Ok(updated)
+    }
+
+    /// Enable/disable key lock (time-stretch) for a deck.
+    pub fn set_deck_key_lock(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_key_lock(enabled)
     }
 
     fn set_deck_speed_raw(&mut self, deck_id: usize, speed: f32) -> Result<()> {
@@ -1975,6 +1990,7 @@ fn deck_snapshot_from_dsp(
         volume: channel.volume(),
         speed: deck.speed(),
         tempo_range: deck.tempo_range(),
+        key_lock: deck.key_lock(),
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),

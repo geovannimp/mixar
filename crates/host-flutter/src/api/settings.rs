@@ -242,6 +242,8 @@ pub struct AppSettings {
     pub default_outer_jog_mode: JogModeSetting,
     pub default_tempo_range: f32,
     pub tempo_range_steps: Vec<f32>,
+    #[serde(default)]
+    pub default_key_lock: bool,
     pub waveform_display_mode: WaveformDisplayModeSetting,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
@@ -357,6 +359,7 @@ fn default_engine_config() -> EngineConfig {
             sampler_strip_route: Some(SamplerStripRouteSetting::Before),
             default_tempo_range: Some(DEFAULT_TEMPO_RANGE),
             tempo_range_steps: Some(DEFAULT_TEMPO_RANGE_STEPS.to_vec()),
+            default_key_lock: Some(false),
         }),
         buses: vec![bus_config(
             MASTER_BUS_ID,
@@ -549,6 +552,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_outer_jog_mode: host.default_outer_jog_mode,
         default_tempo_range: config.default_tempo_range(),
         tempo_range_steps: config.tempo_range_steps(),
+        default_key_lock: config.default_key_lock(),
         waveform_display_mode: host.waveform_display_mode,
         key_display_mode: host.key_display_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
@@ -573,6 +577,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
         sampler_strip_route: Some(settings.sampler_strip_route.into()),
         default_tempo_range: Some(settings.default_tempo_range),
         tempo_range_steps: Some(settings.tempo_range_steps.clone()),
+        default_key_lock: Some(settings.default_key_lock),
     });
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
@@ -698,6 +703,33 @@ mod tests {
         );
         assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
         assert!(parsed.trusted_controller_device_ids.is_empty());
+    }
+
+    #[test]
+    fn missing_default_key_lock_defaults_false() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("default_key_lock");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert!(!settings_from_host(&host).default_key_lock);
+    }
+
+    #[test]
+    fn default_key_lock_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.default_key_lock = true;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(restored.default_key_lock);
     }
 
     #[test]

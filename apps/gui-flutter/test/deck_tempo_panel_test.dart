@@ -64,7 +64,10 @@ void main() {
       syncMode: SyncMode.tempo,
     );
 
-    expect(find.text(formatPitchPercent(0.25, 0.08)), findsOneWidget);
+    expect(
+      find.text(formatPitchPercent(0.25, 0.08)),
+      findsOneWidget,
+    );
     expect(find.text(formatTempoRange(0.08)), findsOneWidget);
     expect(find.text('S'), findsOneWidget);
     expect(find.text('Set master'), findsOneWidget);

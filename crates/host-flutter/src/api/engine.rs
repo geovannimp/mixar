@@ -222,6 +222,20 @@ fn source_label(source: &AudioSource) -> String {
         .unwrap_or_else(|| source.id().as_str().to_string())
 }
 
+/// Deck chrome title for Flutter: metadata title, else file stem (never a full path).
+fn deck_display_title(title: Option<&str>, path: Option<&str>) -> Option<String> {
+    if let Some(t) = title.map(str::trim).filter(|s| !s.is_empty()) {
+        return Some(t.to_string());
+    }
+    path.and_then(|p| {
+        Path::new(p)
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .filter(|s| !s.is_empty())
+    })
+    .or_else(|| path.map(|p| p.to_string()).filter(|s| !s.is_empty()))
+}
+
 fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
     SamplerSlotChrome {
         label: Some(source_label(&prepared.source)),
@@ -308,6 +322,7 @@ pub struct EngineEvt {
     pub duration_ms: Option<i32>,
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
+    pub key_lock: Option<bool>,
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
     pub master_deck: Option<u16>,
@@ -363,6 +378,7 @@ impl EngineEvt {
             duration_ms: None,
             speed: None,
             tempo_range: None,
+            key_lock: None,
             pad_mode: None,
             sync_mode: None,
             master_deck: None,
@@ -722,6 +738,15 @@ impl EngineTransport {
             Origin::Deck(deck_id),
             Kind::SetTempoRange,
             &CmdBody::SetTempoRange { tempo_range },
+        )
+    }
+
+    /// Key lock / master tempo (time-stretch; pitch held).
+    pub fn set_key_lock(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyLock,
+            &CmdBody::SetKeyLock { enabled },
         )
     }
 
@@ -1235,7 +1260,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
     evt.deck_id = Some(snap.id);
     evt.playing = Some(snap.playing);
-    evt.track = snap.track.clone();
+    evt.track = deck_display_title(snap.title.as_deref(), snap.track.as_deref());
     evt.track_id = snap.track_id.clone();
     evt.position_ms = snap.position_ms;
     evt.volume = Some(snap.volume);
@@ -1249,6 +1274,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.duration_known = true;
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
+    evt.key_lock = Some(snap.key_lock);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
@@ -1285,6 +1311,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             playing,
             track,
             track_id,
+            title,
             position_ms,
             volume,
             eq,
@@ -1294,6 +1321,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             duration_ms,
             speed,
             tempo_range,
+            key_lock,
             pad_mode,
             sync_mode,
             active_loop,
@@ -1307,7 +1335,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
             evt.deck_id = deck_id.or(Some(id));
             evt.playing = Some(playing);
-            evt.track = track;
+            evt.track = deck_display_title(title.as_deref(), track.as_deref());
             evt.track_id = track_id;
             evt.position_ms = position_ms;
             evt.volume = Some(volume);
@@ -1321,6 +1349,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.duration_known = true;
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
+            evt.key_lock = Some(key_lock);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
@@ -1403,6 +1432,7 @@ mod tests {
             volume,
             speed: 0.5,
             tempo_range: 0.08,
+            key_lock: false,
             eq: DeckEq {
                 low: 0.5,
                 mid: 0.5,
@@ -1427,6 +1457,23 @@ mod tests {
             outer_jog_mode: JogMode::PitchBend,
             jog_touching: false,
         }
+    }
+
+    #[test]
+    fn deck_display_title_prefers_metadata_then_file_stem() {
+        assert_eq!(
+            deck_display_title(Some("Palawan"), Some("/music/Palawan.opus")).as_deref(),
+            Some("Palawan")
+        );
+        assert_eq!(
+            deck_display_title(None, Some("/home/me/samples/Palawan by SKIRK.opus")).as_deref(),
+            Some("Palawan by SKIRK")
+        );
+        assert_eq!(
+            deck_display_title(Some("  "), Some("x.wav")).as_deref(),
+            Some("x")
+        );
+        assert_eq!(deck_display_title(None, None), None);
     }
 
     #[test]

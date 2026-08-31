@@ -13,6 +13,7 @@ pub enum Kind {
     SetEqBand,
     SetSpeed,
     SetTempoRange,
+    SetKeyLock,
     SetFilter,
     SetGainTrim,
     SetHeadphoneCue,

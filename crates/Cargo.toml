@@ -9,6 +9,7 @@ members = [
     "engine-dsp",
     "codec",
     "resampler",
+    "stretch",
     "library-core",
     "fs-browser",
     "library-api",

@@ -146,6 +146,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
     required JogModeSetting outer,
   });
 
+  /// Key lock / master tempo (time-stretch; pitch held).
+  Future<void> setKeyLock({required int deckId, required bool enabled});
+
   /// Master cue (headphones hear master).
   Future<void> setMasterCue({required bool enabled});
 
@@ -250,6 +253,7 @@ class EngineEvt {
   final int? durationMs;
   final double? speed;
   final double? tempoRange;
+  final bool? keyLock;
   final PadMode? padMode;
   final SyncMode? syncMode;
   final int? masterDeck;
@@ -305,6 +309,7 @@ class EngineEvt {
     this.durationMs,
     this.speed,
     this.tempoRange,
+    this.keyLock,
     this.padMode,
     this.syncMode,
     this.masterDeck,
@@ -348,6 +353,7 @@ class EngineEvt {
       durationMs.hashCode ^
       speed.hashCode ^
       tempoRange.hashCode ^
+      keyLock.hashCode ^
       padMode.hashCode ^
       syncMode.hashCode ^
       masterDeck.hashCode ^
@@ -393,6 +399,7 @@ class EngineEvt {
           durationMs == other.durationMs &&
           speed == other.speed &&
           tempoRange == other.tempoRange &&
+          keyLock == other.keyLock &&
           padMode == other.padMode &&
           syncMode == other.syncMode &&
           masterDeck == other.masterDeck &&

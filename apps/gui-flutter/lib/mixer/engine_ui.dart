@@ -1,6 +1,7 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
@@ -63,6 +64,7 @@ class EngineUiSnapshot {
     this.durationMs = const {},
     this.speeds = const {},
     this.tempoRanges = const {},
+    this.keyLocks = const {},
     this.padModes = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
@@ -91,6 +93,7 @@ class EngineUiSnapshot {
   final Map<int, int> durationMs;
   final Map<int, double> speeds;
   final Map<int, double> tempoRanges;
+  final Map<int, bool> keyLocks;
   final Map<int, PadMode> padModes;
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
@@ -113,6 +116,8 @@ class EngineUiSnapshot {
   double speedFor(int deckId) => speeds[deckId] ?? 0.5;
 
   double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
+
+  bool keyLockFor(int deckId) => keyLocks[deckId] ?? false;
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
@@ -151,6 +156,7 @@ class EngineUiSnapshot {
     Map<int, int>? durationMs,
     Map<int, double>? speeds,
     Map<int, double>? tempoRanges,
+    Map<int, bool>? keyLocks,
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
@@ -174,6 +180,7 @@ class EngineUiSnapshot {
     durationMs: durationMs ?? this.durationMs,
     speeds: speeds ?? this.speeds,
     tempoRanges: tempoRanges ?? this.tempoRanges,
+    keyLocks: keyLocks ?? this.keyLocks,
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
@@ -206,14 +213,13 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       }
       final unloaded = evt.durationKnown && evt.durationMs == null;
       final nextTitles = Map<int, String>.from(prev.titles);
-      final title = evt.track;
-      // Engine snapshots omit library metadata (`track`/`title` are always
-      // null). Keep the host title from load; only replace when the evt
-      // actually carries one. Unload (duration_ms → null) clears host identity.
+      final track = evt.track;
+      // `EngineEvt.track` is display title from the host; basename only when path-shaped
+      // so titles like `AC/DC` stay intact (see #202 for track_title cleanup).
       if (unloaded) {
         nextTitles.remove(id);
-      } else if (title != null && title.isNotEmpty) {
-        nextTitles[id] = title;
+      } else if (track != null && track.isNotEmpty) {
+        nextTitles[id] = _deckTitleFromEvtTrack(track);
       }
       final nextPlaying = Map<int, bool>.from(prev.playing);
       if (evt.playing != null) {
@@ -240,6 +246,10 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       final nextRanges = Map<int, double>.from(prev.tempoRanges);
       if (evt.tempoRange != null) {
         nextRanges[id] = evt.tempoRange!;
+      }
+      final nextKeyLocks = Map<int, bool>.from(prev.keyLocks);
+      if (evt.keyLock != null) {
+        nextKeyLocks[id] = evt.keyLock!;
       }
       final nextPadModes = Map<int, PadMode>.from(prev.padModes);
       final enginePadMode = evt.padMode;
@@ -312,6 +322,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         durationMs: nextDurations,
         speeds: nextSpeeds,
         tempoRanges: nextRanges,
+        keyLocks: nextKeyLocks,
         padModes: nextPadModes,
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,
@@ -341,4 +352,18 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
     case EngineEvtKind.notice:
       return prev;
   }
+}
+
+/// Host display title, or file stem when [track] looks like a filesystem path.
+String _deckTitleFromEvtTrack(String track) {
+  final looksLikePath = track.contains('/') || track.contains(r'\');
+  if (!looksLikePath) {
+    return track;
+  }
+  final base = fileNameFromPath(track);
+  final dot = base.lastIndexOf('.');
+  if (dot > 0) {
+    return base.substring(0, dot);
+  }
+  return base;
 }

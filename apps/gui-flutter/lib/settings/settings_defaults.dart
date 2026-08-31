@@ -74,6 +74,7 @@ AppSettings defaultAppSettings() {
     defaultOuterJogMode: JogModeSetting.pitchBend,
     defaultTempoRange: kDefaultTempoRange,
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
+    defaultKeyLock: false,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     keyDisplayMode: KeyDisplayModeSetting.musical,
     trustedControllerDeviceIds: const [],
@@ -144,6 +145,7 @@ AppSettings copyAppSettings(
   JogModeSetting? defaultOuterJogMode,
   double? defaultTempoRange,
   Float32List? tempoRangeSteps,
+  bool? defaultKeyLock,
   WaveformDisplayModeSetting? waveformDisplayMode,
   KeyDisplayModeSetting? keyDisplayMode,
   List<String>? trustedControllerDeviceIds,
@@ -174,6 +176,7 @@ AppSettings copyAppSettings(
     defaultOuterJogMode: defaultOuterJogMode ?? base.defaultOuterJogMode,
     defaultTempoRange: defaultTempoRange ?? base.defaultTempoRange,
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
+    defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
     trustedControllerDeviceIds:
@@ -208,6 +211,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTopJogMode != baseline.defaultTopJogMode ||
       draft.defaultOuterJogMode != baseline.defaultOuterJogMode ||
       draft.defaultTempoRange != baseline.defaultTempoRange ||
+      draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
       draft.historyEnabled != baseline.historyEnabled ||

@@ -10,6 +10,7 @@ description = "Pure DSP components for Mixar"
 [dependencies]
 audio-core = { path = "../audio-core" }
 resampler = { path = "../resampler" }
+stretch = { path = "../stretch" }
 anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true

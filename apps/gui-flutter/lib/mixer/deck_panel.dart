@@ -51,6 +51,7 @@ class DeckPanel extends ConsumerWidget {
       isMaster: ref.watch(deckIsMasterProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
+      enabled: engineRunning,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
       onSpeedChange: (speed) {
         unawaited(_engineCmd(context, () => setDeckSpeed(ref, deckId, speed)));
@@ -200,7 +201,7 @@ class _EjectLoadButton extends StatelessWidget {
           padding: .value(.symmetric(horizontal: 14, vertical: 2)),
         ),
       ),
-      child: Icon(hasTrack ? LucideIcons.circleX600 : LucideIcons.fileInput600),
+      child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
     );
   }
 }

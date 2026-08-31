@@ -1,0 +1,13 @@
+[package]
+name = "stretch"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Realtime time-stretch for Mixar key lock (timestretch)"
+
+[dependencies]
+audio-core = { path = "../audio-core" }
+anyhow.workspace = true
+timestretch = "0.14"
