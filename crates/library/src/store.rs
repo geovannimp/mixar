@@ -5,8 +5,8 @@ use std::path::Path;
 use library_core::{CollectionId, Result, TrackId, TrackMetadata};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
-    Set,
+    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set,
 };
 
 use crate::db::{self, Db};
@@ -320,6 +320,21 @@ impl<'a> Store<'a> {
         track_id: &TrackId,
         position: Option<i32>,
     ) -> Result<()> {
+        self.insert_collection_track_on(
+            self.db.conn()?.as_connection(),
+            collection_id,
+            track_id,
+            position,
+        )
+    }
+
+    fn insert_collection_track_on(
+        &self,
+        connection: &DatabaseConnection,
+        collection_id: &CollectionId,
+        track_id: &TrackId,
+        position: Option<i32>,
+    ) -> Result<()> {
         let active = collection_tracks::ActiveModel {
             id: Set(Uuid::new_v4().to_string()),
             collection_id: Set(collection_id.as_str().to_string()),
@@ -327,7 +342,7 @@ impl<'a> Store<'a> {
             position: Set(position),
         };
         CollectionTrackEntity::insert(active)
-            .exec(self.db.conn()?.as_connection())
+            .exec(connection)
             .map_err(db::db_err)?;
         Ok(())
     }
@@ -351,8 +366,7 @@ impl<'a> Store<'a> {
             active.update(connection).map_err(db::db_err)?;
             return Ok(());
         }
-        drop(conn); // std Mutex is not reentrant; insert_collection_track locks again
-        self.insert_collection_track(collection_id, track_id, position)
+        self.insert_collection_track_on(connection, collection_id, track_id, position)
     }
 
     pub fn delete_collection_track(
