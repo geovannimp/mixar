@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/focused_load.dart';
+import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/track_detail_dialog.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -16,6 +17,9 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
+
+/// Opacity applied to rows already committed in the open history session.
+const kSessionPlayedRowOpacity = 0.45;
 
 /// Filter + [trina_grid](https://github.com/doonfrs/trina_grid) track table.
 class TrackTablePane extends ConsumerStatefulWidget {
@@ -106,6 +110,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final analyzingId = ref.watch(analyzingTrackIdProvider);
     final engineRunning = ref.watch(engineRunningProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
+    ref.watch(sessionPlayedKeysProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -115,6 +120,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       }
       manager.removeAllRows();
       manager.appendRows(_rowsFor(_tracks, next));
+      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
+    });
+    ref.listen(sessionPlayedKeysProvider, (_, _) {
+      final manager = _manager;
+      if (manager == null || _tracks.isEmpty) {
+        return;
+      }
+      manager.removeAllRows();
+      manager.appendRows(
+        _rowsFor(_tracks, ref.read(analyzingTrackIdProvider)),
+      );
       _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
     ref.listen(artworkCacheProvider, (_, _) {
@@ -525,6 +541,13 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (path == null || trackId == null) {
       return inner;
     }
+    final played =
+        ref.read(sessionPlayedKeysProvider).asData?.value ??
+        SessionPlayedKeys.empty;
+    final dimmed = played.matches(trackId: trackId, path: path);
+    final row = dimmed
+        ? Opacity(opacity: kSessionPlayedRowOpacity, child: inner)
+        : inner;
     final inLibrary = rowData.cells['inLibrary']?.value == true;
     final title =
         rowData.cells['dragTitle']?.value as String? ??
@@ -537,7 +560,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       title: title,
       inLibrary: inLibrary,
       analyzing: analyzing,
-      child: inner,
+      child: row,
     );
   }
 

@@ -7,7 +7,7 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_table_columns`, `default_master_bus_route`, `default_preview_bus_route`, `default_show_tooltips`, `load_host`, `normalizer_target`, `parse_bus`, `parse_settings`, `read_settings_file`, `seed_engine_config_if_unconfigured`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `shared_host`, `write_settings_file`
+// These functions are ignored because they are not marked as `pub`: `apply_to_host`, `bind_persist_path`, `bus_config`, `bus_route_from_config`, `buses_from_settings`, `channel_mapping_from_route`, `default_dim_played_tracks`, `default_engine_config`, `default_history_enabled`, `default_history_min_deck_volume`, `default_history_min_play_seconds`, `default_history_session_idle_minutes`, `default_library_table_columns`, `default_master_bus_route`, `default_preview_bus_route`, `default_show_tooltips`, `load_host`, `normalizer_target`, `parse_bus`, `parse_settings`, `read_settings_file`, `seed_engine_config_if_unconfigured`, `settings_engine_config`, `settings_from_host`, `settings_host_runtime`, `shared_host`, `write_settings_file`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SettingsHost`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseOwnerTyShouldIgnore): `default`
@@ -62,6 +62,7 @@ class AppSettings {
   final int historyMinPlaySeconds;
   final double historyMinDeckVolume;
   final bool showTooltips;
+  final bool dimPlayedTracks;
 
   const AppSettings({
     required this.backend,
@@ -92,6 +93,7 @@ class AppSettings {
     required this.historyMinPlaySeconds,
     required this.historyMinDeckVolume,
     required this.showTooltips,
+    required this.dimPlayedTracks,
   });
 
   @override
@@ -123,7 +125,8 @@ class AppSettings {
       historySessionIdleMinutes.hashCode ^
       historyMinPlaySeconds.hashCode ^
       historyMinDeckVolume.hashCode ^
-      showTooltips.hashCode;
+      showTooltips.hashCode ^
+      dimPlayedTracks.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -157,7 +160,8 @@ class AppSettings {
           historySessionIdleMinutes == other.historySessionIdleMinutes &&
           historyMinPlaySeconds == other.historyMinPlaySeconds &&
           historyMinDeckVolume == other.historyMinDeckVolume &&
-          showTooltips == other.showTooltips;
+          showTooltips == other.showTooltips &&
+          dimPlayedTracks == other.dimPlayedTracks;
 }
 
 /// Bus channel routing mode.

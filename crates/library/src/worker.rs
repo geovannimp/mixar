@@ -125,6 +125,7 @@ fn handle_cmd(
         | Kind::HotCuesChanged
         | Kind::LoopsChanged
         | Kind::BeatGridChanged
+        | Kind::HistorySessionUpdated
         | Kind::Navigate
         | Kind::Load
         | Kind::Error

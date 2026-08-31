@@ -259,6 +259,8 @@ pub struct AppSettings {
     pub history_min_deck_volume: f32,
     #[serde(default = "default_show_tooltips")]
     pub show_tooltips: bool,
+    #[serde(default = "default_dim_played_tracks")]
+    pub dim_played_tracks: bool,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -283,6 +285,7 @@ struct SettingsHost {
     history_min_play_seconds: u32,
     history_min_deck_volume: f32,
     show_tooltips: bool,
+    dim_played_tracks: bool,
 }
 
 impl Default for SettingsHost {
@@ -307,6 +310,7 @@ impl Default for SettingsHost {
             history_min_play_seconds: default_history_min_play_seconds(),
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
+            dim_played_tracks: default_dim_played_tracks(),
         }
     }
 }
@@ -328,6 +332,10 @@ fn default_history_min_deck_volume() -> f32 {
 }
 
 fn default_show_tooltips() -> bool {
+    true
+}
+
+fn default_dim_played_tracks() -> bool {
     true
 }
 
@@ -569,6 +577,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_play_seconds: host.history_min_play_seconds,
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
+        dim_played_tracks: host.dim_played_tracks,
     }
 }
 
@@ -606,6 +615,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_play_seconds = settings.history_min_play_seconds;
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
+    host.dim_played_tracks = settings.dim_played_tracks;
     host.configured = true;
     Ok(())
 }

@@ -6003,6 +6003,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historyMinPlaySeconds = <u32>::sse_decode(deserializer);
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
         let mut var_showTooltips = <bool>::sse_decode(deserializer);
+        let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -6032,6 +6033,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_min_play_seconds: var_historyMinPlaySeconds,
             history_min_deck_volume: var_historyMinDeckVolume,
             show_tooltips: var_showTooltips,
+            dim_played_tracks: var_dimPlayedTracks,
         };
     }
 }
@@ -6568,6 +6570,7 @@ impl SseDecode for crate::api::library::LibraryEvtKind {
             6 => crate::api::library::LibraryEvtKind::Load,
             7 => crate::api::library::LibraryEvtKind::LoopsChanged,
             8 => crate::api::library::LibraryEvtKind::BeatGridChanged,
+            9 => crate::api::library::LibraryEvtKind::HistorySessionUpdated,
             _ => unreachable!("Invalid variant for LibraryEvtKind: {}", inner),
         };
     }
@@ -8174,6 +8177,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.history_min_play_seconds.into_into_dart().into_dart(),
             self.history_min_deck_volume.into_into_dart().into_dart(),
             self.show_tooltips.into_into_dart().into_dart(),
+            self.dim_played_tracks.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -8812,6 +8816,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryEvtKind {
             Self::Load => 6.into_dart(),
             Self::LoopsChanged => 7.into_dart(),
             Self::BeatGridChanged => 8.into_dart(),
+            Self::HistorySessionUpdated => 9.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -9384,6 +9389,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <u32>::sse_encode(self.history_min_play_seconds, serializer);
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
         <bool>::sse_encode(self.show_tooltips, serializer);
+        <bool>::sse_encode(self.dim_played_tracks, serializer);
     }
 }
 
@@ -9802,6 +9808,7 @@ impl SseEncode for crate::api::library::LibraryEvtKind {
                 crate::api::library::LibraryEvtKind::Load => 6,
                 crate::api::library::LibraryEvtKind::LoopsChanged => 7,
                 crate::api::library::LibraryEvtKind::BeatGridChanged => 8,
+                crate::api::library::LibraryEvtKind::HistorySessionUpdated => 9,
                 _ => {
                     unimplemented!("");
                 }

@@ -92,6 +92,8 @@ pub struct HistoryRecorder {
     manual_close_pending: bool,
     restore_prompt: Option<HistoryRestorePrompt>,
     restore_declined: bool,
+    /// Set when open-session entries or boundaries change; cleared via [`Self::take_session_updated`].
+    session_updated: bool,
 }
 
 impl HistoryRecorder {
@@ -108,7 +110,17 @@ impl HistoryRecorder {
             manual_close_pending: false,
             restore_prompt: None,
             restore_declined: false,
+            session_updated: false,
         })
+    }
+
+    /// Consume the dirty flag set by persist / session boundary mutations.
+    pub fn take_session_updated(&mut self) -> bool {
+        std::mem::take(&mut self.session_updated)
+    }
+
+    fn mark_session_updated(&mut self) {
+        self.session_updated = true;
     }
 
     pub fn bootstrap(&mut self, db: &Db) -> Result<()> {
@@ -250,6 +262,7 @@ impl HistoryRecorder {
         doc.session.title = title.to_string();
         save_document(&path, &doc)?;
         upsert_session_index(db, &doc, &path)?;
+        self.mark_session_updated();
         if self
             .document
             .as_ref()
@@ -275,6 +288,7 @@ impl HistoryRecorder {
         if let Some(row) = store::get_session(db, session_id)? {
             let _ = std::fs::remove_file(&row.xspf_path);
             delete_session_index(db, session_id)?;
+            self.mark_session_updated();
         }
         Ok(())
     }
@@ -432,7 +446,9 @@ impl HistoryRecorder {
             .clone()
             .ok_or_else(|| history_err("missing xspf path"))?;
         save_document(&path, &doc)?;
-        upsert_session_index(db, &doc, &path)
+        upsert_session_index(db, &doc, &path)?;
+        self.mark_session_updated();
+        Ok(())
     }
 
     fn check_idle_timeout(&mut self, db: &Db) -> Result<()> {
@@ -474,6 +490,7 @@ impl HistoryRecorder {
                 save_document(&path, &doc)?;
                 upsert_session_index(db, &doc, &path)?;
             }
+            self.mark_session_updated();
         }
         self.xspf_path = None;
         self.decks.iter_mut().for_each(|d| d.pending = None);
@@ -505,6 +522,7 @@ impl HistoryRecorder {
         doc.session.last_activity_at = now;
         save_document(&path, &doc)?;
         upsert_session_index(db, &doc, &path)?;
+        self.mark_session_updated();
         if self
             .restore_prompt
             .as_ref()

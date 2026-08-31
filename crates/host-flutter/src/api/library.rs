@@ -202,6 +202,7 @@ pub enum LibraryEvtKind {
     Load,
     LoopsChanged,
     BeatGridChanged,
+    HistorySessionUpdated,
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -1021,6 +1022,17 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
             loops: None,
             beat_grid: None,
         }),
+        EvtBody::HistorySessionUpdated { session_id: _ } => Some(LibraryEvt {
+            kind: LibraryEvtKind::HistorySessionUpdated,
+            track: None,
+            message: None,
+            track_id: None,
+            hot_cues: None,
+            delta: None,
+            deck: None,
+            loops: None,
+            beat_grid: None,
+        }),
         EvtBody::Empty => None,
     }
 }
@@ -1292,5 +1304,18 @@ mod tests {
         assert_eq!(loops[0].in_ms, 1_000);
         assert_eq!(loops[0].out_ms, 5_000);
         assert_eq!(loops[0].label.as_deref(), Some("break"));
+
+        buses
+            .publish_evt(
+                Origin::Library,
+                Kind::HistorySessionUpdated,
+                EvtBody::HistorySessionUpdated {
+                    session_id: Some("sess-1".into()),
+                },
+            )
+            .unwrap();
+        let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
+        let mapped = map_library_evt(ev.as_ref()).expect("HistorySessionUpdated maps");
+        assert_eq!(mapped.kind, LibraryEvtKind::HistorySessionUpdated);
     }
 }

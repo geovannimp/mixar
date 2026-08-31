@@ -16,6 +16,7 @@ pub enum Kind {
     HotCuesChanged,
     LoopsChanged,
     BeatGridChanged,
+    HistorySessionUpdated,
     Navigate,
     Load,
     Error,

@@ -484,6 +484,7 @@ enum LibraryEvtKind {
   load,
   loopsChanged,
   beatGridChanged,
+  historySessionUpdated,
 }
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).

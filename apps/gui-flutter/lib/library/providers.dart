@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
+import 'package:gui_flutter/library/history_refresh.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
@@ -299,6 +300,8 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       if (deck != null) {
         unawaited(loadFocusedRowToDeck(ref, deck));
       }
+    case LibraryEvtKind.historySessionUpdated:
+      ref.read(historyRefreshTickProvider.notifier).bump();
   }
 }
 

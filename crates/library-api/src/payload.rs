@@ -115,6 +115,11 @@ pub enum EvtBody {
         track_id: String,
         beat_grid: BeatGrid,
     },
+    /// Open history session entries or boundaries changed (thin signal).
+    HistorySessionUpdated {
+        #[serde(default)]
+        session_id: Option<String>,
+    },
     Error {
         message: String,
         #[serde(default)]

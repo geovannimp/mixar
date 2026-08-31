@@ -5287,8 +5287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 28)
-      throw Exception('unexpected arr length: expect 28 but see ${arr.length}');
+    if (arr.length != 29)
+      throw Exception('unexpected arr length: expect 29 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5318,6 +5318,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: dco_decode_u_32(arr[25]),
       historyMinDeckVolume: dco_decode_f_32(arr[26]),
       showTooltips: dco_decode_bool(arr[27]),
+      dimPlayedTracks: dco_decode_bool(arr[28]),
     );
   }
 
@@ -6609,6 +6610,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
     var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
     var var_showTooltips = sse_decode_bool(deserializer);
+    var var_dimPlayedTracks = sse_decode_bool(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -6638,6 +6640,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: var_historyMinPlaySeconds,
       historyMinDeckVolume: var_historyMinDeckVolume,
       showTooltips: var_showTooltips,
+      dimPlayedTracks: var_dimPlayedTracks,
     );
   }
 
@@ -8326,6 +8329,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
     sse_encode_f_32(self.historyMinDeckVolume, serializer);
     sse_encode_bool(self.showTooltips, serializer);
+    sse_encode_bool(self.dimPlayedTracks, serializer);
   }
 
   @protected

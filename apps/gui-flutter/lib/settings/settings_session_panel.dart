@@ -42,6 +42,13 @@ class SettingsSessionPanel extends StatelessWidget {
                   copyAppSettings(draft, historyEnabled: enabled),
                 ),
               ),
+              SettingsToggle(
+                label: 'Dim played tracks',
+                value: draft.dimPlayedTracks,
+                onChanged: (enabled) => onChanged(
+                  copyAppSettings(draft, dimPlayedTracks: enabled),
+                ),
+              ),
               const SizedBox(height: 0),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
