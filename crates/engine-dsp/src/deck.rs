@@ -11,6 +11,7 @@ use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use stretch::{create_stretcher, TimeStretcher};
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -89,6 +90,12 @@ pub struct Deck {
     resampler_quality: String,
     /// Resampler for converting between sample rates (created on load when needed)
     resampler: Option<Box<dyn Resampler>>,
+    /// Key lock: tempo via time-stretch, pitch held (inactive during vinyl jog).
+    key_lock: bool,
+    /// Rubber Band stretcher at engine rate (created lazily / on load).
+    stretcher: Option<Box<dyn TimeStretcher>>,
+    /// Last process used stretch path (reset stretcher when leaving it).
+    stretch_active: bool,
     /// Active loop region in source frames (inclusive start, exclusive end).
     loop_region: Option<(f64, f64)>,
     /// Temporary cue point in milliseconds (source time; may be negative).
@@ -150,6 +157,9 @@ impl Deck {
             loaded: None,
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
+            key_lock: false,
+            stretcher: None,
+            stretch_active: false,
             loop_region: None,
             cue_point_ms: None,
             cue_hold_return: None,
@@ -295,6 +305,27 @@ impl Deck {
         self.position_frac = 0.0;
         self.cue_hold_return = None;
         self.reset_resampler_state();
+        self.reset_stretcher_state();
+        self.stretch_active = false;
+        Ok(())
+    }
+
+    /// Key lock enabled (tempo stretch; ignored while vinyl jog drives audio).
+    pub fn key_lock(&self) -> bool {
+        self.key_lock
+    }
+
+    /// Enable/disable key lock. Resets stretcher state on change.
+    pub fn set_key_lock(&mut self, enabled: bool) -> Result<()> {
+        if self.key_lock == enabled {
+            return Ok(());
+        }
+        self.key_lock = enabled;
+        if enabled {
+            self.ensure_stretcher()?;
+        }
+        self.reset_stretcher_state();
+        self.stretch_active = false;
         Ok(())
     }
 
@@ -467,6 +498,8 @@ impl Deck {
         self.position_frames = frames;
         self.position_frac = frames as f64;
         self.reset_resampler_state();
+        self.reset_stretcher_state();
+        self.stretch_active = false;
         Ok(())
     }
 
@@ -480,6 +513,8 @@ impl Deck {
         self.position_frac = frames;
         self.position_frames = frames.floor() as i64;
         self.reset_resampler_state();
+        self.reset_stretcher_state();
+        self.stretch_active = false;
         Ok(())
     }
 
@@ -496,6 +531,8 @@ impl Deck {
         self.track_bpm = None;
         self.ratio_override = None;
         self.buffer.clear();
+        self.stretcher = None;
+        self.stretch_active = false;
         Ok(())
     }
 
@@ -601,6 +638,27 @@ impl Deck {
         }
     }
 
+    fn ensure_stretcher(&mut self) -> Result<()> {
+        if self.stretcher.is_some() {
+            return Ok(());
+        }
+        self.stretcher = Some(create_stretcher(
+            self.sample_rate,
+            self.buffer_size.max(Buffer::LEN as u32) as usize,
+        )?);
+        Ok(())
+    }
+
+    fn reset_stretcher_state(&mut self) {
+        if let Some(stretcher) = self.stretcher.as_mut() {
+            stretcher.reset();
+        }
+    }
+
+    fn wants_key_lock_stretch(&self) -> bool {
+        self.key_lock && !self.jog_driving_audio()
+    }
+
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
     pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
         self.position_frames = 0;
@@ -610,6 +668,11 @@ impl Deck {
         self.cue_hold_return = None;
         self.loaded = Some(audio);
         self.create_resampler()?;
+        if self.key_lock {
+            self.ensure_stretcher()?;
+        }
+        self.reset_stretcher_state();
+        self.stretch_active = false;
 
         if let Some(loaded) = self.loaded.as_ref() {
             log::info!(
@@ -671,17 +734,36 @@ impl Deck {
         // Play loaded audio samples if available, otherwise generate test audio
         if let Some(loaded) = self.loaded.clone() {
             let source_rate = loaded.sample_rate;
-            let eff = self.effective_speed();
-            let use_interp = (eff - 1.0).abs() > f32::EPSILON
-                || self.loop_region.is_some()
-                || self.position_frac < 0.0
-                || !transport_playing;
-            if use_interp || self.resampler.is_none() {
-                self.play_interpolated(frames, &loaded.samples, source_rate);
+            let want_stretch = self.wants_key_lock_stretch();
+            if self.stretch_active && !want_stretch {
+                self.reset_stretcher_state();
+            }
+            self.stretch_active = want_stretch;
+
+            if want_stretch {
+                if let Err(err) = self.ensure_stretcher() {
+                    log::error!(
+                        "Deck {}: stretcher unavailable ({err}); falling back to vinyl",
+                        self.id
+                    );
+                    self.stretch_active = false;
+                    self.play_interpolated(frames, &loaded.samples, source_rate);
+                } else {
+                    self.play_stretched(frames, &loaded.samples, source_rate);
+                }
             } else {
-                let source_frames = self.play_loaded_audio(frames, &loaded.samples);
-                self.position_frames += source_frames as i64;
-                self.position_frac = self.position_frames as f64;
+                let eff = self.effective_speed();
+                let use_interp = (eff - 1.0).abs() > f32::EPSILON
+                    || self.loop_region.is_some()
+                    || self.position_frac < 0.0
+                    || !transport_playing;
+                if use_interp || self.resampler.is_none() {
+                    self.play_interpolated(frames, &loaded.samples, source_rate);
+                } else {
+                    let source_frames = self.play_loaded_audio(frames, &loaded.samples);
+                    self.position_frames += source_frames as i64;
+                    self.position_frac = self.position_frames as f64;
+                }
             }
 
             // Debug: Check if we're producing non-zero samples
@@ -755,6 +837,69 @@ impl Deck {
         }
 
         self.position_frames = self.position_frac.floor() as i64;
+    }
+
+    /// Key-lock path: time-stretch at engine rate with pitch scale 1.0.
+    ///
+    /// Rubber Band time_ratio is output/input duration; faster tempo → ratio `< 1`.
+    fn play_stretched(&mut self, frames: usize, audio_samples: &[Sample], source_rate: u32) {
+        let buffer_size = frames * 2;
+        self.buffer.resize(buffer_size, 0.0);
+
+        let playback_ratio = f64::from(self.playback_ratio().max(0.01));
+        // Faster playback → compress time (time_ratio < 1).
+        let time_ratio = 1.0 / playback_ratio;
+        let src_step = f64::from(source_rate) / f64::from(self.sample_rate);
+
+        let Some(stretcher) = self.stretcher.as_mut() else {
+            self.buffer.fill(0.0);
+            return;
+        };
+        stretcher.set_time_ratio(time_ratio);
+
+        let loop_region = self.loop_region;
+        let mut position_frac = self.position_frac;
+
+        let stats = stretcher.pull_interleaved(frames, &mut self.buffer, &mut |need, buf| {
+            let mut produced = 0usize;
+            for i in 0..need {
+                if position_frac < 0.0 {
+                    buf[i * 2] = 0.0;
+                    buf[i * 2 + 1] = 0.0;
+                    position_frac += src_step;
+                    produced += 1;
+                    continue;
+                }
+
+                let total_source_frames = audio_samples.len() / 2;
+                if position_frac >= total_source_frames as f64 {
+                    buf[i * 2] = 0.0;
+                    buf[i * 2 + 1] = 0.0;
+                    produced += 1;
+                    continue;
+                }
+
+                let (left, right) = interpolate_stereo(audio_samples, position_frac);
+                buf[i * 2] = left;
+                buf[i * 2 + 1] = right;
+                position_frac += src_step;
+                produced += 1;
+
+                if let Some((loop_in, loop_out)) = loop_region {
+                    if position_frac >= loop_out {
+                        let span = loop_out - loop_in;
+                        if span > 0.0 {
+                            position_frac = loop_in + ((position_frac - loop_out) % span);
+                        }
+                    }
+                }
+            }
+            produced
+        });
+
+        self.position_frac = position_frac;
+        self.position_frames = self.position_frac.floor() as i64;
+        let _ = stats;
     }
 
     /// Render loaded audio into `self.buffer`.
@@ -1298,5 +1443,70 @@ mod tests {
         deck.set_jog_touch(true);
         deck.jog_turn(50);
         assert_eq!(deck.jog_rate(), 1.0);
+    }
+
+    #[test]
+    fn key_lock_advances_faster_than_unity_at_positive_pitch() {
+        let mut vinyl = new_deck(CHUNK);
+        let mut locked = new_deck(CHUNK);
+        let samples = vec![0.25f32; CHUNK * 2 * 20_000];
+        load_test_samples(&mut vinyl, samples.clone(), ENGINE_RATE);
+        load_test_samples(&mut locked, samples, ENGINE_RATE);
+
+        vinyl.set_speed(0.0).unwrap(); // +tempo_range → faster
+        locked.set_speed(0.0).unwrap();
+        locked.set_key_lock(true).unwrap();
+        assert!(locked.key_lock());
+
+        vinyl.play().unwrap();
+        locked.play().unwrap();
+
+        // Warm up stretcher latency.
+        for _ in 0..32 {
+            locked.process(CHUNK).unwrap();
+        }
+        let locked_start = locked.position_frames();
+        let vinyl_start = {
+            for _ in 0..32 {
+                vinyl.process(CHUNK).unwrap();
+            }
+            vinyl.position_frames()
+        };
+
+        for _ in 0..64 {
+            vinyl.process(CHUNK).unwrap();
+            locked.process(CHUNK).unwrap();
+        }
+
+        let vinyl_delta = vinyl.position_frames() - vinyl_start;
+        let locked_delta = locked.position_frames() - locked_start;
+        assert!(
+            vinyl_delta > CHUNK as i64 * 32,
+            "vinyl should advance faster than 1x: delta={vinyl_delta}"
+        );
+        assert!(
+            locked_delta > CHUNK as i64 * 32,
+            "key lock should advance faster than 1x: delta={locked_delta}"
+        );
+    }
+
+    #[test]
+    fn key_lock_falls_back_to_vinyl_while_jog_driving() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.4f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_lock(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..8 {
+            deck.process(CHUNK).unwrap();
+        }
+
+        deck.set_jog_touch(true);
+        deck.jog_turn(20);
+        assert!(deck.jog_driving_audio());
+        let before = deck.position_frames();
+        deck.process(CHUNK).unwrap();
+        // Vinyl jog path still runs (does not panic / stall) while key lock stays on.
+        assert!(deck.key_lock());
+        assert!(deck.position_frames() != before || deck.jog_rate() != 1.0);
     }
 }

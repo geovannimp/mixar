@@ -843,7 +843,7 @@ Make **what we already have** reliable and **look like** professional deck softw
 |---|--------|----------|
 | DK1 | Pad count | **8 slots** (2×4 grid); schema allows **16** for Hot Cue mode expansion |
 | DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode** (Virtual DJ / Serato model); `track_hot_cue` stores Hot Cue mode data only |
-| DK2 | Key lock | **Deferred** until time-stretch exists; pitch fader = vinyl mode |
+| DK2 | Key lock | Tempo fader + sync use Rubber Band stretch (`SetKeyLock`); vinyl jog stays fractional |
 | DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
 | DK4 | Stems | **Phase 4**; separate spec when chosen |
 | DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |

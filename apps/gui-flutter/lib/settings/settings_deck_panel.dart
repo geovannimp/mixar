@@ -87,6 +87,17 @@ class SettingsDeckPanel extends ConsumerWidget {
                   ),
                 ),
               ),
+              SettingsField(
+                label: 'Default key lock',
+                hint:
+                    'Tempo-only pitch when on (time-stretch). Off = vinyl tempo.',
+                child: SettingsToggle(
+                  label: 'Key lock',
+                  value: draft.defaultKeyLock,
+                  onChanged: (v) =>
+                      onChanged(copyAppSettings(draft, defaultKeyLock: v)),
+                ),
+              ),
             ],
           ),
         ),

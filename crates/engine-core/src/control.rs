@@ -216,6 +216,7 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         volume: snap.volume,
         speed: snap.speed,
         tempo_range: snap.tempo_range,
+        key_lock: snap.key_lock,
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
@@ -349,6 +350,7 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetEqBand, CmdBody::SetEqBand { .. })
         | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
         | (Kind::SetTempoRange, CmdBody::SetTempoRange { .. })
+        | (Kind::SetKeyLock, CmdBody::SetKeyLock { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
@@ -517,6 +519,13 @@ fn dispatch_deck_cmd(
             };
             let updated = eng.set_deck_tempo_range(deck_id, tempo_range)?;
             Ok(CmdOutcome::DecksUpdated(updated))
+        }
+        Kind::SetKeyLock => {
+            let CmdBody::SetKeyLock { enabled } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_key_lock(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetFilter => {
             let CmdBody::SetFilter {

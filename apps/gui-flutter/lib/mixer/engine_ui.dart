@@ -63,6 +63,7 @@ class EngineUiSnapshot {
     this.durationMs = const {},
     this.speeds = const {},
     this.tempoRanges = const {},
+    this.keyLocks = const {},
     this.padModes = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
@@ -91,6 +92,7 @@ class EngineUiSnapshot {
   final Map<int, int> durationMs;
   final Map<int, double> speeds;
   final Map<int, double> tempoRanges;
+  final Map<int, bool> keyLocks;
   final Map<int, PadMode> padModes;
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
@@ -113,6 +115,8 @@ class EngineUiSnapshot {
   double speedFor(int deckId) => speeds[deckId] ?? 0.5;
 
   double tempoRangeFor(int deckId) => tempoRanges[deckId] ?? kDefaultTempoRange;
+
+  bool keyLockFor(int deckId) => keyLocks[deckId] ?? false;
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
@@ -151,6 +155,7 @@ class EngineUiSnapshot {
     Map<int, int>? durationMs,
     Map<int, double>? speeds,
     Map<int, double>? tempoRanges,
+    Map<int, bool>? keyLocks,
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
@@ -174,6 +179,7 @@ class EngineUiSnapshot {
     durationMs: durationMs ?? this.durationMs,
     speeds: speeds ?? this.speeds,
     tempoRanges: tempoRanges ?? this.tempoRanges,
+    keyLocks: keyLocks ?? this.keyLocks,
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
@@ -240,6 +246,10 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       final nextRanges = Map<int, double>.from(prev.tempoRanges);
       if (evt.tempoRange != null) {
         nextRanges[id] = evt.tempoRange!;
+      }
+      final nextKeyLocks = Map<int, bool>.from(prev.keyLocks);
+      if (evt.keyLock != null) {
+        nextKeyLocks[id] = evt.keyLock!;
       }
       final nextPadModes = Map<int, PadMode>.from(prev.padModes);
       final enginePadMode = evt.padMode;
@@ -312,6 +322,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         durationMs: nextDurations,
         speeds: nextSpeeds,
         tempoRanges: nextRanges,
+        keyLocks: nextKeyLocks,
         padModes: nextPadModes,
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,

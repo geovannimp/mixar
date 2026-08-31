@@ -76,6 +76,9 @@ pub struct AudioConfig {
     /// Cycle steps for tempo-range controls (pitch fractions).
     #[serde(default)]
     pub tempo_range_steps: Option<Vec<f32>>,
+    /// Default key lock for new decks.
+    #[serde(default)]
+    pub default_key_lock: Option<bool>,
 }
 
 /// Sampler ↔ channel-strip routing (persisted in engine config).
@@ -157,6 +160,14 @@ impl EngineConfig {
         steps.unwrap_or_else(|| DEFAULT_TEMPO_RANGE_STEPS.to_vec())
     }
 
+    /// Default key lock for new decks.
+    pub fn default_key_lock(&self) -> bool {
+        self.audio
+            .as_ref()
+            .and_then(|audio| audio.default_key_lock)
+            .unwrap_or(false)
+    }
+
     /// Validate fields that the engine requires to be well-formed.
     pub fn validate(&self) -> Result<()> {
         validate_buffer_size(self.buffer_size)?;
@@ -234,6 +245,7 @@ mod tests {
                 sampler_strip_route: None,
                 default_tempo_range: Some(0.16),
                 tempo_range_steps: Some(vec![0.08, 0.16]),
+                default_key_lock: None,
             }),
             ..EngineConfig::default()
         };

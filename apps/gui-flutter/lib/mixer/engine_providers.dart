@@ -210,6 +210,11 @@ final deckTempoRangeProvider = Provider.family<double, int>(
       ref.watch(engineUiProvider.select((s) => s.tempoRangeFor(deckId))),
 );
 
+final deckKeyLockProvider = Provider.family<bool, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.keyLockFor(deckId))),
+);
+
 final deckSyncModeProvider = Provider.family<SyncMode, int>(
   (ref, deckId) =>
       ref.watch(engineUiProvider.select((s) => s.syncModeFor(deckId))),
@@ -463,6 +468,11 @@ Future<void> setDeckTempoRange(
 ) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setTempoRange(deckId: deckId, tempoRange: tempoRange);
+}
+
+Future<void> setDeckKeyLock(WidgetRef ref, int deckId, bool enabled) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setKeyLock(deckId: deckId, enabled: enabled);
 }
 
 Future<void> toggleDeckSync(

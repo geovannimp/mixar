@@ -308,6 +308,7 @@ pub struct EngineEvt {
     pub duration_ms: Option<i32>,
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
+    pub key_lock: Option<bool>,
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
     pub master_deck: Option<u16>,
@@ -363,6 +364,7 @@ impl EngineEvt {
             duration_ms: None,
             speed: None,
             tempo_range: None,
+            key_lock: None,
             pad_mode: None,
             sync_mode: None,
             master_deck: None,
@@ -722,6 +724,15 @@ impl EngineTransport {
             Origin::Deck(deck_id),
             Kind::SetTempoRange,
             &CmdBody::SetTempoRange { tempo_range },
+        )
+    }
+
+    /// Key lock / master tempo (time-stretch; pitch held).
+    pub fn set_key_lock(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyLock,
+            &CmdBody::SetKeyLock { enabled },
         )
     }
 
@@ -1249,6 +1260,7 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.duration_known = true;
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
+    evt.key_lock = Some(snap.key_lock);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
@@ -1294,6 +1306,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             duration_ms,
             speed,
             tempo_range,
+            key_lock,
             pad_mode,
             sync_mode,
             active_loop,
@@ -1321,6 +1334,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.duration_known = true;
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
+            evt.key_lock = Some(key_lock);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
@@ -1403,6 +1417,7 @@ mod tests {
             volume,
             speed: 0.5,
             tempo_range: 0.08,
+            key_lock: false,
             eq: DeckEq {
                 low: 0.5,
                 mid: 0.5,

@@ -14,13 +14,16 @@ class DeckTempoPanel extends StatelessWidget {
     required this.tempoRange,
     required this.syncMode,
     required this.isMaster,
+    required this.keyLock,
     required this.onSpeedChange,
     required this.onTempoRangeChange,
     required this.onToggleSync,
     required this.onSetMaster,
+    required this.onKeyLockChange,
     this.trackBpm,
     this.loading = false,
     this.tempoRangeSteps = kTempoRangeSteps,
+    this.enabled = true,
     super.key,
   });
 
@@ -29,10 +32,12 @@ class DeckTempoPanel extends StatelessWidget {
   final double tempoRange;
   final SyncMode syncMode;
   final bool isMaster;
+  final bool keyLock;
   final ValueChanged<double> onSpeedChange;
   final ValueChanged<double> onTempoRangeChange;
   final ValueChanged<bool> onToggleSync;
   final VoidCallback onSetMaster;
+  final ValueChanged<bool> onKeyLockChange;
 
   /// Original track BPM when loaded; null → `—` and no live BPM scaling display source.
   final double? trackBpm;
@@ -41,6 +46,9 @@ class DeckTempoPanel extends StatelessWidget {
   final bool loading;
 
   final List<double> tempoRangeSteps;
+
+  /// When false (no track), disable tempo controls.
+  final bool enabled;
 
   bool get _syncActive => syncMode != SyncMode.off;
 
@@ -84,7 +92,9 @@ class DeckTempoPanel extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                formatPitchPercent(speed, tempoRange),
+                keyLock
+                    ? formatPitchPercent(speed, tempoRange)
+                    : '${formatPitchPercent(speed, tempoRange)} vinyl',
                 textAlign: .center,
                 style: theme.typography.body.xs.copyWith(
                   color: theme.colors.mutedForeground,
@@ -96,12 +106,32 @@ class DeckTempoPanel extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FButton(
+                  variant: keyLock ? .secondary : .ghost,
+                  size: .sm,
+                  style: .delta(
+                    contentStyle: .delta(padding: .value(compactPad)),
+                  ),
+                  onPress: enabled ? () => onKeyLockChange(!keyLock) : null,
+                  child: Text(
+                    'Key',
+                    style: chipStyle.copyWith(
+                      color: keyLock
+                          ? accent
+                          : theme.colors.mutedForeground,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 2),
+              SizedBox(
+                width: double.infinity,
+                child: FButton(
                   variant: .secondary,
                   size: .sm,
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: isMaster
+                  onPress: (!enabled || isMaster)
                       ? null
                       : () => onToggleSync(shiftKeyPressed()),
                   child: Text(
@@ -125,7 +155,7 @@ class DeckTempoPanel extends StatelessWidget {
                   style: .delta(
                     contentStyle: .delta(padding: .value(compactPad)),
                   ),
-                  onPress: isMaster ? null : onSetMaster,
+                  onPress: (!enabled || isMaster) ? null : onSetMaster,
                   child: SizedBox(
                     width: 52,
                     child: FittedBox(
@@ -160,8 +190,8 @@ class DeckTempoPanel extends StatelessWidget {
                     showIndicator: false,
                     showMarkers: true,
                     centerNotch: true,
-                    disabled: faderDisabled,
-                    semanticLabel: 'Tempo',
+                    disabled: faderDisabled || !enabled,
+                    semanticLabel: keyLock ? 'Tempo' : 'Vinyl tempo',
                     onValueChange: (next) =>
                         onSpeedChange(pitchSliderToSpeed(next)),
                   ),
@@ -173,9 +203,11 @@ class DeckTempoPanel extends StatelessWidget {
                   variant: .ghost,
                   size: .xs,
                   mainAxisSize: .min,
-                  onPress: () => onTempoRangeChange(
-                    nextTempoRange(tempoRange, tempoRangeSteps),
-                  ),
+                  onPress: enabled
+                      ? () => onTempoRangeChange(
+                          nextTempoRange(tempoRange, tempoRangeSteps),
+                        )
+                      : null,
                   child: Text(
                     formatTempoRange(tempoRange),
                     style: theme.typography.body.xs.copyWith(

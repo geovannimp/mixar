@@ -49,8 +49,10 @@ class DeckPanel extends ConsumerWidget {
       tempoRange: ref.watch(deckTempoRangeProvider(deckId)),
       syncMode: ref.watch(deckSyncModeProvider(deckId)),
       isMaster: ref.watch(deckIsMasterProvider(deckId)),
+      keyLock: ref.watch(deckKeyLockProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
+      enabled: hasTrack && engineRunning,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
       onSpeedChange: (speed) {
         unawaited(_engineCmd(context, () => setDeckSpeed(ref, deckId, speed)));
@@ -70,6 +72,11 @@ class DeckPanel extends ConsumerWidget {
       },
       onSetMaster: () {
         unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
+      },
+      onKeyLockChange: (enabled) {
+        unawaited(
+          _engineCmd(context, () => setDeckKeyLock(ref, deckId, enabled)),
+        );
       },
     );
 
