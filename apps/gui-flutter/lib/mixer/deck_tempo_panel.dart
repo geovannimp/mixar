@@ -213,21 +213,27 @@ class DeckTempoPanel extends StatelessWidget {
               ),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: .ghost,
-                  size: .xs,
-                  mainAxisSize: .min,
-                  onPress: enabled
-                      ? () => onTempoRangeChange(
-                          nextTempoRange(tempoRange, tempoRangeSteps),
-                        )
-                      : null,
-                  child: Text(
-                    formatTempoRange(tempoRange),
-                    style: theme.typography.body.xs.copyWith(
-                      fontSize: 12,
-                      fontWeight: .w600,
-                      color: theme.colors.mutedForeground,
+                child: AppTooltip(
+                  tip: 'Tempo range',
+                  description:
+                      'Pitch fader span. Click to cycle the max ±% range.',
+                  child: FButton(
+                    variant: .ghost,
+                    size: .xs,
+                    mainAxisSize: .min,
+                    onPress: enabled
+                        ? () => onTempoRangeChange(
+                            nextTempoRange(tempoRange, tempoRangeSteps),
+                          )
+                        : null,
+                    semanticsLabel: 'Tempo range',
+                    child: Text(
+                      formatTempoRange(tempoRange),
+                      style: theme.typography.body.xs.copyWith(
+                        fontSize: 12,
+                        fontWeight: .w600,
+                        color: theme.colors.mutedForeground,
+                      ),
                     ),
                   ),
                 ),
