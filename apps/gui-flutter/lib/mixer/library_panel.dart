@@ -8,6 +8,7 @@ import 'package:gui_flutter/library/history_pane.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 
 /// Library panel: left [FTabs](https://forui.dev/docs/widgets/navigation/tabs)
 /// (Collections / Drive / History); right pane follows the selected tab.
@@ -76,23 +77,32 @@ class LibraryPanel extends ConsumerWidget {
                       ),
                       children: [
                         FTabEntry(
-                          label: Semantics(
-                            label: 'Collections',
-                            child: Icon(FLucideIcons.library, size: 16),
+                          label: AppTooltip(
+                            tip: 'Collections',
+                            child: Semantics(
+                              label: 'Collections',
+                              child: Icon(FLucideIcons.library, size: 16),
+                            ),
                           ),
                           child: const CollectionsPane(),
                         ),
                         FTabEntry(
-                          label: Semantics(
-                            label: 'Drive',
-                            child: Icon(FLucideIcons.hardDrive, size: 16),
+                          label: AppTooltip(
+                            tip: 'Drive',
+                            child: Semantics(
+                              label: 'Drive',
+                              child: Icon(FLucideIcons.hardDrive, size: 16),
+                            ),
                           ),
                           child: const DrivePane(),
                         ),
                         FTabEntry(
-                          label: Semantics(
-                            label: 'History',
-                            child: Icon(FLucideIcons.history, size: 16),
+                          label: AppTooltip(
+                            tip: 'History',
+                            child: Semantics(
+                              label: 'History',
+                              child: Icon(FLucideIcons.history, size: 16),
+                            ),
                           ),
                           child: const HistoryPane(),
                         ),

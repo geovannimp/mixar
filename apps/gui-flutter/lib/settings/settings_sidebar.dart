@@ -48,6 +48,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.mixer => FLucideIcons.slidersHorizontal,
     SettingsSection.waveform => FLucideIcons.audioWaveform,
     SettingsSection.deck => FLucideIcons.disc3,
+    SettingsSection.ui => FLucideIcons.panelTop,
     SettingsSection.library => FLucideIcons.library,
     SettingsSection.session => FLucideIcons.history,
     SettingsSection.controllers => FLucideIcons.gamepad2,

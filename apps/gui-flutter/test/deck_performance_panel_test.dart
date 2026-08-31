@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 
 void main() {
   Future<void> pumpPanel(WidgetTester tester) async {
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: theme.toApproximateMaterialTheme(),
-        builder: (context, child) => FTheme(data: theme, child: child!),
-        home: Scaffold(
-          body: const SizedBox(
-            width: 360,
-            height: 320,
-            child: DeckPerformancePanel(hasTrack: true),
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            (ref) async => defaultAppSettings(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: theme.toApproximateMaterialTheme(),
+          builder: (context, child) => FTheme(data: theme, child: child!),
+          home: Scaffold(
+            body: const SizedBox(
+              width: 360,
+              height: 320,
+              child: DeckPerformancePanel(hasTrack: true),
+            ),
           ),
         ),
       ),

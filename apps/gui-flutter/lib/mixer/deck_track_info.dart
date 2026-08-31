@@ -12,6 +12,7 @@ import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -160,39 +161,45 @@ class DeckKeyLockButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final muted = theme.colors.mutedForeground;
-    return FButton(
-      variant: .ghost,
-      size: .xs,
-      mainAxisSize: .min,
-      onPress: enabled ? onToggle : null,
-      semanticsLabel: keyLock
-          ? 'Key $keyLabel, key lock on'
-          : 'Key $keyLabel, key lock off',
-      style: .delta(
-        contentStyle: .delta(
-          padding: .value(
-            const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          ),
-        ),
-      ),
-      child: Row(
+    final tip = keyLock ? 'Key lock on' : 'Key lock off';
+    final description = keyLock
+        ? 'Keeps musical pitch when you change tempo.'
+        : 'Pitch follows tempo changes.';
+    return AppTooltip(
+      tip: tip,
+      description: description,
+      child: FButton(
+        variant: .ghost,
+        size: .xs,
         mainAxisSize: .min,
-        children: [
-          Text(
-            keyLabel,
-            style: theme.typography.body.xs.copyWith(
-              color: muted,
-              fontWeight: .w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
+        onPress: enabled ? onToggle : null,
+        semanticsLabel: tip,
+        style: .delta(
+          contentStyle: .delta(
+            padding: .value(
+              const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             ),
           ),
-          const SizedBox(width: 4),
-          Icon(
-            keyLock ? LucideIcons.lock : LucideIcons.lockOpen,
-            size: 12,
-            color: muted,
-          ),
-        ],
+        ),
+        child: Row(
+          mainAxisSize: .min,
+          children: [
+            Text(
+              keyLabel,
+              style: theme.typography.body.xs.copyWith(
+                color: muted,
+                fontWeight: .w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              keyLock ? LucideIcons.lock : LucideIcons.lockOpen,
+              size: 12,
+              color: muted,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -373,20 +380,24 @@ class DeckGainPopover extends ConsumerWidget {
       },
       builder: (context, controller, _) {
         final theme = context.theme;
-        return GestureDetector(
-          onTap: hasTrack ? controller.toggle : null,
-          child: Semantics(
-            button: true,
-            enabled: hasTrack,
-            label: 'Deck gain details',
-            child: Padding(
-              padding: const .all(4),
-              child: Icon(
-                LucideIcons.info,
-                size: 14,
-                color: hasTrack
-                    ? theme.colors.mutedForeground
-                    : theme.colors.border,
+        const tip = 'Deck gain details';
+        return AppTooltip(
+          tip: tip,
+          child: GestureDetector(
+            onTap: hasTrack ? controller.toggle : null,
+            child: Semantics(
+              button: true,
+              enabled: hasTrack,
+              label: tip,
+              child: Padding(
+                padding: const .all(4),
+                child: Icon(
+                  LucideIcons.info,
+                  size: 14,
+                  color: hasTrack
+                      ? theme.colors.mutedForeground
+                      : theme.colors.border,
+                ),
               ),
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Tauri `AUTO_LOOP_BEATS`.
@@ -137,15 +138,20 @@ class DeckLoopPanel extends StatelessWidget {
       bool lit = false,
       bool forceDisabled = false,
       TextStyle? style,
+      String? tip,
     }) {
+      final button = FButton(
+        variant: activeVariant(lit),
+        size: .sm,
+        style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
+        onPress: (disabled || forceDisabled) ? null : onPress,
+        semanticsLabel: tip,
+        child: Text(label, style: style ?? chipStyle),
+      );
       return Expanded(
-        child: FButton(
-          variant: activeVariant(lit),
-          size: .sm,
-          style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
-          onPress: (disabled || forceDisabled) ? null : onPress,
-          child: Text(label, style: style ?? chipStyle),
-        ),
+        child: tip == null
+            ? button
+            : AppTooltip(tip: tip, child: button),
       );
     }
 
@@ -167,6 +173,7 @@ class DeckLoopPanel extends StatelessWidget {
             children: [
               cellButton(
                 label: '‹',
+                tip: 'Halve loop length',
                 lit: active,
                 forceDisabled: beatIndex <= 0,
                 onPress: onHalveBeats,
@@ -183,6 +190,7 @@ class DeckLoopPanel extends StatelessWidget {
               const SizedBox(width: 8),
               cellButton(
                 label: '›',
+                tip: 'Double loop length',
                 lit: active,
                 forceDisabled: beatIndex >= kAutoLoopBeats.length - 1,
                 onPress: onDoubleBeats,

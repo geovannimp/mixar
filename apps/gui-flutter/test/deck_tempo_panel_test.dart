@@ -1,9 +1,12 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart' show defaultAppSettings;
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:material_ui/material_ui.dart';
@@ -25,27 +28,34 @@ void main() {
   }) async {
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge(
-          // ignore: deprecated_member_use
-          child: FTheme(data: theme, child: child!),
-        ),
-        home: Scaffold(
-          body: SizedBox(
-            width: 140,
-            height: 520,
-            child: DeckTempoPanel(
-              accent: FaderAccent.a,
-              speed: speed,
-              tempoRange: tempoRange,
-              syncMode: syncMode,
-              isMaster: isMaster,
-              tempoRangeSteps: tempoRangeSteps,
-              onSpeedChange: onSpeedChange ?? (_) {},
-              onTempoRangeChange: onTempoRangeChange ?? (_) {},
-              onToggleSync: onToggleSync ?? (_) {},
-              onSetMaster: onSetMaster ?? () {},
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            (ref) async => defaultAppSettings(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: Scaffold(
+            body: SizedBox(
+              width: 140,
+              height: 520,
+              child: DeckTempoPanel(
+                accent: FaderAccent.a,
+                speed: speed,
+                tempoRange: tempoRange,
+                syncMode: syncMode,
+                isMaster: isMaster,
+                tempoRangeSteps: tempoRangeSteps,
+                onSpeedChange: onSpeedChange ?? (_) {},
+                onTempoRangeChange: onTempoRangeChange ?? (_) {},
+                onToggleSync: onToggleSync ?? (_) {},
+                onSetMaster: onSetMaster ?? () {},
+              ),
             ),
           ),
         ),

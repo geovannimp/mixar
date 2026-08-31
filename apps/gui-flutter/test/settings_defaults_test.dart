@@ -47,4 +47,16 @@ void main() {
       isTrue,
     );
   });
+
+  test('showTooltips edits are dirty', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.showTooltips, isTrue);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, showTooltips: false),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
 }

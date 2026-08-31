@@ -82,6 +82,7 @@ AppSettings defaultAppSettings() {
     historySessionIdleMinutes: 5,
     historyMinPlaySeconds: 5,
     historyMinDeckVolume: 0.05,
+    showTooltips: true,
   );
 }
 
@@ -153,6 +154,7 @@ AppSettings copyAppSettings(
   int? historySessionIdleMinutes,
   int? historyMinPlaySeconds,
   double? historyMinDeckVolume,
+  bool? showTooltips,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -186,6 +188,7 @@ AppSettings copyAppSettings(
         historySessionIdleMinutes ?? base.historySessionIdleMinutes,
     historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
+    showTooltips: showTooltips ?? base.showTooltips,
   );
 }
 
@@ -218,6 +221,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historySessionIdleMinutes != baseline.historySessionIdleMinutes ||
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
+      draft.showTooltips != baseline.showTooltips ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

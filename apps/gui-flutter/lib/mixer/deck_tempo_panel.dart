@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -99,52 +100,91 @@ class DeckTempoPanel extends StatelessWidget {
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: .secondary,
-                  size: .sm,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
-                  onPress: (!enabled || isMaster)
-                      ? null
-                      : () => onToggleSync(shiftKeyPressed()),
-                  child: Text(
-                    isMaster
-                        ? 'M'
+                child: Builder(
+                  builder: (context) {
+                    final (:tip, :description) = isMaster
+                        ? (
+                            tip: 'Sync master',
+                            description:
+                                'This deck is the tempo reference for synced decks.',
+                          )
                         : switch (syncMode) {
-                            SyncMode.off => 'Sync',
-                            SyncMode.tempo => 'S',
-                            SyncMode.beat => 'B',
-                          },
-                    style: chipStyle,
-                  ),
+                            SyncMode.off => (
+                              tip: 'Sync',
+                              description:
+                                  'Match this deck\'s tempo to the master. Shift+click for beat sync.',
+                            ),
+                            SyncMode.tempo => (
+                              tip: 'Tempo sync',
+                              description:
+                                  'Tempo follows the master. Click again to turn sync off.',
+                            ),
+                            SyncMode.beat => (
+                              tip: 'Beat sync',
+                              description:
+                                  'Tempo and phase follow the master. Click again to turn sync off.',
+                            ),
+                          };
+                    return AppTooltip(
+                      tip: tip,
+                      description: description,
+                      child: FButton(
+                        variant: .secondary,
+                        size: .sm,
+                        style: .delta(
+                          contentStyle: .delta(padding: .value(compactPad)),
+                        ),
+                        onPress: (!enabled || isMaster)
+                            ? null
+                            : () => onToggleSync(shiftKeyPressed()),
+                        semanticsLabel: tip,
+                        child: Text(
+                          isMaster
+                              ? 'M'
+                              : switch (syncMode) {
+                                  SyncMode.off => 'Sync',
+                                  SyncMode.tempo => 'S',
+                                  SyncMode.beat => 'B',
+                                },
+                          style: chipStyle,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 2),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: isMaster ? .secondary : .ghost,
-                  size: .xs,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
-                  onPress: (!enabled || isMaster) ? null : onSetMaster,
-                  child: SizedBox(
-                    width: 52,
-                    child: FittedBox(
-                      fit: .scaleDown,
-                      child: Text(
-                        isMaster ? 'Master' : 'Set master',
-                        textAlign: .center,
-                        maxLines: 1,
-                        style: theme.typography.body.xs.copyWith(
-                          color: isMaster
-                              ? const Color(0xe634d399) // emerald-400
-                              : theme.colors.mutedForeground,
-                          fontWeight: .w600,
-                          fontSize: 9,
-                          height: 1.1,
+                child: AppTooltip(
+                  tip: isMaster ? 'Master' : 'Set master',
+                  description: isMaster
+                      ? 'This deck is the sync reference.'
+                      : 'Make this deck the tempo reference for sync.',
+                  child: FButton(
+                    variant: isMaster ? .secondary : .ghost,
+                    size: .xs,
+                    style: .delta(
+                      contentStyle: .delta(padding: .value(compactPad)),
+                    ),
+                    onPress: (!enabled || isMaster) ? null : onSetMaster,
+                    semanticsLabel: isMaster ? 'Master' : 'Set master',
+                    child: SizedBox(
+                      width: 52,
+                      child: FittedBox(
+                        fit: .scaleDown,
+                        child: Text(
+                          isMaster ? 'Master' : 'Set master',
+                          textAlign: .center,
+                          maxLines: 1,
+                          style: theme.typography.body.xs.copyWith(
+                            color: isMaster
+                                ? const Color(0xe634d399) // emerald-400
+                                : theme.colors.mutedForeground,
+                            fontWeight: .w600,
+                            fontSize: 9,
+                            height: 1.1,
+                          ),
                         ),
                       ),
                     ),
@@ -173,21 +213,27 @@ class DeckTempoPanel extends StatelessWidget {
               ),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: .ghost,
-                  size: .xs,
-                  mainAxisSize: .min,
-                  onPress: enabled
-                      ? () => onTempoRangeChange(
-                          nextTempoRange(tempoRange, tempoRangeSteps),
-                        )
-                      : null,
-                  child: Text(
-                    formatTempoRange(tempoRange),
-                    style: theme.typography.body.xs.copyWith(
-                      fontSize: 12,
-                      fontWeight: .w600,
-                      color: theme.colors.mutedForeground,
+                child: AppTooltip(
+                  tip: 'Tempo range',
+                  description:
+                      'Pitch fader span. Click to cycle the max ±% range.',
+                  child: FButton(
+                    variant: .ghost,
+                    size: .xs,
+                    mainAxisSize: .min,
+                    onPress: enabled
+                        ? () => onTempoRangeChange(
+                            nextTempoRange(tempoRange, tempoRangeSteps),
+                          )
+                        : null,
+                    semanticsLabel: 'Tempo range',
+                    child: Text(
+                      formatTempoRange(tempoRange),
+                      style: theme.typography.body.xs.copyWith(
+                        fontSize: 12,
+                        fontWeight: .w600,
+                        color: theme.colors.mutedForeground,
+                      ),
                     ),
                   ),
                 ),

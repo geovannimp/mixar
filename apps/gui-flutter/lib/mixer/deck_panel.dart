@@ -12,6 +12,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
@@ -86,15 +87,19 @@ class DeckPanel extends ConsumerWidget {
         unawaited(_engineCmd(context, () => setDeckCuePoint(ref, deckId)));
       },
     );
+    final playLabel = playing ? 'Pause' : 'Play';
     final play = Expanded(
-      child: FButton(
-        onPress: transportDisabled
-            ? null
-            : () {
-                unawaited(_togglePlay(context, ref, deckId));
-              },
-        semanticsLabel: playing ? 'Pause' : 'Play',
-        child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
+      child: AppTooltip(
+        tip: playLabel,
+        child: FButton(
+          onPress: transportDisabled
+              ? null
+              : () {
+                  unawaited(_togglePlay(context, ref, deckId));
+                },
+          semanticsLabel: playLabel,
+          child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
+        ),
       ),
     );
     final cueWrap = Expanded(child: cue);
@@ -190,18 +195,22 @@ class _EjectLoadButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FButton(
-      variant: .outline,
-      size: .xs,
-      mainAxisSize: .min,
-      onPress: disabled ? null : onPress,
-      semanticsLabel: hasTrack ? 'Eject track' : 'Load track',
-      style: .delta(
-        contentStyle: .delta(
-          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+    final tip = hasTrack ? 'Eject track' : 'Load track';
+    return AppTooltip(
+      tip: tip,
+      child: FButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        onPress: disabled ? null : onPress,
+        semanticsLabel: tip,
+        style: .delta(
+          contentStyle: .delta(
+            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+          ),
         ),
+        child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
       ),
-      child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
     );
   }
 }
@@ -224,23 +233,28 @@ class _QuantizeButton extends StatelessWidget {
     const cueOn = Color.fromARGB(191, 52, 211, 153);
     const cueFill = Color.fromARGB(28, 52, 211, 153); // emerald-400 @ ~25%
     final on = quantize && !disabled;
-    return FButton(
-      variant: .outline,
-      size: .xs,
-      mainAxisSize: .min,
-      onPress: disabled ? null : onPress,
-      semanticsLabel: quantize ? 'Quantize on' : 'Quantize off',
-      style: .delta(
-        decoration: on ? .delta([.all(.shapeDelta(color: cueFill))]) : null,
-        contentStyle: .delta(
-          padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+    final tip = quantize ? 'Quantize on' : 'Quantize off';
+    return AppTooltip(
+      tip: tip,
+      description: 'Snap cues, loops, and hot cues to the beat grid.',
+      child: FButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        onPress: disabled ? null : onPress,
+        semanticsLabel: tip,
+        style: .delta(
+          decoration: on ? .delta([.all(.shapeDelta(color: cueFill))]) : null,
+          contentStyle: .delta(
+            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+          ),
         ),
-      ),
-      child: Text(
-        'Q',
-        style: TextStyle(
-          fontWeight: .w600,
-          color: on ? cueOn : theme.colors.mutedForeground,
+        child: Text(
+          'Q',
+          style: TextStyle(
+            fontWeight: .w600,
+            color: on ? cueOn : theme.colors.mutedForeground,
+          ),
         ),
       ),
     );

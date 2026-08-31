@@ -1,6 +1,9 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -16,18 +19,25 @@ void main() {
   }) async {
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge(
-          // ignore: deprecated_member_use
-          child: FTheme(data: theme, child: child!),
-        ),
-        home: Scaffold(
-          body: DeckKeyLockButton(
-            keyLabel: 'F#m',
-            keyLock: keyLock,
-            enabled: enabled,
-            onToggle: onToggle ?? () {},
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            (ref) async => defaultAppSettings(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: Scaffold(
+            body: DeckKeyLockButton(
+              keyLabel: 'F#m',
+              keyLock: keyLock,
+              enabled: enabled,
+              onToggle: onToggle ?? () {},
+            ),
           ),
         ),
       ),
