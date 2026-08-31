@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 
 /// Tauri `HOT_CUE_ACCENTS` slot colors (border / fill / text).
 ({Color border, Color fill, Color text}) hotCueAccent(int slot) {
@@ -106,7 +107,10 @@ class PadButton extends StatelessWidget {
     );
 
     if (tooltip != null && tooltip!.isNotEmpty) {
-      pad = Semantics(tooltip: tooltip, button: true, child: pad);
+      pad = AppTooltip(
+        tip: tooltip!,
+        child: Semantics(label: tooltip, button: true, child: pad),
+      );
     }
     return pad;
   }

@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -99,25 +100,41 @@ class DeckTempoPanel extends StatelessWidget {
               const SizedBox(height: 6),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: .secondary,
-                  size: .sm,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
-                  onPress: (!enabled || isMaster)
-                      ? null
-                      : () => onToggleSync(shiftKeyPressed()),
-                  child: Text(
-                    isMaster
-                        ? 'M'
+                child: Builder(
+                  builder: (context) {
+                    final syncTip = isMaster
+                        ? 'Sync master'
                         : switch (syncMode) {
-                            SyncMode.off => 'Sync',
-                            SyncMode.tempo => 'S',
-                            SyncMode.beat => 'B',
-                          },
-                    style: chipStyle,
-                  ),
+                            SyncMode.off => null,
+                            SyncMode.tempo => 'Tempo sync',
+                            SyncMode.beat => 'Beat sync',
+                          };
+                    final button = FButton(
+                      variant: .secondary,
+                      size: .sm,
+                      style: .delta(
+                        contentStyle: .delta(padding: .value(compactPad)),
+                      ),
+                      onPress: (!enabled || isMaster)
+                          ? null
+                          : () => onToggleSync(shiftKeyPressed()),
+                      semanticsLabel: syncTip ?? 'Sync',
+                      child: Text(
+                        isMaster
+                            ? 'M'
+                            : switch (syncMode) {
+                                SyncMode.off => 'Sync',
+                                SyncMode.tempo => 'S',
+                                SyncMode.beat => 'B',
+                              },
+                        style: chipStyle,
+                      ),
+                    );
+                    if (syncTip == null) {
+                      return button;
+                    }
+                    return AppTooltip(tip: syncTip, child: button);
+                  },
                 ),
               ),
               const SizedBox(height: 2),

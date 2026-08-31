@@ -11,6 +11,7 @@ import 'package:gui_flutter/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/settings/settings_sidebar.dart';
+import 'package:gui_flutter/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -311,6 +312,10 @@ class _SettingsSectionPanel extends StatelessWidget {
         onChanged: onChanged,
       ),
       SettingsSection.deck => SettingsDeckPanel(
+        draft: draft,
+        onChanged: onChanged,
+      ),
+      SettingsSection.ui => SettingsUiPanel(
         draft: draft,
         onChanged: onChanged,
       ),

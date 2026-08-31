@@ -6002,6 +6002,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historySessionIdleMinutes = <u32>::sse_decode(deserializer);
         let mut var_historyMinPlaySeconds = <u32>::sse_decode(deserializer);
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
+        let mut var_showTooltips = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -6030,6 +6031,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_session_idle_minutes: var_historySessionIdleMinutes,
             history_min_play_seconds: var_historyMinPlaySeconds,
             history_min_deck_volume: var_historyMinDeckVolume,
+            show_tooltips: var_showTooltips,
         };
     }
 }
@@ -8171,6 +8173,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
                 .into_dart(),
             self.history_min_play_seconds.into_into_dart().into_dart(),
             self.history_min_deck_volume.into_into_dart().into_dart(),
+            self.show_tooltips.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -9380,6 +9383,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <u32>::sse_encode(self.history_session_idle_minutes, serializer);
         <u32>::sse_encode(self.history_min_play_seconds, serializer);
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
+        <bool>::sse_encode(self.show_tooltips, serializer);
     }
 }
 

@@ -257,6 +257,8 @@ pub struct AppSettings {
     pub history_min_play_seconds: u32,
     #[serde(default = "default_history_min_deck_volume")]
     pub history_min_deck_volume: f32,
+    #[serde(default = "default_show_tooltips")]
+    pub show_tooltips: bool,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -280,6 +282,7 @@ struct SettingsHost {
     history_session_idle_minutes: u32,
     history_min_play_seconds: u32,
     history_min_deck_volume: f32,
+    show_tooltips: bool,
 }
 
 impl Default for SettingsHost {
@@ -303,6 +306,7 @@ impl Default for SettingsHost {
             history_session_idle_minutes: default_history_session_idle_minutes(),
             history_min_play_seconds: default_history_min_play_seconds(),
             history_min_deck_volume: default_history_min_deck_volume(),
+            show_tooltips: default_show_tooltips(),
         }
     }
 }
@@ -321,6 +325,10 @@ fn default_history_min_play_seconds() -> u32 {
 
 fn default_history_min_deck_volume() -> f32 {
     0.05
+}
+
+fn default_show_tooltips() -> bool {
+    true
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -560,6 +568,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_session_idle_minutes: host.history_session_idle_minutes,
         history_min_play_seconds: host.history_min_play_seconds,
         history_min_deck_volume: host.history_min_deck_volume,
+        show_tooltips: host.show_tooltips,
     }
 }
 
@@ -596,6 +605,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
     host.history_min_play_seconds = settings.history_min_play_seconds;
     host.history_min_deck_volume = settings.history_min_deck_volume;
+    host.show_tooltips = settings.show_tooltips;
     host.configured = true;
     Ok(())
 }
@@ -703,6 +713,7 @@ mod tests {
         );
         assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
         assert!(parsed.trusted_controller_device_ids.is_empty());
+        assert!(parsed.show_tooltips);
     }
 
     #[test]
@@ -730,6 +741,33 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(restored.default_key_lock);
+    }
+
+    #[test]
+    fn missing_show_tooltips_defaults_true() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("show_tooltips");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert!(settings_from_host(&host).show_tooltips);
+    }
+
+    #[test]
+    fn show_tooltips_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.show_tooltips = false;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.show_tooltips);
     }
 
     #[test]

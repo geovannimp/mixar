@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 /// Matches Forui `FButton(size: .sm)` desktop height used for cue / meter spacer.
@@ -361,17 +362,20 @@ class _MixerCueFooter extends StatelessWidget {
     return SizedBox(
       height: _columnFooterHeight,
       child: Center(
-        child: FButton(
-          variant: cue ? .secondary : .ghost,
-          size: .sm,
-          mainAxisSize: .min,
-          selected: cue,
-          semanticsLabel: 'Cue',
-          onPress: disabled ? null : onCue,
-          child: Icon(
-            FLucideIcons.headphones,
-            size: 14,
-            color: cue ? cueOn : theme.colors.mutedForeground,
+        child: AppTooltip(
+          tip: 'Headphone cue',
+          child: FButton(
+            variant: cue ? .secondary : .ghost,
+            size: .sm,
+            mainAxisSize: .min,
+            selected: cue,
+            semanticsLabel: 'Headphone cue',
+            onPress: disabled ? null : onCue,
+            child: Icon(
+              FLucideIcons.headphones,
+              size: 14,
+              color: cue ? cueOn : theme.colors.mutedForeground,
+            ),
           ),
         ),
       ),
@@ -417,21 +421,26 @@ class _LevelMetersColumn extends ConsumerWidget {
                 ),
               ),
             ),
-            FButton(
-              variant: .outline,
-              size: .xs,
-              mainAxisSize: .min,
-              selected: mono,
-              semanticsLabel: mono
+            AppTooltip(
+              tip: mono
                   ? 'Level meters: mono. Switch to stereo.'
                   : 'Level meters: stereo. Switch to mono.',
-              onPress: () => onMonoChanged(!mono),
-              child: Text(
-                mono ? 'M' : 'S',
-                style: theme.typography.body.xs.copyWith(
-                  fontSize: 8,
-                  fontWeight: .w600,
-                  color: theme.colors.mutedForeground,
+              child: FButton(
+                variant: .outline,
+                size: .xs,
+                mainAxisSize: .min,
+                selected: mono,
+                semanticsLabel: mono
+                    ? 'Level meters: mono. Switch to stereo.'
+                    : 'Level meters: stereo. Switch to mono.',
+                onPress: () => onMonoChanged(!mono),
+                child: Text(
+                  mono ? 'M' : 'S',
+                  style: theme.typography.body.xs.copyWith(
+                    fontSize: 8,
+                    fontWeight: .w600,
+                    color: theme.colors.mutedForeground,
+                  ),
                 ),
               ),
             ),

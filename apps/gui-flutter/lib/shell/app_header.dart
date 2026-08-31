@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
@@ -78,12 +79,15 @@ class AppHeader extends ConsumerWidget {
                 ),
               ),
             ),
-            FButton.icon(
-              variant: .ghost,
-              size: .sm,
-              semanticsLabel: 'Settings',
-              onPress: () => onTabChanged(ShellTab.settings),
-              child: const Icon(FLucideIcons.settings),
+            AppTooltip(
+              tip: 'Settings',
+              child: FButton.icon(
+                variant: .ghost,
+                size: .sm,
+                semanticsLabel: 'Settings',
+                onPress: () => onTabChanged(ShellTab.settings),
+                child: const Icon(FLucideIcons.settings),
+              ),
             ),
             if (desktop) const WindowTitleBarControls(),
           ],

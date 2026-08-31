@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Beat-grid edit panel for the performance surface.
@@ -55,14 +56,19 @@ class DeckGridPanel extends StatelessWidget {
     Widget sideCell({
       required Widget child,
       required VoidCallback? onPress,
+      required String tip,
     }) {
       return AspectRatio(
         aspectRatio: 1,
-        child: FButton(
-          variant: .outline,
-          size: .xs,
-          onPress: controlsDisabled ? null : onPress,
-          child: child,
+        child: AppTooltip(
+          tip: tip,
+          child: FButton(
+            variant: .outline,
+            size: .xs,
+            semanticsLabel: tip,
+            onPress: controlsDisabled ? null : onPress,
+            child: child,
+          ),
         ),
       );
     }
@@ -118,6 +124,7 @@ class DeckGridPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 sideCell(
+                  tip: 'Decrease BPM',
                   child: const Icon(LucideIcons.minus, size: 16),
                   onPress: onBpmDown,
                 ),
@@ -132,6 +139,7 @@ class DeckGridPanel extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 sideCell(
+                  tip: 'Increase BPM',
                   child: const Icon(LucideIcons.plus, size: 16),
                   onPress: onBpmUp,
                 ),
@@ -150,6 +158,7 @@ class DeckGridPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 sideCell(
+                  tip: 'Nudge grid back',
                   onPress: onNudgeBack,
                   child: const Icon(LucideIcons.arrowLeftFromLine, size: 16),
                 ),
@@ -157,6 +166,7 @@ class DeckGridPanel extends StatelessWidget {
                 textCell(label: 'Now', onPress: onSetDownbeat),
                 const SizedBox(width: 8),
                 sideCell(
+                  tip: 'Nudge grid forward',
                   onPress: onNudgeForward,
                   child: const Icon(LucideIcons.arrowRightFromLine, size: 16),
                 ),

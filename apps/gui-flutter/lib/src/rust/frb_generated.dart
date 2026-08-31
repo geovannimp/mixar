@@ -9,11 +9,14 @@ import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
 import 'api/settings.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -5284,8 +5287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 27)
-      throw Exception('unexpected arr length: expect 27 but see ${arr.length}');
+    if (arr.length != 28)
+      throw Exception('unexpected arr length: expect 28 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5314,6 +5317,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historySessionIdleMinutes: dco_decode_u_32(arr[24]),
       historyMinPlaySeconds: dco_decode_u_32(arr[25]),
       historyMinDeckVolume: dco_decode_f_32(arr[26]),
+      showTooltips: dco_decode_bool(arr[27]),
     );
   }
 
@@ -6604,6 +6608,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historySessionIdleMinutes = sse_decode_u_32(deserializer);
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
     var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
+    var var_showTooltips = sse_decode_bool(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -6632,6 +6637,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historySessionIdleMinutes: var_historySessionIdleMinutes,
       historyMinPlaySeconds: var_historyMinPlaySeconds,
       historyMinDeckVolume: var_historyMinDeckVolume,
+      showTooltips: var_showTooltips,
     );
   }
 
@@ -8319,6 +8325,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.historySessionIdleMinutes, serializer);
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
     sse_encode_f_32(self.historyMinDeckVolume, serializer);
+    sse_encode_bool(self.showTooltips, serializer);
   }
 
   @protected
@@ -10048,7 +10055,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportGetTrack(that: this, trackId: trackId);
 
-  /// L0 overview peaks from the library DB, if present.
+  /// L0 overview peaks from the library DB (generates overview when missing).
   Future<WaveformPeaks?> getWaveformOverview({required String trackId}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportGetWaveformOverview(
         that: this,

@@ -1,11 +1,14 @@
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 
 void main() {
   Future<void> pumpPanel(
@@ -32,12 +35,18 @@ void main() {
     var bankId = activeBankId;
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
-      MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
-          child: FTheme(data: theme, child: child!),
-        ),
-        home: Scaffold(
+      ProviderScope(
+        overrides: [
+          appSettingsProvider.overrideWith(
+            (ref) async => defaultAppSettings(),
+          ),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromForui(theme),
+          builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+            child: FTheme(data: theme, child: child!),
+          ),
+          home: Scaffold(
           body: StatefulBuilder(
             builder: (context, setState) {
               return SizedBox(
@@ -82,6 +91,7 @@ void main() {
               );
             },
           ),
+        ),
         ),
       ),
     );
