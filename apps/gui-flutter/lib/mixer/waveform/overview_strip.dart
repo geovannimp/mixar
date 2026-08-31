@@ -55,14 +55,14 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final visibleMs = cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-              );
+              final visibleMs = ref.watch(waveformVisibleMsProvider);
               final window = overviewWindowRect(
                 positionMs: positionMs,
                 durationMs: durationMs,
-                visibleMs: visibleMs,
+                visibleMs: clampWaveformVisibleMs(
+                  visibleMs,
+                  durationMs: durationMs,
+                ),
               );
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,

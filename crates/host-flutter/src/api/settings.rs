@@ -245,6 +245,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub default_key_lock: bool,
     pub waveform_display_mode: WaveformDisplayModeSetting,
+    #[serde(default = "default_waveform_visible_ms")]
+    pub waveform_visible_ms: u32,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
     #[serde(default)]
@@ -274,6 +276,7 @@ struct SettingsHost {
     default_top_jog_mode: JogModeSetting,
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
+    waveform_visible_ms: u32,
     key_display_mode: KeyDisplayModeSetting,
     trusted_controller_device_ids: Vec<String>,
     history_enabled: bool,
@@ -297,6 +300,7 @@ impl Default for SettingsHost {
             default_top_jog_mode: JogModeSetting::Vinyl,
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
+            waveform_visible_ms: default_waveform_visible_ms(),
             key_display_mode: KeyDisplayModeSetting::Musical,
             trusted_controller_device_ids: Vec::new(),
             history_enabled: default_history_enabled(),
@@ -322,6 +326,13 @@ fn default_history_min_play_seconds() -> u32 {
 fn default_history_min_deck_volume() -> f32 {
     0.05
 }
+
+fn default_waveform_visible_ms() -> u32 {
+    24_000
+}
+
+const WAVEFORM_VISIBLE_MS_MIN: u32 = 2_000;
+const WAVEFORM_VISIBLE_MS_MAX: u32 = 120_000;
 
 fn default_library_table_columns() -> Vec<String> {
     vec![
@@ -449,6 +460,10 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         errors.push("history_min_deck_volume must be between 0 and 1".into());
     }
 
+    settings.waveform_visible_ms = settings
+        .waveform_visible_ms
+        .clamp(WAVEFORM_VISIBLE_MS_MIN, WAVEFORM_VISIBLE_MS_MAX);
+
     if errors.is_empty() {
         Ok(settings)
     } else {
@@ -554,6 +569,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         tempo_range_steps: config.tempo_range_steps(),
         default_key_lock: config.default_key_lock(),
         waveform_display_mode: host.waveform_display_mode,
+        waveform_visible_ms: host.waveform_visible_ms,
         key_display_mode: host.key_display_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
         history_enabled: host.history_enabled,
@@ -590,6 +606,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_top_jog_mode = settings.default_top_jog_mode;
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
+    host.waveform_visible_ms = settings.waveform_visible_ms;
     host.key_display_mode = settings.key_display_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
     host.history_enabled = settings.history_enabled;
@@ -701,6 +718,7 @@ mod tests {
             parsed.waveform_display_mode,
             WaveformDisplayModeSetting::Rgb
         );
+        assert_eq!(parsed.waveform_visible_ms, 24_000);
         assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
         assert!(parsed.trusted_controller_device_ids.is_empty());
     }
@@ -809,6 +827,32 @@ mod tests {
             settings_from_host(&host).waveform_display_mode,
             WaveformDisplayModeSetting::Filtered,
         );
+    }
+
+    #[test]
+    fn missing_waveform_visible_ms_defaults_24s() {
+        let mut host = SettingsHost::default();
+        let mut value = serde_json::to_value(sample_settings()).expect("serialize");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("waveform_visible_ms");
+        let settings: AppSettings = serde_json::from_value(value).expect("deserialize");
+        apply_to_host(&mut host, settings).expect("apply");
+        assert_eq!(settings_from_host(&host).waveform_visible_ms, 24_000);
+    }
+
+    #[test]
+    fn waveform_visible_ms_clamps_on_parse() {
+        let mut settings = sample_settings();
+        settings.waveform_visible_ms = 100;
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(parsed.waveform_visible_ms, WAVEFORM_VISIBLE_MS_MIN);
+
+        let mut settings = sample_settings();
+        settings.waveform_visible_ms = 999_999;
+        let parsed = parse_settings(settings).expect("parse");
+        assert_eq!(parsed.waveform_visible_ms, WAVEFORM_VISIBLE_MS_MAX);
     }
 
     #[test]

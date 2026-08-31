@@ -65,7 +65,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Load one track including embedded artwork when present.
   Future<LibraryTrackSummary?> getTrack({required String trackId});
 
-  /// L0 overview peaks from the library DB, if present.
+  /// L0 overview peaks from the library DB (generates overview when missing).
   Future<WaveformPeaks?> getWaveformOverview({required String trackId});
 
   /// L1 JIT window peaks from the decode cache (decodes the file if needed).

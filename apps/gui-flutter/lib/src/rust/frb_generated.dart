@@ -5284,8 +5284,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 27)
-      throw Exception('unexpected arr length: expect 27 but see ${arr.length}');
+    if (arr.length != 28)
+      throw Exception('unexpected arr length: expect 28 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5308,12 +5308,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       defaultKeyLock: dco_decode_bool(arr[19]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[20]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[21]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[22]),
-      historyEnabled: dco_decode_bool(arr[23]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[24]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[25]),
-      historyMinDeckVolume: dco_decode_f_32(arr[26]),
+      waveformVisibleMs: dco_decode_u_32(arr[21]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[22]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[23]),
+      historyEnabled: dco_decode_bool(arr[24]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[25]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[26]),
+      historyMinDeckVolume: dco_decode_f_32(arr[27]),
     );
   }
 
@@ -6598,6 +6599,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
+    var var_waveformVisibleMs = sse_decode_u_32(deserializer);
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
     var var_historyEnabled = sse_decode_bool(deserializer);
@@ -6626,6 +6628,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: var_tempoRangeSteps,
       defaultKeyLock: var_defaultKeyLock,
       waveformDisplayMode: var_waveformDisplayMode,
+      waveformVisibleMs: var_waveformVisibleMs,
       keyDisplayMode: var_keyDisplayMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
       historyEnabled: var_historyEnabled,
@@ -8313,6 +8316,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.waveformDisplayMode,
       serializer,
     );
+    sse_encode_u_32(self.waveformVisibleMs, serializer);
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
     sse_encode_bool(self.historyEnabled, serializer);
@@ -10048,7 +10052,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       .api
       .crateApiLibraryLibraryTransportGetTrack(that: this, trackId: trackId);
 
-  /// L0 overview peaks from the library DB, if present.
+  /// L0 overview peaks from the library DB (generates overview when missing).
   Future<WaveformPeaks?> getWaveformOverview({required String trackId}) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportGetWaveformOverview(
         that: this,

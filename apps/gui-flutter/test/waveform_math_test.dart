@@ -131,6 +131,21 @@ void main() {
     expect(visibleSourceMs(0), kWaveformVisibleMs);
   });
 
+  test('clampWaveformVisibleMs floors and caps', () {
+    expect(clampWaveformVisibleMs(100), kWaveformVisibleMsMin);
+    expect(clampWaveformVisibleMs(999999), kWaveformVisibleMsMax);
+    expect(clampWaveformVisibleMs(999999, durationMs: 60000), 60000);
+    expect(clampWaveformVisibleMs(kWaveformVisibleMs), kWaveformVisibleMs);
+  });
+
+  test('zoomVisibleMs zooms in on wheel up', () {
+    final zoomedIn = zoomVisibleMs(24000, -1.0);
+    expect(zoomedIn, lessThan(24000));
+    final zoomedOut = zoomVisibleMs(24000, 1.0);
+    expect(zoomedOut, greaterThan(24000));
+    expect(zoomVisibleMs(24000, 0), 24000);
+  });
+
   test('overviewWindowRect is the visible span as 0..1', () {
     final rect = overviewWindowRect(
       positionMs: 12_000,

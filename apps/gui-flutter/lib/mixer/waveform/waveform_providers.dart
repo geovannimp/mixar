@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
@@ -54,3 +55,38 @@ final waveformDisplayModeProvider = Provider<WaveformDisplayMode>((ref) {
         ),
   );
 });
+
+/// Persisted Settings default (clamped). Live zoom may diverge until save.
+final waveformVisibleMsDefaultProvider = Provider<int>((ref) {
+  return ref
+      .watch(appSettingsProvider)
+      .maybeWhen(
+        data: (s) => clampWaveformVisibleMs(s.waveformVisibleMs),
+        orElse: () => kWaveformVisibleMs,
+      );
+});
+
+class WaveformVisibleMs extends Notifier<int> {
+  @override
+  int build() {
+    final initial = ref.read(waveformVisibleMsDefaultProvider);
+    ref.listen<int>(waveformVisibleMsDefaultProvider, (prev, next) {
+      if (prev != next) {
+        state = next;
+      }
+    });
+    return initial;
+  }
+
+  void setMs(int ms, {int? durationMs}) {
+    state = clampWaveformVisibleMs(ms, durationMs: durationMs);
+  }
+
+  void zoomByScroll(double scrollDeltaDy, {int? durationMs}) {
+    state = zoomVisibleMs(state, scrollDeltaDy, durationMs: durationMs);
+  }
+}
+
+final waveformVisibleMsProvider = NotifierProvider<WaveformVisibleMs, int>(
+  WaveformVisibleMs.new,
+);

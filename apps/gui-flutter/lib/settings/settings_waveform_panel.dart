@@ -1,8 +1,11 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+
+const kWaveformVisibleMsPresets = [6000, 12000, 24000, 48000, 60000];
 
 class SettingsWaveformPanel extends StatelessWidget {
   const SettingsWaveformPanel({
@@ -16,6 +19,11 @@ class SettingsWaveformPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleOptions = {
+      ...kWaveformVisibleMsPresets,
+      draft.waveformVisibleMs,
+    }.toList()..sort();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,6 +44,19 @@ class SettingsWaveformPanel extends StatelessWidget {
             },
             onChanged: (m) =>
                 onChanged(copyAppSettings(draft, waveformDisplayMode: m)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsField(
+          label: 'Default zoom',
+          hint: 'Visible window when decks open. Scroll to zoom in-session.',
+          child: SettingsSelect<int>(
+            value: clampWaveformVisibleMs(draft.waveformVisibleMs),
+            options: visibleOptions,
+            labelBuilder: (ms) =>
+                '${(ms / 1000).toStringAsFixed(ms % 1000 == 0 ? 0 : 1)}s',
+            onChanged: (ms) =>
+                onChanged(copyAppSettings(draft, waveformVisibleMs: ms)),
           ),
         ),
       ],
