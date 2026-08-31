@@ -196,24 +196,6 @@ void invalidateHistory(WidgetRef ref) {
   ref.invalidate(collectionsProvider);
 }
 
-/// Refresh session list while an open session may close on idle timeout.
-/// Prefer [`LibraryEvtKind.historySessionUpdated`]; keep a light poll on the
-/// History tab so idle auto-close still updates if a tick was missed.
-final historyLivePollProvider = Provider<void>((ref) {
-  if (ref.watch(librarySourceTabProvider) != LibrarySourceTab.history) {
-    return;
-  }
-  final sessions = ref.watch(historySessionsProvider);
-  final hasLive = sessions.asData?.value.any((s) => !s.closed) ?? false;
-  if (!hasLive) {
-    return;
-  }
-  final timer = Timer.periodic(const Duration(seconds: 2), (_) {
-    ref.read(historyRefreshTickProvider.notifier).bump();
-  });
-  ref.onDispose(timer.cancel);
-});
-
 /// Apply history settings once settings + library transports are ready.
 final historySettingsBootstrapProvider = Provider<void>((ref) {
   final settings = ref.watch(appSettingsProvider);

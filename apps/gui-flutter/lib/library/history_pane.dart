@@ -21,7 +21,6 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(historyLivePollProvider);
     final theme = context.theme;
     final colors = theme.colors;
     final sessions = ref.watch(historySessionsProvider);
@@ -71,6 +70,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
         ),
         Expanded(
           child: sessions.when(
+            skipLoadingOnReload: true,
             loading: () => const Center(child: FCircularProgress()),
             error: (e, _) => Center(
               child: Padding(

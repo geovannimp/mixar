@@ -74,6 +74,7 @@ class HistoryDetailPane extends ConsumerWidget {
           ),
           Expanded(
             child: entries.when(
+              skipLoadingOnReload: true,
               loading: () => const Center(child: FCircularProgress()),
               error: (e, _) => Center(child: Text('$e')),
               data: (rows) {
