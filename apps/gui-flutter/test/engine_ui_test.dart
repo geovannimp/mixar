@@ -36,6 +36,18 @@ void main() {
       expect(snap.titleFor(0), 'Palawan by SKIRK');
     });
 
+    test('updated relative path with extension becomes file name', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: r'samples\Palawan by SKIRK.opus',
+        ),
+      );
+      expect(snap.titleFor(0), 'Palawan by SKIRK');
+    });
+
     test('updated title with slash is preserved', () {
       final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
