@@ -43,7 +43,7 @@ class DeckTempoPanel extends StatelessWidget {
 
   final List<double> tempoRangeSteps;
 
-  /// When false (no track), disable tempo controls.
+  /// When false (engine not running), disable tempo controls.
   final bool enabled;
 
   bool get _syncActive => syncMode != SyncMode.off;

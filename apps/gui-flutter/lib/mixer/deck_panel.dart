@@ -51,7 +51,7 @@ class DeckPanel extends ConsumerWidget {
       isMaster: ref.watch(deckIsMasterProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
-      enabled: hasTrack && engineRunning,
+      enabled: engineRunning,
       tempoRangeSteps: settings?.tempoRangeSteps ?? kTempoRangeSteps,
       onSpeedChange: (speed) {
         unawaited(_engineCmd(context, () => setDeckSpeed(ref, deckId, speed)));
