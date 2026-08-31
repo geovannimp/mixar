@@ -76,6 +76,21 @@ class SettingsDeckPanel extends ConsumerWidget {
                   ),
                 ],
               ),
+            ],
+          ),
+        ),
+
+        SettingsPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              const SettingsSectionHeader(
+                title: 'Tempo and Key',
+                description:
+                    'Default pitch-fader range and key lock for new decks.',
+              ),
+              const SizedBox(height: 0),
               SettingsField(
                 label: 'Default tempo range',
                 child: SettingsSelect(
