@@ -631,10 +631,6 @@ List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
 
 TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
   final surface = theme.colors.secondary;
-  final stripe = Color.alphaBlend(
-    theme.colors.foreground.withValues(alpha: 0.04),
-    surface,
-  );
   final text = theme.typography.body.sm.copyWith(
     color: theme.colors.foreground,
   );
@@ -658,7 +654,7 @@ TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
       enableCellBorderHorizontal: true,
       gridBackgroundColor: surface,
       rowColor: surface,
-      oddRowColor: stripe,
+      oddRowColor: surface,
       evenRowColor: surface,
       activatedColor: theme.colors.muted,
       activatedBorderColor: theme.colors.primary,
