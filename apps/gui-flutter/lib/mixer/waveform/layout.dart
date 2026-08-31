@@ -101,6 +101,26 @@ double stripTranslateX({
   required double pxPerMs,
 }) => viewportWidth / 2 - positionMs * pxPerMs;
 
+/// Lane buffer width in zoom space (1 px = [pxPerMs] ms), e.g. l1Range span.
+double laneBufferWidthPx({
+  required int startMs,
+  required int endMs,
+  required double pxPerMs,
+}) {
+  if (endMs <= startMs || pxPerMs <= 0) {
+    return 0;
+  }
+  return (endMs - startMs) * pxPerMs;
+}
+
+/// Where [bufferStartMs] lands in viewport coordinates (playhead-centered).
+double laneBufferTranslateX({
+  required double positionMs,
+  required int bufferStartMs,
+  required double viewportWidth,
+  required double pxPerMs,
+}) => viewportWidth / 2 - (positionMs - bufferStartMs) * pxPerMs;
+
 int cropVisibleMs({required int durationMs, required double viewportWidth}) {
   final px = stripPxPerMs(durationMs);
   if (px <= 0) {

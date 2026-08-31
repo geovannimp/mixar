@@ -314,6 +314,33 @@ void main() {
     expect(dx + pos * pxPerMs, closeTo(width / 2, 1e-6));
   });
 
+  test('lane buffer is ~3x viewport at zoom', () {
+    const visibleMs = 24_000;
+    const width = 800.0;
+    const pxPerMs = width / visibleMs;
+    const pos = 90_000;
+    final range = l1Range(
+      positionMs: pos,
+      visibleMs: visibleMs,
+      durationMs: 180_000,
+    );
+    final bufferW = laneBufferWidthPx(
+      startMs: range.startMs,
+      endMs: range.endMs,
+      pxPerMs: pxPerMs,
+    );
+    expect(bufferW, closeTo(3 * width, 1));
+    expect(
+      laneBufferTranslateX(
+        positionMs: pos.toDouble(),
+        bufferStartMs: range.startMs,
+        viewportWidth: width,
+        pxPerMs: pxPerMs,
+      ),
+      closeTo(width / 2 - 1.5 * width, 1e-6),
+    );
+  });
+
   test(
     'rebased origin at t=0 puts the visible slice one viewport to the left',
     () {
