@@ -351,6 +351,7 @@ impl<'a> Store<'a> {
             active.update(connection).map_err(db::db_err)?;
             return Ok(());
         }
+        drop(conn); // std Mutex is not reentrant; insert_collection_track locks again
         self.insert_collection_track(collection_id, track_id, position)
     }
 
