@@ -5,8 +5,8 @@ use std::path::Path;
 use library_core::{CollectionId, Result, TrackId, TrackMetadata};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, Condition, DatabaseConnection, EntityTrait, PaginatorTrait,
-    QueryFilter, QueryOrder, Set,
+    ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, PaginatorTrait,
+    QueryFilter, QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
 };
 
 use crate::db::{self, Db};
@@ -330,7 +330,7 @@ impl<'a> Store<'a> {
 
     fn insert_collection_track_on(
         &self,
-        connection: &DatabaseConnection,
+        connection: &impl ConnectionTrait,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
@@ -354,19 +354,36 @@ impl<'a> Store<'a> {
         position: Option<i32>,
     ) -> Result<()> {
         let conn = self.db.conn()?;
-        let connection = conn.as_connection();
-        let existing = CollectionTrackEntity::find()
-            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
-            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
-            .one(connection)
+        // IMMEDIATE takes the write lock up front so a concurrent connection cannot
+        // SELECT-miss then INSERT a duplicate between our lookup and insert.
+        let txn = conn
+            .as_connection()
+            .begin_with_options(TransactionOptions {
+                sqlite_transaction_mode: Some(SqliteTransactionMode::Immediate),
+                ..Default::default()
+            })
             .map_err(db::db_err)?;
-        if let Some(row) = existing {
-            let mut active: collection_tracks::ActiveModel = row.into();
-            active.position = Set(position);
-            active.update(connection).map_err(db::db_err)?;
-            return Ok(());
+        let result = (|| -> Result<()> {
+            let existing = CollectionTrackEntity::find()
+                .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
+                .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+                .one(&txn)
+                .map_err(db::db_err)?;
+            if let Some(row) = existing {
+                let mut active: collection_tracks::ActiveModel = row.into();
+                active.position = Set(position);
+                active.update(&txn).map_err(db::db_err)?;
+                return Ok(());
+            }
+            self.insert_collection_track_on(&txn, collection_id, track_id, position)
+        })();
+        match result {
+            Ok(()) => txn.commit().map_err(db::db_err),
+            Err(error) => {
+                let _ = txn.rollback();
+                Err(error)
+            }
         }
-        self.insert_collection_track_on(connection, collection_id, track_id, position)
     }
 
     pub fn delete_collection_track(
