@@ -239,6 +239,17 @@ class FocusedTrackRowIndex extends Notifier<int> {
     }
   }
 
+  void set(int index) {
+    if (_count == 0) {
+      state = 0;
+      return;
+    }
+    final next = index < 0 ? 0 : (index >= _count ? _count - 1 : index);
+    if (state != next) {
+      state = next;
+    }
+  }
+
   void navigate(int delta) {
     state = navigateIndex(state, _count, delta);
   }

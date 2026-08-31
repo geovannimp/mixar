@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`

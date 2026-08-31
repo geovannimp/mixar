@@ -9,14 +9,11 @@ import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
 import 'api/settings.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API

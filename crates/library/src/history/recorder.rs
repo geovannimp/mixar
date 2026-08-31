@@ -119,7 +119,8 @@ impl HistoryRecorder {
         std::mem::take(&mut self.session_updated)
     }
 
-    fn mark_session_updated(&mut self) {
+    /// Re-arm the dirty flag after a failed `HistorySessionUpdated` publish.
+    pub(crate) fn mark_session_updated(&mut self) {
         self.session_updated = true;
     }
 
@@ -759,5 +760,19 @@ mod tests {
             .expect("get")
             .expect("row");
         assert!(row.closed);
+    }
+
+    #[test]
+    fn session_updated_flag_take_and_restore() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("library.db");
+        let mut recorder =
+            HistoryRecorder::new(&db_path, HistorySettings::default()).expect("recorder");
+        assert!(!recorder.take_session_updated());
+        recorder.mark_session_updated();
+        assert!(recorder.take_session_updated());
+        assert!(!recorder.take_session_updated());
+        recorder.mark_session_updated();
+        assert!(recorder.take_session_updated());
     }
 }

@@ -5,9 +5,7 @@
 
 import '../frb_generated.dart';
 import 'library.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-
 import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_display_title`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`

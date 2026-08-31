@@ -9,6 +9,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -106,12 +107,21 @@ class HistoryDetailPane extends ConsumerWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: theme.style.borderRadius.md,
-                    child: TrinaGrid(
-                      key: ValueKey(sessionId),
-                      columns: _historyColumns(theme),
-                      rows: _historyRows(rows),
-                      mode: TrinaGridMode.readOnly,
-                      configuration: _historyGridConfig(theme),
+                    child: SizedBox.expand(
+                      child: TrinaGrid(
+                        key: ValueKey(sessionId),
+                        columns: _historyColumns(theme),
+                        rows: _historyRows(rows),
+                        mode: TrinaGridMode.readOnly,
+                        rowColorCallback: (ctx) {
+                          final current = ctx.stateManager.currentRowIdx;
+                          if (current != null && current == ctx.rowIdx) {
+                            return libraryTableSelectedRowColor(theme);
+                          }
+                          return theme.colors.secondary;
+                        },
+                        configuration: _historyGridConfig(theme),
+                      ),
                     ),
                   ),
                 );
@@ -640,6 +650,7 @@ List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
 
 TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
   final surface = theme.colors.secondary;
+  final selected = libraryTableSelectedRowColor(theme);
   final text = theme.typography.body.sm.copyWith(
     color: theme.colors.foreground,
   );
@@ -651,7 +662,11 @@ TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
   return TrinaGridConfiguration(
     rowWrapperIsConstantHeight: true,
     selectingMode: TrinaGridSelectingMode.none,
-    scrollbar: const TrinaGridScrollbarConfig(isAlwaysShown: false),
+    scrollbar: const TrinaGridScrollbarConfig(
+      isAlwaysShown: false,
+      columnShowScrollWidth: false,
+      showHorizontal: false,
+    ),
     columnSize: const TrinaGridColumnSizeConfig(
       autoSizeMode: TrinaAutoSizeMode.scale,
       resizeMode: TrinaResizeMode.pushAndPull,
@@ -665,9 +680,10 @@ TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
       rowColor: surface,
       oddRowColor: surface,
       evenRowColor: surface,
-      activatedColor: theme.colors.muted,
+      activatedColor: selected,
       // Transparent current-cell border so focus reads as full-row fill.
       activatedBorderColor: const Color(0x00000000),
+      unfocusedSelectionColor: selected,
       borderColor: theme.colors.border,
       gridBorderColor: theme.colors.border,
       inactivatedBorderColor: const Color(0x00000000),
