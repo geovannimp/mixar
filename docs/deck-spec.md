@@ -167,7 +167,7 @@ UI layout zones (match competitor ergonomics):
 | **C — Controller pads** | P1 | 8 performance pads (2×4); **mode selector**; default **Hot Cue** mode |
 | **D — Loop / jump** | P1 | Loop in/out, length, ½/2×, beat jump (separate panel; Virtual DJ “LOOP” side label) |
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
-| **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range, key lock |
+| **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
 | **H — Extended pad modes** | P3+ | Stems, Sampler, Beat Jump, Slicer (reuse same 8 pads) |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
@@ -246,7 +246,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | P9 | **BPM display (live)** | Updates during pitch fader move | Derived | P1 |
 | P10 | **Snap pitch to BPM** | Optional: round effective BPM to 0.01 | UX nicety | P3 |
 
-**Key lock:** Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl); UI labels that as “vinyl”.
+**Key lock:** Toggle on the track-key ghost control (`lock` / `lock-open`). Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl).
 
 ---
 

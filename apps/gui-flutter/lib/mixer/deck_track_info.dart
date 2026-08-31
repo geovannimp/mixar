@@ -31,10 +31,11 @@ class DeckTrackInfo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     if (trackId != null) {
-      unawaited(ref.read(artworkCacheProvider.notifier).ensureLoaded([trackId]));
+      unawaited(
+        ref.read(artworkCacheProvider.notifier).ensureLoaded([trackId]),
+      );
     }
     final artwork = trackId == null
         ? null
@@ -53,6 +54,9 @@ class DeckTrackInfo extends ConsumerWidget {
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId));
     final positionMs = ref.watch(deckPositionMsProvider(deckId));
+    final keyLock = ref.watch(deckKeyLockProvider(deckId));
+    final engineRunning = ref.watch(engineRunningProvider);
+    final keyLockEnabled = hasTrack && engineRunning;
 
     return FCard(
       clipBehavior: .antiAlias,
@@ -65,10 +69,7 @@ class DeckTrackInfo extends ConsumerWidget {
               children: [
                 AspectRatio(
                   aspectRatio: 1,
-                  child: _ArtworkThumb(
-                    bytes: artwork,
-                    hasTrack: hasTrack,
-                  ),
+                  child: _ArtworkThumb(bytes: artwork, hasTrack: hasTrack),
                 ),
                 FDivider(
                   axis: .vertical,
@@ -82,6 +83,7 @@ class DeckTrackInfo extends ConsumerWidget {
                       mainAxisAlignment: .start,
                       children: [
                         Row(
+                          spacing: 8,
                           children: [
                             Expanded(
                               child: _DeckTitleArtist(
@@ -91,24 +93,15 @@ class DeckTrackInfo extends ConsumerWidget {
                                 skeleton: skeleton,
                               ),
                             ),
-                            Padding(
-                              padding: const .symmetric(
-                                horizontal: 4,
-                                vertical: 2,
-                              ),
-                              child: Semantics(
-                                label: hasTrack ? 'Key $key' : 'Key',
-                                child: Text(
-                                  hasTrack ? key : '—',
-                                  style: theme.typography.body.xs.copyWith(
-                                    color: theme.colors.mutedForeground,
-                                    fontWeight: .w600,
-                                    fontFeatures: const [
-                                      FontFeature.tabularFigures(),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                            DeckKeyLockButton(
+                              keyLabel: hasTrack ? key : '—',
+                              keyLock: keyLock,
+                              enabled: keyLockEnabled,
+                              onToggle: () {
+                                unawaited(
+                                  _setKeyLock(context, ref, deckId, !keyLock),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -126,6 +119,79 @@ class DeckTrackInfo extends ConsumerWidget {
           ),
           FDivider(style: .delta(padding: .value(.all(0)))),
           OverviewStrip(deckId: deckId, height: 36),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> _setKeyLock(
+  BuildContext context,
+  WidgetRef ref,
+  int deckId,
+  bool enabled,
+) async {
+  try {
+    await setDeckKeyLock(ref, deckId, enabled);
+  } catch (e) {
+    if (!context.mounted) {
+      return;
+    }
+    showFToast(context: context, variant: .destructive, title: Text('$e'));
+  }
+}
+
+/// Ghost track-key control: musical/Camelot label + lock / lock-open icon.
+class DeckKeyLockButton extends StatelessWidget {
+  const DeckKeyLockButton({
+    required this.keyLabel,
+    required this.keyLock,
+    required this.onToggle,
+    this.enabled = true,
+    super.key,
+  });
+
+  final String keyLabel;
+  final bool keyLock;
+  final bool enabled;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final muted = theme.colors.mutedForeground;
+    return FButton(
+      variant: .ghost,
+      size: .xs,
+      mainAxisSize: .min,
+      onPress: enabled ? onToggle : null,
+      semanticsLabel: keyLock
+          ? 'Key $keyLabel, key lock on'
+          : 'Key $keyLabel, key lock off',
+      style: .delta(
+        contentStyle: .delta(
+          padding: .value(
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: .min,
+        children: [
+          Text(
+            keyLabel,
+            style: theme.typography.body.xs.copyWith(
+              color: muted,
+              fontWeight: .w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            keyLock ? LucideIcons.lock : LucideIcons.lockOpen,
+            size: 12,
+            color: muted,
+          ),
         ],
       ),
     );

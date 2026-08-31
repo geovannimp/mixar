@@ -1,6 +1,7 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
+import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
@@ -212,14 +213,13 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       }
       final unloaded = evt.durationKnown && evt.durationMs == null;
       final nextTitles = Map<int, String>.from(prev.titles);
-      final title = evt.track;
-      // Engine snapshots omit library metadata (`track`/`title` are always
-      // null). Keep the host title from load; only replace when the evt
-      // actually carries one. Unload (duration_ms → null) clears host identity.
+      final track = evt.track;
+      // `EngineEvt.track` is the display title (metadata / file stem), not a path.
+      // Basename fallback keeps older path-shaped values from looking like chrome.
       if (unloaded) {
         nextTitles.remove(id);
-      } else if (title != null && title.isNotEmpty) {
-        nextTitles[id] = title;
+      } else if (track != null && track.isNotEmpty) {
+        nextTitles[id] = trackDisplayTitle(title: '', path: track);
       }
       final nextPlaying = Map<int, bool>.from(prev.playing);
       if (evt.playing != null) {

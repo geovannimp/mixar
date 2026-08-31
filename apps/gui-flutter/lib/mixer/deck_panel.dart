@@ -49,7 +49,6 @@ class DeckPanel extends ConsumerWidget {
       tempoRange: ref.watch(deckTempoRangeProvider(deckId)),
       syncMode: ref.watch(deckSyncModeProvider(deckId)),
       isMaster: ref.watch(deckIsMasterProvider(deckId)),
-      keyLock: ref.watch(deckKeyLockProvider(deckId)),
       trackBpm: ref.watch(deckBpmProvider(deckId)),
       loading: skeleton,
       enabled: hasTrack && engineRunning,
@@ -72,11 +71,6 @@ class DeckPanel extends ConsumerWidget {
       },
       onSetMaster: () {
         unawaited(_engineCmd(context, () => setMasterDeck(ref, deckId)));
-      },
-      onKeyLockChange: (enabled) {
-        unawaited(
-          _engineCmd(context, () => setDeckKeyLock(ref, deckId, enabled)),
-        );
       },
     );
 
@@ -207,7 +201,7 @@ class _EjectLoadButton extends StatelessWidget {
           padding: .value(.symmetric(horizontal: 14, vertical: 2)),
         ),
       ),
-      child: Icon(hasTrack ? LucideIcons.circleX600 : LucideIcons.fileInput600),
+      child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
     );
   }
 }

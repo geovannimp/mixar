@@ -24,6 +24,18 @@ void main() {
       expect(snap.titleFor(1), isNull);
     });
 
+    test('updated path-shaped track becomes file name', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          track: '/home/me/samples/Palawan by SKIRK.opus',
+        ),
+      );
+      expect(snap.titleFor(0), 'Palawan by SKIRK.opus');
+    });
+
     test(
       'empty updated track keeps host title (engine snapshots omit library fields)',
       () {

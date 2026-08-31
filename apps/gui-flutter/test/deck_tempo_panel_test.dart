@@ -17,13 +17,11 @@ void main() {
     double tempoRange = kDefaultTempoRange,
     SyncMode syncMode = SyncMode.off,
     bool isMaster = false,
-    bool keyLock = false,
     List<double> tempoRangeSteps = kTempoRangeSteps,
     ValueChanged<double>? onSpeedChange,
     ValueChanged<double>? onTempoRangeChange,
     ValueChanged<bool>? onToggleSync,
     VoidCallback? onSetMaster,
-    ValueChanged<bool>? onKeyLockChange,
   }) async {
     final theme = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
@@ -43,13 +41,11 @@ void main() {
               tempoRange: tempoRange,
               syncMode: syncMode,
               isMaster: isMaster,
-              keyLock: keyLock,
               tempoRangeSteps: tempoRangeSteps,
               onSpeedChange: onSpeedChange ?? (_) {},
               onTempoRangeChange: onTempoRangeChange ?? (_) {},
               onToggleSync: onToggleSync ?? (_) {},
               onSetMaster: onSetMaster ?? () {},
-              onKeyLockChange: onKeyLockChange ?? (_) {},
             ),
           ),
         ),
@@ -69,7 +65,7 @@ void main() {
     );
 
     expect(
-      find.text('${formatPitchPercent(0.25, 0.08)} vinyl'),
+      find.text(formatPitchPercent(0.25, 0.08)),
       findsOneWidget,
     );
     expect(find.text(formatTempoRange(0.08)), findsOneWidget);
