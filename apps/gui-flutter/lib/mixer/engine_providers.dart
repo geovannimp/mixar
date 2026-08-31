@@ -253,17 +253,40 @@ final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
   if (id == null) {
     return null;
   }
-  final tracks = ref.watch(libraryTableTracksProvider).asData?.value;
+  // Prefer the visible table, then other in-memory lists, then a tab-stable
+  // getTrack fetch — libraryTableTracksProvider is empty on History and may
+  // omit the loaded track on Drive.
+  return libraryTrackById(ref.watch(libraryTableTracksProvider).asData?.value, id) ??
+      libraryTrackById(ref.watch(collectionTracksProvider).asData?.value, id) ??
+      libraryTrackById(
+        ref.watch(driveResolvedByPathProvider).asData?.value?.values,
+        id,
+      ) ??
+      ref.watch(libraryTrackByIdProvider(id)).asData?.value;
+});
+
+/// Tab-stable library row for a track id (survives History / Drive switches).
+final libraryTrackByIdProvider =
+    FutureProvider.family<LibraryTrackSummary?, String>((ref, trackId) async {
+      final transport = await ref.watch(libraryTransportProvider.future);
+      return transport.getTrack(trackId: trackId);
+    });
+
+/// Find [id] in [tracks]; used by [deckLibraryTrackProvider] and tests.
+LibraryTrackSummary? libraryTrackById(
+  Iterable<LibraryTrackSummary>? tracks,
+  String id,
+) {
   if (tracks == null) {
     return null;
   }
-  for (final t in tracks) {
-    if (t.id == id) {
-      return t;
+  for (final track in tracks) {
+    if (track.id == id) {
+      return track;
     }
   }
   return null;
-});
+}
 
 final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
   ref,

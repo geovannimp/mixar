@@ -83,6 +83,7 @@ AppSettings defaultAppSettings() {
     historyMinPlaySeconds: 5,
     historyMinDeckVolume: 0.05,
     showTooltips: true,
+    dimPlayedTracks: true,
   );
 }
 
@@ -155,6 +156,7 @@ AppSettings copyAppSettings(
   int? historyMinPlaySeconds,
   double? historyMinDeckVolume,
   bool? showTooltips,
+  bool? dimPlayedTracks,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -189,6 +191,7 @@ AppSettings copyAppSettings(
     historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
     showTooltips: showTooltips ?? base.showTooltips,
+    dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
   );
 }
 
@@ -222,6 +225,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       draft.showTooltips != baseline.showTooltips ||
+      draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(
         draft.deckDefaultSamplerBankId,

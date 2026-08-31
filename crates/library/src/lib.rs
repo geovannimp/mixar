@@ -156,11 +156,15 @@ impl LibraryManager {
     }
 
     pub fn history_tick(&mut self) -> Result<()> {
-        self.history.tick(&self.db)
+        self.history.tick(&self.db)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_on_crossfader(&mut self, crossfader: f32) -> Result<()> {
-        self.history.on_crossfader(&self.db, crossfader)
+        self.history.on_crossfader(&self.db, crossfader)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_on_deck_updated(
@@ -168,23 +172,33 @@ impl LibraryManager {
         deck_id: usize,
         snapshot: DeckPlaySnapshot,
     ) -> Result<()> {
-        self.history.on_deck_updated(&self.db, deck_id, snapshot)
+        self.history.on_deck_updated(&self.db, deck_id, snapshot)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_restore_session(&mut self, session_id: &str) -> Result<()> {
-        self.history.restore_session(&self.db, session_id)
+        self.history.restore_session(&self.db, session_id)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_decline_restore(&mut self) -> Result<()> {
-        self.history.decline_restore(&self.db)
+        self.history.decline_restore(&self.db)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_new_session(&mut self) -> Result<()> {
-        self.history.new_session(&self.db)
+        self.history.new_session(&self.db)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_resume_session(&mut self) -> Result<()> {
-        self.history.resume_session(&self.db)
+        self.history.resume_session(&self.db)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn history_can_resume(&self) -> bool {
@@ -200,11 +214,27 @@ impl LibraryManager {
     }
 
     pub fn rename_history_session(&mut self, session_id: &str, title: &str) -> Result<()> {
-        self.history.rename_session(&self.db, session_id, title)
+        self.history.rename_session(&self.db, session_id, title)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
     }
 
     pub fn delete_history_session(&mut self, session_id: &str) -> Result<()> {
-        self.history.delete_session(&self.db, session_id)
+        self.history.delete_session(&self.db, session_id)?;
+        self.emit_history_session_updated_if_dirty();
+        Ok(())
+    }
+
+    fn emit_history_session_updated_if_dirty(&mut self) {
+        if !self.history.take_session_updated() {
+            return;
+        }
+        let session_id = self.history.active_session_id().map(|id| id.to_string());
+        let _ = self.publish_evt(
+            Origin::Library,
+            Kind::HistorySessionUpdated,
+            EvtBody::HistorySessionUpdated { session_id },
+        );
     }
 
     pub fn history_dir(&self) -> &Path {

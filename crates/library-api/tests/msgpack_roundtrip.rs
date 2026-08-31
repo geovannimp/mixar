@@ -179,3 +179,26 @@ fn load_kind_and_body_roundtrip() {
     assert_eq!(decoded.kind, Kind::Load);
     assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
 }
+
+#[test]
+fn history_session_updated_kind_and_body_roundtrip() {
+    let body = EvtBody::HistorySessionUpdated {
+        session_id: Some("sess-1".into()),
+    };
+    let msg = WireMessage {
+        origin: Origin::Library,
+        kind: Kind::HistorySessionUpdated,
+        revision: 4,
+        action_timestamp_ms: 0,
+        body: encode_evt_body(&body).unwrap(),
+    };
+    let decoded = decode_wire(&encode_wire(&msg).unwrap()).unwrap();
+    assert_eq!(decoded.kind, Kind::HistorySessionUpdated);
+    assert_eq!(decode_evt_body(&decoded.body).unwrap(), body);
+
+    let empty = EvtBody::HistorySessionUpdated { session_id: None };
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&empty).unwrap()).unwrap(),
+        empty
+    );
+}

@@ -74,6 +74,7 @@ class HistoryDetailPane extends ConsumerWidget {
           ),
           Expanded(
             child: entries.when(
+              skipLoadingOnReload: true,
               loading: () => const Center(child: FCircularProgress()),
               error: (e, _) => Center(child: Text('$e')),
               data: (rows) {
@@ -462,7 +463,7 @@ String _historyExportFileName(String? sessionTitle, String ext) {
 }
 
 List<TrinaColumn> _historyColumns(FThemeData theme) {
-  return [
+  final columns = [
     TrinaColumn(
       title: '#',
       field: 'position',
@@ -598,6 +599,14 @@ List<TrinaColumn> _historyColumns(FThemeData theme) {
       textAlign: TrinaColumnTextAlign.right,
     ),
   ];
+  final headerBg = Color.alphaBlend(
+    theme.colors.foreground.withValues(alpha: 0.08),
+    theme.colors.secondary,
+  );
+  for (final column in columns) {
+    column.backgroundColor = headerBg;
+  }
+  return columns;
 }
 
 List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
@@ -631,10 +640,6 @@ List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
 
 TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
   final surface = theme.colors.secondary;
-  final stripe = Color.alphaBlend(
-    theme.colors.foreground.withValues(alpha: 0.04),
-    surface,
-  );
   final text = theme.typography.body.sm.copyWith(
     color: theme.colors.foreground,
   );
@@ -658,13 +663,14 @@ TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
       enableCellBorderHorizontal: true,
       gridBackgroundColor: surface,
       rowColor: surface,
-      oddRowColor: stripe,
+      oddRowColor: surface,
       evenRowColor: surface,
       activatedColor: theme.colors.muted,
-      activatedBorderColor: theme.colors.primary,
+      // Transparent current-cell border so focus reads as full-row fill.
+      activatedBorderColor: const Color(0x00000000),
       borderColor: theme.colors.border,
       gridBorderColor: theme.colors.border,
-      inactivatedBorderColor: theme.colors.border,
+      inactivatedBorderColor: const Color(0x00000000),
       cellColorInEditState: surface,
       cellColorInReadOnlyState: surface,
       cellTextStyle: text,

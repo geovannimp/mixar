@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gui_flutter/library/history_refresh.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+
+export 'package:gui_flutter/library/history_refresh.dart'
+    show historyRefreshTickProvider, HistoryRefreshTick;
 
 final historySessionsProvider = FutureProvider<List<HistorySessionSummary>>((
   ref,
@@ -54,6 +58,86 @@ final historyEntriesProvider = FutureProvider<List<HistoryEntryInfo>>((ref) asyn
   ref.watch(historyRefreshTickProvider);
   final transport = await ref.watch(libraryTransportProvider.future);
   return transport.historySessionEntries(sessionId: sessionId);
+});
+
+/// Open (unclosed) history session, if any.
+final openHistorySessionIdProvider = Provider<String?>((ref) {
+  final sessions = ref.watch(historySessionsProvider).asData?.value;
+  if (sessions == null) {
+    return null;
+  }
+  for (final session in sessions) {
+    if (!session.closed) {
+      return session.id;
+    }
+  }
+  return null;
+});
+
+/// Track ids / filesystem paths committed in the open history session.
+class SessionPlayedKeys {
+  const SessionPlayedKeys({required this.trackIds, required this.paths});
+
+  final Set<String> trackIds;
+  final Set<String> paths;
+
+  static const empty = SessionPlayedKeys(trackIds: {}, paths: {});
+
+  bool matches({String? trackId, String? path}) {
+    if (trackId != null && trackId.isNotEmpty && trackIds.contains(trackId)) {
+      return true;
+    }
+    if (path != null && path.isNotEmpty && paths.contains(path)) {
+      return true;
+    }
+    return false;
+  }
+}
+
+/// Convert history XSPF `location` (often `file://…`) to a filesystem path.
+String normalizeHistoryLocation(String location) {
+  if (location.startsWith('file://')) {
+    try {
+      return Uri.parse(location).toFilePath();
+    } catch (_) {
+      return location.substring('file://'.length);
+    }
+  }
+  return location;
+}
+
+SessionPlayedKeys sessionPlayedKeysFromEntries(Iterable<HistoryEntryInfo> entries) {
+  final trackIds = <String>{};
+  final paths = <String>{};
+  for (final entry in entries) {
+    final id = entry.trackId;
+    if (id != null && id.isNotEmpty) {
+      trackIds.add(id);
+    }
+    final path = normalizeHistoryLocation(entry.location);
+    if (path.isNotEmpty) {
+      paths.add(path);
+    }
+  }
+  return SessionPlayedKeys(trackIds: trackIds, paths: paths);
+}
+
+/// Keys for rows to dim when Settings → Dim played tracks is on.
+final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((ref) async {
+  final settings = ref.watch(appSettingsProvider).asData?.value;
+  if (settings == null ||
+      !settings.historyEnabled ||
+      !settings.dimPlayedTracks) {
+    return SessionPlayedKeys.empty;
+  }
+  ref.watch(historyRefreshTickProvider);
+  final sessionId = ref.watch(openHistorySessionIdProvider);
+  if (sessionId == null) {
+    return SessionPlayedKeys.empty;
+  }
+  final transport = await ref.watch(libraryTransportProvider.future);
+  final entries = await transport.historySessionEntries(sessionId: sessionId);
+  return sessionPlayedKeysFromEntries(entries);
 });
 
 class HistoryEntryFilter extends Notifier<String> {
@@ -107,36 +191,10 @@ final filteredHistoryEntriesProvider =
       });
     });
 
-class HistoryRefreshTick extends Notifier<int> {
-  @override
-  int build() => 0;
-
-  void bump() => state++;
-}
-
-final historyRefreshTickProvider =
-    NotifierProvider<HistoryRefreshTick, int>(HistoryRefreshTick.new);
-
 void invalidateHistory(WidgetRef ref) {
   ref.read(historyRefreshTickProvider.notifier).bump();
   ref.invalidate(collectionsProvider);
 }
-
-/// Refresh session list while an open session may close on idle timeout.
-final historyLivePollProvider = Provider<void>((ref) {
-  if (ref.watch(librarySourceTabProvider) != LibrarySourceTab.history) {
-    return;
-  }
-  final sessions = ref.watch(historySessionsProvider);
-  final hasLive = sessions.asData?.value.any((s) => !s.closed) ?? false;
-  if (!hasLive) {
-    return;
-  }
-  final timer = Timer.periodic(const Duration(seconds: 2), (_) {
-    ref.read(historyRefreshTickProvider.notifier).bump();
-  });
-  ref.onDispose(timer.cancel);
-});
 
 /// Apply history settings once settings + library transports are ready.
 final historySettingsBootstrapProvider = Provider<void>((ref) {
