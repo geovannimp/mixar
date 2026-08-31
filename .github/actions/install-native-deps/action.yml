@@ -7,4 +7,4 @@ runs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install -y pkg-config libasound2-dev libpipewire-0.3-dev clang librubberband-dev
+        sudo apt-get install -y pkg-config libasound2-dev libpipewire-0.3-dev clang

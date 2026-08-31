@@ -92,7 +92,7 @@ pub struct Deck {
     resampler: Option<Box<dyn Resampler>>,
     /// Key lock: tempo via time-stretch, pitch held (inactive during vinyl jog).
     key_lock: bool,
-    /// Rubber Band stretcher at engine rate (created lazily / on load).
+    /// timestretch stretcher at engine rate (created lazily / on load).
     stretcher: Option<Box<dyn TimeStretcher>>,
     /// Last process used stretch path (reset stretcher when leaving it).
     stretch_active: bool,
@@ -839,23 +839,21 @@ impl Deck {
         self.position_frames = self.position_frac.floor() as i64;
     }
 
-    /// Key-lock path: time-stretch at engine rate with pitch scale 1.0.
+    /// Key-lock path: time-stretch at engine rate with pitch held.
     ///
-    /// Rubber Band time_ratio is output/input duration; faster tempo → ratio `< 1`.
+    /// timestretch tempo_rate is playback speed (`>1` = faster).
     fn play_stretched(&mut self, frames: usize, audio_samples: &[Sample], source_rate: u32) {
         let buffer_size = frames * 2;
         self.buffer.resize(buffer_size, 0.0);
 
         let playback_ratio = f64::from(self.playback_ratio().max(0.01));
-        // Faster playback → compress time (time_ratio < 1).
-        let time_ratio = 1.0 / playback_ratio;
         let src_step = f64::from(source_rate) / f64::from(self.sample_rate);
 
         let Some(stretcher) = self.stretcher.as_mut() else {
             self.buffer.fill(0.0);
             return;
         };
-        stretcher.set_time_ratio(time_ratio);
+        stretcher.set_tempo_rate(playback_ratio);
 
         let loop_region = self.loop_region;
         let mut position_frac = self.position_frac;

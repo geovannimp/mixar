@@ -178,6 +178,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
 
 [[package]]
+name = "arc-swap"
+version = "1.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c049c0be4daef0b145cb3555416b3b8ef5b7888a38aea1a3a155801fe7b0810b"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3799,8 +3808,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
- "cc",
- "pkg-config",
+ "timestretch",
 ]
 
 [[package]]
@@ -4181,6 +4189,19 @@ checksum = "c431b87111666e491a90baa837f914fb45cd5dc3c268591b0220ff5057f2085f"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "timestretch"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9cc34a6abf29179a470946c85eda25025841c63e7af08873296661e8b845462d"
+dependencies = [
+ "arc-swap",
+ "ebur128",
+ "rustfft",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

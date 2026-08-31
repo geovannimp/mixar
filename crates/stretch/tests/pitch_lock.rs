@@ -31,7 +31,7 @@ fn time_stretch_preserves_sine_pitch() {
     let sr = 48_000u32;
     let freq = 440.0_f64;
     let mut stretcher = create_stretcher(sr, 1024).expect("stretcher");
-    stretcher.set_time_ratio(1.12); // +12% tempo, key lock
+    stretcher.set_tempo_rate(1.12); // +12% tempo, key lock
 
     let total_out = sr as usize; // 1 s
     let mut output = vec![0.0_f32; total_out * 2];
@@ -59,7 +59,7 @@ fn time_stretch_preserves_sine_pitch() {
         offset += chunk;
     }
 
-    // Skip start latency / pad region.
+    // Skip pipeline latency / warm-up.
     let skip = stretcher
         .start_delay()
         .saturating_add(stretcher.preferred_start_pad())

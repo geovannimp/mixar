@@ -24,7 +24,7 @@ The desktop UI is **Flutter** (`apps/gui-flutter`), bridged to Rust via flutter_
 
 ## Quick start
 
-**Prerequisites:** [mise](https://mise.jdx.dev) (recommended), Rust stable with rustfmt/clippy, Flutter (pinned in `mise.toml`), and a working sound device. On Linux, install ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu) plus Flutter Linux desktop deps (GTK, etc.). Key lock uses Rubber Band (`librubberband-dev` optional — the `stretch` crate vendors a fallback build).
+**Prerequisites:** [mise](https://mise.jdx.dev) (recommended), Rust stable with rustfmt/clippy, Flutter (pinned in `mise.toml`), and a working sound device. On Linux, install ALSA/PipeWire headers (`pkg-config`, `libasound2-dev`, `libpipewire-0.3-dev`, `clang` on Debian/Ubuntu) plus Flutter Linux desktop deps (GTK, etc.). Key lock uses the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) engine.
 
 ```bash
 git clone https://github.com/geovannimp/mixar.git
