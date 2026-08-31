@@ -113,7 +113,104 @@ double snapTowardCenter(
   return (value - mid).abs() <= threshold ? mid : value;
 }
 
+/// Painted thumb sizes — keep in sync with [_FaderPainter].
+const kFaderThumbV = Size(20, 10);
+const kFaderThumbH = Size(10, 16);
+
+/// Extra hit padding so the knob stays easy to grab near the track.
+const kFaderThumbHitPadding = 4.0;
+
+double _normalizeFaderT(double value, double min, double max) {
+  _requireValidRange(min, max);
+  return ((value - min) / (max - min)).clamp(0.0, 1.0);
+}
+
+double _finishFaderValue(
+  double raw, {
+  required double min,
+  required double max,
+  required double step,
+  required bool centerNotch,
+}) {
+  var next = snapFaderToStep(raw, step, origin: min).clamp(min, max).toDouble();
+  if (centerNotch) {
+    next = snapTowardCenter(next, min, max);
+  }
+  return next;
+}
+
+/// Thumb extent along the travel axis (height for vertical, width for horizontal).
+double faderThumbExtentAlongAxis(FaderOrientation orientation) =>
+    switch (orientation) {
+      FaderOrientation.vertical => kFaderThumbV.height,
+      FaderOrientation.horizontal => kFaderThumbH.width,
+    };
+
+/// Thumb-center travel length — insets by half thumb so ends stay inside [size].
+double faderTravelLength(Size size, FaderOrientation orientation) {
+  final length = switch (orientation) {
+    FaderOrientation.vertical => size.height,
+    FaderOrientation.horizontal => size.width,
+  };
+  final travel = length - faderThumbExtentAlongAxis(orientation);
+  return travel > 0 ? travel : 0.0;
+}
+
+Offset faderThumbCenter({
+  required Size size,
+  required FaderOrientation orientation,
+  required double t,
+}) {
+  final half = faderThumbExtentAlongAxis(orientation) / 2;
+  final travel = faderTravelLength(size, orientation);
+  return switch (orientation) {
+    FaderOrientation.vertical => Offset(
+      size.width / 2,
+      half + (1.0 - t) * travel,
+    ),
+    FaderOrientation.horizontal => Offset(half + t * travel, size.height / 2),
+  };
+}
+
+/// Painted thumb rect for normalized [t] (0 = min end, 1 = max end).
+Rect faderThumbRect({
+  required Size size,
+  required FaderOrientation orientation,
+  required double t,
+}) {
+  final thumbSize = switch (orientation) {
+    FaderOrientation.vertical => kFaderThumbV,
+    FaderOrientation.horizontal => kFaderThumbH,
+  };
+  final thumbCenter = faderThumbCenter(
+    size: size,
+    orientation: orientation,
+    t: t,
+  );
+  return Rect.fromCenter(
+    center: thumbCenter,
+    width: thumbSize.width,
+    height: thumbSize.height,
+  );
+}
+
+/// Hit target for the thumb, including slight inflate past the painted knob.
+Rect faderThumbHitRect({
+  required Size size,
+  required FaderOrientation orientation,
+  required double t,
+}) {
+  return faderThumbRect(
+    size: size,
+    orientation: orientation,
+    t: t,
+  ).inflate(kFaderThumbHitPadding);
+}
+
 /// Map pointer local offset → value. Vertical: max at top; horizontal: min at left.
+///
+/// Uses the same inset travel as the painted thumb so end positions remain
+/// hittable inside the layout box.
 double valueFromFaderPointer({
   required Offset local,
   required Size size,
@@ -124,18 +221,63 @@ double valueFromFaderPointer({
   required bool centerNotch,
 }) {
   _requireValidRange(min, max);
-  final t = switch (orientation) {
-    FaderOrientation.vertical =>
-      size.height <= 0 ? 0.0 : (1.0 - (local.dy / size.height)).clamp(0.0, 1.0),
-    FaderOrientation.horizontal =>
-      size.width <= 0 ? 0.0 : (local.dx / size.width).clamp(0.0, 1.0),
-  };
-  var next = min + t * (max - min);
-  next = snapFaderToStep(next, step, origin: min).clamp(min, max).toDouble();
-  if (centerNotch) {
-    next = snapTowardCenter(next, min, max);
+  final half = faderThumbExtentAlongAxis(orientation) / 2;
+  final travel = faderTravelLength(size, orientation);
+  final t = travel <= 0
+      ? 0.0
+      : switch (orientation) {
+          FaderOrientation.vertical =>
+            (1.0 - ((local.dy - half) / travel)).clamp(0.0, 1.0),
+          FaderOrientation.horizontal => ((local.dx - half) / travel).clamp(
+            0.0,
+            1.0,
+          ),
+        };
+  return _finishFaderValue(
+    min + t * (max - min),
+    min: min,
+    max: max,
+    step: step,
+    centerNotch: centerNotch,
+  );
+}
+
+/// Relative drag along the fader axis from a thumb grab (no jump-to-pointer).
+///
+/// Vertical: decreasing [currentAxis] (up) raises value. Horizontal: increasing
+/// [currentAxis] (right) raises value. [trackLength] is the painted travel span.
+double valueFromFaderRelativeDrag({
+  required double startValue,
+  required double startAxis,
+  required double currentAxis,
+  required double trackLength,
+  required FaderOrientation orientation,
+  required double min,
+  required double max,
+  required double step,
+  required bool centerNotch,
+}) {
+  _requireValidRange(min, max);
+  if (trackLength <= 0) {
+    return _finishFaderValue(
+      startValue,
+      min: min,
+      max: max,
+      step: step,
+      centerNotch: centerNotch,
+    );
   }
-  return next;
+  final axisDelta = switch (orientation) {
+    FaderOrientation.vertical => startAxis - currentAxis,
+    FaderOrientation.horizontal => currentAxis - startAxis,
+  };
+  return _finishFaderValue(
+    startValue + (axisDelta / trackLength) * (max - min),
+    min: min,
+    max: max,
+    step: step,
+    centerNotch: centerNotch,
+  );
 }
 
 /// DJ-style fader: markers, optional center notch, deck accent grip (Tauri `Slider` fader).
@@ -184,6 +326,18 @@ class _FaderAdjustIntent extends Intent {
 
 class _FaderSliderState extends State<FaderSlider> {
   bool _dragging = false;
+  bool _relative = false;
+  double? _startValue;
+  double? _startAxis;
+
+  void _clearDrag() {
+    setState(() {
+      _dragging = false;
+      _relative = false;
+      _startValue = null;
+      _startAxis = null;
+    });
+  }
 
   void _emitFromLocal(Offset local, Size size) {
     widget.onValueChange(
@@ -199,29 +353,52 @@ class _FaderSliderState extends State<FaderSlider> {
     );
   }
 
+  void _emitRelative(Offset local, Size size) {
+    final startValue = _startValue;
+    final startAxis = _startAxis;
+    if (startValue == null || startAxis == null) {
+      return;
+    }
+    final trackLength = faderTravelLength(size, widget.orientation);
+    final currentAxis = switch (widget.orientation) {
+      FaderOrientation.vertical => local.dy,
+      FaderOrientation.horizontal => local.dx,
+    };
+    widget.onValueChange(
+      valueFromFaderRelativeDrag(
+        startValue: startValue,
+        startAxis: startAxis,
+        currentAxis: currentAxis,
+        trackLength: trackLength,
+        orientation: widget.orientation,
+        min: widget.min,
+        max: widget.max,
+        step: widget.step,
+        centerNotch: widget.centerNotch,
+      ),
+    );
+  }
+
   void _nudgeBy(double delta) {
     if (widget.disabled || delta == 0) {
       return;
     }
-    var next = snapFaderToStep(
-      (widget.value + delta).clamp(widget.min, widget.max).toDouble(),
-      widget.step,
-      origin: widget.min,
-    ).clamp(widget.min, widget.max).toDouble();
-    if (widget.centerNotch) {
-      next = snapTowardCenter(next, widget.min, widget.max);
-    }
-    widget.onValueChange(next);
+    widget.onValueChange(
+      _finishFaderValue(
+        (widget.value + delta).clamp(widget.min, widget.max).toDouble(),
+        min: widget.min,
+        max: widget.max,
+        step: widget.step,
+        centerNotch: widget.centerNotch,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = FaderColors.forAccent(widget.accent);
     final opacity = widget.disabled ? 0.45 : 1.0;
-    final t = ((widget.value - widget.min) / (widget.max - widget.min)).clamp(
-      0.0,
-      1.0,
-    );
+    final t = _normalizeFaderT(widget.value, widget.min, widget.max);
     final step = widget.step > 0 ? widget.step : 1.0;
 
     return Opacity(
@@ -272,8 +449,30 @@ class _FaderSliderState extends State<FaderSlider> {
                     onPointerDown: widget.disabled
                         ? null
                         : (event) {
-                            setState(() => _dragging = true);
-                            _emitFromLocal(event.localPosition, size);
+                            final onThumb = faderThumbHitRect(
+                              size: size,
+                              orientation: widget.orientation,
+                              t: t,
+                            ).contains(event.localPosition);
+                            setState(() {
+                              _dragging = true;
+                              _relative = onThumb;
+                              if (onThumb) {
+                                _startValue = widget.value;
+                                _startAxis = switch (widget.orientation) {
+                                  FaderOrientation.vertical =>
+                                    event.localPosition.dy,
+                                  FaderOrientation.horizontal =>
+                                    event.localPosition.dx,
+                                };
+                              } else {
+                                _startValue = null;
+                                _startAxis = null;
+                              }
+                            });
+                            if (!onThumb) {
+                              _emitFromLocal(event.localPosition, size);
+                            }
                           },
                     onPointerMove: widget.disabled
                         ? null
@@ -281,10 +480,14 @@ class _FaderSliderState extends State<FaderSlider> {
                             if (!_dragging) {
                               return;
                             }
-                            _emitFromLocal(event.localPosition, size);
+                            if (_relative) {
+                              _emitRelative(event.localPosition, size);
+                            } else {
+                              _emitFromLocal(event.localPosition, size);
+                            }
                           },
-                    onPointerUp: (_) => setState(() => _dragging = false),
-                    onPointerCancel: (_) => setState(() => _dragging = false),
+                    onPointerUp: (_) => _clearDrag(),
+                    onPointerCancel: (_) => _clearDrag(),
                     child: CustomPaint(
                       size: size,
                       painter: _FaderPainter(
@@ -334,8 +537,6 @@ class _FaderPainter extends CustomPainter {
   static const _laneExtend = 6.0; // 1.5 * 4
   static const _tickGap = 5.0;
   static const _tickThickness = 2.0;
-  static const _thumbV = Size(20, 10);
-  static const _thumbH = Size(10, 16);
   static const _thumbBorder = Color(0xa6a1a1aa); // zinc-400 @ 65%
   static const _thumbTop = Color(0xfad4d4d8); // zinc-300
   static const _thumbBottom = Color(0xfaa1a1aa); // zinc-400
@@ -348,15 +549,18 @@ class _FaderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final vertical = orientation == FaderOrientation.vertical;
+    final half = faderThumbExtentAlongAxis(orientation) / 2;
+    final travel = faderTravelLength(size, orientation);
+    // Lane spans thumb travel (plus small aesthetic extend), not the full layout box.
     final trackRect = vertical
         ? Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
             width: _trackThickness,
-            height: size.height + _laneExtend * 2,
+            height: travel + _laneExtend * 2,
           )
         : Rect.fromCenter(
             center: Offset(size.width / 2, size.height / 2),
-            width: size.width + _laneExtend * 2,
+            width: travel + _laneExtend * 2,
             height: _trackThickness,
           );
 
@@ -376,21 +580,26 @@ class _FaderPainter extends CustomPainter {
     }
 
     if (showMarkers) {
-      _paintMarkers(canvas, size, vertical);
+      _paintMarkers(canvas, size, vertical, half, travel);
     }
 
     if (showIndicator) {
+      final thumbCenter = faderThumbCenter(
+        size: size,
+        orientation: orientation,
+        t: t,
+      );
       final indicator = vertical
           ? Rect.fromLTRB(
               trackRect.left,
-              size.height * (1 - t),
+              thumbCenter.dy,
               trackRect.right,
               trackRect.bottom,
             )
           : Rect.fromLTRB(
               trackRect.left,
               trackRect.top,
-              size.width * t,
+              thumbCenter.dx,
               trackRect.bottom,
             );
       canvas.drawRRect(
@@ -405,15 +614,12 @@ class _FaderPainter extends CustomPainter {
       );
     }
 
-    final thumbSize = vertical ? _thumbV : _thumbH;
-    final thumbCenter = vertical
-        ? Offset(size.width / 2, (1.0 - t) * size.height)
-        : Offset(t * size.width, size.height / 2);
-    final thumbRect = Rect.fromCenter(
-      center: thumbCenter,
-      width: thumbSize.width,
-      height: thumbSize.height,
+    final thumbRect = faderThumbRect(
+      size: size,
+      orientation: orientation,
+      t: t,
     );
+    final thumbCenter = thumbRect.center;
 
     canvas.save();
     if (dragging) {
@@ -466,17 +672,24 @@ class _FaderPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _paintMarkers(Canvas canvas, Size size, bool vertical) {
+  void _paintMarkers(
+    Canvas canvas,
+    Size size,
+    bool vertical,
+    double half,
+    double travel,
+  ) {
     for (final tick in _faderTicks) {
       final emphasize = centerNotch && tick.pos == 50;
       final len = _tickLength[emphasize ? _TickSize.major : tick.size]!;
       final tone = emphasize ? _tickEmphasize : _tickTone;
       final paint = Paint()..color = tone;
+      // Tick 0 = max end (top/left of travel), 100 = min end — matches thumb.
+      final axis = half + (tick.pos / 100) * travel;
 
       if (vertical) {
-        final y = tick.pos / 100 * size.height;
+        final y = axis;
         final cx = size.width / 2;
-        // Left tick (extends left from gap).
         canvas.drawRect(
           Rect.fromLTWH(
             cx - _tickGap - len,
@@ -486,7 +699,6 @@ class _FaderPainter extends CustomPainter {
           ),
           paint,
         );
-        // Right tick.
         canvas.drawRect(
           Rect.fromLTWH(
             cx + _tickGap,
@@ -497,7 +709,7 @@ class _FaderPainter extends CustomPainter {
           paint,
         );
       } else {
-        final x = tick.pos / 100 * size.width;
+        final x = axis;
         final cy = size.height / 2;
         canvas.drawRect(
           Rect.fromLTWH(
@@ -522,14 +734,15 @@ class _FaderPainter extends CustomPainter {
 
     if (centerNotch) {
       final paint = Paint()..color = _tickTone;
+      final mid = faderThumbCenter(
+        size: size,
+        orientation: orientation,
+        t: 0.5,
+      );
       if (vertical) {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(
-              center: Offset(size.width / 2, size.height / 2),
-              width: 14,
-              height: 2,
-            ),
+            Rect.fromCenter(center: mid, width: 14, height: 2),
             const Radius.circular(2),
           ),
           paint,
@@ -537,11 +750,7 @@ class _FaderPainter extends CustomPainter {
       } else {
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromCenter(
-              center: Offset(size.width / 2, size.height / 2),
-              width: 2,
-              height: 14,
-            ),
+            Rect.fromCenter(center: mid, width: 2, height: 14),
             const Radius.circular(2),
           ),
           paint,

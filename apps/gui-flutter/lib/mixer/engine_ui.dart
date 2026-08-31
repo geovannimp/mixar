@@ -356,8 +356,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
 
 /// Host display title, or file stem when [track] looks like a filesystem path.
 String _deckTitleFromEvtTrack(String track) {
-  final looksLikePath = track.contains('/') || track.contains(r'\');
-  if (!looksLikePath) {
+  if (!_evtTrackLooksLikePath(track)) {
     return track;
   }
   final base = fileNameFromPath(track);
@@ -367,3 +366,26 @@ String _deckTitleFromEvtTrack(String track) {
   }
   return base;
 }
+
+/// Absolute paths, Windows drives, or relative paths with a file extension —
+/// not titles that merely contain `/` (e.g. `AC/DC`).
+bool _evtTrackLooksLikePath(String track) {
+  if (track.startsWith('/') || track.startsWith(r'\')) {
+    return true;
+  }
+  if (track.length >= 3 &&
+      track[1] == ':' &&
+      (track[2] == '/' || track[2] == r'\') &&
+      _isAsciiLetter(track.codeUnitAt(0))) {
+    return true;
+  }
+  if (!track.contains('/') && !track.contains(r'\')) {
+    return false;
+  }
+  final base = fileNameFromPath(track);
+  final dot = base.lastIndexOf('.');
+  return dot > 0 && dot < base.length - 1;
+}
+
+bool _isAsciiLetter(int unit) =>
+    (unit >= 0x41 && unit <= 0x5a) || (unit >= 0x61 && unit <= 0x7a);
