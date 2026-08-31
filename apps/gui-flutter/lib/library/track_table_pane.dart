@@ -19,7 +19,7 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
 
 /// Opacity applied to rows already committed in the open history session.
-const kSessionPlayedRowOpacity = 0.45;
+const kSessionPlayedRowOpacity = 0.65;
 
 /// Filter + [trina_grid](https://github.com/doonfrs/trina_grid) track table.
 class TrackTablePane extends ConsumerStatefulWidget {
