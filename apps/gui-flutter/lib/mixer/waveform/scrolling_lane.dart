@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
@@ -251,9 +252,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final strip = trackId == null || durationMs <= 0
         ? null
         : ref.watch(waveformStripProvider((trackId, durationMs)));
-    final beatGrid = trackId == null || durationMs <= 0
+    final beatGridData = trackId == null || durationMs <= 0
         ? null
-        : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
+        : ref.watch(beatGridProvider(trackId));
     final loops = trackId == null || durationMs <= 0
         ? null
         : ref.watch(stripLoopPictureProvider((trackId, durationMs)));
@@ -361,6 +362,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
             : stripNaturalW;
         final scaleX = stripNaturalW > 0 ? stripScaledW / stripNaturalW : 1.0;
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
+        final gridBpm = beatGridData?.bpm;
+        final beatMarks = gridBpm == null || durationMs <= 0 || stripScaledW <= 0
+            ? const <BeatMark>[]
+            : beatGridXs(
+                bpm: gridBpm,
+                firstBeatSecs: beatGridFirstBeatSecs(beatGridData),
+                originMs: 0,
+                spanMs: durationMs.toDouble(),
+                width: stripScaledW,
+              );
 
         if (trackId != null && durationMs > 0 && pxPerMs > 0) {
           _scheduleZoomDetail(
@@ -466,21 +477,19 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                       );
                     },
                     child: RepaintBoundary(
-                      child: Transform(
-                        alignment: Alignment.topLeft,
-                        transform: Matrix4.diagonal3Values(scaleX, 1, 1),
-                        child: _StripLayer(
-                          strip: strip,
-                          height: height,
-                          beatGrid: beatGrid,
-                          loops: loops,
-                          activeLoop: activeLoop,
-                          cues: cues,
-                          zoomPicture: _zoomPicture,
-                          zoomStartMs: _zoomStartMs,
-                          zoomEndMs: _zoomEndMs,
-                          zoomPicWidth: _zoomPicWidth,
-                        ),
+                      child: _StripLayer(
+                        strip: strip,
+                        height: height,
+                        scaledWidth: stripScaledW,
+                        scaleX: scaleX,
+                        beatMarks: beatMarks,
+                        loops: loops,
+                        activeLoop: activeLoop,
+                        cues: cues,
+                        zoomPicture: _zoomPicture,
+                        zoomStartMs: _zoomStartMs,
+                        zoomEndMs: _zoomEndMs,
+                        zoomPicWidth: _zoomPicWidth,
                       ),
                     ),
                   ),
@@ -538,7 +547,9 @@ class _StripLayer extends StatelessWidget {
   const _StripLayer({
     required this.strip,
     required this.height,
-    required this.beatGrid,
+    required this.scaledWidth,
+    required this.scaleX,
+    required this.beatMarks,
     required this.loops,
     required this.activeLoop,
     required this.cues,
@@ -550,7 +561,9 @@ class _StripLayer extends StatelessWidget {
 
   final WaveformStrip strip;
   final double height;
-  final Picture? beatGrid;
+  final double scaledWidth;
+  final double scaleX;
+  final List<BeatMark> beatMarks;
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? cues;
@@ -562,12 +575,13 @@ class _StripLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: strip.widthPx.toDouble(),
+      width: scaledWidth,
       height: height,
       child: CustomPaint(
         painter: _StripPainter(
           strip: strip,
-          beatGrid: beatGrid,
+          scaleX: scaleX,
+          beatMarks: beatMarks,
           loops: loops,
           activeLoop: activeLoop,
           cues: cues,
@@ -576,7 +590,7 @@ class _StripLayer extends StatelessWidget {
           zoomEndMs: zoomEndMs,
           zoomPicWidth: zoomPicWidth,
         ),
-        size: Size(strip.widthPx.toDouble(), height),
+        size: Size(scaledWidth, height),
       ),
     );
   }
@@ -585,7 +599,8 @@ class _StripLayer extends StatelessWidget {
 class _StripPainter extends CustomPainter {
   _StripPainter({
     required this.strip,
-    required this.beatGrid,
+    required this.scaleX,
+    required this.beatMarks,
     required this.loops,
     required this.activeLoop,
     required this.cues,
@@ -596,7 +611,8 @@ class _StripPainter extends CustomPainter {
   });
 
   final WaveformStrip strip;
-  final Picture? beatGrid;
+  final double scaleX;
+  final List<BeatMark> beatMarks;
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? cues;
@@ -605,14 +621,24 @@ class _StripPainter extends CustomPainter {
   final int zoomEndMs;
   final double zoomPicWidth;
 
+  static final _barPaint = Paint()
+    ..color = const Color.fromARGB(80, 200, 205, 215)
+    ..strokeWidth = 1
+    ..isAntiAlias = false;
+
+  static final _beatPaint = Paint()
+    ..color = const Color.fromARGB(55, 170, 175, 185)
+    ..strokeWidth = 1
+    ..isAntiAlias = false;
+
   @override
   void paint(Canvas canvas, Size size) {
-    if (strip.heightPx <= 0) {
+    if (strip.heightPx <= 0 || scaleX <= 0) {
       return;
     }
     final sy = size.height / strip.heightPx;
     canvas.save();
-    canvas.scale(1, sy);
+    canvas.scale(scaleX, sy);
     canvas.drawPicture(strip.l0);
     for (final tile in strip.tiles) {
       canvas.save();
@@ -637,18 +663,30 @@ class _StripPainter extends CustomPainter {
         canvas.restore();
       }
     }
-    for (final picture in [beatGrid, loops, activeLoop, cues]) {
+    // Loops/cues stay in strip space so they track the scaled waveform.
+    for (final picture in [loops, activeLoop, cues]) {
       if (picture != null) {
         canvas.drawPicture(picture);
       }
     }
     canvas.restore();
+
+    // Beat grid: positions in scaled strip space, stroke stays 1 device px.
+    for (final mark in beatMarks) {
+      final x = mark.x.roundToDouble();
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        mark.isBar ? _barPaint : _beatPaint,
+      );
+    }
   }
 
   @override
   bool shouldRepaint(_StripPainter oldDelegate) =>
       !identical(strip, oldDelegate.strip) ||
-      !identical(beatGrid, oldDelegate.beatGrid) ||
+      scaleX != oldDelegate.scaleX ||
+      !identical(beatMarks, oldDelegate.beatMarks) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||
       !identical(cues, oldDelegate.cues) ||
