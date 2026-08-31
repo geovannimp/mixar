@@ -13,6 +13,7 @@ void main() {
   Future<void> pumpTip(
     WidgetTester tester, {
     required bool showTooltips,
+    String? description,
   }) async {
     final theme = FTheme.neutral.dark.desktop;
     final settings = copyAppSettings(
@@ -33,10 +34,11 @@ void main() {
               child: FTooltipGroup(child: child!),
             ),
           ),
-          home: const Scaffold(
+          home: Scaffold(
             body: AppTooltip(
               tip: 'Play',
-              child: Text('child'),
+              description: description,
+              child: const Text('child'),
             ),
           ),
         ),
@@ -55,5 +57,14 @@ void main() {
     await pumpTip(tester, showTooltips: false);
     expect(find.byType(FTooltip), findsNothing);
     expect(find.text('child'), findsOneWidget);
+  });
+
+  testWidgets('accepts an optional description', (tester) async {
+    await pumpTip(
+      tester,
+      showTooltips: true,
+      description: 'Keeps pitch when changing tempo.',
+    );
+    expect(find.byType(FTooltip), findsOneWidget);
   });
 }

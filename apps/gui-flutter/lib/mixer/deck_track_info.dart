@@ -161,11 +161,13 @@ class DeckKeyLockButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final muted = theme.colors.mutedForeground;
-    final tip = keyLock
-        ? 'Key $keyLabel, key lock on'
-        : 'Key $keyLabel, key lock off';
+    final tip = keyLock ? 'Key lock on' : 'Key lock off';
+    final description = keyLock
+        ? 'Keeps musical pitch when you change tempo.'
+        : 'Pitch follows tempo changes.';
     return AppTooltip(
       tip: tip,
+      description: description,
       child: FButton(
         variant: .ghost,
         size: .xs,

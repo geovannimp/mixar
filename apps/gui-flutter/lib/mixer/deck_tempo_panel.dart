@@ -102,66 +102,89 @@ class DeckTempoPanel extends StatelessWidget {
                 width: double.infinity,
                 child: Builder(
                   builder: (context) {
-                    final syncTip = isMaster
-                        ? 'Sync master'
+                    final (:tip, :description) = isMaster
+                        ? (
+                            tip: 'Sync master',
+                            description:
+                                'This deck is the tempo reference for synced decks.',
+                          )
                         : switch (syncMode) {
-                            SyncMode.off => null,
-                            SyncMode.tempo => 'Tempo sync',
-                            SyncMode.beat => 'Beat sync',
+                            SyncMode.off => (
+                              tip: 'Sync',
+                              description:
+                                  'Match this deck\'s tempo to the master. Shift+click for beat sync.',
+                            ),
+                            SyncMode.tempo => (
+                              tip: 'Tempo sync',
+                              description:
+                                  'Tempo follows the master. Click again to turn sync off.',
+                            ),
+                            SyncMode.beat => (
+                              tip: 'Beat sync',
+                              description:
+                                  'Tempo and phase follow the master. Click again to turn sync off.',
+                            ),
                           };
-                    final button = FButton(
-                      variant: .secondary,
-                      size: .sm,
-                      style: .delta(
-                        contentStyle: .delta(padding: .value(compactPad)),
-                      ),
-                      onPress: (!enabled || isMaster)
-                          ? null
-                          : () => onToggleSync(shiftKeyPressed()),
-                      semanticsLabel: syncTip ?? 'Sync',
-                      child: Text(
-                        isMaster
-                            ? 'M'
-                            : switch (syncMode) {
-                                SyncMode.off => 'Sync',
-                                SyncMode.tempo => 'S',
-                                SyncMode.beat => 'B',
-                              },
-                        style: chipStyle,
+                    return AppTooltip(
+                      tip: tip,
+                      description: description,
+                      child: FButton(
+                        variant: .secondary,
+                        size: .sm,
+                        style: .delta(
+                          contentStyle: .delta(padding: .value(compactPad)),
+                        ),
+                        onPress: (!enabled || isMaster)
+                            ? null
+                            : () => onToggleSync(shiftKeyPressed()),
+                        semanticsLabel: tip,
+                        child: Text(
+                          isMaster
+                              ? 'M'
+                              : switch (syncMode) {
+                                  SyncMode.off => 'Sync',
+                                  SyncMode.tempo => 'S',
+                                  SyncMode.beat => 'B',
+                                },
+                          style: chipStyle,
+                        ),
                       ),
                     );
-                    if (syncTip == null) {
-                      return button;
-                    }
-                    return AppTooltip(tip: syncTip, child: button);
                   },
                 ),
               ),
               const SizedBox(height: 2),
               SizedBox(
                 width: double.infinity,
-                child: FButton(
-                  variant: isMaster ? .secondary : .ghost,
-                  size: .xs,
-                  style: .delta(
-                    contentStyle: .delta(padding: .value(compactPad)),
-                  ),
-                  onPress: (!enabled || isMaster) ? null : onSetMaster,
-                  child: SizedBox(
-                    width: 52,
-                    child: FittedBox(
-                      fit: .scaleDown,
-                      child: Text(
-                        isMaster ? 'Master' : 'Set master',
-                        textAlign: .center,
-                        maxLines: 1,
-                        style: theme.typography.body.xs.copyWith(
-                          color: isMaster
-                              ? const Color(0xe634d399) // emerald-400
-                              : theme.colors.mutedForeground,
-                          fontWeight: .w600,
-                          fontSize: 9,
-                          height: 1.1,
+                child: AppTooltip(
+                  tip: isMaster ? 'Master' : 'Set master',
+                  description: isMaster
+                      ? 'This deck is the sync reference.'
+                      : 'Make this deck the tempo reference for sync.',
+                  child: FButton(
+                    variant: isMaster ? .secondary : .ghost,
+                    size: .xs,
+                    style: .delta(
+                      contentStyle: .delta(padding: .value(compactPad)),
+                    ),
+                    onPress: (!enabled || isMaster) ? null : onSetMaster,
+                    semanticsLabel: isMaster ? 'Master' : 'Set master',
+                    child: SizedBox(
+                      width: 52,
+                      child: FittedBox(
+                        fit: .scaleDown,
+                        child: Text(
+                          isMaster ? 'Master' : 'Set master',
+                          textAlign: .center,
+                          maxLines: 1,
+                          style: theme.typography.body.xs.copyWith(
+                            color: isMaster
+                                ? const Color(0xe634d399) // emerald-400
+                                : theme.colors.mutedForeground,
+                            fontWeight: .w600,
+                            fontSize: 9,
+                            height: 1.1,
+                          ),
                         ),
                       ),
                     ),

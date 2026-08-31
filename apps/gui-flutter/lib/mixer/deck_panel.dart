@@ -236,6 +236,7 @@ class _QuantizeButton extends StatelessWidget {
     final tip = quantize ? 'Quantize on' : 'Quantize off';
     return AppTooltip(
       tip: tip,
+      description: 'Snap cues, loops, and hot cues to the beat grid.',
       child: FButton(
         variant: .outline,
         size: .xs,
