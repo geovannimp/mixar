@@ -397,7 +397,7 @@ Add to `settings.json` / `AppSettings`:
 | `history_min_deck_volume` | `f32` | `0.05` | Minimum **effective** output (`deck.volume × crossfader_gain`) for qualifying play |
 | `dim_played_tracks` | `bool` | `true` | Dim library/drive rows present in the open history session |
 
-UI: Settings → Session panel.
+UI: Settings → Library panel (`dim_played_tracks`); other history keys live under Settings → Session.
 
 When `history_enabled == false`, no entries or session files are written; idle/manual session UI is hidden or disabled; played-track dimming is off regardless of `dim_played_tracks`.
 

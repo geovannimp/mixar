@@ -122,7 +122,7 @@ SessionPlayedKeys sessionPlayedKeysFromEntries(Iterable<HistoryEntryInfo> entrie
   return SessionPlayedKeys(trackIds: trackIds, paths: paths);
 }
 
-/// Keys for rows to dim when Settings → Dim played tracks is on.
+/// Keys for rows to dim when Settings → Library → Dim played tracks is on.
 final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((ref) async {
   final settings = ref.watch(appSettingsProvider).asData?.value;
   if (settings == null ||
