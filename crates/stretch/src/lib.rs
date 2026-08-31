@@ -20,6 +20,11 @@ pub trait TimeStretcher: Send {
     /// Output latency in frames (for playhead compensation).
     fn start_delay(&self) -> usize;
 
+    /// Source frames buffered ahead of audible output (ring not yet consumed).
+    fn queued_source_frames(&self) -> usize {
+        0
+    }
+
     /// Clear stretcher history (seek / load / key-lock toggle).
     fn reset(&mut self);
 

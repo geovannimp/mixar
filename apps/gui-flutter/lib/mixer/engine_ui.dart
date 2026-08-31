@@ -214,12 +214,12 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       final unloaded = evt.durationKnown && evt.durationMs == null;
       final nextTitles = Map<int, String>.from(prev.titles);
       final track = evt.track;
-      // `EngineEvt.track` is the display title (metadata / file stem), not a path.
-      // Basename fallback keeps older path-shaped values from looking like chrome.
+      // `EngineEvt.track` is display title from the host; basename only when path-shaped
+      // so titles like `AC/DC` stay intact (see #202 for track_title cleanup).
       if (unloaded) {
         nextTitles.remove(id);
       } else if (track != null && track.isNotEmpty) {
-        nextTitles[id] = trackDisplayTitle(title: '', path: track);
+        nextTitles[id] = _deckTitleFromEvtTrack(track);
       }
       final nextPlaying = Map<int, bool>.from(prev.playing);
       if (evt.playing != null) {
@@ -352,4 +352,18 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
     case EngineEvtKind.notice:
       return prev;
   }
+}
+
+/// Host display title, or file stem when [track] looks like a filesystem path.
+String _deckTitleFromEvtTrack(String track) {
+  final looksLikePath = track.contains('/') || track.contains(r'\');
+  if (!looksLikePath) {
+    return track;
+  }
+  final base = fileNameFromPath(track);
+  final dot = base.lastIndexOf('.');
+  if (dot > 0) {
+    return base.substring(0, dot);
+  }
+  return base;
 }

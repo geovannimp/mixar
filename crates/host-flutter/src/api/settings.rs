@@ -706,6 +706,33 @@ mod tests {
     }
 
     #[test]
+    fn missing_default_key_lock_defaults_false() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("default_key_lock");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert!(!settings_from_host(&host).default_key_lock);
+    }
+
+    #[test]
+    fn default_key_lock_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.default_key_lock = true;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(restored.default_key_lock);
+    }
+
+    #[test]
     fn trusted_controller_device_ids_round_trip() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");

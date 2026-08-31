@@ -183,7 +183,7 @@ impl Deck {
         if total_frames == 0 {
             return;
         }
-        if self.position_frac >= total_frames as f64 {
+        if self.audible_position_frac() >= total_frames as f64 {
             self.state = DeckState::Paused;
             self.pending_transport.push(DeckTransportEvent::TrackEnded);
         }
@@ -199,16 +199,43 @@ impl Deck {
         &self.state
     }
 
+    /// Source frames still queued in the stretcher (not yet heard), plus
+    /// pipeline delay converted to source frames.
+    fn stretch_position_lead_frames(&self) -> f64 {
+        if !self.stretch_active {
+            return 0.0;
+        }
+        let Some(stretcher) = self.stretcher.as_ref() else {
+            return 0.0;
+        };
+        let queued = stretcher.queued_source_frames() as f64;
+        let delay_out = stretcher.start_delay() as f64;
+        if delay_out <= 0.0 {
+            return queued;
+        }
+        let Some(audio) = self.loaded.as_ref() else {
+            return queued;
+        };
+        let src_per_out = (f64::from(audio.sample_rate) / f64::from(self.sample_rate))
+            * f64::from(self.playback_ratio().max(0.01));
+        queued + delay_out * src_per_out
+    }
+
+    /// Playhead for UI / end-of-track: feed cursor minus stretch lead.
+    fn audible_position_frac(&self) -> f64 {
+        self.position_frac - self.stretch_position_lead_frames()
+    }
+
     /// Get the current position in source frames (may be negative).
     pub fn position_frames(&self) -> i64 {
-        self.position_frames
+        self.audible_position_frac().floor() as i64
     }
 
     /// Current playback position in milliseconds (source file time).
     pub fn position_ms(&self) -> Option<i32> {
         let audio = self.loaded.as_ref()?;
         Some(secs_to_ms(
-            self.position_frac / f64::from(audio.sample_rate),
+            self.audible_position_frac() / f64::from(audio.sample_rate),
         ))
     }
 
@@ -1447,7 +1474,7 @@ mod tests {
     fn key_lock_advances_faster_than_unity_at_positive_pitch() {
         let mut vinyl = new_deck(CHUNK);
         let mut locked = new_deck(CHUNK);
-        let samples = vec![0.25f32; CHUNK * 2 * 20_000];
+        let samples = vec![0.25f32; CHUNK * 2 * 500];
         load_test_samples(&mut vinyl, samples.clone(), ENGINE_RATE);
         load_test_samples(&mut locked, samples, ENGINE_RATE);
 

@@ -33,7 +33,15 @@ void main() {
           track: '/home/me/samples/Palawan by SKIRK.opus',
         ),
       );
-      expect(snap.titleFor(0), 'Palawan by SKIRK.opus');
+      expect(snap.titleFor(0), 'Palawan by SKIRK');
+    });
+
+    test('updated title with slash is preserved', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, track: 'AC/DC'),
+      );
+      expect(snap.titleFor(0), 'AC/DC');
     });
 
     test(

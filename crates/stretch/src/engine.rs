@@ -114,6 +114,10 @@ impl TimeStretcher for TimestretchStretcher {
         self.processor.pipeline_latency_frames()
     }
 
+    fn queued_source_frames(&self) -> usize {
+        self.source.occupied_frames()
+    }
+
     fn reset(&mut self) {
         self.processor.reset();
         self.controller.set_keylock(true);

@@ -237,7 +237,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 |----|---------|-------------|--------------|----------|
 | P1 | **Pitch fader** | Vertical slider; selectable range ±6 / ±10 / ±50 % | Maps to `Deck::set_speed` | P1 |
 | P2 | **Pitch bend buttons** | Momentary ± adjustment | Temporary speed offset | P2 |
-| P3 | **Key lock / Master Tempo** | Change tempo without changing key | Requires time-stretch (not in MVP engine) | P2 |
+| P3 | **Key lock / Master Tempo** | Change tempo without changing key | [`timestretch`](https://crates.io/crates/timestretch) WideKeylock via `SetKeyLock` | P2 |
 | P4 | **Key shift** | ± semitones independent of tempo | Pitch shift DSP | P3 |
 | P5 | **Sync (beat)** | Match phase and tempo to master deck | Compare beat grids + positions | P1 |
 | P6 | **Sync (tempo only)** | Match BPM without phase lock | Adjust pitch fader target | P1 |
