@@ -73,7 +73,7 @@ void main() {
           return false;
         }
         final c = w.color;
-        return (c.a - 0.4).abs() < 0.001 && c.r == 0 && c.g == 0 && c.b == 0;
+        return (c.a - 0.6).abs() < 0.001 && c.r == 0 && c.g == 0 && c.b == 0;
       });
       expect(dim, findsOneWidget);
 
