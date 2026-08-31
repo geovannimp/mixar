@@ -77,6 +77,48 @@ void main() {
     expect(next, 50);
   });
 
+  test('valueFromFaderRelativeDrag moves by axis delta only', () {
+    final next = valueFromFaderRelativeDrag(
+      startValue: 100,
+      startAxis: 4,
+      currentAxis: 28,
+      trackLength: 120,
+      orientation: FaderOrientation.vertical,
+      min: 0,
+      max: 100,
+      step: 1,
+      centerNotch: false,
+    );
+    // Down +24px on 120px track → −20; no jump from start pointer position.
+    expect(next, 80);
+  });
+
+  test('valueFromFaderRelativeDrag applies center snap on result', () {
+    final next = valueFromFaderRelativeDrag(
+      startValue: 48,
+      startAxis: 50,
+      currentAxis: 52,
+      trackLength: 100,
+      orientation: FaderOrientation.horizontal,
+      min: 0,
+      max: 100,
+      step: 0.05,
+      centerNotch: true,
+    );
+    expect(next, 50);
+  });
+
+  test('faderThumbHitRect includes overhang past track end at max', () {
+    final hit = faderThumbHitRect(
+      size: const Size(40, 120),
+      orientation: FaderOrientation.vertical,
+      t: 1,
+    );
+    // Thumb center at y=0; painted half hangs above, hit padding expands below.
+    expect(hit.contains(const Offset(20, 2)), isTrue);
+    expect(hit.contains(const Offset(20, 60)), isFalse);
+  });
+
   testWidgets('vertical drag down decreases value', (tester) async {
     final theme = FTheme.neutral.dark.desktop;
     var value = 80.0;
@@ -84,7 +126,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: Scaffold(
@@ -123,7 +166,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: Scaffold(
@@ -151,5 +195,93 @@ void main() {
 
     expect(calls, 0);
     expect(value, 80);
+  });
+
+  testWidgets('thumb grab at max does not jump until move', (tester) async {
+    final theme = FTheme.neutral.dark.desktop;
+    var value = 100.0;
+    var calls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromForui(theme),
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
+          child: FTheme(data: theme, child: child!),
+        ),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 40,
+              height: 120,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return FaderSlider(
+                    value: value,
+                    accent: FaderAccent.a,
+                    onValueChange: (next) {
+                      calls += 1;
+                      setState(() => value = next);
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final center = tester.getCenter(find.byType(FaderSlider));
+    // Thumb at max sits at top edge; press on thumb body (not track mid).
+    final thumbPress = Offset(center.dx, center.dy - 58);
+
+    final gesture = await tester.startGesture(thumbPress);
+    await tester.pump();
+    expect(calls, 0);
+    expect(value, 100);
+
+    await gesture.moveBy(const Offset(0, 24));
+    await tester.pump();
+    expect(value, 80);
+
+    await gesture.up();
+  });
+
+  testWidgets('track press still seeks absolutely', (tester) async {
+    final theme = FTheme.neutral.dark.desktop;
+    var value = 100.0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromForui(theme),
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
+          child: FTheme(data: theme, child: child!),
+        ),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 40,
+              height: 120,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return FaderSlider(
+                    value: value,
+                    accent: FaderAccent.a,
+                    onValueChange: (next) => setState(() => value = next),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Mid-track, away from thumb at top.
+    await tester.tapAt(tester.getCenter(find.byType(FaderSlider)));
+    await tester.pumpAndSettle();
+    expect(value, 50);
   });
 }
