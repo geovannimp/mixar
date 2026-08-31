@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:gui_flutter/mixer/key_format.dart';
+import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
@@ -84,6 +85,7 @@ AppSettings defaultAppSettings() {
     tempoRangeSteps: Float32List.fromList([0.06, 0.10, 0.16, 0.25]),
     defaultKeyLock: false,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
+    waveformVisibleMs: kWaveformVisibleMs,
     keyDisplayMode: KeyDisplayModeSetting.musical,
     keyColorMode: KeyColorModeSetting.off,
     trustedControllerDeviceIds: const [],
@@ -121,6 +123,7 @@ AppSettings normalizeAppSettings(AppSettings settings) {
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
+    waveformVisibleMs: clampWaveformVisibleMs(settings.waveformVisibleMs),
   );
 }
 
@@ -158,6 +161,7 @@ AppSettings copyAppSettings(
   Float32List? tempoRangeSteps,
   bool? defaultKeyLock,
   WaveformDisplayModeSetting? waveformDisplayMode,
+  int? waveformVisibleMs,
   KeyDisplayModeSetting? keyDisplayMode,
   KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
@@ -192,6 +196,7 @@ AppSettings copyAppSettings(
     tempoRangeSteps: tempoRangeSteps ?? base.tempoRangeSteps,
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
+    waveformVisibleMs: waveformVisibleMs ?? base.waveformVisibleMs,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
     keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
@@ -230,6 +235,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultTempoRange != baseline.defaultTempoRange ||
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
+      draft.waveformVisibleMs != baseline.waveformVisibleMs ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
       draft.keyColorMode != baseline.keyColorMode ||
       draft.historyEnabled != baseline.historyEnabled ||

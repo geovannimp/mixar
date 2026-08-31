@@ -54,9 +54,15 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final playheadX = durationMs > 0
-                  ? (positionMs / durationMs).clamp(0.0, 1.0) * width
-                  : 0.0;
+              final visibleMs = ref.watch(waveformVisibleMsProvider);
+              final window = overviewWindowRect(
+                positionMs: positionMs,
+                durationMs: durationMs,
+                visibleMs: clampWaveformVisibleMs(
+                  visibleMs,
+                  durationMs: durationMs,
+                ),
+              );
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: durationMs <= 0
@@ -80,16 +86,6 @@ class OverviewStrip extends ConsumerWidget {
                         mode: mode,
                       ),
                     ),
-                    if (durationMs > 0)
-                      Positioned(
-                        left: 0,
-                        width: playheadX,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: const Color.fromRGBO(0, 0, 0, 0.6),
-                        ),
-                      ),
                     if (durationMs > 0 && width > 0)
                       IgnorePointer(
                         child: _OverviewOverlayLayer(
@@ -102,7 +98,21 @@ class OverviewStrip extends ConsumerWidget {
                       ),
                     if (durationMs > 0)
                       Positioned(
-                        left: playheadX,
+                        left: window.left * width,
+                        width:
+                            (window.right - window.left).clamp(0.0, 1.0) *
+                            width,
+                        top: 0,
+                        bottom: 0,
+                        child: ColoredBox(
+                          color: theme.colors.foreground.withValues(
+                            alpha: 0.12,
+                          ),
+                        ),
+                      ),
+                    if (durationMs > 0)
+                      Positioned(
+                        left: (positionMs / durationMs).clamp(0.0, 1.0) * width,
                         top: 0,
                         bottom: 0,
                         child: ColoredBox(

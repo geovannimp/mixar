@@ -34,14 +34,11 @@ void main() {
     );
   });
 
-  test('trusted controller edits are dirty', () {
+  test('waveformVisibleMs edits are dirty', () {
     final baseline = defaultAppSettings();
     expect(
       appSettingsDirty(
-        copyAppSettings(
-          baseline,
-          trustedControllerDeviceIds: ['pioneer.ddj-400'],
-        ),
+        copyAppSettings(baseline, waveformVisibleMs: 12000),
         baseline,
       ),
       isTrue,

@@ -6028,6 +6028,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_defaultKeyLock = <bool>::sse_decode(deserializer);
         let mut var_waveformDisplayMode =
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
+        let mut var_waveformVisibleMs = <u32>::sse_decode(deserializer);
         let mut var_keyDisplayMode =
             <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
         let mut var_keyColorMode =
@@ -6061,6 +6062,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             tempo_range_steps: var_tempoRangeSteps,
             default_key_lock: var_defaultKeyLock,
             waveform_display_mode: var_waveformDisplayMode,
+            waveform_visible_ms: var_waveformVisibleMs,
             key_display_mode: var_keyDisplayMode,
             key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
@@ -8223,6 +8225,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.tempo_range_steps.into_into_dart().into_dart(),
             self.default_key_lock.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
+            self.waveform_visible_ms.into_into_dart().into_dart(),
             self.key_display_mode.into_into_dart().into_dart(),
             self.key_color_mode.into_into_dart().into_dart(),
             self.trusted_controller_device_ids
@@ -9460,6 +9463,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.waveform_display_mode,
             serializer,
         );
+        <u32>::sse_encode(self.waveform_visible_ms, serializer);
         <crate::api::settings::KeyDisplayModeSetting>::sse_encode(
             self.key_display_mode,
             serializer,

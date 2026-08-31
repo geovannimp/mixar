@@ -5319,8 +5319,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 30)
-      throw Exception('unexpected arr length: expect 30 but see ${arr.length}');
+    if (arr.length != 31)
+      throw Exception('unexpected arr length: expect 31 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5343,15 +5343,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: dco_decode_list_prim_f_32_strict(arr[18]),
       defaultKeyLock: dco_decode_bool(arr[19]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[20]),
-      keyDisplayMode: dco_decode_key_display_mode_setting(arr[21]),
-      keyColorMode: dco_decode_key_color_mode_setting(arr[22]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[23]),
-      historyEnabled: dco_decode_bool(arr[24]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[25]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[26]),
-      historyMinDeckVolume: dco_decode_f_32(arr[27]),
-      showTooltips: dco_decode_bool(arr[28]),
-      dimPlayedTracks: dco_decode_bool(arr[29]),
+      waveformVisibleMs: dco_decode_u_32(arr[21]),
+      keyDisplayMode: dco_decode_key_display_mode_setting(arr[22]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[23]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[24]),
+      historyEnabled: dco_decode_bool(arr[25]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[26]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[27]),
+      historyMinDeckVolume: dco_decode_f_32(arr[28]),
+      showTooltips: dco_decode_bool(arr[29]),
+      dimPlayedTracks: dco_decode_bool(arr[30]),
     );
   }
 
@@ -6643,6 +6644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_waveformDisplayMode = sse_decode_waveform_display_mode_setting(
       deserializer,
     );
+    var var_waveformVisibleMs = sse_decode_u_32(deserializer);
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
     var var_keyColorMode = sse_decode_key_color_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
@@ -6674,6 +6676,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       tempoRangeSteps: var_tempoRangeSteps,
       defaultKeyLock: var_defaultKeyLock,
       waveformDisplayMode: var_waveformDisplayMode,
+      waveformVisibleMs: var_waveformVisibleMs,
       keyDisplayMode: var_keyDisplayMode,
       keyColorMode: var_keyColorMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
@@ -8375,6 +8378,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       self.waveformDisplayMode,
       serializer,
     );
+    sse_encode_u_32(self.waveformVisibleMs, serializer);
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
     sse_encode_key_color_mode_setting(self.keyColorMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);

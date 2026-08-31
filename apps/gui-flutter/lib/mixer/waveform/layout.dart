@@ -1,4 +1,7 @@
 const kWaveformVisibleMs = 24000;
+const kWaveformVisibleMsMin = 2000;
+const kWaveformVisibleMsMax = 120000;
+const kWaveformZoomFactor = 1.1;
 const kWaveformBufferRatio = 1.0;
 const kWaveformRefreshMargin = 0.35;
 const kWaveformSeekSnapMs = 180.0;
@@ -12,6 +15,43 @@ const kWaveformStripTilePx = 2048;
 int visibleSourceMs(double speed) {
   final clamped = speed.isFinite && speed > 0 ? speed : 1.0;
   return (kWaveformVisibleMs * clamped.clamp(0.5, 2.0)).round();
+}
+
+/// Clamp user/settings visible window duration.
+int clampWaveformVisibleMs(int ms, {int? durationMs}) {
+  var maxMs = kWaveformVisibleMsMax;
+  if (durationMs != null && durationMs > 0 && durationMs < maxMs) {
+    maxMs = durationMs;
+  }
+  if (maxMs < kWaveformVisibleMsMin) {
+    return maxMs.clamp(1, kWaveformVisibleMsMax);
+  }
+  return ms.clamp(kWaveformVisibleMsMin, maxMs);
+}
+
+/// Wheel/trackpad step: [scrollDeltaDy] < 0 zooms in (smaller window).
+int zoomVisibleMs(int currentMs, double scrollDeltaDy, {int? durationMs}) {
+  if (scrollDeltaDy == 0 || !scrollDeltaDy.isFinite) {
+    return clampWaveformVisibleMs(currentMs, durationMs: durationMs);
+  }
+  final next = scrollDeltaDy < 0
+      ? currentMs / kWaveformZoomFactor
+      : currentMs * kWaveformZoomFactor;
+  return clampWaveformVisibleMs(next.round(), durationMs: durationMs);
+}
+
+Rect overviewWindowRect({
+  required int positionMs,
+  required int durationMs,
+  required int visibleMs,
+}) {
+  if (durationMs <= 0) {
+    return Rect.zero;
+  }
+  final half = visibleMs / 2;
+  final left = ((positionMs - half) / durationMs).clamp(0.0, 1.0);
+  final right = ((positionMs + half) / durationMs).clamp(0.0, 1.0);
+  return Rect.fromLTRB(left, 0, right, 1);
 }
 
 double centerScrubMs({

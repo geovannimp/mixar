@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
+import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
@@ -28,6 +33,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   var _scrubAnchorMs = 0.0;
   final _seekClock = Stopwatch();
 
+  var _zoomGen = 0;
+  Picture? _zoomPicture;
+  var _zoomStartMs = 0;
+  var _zoomEndMs = 0;
+  var _zoomPicWidth = 0.0;
+  var _zoomForVisibleMs = 0;
+  var _zoomTrackId = '';
+  var _zoomPendingKey = '';
+
   @override
   void initState() {
     super.initState();
@@ -36,8 +50,18 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
 
   @override
   void dispose() {
+    _dropZoomPicture(_zoomPicture);
     _playhead.dispose();
     super.dispose();
+  }
+
+  void _dropZoomPicture(Picture? picture) {
+    if (picture == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      picture.dispose();
+    });
   }
 
   double _displayMs(int durationMs) {
@@ -98,6 +122,120 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     playing: ref.read(deckPlayingProvider(widget.deckId)),
     jogTouching: ref.read(deckJogTouchingProvider(widget.deckId)),
   );
+
+  void _scheduleZoomDetail({
+    required String trackId,
+    required int durationMs,
+    required int positionMs,
+    required int visibleMs,
+    required double width,
+  }) {
+    if (durationMs <= 0 || visibleMs <= 0 || width <= 0) {
+      return;
+    }
+    final needs =
+        _zoomPicture == null ||
+        _zoomTrackId != trackId ||
+        _zoomForVisibleMs != visibleMs ||
+        l1NeedsRefresh(
+          positionMs: positionMs.toDouble(),
+          detailStartMs: _zoomStartMs,
+          detailEndMs: _zoomEndMs,
+          visibleMs: visibleMs,
+          durationMs: durationMs,
+        );
+    if (!needs) {
+      return;
+    }
+    final range = l1Range(
+      positionMs: positionMs,
+      visibleMs: visibleMs,
+      durationMs: durationMs,
+    );
+    final pendingKey =
+        '$trackId|$visibleMs|${range.startMs}|${range.endMs}|${width.round()}';
+    if (pendingKey == _zoomPendingKey) {
+      return;
+    }
+    _zoomPendingKey = pendingKey;
+    final gen = ++_zoomGen;
+    final buckets = l1BucketCount(
+      startMs: range.startMs,
+      endMs: range.endMs,
+      visibleMs: visibleMs,
+      width: width,
+    );
+    unawaited(
+      _fetchZoomDetail(
+        gen: gen,
+        trackId: trackId,
+        durationMs: durationMs,
+        visibleMs: visibleMs,
+        startMs: range.startMs,
+        endMs: range.endMs,
+        buckets: buckets,
+      ),
+    );
+  }
+
+  Future<void> _fetchZoomDetail({
+    required int gen,
+    required String trackId,
+    required int durationMs,
+    required int visibleMs,
+    required int startMs,
+    required int endMs,
+    required int buckets,
+  }) async {
+    try {
+      final lib = await ref.read(libraryTransportProvider.future);
+      final overview =
+          ref.read(waveformOverviewProvider(trackId)).value ?? const [];
+      final mode = ref.read(waveformDisplayModeProvider);
+      final packed = await lib.getWaveformWindow(
+        trackId: trackId,
+        startMs: startMs,
+        endMs: endMs,
+        buckets: buckets,
+      );
+      if (!mounted || gen != _zoomGen) {
+        return;
+      }
+      final detail = DetailWindow(
+        peaks: decodeRgbPeaks(packed.rgb),
+        startMs: packed.startMs,
+        endMs: packed.endMs,
+      );
+      final spanMs = (detail.endMs - detail.startMs).toDouble();
+      if (spanMs <= 0) {
+        return;
+      }
+      final picW = buckets.toDouble().clamp(16.0, 16384.0).toDouble();
+      final picture = recordWaveformPicture(
+        overview: overview,
+        detail: detail,
+        durationMs: durationMs,
+        originMs: detail.startMs.toDouble(),
+        spanMs: spanMs,
+        size: Size(picW, kWaveformStripHeight),
+        fallbackToOverview: false,
+        fillBackground: true,
+        mode: mode,
+      );
+      final prev = _zoomPicture;
+      setState(() {
+        _zoomPicture = picture;
+        _zoomStartMs = detail.startMs;
+        _zoomEndMs = detail.endMs;
+        _zoomPicWidth = picW;
+        _zoomForVisibleMs = visibleMs;
+        _zoomTrackId = trackId;
+      });
+      _dropZoomPicture(prev);
+    } catch (_) {
+      // Keep previous zoom window on failure.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,10 +349,43 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         if (width <= 0 || height <= 0) {
           return const SizedBox.expand();
         }
-        final pxPerMs = strip?.pxPerMs ?? stripPxPerMs(durationMs);
+        final visibleMs = clampWaveformVisibleMs(
+          ref.watch(waveformVisibleMsProvider),
+          durationMs: durationMs > 0 ? durationMs : null,
+        );
+        final pxPerMs = visibleMs > 0 ? width / visibleMs : 0.0;
+        final stripNaturalW = (strip?.widthPx ?? stripWidthPx(durationMs))
+            .toDouble();
+        final stripScaledW = durationMs > 0 && pxPerMs > 0
+            ? durationMs * pxPerMs
+            : stripNaturalW;
+        final scaleX = stripNaturalW > 0 ? stripScaledW / stripNaturalW : 1.0;
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
+        if (trackId != null && durationMs > 0 && pxPerMs > 0) {
+          _scheduleZoomDetail(
+            trackId: trackId,
+            durationMs: durationMs,
+            positionMs: _displayMs(durationMs).round(),
+            visibleMs: visibleMs,
+            width: width,
+          );
+        }
+
         return Listener(
+          onPointerSignal: durationMs <= 0
+              ? null
+              : (signal) {
+                  if (signal is PointerScrollEvent &&
+                      signal.scrollDelta.dy != 0) {
+                    ref
+                        .read(waveformVisibleMsProvider.notifier)
+                        .zoomByScroll(
+                          signal.scrollDelta.dy,
+                          durationMs: durationMs,
+                        );
+                  }
+                },
           onPointerDown: durationMs <= 0
               ? null
               : (e) {
@@ -231,10 +402,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               anchorPosMs: _scrubAnchorMs,
               deltaX: e.localPosition.dx - _scrubAnchorX,
               width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-              ).toDouble(),
+              spanMs: visibleMs.toDouble(),
             );
             _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
             _throttledSeek(ms.round());
@@ -249,10 +417,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     anchorPosMs: _scrubAnchorMs,
                     deltaX: e.localPosition.dx - _scrubAnchorX,
                     width: width,
-                    spanMs: cropVisibleMs(
-                      durationMs: durationMs,
-                      viewportWidth: width,
-                    ).toDouble(),
+                    spanMs: visibleMs.toDouble(),
                   ).round();
             _scrubbing = false;
             if (durationMs > 0) {
@@ -296,18 +461,26 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         ),
                         top: 0,
                         bottom: 0,
-                        width: strip.widthPx.toDouble(),
+                        width: stripScaledW,
                         child: child ?? const SizedBox.shrink(),
                       );
                     },
                     child: RepaintBoundary(
-                      child: _StripLayer(
-                        strip: strip,
-                        height: height,
-                        beatGrid: beatGrid,
-                        loops: loops,
-                        activeLoop: activeLoop,
-                        cues: cues,
+                      child: Transform(
+                        alignment: Alignment.topLeft,
+                        transform: Matrix4.diagonal3Values(scaleX, 1, 1),
+                        child: _StripLayer(
+                          strip: strip,
+                          height: height,
+                          beatGrid: beatGrid,
+                          loops: loops,
+                          activeLoop: activeLoop,
+                          cues: cues,
+                          zoomPicture: _zoomPicture,
+                          zoomStartMs: _zoomStartMs,
+                          zoomEndMs: _zoomEndMs,
+                          zoomPicWidth: _zoomPicWidth,
+                        ),
                       ),
                     ),
                   ),
@@ -369,6 +542,10 @@ class _StripLayer extends StatelessWidget {
     required this.loops,
     required this.activeLoop,
     required this.cues,
+    required this.zoomPicture,
+    required this.zoomStartMs,
+    required this.zoomEndMs,
+    required this.zoomPicWidth,
   });
 
   final WaveformStrip strip;
@@ -377,6 +554,10 @@ class _StripLayer extends StatelessWidget {
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? cues;
+  final Picture? zoomPicture;
+  final int zoomStartMs;
+  final int zoomEndMs;
+  final double zoomPicWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -390,6 +571,10 @@ class _StripLayer extends StatelessWidget {
           loops: loops,
           activeLoop: activeLoop,
           cues: cues,
+          zoomPicture: zoomPicture,
+          zoomStartMs: zoomStartMs,
+          zoomEndMs: zoomEndMs,
+          zoomPicWidth: zoomPicWidth,
         ),
         size: Size(strip.widthPx.toDouble(), height),
       ),
@@ -404,6 +589,10 @@ class _StripPainter extends CustomPainter {
     required this.loops,
     required this.activeLoop,
     required this.cues,
+    required this.zoomPicture,
+    required this.zoomStartMs,
+    required this.zoomEndMs,
+    required this.zoomPicWidth,
   });
 
   final WaveformStrip strip;
@@ -411,6 +600,10 @@ class _StripPainter extends CustomPainter {
   final Picture? loops;
   final Picture? activeLoop;
   final Picture? cues;
+  final Picture? zoomPicture;
+  final int zoomStartMs;
+  final int zoomEndMs;
+  final double zoomPicWidth;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -427,7 +620,23 @@ class _StripPainter extends CustomPainter {
       canvas.drawPicture(tile.picture);
       canvas.restore();
     }
-    // Overlays are authored at strip height; scale with the waveform.
+    final zoom = zoomPicture;
+    if (zoom != null &&
+        strip.durationMs > 0 &&
+        zoomEndMs > zoomStartMs &&
+        zoomPicWidth > 0 &&
+        strip.widthPx > 0) {
+      final startPx = zoomStartMs / strip.durationMs * strip.widthPx;
+      final endPx = zoomEndMs / strip.durationMs * strip.widthPx;
+      final destW = endPx - startPx;
+      if (destW > 0) {
+        canvas.save();
+        canvas.translate(startPx, 0);
+        canvas.scale(destW / zoomPicWidth, 1);
+        canvas.drawPicture(zoom);
+        canvas.restore();
+      }
+    }
     for (final picture in [beatGrid, loops, activeLoop, cues]) {
       if (picture != null) {
         canvas.drawPicture(picture);
@@ -442,5 +651,9 @@ class _StripPainter extends CustomPainter {
       !identical(beatGrid, oldDelegate.beatGrid) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||
-      !identical(cues, oldDelegate.cues);
+      !identical(cues, oldDelegate.cues) ||
+      !identical(zoomPicture, oldDelegate.zoomPicture) ||
+      zoomStartMs != oldDelegate.zoomStartMs ||
+      zoomEndMs != oldDelegate.zoomEndMs ||
+      zoomPicWidth != oldDelegate.zoomPicWidth;
 }
