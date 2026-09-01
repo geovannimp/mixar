@@ -1,3 +1,7 @@
+---
+const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
+---
+
 <section class="section platforms">
   <div class="section-header">
     <h2>Built for every platform</h2>
@@ -8,26 +12,23 @@
   </div>
   <ul class="platform-pills">
     <li class="platform-pill platform-pill--available">Linux</li>
-    <li class="platform-pill platform-pill--soon">macOS</li>
-    <li class="platform-pill platform-pill--soon">Windows</li>
-    <li class="platform-pill platform-pill--soon">iOS</li>
-    <li class="platform-pill platform-pill--soon">Android</li>
+    {
+      upcomingPlatforms.map((name) => (
+        <li>
+          <button type="button" class="platform-pill platform-pill--soon">
+            {name}
+            <span class="platform-popover" role="tooltip">
+              On roadmap
+            </span>
+          </button>
+        </li>
+      ))
+    }
   </ul>
 </section>
 
 <style>
   .platforms {
     background: var(--bg-elevated);
-  }
-
-  .platform-pill--soon {
-    opacity: 0.4;
-    color: var(--text-muted);
-  }
-
-  .platform-pill--available {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: var(--accent-dim);
   }
 </style>
