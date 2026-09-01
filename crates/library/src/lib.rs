@@ -568,11 +568,13 @@ impl LibraryManager {
         {
             let computed = compute_file_analysis(&path, options)?;
             let lib = Self::lock_library(library)?;
+            lib.ensure_track_still_at_path(id, &path)?;
             lib.persist_file_analysis(&path, &computed, true)
         }
         #[cfg(not(feature = "analysis"))]
         {
             let lib = Self::lock_library(library)?;
+            lib.ensure_track_still_at_path(id, &path)?;
             lib.refresh_file_source(&path)
         }
     }
@@ -1229,6 +1231,22 @@ impl LibraryManager {
             return Ok(());
         }
         self.store().delete_track(track_id)?;
+        Ok(())
+    }
+
+    /// After off-mutex work, confirm [id] still exists and still maps to [path].
+    fn ensure_track_still_at_path(&self, id: &TrackId, path: &Path) -> Result<()> {
+        let Some(source) = self.get_track(id)? else {
+            return Err(LibraryError::NotFound(id.to_string()));
+        };
+        let file = source.file().ok_or(LibraryError::Unsupported(
+            "stream track analysis not implemented",
+        ))?;
+        let current = normalize_path(file.path())?;
+        let expected = normalize_path(path)?;
+        if current != expected {
+            return Err(LibraryError::NotFound(id.to_string()));
+        }
         Ok(())
     }
 
@@ -1899,6 +1917,50 @@ mod tests {
         assert_eq!(direct.updated, off_mutex.updated);
         assert_eq!(direct.skipped, off_mutex.skipped);
         assert_eq!(direct.failed, off_mutex.failed);
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
+    fn analyze_track_off_mutex_does_not_recreate_deleted_track() {
+        use std::sync::Mutex;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
+        let id = track.id().clone();
+        let library = Mutex::new(lib);
+
+        let path = {
+            let lib = library.lock().unwrap();
+            lib.get_track(&id)
+                .unwrap()
+                .unwrap()
+                .file()
+                .unwrap()
+                .path()
+                .to_path_buf()
+        };
+
+        let options = AnalyzeTrackOptions {
+            force: true,
+            analysis_duration: AnalysisDurationMode::Fast,
+        };
+        let _computed = compute_file_analysis(&path, options).unwrap();
+
+        {
+            let lib = library.lock().unwrap();
+            lib.store().delete_track(&id).unwrap();
+            assert!(!lib.store().track_exists(&id).unwrap());
+            assert!(matches!(
+                lib.ensure_track_still_at_path(&id, &path),
+                Err(LibraryError::NotFound(_))
+            ));
+        }
+
+        assert!(!library.lock().unwrap().store().track_exists(&id).unwrap());
     }
 
     #[test]
