@@ -1772,7 +1772,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Set", true))
             .unwrap();
