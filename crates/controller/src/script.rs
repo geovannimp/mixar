@@ -73,16 +73,16 @@ impl ScriptRuntime {
         }
         {
             let b = Arc::clone(&bridge);
-            module.set_native_fn(
-                "publish",
-                move |origin: &str, kind: &str, _payload: &str| {
-                    if let Ok(mut g) = b.lock() {
-                        g.publish_queue
-                            .push((origin.to_string(), kind.to_string(), String::new()));
-                    }
-                    Ok::<(), Box<rhai::EvalAltResult>>(())
-                },
-            );
+            module.set_native_fn("publish", move |origin: &str, kind: &str, payload: &str| {
+                if let Ok(mut g) = b.lock() {
+                    g.publish_queue.push((
+                        origin.to_string(),
+                        kind.to_string(),
+                        payload.to_string(),
+                    ));
+                }
+                Ok::<(), Box<rhai::EvalAltResult>>(())
+            });
         }
         {
             let b = Arc::clone(&bridge);
@@ -125,12 +125,19 @@ impl ScriptRuntime {
         } else {
             return;
         };
-        for (origin_s, kind_s, _) in pubs {
+        for (origin_s, kind_s, payload) in pubs {
             // Scripts pass flat strings (`engine`, `deck1`); wire Origin for Deck is
             // `{"deck":n}`, so serde alone isn't enough for the Rhai publish API.
             let origin = parse_origin(&origin_s).unwrap_or(Origin::Engine);
             let kind = parse_kind(&kind_s).unwrap_or(Kind::Notice);
-            host.bus.publish_engine(origin, kind, CmdBody::Empty);
+            let body = match parse_cmd_body(&payload) {
+                Ok(body) => body,
+                Err(err) => {
+                    log::warn!("script publish payload parse failed: {err}");
+                    continue;
+                }
+            };
+            host.bus.publish_engine(origin, kind, body);
         }
         for m in midis {
             host.midi.send(&m);
@@ -199,4 +206,11 @@ fn parse_kind(s: &str) -> Option<Kind> {
         "error" => Some(Kind::Error),
         _ => None,
     }
+}
+
+fn parse_cmd_body(payload: &str) -> Result<CmdBody, String> {
+    if payload.trim().is_empty() {
+        return Ok(CmdBody::Empty);
+    }
+    serde_json::from_str(payload).map_err(|err| err.to_string())
 }
