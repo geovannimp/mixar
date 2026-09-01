@@ -60,18 +60,10 @@ tasks:
       runInCI: true
 
   format-check:
-    command: "mise"
+    command: "bash"
     args:
-      [
-        "exec",
-        "--",
-        "dart",
-        "format",
-        "--set-exit-if-changed",
-        "lib",
-        "test",
-        "integration_test",
-      ]
+      - "-c"
+      - "mise exec -- flutter pub get && mise exec -- dart format --set-exit-if-changed lib test integration_test"
     toolchain: "system"
     inputs:
       - "@group(sources)"
@@ -82,9 +74,12 @@ tasks:
   # Inputs are .dart-only so this task is skipped when no Dart sources are staged.
   # `pass: false` runs full `dart format` on app sources whenever any `.dart` is staged
   # (same scope as format-check; excludes vendored rust_builder).
+  # `flutter pub get` first so analysis_options resolves before format (matches CI).
   format-files:
-    command: "mise"
-    args: ["exec", "--", "dart", "format", "lib", "test", "integration_test"]
+    command: "bash"
+    args:
+      - "-c"
+      - "mise exec -- flutter pub get && mise exec -- dart format lib test integration_test"
     toolchain: "system"
     inputs:
       - "**/*.dart"
