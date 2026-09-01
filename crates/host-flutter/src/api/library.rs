@@ -417,17 +417,14 @@ impl LibraryTransport {
                 .id
         };
 
-        // ponytail: sync holds the manager mutex for the whole folder walk/import, so
-        // analyze/refresh cmds and other RPCs wait. Upgrade: sync off-mutex with a
-        // per-collection lock, or a background scan job that publishes progress evts.
         let (scan, summary) = {
-            let mut lib = self
+            let scan =
+                LibraryManager::sync_collection_off_mutex(&self.library, Some(&collection_id))
+                    .map_err(|e| e.to_string())?;
+            let lib = self
                 .library
                 .lock()
                 .map_err(|_| "library lock poisoned".to_string())?;
-            let scan = lib
-                .sync_collection(Some(&collection_id))
-                .map_err(|e| e.to_string())?;
             let collection = lib
                 .list_collections()
                 .map_err(|e| e.to_string())?
