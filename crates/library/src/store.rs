@@ -1,11 +1,14 @@
 //! SeaORM persistence for the library manager.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use library_core::{
     CollectionEntry, CollectionEntryId, CollectionId, Result, TrackId, TrackMetadata,
 };
 use sea_orm::sea_query::{Expr, OnConflict, Order};
+#[cfg(test)]
+use sea_orm::Statement;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, PaginatorTrait,
     QueryFilter, QueryOrder, Set, SqliteTransactionMode, TransactionOptions, TransactionTrait,
@@ -152,6 +155,28 @@ impl<'a> Store<'a> {
         Ok(count > 0)
     }
 
+    pub fn get_tracks_by_ids(
+        &self,
+        ids: &[TrackId],
+    ) -> Result<HashMap<String, library_core::AudioSource>> {
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let id_strings: Vec<String> = ids.iter().map(|id| id.as_str().to_string()).collect();
+        let rows = TrackEntity::find()
+            .filter(tracks::Column::Id.is_in(id_strings))
+            .all(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|row| {
+                model::track_source(row)
+                    .ok()
+                    .map(|source| (source.id().as_str().to_string(), source))
+            })
+            .collect())
+    }
+
     pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::AudioSource>> {
         let row = TrackEntity::find_by_id(id.as_str())
             .one(self.db.conn()?.as_connection())
@@ -212,6 +237,27 @@ impl<'a> Store<'a> {
         TrackEntity::delete_by_id(id.as_str())
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
+        Ok(())
+    }
+
+    /// Test helper: remove a track row but leave playlist entries pointing at it.
+    #[cfg(test)]
+    pub fn delete_track_row_only(&self, id: &TrackId) -> Result<()> {
+        let guard = self.db.conn()?;
+        let conn = guard.as_connection();
+        conn.execute_raw(Statement::from_string(
+            sea_orm::DatabaseBackend::Sqlite,
+            "PRAGMA foreign_keys = OFF".to_string(),
+        ))
+        .map_err(db::db_err)?;
+        TrackEntity::delete_by_id(id.as_str())
+            .exec(conn)
+            .map_err(db::db_err)?;
+        conn.execute_raw(Statement::from_string(
+            sea_orm::DatabaseBackend::Sqlite,
+            "PRAGMA foreign_keys = ON".to_string(),
+        ))
+        .map_err(db::db_err)?;
         Ok(())
     }
 
