@@ -123,7 +123,7 @@ class DeckPanel extends ConsumerWidget {
             const Spacer(),
             _QuantizeButton(
               quantize: quantize,
-              disabled: transportDisabled,
+              disabled: loadDisabled,
               onPress: () {
                 unawaited(
                   _engineCmd(
@@ -136,7 +136,7 @@ class DeckPanel extends ConsumerWidget {
             const SizedBox(width: 4),
             _SlipButton(
               slip: slip,
-              disabled: transportDisabled,
+              disabled: loadDisabled,
               onPress: () {
                 unawaited(
                   _engineCmd(context, () => setDeckSlip(ref, deckId, !slip)),
@@ -307,10 +307,9 @@ class _SlipButton extends StatelessWidget {
           ),
         ),
         child: Text(
-          'SLIP',
+          'S',
           style: TextStyle(
             fontWeight: .w600,
-            fontSize: 10,
             color: on ? slipOn : theme.colors.mutedForeground,
           ),
         ),

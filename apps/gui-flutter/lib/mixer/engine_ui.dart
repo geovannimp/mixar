@@ -286,9 +286,6 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (evt.slipEnabled != null) {
         nextSlip[id] = evt.slipEnabled!;
       }
-      if (unloaded) {
-        nextSlip.remove(id);
-      }
       final nextJog = Map<int, bool>.from(prev.jogTouching);
       if (unloaded) {
         nextJog[id] = false;
