@@ -1,6 +1,6 @@
 //! SeaORM entity definitions for the library database.
 
-pub mod collection_tracks;
+pub mod collection_entries;
 pub mod collections;
 pub mod history_sessions;
 pub mod sampler_bank;
@@ -11,7 +11,7 @@ pub mod track_loop;
 pub mod track_waveform;
 pub mod tracks;
 
-pub use collection_tracks::Entity as CollectionTrackEntity;
+pub use collection_entries::Entity as CollectionEntryEntity;
 pub use collections::Entity as CollectionEntity;
 pub use history_sessions::Entity as HistorySessionEntity;
 pub use sampler_bank::{Entity as SamplerBankEntity, SamplerPlayMode};

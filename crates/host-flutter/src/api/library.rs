@@ -17,7 +17,8 @@ use library_api::{
     TrackSummary as ApiTrackSummary,
 };
 use library_core::{
-    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, Library,
+    AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
+    Library,
 };
 
 use crate::frb_generated::StreamSink;
@@ -84,6 +85,8 @@ pub struct LibraryCollectionSummary {
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
 #[derive(Clone, Debug)]
 pub struct LibraryTrackSummary {
+    /// Playlist entry row id; unset for folder path-prefix tracks.
+    pub entry_id: Option<String>,
     pub id: String,
     pub display_name: String,
     pub artist: Option<String>,
@@ -328,22 +331,50 @@ impl LibraryTransport {
     }
 
     /// List tracks in a collection (artwork left unset — not stored in DB yet).
-    pub fn list_collection_tracks(
+    pub fn list_collection_entries(
         &self,
         collection_id: String,
     ) -> Result<Vec<LibraryTrackSummary>, String> {
-        let sources = {
-            let lib = self
-                .library
-                .lock()
-                .map_err(|_| "library lock poisoned".to_string())?;
-            lib.get_collection_tracks(&CollectionId::new(collection_id))
-                .map_err(|e| e.to_string())?
-        };
-        Ok(sources
-            .iter()
-            .filter_map(|s| track_summary(s, false))
-            .collect())
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        let collection_id = CollectionId::new(collection_id);
+        let collection = lib
+            .get_collection(&collection_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "collection not found".to_string())?;
+
+        match collection.collection_type() {
+            CollectionType::Playlist => {
+                let rows = lib
+                    .list_playlist_entries(&collection_id)
+                    .map_err(|e| e.to_string())?;
+                Ok(rows
+                    .iter()
+                    .filter_map(|row| {
+                        lib.get_track(&row.track_id)
+                            .ok()
+                            .flatten()
+                            .and_then(|source| {
+                                track_summary(&source, false).map(|summary| LibraryTrackSummary {
+                                    entry_id: Some(row.id.as_str().to_string()),
+                                    ..summary
+                                })
+                            })
+                    })
+                    .collect())
+            }
+            CollectionType::Folder => {
+                let sources = lib
+                    .get_collection_tracks(&collection_id)
+                    .map_err(|e| e.to_string())?;
+                Ok(sources
+                    .iter()
+                    .filter_map(|s| track_summary(s, false))
+                    .collect())
+            }
+        }
     }
 
     /// Load one track including embedded artwork when present.
@@ -1039,6 +1070,7 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
 
 fn api_track_summary(track: ApiTrackSummary) -> LibraryTrackSummary {
     LibraryTrackSummary {
+        entry_id: None,
         id: track.id,
         display_name: track.display_name,
         artist: track.artist,
@@ -1128,6 +1160,7 @@ fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryT
         None
     };
     Some(LibraryTrackSummary {
+        entry_id: None,
         id: source.id().as_str().to_string(),
         display_name: track_display_name(source),
         artist: metadata.artist.clone(),

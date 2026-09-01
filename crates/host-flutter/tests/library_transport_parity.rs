@@ -76,7 +76,7 @@ fn add_folder_resolve_and_track_artwork_metadata() {
     assert_eq!(collections[0].track_count, 2);
 
     let tracks = transport
-        .list_collection_tracks(collections[0].id.clone())
+        .list_collection_entries(collections[0].id.clone())
         .unwrap();
     assert_eq!(tracks.len(), 2);
 
@@ -179,7 +179,7 @@ fn refresh_existing_track_emits_track_updated() {
         .add_folder_collection(dir.path().to_string_lossy().into_owned(), true, None)
         .unwrap();
     let tracks = transport
-        .list_collection_tracks(added.collection.id.clone())
+        .list_collection_entries(added.collection.id.clone())
         .unwrap();
     assert_eq!(tracks.len(), 1);
 

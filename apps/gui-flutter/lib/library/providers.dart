@@ -56,7 +56,7 @@ final collectionTracksProvider = FutureProvider<List<LibraryTrackSummary>>((
     return const [];
   }
   final transport = await ref.watch(libraryTransportProvider.future);
-  return transport.listCollectionTracks(collectionId: id);
+  return transport.listCollectionEntries(collectionId: id);
 });
 
 class TrackFilter extends Notifier<String> {

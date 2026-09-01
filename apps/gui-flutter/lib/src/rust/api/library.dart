@@ -96,7 +96,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   });
 
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
-  Future<List<LibraryTrackSummary>> listCollectionTracks({
+  Future<List<LibraryTrackSummary>> listCollectionEntries({
     required String collectionId,
   });
 
@@ -488,6 +488,8 @@ enum LibraryEvtKind {
 
 /// Track row for the Flutter track table (mirrors Tauri / `library_api::TrackSummary`).
 class LibraryTrackSummary {
+  /// Playlist entry row id; unset for folder path-prefix tracks.
+  final String? entryId;
   final String id;
   final String displayName;
   final String? artist;
@@ -505,6 +507,7 @@ class LibraryTrackSummary {
   final Uint8List? artwork;
 
   const LibraryTrackSummary({
+    this.entryId,
     required this.id,
     required this.displayName,
     this.artist,
@@ -521,6 +524,7 @@ class LibraryTrackSummary {
 
   @override
   int get hashCode =>
+      entryId.hashCode ^
       id.hashCode ^
       displayName.hashCode ^
       artist.hashCode ^
@@ -539,6 +543,7 @@ class LibraryTrackSummary {
       identical(this, other) ||
       other is LibraryTrackSummary &&
           runtimeType == other.runtimeType &&
+          entryId == other.entryId &&
           id == other.id &&
           displayName == other.displayName &&
           artist == other.artist &&

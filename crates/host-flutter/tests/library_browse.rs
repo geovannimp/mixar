@@ -51,7 +51,7 @@ fn list_collections_and_tracks_from_disk_db() {
     assert_eq!(collections[0].track_count, 1);
 
     let tracks = transport
-        .list_collection_tracks(collections[0].id.clone())
+        .list_collection_entries(collections[0].id.clone())
         .unwrap();
     assert_eq!(tracks.len(), 1);
     assert!(tracks[0].path.ends_with("track_a.wav"));

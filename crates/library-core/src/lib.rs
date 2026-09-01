@@ -27,9 +27,9 @@ pub use key_format::{
 pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider};
 pub use traits::{Library, WritableLibrary};
 pub use types::{
-    AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionId,
-    CollectionTrack, CollectionType, LibraryConfig, NewCollection, ScanReport, TrackId,
-    TrackMetadata, UpdateCollection,
+    AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
+    CollectionEntryId, CollectionId, CollectionType, LibraryConfig, NewCollection, ScanReport,
+    TrackId, TrackMetadata, UpdateCollection,
 };
 
 #[cfg(test)]

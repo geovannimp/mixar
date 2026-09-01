@@ -44,10 +44,10 @@ use std::sync::{Arc, Mutex};
 
 pub use library_core::{
     is_supported_audio_extension, is_supported_audio_path, AnalyzeTrackOptions, AudioSource,
-    Collection, CollectionConfig, CollectionConfigUpdate, CollectionId, CollectionTrack,
-    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio,
-    LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId,
-    TrackMetadata, UpdateCollection, WritableLibrary,
+    Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry, CollectionEntryId,
+    CollectionId, CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError,
+    LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
+    StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -274,8 +274,7 @@ impl LibraryManager {
             if self.get_track(&track_id)?.is_none() {
                 continue;
             }
-            self.store()
-                .insert_collection_track(&playlist.id, &track_id, Some(position as i32))?;
+            self.add_collection_entry(&playlist.id, &track_id, Some(position as i32))?;
         }
         Ok(playlist)
     }
@@ -926,10 +925,6 @@ impl LibraryManager {
         })
     }
 
-    fn playlist_track_ids(&self, playlist_id: &CollectionId) -> Result<Vec<TrackId>> {
-        self.store().playlist_track_ids(playlist_id)
-    }
-
     fn file_sources_under(&self, root: &Path) -> Result<Vec<AudioSource>> {
         let root_str = root.to_string_lossy().into_owned();
         let prefix = format!("{}/%", escape_like(&root_str));
@@ -1175,16 +1170,21 @@ impl Library for LibraryManager {
                 self.file_sources_under(fs_path)
             }
             CollectionType::Playlist => {
-                let ids = self.playlist_track_ids(collection_id)?;
-                let mut sources = Vec::with_capacity(ids.len());
-                for id in ids {
-                    if let Some(source) = self.get_track(&id)? {
+                let rows = self.list_playlist_entries(collection_id)?;
+                let mut sources = Vec::with_capacity(rows.len());
+                for row in rows {
+                    if let Some(source) = self.get_track(&row.track_id)? {
                         sources.push(source);
                     }
                 }
                 Ok(sources)
             }
         }
+    }
+
+    fn list_playlist_entries(&self, collection_id: &CollectionId) -> Result<Vec<CollectionEntry>> {
+        let _ = self.require_playlist(collection_id)?;
+        self.store().list_playlist_entries(collection_id)
     }
 }
 
@@ -1250,12 +1250,13 @@ impl WritableLibrary for LibraryManager {
                 self.store().update_collection_sortable(id, sortable)?;
 
                 if sortable {
-                    let ids = self.store().playlist_track_ids_by_track_id(id)?;
-                    for (pos, track_id) in ids.iter().enumerate() {
+                    let rows = self.store().list_playlist_entries(id)?;
+                    for (pos, row) in rows.iter().enumerate() {
                         self.store()
-                            .set_collection_track_position(id, track_id, pos as i32)?;
+                            .set_collection_entry_position_by_id(id, &row.id, pos as i32)?;
                     }
                 } else {
+                    self.store().dedupe_playlist_entries(id)?;
                     self.store().clear_playlist_positions(id)?;
                 }
             }
@@ -1271,12 +1272,12 @@ impl WritableLibrary for LibraryManager {
         Ok(())
     }
 
-    fn add_collection_track(
+    fn add_collection_entry(
         &mut self,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
-    ) -> Result<()> {
+    ) -> Result<CollectionEntryId> {
         let playlist = self.require_playlist(collection_id)?;
         if self.get_track(track_id)?.is_none() {
             return Err(LibraryError::NotFound(track_id.to_string()));
@@ -1284,41 +1285,46 @@ impl WritableLibrary for LibraryManager {
 
         let position = if playlist.sortable() {
             Some(position.unwrap_or_else(|| {
-                self.playlist_track_ids(collection_id)
-                    .map(|ids| ids.len() as i32)
+                self.list_playlist_entries(collection_id)
+                    .map(|rows| rows.len() as i32)
                     .unwrap_or(0)
             }))
         } else {
             None
         };
 
-        self.store()
-            .upsert_collection_track(collection_id, track_id, position)?;
-        Ok(())
+        // Sortable playlists may list the same track more than once; crates are a set.
+        if playlist.sortable() {
+            self.store()
+                .insert_collection_entry(collection_id, track_id, position)
+        } else {
+            self.store()
+                .upsert_collection_entry(collection_id, track_id, position)
+        }
     }
 
-    fn remove_collection_track(
+    fn remove_collection_entry(
         &mut self,
         collection_id: &CollectionId,
-        track_id: &TrackId,
+        entry_id: &CollectionEntryId,
     ) -> Result<()> {
         let _ = self.require_playlist(collection_id)?;
-        if !self
+        let Some(track_id) = self
             .store()
-            .delete_collection_track(collection_id, track_id)?
-        {
+            .delete_collection_entry_by_id(collection_id, entry_id)?
+        else {
             return Err(LibraryError::NotFound(format!(
-                "{collection_id}/{track_id}"
+                "{collection_id}/{entry_id}"
             )));
-        }
-        self.remove_track_if_orphaned(track_id)?;
+        };
+        self.remove_track_if_orphaned(&track_id)?;
         Ok(())
     }
 
-    fn update_collection_track(
+    fn update_collection_entries(
         &mut self,
         collection_id: &CollectionId,
-        track_ids: &[TrackId],
+        entry_ids: &[CollectionEntryId],
     ) -> Result<()> {
         let playlist = self.require_playlist(collection_id)?;
         if !playlist.sortable() {
@@ -1327,18 +1333,35 @@ impl WritableLibrary for LibraryManager {
             ));
         }
 
-        let existing = self.playlist_track_ids(collection_id)?;
-        if existing.len() != track_ids.len() || track_ids.iter().any(|id| !existing.contains(id)) {
+        let existing = self.list_playlist_entries(collection_id)?;
+        if existing.len() != entry_ids.len() {
             return Err(LibraryError::Backend {
                 backend: "library",
-                message: "update_collection_track must include exactly the playlist membership"
+                message: "update_collection_entries must include exactly the playlist membership"
+                    .into(),
+            });
+        }
+        let existing_ids: std::collections::HashSet<_> =
+            existing.iter().map(|row| row.id.as_str()).collect();
+        let mut seen = std::collections::HashSet::new();
+        if entry_ids.len() != existing_ids.len()
+            || entry_ids
+                .iter()
+                .any(|id| !seen.insert(id.as_str()) || !existing_ids.contains(id.as_str()))
+        {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "update_collection_entries must include exactly the playlist membership"
                     .into(),
             });
         }
 
-        for (pos, track_id) in track_ids.iter().enumerate() {
-            self.store()
-                .set_collection_track_position(collection_id, track_id, pos as i32)?;
+        for (pos, entry_id) in entry_ids.iter().enumerate() {
+            self.store().set_collection_entry_position_by_id(
+                collection_id,
+                entry_id,
+                pos as i32,
+            )?;
         }
         Ok(())
     }
@@ -1663,21 +1686,56 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Warmup", true))
             .unwrap();
-        lib.add_collection_track(&pl.id, ta.id(), None).unwrap();
-        lib.add_collection_track(&pl.id, tb.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, ta.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, tb.id(), None).unwrap();
 
         let tracks = lib.get_collection_tracks(&pl.id).unwrap();
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].id(), ta.id());
         assert_eq!(tracks[1].id(), tb.id());
 
-        lib.update_collection_track(&pl.id, &[tb.id().clone(), ta.id().clone()])
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let ta_row = rows
+            .iter()
+            .find(|row| row.track_id == *ta.id())
+            .expect("ta row");
+        let tb_row = rows
+            .iter()
+            .find(|row| row.track_id == *tb.id())
+            .expect("tb row");
+        lib.update_collection_entries(&pl.id, &[tb_row.id.clone(), ta_row.id.clone()])
             .unwrap();
         let tracks = lib.get_collection_tracks(&pl.id).unwrap();
         assert_eq!(tracks[0].id(), tb.id());
         assert_eq!(tracks[1].id(), ta.id());
 
-        lib.remove_collection_track(&pl.id, ta.id()).unwrap();
+        lib.remove_collection_entry(&pl.id, &ta_row.id).unwrap();
+        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn sortable_playlist_allows_duplicate_tracks() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Set", true))
+            .unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
+
+        let tracks = lib.get_collection_tracks(&pl.id).unwrap();
+        assert_eq!(tracks.len(), 2);
+        assert_eq!(tracks[0].id(), track.id());
+        assert_eq!(tracks[1].id(), track.id());
+
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_ne!(rows[0].id, rows[1].id);
+        lib.remove_collection_entry(&pl.id, &rows[0].id).unwrap();
         assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
     }
 
@@ -1692,10 +1750,11 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Crate", false))
             .unwrap();
-        lib.add_collection_track(&pl.id, track.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
 
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
         let err = lib
-            .update_collection_track(&pl.id, &[track.id().clone()])
+            .update_collection_entries(&pl.id, &[rows[0].id.clone()])
             .unwrap_err();
         assert!(matches!(err, LibraryError::Unsupported(_)));
     }
@@ -1714,22 +1773,58 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Set", false))
             .unwrap();
-        lib.add_collection_track(&pl.id, ta.id(), None).unwrap();
-        lib.add_collection_track(&pl.id, tb.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, ta.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, tb.id(), None).unwrap();
 
         lib.update_collection(&pl.id, &UpdateCollection::sortable(true))
             .unwrap();
         let pl = lib.get_collection(&pl.id).unwrap().unwrap();
         assert!(pl.sortable());
-        lib.update_collection_track(&pl.id, &[tb.id().clone(), ta.id().clone()])
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let tb_row = rows
+            .iter()
+            .find(|row| row.track_id == *tb.id())
+            .expect("tb row");
+        let ta_row = rows
+            .iter()
+            .find(|row| row.track_id == *ta.id())
+            .expect("ta row");
+        lib.update_collection_entries(&pl.id, &[tb_row.id.clone(), ta_row.id.clone()])
             .unwrap();
 
         lib.update_collection(&pl.id, &UpdateCollection::sortable(false))
             .unwrap();
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
         let err = lib
-            .update_collection_track(&pl.id, &[tb.id().clone(), ta.id().clone()])
+            .update_collection_entries(
+                &pl.id,
+                &rows.iter().map(|row| row.id.clone()).collect::<Vec<_>>(),
+            )
             .unwrap_err();
         assert!(matches!(err, LibraryError::Unsupported(_)));
+    }
+
+    #[test]
+    fn sortable_to_unsortable_dedupes_duplicate_tracks() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_path(&wav).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Set", true))
+            .unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
+        assert_eq!(lib.list_playlist_entries(&pl.id).unwrap().len(), 2);
+
+        lib.update_collection(&pl.id, &UpdateCollection::sortable(false))
+            .unwrap();
+        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].track_id, *track.id());
+        assert!(rows[0].position.is_none());
     }
 
     #[test]
@@ -1743,7 +1838,7 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Temp", true))
             .unwrap();
-        lib.add_collection_track(&pl.id, track.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
         lib.delete_collection(&pl.id).unwrap();
 
         assert!(lib.get_collection(&pl.id).unwrap().is_none());
@@ -1929,7 +2024,7 @@ mod tests {
     }
 
     #[test]
-    fn remove_collection_track_drops_orphaned_stream() {
+    fn remove_collection_entry_drops_orphaned_stream() {
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let meta = TrackMetadata {
             title: Some("Remote Track".into()),
@@ -1945,14 +2040,15 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Streaming", true))
             .unwrap();
-        lib.add_collection_track(&pl.id, source.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, source.id(), None).unwrap();
 
-        lib.remove_collection_track(&pl.id, source.id()).unwrap();
+        let entry_id = lib.list_playlist_entries(&pl.id).unwrap()[0].id.clone();
+        lib.remove_collection_entry(&pl.id, &entry_id).unwrap();
         assert!(lib.get_track(source.id()).unwrap().is_none());
     }
 
     #[test]
-    fn remove_collection_track_keeps_folder_linked_file() {
+    fn remove_collection_entry_keeps_folder_linked_file() {
         let dir = tempfile::tempdir().unwrap();
         write_minimal_wav(&dir.path().join("keep.wav"));
 
@@ -1968,8 +2064,9 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Also", true))
             .unwrap();
-        lib.add_collection_track(&pl.id, &track_id, None).unwrap();
-        lib.remove_collection_track(&pl.id, &track_id).unwrap();
+        lib.add_collection_entry(&pl.id, &track_id, None).unwrap();
+        let entry_id = lib.list_playlist_entries(&pl.id).unwrap()[0].id.clone();
+        lib.remove_collection_entry(&pl.id, &entry_id).unwrap();
 
         assert!(lib.get_track(&track_id).unwrap().is_some());
     }
@@ -1998,7 +2095,7 @@ mod tests {
         let pl = lib
             .add_collection(&NewCollection::playlist("Streaming", true))
             .unwrap();
-        lib.add_collection_track(&pl.id, source.id(), None).unwrap();
+        lib.add_collection_entry(&pl.id, source.id(), None).unwrap();
         assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
     }
 
@@ -2018,7 +2115,7 @@ mod tests {
                 .add_collection(&NewCollection::playlist("All", true))
                 .unwrap();
             let tracks = lib.get_collection_tracks(&folder.id).unwrap();
-            lib.add_collection_track(&pl.id, tracks[0].id(), None)
+            lib.add_collection_entry(&pl.id, tracks[0].id(), None)
                 .unwrap();
         }
 

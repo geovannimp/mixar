@@ -9,7 +9,7 @@ alwaysApply: false
 Reference: `docs/tech-spec.md` §10. Architecture overview: `README.md`.
 
 - **Role:** Defines the library trait boundary and shared types. No library storage I/O here (that lives in `library`).
-- **Key types:** `TrackId`, `TrackMetadata`, `FileAudioSource`, `StreamAudioSource`, `AudioSource`, `StreamProvider`, `CollectionId`, `Collection`, `CollectionConfig` (`Folder { fs_path }` | `Playlist { sortable }`), `CollectionType`, `CollectionTrack`, `NewCollection`, `UpdateCollection`, `CollectionConfigUpdate`, `AnalyzeTrackOptions`, `LibraryConfig`, `ScanReport`, `LibraryError`.
+- **Key types:** `TrackId`, `CollectionEntryId`, `TrackMetadata`, `FileAudioSource`, `StreamAudioSource`, `AudioSource`, `StreamProvider`, `CollectionId`, `Collection`, `CollectionConfig` (`Folder { fs_path }` | `Playlist { sortable }`), `CollectionType`, `CollectionEntry`, `NewCollection`, `UpdateCollection`, `CollectionConfigUpdate`, `AnalyzeTrackOptions`, `LibraryConfig`, `ScanReport`, `LibraryError`.
 - **Key traits:** `Library` (read), `WritableLibrary` (mutate).
 - **Implementations:** Canonical manager in `library` (`LibraryManager`); third-party formats in `library-adapters`.
 - **Stability:** Keep the trait surface stable; minimize breaking changes.
