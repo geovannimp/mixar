@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   Future<void> pumpPanel(
@@ -39,10 +40,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: StatefulBuilder(
               builder: (context, setState) {

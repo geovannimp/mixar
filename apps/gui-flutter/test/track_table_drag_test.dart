@@ -13,6 +13,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,10 +62,7 @@ void main() {
           ],
           child: MaterialApp(
             theme: materialUiThemeFromForui(theme),
-            builder: (context, child) => MaterialUiCompatibilityBridge(
-              // ignore: deprecated_member_use
-              child: FTheme(data: theme, child: child!),
-            ),
+            builder: foruiMaterialAppBuilder(theme),
             home: const Scaffold(
               body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
             ),
@@ -112,10 +110,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
           ),
@@ -170,10 +165,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
           ),

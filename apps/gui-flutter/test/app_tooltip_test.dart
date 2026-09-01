@@ -6,6 +6,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,12 +26,9 @@ void main() {
         overrides: [appSettingsProvider.overrideWith((ref) async => settings)],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(
-              data: theme,
-              child: FTooltipGroup(child: child!),
-            ),
+          builder: foruiMaterialAppBuilder(
+            theme,
+            wrapChild: (child) => FTooltipGroup(child: child),
           ),
           home: Scaffold(
             body: AppTooltip(

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   Future<void> pumpHold(
@@ -15,10 +16,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge(
-          // ignore: deprecated_member_use
-          child: FTheme(data: theme, child: child!),
-        ),
+        builder: foruiMaterialAppBuilder(theme),
         home: Scaffold(
           body: SizedBox(
             width: 80,
@@ -87,10 +85,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge(
-          // ignore: deprecated_member_use
-          child: FTheme(data: theme, child: child!),
-        ),
+        builder: foruiMaterialAppBuilder(theme),
         home: const Scaffold(body: SizedBox.shrink()),
       ),
     );

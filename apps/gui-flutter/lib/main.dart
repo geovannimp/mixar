@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
+import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
@@ -82,8 +83,7 @@ class Application extends StatelessWidget {
         // Resolve touch vs desktop via Forui's platformVariant:
         // https://forui.dev/docs/concepts/responsive
         // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
-        return MaterialUiCompatibilityBridge(
-          // ignore: deprecated_member_use
+        return LegacyMaterialScope(
           child: FAdaptiveScope(
             child: Builder(
               builder: (context) {
