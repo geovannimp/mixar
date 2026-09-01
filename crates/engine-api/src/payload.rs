@@ -146,6 +146,10 @@ pub struct DeckSnapshot {
     pub cue_point_ms: Option<i32>,
     pub quantize: bool,
     pub active_loop: Option<LoopRegion>,
+    #[serde(default)]
+    pub slip_enabled: bool,
+    #[serde(default)]
+    pub slip_shadow_position_ms: Option<i32>,
     pub pad_mode: PadMode,
     pub position_ms: Option<i32>,
     pub duration_ms: Option<i32>,
@@ -244,6 +248,9 @@ pub enum CmdBody {
         beat_sync: bool,
     },
     SetQuantize {
+        enabled: bool,
+    },
+    SetSlip {
         enabled: bool,
     },
     SetAutoLoop {
@@ -388,6 +395,10 @@ pub enum EvtBody {
         cue_point_ms: Option<i32>,
         quantize: bool,
         active_loop: Option<LoopRegion>,
+        #[serde(default)]
+        slip_enabled: bool,
+        #[serde(default)]
+        slip_shadow_position_ms: Option<i32>,
         pad_mode: PadMode,
         position_ms: Option<i32>,
         duration_ms: Option<i32>,
@@ -402,6 +413,8 @@ pub enum EvtBody {
     },
     Position {
         position_ms: i32,
+        #[serde(default)]
+        slip_shadow_position_ms: Option<i32>,
     },
     Levels {
         peak_l: f32,

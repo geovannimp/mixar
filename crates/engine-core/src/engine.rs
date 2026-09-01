@@ -764,6 +764,33 @@ impl Engine {
         deck.set_key_lock(enabled)
     }
 
+    /// Enable/disable slip mode for a deck.
+    pub fn set_deck_slip(&mut self, deck_id: usize, enabled: bool) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        deck.set_slip_enabled(enabled)
+    }
+
+    pub fn deck_slip_enabled(&self, deck_id: usize) -> Option<bool> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        Some(deck.slip_enabled())
+    }
+
+    pub fn deck_slip_shadow_position_ms(&self, deck_id: usize) -> Option<i32> {
+        let dsp_engine = self.dsp_engine.as_ref()?;
+        let dsp = dsp_engine.lock().ok()?;
+        let deck = dsp.deck(deck_id)?;
+        deck.shadow_position_ms()
+    }
+
     fn set_deck_speed_raw(&mut self, deck_id: usize, speed: f32) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
@@ -991,13 +1018,31 @@ impl Engine {
 
     /// Seek a deck to a position in milliseconds.
     pub fn seek_deck(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
+        self.seek_deck_inner(deck_id, position_ms, true)
+    }
+
+    /// Seek audible playhead only (slip shadow keeps advancing when enabled).
+    pub fn seek_deck_audible(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
+        self.seek_deck_inner(deck_id, position_ms, false)
+    }
+
+    fn seek_deck_inner(
+        &mut self,
+        deck_id: usize,
+        position_ms: i32,
+        move_shadow: bool,
+    ) -> Result<()> {
         let dsp_engine = self
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
-            deck.seek_ms(position_ms)?;
+            if move_shadow {
+                deck.seek_ms(position_ms)?;
+            } else {
+                deck.seek_ms_audible_only(position_ms)?;
+            }
             Ok(())
         } else {
             Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
@@ -1308,7 +1353,7 @@ impl Engine {
         }
         let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
         let target = snap_ms(position_ms, bpm, quantize);
-        self.seek_deck(deck_id, target)?;
+        self.seek_deck_audible(deck_id, target)?;
         self.play(deck_id)
     }
 
@@ -1671,7 +1716,7 @@ impl Engine {
         let beat_len = 60.0 / bpm;
         let raw = ms_to_secs(position_ms) + beat_len * f64::from(beats);
         let target = snap_ms(secs_to_ms(raw), Some(bpm), quantize);
-        self.seek_deck(deck_id, target)
+        self.seek_deck_audible(deck_id, target)
     }
 
     fn deck_bpm_quantize(&self, deck_id: usize) -> Result<(Option<f64>, bool)> {
@@ -2010,6 +2055,8 @@ fn deck_snapshot_from_dsp(
         cue_point_ms: deck.cue_point_ms(),
         quantize: control.quantize,
         active_loop,
+        slip_enabled: deck.slip_enabled(),
+        slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
         position_ms,
         duration_ms,

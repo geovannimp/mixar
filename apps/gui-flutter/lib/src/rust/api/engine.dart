@@ -164,6 +164,8 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Load a sampler bank's slots onto a deck (prepare outside the engine lock).
   Future<void> setSamplerBank({required int deckId, required String bankId});
 
+  Future<void> setSlip({required int deckId, required bool enabled});
+
   /// Tempo fader position `0..1`.
   Future<void> setSpeed({required int deckId, required double speed});
 
@@ -269,6 +271,8 @@ class EngineEvt {
   /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
   final bool durationKnown;
   final bool? quantize;
+  final bool? slipEnabled;
+  final int? slipShadowPositionMs;
   final bool? jogTouching;
   final double? loudnessLufs;
   final double? autoGainDb;
@@ -319,6 +323,8 @@ class EngineEvt {
     this.activeLoopKnown = false,
     this.durationKnown = false,
     this.quantize,
+    this.slipEnabled,
+    this.slipShadowPositionMs,
     this.jogTouching,
     this.loudnessLufs,
     this.autoGainDb,
@@ -363,6 +369,8 @@ class EngineEvt {
       activeLoopKnown.hashCode ^
       durationKnown.hashCode ^
       quantize.hashCode ^
+      slipEnabled.hashCode ^
+      slipShadowPositionMs.hashCode ^
       jogTouching.hashCode ^
       loudnessLufs.hashCode ^
       autoGainDb.hashCode ^
@@ -409,6 +417,8 @@ class EngineEvt {
           activeLoopKnown == other.activeLoopKnown &&
           durationKnown == other.durationKnown &&
           quantize == other.quantize &&
+          slipEnabled == other.slipEnabled &&
+          slipShadowPositionMs == other.slipShadowPositionMs &&
           jogTouching == other.jogTouching &&
           loudnessLufs == other.loudnessLufs &&
           autoGainDb == other.autoGainDb &&

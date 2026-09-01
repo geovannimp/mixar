@@ -69,6 +69,7 @@ class EngineUiSnapshot {
     this.syncModes = const {},
     this.activeLoops = const {},
     this.quantize = const {},
+    this.slipEnabled = const {},
     this.jogTouching = const {},
     this.loudnessLufs = const {},
     this.autoGainDb = const {},
@@ -98,6 +99,7 @@ class EngineUiSnapshot {
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
   final Map<int, bool> quantize;
+  final Map<int, bool> slipEnabled;
   final Map<int, bool> jogTouching;
   final Map<int, double> loudnessLufs;
   final Map<int, double> autoGainDb;
@@ -126,6 +128,8 @@ class EngineUiSnapshot {
   ActiveLoopInfo? activeLoopFor(int deckId) => activeLoops[deckId];
 
   bool quantizeFor(int deckId) => quantize[deckId] ?? true;
+
+  bool slipEnabledFor(int deckId) => slipEnabled[deckId] ?? false;
 
   bool jogTouchingFor(int deckId) => jogTouching[deckId] ?? false;
 
@@ -161,6 +165,7 @@ class EngineUiSnapshot {
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
     Map<int, bool>? quantize,
+    Map<int, bool>? slipEnabled,
     Map<int, bool>? jogTouching,
     Map<int, double>? loudnessLufs,
     Map<int, double>? autoGainDb,
@@ -185,6 +190,7 @@ class EngineUiSnapshot {
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
     quantize: quantize ?? this.quantize,
+    slipEnabled: slipEnabled ?? this.slipEnabled,
     jogTouching: jogTouching ?? this.jogTouching,
     loudnessLufs: loudnessLufs ?? this.loudnessLufs,
     autoGainDb: autoGainDb ?? this.autoGainDb,
@@ -276,6 +282,13 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (evt.quantize != null) {
         nextQuantize[id] = evt.quantize!;
       }
+      final nextSlip = Map<int, bool>.from(prev.slipEnabled);
+      if (evt.slipEnabled != null) {
+        nextSlip[id] = evt.slipEnabled!;
+      }
+      if (unloaded) {
+        nextSlip.remove(id);
+      }
       final nextJog = Map<int, bool>.from(prev.jogTouching);
       if (unloaded) {
         nextJog[id] = false;
@@ -327,6 +340,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,
         quantize: nextQuantize,
+        slipEnabled: nextSlip,
         jogTouching: nextJog,
         loudnessLufs: nextLoudness,
         autoGainDb: nextAutoGain,

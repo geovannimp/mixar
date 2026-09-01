@@ -30,6 +30,8 @@ pub enum Kind {
     EndCueHold,
     SetQuantize,
     ToggleQuantize,
+    SetSlip,
+    ToggleSlip,
     SetAutoLoop,
     LoopIn,
     LoopOut,
