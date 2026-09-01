@@ -1,0 +1,45 @@
+<section class="section">
+  <div class="section-narrow gs-inner">
+    <h2>Getting started</h2>
+    <p>Prerequisites: <a href="https://mise.jdx.dev" target="_blank" rel="noopener noreferrer">mise</a>, Rust stable, Flutter (pinned in <code>mise.toml</code>), and a working sound device.</p>
+    <pre class="code-block"><code>{`git clone https://github.com/geovannimp/mixar.git
+cd mixar
+mise install
+npm install
+npm run flutter:dev`}</code></pre>
+    <p class="gs-note">
+      Headless tests can use <code>backend = "null"</code> so they do not need an audio device.
+    </p>
+  </div>
+</section>
+
+<style>
+  .gs-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .gs-inner > p {
+    margin: 0 0 1.25rem;
+    color: var(--text-muted);
+  }
+
+  .gs-inner a {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .gs-note {
+    margin: 1rem 0 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  .gs-inner code {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", monospace;
+    font-size: 0.85em;
+  }
+</style>

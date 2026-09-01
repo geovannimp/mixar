@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.astro";
+import Vision from "../components/Vision.astro";
+import Features from "../components/Features.astro";
+import Platforms from "../components/Platforms.astro";
+import OpenSource from "../components/OpenSource.astro";
+import DevelopersTeaser from "../components/DevelopersTeaser.astro";
+---
+
+<BaseLayout
+  title="Mixar"
+  description="Mixar — open-source DJ software with dual decks, waveforms, hot cues, loops, and a Rust audio engine."
+  currentPage="home"
+>
+  <Hero />
+  <Vision />
+  <Features />
+  <Platforms />
+  <OpenSource />
+  <DevelopersTeaser />
+</BaseLayout>

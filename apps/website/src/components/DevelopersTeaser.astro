@@ -1,0 +1,60 @@
+<section class="section developers-teaser">
+  <div class="section-narrow teaser-inner">
+    <h2>For developers</h2>
+    <p>
+      Mixar is a Rust audio engine with a Flutter desktop UI, bridged via flutter_rust_bridge.
+      MessagePack buses connect the UI to engine, library, and controller layers.
+    </p>
+    <ul>
+      <li>Real-time DSP on a dedicated producer thread — no allocations on the audio callback</li>
+      <li>Modular Cargo workspace: engine, backends, library, codecs, analyzer</li>
+      <li>Headless testing with a null audio backend</li>
+    </ul>
+    <a class="btn btn-secondary" href="/developers">Developer guide →</a>
+  </div>
+</section>
+
+<style>
+  .teaser-inner {
+    max-width: 640px;
+    text-align: center;
+  }
+
+  .teaser-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .teaser-inner > p {
+    margin: 0 0 1.25rem;
+    color: var(--text-muted);
+  }
+
+  .teaser-inner ul {
+    margin: 0 0 1.5rem;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .teaser-inner li {
+    position: relative;
+    padding-left: 1.25rem;
+    margin-bottom: 0.625rem;
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+  }
+
+  .teaser-inner li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+</style>

@@ -1,0 +1,33 @@
+<section class="section">
+  <div class="section-header">
+    <h2>Stack</h2>
+    <p>Engine-first design with clear boundaries between audio, library, and UI.</p>
+  </div>
+  <div class="feature-grid">
+    <article class="feature-card">
+      <div class="feature-icon accent" aria-hidden="true">Rs</div>
+      <h3>Rust engine</h3>
+      <p>
+        <code>engine-core</code>, <code>engine-dsp</code>, CPAL/miniaudio backends, library, codecs,
+        and analyzer crates.
+      </p>
+    </article>
+    <article class="feature-card">
+      <div class="feature-icon accent" aria-hidden="true">Fl</div>
+      <h3>Flutter UI</h3>
+      <p>Desktop host in <code>apps/gui-flutter</code>, bridged to Rust via flutter_rust_bridge.</p>
+    </article>
+    <article class="feature-card">
+      <div class="feature-icon accent" aria-hidden="true">{}</div>
+      <h3>MessagePack buses</h3>
+      <p>Engine, library, and controller I/O over typed transports — not direct UI-thread engine calls.</p>
+    </article>
+  </div>
+</section>
+
+<style>
+  .feature-card code {
+    font-family: ui-monospace, "Cascadia Code", "SF Mono", monospace;
+    font-size: 0.85em;
+  }
+</style>

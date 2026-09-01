@@ -1,0 +1,43 @@
+---
+import { GITHUB_REPO } from "../consts";
+---
+
+<section class="dev-hero section">
+  <div class="dev-hero-inner">
+    <p class="badge">Open source</p>
+    <h1>Build with us</h1>
+    <p class="lead">
+      Mixar is a modular Rust audio engine with a Flutter UI. Inspect the code, run it locally, and
+      help shape the future of open DJ software.
+    </p>
+    <a class="btn btn-primary" href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
+      Star on GitHub
+    </a>
+  </div>
+</section>
+
+<style>
+  .dev-hero {
+    padding-top: 4rem;
+    padding-bottom: 3rem;
+  }
+
+  .dev-hero-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .dev-hero h1 {
+    margin: 0 0 1rem;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+
+  .lead {
+    margin: 0 0 1.75rem;
+    color: var(--text-muted);
+    font-size: 1.0625rem;
+  }
+</style>

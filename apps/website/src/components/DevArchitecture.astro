@@ -1,0 +1,58 @@
+---
+import { TECH_SPEC_URL } from "../consts";
+---
+
+<section class="section architecture">
+  <div class="section-narrow arch-inner">
+    <h2>Architecture</h2>
+    <p>
+      A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The
+      audio callback only consumes — no allocations on the real-time thread.
+    </p>
+    <pre class="code-block" aria-label="Audio pipeline diagram"><code>Library / AudioSource
+        │ load → PCM
+        ▼
+   Engine → decks + mixer (engine-dsp)
+        │
+        ▼
+Producer thread ──► ring buffer ──► audio callback</code></pre>
+    <p class="arch-link">
+      <a href={TECH_SPEC_URL} target="_blank" rel="noopener noreferrer">Read the full tech spec on GitHub →</a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .architecture {
+    background: var(--bg-elevated);
+  }
+
+  .arch-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(1.5rem, 3vw, 1.875rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+
+  .arch-inner > p {
+    margin: 0 0 1.5rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  .arch-link {
+    margin: 1.25rem 0 0;
+    text-align: center;
+    font-size: 0.9375rem;
+  }
+
+  .arch-link a {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .arch-link a:hover {
+    color: var(--accent-hover);
+  }
+</style>

@@ -17,7 +17,9 @@
     "build": "moon run :build",
     "test": "moon run :test",
     "dev": "moon run gui-flutter:dev-linux",
-    "flutter:dev": "moon run gui-flutter:dev-linux"
+    "flutter:dev": "moon run gui-flutter:dev-linux",
+    "website:dev": "moon run website:dev",
+    "website:build": "moon run website:build"
   },
   "devDependencies": {
     "@moonrepo/cli": "^2.4.4",
