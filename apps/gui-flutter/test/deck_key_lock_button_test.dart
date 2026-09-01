@@ -7,6 +7,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -25,10 +26,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: DeckKeyLockButton(
               keyLabel: 'F#m',

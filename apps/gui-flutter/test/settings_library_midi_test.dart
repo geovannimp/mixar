@@ -9,6 +9,7 @@ import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'support/forui_material_app.dart';
 
 void main() {
   testWidgets('library settings shows analysis quality', (tester) async {
@@ -17,10 +18,7 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: SingleChildScrollView(
               child: SettingsLibraryPanel(
@@ -48,10 +46,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),
@@ -90,10 +85,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),
@@ -131,10 +123,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),

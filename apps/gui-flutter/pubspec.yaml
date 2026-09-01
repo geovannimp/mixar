@@ -40,6 +40,7 @@ dependencies:
   path_provider: ^2.1.6
   trina_grid: ^2.3.0
   path: ^1.9.1
+  collection: ^1.19.1
   material_ui: ^1.0.0
   file_picker: ^10.3.2
   super_drag_and_drop: ^0.9.1

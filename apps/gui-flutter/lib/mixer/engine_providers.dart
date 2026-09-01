@@ -262,7 +262,7 @@ final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
       ) ??
       libraryTrackById(ref.watch(collectionTracksProvider).asData?.value, id) ??
       libraryTrackById(
-        ref.watch(driveResolvedByPathProvider).asData?.value?.values,
+        ref.watch(driveResolvedByPathProvider).asData?.value.values,
         id,
       ) ??
       ref.watch(libraryTrackByIdProvider(id)).asData?.value;

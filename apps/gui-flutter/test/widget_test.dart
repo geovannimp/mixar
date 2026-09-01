@@ -30,6 +30,7 @@ import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'support/forui_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
   @override
@@ -150,10 +151,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
@@ -323,10 +321,7 @@ void main() {
         overrides: _settingsOverrides(),
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),
         ),
       ),

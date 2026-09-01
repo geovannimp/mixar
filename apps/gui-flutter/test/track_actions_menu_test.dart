@@ -9,6 +9,7 @@ import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'support/forui_material_app.dart';
 
 class _RunningEngineUi extends EngineUi {
   @override
@@ -35,10 +36,7 @@ void main() {
       ProviderScope(
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: SizedBox(
               width: width,
@@ -112,10 +110,7 @@ void main() {
         overrides: [engineUiProvider.overrideWith(_RunningEngineUi.new)],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge(
-            // ignore: deprecated_member_use
-            child: FTheme(data: theme, child: child!),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(
               width: 200,

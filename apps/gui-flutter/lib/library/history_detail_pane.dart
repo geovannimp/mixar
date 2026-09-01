@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' show FontFeature;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
@@ -366,7 +365,7 @@ class _HistorySessionActionsMenu extends ConsumerWidget {
     return FPopoverMenu(
       faded: null,
       overlayLocation: OverlayChildLocation.rootOverlay,
-      menuBuilder: (_, controller, __) => [
+      menuBuilder: (_, controller, _) => [
         .group(
           children: [
             .item(
