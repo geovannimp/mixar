@@ -811,10 +811,9 @@ impl LibraryManager {
         };
         let files = collect_audio_files(fs_path, *scan_folder_tree)?;
         for file in files {
-            let existed = self.get_track(&Self::track_id_for(&file))?.is_some();
-            match self.import_path(&file) {
-                Ok(_) if existed => report.updated += 1,
-                Ok(_) => report.added += 1,
+            match self.refresh_file_source_with_outcome(&file) {
+                Ok((_, true)) => report.updated += 1,
+                Ok((_, false)) => report.added += 1,
                 Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
                 Err(err) => {
                     report.failed += 1;
@@ -931,10 +930,6 @@ impl LibraryManager {
         self.store().find_file_sources_under(&root_str, &prefix)
     }
 
-    pub(crate) fn import_path(&self, path: &Path) -> Result<AudioSource> {
-        self.refresh_file_source(path)
-    }
-
     /// Import or refresh a file track at `path` and return the library source.
     pub fn import_file_path(&self, path: &Path) -> Result<AudioSource> {
         self.refresh_file_source(path)
@@ -1040,6 +1035,11 @@ impl LibraryManager {
     }
 
     fn refresh_file_source(&self, path: &Path) -> Result<AudioSource> {
+        self.refresh_file_source_with_outcome(path)
+            .map(|(source, _)| source)
+    }
+
+    fn refresh_file_source_with_outcome(&self, path: &Path) -> Result<(AudioSource, bool)> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path));
@@ -1047,8 +1047,11 @@ impl LibraryManager {
         if !is_audio_file(&path) {
             return Err(LibraryError::UnsupportedFile(path));
         }
+        let id = Self::track_id_for(&path);
+        let existed = self.store().track_exists(&id)?;
         let metadata = tags::read_tags(&path)?;
-        self.upsert_file_source(&path, &metadata)
+        let source = self.upsert_file_source(&path, &metadata)?;
+        Ok((source, existed))
     }
 
     #[cfg(feature = "analysis")]
@@ -1489,7 +1492,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
 
         assert_eq!(track.metadata().title.as_deref(), Some("track"));
         let fetched = lib.get_track(track.id()).unwrap().unwrap();
@@ -1505,7 +1508,7 @@ mod tests {
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
         let track_id = {
             let lib = library.lock().unwrap();
-            lib.import_path(&wav).unwrap().id().clone()
+            lib.import_file_path(&wav).unwrap().id().clone()
         };
 
         let first = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
@@ -1525,7 +1528,7 @@ mod tests {
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
         let track_id = {
             let lib = library.lock().unwrap();
-            lib.import_path(&wav).unwrap().id().clone()
+            lib.import_file_path(&wav).unwrap().id().clone()
         };
 
         LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
@@ -1569,7 +1572,7 @@ mod tests {
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
         let track_id = {
             let lib = library.lock().unwrap();
-            lib.import_path(&wav).unwrap().id().clone()
+            lib.import_file_path(&wav).unwrap().id().clone()
         };
 
         assert!(library
@@ -1605,7 +1608,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
 
         let found = lib.lookup_file_track_at_path(&wav).unwrap().unwrap();
         assert_eq!(found.id(), track.id());
@@ -1632,6 +1635,25 @@ mod tests {
 
         let tracks = lib.get_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 2);
+    }
+
+    #[test]
+    fn resync_folder_counts_updated_not_added() {
+        let dir = tempfile::tempdir().unwrap();
+        write_minimal_wav(&dir.path().join("a.wav"));
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+            .unwrap();
+
+        let first = lib.sync_collection(Some(&folder.id)).unwrap();
+        assert_eq!(first.added, 1);
+        assert_eq!(first.updated, 0);
+
+        let second = lib.sync_collection(Some(&folder.id)).unwrap();
+        assert_eq!(second.added, 0);
+        assert_eq!(second.updated, 1);
     }
 
     #[test]
@@ -1680,8 +1702,8 @@ mod tests {
         write_minimal_wav(&b);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let ta = lib.import_path(&a).unwrap();
-        let tb = lib.import_path(&b).unwrap();
+        let ta = lib.import_file_path(&a).unwrap();
+        let tb = lib.import_file_path(&b).unwrap();
 
         let pl = lib
             .add_collection(&NewCollection::playlist("Warmup", true))
@@ -1720,7 +1742,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Set", true))
             .unwrap();
@@ -1746,7 +1768,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Crate", false))
             .unwrap();
@@ -1768,8 +1790,8 @@ mod tests {
         write_minimal_wav(&b);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let ta = lib.import_path(&a).unwrap();
-        let tb = lib.import_path(&b).unwrap();
+        let ta = lib.import_file_path(&a).unwrap();
+        let tb = lib.import_file_path(&b).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Set", false))
             .unwrap();
@@ -1811,7 +1833,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Set", true))
             .unwrap();
@@ -1834,7 +1856,7 @@ mod tests {
         write_minimal_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let pl = lib
             .add_collection(&NewCollection::playlist("Temp", true))
             .unwrap();
@@ -1879,7 +1901,7 @@ mod tests {
         write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         lib.analyze_track(track.id(), AnalyzeTrackOptions::default())
             .unwrap();
 
@@ -1896,7 +1918,7 @@ mod tests {
         write_analysis_wav(&wav);
 
         let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let track_id = track.id().clone();
         assert!(lib.needs_playback_analysis(&track_id).unwrap());
 
@@ -1923,7 +1945,7 @@ mod tests {
         write_analysis_wav(&wav);
 
         let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let track_id = track.id().clone();
         // Simulate tags with BPM/key but no analysis loudness yet.
         lib.upsert_file_source(
@@ -1960,7 +1982,7 @@ mod tests {
         write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         assert!(lib
             .get_track_waveform_overview(track.id())
             .unwrap()
@@ -1995,7 +2017,7 @@ mod tests {
         write_analysis_wav(&wav);
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
-        let track = lib.import_path(&wav).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
         let analyzed = lib
             .analyze_track(track.id(), AnalyzeTrackOptions::default())
             .unwrap();

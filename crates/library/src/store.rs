@@ -145,6 +145,13 @@ impl<'a> Store<'a> {
         Ok(())
     }
 
+    pub fn track_exists(&self, id: &TrackId) -> Result<bool> {
+        let count = TrackEntity::find_by_id(id.as_str())
+            .count(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        Ok(count > 0)
+    }
+
     pub fn get_track(&self, id: &TrackId) -> Result<Option<library_core::AudioSource>> {
         let row = TrackEntity::find_by_id(id.as_str())
             .one(self.db.conn()?.as_connection())
