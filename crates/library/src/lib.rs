@@ -811,10 +811,9 @@ impl LibraryManager {
         };
         let files = collect_audio_files(fs_path, *scan_folder_tree)?;
         for file in files {
-            let existed = self.get_track(&Self::track_id_for(&file))?.is_some();
-            match self.import_path(&file) {
-                Ok(_) if existed => report.updated += 1,
-                Ok(_) => report.added += 1,
+            match self.refresh_file_source_with_outcome(&file) {
+                Ok((_, true)) => report.updated += 1,
+                Ok((_, false)) => report.added += 1,
                 Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
                 Err(err) => {
                     report.failed += 1;
@@ -1040,6 +1039,11 @@ impl LibraryManager {
     }
 
     fn refresh_file_source(&self, path: &Path) -> Result<AudioSource> {
+        self.refresh_file_source_with_outcome(path)
+            .map(|(source, _)| source)
+    }
+
+    fn refresh_file_source_with_outcome(&self, path: &Path) -> Result<(AudioSource, bool)> {
         let path = normalize_path(path)?;
         if !path.is_file() {
             return Err(LibraryError::PathNotFound(path));
@@ -1047,8 +1051,11 @@ impl LibraryManager {
         if !is_audio_file(&path) {
             return Err(LibraryError::UnsupportedFile(path));
         }
+        let id = Self::track_id_for(&path);
+        let existed = self.store().track_exists(&id)?;
         let metadata = tags::read_tags(&path)?;
-        self.upsert_file_source(&path, &metadata)
+        let source = self.upsert_file_source(&path, &metadata)?;
+        Ok((source, existed))
     }
 
     #[cfg(feature = "analysis")]
@@ -1632,6 +1639,25 @@ mod tests {
 
         let tracks = lib.get_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 2);
+    }
+
+    #[test]
+    fn resync_folder_counts_updated_not_added() {
+        let dir = tempfile::tempdir().unwrap();
+        write_minimal_wav(&dir.path().join("a.wav"));
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+            .unwrap();
+
+        let first = lib.sync_collection(Some(&folder.id)).unwrap();
+        assert_eq!(first.added, 1);
+        assert_eq!(first.updated, 0);
+
+        let second = lib.sync_collection(Some(&folder.id)).unwrap();
+        assert_eq!(second.added, 0);
+        assert_eq!(second.updated, 1);
     }
 
     #[test]
