@@ -792,21 +792,6 @@ impl Deck {
                     self.position_frac = self.position_frames as f64;
                 }
             }
-
-            // Debug: Check if we're producing non-zero samples
-            let non_zero_count = self.buffer.iter().filter(|&&s| s.abs() > 0.001).count();
-            static mut PLAY_LOG_COUNT: u32 = 0;
-            unsafe {
-                PLAY_LOG_COUNT += 1;
-                if PLAY_LOG_COUNT.is_multiple_of(100) {
-                    log::info!(
-                        "Deck {} playing: {} non-zero samples out of {}",
-                        self.id,
-                        non_zero_count,
-                        self.buffer.len()
-                    );
-                }
-            }
         } else {
             static NO_TRACK_WARN: AtomicU32 = AtomicU32::new(0);
             if NO_TRACK_WARN.fetch_add(1, Ordering::Relaxed) == 0 {
