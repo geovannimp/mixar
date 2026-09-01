@@ -142,6 +142,10 @@ pub(crate) fn producer_thread_loop(
 
     const MAX_AHEAD_CHUNKS: u64 = 2;
     let mut produced_chunks: u64 = 0;
+    let pacing_channels = device_producers
+        .first()
+        .map(|(plan, _)| plan.channels as usize)
+        .unwrap_or(2);
 
     while *running.lock().unwrap() {
         let chunk_frames = callback_frames_atomic
@@ -155,7 +159,7 @@ pub(crate) fn producer_thread_loop(
                 }
             })
             .unwrap_or(fallback_buffer_size);
-        let samples_per_chunk = chunk_frames * 2;
+        let samples_per_chunk = chunk_frames * pacing_channels;
 
         let buffer_duration = Duration::from_secs_f64(chunk_frames as f64 / sample_rate as f64);
 
