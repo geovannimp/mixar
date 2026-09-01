@@ -680,7 +680,7 @@ impl LibraryManager {
     fn sync_playlist_off_mutex(library: &Mutex<Self>, playlist: &Collection) -> Result<ScanReport> {
         let paths = {
             let lib = Self::lock_library(library)?;
-            lib.get_collection_tracks(&playlist.id)?
+            lib.list_collection_tracks(&playlist.id)?
                 .into_iter()
                 .filter_map(|source| source.file().map(|file| file.path().to_path_buf()))
                 .collect::<Vec<_>>()
@@ -707,10 +707,10 @@ impl LibraryManager {
     fn import_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<FileImportOutcome> {
         let path = normalize_path(path)?;
         if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path));
+            return Err(LibraryError::PathNotFound(path_label(&path)));
         }
         if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path));
+            return Err(LibraryError::UnsupportedFile(path_label(&path)));
         }
         let metadata = tags::read_tags(&path)?;
         let id = Self::track_id_for(&path);
@@ -727,10 +727,10 @@ impl LibraryManager {
     fn refresh_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<()> {
         let path = normalize_path(path)?;
         if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path));
+            return Err(LibraryError::PathNotFound(path_label(&path)));
         }
         if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path));
+            return Err(LibraryError::UnsupportedFile(path_label(&path)));
         }
         let metadata = tags::read_tags(&path)?;
         let lib = Self::lock_library(library)?;
