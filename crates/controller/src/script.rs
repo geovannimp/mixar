@@ -9,6 +9,10 @@ use rhai::{Dynamic, Engine, Module, Scope, AST};
 use crate::error::{LoadError, RuntimeError};
 use crate::session::{ActionPublish, MidiOut};
 
+/// ponytail: caps mapping script CPU; raise if legitimate bundles hit it.
+const MAX_SCRIPT_OPERATIONS: u64 = 50_000;
+const MAX_MIDI_OUT_BYTES: usize = 256;
+
 /// Shared bridge used by registered Rhai functions.
 pub struct ScriptBridge {
     pub published: Vec<(Origin, Kind, CmdBody)>,
@@ -40,6 +44,7 @@ impl ScriptRuntime {
         let mut engine = Engine::new();
         // Keep std + sync; disable time-heavy defaults if any.
         engine.set_max_expr_depths(64, 32);
+        engine.set_max_operations(MAX_SCRIPT_OPERATIONS);
 
         let bridge: Arc<Mutex<ScriptScratch>> = Arc::new(Mutex::new(ScriptScratch {
             publish_queue: Vec::new(),
@@ -51,6 +56,9 @@ impl ScriptRuntime {
         {
             let b = Arc::clone(&bridge);
             module.set_native_fn("midi_out", move |bytes: Vec<Dynamic>| {
+                if bytes.len() > MAX_MIDI_OUT_BYTES {
+                    return Err("midi_out payload too large".into());
+                }
                 let mut raw = Vec::with_capacity(bytes.len());
                 for v in bytes {
                     if let Ok(n) = v.as_int() {
