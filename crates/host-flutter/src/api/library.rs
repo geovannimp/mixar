@@ -348,7 +348,7 @@ impl LibraryTransport {
         match collection.collection_type() {
             CollectionType::Playlist => {
                 let rows = lib
-                    .playlist_entries_with_sources(&collection_id)
+                    .collection_entries_with_sources(&collection_id)
                     .map_err(|e| e.to_string())?;
                 Ok(rows
                     .into_iter()
@@ -366,7 +366,7 @@ impl LibraryTransport {
             }
             CollectionType::Folder => {
                 let sources = lib
-                    .get_collection_tracks(&collection_id)
+                    .list_collection_tracks(&collection_id)
                     .map_err(|e| e.to_string())?;
                 Ok(sources
                     .iter()
@@ -1135,7 +1135,7 @@ fn collection_summary(
     collection: Collection,
 ) -> Result<LibraryCollectionSummary, String> {
     let track_count = library
-        .get_collection_tracks(&collection.id)
+        .list_collection_tracks(&collection.id)
         .map_err(|e| e.to_string())?
         .len() as u32;
     Ok(LibraryCollectionSummary {

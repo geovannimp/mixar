@@ -64,7 +64,7 @@ fn save_hot_cue_snaps_with_quantize_and_emits_library_evt() {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 1);
         tracks[0].id().clone()
     };
@@ -136,7 +136,7 @@ fn hot_cue_pad_press_saves_then_triggers() {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
         tracks[0].id().clone()
     };
 
@@ -295,7 +295,7 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
         tracks[0].id().clone()
     };
 

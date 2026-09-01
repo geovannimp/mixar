@@ -12,7 +12,7 @@
 //! let mut lib = LibraryManager::open("library.db", LibraryConfig::default())?;
 //! let folder = lib.add_collection(&NewCollection::folder("/music"))?;
 //! lib.sync_collection(Some(&folder.id))?;
-//! let tracks = lib.get_collection_tracks(&folder.id)?;
+//! let tracks = lib.list_collection_tracks(&folder.id)?;
 //! # Ok::<(), library::LibraryError>(())
 //! ```
 
@@ -778,12 +778,12 @@ impl LibraryManager {
         Ok(c)
     }
 
-    /// Playlist rows in order with resolved sources (`None` when the track row is missing).
-    pub fn playlist_entries_with_sources(
+    /// Collection entry rows in order with resolved sources (`None` when the track row is missing).
+    pub fn collection_entries_with_sources(
         &self,
         collection_id: &CollectionId,
     ) -> Result<Vec<(CollectionEntry, Option<AudioSource>)>> {
-        let rows = self.list_playlist_entries(collection_id)?;
+        let rows = self.list_collection_entries(collection_id)?;
         let ids: Vec<TrackId> = rows.iter().map(|row| row.track_id.clone()).collect();
         let by_id = self.store().get_tracks_by_ids(&ids)?;
         Ok(rows
@@ -842,7 +842,7 @@ impl LibraryManager {
     }
 
     fn sync_playlist(&mut self, playlist: &Collection) -> Result<ScanReport> {
-        let sources = self.get_collection_tracks(&playlist.id)?;
+        let sources = self.list_collection_tracks(&playlist.id)?;
         let mut report = ScanReport::default();
         for source in sources {
             let Some(file) = source.file() else {
@@ -1179,7 +1179,7 @@ impl Library for LibraryManager {
         self.store().get_collection(id)
     }
 
-    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>> {
+    fn list_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>> {
         let collection = self.require_collection(collection_id)?;
         match collection.collection_type() {
             CollectionType::Folder => {
@@ -1190,7 +1190,7 @@ impl Library for LibraryManager {
                 self.file_sources_under(fs_path)
             }
             CollectionType::Playlist => {
-                let rows = self.list_playlist_entries(collection_id)?;
+                let rows = self.list_collection_entries(collection_id)?;
                 let ids: Vec<TrackId> = rows.iter().map(|row| row.track_id.clone()).collect();
                 let by_id = self.store().get_tracks_by_ids(&ids)?;
                 Ok(rows
@@ -1201,9 +1201,12 @@ impl Library for LibraryManager {
         }
     }
 
-    fn list_playlist_entries(&self, collection_id: &CollectionId) -> Result<Vec<CollectionEntry>> {
+    fn list_collection_entries(
+        &self,
+        collection_id: &CollectionId,
+    ) -> Result<Vec<CollectionEntry>> {
         let _ = self.require_playlist(collection_id)?;
-        self.store().list_playlist_entries(collection_id)
+        self.store().list_collection_entries(collection_id)
     }
 }
 
@@ -1269,7 +1272,7 @@ impl WritableLibrary for LibraryManager {
                 self.store().update_collection_sortable(id, sortable)?;
 
                 if sortable {
-                    let rows = self.store().list_playlist_entries(id)?;
+                    let rows = self.store().list_collection_entries(id)?;
                     for (pos, row) in rows.iter().enumerate() {
                         self.store()
                             .set_collection_entry_position_by_id(id, &row.id, pos as i32)?;
@@ -1304,7 +1307,7 @@ impl WritableLibrary for LibraryManager {
 
         let position = if playlist.sortable() {
             Some(position.unwrap_or_else(|| {
-                self.list_playlist_entries(collection_id)
+                self.list_collection_entries(collection_id)
                     .map(|rows| rows.len() as i32)
                     .unwrap_or(0)
             }))
@@ -1352,7 +1355,7 @@ impl WritableLibrary for LibraryManager {
             ));
         }
 
-        let existing = self.list_playlist_entries(collection_id)?;
+        let existing = self.list_collection_entries(collection_id)?;
         if existing.len() != entry_ids.len() {
             return Err(LibraryError::Backend {
                 backend: "library",
@@ -1663,7 +1666,7 @@ mod tests {
         let report = lib.sync_collection(Some(&folder.id)).unwrap();
         assert_eq!(report.added, 2);
 
-        let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 2);
     }
 
@@ -1741,12 +1744,12 @@ mod tests {
         lib.add_collection_entry(&pl.id, ta.id(), None).unwrap();
         lib.add_collection_entry(&pl.id, tb.id(), None).unwrap();
 
-        let tracks = lib.get_collection_tracks(&pl.id).unwrap();
+        let tracks = lib.list_collection_tracks(&pl.id).unwrap();
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].id(), ta.id());
         assert_eq!(tracks[1].id(), tb.id());
 
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         let ta_row = rows
             .iter()
             .find(|row| row.track_id == *ta.id())
@@ -1757,16 +1760,16 @@ mod tests {
             .expect("tb row");
         lib.update_collection_entries(&pl.id, &[tb_row.id.clone(), ta_row.id.clone()])
             .unwrap();
-        let tracks = lib.get_collection_tracks(&pl.id).unwrap();
+        let tracks = lib.list_collection_tracks(&pl.id).unwrap();
         assert_eq!(tracks[0].id(), tb.id());
         assert_eq!(tracks[1].id(), ta.id());
 
         lib.remove_collection_entry(&pl.id, &ta_row.id).unwrap();
-        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+        assert_eq!(lib.list_collection_tracks(&pl.id).unwrap().len(), 1);
     }
 
     #[test]
-    fn playlist_entries_with_sources_reports_missing_track() {
+    fn collection_entries_with_sources_reports_missing_track() {
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("a.wav");
         write_minimal_wav(&wav);
@@ -1779,10 +1782,10 @@ mod tests {
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
         lib.store().delete_track_row_only(track.id()).unwrap();
 
-        let rows = lib.playlist_entries_with_sources(&pl.id).unwrap();
+        let rows = lib.collection_entries_with_sources(&pl.id).unwrap();
         assert_eq!(rows.len(), 1);
         assert!(rows[0].1.is_none());
-        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 0);
+        assert_eq!(lib.list_collection_tracks(&pl.id).unwrap().len(), 0);
     }
 
     #[test]
@@ -1799,16 +1802,16 @@ mod tests {
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
 
-        let tracks = lib.get_collection_tracks(&pl.id).unwrap();
+        let tracks = lib.list_collection_tracks(&pl.id).unwrap();
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0].id(), track.id());
         assert_eq!(tracks[1].id(), track.id());
 
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         assert_eq!(rows.len(), 2);
         assert_ne!(rows[0].id, rows[1].id);
         lib.remove_collection_entry(&pl.id, &rows[0].id).unwrap();
-        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+        assert_eq!(lib.list_collection_tracks(&pl.id).unwrap().len(), 1);
     }
 
     #[test]
@@ -1824,7 +1827,7 @@ mod tests {
             .unwrap();
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
 
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         let err = lib
             .update_collection_entries(&pl.id, &[rows[0].id.clone()])
             .unwrap_err();
@@ -1852,7 +1855,7 @@ mod tests {
             .unwrap();
         let pl = lib.get_collection(&pl.id).unwrap().unwrap();
         assert!(pl.sortable());
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         let tb_row = rows
             .iter()
             .find(|row| row.track_id == *tb.id())
@@ -1866,7 +1869,7 @@ mod tests {
 
         lib.update_collection(&pl.id, &UpdateCollection::sortable(false))
             .unwrap();
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         let err = lib
             .update_collection_entries(
                 &pl.id,
@@ -1907,11 +1910,11 @@ mod tests {
             .unwrap();
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
         lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
-        assert_eq!(lib.list_playlist_entries(&pl.id).unwrap().len(), 2);
+        assert_eq!(lib.list_collection_entries(&pl.id).unwrap().len(), 2);
 
         lib.update_collection(&pl.id, &UpdateCollection::sortable(false))
             .unwrap();
-        let rows = lib.list_playlist_entries(&pl.id).unwrap();
+        let rows = lib.list_collection_entries(&pl.id).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].track_id, *track.id());
         assert!(rows[0].position.is_none());
@@ -1945,7 +1948,7 @@ mod tests {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0]
+        let track_id = lib.list_collection_tracks(&folder.id).unwrap()[0]
             .id()
             .clone();
 
@@ -2132,7 +2135,7 @@ mod tests {
             .unwrap();
         lib.add_collection_entry(&pl.id, source.id(), None).unwrap();
 
-        let entry_id = lib.list_playlist_entries(&pl.id).unwrap()[0].id.clone();
+        let entry_id = lib.list_collection_entries(&pl.id).unwrap()[0].id.clone();
         lib.remove_collection_entry(&pl.id, &entry_id).unwrap();
         assert!(lib.get_track(source.id()).unwrap().is_none());
     }
@@ -2147,7 +2150,7 @@ mod tests {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let track_id = lib.get_collection_tracks(&folder.id).unwrap()[0]
+        let track_id = lib.list_collection_tracks(&folder.id).unwrap()[0]
             .id()
             .clone();
 
@@ -2155,7 +2158,7 @@ mod tests {
             .add_collection(&NewCollection::playlist("Also", true))
             .unwrap();
         lib.add_collection_entry(&pl.id, &track_id, None).unwrap();
-        let entry_id = lib.list_playlist_entries(&pl.id).unwrap()[0].id.clone();
+        let entry_id = lib.list_collection_entries(&pl.id).unwrap()[0].id.clone();
         lib.remove_collection_entry(&pl.id, &entry_id).unwrap();
 
         assert!(lib.get_track(&track_id).unwrap().is_some());
@@ -2186,7 +2189,7 @@ mod tests {
             .add_collection(&NewCollection::playlist("Streaming", true))
             .unwrap();
         lib.add_collection_entry(&pl.id, source.id(), None).unwrap();
-        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+        assert_eq!(lib.list_collection_tracks(&pl.id).unwrap().len(), 1);
     }
 
     #[test]
@@ -2204,7 +2207,7 @@ mod tests {
             let pl = lib
                 .add_collection(&NewCollection::playlist("All", true))
                 .unwrap();
-            let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+            let tracks = lib.list_collection_tracks(&folder.id).unwrap();
             lib.add_collection_entry(&pl.id, tracks[0].id(), None)
                 .unwrap();
         }
@@ -2217,6 +2220,6 @@ mod tests {
             .into_iter()
             .find(|c| c.collection_type() == CollectionType::Folder)
             .unwrap();
-        assert_eq!(lib.get_collection_tracks(&folder.id).unwrap().len(), 1);
+        assert_eq!(lib.list_collection_tracks(&folder.id).unwrap().len(), 1);
     }
 }

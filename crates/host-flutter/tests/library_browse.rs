@@ -42,7 +42,7 @@ fn list_collections_and_tracks_from_disk_db() {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&collection.id)).unwrap();
-        assert_eq!(lib.get_collection_tracks(&collection.id).unwrap().len(), 1);
+        assert_eq!(lib.list_collection_tracks(&collection.id).unwrap().len(), 1);
     }
 
     let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();

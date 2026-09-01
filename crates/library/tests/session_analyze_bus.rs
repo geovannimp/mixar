@@ -53,7 +53,7 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
             .add_collection(&NewCollection::folder(dir.path()))
             .unwrap();
         lib.sync_collection(Some(&folder.id)).unwrap();
-        let tracks = lib.get_collection_tracks(&folder.id).unwrap();
+        let tracks = lib.list_collection_tracks(&folder.id).unwrap();
         assert_eq!(tracks.len(), 1);
         tracks[0].id().as_str().to_string()
     };
