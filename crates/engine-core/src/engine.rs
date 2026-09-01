@@ -473,10 +473,11 @@ impl Engine {
             .dsp_engine
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
-        let mut dsp = dsp_engine.lock().unwrap();
-
-        if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
-            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
+        {
+            let dsp = dsp_engine.lock().unwrap();
+            if dsp.deck(deck_id).is_none() || dsp.mixer().channel(deck_id).is_none() {
+                return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
+            }
         }
 
         let track_id = source.id().clone();
@@ -493,6 +494,7 @@ impl Engine {
             audio
         };
 
+        let mut dsp = dsp_engine.lock().unwrap();
         {
             let deck = dsp.deck_mut(deck_id).expect("validated above");
             deck.load(audio)?;
