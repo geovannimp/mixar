@@ -139,10 +139,7 @@ class DeckPanel extends ConsumerWidget {
               disabled: transportDisabled,
               onPress: () {
                 unawaited(
-                  _engineCmd(
-                    context,
-                    () => setDeckSlip(ref, deckId, !slip),
-                  ),
+                  _engineCmd(context, () => setDeckSlip(ref, deckId, !slip)),
                 );
               },
             ),

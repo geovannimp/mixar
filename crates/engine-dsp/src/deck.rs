@@ -612,8 +612,7 @@ impl Deck {
         let Some(audio) = self.loaded.as_ref() else {
             return;
         };
-        let src_step = f64::from(self.playback_ratio().max(0.01))
-            * f64::from(audio.sample_rate)
+        let src_step = f64::from(self.playback_ratio().max(0.01)) * f64::from(audio.sample_rate)
             / f64::from(self.sample_rate);
         self.shadow_position_frac += src_step * frames as f64;
         let total = audio.samples.len() / 2;
@@ -1654,9 +1653,15 @@ mod tests {
             deck.process(CHUNK).unwrap();
         }
         let scratched = deck.position_ms().unwrap();
-        assert!(scratched < start, "scratch should move back: {scratched} vs {start}");
+        assert!(
+            scratched < start,
+            "scratch should move back: {scratched} vs {start}"
+        );
         let shadow = deck.shadow_position_ms().unwrap();
-        assert!(shadow > scratched + 20, "shadow should advance: {shadow} vs {scratched}");
+        assert!(
+            shadow > scratched + 20,
+            "shadow should advance: {shadow} vs {scratched}"
+        );
         deck.set_jog_touch(false);
         let after = deck.position_ms().unwrap();
         assert!(

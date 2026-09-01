@@ -79,7 +79,8 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
         .expect("turn");
 
     let pos = recv_evt_kind(&evt, Kind::Position);
-    let EvtBody::Position { position_ms } = decode_evt_body(pos.payload()).expect("decode") else {
+    let EvtBody::Position { position_ms, .. } = decode_evt_body(pos.payload()).expect("decode")
+    else {
         panic!("expected Position");
     };
     assert!(position_ms >= 0);

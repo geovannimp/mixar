@@ -43,10 +43,9 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
         ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
       }
       if (evt.slipShadowPositionMs != null) {
-        ref.read(deckSlipShadowsProvider.notifier).put(
-          id,
-          evt.slipShadowPositionMs!,
-        );
+        ref
+            .read(deckSlipShadowsProvider.notifier)
+            .put(id, evt.slipShadowPositionMs!);
       }
     }
   }
