@@ -22,16 +22,20 @@ void main() {
             child: FTheme(data: theme, child: child!),
           ),
           home: Scaffold(
-            body: SettingsLibraryPanel(
-              draft: defaultAppSettings(),
-              onChanged: (_) {},
+            body: SingleChildScrollView(
+              child: SettingsLibraryPanel(
+                draft: defaultAppSettings(),
+                onChanged: (_) {},
+              ),
             ),
           ),
         ),
       ),
     );
     expect(find.text('ANALYSIS QUALITY'), findsOneWidget);
+    expect(find.text('Musical key'), findsOneWidget);
     expect(find.text('KEY DISPLAY MODE'), findsOneWidget);
+    expect(find.text('KEY COLOR MODE'), findsOneWidget);
   }, semanticsEnabled: false);
 
   testWidgets('controllers settings lists MIDI ports', (tester) async {

@@ -11,6 +11,7 @@ import 'package:gui_flutter/library/track_detail_dialog.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
@@ -118,6 +119,13 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final engineRunning = ref.watch(engineRunningProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
     ref.watch(sessionPlayedKeysProvider);
+    final settings = ref.watch(appSettingsProvider).maybeWhen(
+      data: (s) => s,
+      orElse: () => defaultAppSettings(),
+    );
+    final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
+    final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
+    final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -236,8 +244,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                                 drive ? drivePath : selectedId,
                                 engineRunning,
                                 tableColumns.join(','),
+                                keyColorMode,
+                                keyDisplayMode,
+                                harmonicReferenceKey,
                               )),
-                              columns: _columns(theme, tableColumns),
+                              columns: _columns(
+                                theme,
+                                tableColumns,
+                                keyDisplayMode: keyDisplayMode,
+                                keyColorMode: keyColorMode,
+                                harmonicReferenceKey: harmonicReferenceKey,
+                              ),
                               rows: _rowsFor(tracks, analyzingId),
                               mode: TrinaGridMode.readOnly,
                               rowWrapper: _rowWrapper,
@@ -280,7 +297,13 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  List<TrinaColumn> _columns(FThemeData theme, List<String> activeColumns) {
+  List<TrinaColumn> _columns(
+    FThemeData theme,
+    List<String> activeColumns, {
+    required KeyDisplayMode keyDisplayMode,
+    required KeyColorMode keyColorMode,
+    required String? harmonicReferenceKey,
+  }) {
     final visible = {
       for (final col in kLibraryColumnDefs)
         if (col.required || activeColumns.contains(col.id)) col.id,
@@ -401,6 +424,23 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           titleTextAlign: TrinaColumnTextAlign.center,
           enableContextMenu: false,
           enableDropToResize: true,
+          renderer: (ctx) {
+            final raw = ctx.row.cells['key']?.value as String? ?? '';
+            final label = raw.isEmpty ? '' : formatDeckKey(raw, keyDisplayMode);
+            final color = colorForKey(
+              raw,
+              keyColorMode,
+              harmonicReferenceKey: harmonicReferenceKey,
+            );
+            final textStyle = ctx.stateManager.configuration.style.cellTextStyle
+                .copyWith(
+                  color: color ?? theme.colors.foreground,
+                  fontWeight: color != null ? FontWeight.w600 : null,
+                );
+            return Center(
+              child: Text(label, style: textStyle, overflow: TextOverflow.ellipsis),
+            );
+          },
         ),
       if (visible.contains('duration'))
         TrinaColumn(

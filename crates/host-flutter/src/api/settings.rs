@@ -220,6 +220,16 @@ impl From<library_core::KeyDisplayMode> for KeyDisplayModeSetting {
     }
 }
 
+/// Track key color coding in deck chrome and library table (UI-only).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyColorModeSetting {
+    #[default]
+    Off,
+    Absolute,
+    Harmonic,
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -247,6 +257,8 @@ pub struct AppSettings {
     pub waveform_display_mode: WaveformDisplayModeSetting,
     #[serde(default)]
     pub key_display_mode: KeyDisplayModeSetting,
+    #[serde(default)]
+    pub key_color_mode: KeyColorModeSetting,
     #[serde(default)]
     pub trusted_controller_device_ids: Vec<String>,
     #[serde(default = "default_history_enabled")]
@@ -279,6 +291,7 @@ struct SettingsHost {
     default_outer_jog_mode: JogModeSetting,
     waveform_display_mode: WaveformDisplayModeSetting,
     key_display_mode: KeyDisplayModeSetting,
+    key_color_mode: KeyColorModeSetting,
     trusted_controller_device_ids: Vec<String>,
     history_enabled: bool,
     history_session_idle_minutes: u32,
@@ -304,6 +317,7 @@ impl Default for SettingsHost {
             default_outer_jog_mode: JogModeSetting::PitchBend,
             waveform_display_mode: WaveformDisplayModeSetting::Rgb,
             key_display_mode: KeyDisplayModeSetting::Musical,
+            key_color_mode: KeyColorModeSetting::Off,
             trusted_controller_device_ids: Vec::new(),
             history_enabled: default_history_enabled(),
             history_session_idle_minutes: default_history_session_idle_minutes(),
@@ -571,6 +585,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         default_key_lock: config.default_key_lock(),
         waveform_display_mode: host.waveform_display_mode,
         key_display_mode: host.key_display_mode,
+        key_color_mode: host.key_color_mode,
         trusted_controller_device_ids: host.trusted_controller_device_ids.clone(),
         history_enabled: host.history_enabled,
         history_session_idle_minutes: host.history_session_idle_minutes,
@@ -609,6 +624,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.default_outer_jog_mode = settings.default_outer_jog_mode;
     host.waveform_display_mode = settings.waveform_display_mode;
     host.key_display_mode = settings.key_display_mode;
+    host.key_color_mode = settings.key_color_mode;
     host.trusted_controller_device_ids = settings.trusted_controller_device_ids;
     host.history_enabled = settings.history_enabled;
     host.history_session_idle_minutes = settings.history_session_idle_minutes;
@@ -722,6 +738,7 @@ mod tests {
             WaveformDisplayModeSetting::Rgb
         );
         assert_eq!(parsed.key_display_mode, KeyDisplayModeSetting::Musical);
+        assert_eq!(parsed.key_color_mode, KeyColorModeSetting::Off);
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
     }

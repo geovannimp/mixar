@@ -33,11 +33,48 @@ class SettingsLibraryPanel extends StatelessWidget {
     ),
   ];
 
+  static const _keyDisplayModes = [
+    (
+      KeyDisplayModeSetting.musical,
+      'Musical',
+      'Note names in deck chip and library key column — e.g. C, Am, F#m.',
+    ),
+    (
+      KeyDisplayModeSetting.camelot,
+      'Camelot',
+      'Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B.',
+    ),
+  ];
+
+  static const _keyColorModes = [
+    (
+      KeyColorModeSetting.off,
+      'Off',
+      'Key labels use the default text color everywhere.',
+    ),
+    (
+      KeyColorModeSetting.absolute,
+      'Absolute (circle of fifths)',
+      'Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer).',
+    ),
+    (
+      KeyColorModeSetting.harmonic,
+      'Harmonic (playing deck)',
+      'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.',
+    ),
+  ];
+
   static String _labelFor(AnalysisDurationSetting mode) => switch (mode) {
     AnalysisDurationSetting.fast => 'Fast',
     AnalysisDurationSetting.precise => 'Precise',
     AnalysisDurationSetting.complete => 'Complete',
   };
+
+  static String _keyDisplayLabel(KeyDisplayModeSetting mode) =>
+      _keyDisplayModes.firstWhere((m) => m.$1 == mode).$2;
+
+  static String _keyColorLabel(KeyColorModeSetting mode) =>
+      _keyColorModes.firstWhere((m) => m.$1 == mode).$2;
 
   @override
   Widget build(BuildContext context) {
@@ -45,12 +82,12 @@ class SettingsLibraryPanel extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 16,
       children: [
         const SettingsSectionHeader(
           title: 'Library',
           description: 'Track import, offline analysis, and table display.',
         ),
-        const SizedBox(height: 20),
         SettingsField(
           label: 'Analysis quality',
           child: SettingsSelect(
@@ -63,21 +100,43 @@ class SettingsLibraryPanel extends StatelessWidget {
                 onChanged(copyAppSettings(draft, analysisDuration: mode)),
           ),
         ),
-        const SizedBox(height: 16),
-        SettingsField(
-          label: 'Key display mode',
-          child: SettingsSelect(
-            value: draft.keyDisplayMode,
-            options: KeyDisplayModeSetting.values,
-            labelBuilder: (m) => switch (m) {
-              KeyDisplayModeSetting.musical => 'Musical',
-              KeyDisplayModeSetting.camelot => 'Camelot',
-            },
-            onChanged: (m) =>
-                onChanged(copyAppSettings(draft, keyDisplayMode: m)),
+        SettingsPanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 16,
+            children: [
+              const SettingsSectionHeader(
+                title: 'Musical key',
+                description:
+                    'How keys are labeled and color-coded in deck chrome and the library table.',
+              ),
+              SettingsField(
+                label: 'Key display mode',
+                child: SettingsSelect(
+                  value: draft.keyDisplayMode,
+                  options: [for (final (mode, _, _) in _keyDisplayModes) mode],
+                  labelBuilder: _keyDisplayLabel,
+                  subtitleBuilder: (mode) =>
+                      _keyDisplayModes.firstWhere((m) => m.$1 == mode).$3,
+                  onChanged: (m) =>
+                      onChanged(copyAppSettings(draft, keyDisplayMode: m)),
+                ),
+              ),
+              SettingsField(
+                label: 'Key color mode',
+                child: SettingsSelect(
+                  value: draft.keyColorMode,
+                  options: [for (final (mode, _, _) in _keyColorModes) mode],
+                  labelBuilder: _keyColorLabel,
+                  subtitleBuilder: (mode) =>
+                      _keyColorModes.firstWhere((m) => m.$1 == mode).$3,
+                  onChanged: (m) =>
+                      onChanged(copyAppSettings(draft, keyColorMode: m)),
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
         SettingsToggle(
           label: 'Dim played tracks',
           value: draft.dimPlayedTracks,
@@ -85,7 +144,6 @@ class SettingsLibraryPanel extends StatelessWidget {
             copyAppSettings(draft, dimPlayedTracks: enabled),
           ),
         ),
-        const SizedBox(height: 16),
         SettingsField(
           label: 'Track table columns',
           child: DecoratedBox(

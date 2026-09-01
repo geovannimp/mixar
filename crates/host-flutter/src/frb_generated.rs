@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1020021207;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2046261363;
 
 // Section: executor
 
@@ -5602,6 +5602,39 @@ fn wire__crate__api__meta__init_app_impl(
         },
     )
 }
+fn wire__crate__api__settings__key_color_mode_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "key_color_mode_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::settings::KeyColorModeSetting::default())?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__settings__key_display_mode_setting_default_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -5997,6 +6030,8 @@ impl SseDecode for crate::api::settings::AppSettings {
             <crate::api::settings::WaveformDisplayModeSetting>::sse_decode(deserializer);
         let mut var_keyDisplayMode =
             <crate::api::settings::KeyDisplayModeSetting>::sse_decode(deserializer);
+        let mut var_keyColorMode =
+            <crate::api::settings::KeyColorModeSetting>::sse_decode(deserializer);
         let mut var_trustedControllerDeviceIds = <Vec<String>>::sse_decode(deserializer);
         let mut var_historyEnabled = <bool>::sse_decode(deserializer);
         let mut var_historySessionIdleMinutes = <u32>::sse_decode(deserializer);
@@ -6027,6 +6062,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             default_key_lock: var_defaultKeyLock,
             waveform_display_mode: var_waveformDisplayMode,
             key_display_mode: var_keyDisplayMode,
+            key_color_mode: var_keyColorMode,
             trusted_controller_device_ids: var_trustedControllerDeviceIds,
             history_enabled: var_historyEnabled,
             history_session_idle_minutes: var_historySessionIdleMinutes,
@@ -6476,6 +6512,19 @@ impl SseDecode for crate::api::settings::JogModeSetting {
             1 => crate::api::settings::JogModeSetting::PitchBend,
             2 => crate::api::settings::JogModeSetting::Ignore,
             _ => unreachable!("Invalid variant for JogModeSetting: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::settings::KeyColorModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::KeyColorModeSetting::Off,
+            1 => crate::api::settings::KeyColorModeSetting::Absolute,
+            2 => crate::api::settings::KeyColorModeSetting::Harmonic,
+            _ => unreachable!("Invalid variant for KeyColorModeSetting: {}", inner),
         };
     }
 }
@@ -7921,16 +7970,22 @@ fn pde_ffi_dispatcher_primary_impl(
             data_len,
         ),
         106 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        107 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        107 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => {
+        108 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        109 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        109 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
+        110 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -8169,6 +8224,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.default_key_lock.into_into_dart().into_dart(),
             self.waveform_display_mode.into_into_dart().into_dart(),
             self.key_display_mode.into_into_dart().into_dart(),
+            self.key_color_mode.into_into_dart().into_dart(),
             self.trusted_controller_device_ids
                 .into_into_dart()
                 .into_dart(),
@@ -8707,6 +8763,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::JogModeSetting>
     for crate::api::settings::JogModeSetting
 {
     fn into_into_dart(self) -> crate::api::settings::JogModeSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::KeyColorModeSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Off => 0.into_dart(),
+            Self::Absolute => 1.into_dart(),
+            Self::Harmonic => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::KeyColorModeSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::KeyColorModeSetting>
+    for crate::api::settings::KeyColorModeSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::KeyColorModeSetting {
         self
     }
 }
@@ -9386,6 +9464,7 @@ impl SseEncode for crate::api::settings::AppSettings {
             self.key_display_mode,
             serializer,
         );
+        <crate::api::settings::KeyColorModeSetting>::sse_encode(self.key_color_mode, serializer);
         <Vec<String>>::sse_encode(self.trusted_controller_device_ids, serializer);
         <bool>::sse_encode(self.history_enabled, serializer);
         <u32>::sse_encode(self.history_session_idle_minutes, serializer);
@@ -9729,6 +9808,23 @@ impl SseEncode for crate::api::settings::JogModeSetting {
                 crate::api::settings::JogModeSetting::Vinyl => 0,
                 crate::api::settings::JogModeSetting::PitchBend => 1,
                 crate::api::settings::JogModeSetting::Ignore => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::api::settings::KeyColorModeSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::KeyColorModeSetting::Off => 0,
+                crate::api::settings::KeyColorModeSetting::Absolute => 1,
+                crate::api::settings::KeyColorModeSetting::Harmonic => 2,
                 _ => {
                     unimplemented!("");
                 }

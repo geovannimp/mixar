@@ -51,7 +51,23 @@ class DeckTrackInfo extends ConsumerWidget {
             orElse: () => KeyDisplayModeSetting.musical,
           ),
     );
+    final keyColorMode = keyColorModeFromSettings(
+      ref
+          .watch(appSettingsProvider)
+          .maybeWhen(
+            data: (s) => s.keyColorMode,
+            orElse: () => KeyColorModeSetting.off,
+          ),
+    );
+    final harmonicReference = ref.watch(harmonicReferenceKeyProvider);
     final key = formatDeckKey(lib?.key, keyMode);
+    final keyColor = hasTrack
+        ? colorForKey(
+            lib?.key,
+            keyColorMode,
+            harmonicReferenceKey: harmonicReference,
+          )
+        : null;
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId));
     final positionMs = ref.watch(deckPositionMsProvider(deckId));
@@ -96,6 +112,7 @@ class DeckTrackInfo extends ConsumerWidget {
                             ),
                             DeckKeyLockButton(
                               keyLabel: hasTrack ? key : '—',
+                              keyColor: keyColor,
                               keyLock: keyLock,
                               enabled: keyLockEnabled,
                               onToggle: () {
@@ -148,11 +165,13 @@ class DeckKeyLockButton extends StatelessWidget {
     required this.keyLabel,
     required this.keyLock,
     required this.onToggle,
+    this.keyColor,
     this.enabled = true,
     super.key,
   });
 
   final String keyLabel;
+  final Color? keyColor;
   final bool keyLock;
   final bool enabled;
   final VoidCallback onToggle;
@@ -187,7 +206,7 @@ class DeckKeyLockButton extends StatelessWidget {
             Text(
               keyLabel,
               style: theme.typography.body.xs.copyWith(
-                color: muted,
+                color: keyColor ?? muted,
                 fontWeight: .w600,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

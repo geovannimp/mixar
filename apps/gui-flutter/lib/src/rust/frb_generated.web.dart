@@ -12,9 +12,12 @@ import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
 import 'api/settings.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
@@ -342,6 +345,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw);
+
+  @protected
+  KeyColorModeSetting dco_decode_key_color_mode_setting(dynamic raw);
 
   @protected
   KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw);
@@ -874,6 +880,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   JogModeSetting sse_decode_jog_mode_setting(SseDeserializer deserializer);
+
+  @protected
+  KeyColorModeSetting sse_decode_key_color_mode_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   KeyDisplayModeSetting sse_decode_key_display_mode_setting(
@@ -1517,6 +1528,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_jog_mode_setting(
     JogModeSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_key_color_mode_setting(
+    KeyColorModeSetting self,
     SseSerializer serializer,
   );
 
