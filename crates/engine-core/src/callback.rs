@@ -29,16 +29,23 @@ impl AudioCallback for ConsumerCallback {
                 out.fill(0.0);
                 return;
             }
-            Err(ChunkError::TooFewSlots(n)) => self.consumer.read_chunk(n).unwrap(),
+            Err(ChunkError::TooFewSlots(n)) => match self.consumer.read_chunk(n) {
+                Ok(chunk) => chunk,
+                Err(_) => {
+                    out.fill(0.0);
+                    return;
+                }
+            },
         };
 
+        let take = chunk.len().min(out.len());
         let (first, second) = chunk.as_slices();
-        let mid = first.len();
-        let filled = chunk.len();
-        out[..mid].copy_from_slice(first);
-        out[mid..filled].copy_from_slice(second);
-        chunk.commit_all();
-        out[filled..].fill(0.0);
+        let first_take = first.len().min(take);
+        let second_take = take - first_take;
+        out[..first_take].copy_from_slice(&first[..first_take]);
+        out[first_take..take].copy_from_slice(&second[..second_take]);
+        chunk.commit(take);
+        out[take..].fill(0.0);
     }
 }
 
@@ -87,5 +94,30 @@ mod tests {
         callback.render(&mut out, 2, 48_000);
 
         assert_eq!(out, [0.5, 0.6, 0.0, 0.0]);
+    }
+
+    /// Mirrors `create_device_ring_buffer` prefill: capacity 24×N, prefill ~22×N, callback out.len() = N.
+    #[test]
+    fn render_prefilled_ring_reads_one_callback_slice() {
+        const RING_BUFFER_MULTIPLIER: usize = 24;
+        let samples_per_buffer = 4;
+        let capacity = samples_per_buffer * RING_BUFFER_MULTIPLIER;
+        let prefill = capacity - 2 * samples_per_buffer;
+
+        let (mut producer, consumer) = RingBuffer::new(capacity);
+        for _ in 0..prefill {
+            producer.push(0.0).unwrap();
+        }
+        let mut callback = ConsumerCallback::new(consumer, Arc::new(AtomicU64::new(0)));
+
+        let mut out = [1.0; 4];
+        callback.render(&mut out, 2, 48_000);
+
+        assert_eq!(out, [0.0; 4]);
+        // Writable headroom grows by one consumed callback slice.
+        assert_eq!(
+            producer.slots(),
+            2 * samples_per_buffer + samples_per_buffer
+        );
     }
 }
