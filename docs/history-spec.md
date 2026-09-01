@@ -167,7 +167,7 @@ When **no deck** is actively outputting, the idle clock runs. If idle exceeds `h
 
 ### 4.5 Engine hook
 
-History listens to the **engine event bus** (`DeckUpdated`, `EngineStatus` for crossfader, and related), not Flutter widgets. Implementation lives in `engine-core` or a small `history` module invoked from the cmd/evt worker.
+History listens to the **engine event bus** (`DeckUpdated`, `EngineStatus` for crossfader, and related), not Flutter widgets. **`host-flutter`** runs `HistoryWorker` (subscribes to engine events, periodic tick) and delegates persistence to **`library::history`** (`HistoryRecorder`, XSPF, session index, export).
 
 Sampler commands (`SamplerPadPress`, `AssignSamplerTrack`, …) are ignored.
 
@@ -355,9 +355,9 @@ Later (non-blocking): `label`, `catalog_number` for PPL-style exports.
 
 | Layer | Responsibility |
 |-------|----------------|
-| `engine-core` (or `history` crate) | Qualifying-play detection, gates, idle timeout, XSPF R/W |
-| `library` | Session index, merge/join, save-as-playlist |
-| `host-flutter` | FRB: list/get/export/rename/manual session |
+| `host-flutter` (`HistoryWorker`) | Engine evt subscription, qualifying-play tick, FRB list/get/export/rename/manual session |
+| `library::history` | Qualifying-play gates, idle timeout, XSPF R/W, session index, derived export |
+| `library` | Session merge/join, save-as-playlist |
 | `gui-flutter` | History browser, restore prompt, settings |
 
 Use **`LibraryTransport`** (or `HistoryTransport` if the API grows). No raw FRB from widgets.
