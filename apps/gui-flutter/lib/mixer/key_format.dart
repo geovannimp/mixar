@@ -8,6 +8,9 @@ enum KeyDisplayMode { musical, camelot }
 /// Track key color coding (mirrors persisted [`KeyColorModeSetting`]).
 enum KeyColorMode { off, absolute, harmonic }
 
+/// Harmonic fit vs a reference deck key (Rekordbox-style library coloring).
+enum HarmonicMatch { none, compatible, perfect }
+
 /// Circle-of-fifths majors starting at C. Index `i` → Camelot `(i + 7) % 12 + 1` + `B`.
 const kMajorKeys = [
   'C',
@@ -104,7 +107,47 @@ String? camelotToMusical(String code) {
   return camelotSlotForKey(camelot);
 }
 
-Color? colorForKey(String? key, KeyColorMode mode) {
+/// Shortest step count between two Camelot numbers on the wheel (1–12).
+int camelotNumberDistance(int a, int b) {
+  final delta = (a - b).abs();
+  return delta <= 6 ? delta : 12 - delta;
+}
+
+/// Mixed In Key / Camelot harmonic fit of [track] against a playing [reference] key.
+HarmonicMatch harmonicMatchForKeys(String? track, String? reference) {
+  final trackSlot = track == null ? null : camelotSlotForKey(track);
+  final refSlot = reference == null ? null : camelotSlotForKey(reference);
+  if (trackSlot == null || refSlot == null) {
+    return HarmonicMatch.none;
+  }
+  return harmonicMatchForSlots(trackSlot, refSlot);
+}
+
+HarmonicMatch harmonicMatchForSlots(
+  (int number, bool minor) track,
+  (int number, bool minor) reference,
+) {
+  final (trackNumber, trackMinor) = track;
+  final (refNumber, refMinor) = reference;
+
+  if (trackNumber == refNumber) {
+    return HarmonicMatch.perfect;
+  }
+
+  if (camelotNumberDistance(trackNumber, refNumber) != 1) {
+    return HarmonicMatch.none;
+  }
+
+  return trackMinor == refMinor
+      ? HarmonicMatch.perfect
+      : HarmonicMatch.compatible;
+}
+
+Color? colorForKey(
+  String? key,
+  KeyColorMode mode, {
+  String? harmonicReferenceKey,
+}) {
   if (mode == KeyColorMode.off) {
     return null;
   }
@@ -116,31 +159,31 @@ Color? colorForKey(String? key, KeyColorMode mode) {
   if (slot == null) {
     return null;
   }
-  final (number, minor) = slot;
   return switch (mode) {
     KeyColorMode.off => null,
-    KeyColorMode.absolute => _absoluteKeyColor(number, minor),
-    KeyColorMode.harmonic => _harmonicKeyColor(number, minor),
+    KeyColorMode.absolute => _absoluteKeyColor(slot.$1),
+    KeyColorMode.harmonic => _harmonicKeyColor(
+      harmonicMatchForKeys(trimmed, harmonicReferenceKey),
+    ),
   };
 }
 
-Color _absoluteKeyColor(int number, bool minor) {
-  final index = (number - 1) * 2 + (minor ? 0 : 1);
-  return HSLColor.fromAHSL(
-    1,
-    index * (360 / 24),
-    0.78,
-    minor ? 0.48 : 0.56,
-  ).toColor();
+/// Fixed circle-of-fifths hue; C / 8B at red, neighbors share similar colors.
+double absoluteHueForCamelotNumber(int number) {
+  return ((number - 8) * 30) % 360;
 }
 
-Color _harmonicKeyColor(int number, bool minor) {
-  return HSLColor.fromAHSL(
-    1,
-    (number - 1) * (360 / 12),
-    minor ? 0.72 : 0.52,
-    minor ? 0.46 : 0.58,
-  ).toColor();
+Color _absoluteKeyColor(int number) {
+  return HSLColor.fromAHSL(1, absoluteHueForCamelotNumber(number), 0.78, 0.50)
+      .toColor();
+}
+
+Color? _harmonicKeyColor(HarmonicMatch match) {
+  return switch (match) {
+    HarmonicMatch.none => null,
+    HarmonicMatch.perfect => const Color(0xFF22C55E),
+    HarmonicMatch.compatible => const Color(0xFFEAB308),
+  };
 }
 
 String formatDeckKey(String? key, KeyDisplayMode mode) {

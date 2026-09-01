@@ -59,8 +59,15 @@ class DeckTrackInfo extends ConsumerWidget {
             orElse: () => KeyColorModeSetting.off,
           ),
     );
+    final harmonicReference = ref.watch(harmonicReferenceKeyProvider);
     final key = formatDeckKey(lib?.key, keyMode);
-    final keyColor = hasTrack ? colorForKey(lib?.key, keyColorMode) : null;
+    final keyColor = hasTrack
+        ? colorForKey(
+            lib?.key,
+            keyColorMode,
+            harmonicReferenceKey: harmonicReference,
+          )
+        : null;
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId));
     final positionMs = ref.watch(deckPositionMsProvider(deckId));

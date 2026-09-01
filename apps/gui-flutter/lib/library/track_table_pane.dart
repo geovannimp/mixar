@@ -125,6 +125,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
+    final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdProvider, (_, next) {
@@ -245,12 +246,14 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                                 tableColumns.join(','),
                                 keyColorMode,
                                 keyDisplayMode,
+                                harmonicReferenceKey,
                               )),
                               columns: _columns(
                                 theme,
                                 tableColumns,
                                 keyDisplayMode: keyDisplayMode,
                                 keyColorMode: keyColorMode,
+                                harmonicReferenceKey: harmonicReferenceKey,
                               ),
                               rows: _rowsFor(tracks, analyzingId),
                               mode: TrinaGridMode.readOnly,
@@ -299,6 +302,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     List<String> activeColumns, {
     required KeyDisplayMode keyDisplayMode,
     required KeyColorMode keyColorMode,
+    required String? harmonicReferenceKey,
   }) {
     final visible = {
       for (final col in kLibraryColumnDefs)
@@ -423,7 +427,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           renderer: (ctx) {
             final raw = ctx.row.cells['key']?.value as String? ?? '';
             final label = raw.isEmpty ? '' : formatDeckKey(raw, keyDisplayMode);
-            final color = colorForKey(raw, keyColorMode);
+            final color = colorForKey(
+              raw,
+              keyColorMode,
+              harmonicReferenceKey: harmonicReferenceKey,
+            );
             final textStyle = ctx.stateManager.configuration.style.cellTextStyle
                 .copyWith(
                   color: color ?? theme.colors.foreground,

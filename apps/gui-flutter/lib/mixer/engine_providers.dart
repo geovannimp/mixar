@@ -265,6 +265,26 @@ final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
       ref.watch(libraryTrackByIdProvider(id)).asData?.value;
 });
 
+/// Playing-deck key used for harmonic library coloring (master deck, then any playing deck).
+final harmonicReferenceKeyProvider = Provider<String?>((ref) {
+  final ui = ref.watch(engineUiProvider);
+  if (!ui.running) {
+    return null;
+  }
+  String? keyForDeck(int deckId) {
+    if (!ui.isPlaying(deckId)) {
+      return null;
+    }
+    final key = ref.watch(deckLibraryTrackProvider(deckId))?.key?.trim();
+    if (key == null || key.isEmpty) {
+      return null;
+    }
+    return key;
+  }
+
+  return keyForDeck(ui.masterDeck) ?? keyForDeck(0) ?? keyForDeck(1);
+});
+
 /// Tab-stable library row for a track id (survives History / Drive switches).
 final libraryTrackByIdProvider =
     FutureProvider.family<LibraryTrackSummary?, String>((ref, trackId) async {

@@ -14,33 +14,48 @@ void main() {
     expect(formatDeckKey('unknown', KeyDisplayMode.camelot), 'unknown');
   });
 
-  test('colorForKey absolute vs harmonic', () {
-    expect(colorForKey(null, KeyColorMode.off), isNull);
-    expect(colorForKey('C', KeyColorMode.off), isNull);
-    expect(colorForKey('', KeyColorMode.absolute), isNull);
-    expect(colorForKey('unknown', KeyColorMode.harmonic), isNull);
-
+  test('absolute mode shares hue on circle of fifths wedge', () {
     final cMajor = colorForKey('C', KeyColorMode.absolute)!;
     final aMinor = colorForKey('Am', KeyColorMode.absolute)!;
-    expect(cMajor, isNot(equals(aMinor)));
+    expect(cMajor, equals(aMinor));
 
-    final slot8 = camelotSlotForKey('C');
-    expect(slot8, (8, false));
-    expect(camelotSlotForKey('Am'), (8, true));
+    final gMajor = colorForKey('G', KeyColorMode.absolute)!;
+    expect(_hueDistance(cMajor, gMajor), closeTo(30, 1));
 
-    final cHarmonic = colorForKey('C', KeyColorMode.harmonic)!;
-    final aHarmonic = colorForKey('Am', KeyColorMode.harmonic)!;
-    expect(cHarmonic, isNot(equals(aHarmonic)));
+    final fMajor = colorForKey('F', KeyColorMode.absolute)!;
+    expect(_hueDistance(cMajor, fMajor), closeTo(30, 1));
+    expect(_hueDistance(gMajor, fMajor), closeTo(60, 1));
+  });
+
+  test('harmonic mode matches Rekordbox-style playing-deck reference', () {
+    const ref = '2A';
+
     expect(
-      _hueDistance(cHarmonic, aHarmonic),
-      lessThan(_hueDistance(cHarmonic, colorForKey('7B', KeyColorMode.harmonic)!)),
+      harmonicMatchForKeys('2A', ref),
+      HarmonicMatch.perfect,
     );
+    expect(harmonicMatchForKeys('2B', ref), HarmonicMatch.perfect);
+    expect(harmonicMatchForKeys('1A', ref), HarmonicMatch.perfect);
+    expect(harmonicMatchForKeys('3A', ref), HarmonicMatch.perfect);
+    expect(harmonicMatchForKeys('1B', ref), HarmonicMatch.compatible);
+    expect(harmonicMatchForKeys('3B', ref), HarmonicMatch.compatible);
+    expect(harmonicMatchForKeys('5A', ref), HarmonicMatch.none);
 
-    final neighbor7 = colorForKey('7B', KeyColorMode.harmonic)!;
-    final distant6 = colorForKey('6B', KeyColorMode.harmonic)!;
     expect(
-      _hueDistance(cHarmonic, neighbor7),
-      lessThan(_hueDistance(cHarmonic, distant6)),
+      colorForKey('2A', KeyColorMode.harmonic, harmonicReferenceKey: ref),
+      const Color(0xFF22C55E),
+    );
+    expect(
+      colorForKey('1B', KeyColorMode.harmonic, harmonicReferenceKey: ref),
+      const Color(0xFFEAB308),
+    );
+    expect(
+      colorForKey('5A', KeyColorMode.harmonic, harmonicReferenceKey: ref),
+      isNull,
+    );
+    expect(
+      colorForKey('2A', KeyColorMode.harmonic),
+      isNull,
     );
   });
 }

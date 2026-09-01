@@ -54,13 +54,13 @@ class SettingsLibraryPanel extends StatelessWidget {
     ),
     (
       KeyColorModeSetting.absolute,
-      'Absolute (per key)',
-      'Each Camelot slot gets a distinct fixed color — e.g. 8B and 8A differ.',
+      'Absolute (circle of fifths)',
+      'Fixed color per key on the wheel — adjacent keys share similar hues (e.g. 8B/8A both coral).',
     ),
     (
       KeyColorModeSetting.harmonic,
-      'Harmonic (circle of fifths)',
-      'Hue follows Camelot number; relative major/minor pair — e.g. 8B/8A match, 7B/9B are neighbors.',
+      'Harmonic (playing deck)',
+      'Green/yellow vs the playing deck — e.g. with 2A playing, 1A/2A/3A/2B green, 1B/3B yellow.',
     ),
   ];
 
