@@ -11,7 +11,7 @@ use cpal::{
 };
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 fn id_ends_with_segment(id: &str, segment: &str) -> bool {
@@ -336,40 +336,36 @@ impl AudioBackend for CpalBackend {
 
         let channels = supported_config.channels();
         let frames_per_buffer = params.frames_per_buffer;
-        let callback_arc = Arc::new(Mutex::new(callback));
         let last_callback_frames = Arc::new(AtomicU32::new(0));
 
-        let build_stream = |buffer_size: BufferSize| {
-            let config = StreamConfig {
-                channels: supported_config.channels(),
-                sample_rate: actual_sample_rate,
-                buffer_size,
-            };
-            let arc = Arc::clone(&callback_arc);
-            let frames = Arc::clone(&last_callback_frames);
-            cpal_device.build_output_stream(
+        let config = StreamConfig {
+            channels: supported_config.channels(),
+            sample_rate: actual_sample_rate,
+            buffer_size: BufferSize::Fixed(params.frames_per_buffer),
+        };
+        let frames = Arc::clone(&last_callback_frames);
+        let mut callback = callback;
+        let stream = cpal_device
+            .build_output_stream(
                 config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
                     let n = data.len() / channels as usize;
                     frames.store(n as u32, Ordering::Relaxed);
-                    if let Ok(mut cb) = arc.lock() {
-                        cb.render(data, n as u32, actual_sample_rate);
-                    }
+                    data.fill(0.0);
+                    callback.render(data, n as u32, actual_sample_rate);
                 },
                 |err| {
                     eprintln!("Audio stream error: {}", err);
                 },
                 None,
             )
-        };
-
-        let stream = build_stream(BufferSize::Fixed(params.frames_per_buffer)).map_err(|error| {
-            anyhow::anyhow!(
-                "Device does not support fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
-                params.frames_per_buffer,
-                error
-            )
-        })?;
+            .map_err(|error| {
+                anyhow::anyhow!(
+                    "Device does not support fixed buffer size of {} frames: {} (do not use BufferSize::Default — see CPAL buffer size docs)",
+                    params.frames_per_buffer,
+                    error
+                )
+            })?;
 
         let granted_buffer = stream.buffer_size().unwrap_or(frames_per_buffer);
         if granted_buffer != frames_per_buffer {
