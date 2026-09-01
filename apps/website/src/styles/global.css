@@ -231,6 +231,18 @@ a {
   background: var(--accent-dim);
 }
 
+.badge-dev {
+  color: #a16207;
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+[data-theme="dark"] .badge-dev {
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.35);
+}
+
 .section {
   padding: 5rem 1.5rem;
 }
@@ -386,6 +398,15 @@ a {
   line-height: 1.7;
   color: var(--text-muted);
   white-space: pre;
+}
+
+.footer-brand img {
+  height: 1.25rem;
+  width: auto;
+}
+
+[data-theme="light"] .footer-brand img {
+  filter: invert(1);
 }
 
 .site-footer {

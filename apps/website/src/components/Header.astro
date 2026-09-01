@@ -11,20 +11,15 @@ const { currentPage = "home" } = Astro.props;
 <header class="site-header">
   <nav class="nav" aria-label="Primary">
     <a class="nav-brand" href="/">
-      <img src="/mixar-logo.png" alt="" width="28" height="28" />
-      <span>Mixar</span>
+      <img src="/mixar-logo.png" alt="Mixar" width="120" height="28" />
     </a>
     <div class="nav-end">
       <div class="nav-links">
-        {
-          currentPage === "home" ? (
-            <>
-              <a href="#features">Features</a>
-              <a href="#open-source">Open source</a>
-            </>
-          ) : null
-        }
-        <a href="/developers" aria-current={currentPage === "developers" ? "page" : undefined}>
+        <a href={currentPage === "home" ? "#features" : "/#features"}>Features</a>
+        <a
+          href={currentPage === "home" ? "#developers" : "/developers"}
+          aria-current={currentPage === "developers" ? "page" : undefined}
+        >
           Developers
         </a>
         <a href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
@@ -43,3 +38,14 @@ const { currentPage = "home" } = Astro.props;
     </div>
   </nav>
 </header>
+
+<style>
+  .nav-brand img {
+    height: 1.75rem;
+    width: auto;
+  }
+
+  [data-theme="light"] .nav-brand img {
+    filter: invert(1);
+  }
+</style>

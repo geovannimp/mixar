@@ -1,0 +1,67 @@
+---
+import { GITHUB_REPO } from "../consts";
+---
+
+<section id="developers" class="section developers">
+  <div class="developers-inner">
+    <div class="section-header">
+      <h2>Open source — built with the community</h2>
+      <p>
+        Mixar is GPL-3.0 licensed and open to contributors. Fork it, extend it, report bugs, or open
+        a pull request — whether you write code or just want to follow along.
+      </p>
+    </div>
+    <ul class="developers-highlights">
+      <li>Inspectable codebase and a modular architecture</li>
+      <li>Real-time audio engine designed for low-latency mixing</li>
+      <li>Issues and pull requests welcome at every skill level</li>
+    </ul>
+    <div class="developers-actions">
+      <a class="btn btn-primary" href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">
+        Star on GitHub
+      </a>
+      <a class="btn btn-secondary" href="/developers">Developer guide →</a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .developers-inner {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .developers-highlights {
+    margin: 0 0 1.75rem;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+
+  .developers-highlights li {
+    position: relative;
+    padding-left: 1.25rem;
+    margin-bottom: 0.625rem;
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+  }
+
+  .developers-highlights li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .developers-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+</style>
