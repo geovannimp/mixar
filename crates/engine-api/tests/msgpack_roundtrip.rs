@@ -45,3 +45,12 @@ fn cmd_and_evt_bodies_roundtrip() {
         seek
     );
 }
+
+#[test]
+fn oversize_payload_is_rejected() {
+    use engine_api::{DecodeError, MAX_WIRE_PAYLOAD_BYTES};
+
+    let oversized = vec![0u8; MAX_WIRE_PAYLOAD_BYTES + 1];
+    let err = decode_cmd_body(&oversized).unwrap_err();
+    assert!(matches!(err, DecodeError::PayloadTooLarge { .. }));
+}

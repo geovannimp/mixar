@@ -21,5 +21,5 @@ pub use payload::{
 };
 pub use wire::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,
-    DecodeError, EncodeError, WireMessage,
+    DecodeError, EncodeError, WireMessage, MAX_WIRE_PAYLOAD_BYTES,
 };

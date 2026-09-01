@@ -4,6 +4,9 @@ use crate::{CmdBody, EvtBody, Kind, Origin};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+/// Maximum allowed MessagePack payload size before decode.
+pub const MAX_WIRE_PAYLOAD_BYTES: usize = 256 * 1024;
+
 /// Host-facing bus frame: origin, kind, revision, optional client timestamp, nested body.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WireMessage {
@@ -27,6 +30,18 @@ pub enum EncodeError {
 pub enum DecodeError {
     #[error("messagepack decode failed: {0}")]
     Msgpack(#[from] rmp_serde::decode::Error),
+    #[error("payload too large: {len} bytes (max {max})")]
+    PayloadTooLarge { len: usize, max: usize },
+}
+
+fn ensure_payload_size(len: usize) -> Result<(), DecodeError> {
+    if len > MAX_WIRE_PAYLOAD_BYTES {
+        return Err(DecodeError::PayloadTooLarge {
+            len,
+            max: MAX_WIRE_PAYLOAD_BYTES,
+        });
+    }
+    Ok(())
 }
 
 pub fn encode_wire(msg: &WireMessage) -> Result<Vec<u8>, EncodeError> {
@@ -34,7 +49,10 @@ pub fn encode_wire(msg: &WireMessage) -> Result<Vec<u8>, EncodeError> {
 }
 
 pub fn decode_wire(bytes: &[u8]) -> Result<WireMessage, DecodeError> {
-    Ok(rmp_serde::from_slice(bytes)?)
+    ensure_payload_size(bytes.len())?;
+    let msg: WireMessage = rmp_serde::from_slice(bytes)?;
+    ensure_payload_size(msg.body.len())?;
+    Ok(msg)
 }
 
 pub fn encode_cmd_body(body: &CmdBody) -> Result<Vec<u8>, EncodeError> {
@@ -42,6 +60,7 @@ pub fn encode_cmd_body(body: &CmdBody) -> Result<Vec<u8>, EncodeError> {
 }
 
 pub fn decode_cmd_body(bytes: &[u8]) -> Result<CmdBody, DecodeError> {
+    ensure_payload_size(bytes.len())?;
     Ok(rmp_serde::from_slice(bytes)?)
 }
 
@@ -50,5 +69,6 @@ pub fn encode_evt_body(body: &EvtBody) -> Result<Vec<u8>, EncodeError> {
 }
 
 pub fn decode_evt_body(bytes: &[u8]) -> Result<EvtBody, DecodeError> {
+    ensure_payload_size(bytes.len())?;
     Ok(rmp_serde::from_slice(bytes)?)
 }
