@@ -4,34 +4,46 @@ import Badge from "./ui/Badge.astro";
 import Button from "./ui/Button.astro";
 ---
 
-<section class="mx-auto grid max-w-content gap-12 px-6 py-16 pb-20 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-10 lg:py-20 lg:pb-24">
-  <div>
-    <Badge variant="dev">In development</Badge>
-    <h1 class="mb-4 text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.1] font-bold tracking-tight">
-      Open-source DJ software built for performance
-    </h1>
-    <p class="mb-7 max-w-[36ch] text-lg text-muted">
-      Dual decks, scrolling waveforms, hot cues, and loops on a cross-platform mixing engine. Free to
-      use and expand.
-    </p>
-    <div class="mb-5 flex flex-wrap gap-3">
-      <Button href={GITHUB_REPO} external>Star on GitHub</Button>
-      <Button href="#features" variant="secondary">Explore features</Button>
-    </div>
-    <p class="text-sm text-muted">Free and cross-platform, no paid features.</p>
-  </div>
-  <div class="relative">
+<section id="hero" class="relative mx-auto max-w-content px-6">
+  <div id="hero-scroll-target" class="relative h-[145vh] max-lg:h-[130vh]">
     <div
-      class="pointer-events-none absolute inset-[10%_5%_-5%] hidden bg-[radial-gradient(ellipse_at_center,rgba(45,212,191,0.18),transparent_70%)] dark:block"
-      aria-hidden="true"
+      class="sticky top-20 grid items-center gap-12 py-16 pb-20 lg:grid-cols-[1fr_1.1fr] lg:gap-10 lg:py-20 lg:pb-24"
     >
+      <div id="hero-copy" class="relative z-10">
+        <Badge variant="dev">In development</Badge>
+        <h1 class="mb-4 text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.1] font-bold tracking-tight">
+          Open-source DJ software built for performance
+        </h1>
+        <p class="mb-7 max-w-[36ch] text-lg text-muted">
+          Dual decks, scrolling waveforms, hot cues, and loops on a cross-platform mixing engine. Free
+          to use and expand.
+        </p>
+        <div id="hero-cta" class="mb-5 flex flex-wrap gap-3">
+          <Button href={GITHUB_REPO} external>Star on GitHub</Button>
+          <Button href="#features" variant="secondary">Explore features</Button>
+        </div>
+        <p class="text-sm text-muted">Free and cross-platform, no paid features.</p>
+      </div>
+      <div id="hero-visual" class="relative z-30 origin-center will-change-transform">
+        <div
+          class="pointer-events-none absolute inset-[10%_5%_-5%] hidden bg-[radial-gradient(ellipse_at_center,rgba(45,212,191,0.18),transparent_70%)] dark:block"
+          aria-hidden="true"
+        >
+        </div>
+        <img
+          class="relative w-full rounded-[20px] border border-border bg-bg-card shadow-[var(--screenshot-shadow)]"
+          src="/mixar-banner.png"
+          alt="Mixar DJ interface with dual decks, waveforms, and mixer"
+          width="1200"
+          height="675"
+        />
+      </div>
     </div>
-    <img
-      class="relative w-full rounded-[20px] border border-border shadow-[var(--screenshot-shadow)]"
-      src="/mixar-banner.png"
-      alt="Mixar DJ interface with dual decks, waveforms, and mixer"
-      width="1200"
-      height="675"
-    />
   </div>
 </section>
+
+<script>
+  import { initHeroScroll } from "../scripts/hero-scroll";
+
+  initHeroScroll();
+</script>
