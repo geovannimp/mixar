@@ -2,7 +2,7 @@
 import { TECH_SPEC_URL } from "../consts";
 import MermaidDiagram from "./MermaidDiagram.astro";
 
-const chart = `flowchart TB
+const chart = `graph TB
   lib["Library / AudioSource"] -->|load PCM| eng["Engine: decks + mixer"]
   eng --> prod["Producer thread"]
   prod --> ring["Ring buffer"]
