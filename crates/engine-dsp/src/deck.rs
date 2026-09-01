@@ -98,6 +98,10 @@ pub struct Deck {
     stretch_active: bool,
     /// Active loop region in source frames (inclusive start, exclusive end).
     loop_region: Option<(f64, f64)>,
+    /// Slip mode: shadow playhead keeps advancing while audible pos is looped/scratched.
+    slip_enabled: bool,
+    /// Shadow source position (frames, fractional); catches up on slip exit.
+    shadow_position_frac: f64,
     /// Temporary cue point in milliseconds (source time; may be negative).
     cue_point_ms: Option<i32>,
     /// Saved transport state while cue is held (return position ms, was_playing).
@@ -161,6 +165,8 @@ impl Deck {
             stretcher: None,
             stretch_active: false,
             loop_region: None,
+            slip_enabled: false,
+            shadow_position_frac: 0.0,
             cue_point_ms: None,
             cue_hold_return: None,
             pending_transport: Vec::new(),
@@ -386,7 +392,15 @@ impl Deck {
         self.jog_touching = touching;
         let now = self.active_jog_mode();
         if was == JogMode::Vinyl && now != JogMode::Vinyl {
-            self.begin_jog_release();
+            if self.slip_enabled {
+                self.catch_up_slip();
+                self.jog_releasing = false;
+                self.jog_rate = 1.0;
+                self.jog_velocity = 0.0;
+                self.jog_velocity_deriv = 0.0;
+            } else {
+                self.begin_jog_release();
+            }
         }
         if now == JogMode::Vinyl {
             self.jog_releasing = false;
@@ -530,8 +544,17 @@ impl Deck {
         Ok(())
     }
 
-    /// Seek to a position in milliseconds (source file time). No clamp to track bounds.
+    /// Seek audible + shadow (manual seek / catch-up).
     pub fn seek_ms(&mut self, ms: i32) -> Result<()> {
+        self.seek_ms_inner(ms, true)
+    }
+
+    /// Seek audible only; shadow keeps advancing when slip is on.
+    pub fn seek_ms_audible_only(&mut self, ms: i32) -> Result<()> {
+        self.seek_ms_inner(ms, false)
+    }
+
+    fn seek_ms_inner(&mut self, ms: i32, move_shadow: bool) -> Result<()> {
         let audio = self
             .loaded
             .as_ref()
@@ -539,10 +562,63 @@ impl Deck {
         let frames = f64::from(ms) * f64::from(audio.sample_rate) / 1000.0;
         self.position_frac = frames;
         self.position_frames = frames.floor() as i64;
+        if !self.slip_enabled || move_shadow {
+            self.shadow_position_frac = frames;
+        }
         self.reset_resampler_state();
         self.reset_stretcher_state();
         self.stretch_active = false;
         Ok(())
+    }
+
+    pub fn slip_enabled(&self) -> bool {
+        self.slip_enabled
+    }
+
+    pub fn set_slip_enabled(&mut self, enabled: bool) -> Result<()> {
+        if self.slip_enabled == enabled {
+            return Ok(());
+        }
+        self.slip_enabled = enabled;
+        if enabled {
+            self.shadow_position_frac = self.position_frac;
+        }
+        Ok(())
+    }
+
+    pub fn shadow_position_ms(&self) -> Option<i32> {
+        let audio = self.loaded.as_ref()?;
+        Some(secs_to_ms(
+            self.shadow_position_frac / f64::from(audio.sample_rate),
+        ))
+    }
+
+    fn catch_up_slip(&mut self) {
+        if !self.slip_enabled {
+            return;
+        }
+        let shadow = self.shadow_position_frac;
+        self.position_frac = shadow;
+        self.position_frames = shadow.floor() as i64;
+        self.reset_resampler_state();
+        self.reset_stretcher_state();
+        self.stretch_active = false;
+    }
+
+    fn advance_slip_shadow(&mut self, frames: usize) {
+        if !self.slip_enabled || self.state != DeckState::Playing {
+            return;
+        }
+        let Some(audio) = self.loaded.as_ref() else {
+            return;
+        };
+        let src_step = f64::from(self.playback_ratio().max(0.01)) * f64::from(audio.sample_rate)
+            / f64::from(self.sample_rate);
+        self.shadow_position_frac += src_step * frames as f64;
+        let total = audio.samples.len() / 2;
+        if total > 0 {
+            self.shadow_position_frac = self.shadow_position_frac.min(total as f64);
+        }
     }
 
     /// Clear loaded audio and reset transport state.
@@ -553,6 +629,8 @@ impl Deck {
         self.loaded = None;
         self.resampler = None;
         self.loop_region = None;
+        self.slip_enabled = false;
+        self.shadow_position_frac = 0.0;
         self.cue_point_ms = None;
         self.cue_hold_return = None;
         self.track_bpm = None;
@@ -579,7 +657,7 @@ impl Deck {
         let return_pos = self.position_ms().unwrap_or(0);
         let was_playing = self.state == DeckState::Playing;
         self.cue_hold_return = Some((return_pos, was_playing));
-        self.seek_ms(cue_ms)?;
+        self.seek_ms_audible_only(cue_ms)?;
         self.play()?;
         Ok(())
     }
@@ -589,7 +667,11 @@ impl Deck {
         let Some((return_pos, was_playing)) = self.cue_hold_return.take() else {
             return Ok(());
         };
-        self.seek_ms(return_pos)?;
+        if self.slip_enabled {
+            self.catch_up_slip();
+        } else {
+            self.seek_ms(return_pos)?;
+        }
         if was_playing {
             self.play()?;
         } else {
@@ -617,6 +699,9 @@ impl Deck {
 
     /// Clear the active loop region.
     pub fn clear_loop(&mut self) {
+        if self.slip_enabled && self.loop_region.is_some() {
+            self.catch_up_slip();
+        }
         self.loop_region = None;
     }
 
@@ -691,6 +776,8 @@ impl Deck {
         self.position_frames = 0;
         self.position_frac = 0.0;
         self.loop_region = None;
+        self.slip_enabled = false;
+        self.shadow_position_frac = 0.0;
         self.cue_point_ms = Some(0);
         self.cue_hold_return = None;
         self.loaded = Some(audio);
@@ -802,6 +889,8 @@ impl Deck {
             }
             self.buffer.fill(0.0);
         }
+
+        self.advance_slip_shadow(frames);
 
         if transport_playing {
             self.check_track_end();
@@ -1518,5 +1607,66 @@ mod tests {
         // Vinyl jog path still runs (does not panic / stall) while key lock stays on.
         assert!(deck.key_lock());
         assert!(deck.position_frames() != before || deck.jog_rate() != 1.0);
+    }
+
+    #[test]
+    fn slip_loop_exit_catches_up_to_shadow() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..20 {
+            deck.process(CHUNK).unwrap();
+        }
+        let in_ms = deck.position_ms().unwrap();
+        deck.set_loop_region_ms(in_ms, in_ms + 500).unwrap();
+        for _ in 0..200 {
+            deck.process(CHUNK).unwrap();
+        }
+        let looped = deck.position_ms().unwrap();
+        let shadow_before = deck.shadow_position_ms().unwrap();
+        assert!(
+            shadow_before > looped + 50,
+            "shadow should outrun loop: shadow={shadow_before} audible={looped}"
+        );
+        deck.clear_loop();
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - shadow_before).abs() <= 5,
+            "exit loop should catch up: after={after} shadow={shadow_before}"
+        );
+    }
+
+    #[test]
+    fn slip_scratch_exit_catches_up_to_shadow() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.5f32; CHUNK * 2 * 200_000], ENGINE_RATE);
+        deck.set_slip_enabled(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..10 {
+            deck.process(CHUNK).unwrap();
+        }
+        let start = deck.position_ms().unwrap();
+        deck.set_jog_touch(true);
+        for _ in 0..30 {
+            deck.jog_turn(-10);
+            deck.process(CHUNK).unwrap();
+        }
+        let scratched = deck.position_ms().unwrap();
+        assert!(
+            scratched < start,
+            "scratch should move back: {scratched} vs {start}"
+        );
+        let shadow = deck.shadow_position_ms().unwrap();
+        assert!(
+            shadow > scratched + 20,
+            "shadow should advance: {shadow} vs {scratched}"
+        );
+        deck.set_jog_touch(false);
+        let after = deck.position_ms().unwrap();
+        assert!(
+            (after - shadow).abs() <= 10,
+            "scratch release should catch up: after={after} shadow={shadow}"
+        );
     }
 }

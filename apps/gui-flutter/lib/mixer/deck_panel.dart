@@ -41,6 +41,7 @@ class DeckPanel extends ConsumerWidget {
     final engineRunning = ref.watch(engineRunningProvider);
     final loading = ref.watch(deckLoadingProvider(deckId));
     final quantize = ref.watch(deckQuantizeProvider(deckId));
+    final slip = ref.watch(deckSlipEnabledProvider(deckId));
     final settings = ref.watch(appSettingsProvider).value;
     final loadDisabled = loading || !engineRunning;
     final transportDisabled = loadDisabled || !hasTrack;
@@ -122,13 +123,23 @@ class DeckPanel extends ConsumerWidget {
             const Spacer(),
             _QuantizeButton(
               quantize: quantize,
-              disabled: transportDisabled,
+              disabled: loadDisabled,
               onPress: () {
                 unawaited(
                   _engineCmd(
                     context,
                     () => setDeckQuantize(ref, deckId, !quantize),
                   ),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
+            _SlipButton(
+              slip: slip,
+              disabled: loadDisabled,
+              onPress: () {
+                unawaited(
+                  _engineCmd(context, () => setDeckSlip(ref, deckId, !slip)),
                 );
               },
             ),
@@ -254,6 +265,52 @@ class _QuantizeButton extends StatelessWidget {
           style: TextStyle(
             fontWeight: .w600,
             color: on ? cueOn : theme.colors.mutedForeground,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SlipButton extends StatelessWidget {
+  const _SlipButton({
+    required this.onPress,
+    required this.slip,
+    this.disabled = false,
+  });
+
+  final VoidCallback onPress;
+  final bool slip;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    const slipOn = Color.fromARGB(191, 96, 165, 250);
+    const slipFill = Color.fromARGB(28, 96, 165, 250);
+    final on = slip && !disabled;
+    final tip = slip ? 'Slip on' : 'Slip off';
+    return AppTooltip(
+      tip: tip,
+      description:
+          'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
+      child: FButton(
+        variant: .outline,
+        size: .xs,
+        mainAxisSize: .min,
+        onPress: disabled ? null : onPress,
+        semanticsLabel: tip,
+        style: .delta(
+          decoration: on ? .delta([.all(.shapeDelta(color: slipFill))]) : null,
+          contentStyle: .delta(
+            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
+          ),
+        ),
+        child: Text(
+          'S',
+          style: TextStyle(
+            fontWeight: .w600,
+            color: on ? slipOn : theme.colors.mutedForeground,
           ),
         ),
       ),

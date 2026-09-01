@@ -26,6 +26,10 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       if (id != null && ms != null) {
         ref.read(deckPlayheadsProvider.notifier).put(id, ms);
       }
+      final shadow = evt.slipShadowPositionMs;
+      if (id != null && shadow != null) {
+        ref.read(deckSlipShadowsProvider.notifier).put(id, shadow);
+      }
       return;
     }
     state = applyEngineEvt(state, evt);
@@ -34,8 +38,14 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
       // Unload before positionMs: authored null duration can still carry positionMs: 0.
       if (evt.durationKnown && evt.durationMs == null) {
         ref.read(deckPlayheadsProvider.notifier).remove(id);
+        ref.read(deckSlipShadowsProvider.notifier).remove(id);
       } else if (evt.positionMs != null) {
         ref.read(deckPlayheadsProvider.notifier).put(id, evt.positionMs!);
+      }
+      if (evt.slipShadowPositionMs != null) {
+        ref
+            .read(deckSlipShadowsProvider.notifier)
+            .put(id, evt.slipShadowPositionMs!);
       }
     }
   }
@@ -98,6 +108,28 @@ class DeckPlayheads extends Notifier<Map<int, int>> {
 final deckPlayheadsProvider = NotifierProvider<DeckPlayheads, Map<int, int>>(
   DeckPlayheads.new,
 );
+
+class DeckSlipShadows extends Notifier<Map<int, int>> {
+  @override
+  Map<int, int> build() => const {};
+
+  void put(int deckId, int ms) {
+    if (state[deckId] == ms) {
+      return;
+    }
+    state = {...state, deckId: ms};
+  }
+
+  void remove(int deckId) {
+    if (!state.containsKey(deckId)) {
+      return;
+    }
+    state = {...state}..remove(deckId);
+  }
+}
+
+final deckSlipShadowsProvider =
+    NotifierProvider<DeckSlipShadows, Map<int, int>>(DeckSlipShadows.new);
 
 final deckPositionMsProvider = Provider.family<int, int>(
   (ref, deckId) => ref.watch(deckPlayheadsProvider)[deckId] ?? 0,
@@ -228,6 +260,15 @@ final deckIsMasterProvider = Provider.family<bool, int>(
 final deckQuantizeProvider = Provider.family<bool, int>(
   (ref, deckId) =>
       ref.watch(engineUiProvider.select((s) => s.quantizeFor(deckId))),
+);
+
+final deckSlipEnabledProvider = Provider.family<bool, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.slipEnabledFor(deckId))),
+);
+
+final deckSlipShadowMsProvider = Provider.family<int?, int>(
+  (ref, deckId) => ref.watch(deckSlipShadowsProvider)[deckId],
 );
 
 final deckJogTouchingProvider = Provider.family<bool, int>(
@@ -538,6 +579,11 @@ Future<void> setMasterDeck(WidgetRef ref, int deckId) async {
 Future<void> setDeckQuantize(WidgetRef ref, int deckId, bool enabled) async {
   final engine = await ref.read(engineTransportProvider.future);
   await engine?.setQuantize(deckId: deckId, enabled: enabled);
+}
+
+Future<void> setDeckSlip(WidgetRef ref, int deckId, bool enabled) async {
+  final engine = await ref.read(engineTransportProvider.future);
+  await engine?.setSlip(deckId: deckId, enabled: enabled);
 }
 
 Future<void> beginDeckCueHold(WidgetRef ref, int deckId) async {

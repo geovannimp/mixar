@@ -110,6 +110,8 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
     final enginePosMs = ref.watch(deckPositionMsProvider(widget.deckId));
+    final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
+    final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
     final strip = trackId == null || durationMs <= 0
         ? null
         : ref.watch(waveformStripProvider((trackId, durationMs)));
@@ -318,6 +320,26 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     child: const SizedBox(width: 1, height: double.infinity),
                   ),
                 ),
+                if (slipOn && slipShadowMs != null && strip != null)
+                  AnimatedBuilder(
+                    animation: _playhead,
+                    builder: (context, _) {
+                      final audibleMs = _displayMs(durationMs);
+                      final delta = slipShadowMs - audibleMs;
+                      if (delta.abs() < 3) {
+                        return const SizedBox.shrink();
+                      }
+                      return Positioned(
+                        left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
+                        top: 0,
+                        bottom: 0,
+                        width: 1,
+                        child: ColoredBox(
+                          color: theme.colors.primary.withValues(alpha: 0.65),
+                        ),
+                      );
+                    },
+                  ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Padding(

@@ -335,6 +335,8 @@ pub struct EngineEvt {
     #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub duration_known: bool,
     pub quantize: Option<bool>,
+    pub slip_enabled: Option<bool>,
+    pub slip_shadow_position_ms: Option<i32>,
     pub jog_touching: Option<bool>,
     pub loudness_lufs: Option<f64>,
     pub auto_gain_db: Option<f32>,
@@ -386,6 +388,8 @@ impl EngineEvt {
             active_loop_known: false,
             duration_known: false,
             quantize: None,
+            slip_enabled: None,
+            slip_shadow_position_ms: None,
             jog_touching: None,
             loudness_lufs: None,
             auto_gain_db: None,
@@ -799,6 +803,14 @@ impl EngineTransport {
             Origin::Deck(deck_id),
             Kind::SetQuantize,
             &CmdBody::SetQuantize { enabled },
+        )
+    }
+
+    pub fn set_slip(&self, deck_id: u16, enabled: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetSlip,
+            &CmdBody::SetSlip { enabled },
         )
     }
 
@@ -1280,6 +1292,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
     evt.active_loop_known = true;
     evt.quantize = Some(snap.quantize);
+    evt.slip_enabled = Some(snap.slip_enabled);
+    evt.slip_shadow_position_ms = snap.slip_shadow_position_ms;
     evt.jog_touching = Some(snap.jog_touching);
     evt.loudness_lufs = snap.loudness_lufs;
     evt.auto_gain_db = Some(snap.auto_gain_db);
@@ -1326,6 +1340,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             sync_mode,
             active_loop,
             quantize,
+            slip_enabled,
+            slip_shadow_position_ms,
             jog_touching,
             loudness_lufs,
             auto_gain_db,
@@ -1355,6 +1371,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
             evt.active_loop_known = true;
             evt.quantize = Some(quantize);
+            evt.slip_enabled = Some(slip_enabled);
+            evt.slip_shadow_position_ms = slip_shadow_position_ms;
             evt.jog_touching = Some(jog_touching);
             evt.loudness_lufs = loudness_lufs;
             evt.auto_gain_db = Some(auto_gain_db);
@@ -1362,10 +1380,14 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.active_sampler_bank_id_known = true;
             vec![evt]
         }
-        EvtBody::Position { position_ms } => {
+        EvtBody::Position {
+            position_ms,
+            slip_shadow_position_ms,
+        } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Position);
             evt.deck_id = deck_id;
             evt.position_ms = Some(position_ms);
+            evt.slip_shadow_position_ms = slip_shadow_position_ms;
             vec![evt]
         }
         EvtBody::Levels {
@@ -1445,6 +1467,8 @@ mod tests {
             cue_point_ms: None,
             quantize: true,
             active_loop: None,
+            slip_enabled: false,
+            slip_shadow_position_ms: None,
             pad_mode: PadMode::HotCue,
             position_ms: None,
             duration_ms: None,

@@ -227,6 +227,8 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         cue_point_ms: snap.cue_point_ms,
         quantize: snap.quantize,
         active_loop: snap.active_loop,
+        slip_enabled: snap.slip_enabled,
+        slip_shadow_position_ms: snap.slip_shadow_position_ms,
         pad_mode: snap.pad_mode,
         position_ms: snap.position_ms,
         duration_ms: snap.duration_ms,
@@ -310,11 +312,18 @@ fn handle_cmd_event(
         Ok(CmdOutcome::Position(deck_id)) => {
             let _ = with_engine_ref(engine, |eng| {
                 if let Some((position_ms, _)) = eng.deck_playback_ms(deck_id) {
+                    let slip_shadow_position_ms = eng
+                        .deck_slip_enabled(deck_id)
+                        .filter(|enabled| *enabled)
+                        .and_then(|_| eng.deck_slip_shadow_position_ms(deck_id));
                     publish_evt(
                         evt_bus,
                         Origin::Deck(deck_id as u16),
                         Kind::Position,
-                        EvtBody::Position { position_ms },
+                        EvtBody::Position {
+                            position_ms,
+                            slip_shadow_position_ms,
+                        },
                     );
                 }
                 Ok(())
@@ -333,6 +342,7 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
             | Kind::Pause
             | Kind::TogglePlay
             | Kind::ToggleQuantize
+            | Kind::ToggleSlip
             | Kind::ToggleHeadphoneCue
             | Kind::ToggleMasterCue
             | Kind::SetMasterDeck
@@ -358,6 +368,7 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
         | (Kind::ToggleSync, CmdBody::ToggleSync { .. })
         | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
+        | (Kind::SetSlip, CmdBody::SetSlip { .. })
         | (Kind::SetAutoLoop, CmdBody::SetAutoLoop { .. })
         | (Kind::BeatJump, CmdBody::BeatJump { .. })
         | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
@@ -636,6 +647,19 @@ fn dispatch_deck_cmd(
             let _ = decode_cmd_body_for(kind, payload)?;
             let enabled = !eng.deck_quantize(deck_id).unwrap_or(true);
             eng.set_deck_quantize(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetSlip => {
+            let CmdBody::SetSlip { enabled } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_slip(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::ToggleSlip => {
+            let _ = decode_cmd_body_for(kind, payload)?;
+            let enabled = !eng.deck_slip_enabled(deck_id).unwrap_or(false);
+            eng.set_deck_slip(deck_id, enabled)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetAutoLoop => {
@@ -935,12 +959,17 @@ fn tick(
         let playing = eng.deck_is_playing(deck_id) == Some(true);
         let jog_driving = eng.deck_jog_driving_audio(deck_id) == Some(true);
         if playing || jog_driving {
+            let slip_shadow_position_ms = eng
+                .deck_slip_enabled(deck_id)
+                .filter(|enabled| *enabled)
+                .and_then(|_| eng.deck_slip_shadow_position_ms(deck_id));
             publish_evt(
                 evt_bus,
                 Origin::Deck(deck_id as u16),
                 Kind::Position,
                 EvtBody::Position {
                     position_ms: position,
+                    slip_shadow_position_ms,
                 },
             );
         }

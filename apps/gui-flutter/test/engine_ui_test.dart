@@ -278,6 +278,19 @@ void main() {
       expect(snap.autoGainDbFor(0), -3.5);
     });
 
+    test('updated stores slip on empty deck like quantize', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          durationKnown: true,
+          slipEnabled: true,
+        ),
+      );
+      expect(snap.slipEnabledFor(0), isTrue);
+    });
+
     test('duration_ms going null clears host identity and gain', () {
       var snap = applyEngineEvt(
         EngineUiSnapshot.empty,
