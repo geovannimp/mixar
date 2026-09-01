@@ -37,7 +37,10 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
     </script>
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a
+      class="absolute -left-[9999px] top-0 z-1000 bg-accent px-4 py-3 font-semibold text-bg focus:left-4 focus:top-4"
+      href="#main">Skip to content</a
+    >
     <Header currentPage={currentPage} />
     <main id="main">
       <slot />
@@ -52,7 +55,7 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
         localStorage.setItem("theme", next);
       });
 
-      const header = document.querySelector(".site-header");
+      const header = document.getElementById("site-header");
       if (header) {
         const onScroll = () => {
           header.style.boxShadow = window.scrollY > 8 ? "0 4px 24px rgba(0,0,0,0.15)" : "none";

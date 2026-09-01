@@ -17,18 +17,4 @@ const svg = await renderMermaid(chart, {
 });
 ---
 
-<div class="mermaid-diagram" set:html={svg} />
-
-<style>
-  .mermaid-diagram {
-    display: flex;
-    justify-content: center;
-    overflow-x: auto;
-    padding: 0.5rem 0;
-  }
-
-  .mermaid-diagram :global(svg) {
-    max-width: 100%;
-    height: auto;
-  }
-</style>
+<div class="flex justify-center overflow-x-auto py-2 [&_svg]:h-auto [&_svg]:max-w-full" set:html={svg} />

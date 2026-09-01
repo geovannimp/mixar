@@ -1,38 +1,28 @@
-<section id="features" class="section features">
-  <div class="section-header">
-    <h2>Everything you need</h2>
-    <p>Professional DJ mixing with no paywall surprises.</p>
-  </div>
-  <div class="feature-grid">
-    <article class="feature-card">
-      <div class="feature-icon deck-a" aria-hidden="true">A</div>
-      <h3>Dual decks</h3>
-      <p>Overview and scrolling waveforms, beat grid, play/pause, seek, and tempo on each deck.</p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon deck-b" aria-hidden="true">B</div>
-      <h3>Mixer &amp; metering</h3>
-      <p>Gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters across the mix bus.</p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">◎</div>
-      <h3>Performance tools</h3>
-      <p>Hot cues, loops, performance pads, sampler, and beat sync for live sets.</p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">♫</div>
-      <h3>Library &amp; analysis</h3>
-      <p>Folder collections, track metadata, and offline analysis for BPM, key, and loudness.</p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">⌘</div>
-      <h3>MIDI control</h3>
-      <p>Map any controller you already own, with no vendor lock-in and no surprise paywalls for hardware.</p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">↯</div>
-      <h3>Low-latency mixing</h3>
-      <p>Responsive decks and a tight mixer feel, built for live performance when timing matters.</p>
-    </article>
+---
+import FeatureCard from "./ui/FeatureCard.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
+---
+
+<section id="features" class="px-6 py-20">
+  <SectionHeader title="Everything you need" description="Professional DJ mixing with no paywall surprises." />
+  <div class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <FeatureCard icon="A" iconTone="deck-a" title="Dual decks">
+      Overview and scrolling waveforms, beat grid, play/pause, seek, and tempo on each deck.
+    </FeatureCard>
+    <FeatureCard icon="B" iconTone="deck-b" title="Mixer &amp; metering">
+      Gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters across the mix bus.
+    </FeatureCard>
+    <FeatureCard icon="◎" title="Performance tools">
+      Hot cues, loops, performance pads, sampler, and beat sync for live sets.
+    </FeatureCard>
+    <FeatureCard icon="♫" title="Library &amp; analysis">
+      Folder collections, track metadata, and offline analysis for BPM, key, and loudness.
+    </FeatureCard>
+    <FeatureCard icon="⌘" title="MIDI control">
+      Map any controller you already own, with no vendor lock-in and no surprise paywalls for hardware.
+    </FeatureCard>
+    <FeatureCard icon="↯" title="Low-latency mixing">
+      Responsive decks and a tight mixer feel, built for live performance when timing matters.
+    </FeatureCard>
   </div>
 </section>

@@ -1,32 +1,25 @@
-<section class="section">
-  <div class="section-header">
-    <h2>Stack</h2>
-    <p>Engine-first design with clear boundaries between audio, library, and UI.</p>
-  </div>
-  <div class="feature-grid">
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">Rs</div>
-      <h3>Rust engine</h3>
-      <p>
-        Real-time audio, mixing, library I/O, and analysis. Rust gives predictable performance and
-        memory safety on the audio path.
-      </p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">Fl</div>
-      <h3>Flutter UI</h3>
-      <p>
-        Cross-platform decks, waveforms, and mixer chrome. Flutter keeps one UI codebase for desktop
-        and mobile targets.
-      </p>
-    </article>
-    <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">⇄</div>
-      <h3>Async buses</h3>
-      <p>
-        The UI talks to the engine, library, and controllers through async message buses instead of
-        calling engine code on the UI thread.
-      </p>
-    </article>
+---
+import FeatureCard from "./ui/FeatureCard.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
+---
+
+<section class="px-6 py-20">
+  <SectionHeader
+    title="Stack"
+    description="Engine-first design with clear boundaries between audio, library, and UI."
+  />
+  <div class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <FeatureCard icon="Rs" title="Rust engine">
+      Real-time audio, mixing, library I/O, and analysis. Rust gives predictable performance and
+      memory safety on the audio path.
+    </FeatureCard>
+    <FeatureCard icon="Fl" title="Flutter UI">
+      Cross-platform decks, waveforms, and mixer chrome. Flutter keeps one UI codebase for desktop
+      and mobile targets.
+    </FeatureCard>
+    <FeatureCard icon="⇄" title="Async buses">
+      The UI talks to the engine, library, and controllers through async message buses instead of
+      calling engine code on the UI thread.
+    </FeatureCard>
   </div>
 </section>

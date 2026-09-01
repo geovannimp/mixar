@@ -1,34 +1,20 @@
 ---
 import { README_URL, CONTRIBUTING_URL } from "../consts";
+import Button from "./ui/Button.astro";
 ---
 
-<section class="section dev-docs">
-  <div class="cta-panel">
-    <h2>Get involved</h2>
-    <p>
+<section class="px-6 pt-20 pb-24">
+  <div
+    class="mx-auto max-w-[640px] rounded-[20px] border border-border bg-linear-to-br from-accent-dim to-transparent to-60% px-8 py-12 text-center"
+  >
+    <h2 class="mb-3 text-[clamp(1.5rem,3vw,1.875rem)] font-bold tracking-tight">Get involved</h2>
+    <p class="mb-6 text-muted">
       Setup, prerequisites, and local development are in the repository README. Contribution
       expectations and how to open pull requests are on GitHub too.
     </p>
-    <div class="dev-docs-actions">
-      <a class="btn btn-primary" href={README_URL} target="_blank" rel="noopener noreferrer">
-        README
-      </a>
-      <a class="btn btn-secondary" href={CONTRIBUTING_URL} target="_blank" rel="noopener noreferrer">
-        Contributing
-      </a>
+    <div class="flex flex-wrap justify-center gap-3">
+      <Button href={README_URL} external>README</Button>
+      <Button href={CONTRIBUTING_URL} external variant="secondary">Contributing</Button>
     </div>
   </div>
 </section>
-
-<style>
-  .dev-docs {
-    padding-bottom: 6rem;
-  }
-
-  .dev-docs-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.75rem;
-  }
-</style>
