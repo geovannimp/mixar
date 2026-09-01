@@ -170,7 +170,7 @@ Color? colorForKey(
 
 /// Fixed circle-of-fifths hue; C / 8B at red, neighbors share similar colors.
 double absoluteHueForCamelotNumber(int number) {
-  return ((number - 8) * 30) % 360;
+  return (((number - 8) * 30) % 360 + 360) % 360;
 }
 
 Color _absoluteKeyColor(int number, bool minor) {

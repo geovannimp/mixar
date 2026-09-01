@@ -26,6 +26,9 @@ void main() {
     final fMajor = colorForKey('F', KeyColorMode.absolute)!;
     expect(_hueDistance(cMajor, fMajor), closeTo(30, 1));
     expect(_hueDistance(gMajor, fMajor), closeTo(60, 1));
+
+    expect(absoluteHueForCamelotNumber(7), closeTo(330, 0.001));
+    expect(colorForKey('F', KeyColorMode.absolute), isNotNull);
   });
 
   test('harmonic mode matches Rekordbox-style playing-deck reference', () {
