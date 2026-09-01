@@ -7,10 +7,9 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
             let backend = backend_null::NullBackend::new();
             Ok(Box::new(backend))
         }
-        "miniaudio" => {
-            let backend = backend_miniaudio::MiniaudioBackend::new()?;
-            Ok(Box::new(backend))
-        }
+        "miniaudio" => Err(anyhow::anyhow!(
+            "miniaudio backend is not implemented yet; use cpal or null"
+        )),
         "cpal" => {
             #[cfg(feature = "backend-cpal")]
             {
@@ -29,22 +28,10 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
                     log::info!("Using CPAL backend");
                     return Ok(Box::new(backend));
                 }
-                Err(e) => log::warn!("Failed to initialize CPAL backend: {}, trying miniaudio", e),
+                Err(e) => log::warn!("Failed to initialize CPAL backend: {}, using null", e),
             }
-            match backend_miniaudio::MiniaudioBackend::new() {
-                Ok(backend) => {
-                    log::info!("Using miniaudio backend");
-                    Ok(Box::new(backend))
-                }
-                Err(e) => {
-                    log::warn!(
-                        "Failed to initialize miniaudio backend: {}, falling back to null backend",
-                        e
-                    );
-                    let backend = backend_null::NullBackend::new();
-                    Ok(Box::new(backend))
-                }
-            }
+            log::info!("Using null backend");
+            Ok(Box::new(backend_null::NullBackend::new()))
         }
         _ => Err(anyhow::anyhow!("Unknown backend: {}", backend_name)),
     }
@@ -55,20 +42,16 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
 pub struct AudioBackend;
 
 impl AudioBackend {
-    /// Returns the list of available backend names (e.g. `["null", "miniaudio", "cpal"]`).
+    /// Returns the list of available backend names (e.g. `["null", "cpal"]`).
     /// Use one of these with `AudioBackend::new()` and for `EngineConfig::backend` (or use `"auto"` for config).
     pub fn list_names() -> Vec<String> {
         #[cfg(feature = "backend-cpal")]
         {
-            vec![
-                "null".to_string(),
-                "miniaudio".to_string(),
-                "cpal".to_string(),
-            ]
+            vec!["null".to_string(), "cpal".to_string()]
         }
         #[cfg(not(feature = "backend-cpal"))]
         {
-            vec!["null".to_string(), "miniaudio".to_string()]
+            vec!["null".to_string()]
         }
     }
 
@@ -93,7 +76,9 @@ mod tests {
         let names = AudioBackend::list_names();
         assert!(!names.is_empty());
         assert!(names.contains(&"null".to_string()));
-        assert!(names.contains(&"miniaudio".to_string()));
+        #[cfg(feature = "backend-cpal")]
+        assert!(names.contains(&"cpal".to_string()));
+        assert!(!names.iter().any(|name| name == "miniaudio"));
     }
 
     #[test]
