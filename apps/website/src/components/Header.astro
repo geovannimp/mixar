@@ -11,7 +11,7 @@ const { currentPage = "home" } = Astro.props;
 <header class="site-header">
   <nav class="nav" aria-label="Primary">
     <a class="nav-brand" href="/">
-      <img src="/mixar-logo.png" alt="Mixar" width="120" height="28" />
+      <img class="logo-wordmark logo-wordmark--nav" src="/mixar-logo.png" alt="Mixar" width="120" height="28" />
     </a>
     <div class="nav-end">
       <div class="nav-links">
@@ -38,14 +38,3 @@ const { currentPage = "home" } = Astro.props;
     </div>
   </nav>
 </header>
-
-<style>
-  .nav-brand img {
-    height: 1.75rem;
-    width: auto;
-  }
-
-  [data-theme="light"] .nav-brand img {
-    filter: invert(1);
-  }
-</style>

@@ -400,13 +400,26 @@ a {
   white-space: pre;
 }
 
-.footer-brand img {
-  height: 1.25rem;
+.nav-brand img {
+  height: 1.75rem;
   width: auto;
 }
 
-[data-theme="light"] .footer-brand img {
-  filter: invert(1);
+.logo-wordmark {
+  width: auto;
+  filter: brightness(0);
+}
+
+[data-theme="dark"] .logo-wordmark {
+  filter: brightness(0) invert(1);
+}
+
+.logo-wordmark--nav {
+  height: 1.75rem;
+}
+
+.logo-wordmark--footer {
+  height: 1.25rem;
 }
 
 .site-footer {
