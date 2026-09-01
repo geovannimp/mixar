@@ -17,7 +17,8 @@ void main() {
   test('absolute mode shares hue on circle of fifths wedge', () {
     final cMajor = colorForKey('C', KeyColorMode.absolute)!;
     final aMinor = colorForKey('Am', KeyColorMode.absolute)!;
-    expect(cMajor, equals(aMinor));
+    expect(cMajor, isNot(equals(aMinor)));
+    expect(_hueDistance(cMajor, aMinor), closeTo(0, 1));
 
     final gMajor = colorForKey('G', KeyColorMode.absolute)!;
     expect(_hueDistance(cMajor, gMajor), closeTo(30, 1));

@@ -55,7 +55,7 @@ class SettingsLibraryPanel extends StatelessWidget {
     (
       KeyColorModeSetting.absolute,
       'Absolute (circle of fifths)',
-      'Fixed color per key on the wheel — adjacent keys share similar hues (e.g. 8B/8A both coral).',
+      'Fixed color per key on the wheel — majors vivid, minors muted (e.g. 8B bright, 8A softer).',
     ),
     (
       KeyColorModeSetting.harmonic,

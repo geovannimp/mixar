@@ -161,7 +161,7 @@ Color? colorForKey(
   }
   return switch (mode) {
     KeyColorMode.off => null,
-    KeyColorMode.absolute => _absoluteKeyColor(slot.$1),
+    KeyColorMode.absolute => _absoluteKeyColor(slot.$1, slot.$2),
     KeyColorMode.harmonic => _harmonicKeyColor(
       harmonicMatchForKeys(trimmed, harmonicReferenceKey),
     ),
@@ -173,9 +173,13 @@ double absoluteHueForCamelotNumber(int number) {
   return ((number - 8) * 30) % 360;
 }
 
-Color _absoluteKeyColor(int number) {
-  return HSLColor.fromAHSL(1, absoluteHueForCamelotNumber(number), 0.78, 0.50)
-      .toColor();
+Color _absoluteKeyColor(int number, bool minor) {
+  final hue = absoluteHueForCamelotNumber(number);
+  if (minor) {
+    // A (minor): same wedge hue, muted / less saturated than B (major).
+    return HSLColor.fromAHSL(1, hue, 0.48, 0.44).toColor();
+  }
+  return HSLColor.fromAHSL(1, hue, 0.78, 0.52).toColor();
 }
 
 Color? _harmonicKeyColor(HarmonicMatch match) {
