@@ -348,20 +348,19 @@ impl LibraryTransport {
         match collection.collection_type() {
             CollectionType::Playlist => {
                 let rows = lib
-                    .list_playlist_entries(&collection_id)
+                    .playlist_entries_with_sources(&collection_id)
                     .map_err(|e| e.to_string())?;
                 Ok(rows
-                    .iter()
-                    .filter_map(|row| {
-                        lib.get_track(&row.track_id)
-                            .ok()
-                            .flatten()
-                            .and_then(|source| {
-                                track_summary(&source, false).map(|summary| LibraryTrackSummary {
-                                    entry_id: Some(row.id.as_str().to_string()),
-                                    ..summary
-                                })
+                    .into_iter()
+                    .filter_map(|(row, source)| {
+                        if let Some(source) = source {
+                            track_summary(&source, false).map(|summary| LibraryTrackSummary {
+                                entry_id: Some(row.id.as_str().to_string()),
+                                ..summary
                             })
+                        } else {
+                            Some(missing_track_summary(&row))
+                        }
                     })
                     .collect())
             }
@@ -1148,6 +1147,24 @@ fn collection_summary(
             .map(|path| path.to_string_lossy().into_owned()),
         track_count,
     })
+}
+
+fn missing_track_summary(entry: &library_core::CollectionEntry) -> LibraryTrackSummary {
+    LibraryTrackSummary {
+        entry_id: Some(entry.id.as_str().to_string()),
+        id: entry.track_id.as_str().to_string(),
+        display_name: "(missing track)".to_string(),
+        artist: None,
+        title: None,
+        album: None,
+        genre: None,
+        bpm: None,
+        key: None,
+        duration_ms: None,
+        path: String::new(),
+        isrc: None,
+        artwork: None,
+    }
 }
 
 fn track_summary(source: &AudioSource, include_artwork: bool) -> Option<LibraryTrackSummary> {

@@ -778,6 +778,23 @@ impl LibraryManager {
         Ok(c)
     }
 
+    /// Playlist rows in order with resolved sources (`None` when the track row is missing).
+    pub fn playlist_entries_with_sources(
+        &self,
+        collection_id: &CollectionId,
+    ) -> Result<Vec<(CollectionEntry, Option<AudioSource>)>> {
+        let rows = self.list_playlist_entries(collection_id)?;
+        let ids: Vec<TrackId> = rows.iter().map(|row| row.track_id.clone()).collect();
+        let by_id = self.store().get_tracks_by_ids(&ids)?;
+        Ok(rows
+            .into_iter()
+            .map(|row| {
+                let source = by_id.get(row.track_id.as_str()).cloned();
+                (row, source)
+            })
+            .collect())
+    }
+
     fn sync_one_collection(&mut self, collection: &Collection) -> Result<ScanReport> {
         match collection.collection_type() {
             CollectionType::Folder => self.sync_folder(collection),
@@ -1174,13 +1191,12 @@ impl Library for LibraryManager {
             }
             CollectionType::Playlist => {
                 let rows = self.list_playlist_entries(collection_id)?;
-                let mut sources = Vec::with_capacity(rows.len());
-                for row in rows {
-                    if let Some(source) = self.get_track(&row.track_id)? {
-                        sources.push(source);
-                    }
-                }
-                Ok(sources)
+                let ids: Vec<TrackId> = rows.iter().map(|row| row.track_id.clone()).collect();
+                let by_id = self.store().get_tracks_by_ids(&ids)?;
+                Ok(rows
+                    .into_iter()
+                    .filter_map(|row| by_id.get(row.track_id.as_str()).cloned())
+                    .collect())
             }
         }
     }
@@ -1747,6 +1763,26 @@ mod tests {
 
         lib.remove_collection_entry(&pl.id, &ta_row.id).unwrap();
         assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn playlist_entries_with_sources_reports_missing_track() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
+        let pl = lib
+            .add_collection(&NewCollection::playlist("Set", true))
+            .unwrap();
+        lib.add_collection_entry(&pl.id, track.id(), None).unwrap();
+        lib.store().delete_track_row_only(track.id()).unwrap();
+
+        let rows = lib.playlist_entries_with_sources(&pl.id).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].1.is_none());
+        assert_eq!(lib.get_collection_tracks(&pl.id).unwrap().len(), 0);
     }
 
     #[test]
