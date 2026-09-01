@@ -60,8 +60,13 @@ fn run_loop(
         }
         if last_tick.elapsed() >= TICK_INTERVAL {
             last_tick = Instant::now();
-            if let Ok(mut lib) = library.lock() {
-                let _ = lib.history_tick();
+            match library.lock() {
+                Ok(mut lib) => {
+                    if let Err(err) = lib.history_tick() {
+                        eprintln!("history worker: history_tick failed: {err}");
+                    }
+                }
+                Err(_) => eprintln!("history worker: library lock poisoned"),
             }
         }
     }
@@ -69,6 +74,7 @@ fn run_loop(
 
 fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
     let Ok(mut lib) = library.lock() else {
+        eprintln!("history worker: library lock poisoned");
         return;
     };
     match body {
@@ -87,7 +93,7 @@ fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
             duration_ms,
             ..
         } => {
-            let _ = lib.history_on_deck_updated(
+            if let Err(err) = lib.history_on_deck_updated(
                 *id as usize,
                 DeckPlaySnapshot {
                     playing: *playing,
@@ -102,12 +108,19 @@ fn apply_evt(library: &Arc<Mutex<LibraryManager>>, body: &EvtBody) {
                     key: key.clone(),
                     duration_ms: *duration_ms,
                 },
-            );
+            ) {
+                eprintln!("history worker: history_on_deck_updated failed: {err}");
+            }
         }
         EvtBody::EngineStatus { status } => {
-            let _ = lib.history_on_crossfader(status.crossfader);
+            if let Err(err) = lib.history_on_crossfader(status.crossfader) {
+                eprintln!("history worker: history_on_crossfader failed: {err}");
+            }
             for deck in &status.decks {
-                let _ = lib.history_on_deck_updated(deck.id as usize, deck_snapshot(deck));
+                if let Err(err) = lib.history_on_deck_updated(deck.id as usize, deck_snapshot(deck))
+                {
+                    eprintln!("history worker: history_on_deck_updated failed: {err}");
+                }
             }
         }
         _ => {}
