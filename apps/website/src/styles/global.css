@@ -400,11 +400,6 @@ a {
   white-space: pre;
 }
 
-.nav-brand img {
-  height: 1.75rem;
-  width: auto;
-}
-
 .logo-wordmark {
   width: auto;
   filter: brightness(0);
