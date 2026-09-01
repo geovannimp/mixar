@@ -1,0 +1,66 @@
+---
+interface Props {
+  chart: string;
+}
+
+const { chart } = Astro.props;
+const chartId = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<div class="mermaid-diagram" data-chart={chart} data-chart-id={chartId}></div>
+
+<script>
+  import mermaid from "mermaid";
+
+  function theme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "neutral";
+  }
+
+  async function renderDiagrams() {
+    const nodes = document.querySelectorAll<HTMLElement>(".mermaid-diagram:not([data-rendered])");
+    if (nodes.length === 0) return;
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme(),
+      securityLevel: "strict",
+      fontFamily: '"DM Sans", system-ui, sans-serif',
+    });
+
+    for (const node of nodes) {
+      const chart = node.dataset.chart;
+      const id = node.dataset.chartId;
+      if (!chart || !id) continue;
+
+      const { svg } = await mermaid.render(id, chart);
+      node.innerHTML = svg;
+      node.dataset.rendered = "true";
+    }
+  }
+
+  renderDiagrams();
+
+  document.getElementById("theme-toggle")?.addEventListener("click", () => {
+    document.querySelectorAll(".mermaid-diagram[data-rendered]").forEach((node) => {
+      node.innerHTML = "";
+      delete (node as HTMLElement).dataset.rendered;
+    });
+    requestAnimationFrame(() => {
+      renderDiagrams();
+    });
+  });
+</script>
+
+<style>
+  .mermaid-diagram {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+  }
+
+  .mermaid-diagram :global(svg) {
+    max-width: 100%;
+    height: auto;
+  }
+</style>

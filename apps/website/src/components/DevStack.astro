@@ -8,26 +8,25 @@
       <div class="feature-icon accent" aria-hidden="true">Rs</div>
       <h3>Rust engine</h3>
       <p>
-        <code>engine-core</code>, <code>engine-dsp</code>, CPAL/miniaudio backends, library, codecs,
-        and analyzer crates.
+        Real-time audio, mixing, library I/O, and analysis. Rust gives predictable performance and
+        memory safety on the audio path.
       </p>
     </article>
     <article class="feature-card">
       <div class="feature-icon accent" aria-hidden="true">Fl</div>
       <h3>Flutter UI</h3>
-      <p>Desktop host in <code>apps/gui-flutter</code>, bridged to Rust via flutter_rust_bridge.</p>
+      <p>
+        Cross-platform decks, waveforms, and mixer chrome. Flutter keeps one UI codebase for desktop
+        and mobile targets.
+      </p>
     </article>
     <article class="feature-card">
-      <div class="feature-icon accent" aria-hidden="true">{}</div>
-      <h3>MessagePack buses</h3>
-      <p>Engine, library, and controller I/O over typed transports, not direct UI-thread engine calls.</p>
+      <div class="feature-icon accent" aria-hidden="true">⇄</div>
+      <h3>Async buses</h3>
+      <p>
+        The UI talks to the engine, library, and controllers through async message buses instead of
+        calling engine code on the UI thread.
+      </p>
     </article>
   </div>
 </section>
-
-<style>
-  .feature-card code {
-    font-family: ui-monospace, "Cascadia Code", "SF Mono", monospace;
-    font-size: 0.85em;
-  }
-</style>

@@ -1,5 +1,12 @@
 ---
 import { TECH_SPEC_URL } from "../consts";
+import MermaidDiagram from "./MermaidDiagram.astro";
+
+const chart = `flowchart TB
+  lib["Library / AudioSource"] -->|load PCM| eng["Engine: decks + mixer"]
+  eng --> prod["Producer thread"]
+  prod --> ring["Ring buffer"]
+  ring --> cb["Audio callback"]`;
 ---
 
 <section class="section architecture">
@@ -9,13 +16,7 @@ import { TECH_SPEC_URL } from "../consts";
       A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The
       audio callback only consumes. No allocations on the real-time thread.
     </p>
-    <pre class="code-block" aria-label="Audio pipeline diagram"><code>Library / AudioSource
-        │ load → PCM
-        ▼
-   Engine → decks + mixer (engine-dsp)
-        │
-        ▼
-Producer thread ──► ring buffer ──► audio callback</code></pre>
+    <MermaidDiagram chart={chart} />
     <p class="arch-link">
       <a href={TECH_SPEC_URL} target="_blank" rel="noopener noreferrer">Read the full tech spec on GitHub</a>
     </p>

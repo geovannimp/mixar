@@ -1,0 +1,34 @@
+---
+import { README_URL, CONTRIBUTING_URL } from "../consts";
+---
+
+<section class="section dev-docs">
+  <div class="cta-panel">
+    <h2>Get involved</h2>
+    <p>
+      Setup, prerequisites, and local development are in the repository README. Contribution
+      expectations and how to open pull requests are on GitHub too.
+    </p>
+    <div class="dev-docs-actions">
+      <a class="btn btn-primary" href={README_URL} target="_blank" rel="noopener noreferrer">
+        README
+      </a>
+      <a class="btn btn-secondary" href={CONTRIBUTING_URL} target="_blank" rel="noopener noreferrer">
+        Contributing
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .dev-docs {
+    padding-bottom: 6rem;
+  }
+
+  .dev-docs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+</style>
