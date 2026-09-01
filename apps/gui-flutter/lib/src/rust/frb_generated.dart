@@ -9,11 +9,14 @@ import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
 import 'api/settings.dart';
+
 import 'dart:async';
 import 'dart:convert';
+
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
+
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -71,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 1020021207;
+  int get rustContentHash => 2046261363;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -649,6 +652,8 @@ abstract class RustLibApi extends BaseApi {
   Future<BusChannelMode> crateApiSettingsBusChannelModeDefault();
 
   Future<void> crateApiMetaInitApp();
+
+  Future<KeyColorModeSetting> crateApiSettingsKeyColorModeSettingDefault();
 
   Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault();
 
@@ -4879,7 +4884,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault() {
+  Future<KeyColorModeSetting> crateApiSettingsKeyColorModeSettingDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -4888,6 +4893,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 107,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_key_color_mode_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsKeyColorModeSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsKeyColorModeSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "key_color_mode_setting_default",
+        argNames: [],
+      );
+
+  @override
+  Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 108,
             port: port_,
           );
         },
@@ -4917,7 +4952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 108,
+            funcId: 109,
             port: port_,
           );
         },
@@ -4944,7 +4979,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 109,
+            funcId: 110,
             port: port_,
           );
         },
@@ -5284,8 +5319,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 29)
-      throw Exception('unexpected arr length: expect 29 but see ${arr.length}');
+    if (arr.length != 30)
+      throw Exception('unexpected arr length: expect 30 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5309,13 +5344,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultKeyLock: dco_decode_bool(arr[19]),
       waveformDisplayMode: dco_decode_waveform_display_mode_setting(arr[20]),
       keyDisplayMode: dco_decode_key_display_mode_setting(arr[21]),
-      trustedControllerDeviceIds: dco_decode_list_String(arr[22]),
-      historyEnabled: dco_decode_bool(arr[23]),
-      historySessionIdleMinutes: dco_decode_u_32(arr[24]),
-      historyMinPlaySeconds: dco_decode_u_32(arr[25]),
-      historyMinDeckVolume: dco_decode_f_32(arr[26]),
-      showTooltips: dco_decode_bool(arr[27]),
-      dimPlayedTracks: dco_decode_bool(arr[28]),
+      keyColorMode: dco_decode_key_color_mode_setting(arr[22]),
+      trustedControllerDeviceIds: dco_decode_list_String(arr[23]),
+      historyEnabled: dco_decode_bool(arr[24]),
+      historySessionIdleMinutes: dco_decode_u_32(arr[25]),
+      historyMinPlaySeconds: dco_decode_u_32(arr[26]),
+      historyMinDeckVolume: dco_decode_f_32(arr[27]),
+      showTooltips: dco_decode_bool(arr[28]),
+      dimPlayedTracks: dco_decode_bool(arr[29]),
     );
   }
 
@@ -5739,6 +5775,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   JogModeSetting dco_decode_jog_mode_setting(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return JogModeSetting.values[raw as int];
+  }
+
+  @protected
+  KeyColorModeSetting dco_decode_key_color_mode_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return KeyColorModeSetting.values[raw as int];
   }
 
   @protected
@@ -6602,6 +6644,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_keyDisplayMode = sse_decode_key_display_mode_setting(deserializer);
+    var var_keyColorMode = sse_decode_key_color_mode_setting(deserializer);
     var var_trustedControllerDeviceIds = sse_decode_list_String(deserializer);
     var var_historyEnabled = sse_decode_bool(deserializer);
     var var_historySessionIdleMinutes = sse_decode_u_32(deserializer);
@@ -6632,6 +6675,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       defaultKeyLock: var_defaultKeyLock,
       waveformDisplayMode: var_waveformDisplayMode,
       keyDisplayMode: var_keyDisplayMode,
+      keyColorMode: var_keyColorMode,
       trustedControllerDeviceIds: var_trustedControllerDeviceIds,
       historyEnabled: var_historyEnabled,
       historySessionIdleMinutes: var_historySessionIdleMinutes,
@@ -7154,6 +7198,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return JogModeSetting.values[inner];
+  }
+
+  @protected
+  KeyColorModeSetting sse_decode_key_color_mode_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return KeyColorModeSetting.values[inner];
   }
 
   @protected
@@ -8323,6 +8376,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       serializer,
     );
     sse_encode_key_display_mode_setting(self.keyDisplayMode, serializer);
+    sse_encode_key_color_mode_setting(self.keyColorMode, serializer);
     sse_encode_list_String(self.trustedControllerDeviceIds, serializer);
     sse_encode_bool(self.historyEnabled, serializer);
     sse_encode_u_32(self.historySessionIdleMinutes, serializer);
@@ -8742,6 +8796,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_jog_mode_setting(
     JogModeSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_key_color_mode_setting(
+    KeyColorModeSetting self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs

@@ -18,6 +18,14 @@ KeyDisplayMode keyModeFromSettings(KeyDisplayModeSetting mode) {
   };
 }
 
+KeyColorMode keyColorModeFromSettings(KeyColorModeSetting mode) {
+  return switch (mode) {
+    KeyColorModeSetting.off => KeyColorMode.off,
+    KeyColorModeSetting.absolute => KeyColorMode.absolute,
+    KeyColorModeSetting.harmonic => KeyColorMode.harmonic,
+  };
+}
+
 const kDefaultBackend = 'cpal';
 const kDefaultSampleRate = 48000;
 const kDefaultBufferSize = 512;
@@ -77,6 +85,7 @@ AppSettings defaultAppSettings() {
     defaultKeyLock: false,
     waveformDisplayMode: WaveformDisplayModeSetting.rgb,
     keyDisplayMode: KeyDisplayModeSetting.musical,
+    keyColorMode: KeyColorModeSetting.off,
     trustedControllerDeviceIds: const [],
     historyEnabled: true,
     historySessionIdleMinutes: 5,
@@ -150,6 +159,7 @@ AppSettings copyAppSettings(
   bool? defaultKeyLock,
   WaveformDisplayModeSetting? waveformDisplayMode,
   KeyDisplayModeSetting? keyDisplayMode,
+  KeyColorModeSetting? keyColorMode,
   List<String>? trustedControllerDeviceIds,
   bool? historyEnabled,
   int? historySessionIdleMinutes,
@@ -183,6 +193,7 @@ AppSettings copyAppSettings(
     defaultKeyLock: defaultKeyLock ?? base.defaultKeyLock,
     waveformDisplayMode: waveformDisplayMode ?? base.waveformDisplayMode,
     keyDisplayMode: keyDisplayMode ?? base.keyDisplayMode,
+    keyColorMode: keyColorMode ?? base.keyColorMode,
     trustedControllerDeviceIds:
         trustedControllerDeviceIds ?? base.trustedControllerDeviceIds,
     historyEnabled: historyEnabled ?? base.historyEnabled,
@@ -220,6 +231,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.defaultKeyLock != baseline.defaultKeyLock ||
       draft.waveformDisplayMode != baseline.waveformDisplayMode ||
       draft.keyDisplayMode != baseline.keyDisplayMode ||
+      draft.keyColorMode != baseline.keyColorMode ||
       draft.historyEnabled != baseline.historyEnabled ||
       draft.historySessionIdleMinutes != baseline.historySessionIdleMinutes ||
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||

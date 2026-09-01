@@ -87,6 +87,21 @@ class SettingsLibraryPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         SettingsField(
+          label: 'Key color mode',
+          child: SettingsSelect(
+            value: draft.keyColorMode,
+            options: KeyColorModeSetting.values,
+            labelBuilder: (m) => switch (m) {
+              KeyColorModeSetting.off => 'Off',
+              KeyColorModeSetting.absolute => 'Absolute (per key)',
+              KeyColorModeSetting.harmonic => 'Harmonic (circle of fifths)',
+            },
+            onChanged: (m) =>
+                onChanged(copyAppSettings(draft, keyColorMode: m)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        SettingsField(
           label: 'Track table columns',
           child: DecoratedBox(
             decoration: BoxDecoration(
