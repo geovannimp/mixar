@@ -19,7 +19,7 @@ pub use audio_core::{LoadableAudio, LoadedAudio};
 pub use audio_extensions::{
     is_supported_audio_extension, is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
 };
-pub use error::{LibraryError, Result};
+pub use error::{path_label, LibraryError, Result};
 pub use key_format::{
     camelot_code_to_musical, camelot_to_musical, format_key, musical_to_camelot, KeyDisplayMode,
     MAJOR_KEYS, MINOR_KEYS,

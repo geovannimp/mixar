@@ -43,10 +43,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    is_supported_audio_extension, is_supported_audio_path, AnalyzeTrackOptions, AudioSource,
-    Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry, CollectionEntryId,
-    CollectionId, CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError,
-    LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
+    is_supported_audio_extension, is_supported_audio_path, path_label, AnalyzeTrackOptions,
+    AudioSource, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
+    CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library, LibraryConfig,
+    LibraryError, LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
     StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
@@ -796,7 +796,7 @@ impl LibraryManager {
             report.failed += 1;
             report
                 .errors
-                .push(format!("root not found: {}", fs_path.display()));
+                .push(format!("root not found: {}", path_label(fs_path)));
             return Ok(report);
         }
 
@@ -817,7 +817,7 @@ impl LibraryManager {
                 Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
                 Err(err) => {
                     report.failed += 1;
-                    report.errors.push(format!("{}: {err}", file.display()));
+                    report.errors.push(format!("{}: {err}", path_label(&file)));
                 }
             }
         }
@@ -843,7 +843,7 @@ impl LibraryManager {
                     report.failed += 1;
                     report
                         .errors
-                        .push(format!("{}: {err}", file.path().display()));
+                        .push(format!("{}: {err}", path_label(file.path())));
                 }
             }
         }
@@ -863,7 +863,7 @@ impl LibraryManager {
         };
         let path = normalize_path(path)?;
         if !path.is_dir() {
-            return Err(LibraryError::NotADirectory(path));
+            return Err(LibraryError::NotADirectory(path_label(&path)));
         }
 
         let id = Self::folder_id_for(&path);
@@ -1042,10 +1042,10 @@ impl LibraryManager {
     fn refresh_file_source_with_outcome(&self, path: &Path) -> Result<(AudioSource, bool)> {
         let path = normalize_path(path)?;
         if !path.is_file() {
-            return Err(LibraryError::PathNotFound(path));
+            return Err(LibraryError::PathNotFound(path_label(&path)));
         }
         if !is_audio_file(&path) {
-            return Err(LibraryError::UnsupportedFile(path));
+            return Err(LibraryError::UnsupportedFile(path_label(&path)));
         }
         let id = Self::track_id_for(&path);
         let existed = self.store().track_exists(&id)?;
@@ -1103,10 +1103,10 @@ fn compute_file_analysis(
 ) -> Result<ComputedFileAnalysis> {
     let path = normalize_path(path)?;
     if !path.is_file() {
-        return Err(LibraryError::PathNotFound(path));
+        return Err(LibraryError::PathNotFound(path_label(&path)));
     }
     if !is_audio_file(&path) {
-        return Err(LibraryError::UnsupportedFile(path));
+        return Err(LibraryError::UnsupportedFile(path_label(&path)));
     }
 
     let mut config = AnalysisConfig::default();

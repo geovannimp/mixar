@@ -1,6 +1,14 @@
 //! Error types for library backends.
 
-use std::path::PathBuf;
+use std::path::Path;
+
+/// Basename for user-facing path errors (avoids leaking full filesystem paths).
+pub fn path_label(path: &Path) -> String {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_string)
+        .unwrap_or_else(|| "(unknown)".to_string())
+}
 
 /// Errors returned by library backends.
 #[derive(Debug, thiserror::Error)]
@@ -11,15 +19,15 @@ pub enum LibraryError {
 
     /// Path does not exist or is not accessible.
     #[error("path not found: {0}")]
-    PathNotFound(PathBuf),
+    PathNotFound(String),
 
     /// Path is not a supported audio file.
     #[error("unsupported audio file: {0}")]
-    UnsupportedFile(PathBuf),
+    UnsupportedFile(String),
 
     /// Path is not a directory (expected for folder collections).
     #[error("not a directory: {0}")]
-    NotADirectory(PathBuf),
+    NotADirectory(String),
 
     /// Operation requires a different collection type.
     #[error("expected {expected} collection, got {got}")]
@@ -50,3 +58,20 @@ pub enum LibraryError {
 
 /// Result alias for library operations.
 pub type Result<T> = std::result::Result<T, LibraryError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn path_label_uses_basename_only() {
+        let path = Path::new("/home/user/Music/secret/track.flac");
+        assert_eq!(path_label(path), "track.flac");
+    }
+
+    #[test]
+    fn path_label_unknown_when_no_file_name() {
+        assert_eq!(path_label(Path::new("/")), "(unknown)");
+    }
+}
