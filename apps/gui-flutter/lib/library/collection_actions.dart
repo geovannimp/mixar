@@ -42,7 +42,10 @@ Future<LibraryCollectionSummary?> createCollection(
   }
 }
 
-void selectCreatedCollection(WidgetRef ref, LibraryCollectionSummary collection) {
+void selectCreatedCollection(
+  WidgetRef ref,
+  LibraryCollectionSummary collection,
+) {
   ref.read(selectedCollectionIdProvider.notifier).set(collection.id);
   ref.read(librarySourceTabProvider.notifier).set(LibrarySourceTab.collections);
 }

@@ -256,7 +256,10 @@ final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
   // Prefer the visible table, then other in-memory lists, then a tab-stable
   // getTrack fetch — libraryTableTracksProvider is empty on History and may
   // omit the loaded track on Drive.
-  return libraryTrackById(ref.watch(libraryTableTracksProvider).asData?.value, id) ??
+  return libraryTrackById(
+        ref.watch(libraryTableTracksProvider).asData?.value,
+        id,
+      ) ??
       libraryTrackById(ref.watch(collectionTracksProvider).asData?.value, id) ??
       libraryTrackById(
         ref.watch(driveResolvedByPathProvider).asData?.value?.values,

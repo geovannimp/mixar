@@ -7,5 +7,6 @@ class HistoryRefreshTick extends Notifier<int> {
   void bump() => state++;
 }
 
-final historyRefreshTickProvider =
-    NotifierProvider<HistoryRefreshTick, int>(HistoryRefreshTick.new);
+final historyRefreshTickProvider = NotifierProvider<HistoryRefreshTick, int>(
+  HistoryRefreshTick.new,
+);

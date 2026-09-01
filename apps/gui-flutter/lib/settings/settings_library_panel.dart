@@ -140,9 +140,8 @@ class SettingsLibraryPanel extends StatelessWidget {
         SettingsToggle(
           label: 'Dim played tracks',
           value: draft.dimPlayedTracks,
-          onChanged: (enabled) => onChanged(
-            copyAppSettings(draft, dimPlayedTracks: enabled),
-          ),
+          onChanged: (enabled) =>
+              onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
         ),
         SettingsField(
           label: 'Track table columns',

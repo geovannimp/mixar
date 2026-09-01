@@ -106,9 +106,7 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
   Widget build(BuildContext context) {
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final libraryReady = ref.watch(libraryTransportProvider).hasValue;
-    final grid = trackId == null
-        ? null
-        : ref.watch(beatGridProvider(trackId));
+    final grid = trackId == null ? null : ref.watch(beatGridProvider(trackId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
 
     ref.listen(deckTrackIdProvider(widget.deckId), (prev, next) {
@@ -134,8 +132,7 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
     final displayBpm = _pendingTrackId == trackId
         ? (_pendingBpm ?? grid?.bpm)
         : grid?.bpm;
-    final panelDisabled =
-        widget.disabled || trackId == null || !libraryReady;
+    final panelDisabled = widget.disabled || trackId == null || !libraryReady;
 
     return DeckGridPanel(
       bpm: displayBpm,

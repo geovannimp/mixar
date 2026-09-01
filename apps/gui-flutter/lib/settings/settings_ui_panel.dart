@@ -32,9 +32,8 @@ class SettingsUiPanel extends StatelessWidget {
               SettingsToggle(
                 label: 'Show tooltips',
                 value: draft.showTooltips,
-                onChanged: (enabled) => onChanged(
-                  copyAppSettings(draft, showTooltips: enabled),
-                ),
+                onChanged: (enabled) =>
+                    onChanged(copyAppSettings(draft, showTooltips: enabled)),
               ),
             ],
           ),

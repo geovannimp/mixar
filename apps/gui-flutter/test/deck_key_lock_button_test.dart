@@ -21,9 +21,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          appSettingsProvider.overrideWith(
-            (ref) async => defaultAppSettings(),
-          ),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),

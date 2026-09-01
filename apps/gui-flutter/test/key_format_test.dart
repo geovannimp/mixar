@@ -34,10 +34,7 @@ void main() {
   test('harmonic mode matches Rekordbox-style playing-deck reference', () {
     const ref = '2A';
 
-    expect(
-      harmonicMatchForKeys('2A', ref),
-      HarmonicMatch.perfect,
-    );
+    expect(harmonicMatchForKeys('2A', ref), HarmonicMatch.perfect);
     expect(harmonicMatchForKeys('2B', ref), HarmonicMatch.perfect);
     expect(harmonicMatchForKeys('1A', ref), HarmonicMatch.perfect);
     expect(harmonicMatchForKeys('3A', ref), HarmonicMatch.perfect);
@@ -57,10 +54,7 @@ void main() {
       colorForKey('5A', KeyColorMode.harmonic, harmonicReferenceKey: ref),
       isNull,
     );
-    expect(
-      colorForKey('2A', KeyColorMode.harmonic),
-      isNull,
-    );
+    expect(colorForKey('2A', KeyColorMode.harmonic), isNull);
   });
 }
 

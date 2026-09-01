@@ -147,9 +147,7 @@ void _paintCueFlag(
 }) {
   // Strip pictures are authored at kWaveformStripHeight then scaled down to the
   // lane; size for post-scale readability without dominating the waveform.
-  final flagH = laneHeight >= 64
-      ? 24.0
-      : (laneHeight * 0.5).clamp(12.0, 16.0);
+  final flagH = laneHeight >= 64 ? 24.0 : (laneHeight * 0.5).clamp(12.0, 16.0);
   final flagW = flagH * 1.15;
   final fontSize = flagH * 0.58;
   final left = (x - flagW / 2).clamp(0.0, double.infinity);

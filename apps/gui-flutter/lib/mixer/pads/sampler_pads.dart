@@ -20,11 +20,7 @@ class SamplerSlot {
 }
 
 class SamplerBank {
-  const SamplerBank({
-    required this.id,
-    required this.name,
-    this.playMode,
-  });
+  const SamplerBank({required this.id, required this.name, this.playMode});
 
   final String id;
   final String name;
@@ -130,8 +126,9 @@ class SamplerPads extends StatelessWidget {
                                     color: theme.colors.border,
                                   ),
                                   borderRadius: BorderRadius.circular(4),
-                                  color: theme.colors.secondary
-                                      .withValues(alpha: 0.5),
+                                  color: theme.colors.secondary.withValues(
+                                    alpha: 0.5,
+                                  ),
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
@@ -170,9 +167,7 @@ class SamplerPads extends StatelessWidget {
           ],
         ),
       ),
-      children: [
-        for (var slot = 0; slot < 8; slot++) _slotPad(theme, slot),
-      ],
+      children: [for (var slot = 0; slot < 8; slot++) _slotPad(theme, slot)],
     );
   }
 
@@ -276,10 +271,7 @@ class SamplerPads extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Play mode',
-                        style: theme.typography.body.sm,
-                      ),
+                      Text('Play mode', style: theme.typography.body.sm),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
@@ -287,9 +279,7 @@ class SamplerPads extends StatelessWidget {
                         children: [
                           for (final opt in kSamplerPlayModeOptions)
                             FButton(
-                              variant: modeValue == opt
-                                  ? .primary
-                                  : .secondary,
+                              variant: modeValue == opt ? .primary : .secondary,
                               onPress: () => setLocal(() => modeValue = opt),
                               child: Text(opt),
                             ),

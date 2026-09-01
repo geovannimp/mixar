@@ -50,7 +50,9 @@ final activeHistorySessionIdProvider = Provider<String?>((ref) {
   return sessions.first.id;
 });
 
-final historyEntriesProvider = FutureProvider<List<HistoryEntryInfo>>((ref) async {
+final historyEntriesProvider = FutureProvider<List<HistoryEntryInfo>>((
+  ref,
+) async {
   final sessionId = ref.watch(activeHistorySessionIdProvider);
   if (sessionId == null) {
     return const [];
@@ -106,7 +108,9 @@ String normalizeHistoryLocation(String location) {
   return location;
 }
 
-SessionPlayedKeys sessionPlayedKeysFromEntries(Iterable<HistoryEntryInfo> entries) {
+SessionPlayedKeys sessionPlayedKeysFromEntries(
+  Iterable<HistoryEntryInfo> entries,
+) {
   final trackIds = <String>{};
   final paths = <String>{};
   for (final entry in entries) {
@@ -123,7 +127,9 @@ SessionPlayedKeys sessionPlayedKeysFromEntries(Iterable<HistoryEntryInfo> entrie
 }
 
 /// Keys for rows to dim when Settings → Library → Dim played tracks is on.
-final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((ref) async {
+final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((
+  ref,
+) async {
   final settings = ref.watch(appSettingsProvider).asData?.value;
   if (settings == null ||
       !settings.historyEnabled ||

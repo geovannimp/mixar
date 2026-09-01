@@ -21,7 +21,9 @@ class _HistoryRestoreBridgeState extends ConsumerState<HistoryRestoreBridge> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_maybePrompt()));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => unawaited(_maybePrompt()),
+    );
   }
 
   Future<void> _maybePrompt() async {

@@ -22,9 +22,7 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          appSettingsProvider.overrideWith((ref) async => settings),
-        ],
+        overrides: [appSettingsProvider.overrideWith((ref) async => settings)],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
           builder: (context, child) => MaterialUiCompatibilityBridge(
@@ -47,7 +45,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('wraps child in FTooltip when showTooltips is on', (tester) async {
+  testWidgets('wraps child in FTooltip when showTooltips is on', (
+    tester,
+  ) async {
     await pumpTip(tester, showTooltips: true);
     expect(find.byType(FTooltip), findsOneWidget);
     expect(find.text('child'), findsOneWidget);

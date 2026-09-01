@@ -38,9 +38,8 @@ class SettingsSessionPanel extends StatelessWidget {
               SettingsToggle(
                 label: 'Record performance history',
                 value: draft.historyEnabled,
-                onChanged: (enabled) => onChanged(
-                  copyAppSettings(draft, historyEnabled: enabled),
-                ),
+                onChanged: (enabled) =>
+                    onChanged(copyAppSettings(draft, historyEnabled: enabled)),
               ),
               const SizedBox(height: 0),
               Row(

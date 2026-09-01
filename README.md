@@ -38,7 +38,7 @@ Sample tracks live in `samples/`. Headless tests can use `backend = "null"` so t
 
 ## Development
 
-`npm install` at the repo root installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev). Pre-commit runs format and lint on staged files.
+`npm install` at the repo root installs [lefthook](https://lefthook.dev) and [moon](https://moonrepo.dev). Pre-commit runs format and lint on staged Rust (`.rs`) and Dart (`.dart`) files.
 
 ```bash
 npm run lint            # moon run :lint

@@ -59,6 +59,62 @@ tasks:
     options:
       runInCI: true
 
+  format-check:
+    command: "mise"
+    args:
+      [
+        "exec",
+        "--",
+        "dart",
+        "format",
+        "--set-exit-if-changed",
+        "lib",
+        "test",
+        "integration_test",
+      ]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+    options:
+      runInCI: true
+
+  # Pre-commit only (lefthook → moon --affected --status staged).
+  # Inputs are .dart-only so this task is skipped when no Dart sources are staged.
+  # `pass: false` runs full `dart format` on app sources whenever any `.dart` is staged
+  # (same scope as format-check; excludes vendored rust_builder).
+  format-files:
+    command: "mise"
+    args: ["exec", "--", "dart", "format", "lib", "test", "integration_test"]
+    toolchain: "system"
+    inputs:
+      - "**/*.dart"
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: false
+        filter:
+          - "**/*.dart"
+        passDotWhenNoResults: false
+
+  # Pre-commit only (lefthook → moon --affected --status staged).
+  # Same analyze as CI `analyze`. `pass: false` so flutter does not get file path args;
+  # `passDotWhenNoResults: false` skips when no `.dart` is staged.
+  lint-files:
+    command: "mise"
+    args: ["exec", "--", "flutter", "analyze"]
+    toolchain: "system"
+    inputs:
+      - "**/*.dart"
+    options:
+      cache: false
+      runInCI: false
+      affectedFiles:
+        pass: false
+        filter:
+          - "**/*.dart"
+        passDotWhenNoResults: false
+
   test:
     command: "mise"
     args: ["exec", "--", "flutter", "test"]

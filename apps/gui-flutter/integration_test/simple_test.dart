@@ -14,9 +14,7 @@ void main() {
   });
   testWidgets('shows shared app title from Rust', (WidgetTester tester) async {
     final title = appDisplayName();
-    await tester.pumpWidget(
-      ProviderScope(child: Application(appTitle: title)),
-    );
+    await tester.pumpWidget(ProviderScope(child: Application(appTitle: title)));
     expect(find.text(title), findsWidgets);
   });
 }

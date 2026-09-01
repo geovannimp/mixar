@@ -6,11 +6,7 @@ import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 
 class DeckHotCue {
-  const DeckHotCue({
-    required this.slot,
-    required this.positionMs,
-    this.label,
-  });
+  const DeckHotCue({required this.slot, required this.positionMs, this.label});
 
   final int slot;
   final int positionMs;
@@ -35,9 +31,7 @@ class HotCuePads extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return PadGrid(
-      children: [
-        for (var slot = 0; slot < 8; slot++) _pad(theme, slot),
-      ],
+      children: [for (var slot = 0; slot < 8; slot++) _pad(theme, slot)],
     );
   }
 

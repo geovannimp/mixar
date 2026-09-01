@@ -67,12 +67,12 @@ class LibraryPanel extends ConsumerWidget {
                         },
                         onChange: (index) {
                           ref.read(librarySourceTabProvider.notifier).set(
-                                switch (index) {
-                                  1 => LibrarySourceTab.drive,
-                                  2 => LibrarySourceTab.history,
-                                  _ => LibrarySourceTab.collections,
-                                },
-                              );
+                            switch (index) {
+                              1 => LibrarySourceTab.drive,
+                              2 => LibrarySourceTab.history,
+                              _ => LibrarySourceTab.collections,
+                            },
+                          );
                         },
                       ),
                       children: [
