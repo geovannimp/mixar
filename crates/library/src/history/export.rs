@@ -116,3 +116,86 @@ fn io_err(e: std::io::Error) -> LibraryError {
         message: e.to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn sample_document() -> HistoryDocument {
+        let mut doc = HistoryDocument::new_session("Test Set");
+        doc.entries.push(HistoryEntry {
+            id: "e1".into(),
+            deck: 1,
+            track_id: Some("t1".into()),
+            location: "file:///music/a.flac".into(),
+            title: Some("Rock & Roll".into()),
+            artist: Some("Artist <live>".into()),
+            album: Some("Album".into()),
+            duration_sec: Some(240),
+            bpm: Some(128.0),
+            key: Some("Am".into()),
+            isrc: Some("USXXX".into()),
+            started_at: "2026-08-27T14:31:05Z".into(),
+            ended_at: Some("2026-08-27T14:36:12Z".into()),
+            played_duration_ms: Some(307_000),
+        });
+        doc.entries.push(HistoryEntry {
+            id: "e2".into(),
+            deck: 2,
+            track_id: None,
+            location: "file:///music/b.mp3".into(),
+            title: Some("=HYPERLINK".into()),
+            artist: None,
+            album: None,
+            duration_sec: None,
+            bpm: None,
+            key: None,
+            isrc: None,
+            started_at: "2026-08-27T14:40:00Z".into(),
+            ended_at: None,
+            played_duration_ms: None,
+        });
+        doc
+    }
+
+    #[test]
+    fn export_csv_writes_header_and_escaped_rows() {
+        let doc = sample_document();
+        let body = render_csv(&doc);
+        assert!(body.starts_with(
+            "position,started_at,ended_at,played_duration_ms,deck,title,artist,album,bpm,key,isrc,file_path,track_id\n"
+        ));
+        assert!(body.contains("Rock & Roll"));
+        assert!(body.contains("Artist <live>"));
+        assert!(body.contains("'=HYPERLINK"));
+        assert!(body.contains("file:///music/a.flac"));
+    }
+
+    #[test]
+    fn export_m3u8_lists_tracks_with_extinf() {
+        let doc = sample_document();
+        let body = render_m3u8(&doc);
+        assert!(body.starts_with("#EXTM3U\n"));
+        assert!(body.contains("#EXTINF:240,Rock & Roll - Artist <live>\n"));
+        assert!(body.contains("file:///music/a.flac\n"));
+        assert!(body.contains("#EXTINF:-1,=HYPERLINK\n"));
+    }
+
+    #[test]
+    fn export_txt_numbered_titles() {
+        let doc = sample_document();
+        let body = render_txt(&doc);
+        assert_eq!(body, "1. Rock & Roll - Artist <live>\n2. =HYPERLINK\n");
+    }
+
+    #[test]
+    fn export_document_writes_file() {
+        let doc = sample_document();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("set.csv");
+        export_document(&doc, HistoryExportFormat::Csv, &path).unwrap();
+        let read = fs::read_to_string(&path).unwrap();
+        assert!(read.contains("Rock & Roll"));
+    }
+}
