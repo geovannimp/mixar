@@ -8,7 +8,7 @@ const iconProps = { size: 16, "stroke-width": 2 };
 const badgeIconProps = { size: 14, "stroke-width": 2 };
 ---
 
-<section class="mx-auto grid max-w-content gap-12 px-6 py-16 pb-20 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-10 lg:py-20 lg:pb-24">
+<section id="hero" class="mx-auto grid max-w-content gap-12 px-6 py-16 pb-20 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-10 lg:py-20 lg:pb-24">
   <div>
     <Badge variant="dev">
       <Construction {...badgeIconProps} aria-hidden="true" />
@@ -34,7 +34,7 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
   </div>
   <div class="relative overflow-visible lg:py-4">
     <div class="hero-screenshot-stage relative">
-      <div class="hero-screenshot-tilt relative max-lg:transform-none">
+      <div class="hero-screenshot-tilt relative">
         <div
           class="pointer-events-none absolute inset-[10%_5%_-5%] hidden bg-[radial-gradient(ellipse_at_center,rgba(45,212,191,0.18),transparent_70%)] dark:block"
           aria-hidden="true"
@@ -52,3 +52,9 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
     </div>
   </div>
 </section>
+
+<script>
+  import { initHeroMobileTilt } from "../scripts/hero-mobile-tilt";
+
+  initHeroMobileTilt();
+</script>

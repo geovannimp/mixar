@@ -103,6 +103,19 @@
   }
 }
 
+@media (max-width: 1023px) {
+  .hero-screenshot-stage {
+    perspective: 900px;
+    perspective-origin: 50% 55%;
+  }
+
+  .hero-screenshot-tilt {
+    transform: rotateY(-10deg) rotateX(12deg);
+    transform-origin: center center;
+    transform-style: preserve-3d;
+  }
+}
+
 @media (min-width: 1024px) {
   .hero-screenshot-stage {
     perspective: 1100px;
@@ -141,6 +154,12 @@
 
   50% {
     transform: rotateY(-14deg) rotateX(8deg) translate(6px, -10px);
+  }
+}
+
+@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
+  .hero-screenshot-tilt {
+    transform: none;
   }
 }
 
