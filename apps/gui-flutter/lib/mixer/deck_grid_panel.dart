@@ -263,12 +263,8 @@ class _BpmFieldState extends State<_BpmField> {
       return;
     }
     final step = shiftKeyPressed() ? kGridBpmCoarseStep : kGridBpmStep;
-    final base =
-        parseGridBpm(_controller.text) ?? widget.bpm ?? defaultGridBpm;
-    final next = stepGridBpm(
-      base,
-      event.scrollDelta.dy < 0 ? step : -step,
-    );
+    final base = parseGridBpm(_controller.text) ?? widget.bpm ?? defaultGridBpm;
+    final next = stepGridBpm(base, event.scrollDelta.dy < 0 ? step : -step);
     _controller.text = formatBpm(next);
     widget.onSubmit(next);
   }

@@ -11,25 +11,10 @@ void main() {
   });
 
   test('cycleSamplerBankIndex wraps and falls back to 0', () {
-    expect(
-      cycleSamplerBankIndex(activeIndex: 0, direction: 1, length: 2),
-      1,
-    );
-    expect(
-      cycleSamplerBankIndex(activeIndex: 1, direction: 1, length: 2),
-      0,
-    );
-    expect(
-      cycleSamplerBankIndex(activeIndex: 0, direction: -1, length: 2),
-      1,
-    );
-    expect(
-      cycleSamplerBankIndex(activeIndex: -1, direction: 1, length: 3),
-      1,
-    );
-    expect(
-      cycleSamplerBankIndex(activeIndex: 0, direction: 1, length: 0),
-      -1,
-    );
+    expect(cycleSamplerBankIndex(activeIndex: 0, direction: 1, length: 2), 1);
+    expect(cycleSamplerBankIndex(activeIndex: 1, direction: 1, length: 2), 0);
+    expect(cycleSamplerBankIndex(activeIndex: 0, direction: -1, length: 2), 1);
+    expect(cycleSamplerBankIndex(activeIndex: -1, direction: 1, length: 3), 1);
+    expect(cycleSamplerBankIndex(activeIndex: 0, direction: 1, length: 0), -1);
   });
 }

@@ -5,7 +5,8 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart' show defaultAppSettings;
+import 'package:gui_flutter/settings/settings_defaults.dart'
+    show defaultAppSettings;
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -30,9 +31,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          appSettingsProvider.overrideWith(
-            (ref) async => defaultAppSettings(),
-          ),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
@@ -74,10 +73,7 @@ void main() {
       syncMode: SyncMode.tempo,
     );
 
-    expect(
-      find.text(formatPitchPercent(0.25, 0.08)),
-      findsOneWidget,
-    );
+    expect(find.text(formatPitchPercent(0.25, 0.08)), findsOneWidget);
     expect(find.text(formatTempoRange(0.08)), findsOneWidget);
     expect(find.text('S'), findsOneWidget);
     expect(find.text('Set master'), findsOneWidget);

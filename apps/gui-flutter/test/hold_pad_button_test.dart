@@ -15,7 +15,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: Scaffold(
@@ -45,7 +46,9 @@ void main() {
       onEnd: () => ends++,
     );
 
-    final gesture = await tester.startGesture(tester.getCenter(find.text('pad')));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('pad')),
+    );
     await tester.pump();
     expect(begins, 1);
     expect(ends, 0);
@@ -84,7 +87,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: const Scaffold(body: SizedBox.shrink()),

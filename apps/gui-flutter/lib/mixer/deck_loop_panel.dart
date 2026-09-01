@@ -25,10 +25,7 @@ int autoLoopSlotForBeats(int beats) => autoLoopBeatIndex(beats).clamp(0, 7);
 
 /// Saved loop under [positionMs]: playhead inside `[in, out]`, tightest span,
 /// then lowest slot.
-SavedLoopInfo? savedLoopAtPosition(
-  List<SavedLoopInfo> loops,
-  int positionMs,
-) {
+SavedLoopInfo? savedLoopAtPosition(List<SavedLoopInfo> loops, int positionMs) {
   SavedLoopInfo? best;
   var bestSpan = 1 << 30;
   for (final loop in loops) {
@@ -149,9 +146,7 @@ class DeckLoopPanel extends StatelessWidget {
         child: Text(label, style: style ?? chipStyle),
       );
       return Expanded(
-        child: tip == null
-            ? button
-            : AppTooltip(tip: tip, child: button),
+        child: tip == null ? button : AppTooltip(tip: tip, child: button),
       );
     }
 

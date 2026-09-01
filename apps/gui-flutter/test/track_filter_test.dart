@@ -36,19 +36,12 @@ void main() {
       displayName: 'elegy',
       title: 'Z8phyR - Nameless Elegy (Second Mix)',
     ),
-    _track(
-      id: '3',
-      displayName: 'stem-name',
-      title: '',
-      artist: 'Solo Artist',
-    ),
+    _track(id: '3', displayName: 'stem-name', title: '', artist: 'Solo Artist'),
   ];
 
   setUp(() async {
     container = ProviderContainer(
-      overrides: [
-        collectionTracksProvider.overrideWith((ref) async => tracks),
-      ],
+      overrides: [collectionTracksProvider.overrideWith((ref) async => tracks)],
     );
     addTearDown(container.dispose);
     await container.read(collectionTracksProvider.future);

@@ -45,7 +45,9 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     PadMode.sampler => rust.PadMode.sampler,
   };
 
-  Future<bool> _run(Future<void> Function(rust.EngineTransport engine) fn) async {
+  Future<bool> _run(
+    Future<void> Function(rust.EngineTransport engine) fn,
+  ) async {
     final engine = _engine;
     if (engine == null) {
       return false;
@@ -113,8 +115,11 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           },
         ),
     ];
-    final activeBankId = ref.watch(deckActiveSamplerBankIdProvider(widget.deckId));
-    final resolvedBankId = activeBankId != null && banks.any((b) => b.id == activeBankId)
+    final activeBankId = ref.watch(
+      deckActiveSamplerBankIdProvider(widget.deckId),
+    );
+    final resolvedBankId =
+        activeBankId != null && banks.any((b) => b.id == activeBankId)
         ? activeBankId
         : (banks.isNotEmpty ? banks.first.id : null);
     final slots = _slotsFromChrome(
@@ -125,10 +130,12 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       padMode: padMode,
       onPadMode: (mode) {
         unawaited(
-          _run((engine) => engine.setPadMode(
-            deckId: widget.deckId,
-            mode: _toEnginePadMode(mode),
-          )),
+          _run(
+            (engine) => engine.setPadMode(
+              deckId: widget.deckId,
+              mode: _toEnginePadMode(mode),
+            ),
+          ),
         );
       },
       hotCues: hotCues,
@@ -190,10 +197,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         if (shift) {
           unawaited(
             _run(
-              (engine) => engine.clearSampler(
-                deckId: widget.deckId,
-                slot: slot,
-              ),
+              (engine) =>
+                  engine.clearSampler(deckId: widget.deckId, slot: slot),
             ),
           );
           return;
@@ -219,10 +224,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       onSelectBank: (id) {
         unawaited(
           _run(
-            (engine) => engine.setSamplerBank(
-              deckId: widget.deckId,
-              bankId: id,
-            ),
+            (engine) =>
+                engine.setSamplerBank(deckId: widget.deckId, bankId: id),
           ),
         );
       },

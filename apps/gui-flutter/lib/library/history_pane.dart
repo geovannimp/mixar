@@ -193,10 +193,7 @@ class _LiveBadge extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         const DecoratedBox(
-          decoration: BoxDecoration(
-            color: _liveGreen,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: _liveGreen, shape: BoxShape.circle),
           child: SizedBox(width: 6, height: 6),
         ),
         const SizedBox(width: 4),

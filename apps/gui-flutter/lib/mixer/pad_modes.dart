@@ -43,9 +43,7 @@ PadMode cyclePadMode(PadMode mode, int direction) {
   final index = kPadModes.indexOf(mode);
   final current = index >= 0 ? index : 0;
   final len = kPadModes.length;
-  final next = direction < 0
-      ? (current + len - 1) % len
-      : (current + 1) % len;
+  final next = direction < 0 ? (current + len - 1) % len : (current + 1) % len;
   return kPadModes[next];
 }
 

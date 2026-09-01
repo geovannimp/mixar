@@ -164,30 +164,22 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
   }
 }
 
-final stripBeatGridPictureProvider =
-    NotifierProvider.autoDispose.family<
-      StripBeatGridPictureNotifier,
-      Picture?,
-      (String, int)
-    >(StripBeatGridPictureNotifier.new);
+final stripBeatGridPictureProvider = NotifierProvider.autoDispose
+    .family<StripBeatGridPictureNotifier, Picture?, (String, int)>(
+      StripBeatGridPictureNotifier.new,
+    );
 
-final stripLoopPictureProvider =
-    NotifierProvider.autoDispose.family<
-      StripLoopPictureNotifier,
-      Picture?,
-      (String, int)
-    >(StripLoopPictureNotifier.new);
+final stripLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripLoopPictureNotifier, Picture?, (String, int)>(
+      StripLoopPictureNotifier.new,
+    );
 
-final stripActiveLoopPictureProvider =
-    NotifierProvider.autoDispose.family<
-      StripActiveLoopPictureNotifier,
-      Picture?,
-      (int, int)
-    >(StripActiveLoopPictureNotifier.new);
+final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
+    .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
+      StripActiveLoopPictureNotifier.new,
+    );
 
-final stripCuePictureProvider =
-    NotifierProvider.autoDispose.family<
-      StripCuePictureNotifier,
-      Picture?,
-      (String, int)
-    >(StripCuePictureNotifier.new);
+final stripCuePictureProvider = NotifierProvider.autoDispose
+    .family<StripCuePictureNotifier, Picture?, (String, int)>(
+      StripCuePictureNotifier.new,
+    );

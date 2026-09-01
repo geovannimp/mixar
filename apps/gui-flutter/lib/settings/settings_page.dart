@@ -315,10 +315,7 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
-      SettingsSection.ui => SettingsUiPanel(
-        draft: draft,
-        onChanged: onChanged,
-      ),
+      SettingsSection.ui => SettingsUiPanel(draft: draft, onChanged: onChanged),
       SettingsSection.library => SettingsLibraryPanel(
         draft: draft,
         onChanged: onChanged,

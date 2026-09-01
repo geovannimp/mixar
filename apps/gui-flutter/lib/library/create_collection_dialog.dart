@@ -110,7 +110,8 @@ class _CreateCollectionDialogBodyState
       return false;
     }
     return switch (_type) {
-      CreateCollectionType.folder => _folderPathController.text.trim().isNotEmpty,
+      CreateCollectionType.folder =>
+        _folderPathController.text.trim().isNotEmpty,
       CreateCollectionType.playlist => true,
     };
   }
@@ -134,7 +135,9 @@ class _CreateCollectionDialogBodyState
   }
 
   void _applyBrowsedFolder(String path) {
-    final previousDerived = _collectionNameFromFolder(_folderPathController.text);
+    final previousDerived = _collectionNameFromFolder(
+      _folderPathController.text,
+    );
     final nextName = _collectionNameFromFolder(path);
     _folderPathController.text = path;
     final currentName = _nameController.text;

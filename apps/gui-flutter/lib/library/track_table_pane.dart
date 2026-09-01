@@ -119,10 +119,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final engineRunning = ref.watch(engineRunningProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
     ref.watch(sessionPlayedKeysProvider);
-    final settings = ref.watch(appSettingsProvider).maybeWhen(
-      data: (s) => s,
-      orElse: () => defaultAppSettings(),
-    );
+    final settings = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s, orElse: () => defaultAppSettings());
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
     final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
@@ -438,7 +437,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                   fontWeight: color != null ? FontWeight.w600 : null,
                 );
             return Center(
-              child: Text(label, style: textStyle, overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                style: textStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           },
         ),

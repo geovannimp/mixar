@@ -16,9 +16,7 @@ void main() {
     required bool hasTrack,
     bool disabled = false,
     PadMode padMode = PadMode.hotCue,
-    List<DeckHotCue> hotCues = const [
-      DeckHotCue(slot: 0, positionMs: 12500),
-    ],
+    List<DeckHotCue> hotCues = const [DeckHotCue(slot: 0, positionMs: 12500)],
     List<SamplerSlot> samplerSlots = const [
       SamplerSlot(label: 'Kick', durationMs: 500, path: 'demo'),
     ],
@@ -37,61 +35,62 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          appSettingsProvider.overrideWith(
-            (ref) async => defaultAppSettings(),
-          ),
+          appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+          builder: (context, child) => MaterialUiCompatibilityBridge(
+            // ignore: deprecated_member_use
             child: FTheme(data: theme, child: child!),
           ),
           home: Scaffold(
-          body: StatefulBuilder(
-            builder: (context, setState) {
-              return SizedBox(
-                width: 360,
-                height: 320,
-                child: DeckPadsPanel(
-                  padMode: mode,
-                  onPadMode: (next) {
-                    onPadMode?.call(next);
-                    setState(() => mode = next);
-                  },
-                  hotCues: cues,
-                  onHotCuePress: (slot, shift) {
-                    onHotCuePress?.call(slot, shift);
-                    if (!hasTrack || disabled) {
-                      return;
-                    }
-                    setState(() {
-                      cues.removeWhere((c) => c.slot == slot);
-                      cues.add(DeckHotCue(slot: slot, positionMs: slot * 1000));
-                    });
-                  },
-                  onHotCueRelease: (_) {},
-                  onLoopRollPress: (_) {},
-                  onLoopRollRelease: (_) {},
-                  onBeatJumpPress: (_) {},
-                  onBeatJumpRelease: (_) {},
-                  samplerSlots: [
-                    ...samplerSlots,
-                    for (var i = samplerSlots.length; i < 8; i++)
-                      const SamplerSlot(),
-                  ],
-                  samplerBanks: samplerBanks,
-                  activeBankId: bankId,
-                  onSamplerPress: (_, _) {},
-                  onSamplerRelease: (_) {},
-                  onSelectBank: (id) => setState(() => bankId = id),
-                  onSaveBank: (_, _, _) {},
-                  hasTrack: hasTrack,
-                  disabled: disabled,
-                ),
-              );
-            },
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return SizedBox(
+                  width: 360,
+                  height: 320,
+                  child: DeckPadsPanel(
+                    padMode: mode,
+                    onPadMode: (next) {
+                      onPadMode?.call(next);
+                      setState(() => mode = next);
+                    },
+                    hotCues: cues,
+                    onHotCuePress: (slot, shift) {
+                      onHotCuePress?.call(slot, shift);
+                      if (!hasTrack || disabled) {
+                        return;
+                      }
+                      setState(() {
+                        cues.removeWhere((c) => c.slot == slot);
+                        cues.add(
+                          DeckHotCue(slot: slot, positionMs: slot * 1000),
+                        );
+                      });
+                    },
+                    onHotCueRelease: (_) {},
+                    onLoopRollPress: (_) {},
+                    onLoopRollRelease: (_) {},
+                    onBeatJumpPress: (_) {},
+                    onBeatJumpRelease: (_) {},
+                    samplerSlots: [
+                      ...samplerSlots,
+                      for (var i = samplerSlots.length; i < 8; i++)
+                        const SamplerSlot(),
+                    ],
+                    samplerBanks: samplerBanks,
+                    activeBankId: bankId,
+                    onSamplerPress: (_, _) {},
+                    onSamplerRelease: (_) {},
+                    onSelectBank: (id) => setState(() => bankId = id),
+                    onSaveBank: (_, _, _) {},
+                    hasTrack: hasTrack,
+                    disabled: disabled,
+                  ),
+                );
+              },
+            ),
           ),
-        ),
         ),
       ),
     );
@@ -152,7 +151,9 @@ void main() {
     expect(find.text('roll'), findsWidgets);
   });
 
-  testWidgets('disabled panel blocks mode tabs and pad actions', (tester) async {
+  testWidgets('disabled panel blocks mode tabs and pad actions', (
+    tester,
+  ) async {
     await pumpPanel(tester, hasTrack: true, disabled: true);
 
     await tester.tap(find.text('JUMP'));

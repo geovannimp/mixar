@@ -157,10 +157,8 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     // Resize active region from playhead (engine `set_auto_loop`); never
     // writes the DB saved-loop row.
     await _runEngine(
-      (engine) => engine.setAutoLoop(
-        deckId: widget.deckId,
-        beats: beats.toDouble(),
-      ),
+      (engine) =>
+          engine.setAutoLoop(deckId: widget.deckId, beats: beats.toDouble()),
     );
   }
 
@@ -253,18 +251,12 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
       },
       onHalveBeats: () {
         unawaited(
-          _setBeats(
-            stepAutoLoopBeats(_loopBeats, -1),
-            loopActive: loopActive,
-          ),
+          _setBeats(stepAutoLoopBeats(_loopBeats, -1), loopActive: loopActive),
         );
       },
       onDoubleBeats: () {
         unawaited(
-          _setBeats(
-            stepAutoLoopBeats(_loopBeats, 1),
-            loopActive: loopActive,
-          ),
+          _setBeats(stepAutoLoopBeats(_loopBeats, 1), loopActive: loopActive),
         );
       },
       onLoopIn: () {

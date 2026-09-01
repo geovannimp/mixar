@@ -97,9 +97,7 @@ void main() {
       size: const Size(200, 40),
     );
     final loops = recordLoopPicture(
-      loops: const [
-        SavedLoopInfo(slot: 0, inMs: 2000, outMs: 4000),
-      ],
+      loops: const [SavedLoopInfo(slot: 0, inMs: 2000, outMs: 4000)],
       durationMs: 10_000,
       size: const Size(200, 40),
     );

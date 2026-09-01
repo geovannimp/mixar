@@ -34,14 +34,8 @@ void main() {
 
   test('beatsFromLoopMs snaps to nearest listed length', () {
     // 4 beats at 120 BPM = 2000 ms
-    expect(
-      beatsFromLoopMs(inMs: 0, outMs: 2000, bpm: 120),
-      4,
-    );
-    expect(
-      beatsFromLoopMs(inMs: 0, outMs: 1000, bpm: 120),
-      2,
-    );
+    expect(beatsFromLoopMs(inMs: 0, outMs: 2000, bpm: 120), 4);
+    expect(beatsFromLoopMs(inMs: 0, outMs: 1000, bpm: 120), 2);
     expect(beatsFromLoopMs(inMs: 0, outMs: 2000, bpm: null), 4);
   });
 
@@ -69,9 +63,7 @@ void main() {
 
     snap = applyEngineEvt(
       EngineUiSnapshot.empty.copyWith(
-        activeLoops: {
-          0: const ActiveLoopInfo(inMs: 1, outMs: 2, active: true),
-        },
+        activeLoops: {0: const ActiveLoopInfo(inMs: 1, outMs: 2, active: true)},
       ),
       const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
     );

@@ -25,7 +25,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        builder: (context, child) => MaterialUiCompatibilityBridge( // ignore: deprecated_member_use
+        builder: (context, child) => MaterialUiCompatibilityBridge(
+          // ignore: deprecated_member_use
           child: FTheme(data: theme, child: child!),
         ),
         home: const Scaffold(
@@ -50,9 +51,13 @@ void main() {
     expect(boxes.every((b) => b.size.width >= 6), isTrue);
     expect(boxes.every((b) => b.size.height > 0), isTrue);
 
-    final decorations = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+    final decorations = tester.widgetList<DecoratedBox>(
+      find.byType(DecoratedBox),
+    );
     expect(
-      decorations.every((d) => (d.decoration as BoxDecoration).color == theme.colors.muted),
+      decorations.every(
+        (d) => (d.decoration as BoxDecoration).color == theme.colors.muted,
+      ),
       isTrue,
     );
   });

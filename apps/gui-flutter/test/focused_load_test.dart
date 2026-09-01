@@ -69,7 +69,10 @@ void main() {
       visualRowIndexForFocusedTrack(['c', 'b', 'a'], ['a', 'b', 'c'], 0),
       2,
     );
-    expect(visualRowIndexForFocusedTrack(['c', 'b'], ['a', 'b', 'c'], 0), isNull);
+    expect(
+      visualRowIndexForFocusedTrack(['c', 'b'], ['a', 'b', 'c'], 0),
+      isNull,
+    );
     expect(visualRowIndexForFocusedTrack(['a'], ['a'], 1), isNull);
   });
 

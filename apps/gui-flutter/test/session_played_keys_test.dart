@@ -4,10 +4,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 
 void main() {
   test('normalizeHistoryLocation strips file URI', () {
-    expect(
-      normalizeHistoryLocation('file:///music/a.flac'),
-      '/music/a.flac',
-    );
+    expect(normalizeHistoryLocation('file:///music/a.flac'), '/music/a.flac');
     expect(normalizeHistoryLocation('/music/b.wav'), '/music/b.wav');
   });
 
@@ -38,9 +35,6 @@ void main() {
   });
 
   test('empty keys never match', () {
-    expect(
-      SessionPlayedKeys.empty.matches(trackId: 't1', path: '/x'),
-      isFalse,
-    );
+    expect(SessionPlayedKeys.empty.matches(trackId: 't1', path: '/x'), isFalse);
   });
 }
