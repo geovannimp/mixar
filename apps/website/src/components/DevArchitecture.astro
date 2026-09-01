@@ -7,7 +7,7 @@ import { TECH_SPEC_URL } from "../consts";
     <h2>Architecture</h2>
     <p>
       A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The
-      audio callback only consumes — no allocations on the real-time thread.
+      audio callback only consumes. No allocations on the real-time thread.
     </p>
     <pre class="code-block" aria-label="Audio pipeline diagram"><code>Library / AudioSource
         │ load → PCM
@@ -17,7 +17,7 @@ import { TECH_SPEC_URL } from "../consts";
         ▼
 Producer thread ──► ring buffer ──► audio callback</code></pre>
     <p class="arch-link">
-      <a href={TECH_SPEC_URL} target="_blank" rel="noopener noreferrer">Read the full tech spec on GitHub →</a>
+      <a href={TECH_SPEC_URL} target="_blank" rel="noopener noreferrer">Read the full tech spec on GitHub</a>
     </p>
   </div>
 </section>
