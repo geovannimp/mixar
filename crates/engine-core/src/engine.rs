@@ -147,6 +147,11 @@ impl Engine {
         self.engine_buses.clone()
     }
 
+    /// Shared library manager handle (clone of the engine-held Arc).
+    pub fn library_manager(&self) -> Option<Arc<Mutex<LibraryManager>>> {
+        self.library.clone()
+    }
+
     fn require_buses(&self) -> Result<&EngineBuses> {
         self.engine_buses
             .as_ref()

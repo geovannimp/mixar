@@ -8,6 +8,8 @@ use anyhow::{anyhow, Result};
 use engine_api::{
     decode_cmd_body, encode_evt_body, CmdBody, DeckSnapshot, EqBand, EvtBody, Kind, Origin,
 };
+use library::{LibraryManager, PreparedTrackPlayback};
+use library_core::TrackId;
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -393,6 +395,9 @@ fn dispatch_deck_cmd(
     payload: &[u8],
     engine: &Arc<Mutex<Option<Engine>>>,
 ) -> Result<CmdOutcome> {
+    if kind == Kind::AssignSamplerTrack {
+        return dispatch_assign_sampler_track(deck_id, payload, engine);
+    }
     with_engine_mut(engine, |eng| match kind {
         Kind::Play => {
             if !eng.deck_has_audio_loaded(deck_id).unwrap_or(false) {
@@ -781,15 +786,6 @@ fn dispatch_deck_cmd(
             eng.assign_sampler_from_path(deck_id, slot, path)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
-        Kind::AssignSamplerTrack => {
-            let CmdBody::AssignSamplerTrack { slot, track_id } =
-                decode_cmd_body_for(kind, payload)?
-            else {
-                unreachable!()
-            };
-            eng.assign_sampler_from_track(deck_id, slot, track_id)?;
-            Ok(CmdOutcome::DeckUpdated(deck_id))
-        }
         Kind::ClearSampler => {
             let CmdBody::ClearSampler { slot } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
@@ -829,6 +825,28 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         _ => Err(anyhow!("unsupported kind on cmd bus")),
+    })
+}
+
+fn dispatch_assign_sampler_track(
+    deck_id: usize,
+    payload: &[u8],
+    engine: &Arc<Mutex<Option<Engine>>>,
+) -> Result<CmdOutcome> {
+    let kind = Kind::AssignSamplerTrack;
+    let CmdBody::AssignSamplerTrack { slot, track_id } = decode_cmd_body_for(kind, payload)? else {
+        unreachable!()
+    };
+    let library = with_engine_ref(engine, |eng| {
+        eng.library_manager()
+            .ok_or_else(|| anyhow!("Engine has no attached LibraryManager"))
+    })?;
+    let prepared: PreparedTrackPlayback =
+        LibraryManager::prepare_track_for_playback(library.as_ref(), &TrackId::new(track_id))
+            .map_err(|e| anyhow!(e.to_string()))?;
+    with_engine_mut(engine, |eng| {
+        eng.assign_prepared_sampler(deck_id, slot as usize, prepared)?;
+        Ok(CmdOutcome::DeckUpdated(deck_id))
     })
 }
 
