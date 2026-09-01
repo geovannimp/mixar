@@ -42,7 +42,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 30205299;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1020021207;
 
 // Section: executor
 
@@ -4567,7 +4567,7 @@ fn wire__crate__api__library__LibraryTransport_history_session_entries_impl(
         },
     )
 }
-fn wire__crate__api__library__LibraryTransport_list_collection_tracks_impl(
+fn wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -4575,7 +4575,7 @@ fn wire__crate__api__library__LibraryTransport_list_collection_tracks_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "LibraryTransport_list_collection_tracks",
+            debug_name: "LibraryTransport_list_collection_entries",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -4610,7 +4610,7 @@ fn wire__crate__api__library__LibraryTransport_list_collection_tracks_impl(
                         }
                     }
                     let api_that_guard = api_that_guard.unwrap();
-                    let output_ok = crate::api::library::LibraryTransport::list_collection_tracks(
+                    let output_ok = crate::api::library::LibraryTransport::list_collection_entries(
                         &*api_that_guard,
                         api_collection_id,
                     )?;
@@ -6579,6 +6579,7 @@ impl SseDecode for crate::api::library::LibraryEvtKind {
 impl SseDecode for crate::api::library::LibraryTrackSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_entryId = <Option<String>>::sse_decode(deserializer);
         let mut var_id = <String>::sse_decode(deserializer);
         let mut var_displayName = <String>::sse_decode(deserializer);
         let mut var_artist = <Option<String>>::sse_decode(deserializer);
@@ -6592,6 +6593,7 @@ impl SseDecode for crate::api::library::LibraryTrackSummary {
         let mut var_isrc = <Option<String>>::sse_decode(deserializer);
         let mut var_artwork = <Option<Vec<u8>>>::sse_decode(deserializer);
         return crate::api::library::LibraryTrackSummary {
+            entry_id: var_entryId,
             id: var_id,
             display_name: var_displayName,
             artist: var_artist,
@@ -7801,7 +7803,7 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__library__LibraryTransport_list_collection_tracks_impl(
+        85 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
             port,
             ptr,
             rust_vec_len,
@@ -8836,6 +8838,7 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::LibraryEvtKind>
 impl flutter_rust_bridge::IntoDart for crate::api::library::LibraryTrackSummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
+            self.entry_id.into_into_dart().into_dart(),
             self.id.into_into_dart().into_dart(),
             self.display_name.into_into_dart().into_dart(),
             self.artist.into_into_dart().into_dart(),
@@ -9821,6 +9824,7 @@ impl SseEncode for crate::api::library::LibraryEvtKind {
 impl SseEncode for crate::api::library::LibraryTrackSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <Option<String>>::sse_encode(self.entry_id, serializer);
         <String>::sse_encode(self.id, serializer);
         <String>::sse_encode(self.display_name, serializer);
         <Option<String>>::sse_encode(self.artist, serializer);

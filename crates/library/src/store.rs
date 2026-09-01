@@ -2,7 +2,9 @@
 
 use std::path::Path;
 
-use library_core::{CollectionId, Result, TrackId, TrackMetadata};
+use library_core::{
+    CollectionEntry, CollectionEntryId, CollectionId, Result, TrackId, TrackMetadata,
+};
 use sea_orm::sea_query::{Expr, OnConflict, Order};
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, Condition, ConnectionTrait, EntityTrait, PaginatorTrait,
@@ -11,7 +13,7 @@ use sea_orm::{
 
 use crate::db::{self, Db};
 use crate::entity::{
-    collection_tracks, collections, tracks, CollectionEntity, CollectionTrackEntity,
+    collection_entries, collections, tracks, CollectionEntity, CollectionEntryEntity,
     TrackAnalysisEntity, TrackEntity,
 };
 use crate::model;
@@ -207,8 +209,8 @@ impl<'a> Store<'a> {
     }
 
     pub fn count_playlist_links(&self, track_id: &TrackId) -> Result<u64> {
-        CollectionTrackEntity::find()
-            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+        CollectionEntryEntity::find()
+            .filter(collection_entries::Column::TrackId.eq(track_id.as_str()))
             .count(self.db.conn()?.as_connection())
             .map_err(db::db_err)
     }
@@ -297,62 +299,72 @@ impl<'a> Store<'a> {
         Ok(result.rows_affected > 0)
     }
 
-    pub fn playlist_track_ids(&self, playlist_id: &CollectionId) -> Result<Vec<TrackId>> {
-        let rows = CollectionTrackEntity::find()
-            .filter(collection_tracks::Column::CollectionId.eq(playlist_id.as_str()))
+    pub fn list_playlist_entries(
+        &self,
+        playlist_id: &CollectionId,
+    ) -> Result<Vec<CollectionEntry>> {
+        let rows = CollectionEntryEntity::find()
+            .filter(collection_entries::Column::CollectionId.eq(playlist_id.as_str()))
             .order_by(
                 Expr::cust("CASE WHEN position IS NULL THEN 1 ELSE 0 END"),
                 Order::Asc,
             )
-            .order_by_asc(collection_tracks::Column::Position)
-            .order_by_asc(collection_tracks::Column::TrackId)
+            .order_by_asc(collection_entries::Column::Position)
+            .order_by_asc(collection_entries::Column::TrackId)
             .all(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(rows
             .into_iter()
-            .map(|row| TrackId::new(row.track_id))
+            .map(|row| CollectionEntry {
+                id: CollectionEntryId::new(row.id),
+                collection_id: CollectionId::new(row.collection_id),
+                track_id: TrackId::new(row.track_id),
+                position: row.position,
+            })
             .collect())
     }
 
-    pub fn insert_collection_track(
+    pub fn insert_collection_entry(
         &self,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
-    ) -> Result<()> {
-        self.insert_collection_track_on(
+    ) -> Result<CollectionEntryId> {
+        let id = self.insert_collection_entry_on(
             self.db.conn()?.as_connection(),
             collection_id,
             track_id,
             position,
-        )
+        )?;
+        Ok(CollectionEntryId::new(id))
     }
 
-    fn insert_collection_track_on(
+    fn insert_collection_entry_on(
         &self,
         connection: &impl ConnectionTrait,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
-    ) -> Result<()> {
-        let active = collection_tracks::ActiveModel {
-            id: Set(Uuid::new_v4().to_string()),
+    ) -> Result<String> {
+        let id = Uuid::new_v4().to_string();
+        let active = collection_entries::ActiveModel {
+            id: Set(id.clone()),
             collection_id: Set(collection_id.as_str().to_string()),
             track_id: Set(track_id.as_str().to_string()),
             position: Set(position),
         };
-        CollectionTrackEntity::insert(active)
+        CollectionEntryEntity::insert(active)
             .exec(connection)
             .map_err(db::db_err)?;
-        Ok(())
+        Ok(id)
     }
 
-    pub fn upsert_collection_track(
+    pub fn upsert_collection_entry(
         &self,
         collection_id: &CollectionId,
         track_id: &TrackId,
         position: Option<i32>,
-    ) -> Result<()> {
+    ) -> Result<CollectionEntryId> {
         let conn = self.db.conn()?;
         // IMMEDIATE: crate membership is a set; serialize writers so two connections
         // cannot both observe absence and insert a second row for the same pair.
@@ -363,22 +375,27 @@ impl<'a> Store<'a> {
                 ..Default::default()
             })
             .map_err(db::db_err)?;
-        let result = (|| -> Result<()> {
-            let existing = CollectionTrackEntity::find()
-                .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
-                .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+        let result = (|| -> Result<CollectionEntryId> {
+            let existing = CollectionEntryEntity::find()
+                .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
+                .filter(collection_entries::Column::TrackId.eq(track_id.as_str()))
                 .one(&txn)
                 .map_err(db::db_err)?;
             if let Some(row) = existing {
-                let mut active: collection_tracks::ActiveModel = row.into();
+                let entry_id = CollectionEntryId::new(row.id.clone());
+                let mut active: collection_entries::ActiveModel = row.into();
                 active.position = Set(position);
                 active.update(&txn).map_err(db::db_err)?;
-                return Ok(());
+                return Ok(entry_id);
             }
-            self.insert_collection_track_on(&txn, collection_id, track_id, position)
+            let id = self.insert_collection_entry_on(&txn, collection_id, track_id, position)?;
+            Ok(CollectionEntryId::new(id))
         })();
         match result {
-            Ok(()) => txn.commit().map_err(db::db_err),
+            Ok(entry_id) => {
+                txn.commit().map_err(db::db_err)?;
+                Ok(entry_id)
+            }
             Err(error) => {
                 let _ = txn.rollback();
                 Err(error)
@@ -386,43 +403,64 @@ impl<'a> Store<'a> {
         }
     }
 
-    pub fn delete_collection_track(
+    pub fn delete_collection_entry_by_id(
         &self,
         collection_id: &CollectionId,
-        track_id: &TrackId,
-    ) -> Result<bool> {
-        let result = CollectionTrackEntity::delete_many()
-            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
-            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+        entry_id: &CollectionEntryId,
+    ) -> Result<Option<TrackId>> {
+        let row = CollectionEntryEntity::find()
+            .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
+            .filter(collection_entries::Column::Id.eq(entry_id.as_str()))
+            .one(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let track_id = TrackId::new(row.track_id.clone());
+        CollectionEntryEntity::delete_by_id(row.id)
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
-        Ok(result.rows_affected > 0)
+        Ok(Some(track_id))
     }
 
     pub fn clear_playlist_positions(&self, collection_id: &CollectionId) -> Result<()> {
-        CollectionTrackEntity::update_many()
+        CollectionEntryEntity::update_many()
             .col_expr(
-                collection_tracks::Column::Position,
+                collection_entries::Column::Position,
                 Expr::value(None::<i32>),
             )
-            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
+            .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
         Ok(())
     }
 
-    pub fn set_collection_track_position(
+    pub fn set_collection_entry_position_by_id(
         &self,
         collection_id: &CollectionId,
-        track_id: &TrackId,
+        entry_id: &CollectionEntryId,
         position: i32,
     ) -> Result<()> {
-        CollectionTrackEntity::update_many()
-            .col_expr(collection_tracks::Column::Position, Expr::value(position))
-            .filter(collection_tracks::Column::CollectionId.eq(collection_id.as_str()))
-            .filter(collection_tracks::Column::TrackId.eq(track_id.as_str()))
+        CollectionEntryEntity::update_many()
+            .col_expr(collection_entries::Column::Position, Expr::value(position))
+            .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
+            .filter(collection_entries::Column::Id.eq(entry_id.as_str()))
             .exec(self.db.conn()?.as_connection())
             .map_err(db::db_err)?;
+        Ok(())
+    }
+
+    /// Keep one entry per track (first in display order).
+    pub fn dedupe_playlist_entries(&self, playlist_id: &CollectionId) -> Result<()> {
+        let rows = self.list_playlist_entries(playlist_id)?;
+        let mut seen = std::collections::HashSet::new();
+        for row in rows {
+            if !seen.insert(row.track_id.as_str().to_string()) {
+                CollectionEntryEntity::delete_by_id(row.id.as_str())
+                    .exec(self.db.conn()?.as_connection())
+                    .map_err(db::db_err)?;
+            }
+        }
         Ok(())
     }
 
@@ -439,21 +477,6 @@ impl<'a> Store<'a> {
             .one(self.db.conn()?.as_connection())
             .map_err(db::db_err)?
             .and_then(|analysis| analysis.loudness_lufs))
-    }
-
-    pub fn playlist_track_ids_by_track_id(
-        &self,
-        playlist_id: &CollectionId,
-    ) -> Result<Vec<TrackId>> {
-        let rows = CollectionTrackEntity::find()
-            .filter(collection_tracks::Column::CollectionId.eq(playlist_id.as_str()))
-            .order_by_asc(collection_tracks::Column::TrackId)
-            .all(self.db.conn()?.as_connection())
-            .map_err(db::db_err)?;
-        Ok(rows
-            .into_iter()
-            .map(|row| TrackId::new(row.track_id))
-            .collect())
     }
 
     /// Track fields needed to persist a manual beat grid.

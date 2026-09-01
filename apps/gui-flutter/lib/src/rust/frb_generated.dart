@@ -71,7 +71,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => 30205299;
+  int get rustContentHash => 1020021207;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -547,7 +547,7 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<List<LibraryTrackSummary>>
-  crateApiLibraryLibraryTransportListCollectionTracks({
+  crateApiLibraryLibraryTransportListCollectionEntries({
     required LibraryTransport that,
     required String collectionId,
   });
@@ -4074,7 +4074,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<List<LibraryTrackSummary>>
-  crateApiLibraryLibraryTransportListCollectionTracks({
+  crateApiLibraryLibraryTransportListCollectionEntries({
     required LibraryTransport that,
     required String collectionId,
   }) {
@@ -4099,7 +4099,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta:
-            kCrateApiLibraryLibraryTransportListCollectionTracksConstMeta,
+            kCrateApiLibraryLibraryTransportListCollectionEntriesConstMeta,
         argValues: [that, collectionId],
         apiImpl: this,
       ),
@@ -4107,9 +4107,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   TaskConstMeta
-  get kCrateApiLibraryLibraryTransportListCollectionTracksConstMeta =>
+  get kCrateApiLibraryLibraryTransportListCollectionEntriesConstMeta =>
       const TaskConstMeta(
-        debugName: "LibraryTransport_list_collection_tracks",
+        debugName: "LibraryTransport_list_collection_entries",
         argNames: ["that", "collectionId"],
       );
 
@@ -5799,21 +5799,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return LibraryTrackSummary(
-      id: dco_decode_String(arr[0]),
-      displayName: dco_decode_String(arr[1]),
-      artist: dco_decode_opt_String(arr[2]),
-      title: dco_decode_opt_String(arr[3]),
-      album: dco_decode_opt_String(arr[4]),
-      genre: dco_decode_opt_String(arr[5]),
-      bpm: dco_decode_opt_box_autoadd_f_64(arr[6]),
-      key: dco_decode_opt_String(arr[7]),
-      durationMs: dco_decode_opt_box_autoadd_i_32(arr[8]),
-      path: dco_decode_String(arr[9]),
-      isrc: dco_decode_opt_String(arr[10]),
-      artwork: dco_decode_opt_list_prim_u_8_strict(arr[11]),
+      entryId: dco_decode_opt_String(arr[0]),
+      id: dco_decode_String(arr[1]),
+      displayName: dco_decode_String(arr[2]),
+      artist: dco_decode_opt_String(arr[3]),
+      title: dco_decode_opt_String(arr[4]),
+      album: dco_decode_opt_String(arr[5]),
+      genre: dco_decode_opt_String(arr[6]),
+      bpm: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      key: dco_decode_opt_String(arr[8]),
+      durationMs: dco_decode_opt_box_autoadd_i_32(arr[9]),
+      path: dco_decode_String(arr[10]),
+      isrc: dco_decode_opt_String(arr[11]),
+      artwork: dco_decode_opt_list_prim_u_8_strict(arr[12]),
     );
   }
 
@@ -7231,6 +7232,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_entryId = sse_decode_opt_String(deserializer);
     var var_id = sse_decode_String(deserializer);
     var var_displayName = sse_decode_String(deserializer);
     var var_artist = sse_decode_opt_String(deserializer);
@@ -7244,6 +7246,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_isrc = sse_decode_opt_String(deserializer);
     var var_artwork = sse_decode_opt_list_prim_u_8_strict(deserializer);
     return LibraryTrackSummary(
+      entryId: var_entryId,
       id: var_id,
       displayName: var_displayName,
       artist: var_artist,
@@ -8805,6 +8808,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_opt_String(self.entryId, serializer);
     sse_encode_String(self.id, serializer);
     sse_encode_String(self.displayName, serializer);
     sse_encode_opt_String(self.artist, serializer);
@@ -10113,10 +10117,10 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
       );
 
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
-  Future<List<LibraryTrackSummary>> listCollectionTracks({
+  Future<List<LibraryTrackSummary>> listCollectionEntries({
     required String collectionId,
   }) =>
-      RustLib.instance.api.crateApiLibraryLibraryTransportListCollectionTracks(
+      RustLib.instance.api.crateApiLibraryLibraryTransportListCollectionEntries(
         that: this,
         collectionId: collectionId,
       );

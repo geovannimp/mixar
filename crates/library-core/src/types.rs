@@ -73,6 +73,40 @@ impl std::fmt::Display for CollectionId {
     }
 }
 
+/// Stable playlist membership row id (`collection_entries.id`).
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CollectionEntryId(pub String);
+
+impl CollectionEntryId {
+    /// Create a new collection entry id.
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+
+    /// Borrow the id as a string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for CollectionEntryId {
+    fn from(id: String) -> Self {
+        Self(id)
+    }
+}
+
+impl From<&str> for CollectionEntryId {
+    fn from(id: &str) -> Self {
+        Self(id.to_string())
+    }
+}
+
+impl std::fmt::Display for CollectionEntryId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// File-tag and basic audio metadata for a track.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct TrackMetadata {
@@ -203,9 +237,11 @@ impl Collection {
     }
 }
 
-/// Many-to-many join: playlist ↔ track only.
+/// One track occurrence in a playlist collection.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CollectionTrack {
+pub struct CollectionEntry {
+    /// Stable membership row id.
+    pub id: CollectionEntryId,
     /// Playlist collection id.
     pub collection_id: CollectionId,
     /// Track id.

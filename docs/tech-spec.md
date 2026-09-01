@@ -442,8 +442,8 @@ CollectionType =
 
 | Type | Meaning | How tracks are associated |
 |------|---------|---------------------------|
-| `Folder` | Points at a **real directory** on disk (`fs_path` required). Used as a scan root and to browse music under that path. | **By path:** tracks whose `path` is under `fs_path`. **Not** via `collection_tracks`. |
-| `Playlist` | Named list of tracks (ordered or not). | **Many-to-many** via `collection_tracks`. |
+| `Folder` | Points at a **real directory** on disk (`fs_path` required). Used as a scan root and to browse music under that path. | **By path:** tracks whose `path` is under `fs_path`. **Not** via `collection_entries`. |
+| `Playlist` | Named list of tracks (ordered or not). | **Many-to-many** via `collection_entries`. |
 
 **`sortable` on playlist collections only:**
 
@@ -465,13 +465,13 @@ Toggling `sortable` from `false` → `true` assigns positions; `true` → `false
 Tracks and collections are **separate entities**.
 
 - **Folder → tracks:** association by **filesystem path** (`track.path` under `collection.fs_path`). No join table.
-- **Playlist → tracks:** **many-to-many** via `collection_tracks`. One track can be in many playlists; one playlist has many tracks.
+- **Playlist → tracks:** **many-to-many** via `collection_entries`. One track can be in many playlists; one playlist has many tracks.
 
 ```text
 Library
 ├── tracks: Map<TrackId, Track>              // own table
 ├── collections: Map<CollectionId, Collection>  // folders + playlists (flat)
-├── collection_tracks: Set<CollectionTrack>  // M2M for playlists only
+├── collection_entries: Set<CollectionEntry>  // M2M for playlists only
 └── config: LibraryConfig
 ```
 
@@ -481,7 +481,7 @@ Folder collection                    Playlist collection
        │                                    │
        │ path prefix                        │ M2M
        ▼                                    ▼
-  tracks.path LIKE '/Music/House/%'   collection_tracks
+  tracks.path LIKE '/Music/House/%'   collection_entries
 ```
 
 ```rust
@@ -516,7 +516,8 @@ pub struct Collection {
 }
 
 /// Many-to-many join: playlist ↔ track only.
-pub struct CollectionTrack {
+pub struct CollectionEntry {
+    pub id: CollectionEntryId,
     pub collection_id: CollectionId,
     pub track_id: TrackId,
     pub position: Option<i32>,
@@ -528,22 +529,22 @@ pub struct CollectionTrack {
 - Tracks live only in the track pool; collections never embed track metadata.
 - `Folder` collections **must** have `fs_path` set to an existing (or user-chosen) directory path.
 - `Playlist` collections **must not** have `fs_path`.
-- Only `Playlist` collections appear in `collection_tracks`.
+- Only `Playlist` collections appear in `collection_entries`.
 - Tracks “in” a folder = `track.path` is under that folder’s `fs_path` (path-prefix query).
 - Unsortable playlists (crates) treat membership as a set: at most one `(collection_id, track_id)` row.
-- Sortable playlists may list the same track more than once (separate `collection_tracks` rows).
+- Sortable playlists may list the same track more than once (separate `collection_entries` rows).
 - No `parent_id` / collection tree — collections are a **flat** list (playlist folders unsupported).
 - Deleting a Folder collection does **not** delete tracks (they may still sit under that path; optional policy: leave tracks or mark orphaned).
-- Deleting a playlist removes only its `collection_tracks` rows; tracks remain.
-- Deleting a track removes all of its `collection_tracks` rows; the audio file on disk is never deleted by the library.
+- Deleting a playlist removes only its `collection_entries` rows; tracks remain.
+- Deleting a track removes all of its `collection_entries` rows; the audio file on disk is never deleted by the library.
 
 ### 10.4 Mapping rivals → canonical model
 
 | Source concept | Maps to |
 |----------------|---------|
 | Mixxx watched directory | `Collection { type: Folder, fs_path }` |
-| Mixxx playlist | `Collection { type: Playlist, sortable: true }` + `collection_tracks` |
-| Mixxx crate | `Collection { type: Playlist, sortable: false }` + `collection_tracks` |
+| Mixxx playlist | `Collection { type: Playlist, sortable: true }` + `collection_entries` |
+| Mixxx crate | `Collection { type: Playlist, sortable: false }` + `collection_entries` |
 | Rekordbox / Traktor / VDJ **playlist** | `Playlist { sortable: true }` (flat — no parent folder) |
 | Rekordbox / Traktor **playlist folder** | **Dropped** on import (playlists promoted to top-level; folder names may be prefixed onto playlist name if useful) |
 | Rekordbox track / path | `Track` in the pool |
@@ -613,7 +614,7 @@ Folder: tracks linked by path prefix          Playlist: tracks linked by M2M
   collections (type=folder)                     collections (type=playlist)
        fs_path = /Music/House                        id = pl1
             │                                         │
-            │ track.path starts with fs_path          │ collection_tracks
+            │ track.path starts with fs_path          │ collection_entries
             ▼                                         ▼
          tracks                                    tracks
 ```
@@ -654,16 +655,16 @@ CREATE TABLE collections (
 
 -- Many-to-many: playlist ↔ track only (never folder ids).
 -- Row `id` is the primary key so sortable playlists may list a track more than once.
-CREATE TABLE collection_tracks (
+CREATE TABLE collection_entries (
   id TEXT PRIMARY KEY NOT NULL,
   collection_id TEXT NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
   track_id TEXT NOT NULL REFERENCES tracks(id) ON DELETE CASCADE,
   position INTEGER
 );
 
-CREATE INDEX idx_collection_tracks_track ON collection_tracks(track_id);
-CREATE INDEX idx_collection_tracks_collection_pos
-  ON collection_tracks(collection_id, position);
+CREATE INDEX idx_collection_entries_track ON collection_entries(track_id);
+CREATE INDEX idx_collection_entries_collection_pos
+  ON collection_entries(collection_id, position);
 ```
 
 **Tracks in a folder (query, not join table):**
@@ -680,14 +681,14 @@ WHERE t.path = c.fs_path OR t.path LIKE c.fs_path || '/%';
 |--------|--------|
 | `add_collection` (folder) | Insert `collections` row with `fs_path` |
 | `sync_collection` (folder) | Walk `fs_path`; insert/update `tracks` for audio files found |
-| List folder tracks | Path-prefix query on `tracks` (no `collection_tracks`) |
+| List folder tracks | Path-prefix query on `tracks` (no `collection_entries`) |
 | `add_collection` (playlist) | Insert `collections` row (`type=playlist`, `fs_path` NULL) |
 | `sync_collection` (playlist) | Refresh tags for member tracks from disk |
-| Add track to playlist | Insert `collection_tracks` row |
-| Remove track from playlist | Delete one `collection_tracks` row |
-| Delete playlist | Cascade-delete its `collection_tracks` rows; `tracks` unchanged |
+| Add track to playlist | Insert `collection_entries` row |
+| Remove track from playlist | Delete one `collection_entries` row |
+| Delete playlist | Cascade-delete its `collection_entries` rows; `tracks` unchanged |
 | Delete folder collection | Delete `collections` row only; `tracks` unchanged |
-| Delete track from library | Delete `tracks` row; cascade-delete its `collection_tracks` rows |
+| Delete track from library | Delete `tracks` row; cascade-delete its `collection_entries` rows |
 
 ### 10.9 API sketch
 
@@ -719,16 +720,16 @@ trait WritableLibrary: Library {
     fn delete_collection(&mut self, id: &CollectionId) -> Result<()>;
     fn set_sortable(&mut self, playlist_id: &CollectionId, sortable: bool) -> Result<()>;
 
-    fn add_to_playlist(&mut self, playlist_id: &CollectionId, track_id: &TrackId, position: Option<i32>) -> Result<()>;
-    fn remove_from_playlist(&mut self, playlist_id: &CollectionId, track_id: &TrackId) -> Result<()>;
+    fn add_to_playlist(&mut self, playlist_id: &CollectionId, track_id: &TrackId, position: Option<i32>) -> Result<CollectionEntryId>;
+    fn remove_from_playlist(&mut self, playlist_id: &CollectionId, entry_id: &CollectionEntryId) -> Result<()>;
     /// Errors if the playlist is not `sortable`.
-    fn reorder_tracks(&mut self, playlist_id: &CollectionId, track_ids: &[TrackId]) -> Result<()>;
+    fn reorder_tracks(&mut self, playlist_id: &CollectionId, entry_ids: &[CollectionEntryId]) -> Result<()>;
 }
 ```
 
 ### 10.10 Implementation status and roadmap
 
-**Current code:** `library-core` / `library` implement the §10 model (disk `Folder` collections, `Playlist` + `sortable`, path-prefix folder tracks, M2M `collection_tracks`). `library-adapters` is a placeholder.
+**Current code:** `library-core` / `library` implement the §10 model (disk `Folder` collections, `Playlist` + `sortable`, path-prefix folder tracks, M2M `collection_entries`). `library-adapters` is a placeholder.
 
 **Next implementation steps:**
 
@@ -743,7 +744,7 @@ trait WritableLibrary: Library {
 | Manager | One `Library` per user | Single place for tracks, collections, adapters |
 | Collection kinds | `Folder` (disk path) + `Playlist` (`sortable`) | Real folders + lists; no virtual playlist folders |
 | Folder membership | Path prefix on `tracks.path` | Folder is a real directory, not a join table |
-| Playlist membership | M2M `collection_tracks` | Same track in many playlists |
+| Playlist membership | M2M `collection_entries` | Same track in many playlists |
 | Collection layout | Flat list (no `parent_id`) | Playlist folders out of scope |
 | Ordered vs unordered lists | `Playlist.sortable` | Playlist and crate are the same structure |
 | Canonical store | `library` / `LibraryManager` | Mixxx-like reliability; storage engine is an implementation detail |
@@ -873,7 +874,7 @@ panic = "abort"
 
 ### Sprint 3 — Library Manager & Tags (in progress)
 
-- `library-core` / `library` (`LibraryManager`): disk `Folder` + `Playlist` (`sortable`), path-prefix folder tracks, M2M `collection_tracks` (§10).
+- `library-core` / `library` (`LibraryManager`): disk `Folder` + `Playlist` (`sortable`), path-prefix folder tracks, M2M `collection_entries` (§10).
 - `library-adapters`: placeholder for third-party formats.
 - Later sprints: adapters (crates → `sortable: false`), hotcues/beatgrid, CDJ export.
 

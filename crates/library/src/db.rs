@@ -82,7 +82,30 @@ fn sync_schema(conn: &DatabaseConnection) -> std::result::Result<(), DbErr> {
         "PRAGMA journal_mode = WAL;".to_string(),
     ))?;
 
+    rename_legacy_collection_tracks_table(conn)?;
+
     conn.get_schema_registry("library::entity::*").sync(conn)
+}
+
+fn rename_legacy_collection_tracks_table(
+    conn: &DatabaseConnection,
+) -> std::result::Result<(), DbErr> {
+    let has_old = conn
+        .query_one_raw(Statement::from_sql_and_values(
+            sea_orm::DatabaseBackend::Sqlite,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type='table' AND name='collection_tracks'",
+            [],
+        ))?
+        .and_then(|row| row.try_get::<i64>("", "count").ok())
+        .unwrap_or(0);
+    if has_old == 0 {
+        return Ok(());
+    }
+    conn.execute_raw(Statement::from_string(
+        sea_orm::DatabaseBackend::Sqlite,
+        "ALTER TABLE collection_tracks RENAME TO collection_entries".to_string(),
+    ))?;
+    Ok(())
 }
 
 pub fn db_err(err: DbErr) -> LibraryError {
@@ -102,7 +125,7 @@ mod tests {
         for name in [
             "tracks",
             "collections",
-            "collection_tracks",
+            "collection_entries",
             "track_analysis",
             "track_waveform",
             "track_hot_cue",

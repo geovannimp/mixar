@@ -379,7 +379,7 @@ Use **`LibraryTransport`** (or `HistoryTransport` if the API grows). No raw FRB 
 | **Rename session** | XSPF `<title>` + index |
 | **New session** / **Resume session** | §5.4 |
 | **Export…** | §12 |
-| **Save as playlist** | Sortable `Playlist` via `collection_tracks` |
+| **Save as playlist** | Sortable `Playlist` via `collection_entries` |
 | **Delete session** | Remove XSPF + index row (confirm) |
 | **Reveal in folder** | Opens `history/` in file manager |
 
