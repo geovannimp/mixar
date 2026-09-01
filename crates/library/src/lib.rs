@@ -80,6 +80,11 @@ pub struct PreparedTrackPlayback {
     pub loudness_lufs: Option<f64>,
 }
 
+enum FileImportOutcome {
+    Added,
+    Updated,
+}
+
 /// The user’s library manager (canonical writable store).
 pub struct LibraryManager {
     db: db::Db,
@@ -455,7 +460,7 @@ impl LibraryManager {
     /// Takes `&Mutex<Self>` so overview generation does not hold the library lock.
     pub fn ensure_track_waveform(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
         let path = {
-            let lib = library.lock().expect("library lock");
+            let lib = Self::lock_library(library)?;
             if waveform::has_track_waveform(&lib.db, id)? {
                 return Ok(());
             }
@@ -469,7 +474,7 @@ impl LibraryManager {
 
         let peaks = waveform::generate_overview_from_path(&path)?;
 
-        let lib = library.lock().expect("library lock");
+        let lib = Self::lock_library(library)?;
         if waveform::has_track_waveform(&lib.db, id)? {
             return Ok(());
         }
@@ -504,7 +509,7 @@ impl LibraryManager {
     #[cfg(feature = "analysis")]
     pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
         let path = {
-            let lib = library.lock().expect("library lock");
+            let lib = Self::lock_library(library)?;
             if !lib.needs_playback_analysis(id)? {
                 return Ok(());
             }
@@ -524,7 +529,7 @@ impl LibraryManager {
         };
         let computed = compute_file_analysis(&path, options)?;
 
-        let lib = library.lock().expect("library lock");
+        let lib = Self::lock_library(library)?;
         if !lib.needs_playback_analysis(id)? {
             return Ok(());
         }
@@ -535,6 +540,201 @@ impl LibraryManager {
     #[cfg(not(feature = "analysis"))]
     pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {
         let _ = (library, id);
+        Ok(())
+    }
+
+    /// Run analysis without holding the library mutex during DSP work.
+    pub fn analyze_track_off_mutex(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        options: AnalyzeTrackOptions,
+    ) -> Result<AudioSource> {
+        let path = {
+            let lib = Self::lock_library(library)?;
+            let source = lib
+                .get_track(id)?
+                .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+            match source {
+                AudioSource::File(file) => file.path().to_path_buf(),
+                AudioSource::Stream(_) => {
+                    return Err(LibraryError::Unsupported(
+                        "stream track analysis not implemented",
+                    ));
+                }
+            }
+        };
+
+        #[cfg(feature = "analysis")]
+        {
+            let computed = compute_file_analysis(&path, options)?;
+            let lib = Self::lock_library(library)?;
+            lib.ensure_track_still_at_path(id, &path)?;
+            lib.persist_file_analysis(&path, &computed, true)
+        }
+        #[cfg(not(feature = "analysis"))]
+        {
+            let lib = Self::lock_library(library)?;
+            lib.ensure_track_still_at_path(id, &path)?;
+            lib.refresh_file_source(&path)
+        }
+    }
+
+    /// Sync collections without holding the library mutex across filesystem walks or tag reads.
+    pub fn sync_collection_off_mutex(
+        library: &Mutex<Self>,
+        collection_id: Option<&CollectionId>,
+    ) -> Result<ScanReport> {
+        let collections = {
+            let lib = Self::lock_library(library)?;
+            match collection_id {
+                Some(id) => vec![lib.require_collection(id)?],
+                None => lib.list_collections()?,
+            }
+        };
+
+        if collections.is_empty() {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: "no collections to sync".into(),
+            });
+        }
+
+        let mut report = ScanReport::default();
+        for collection in collections {
+            let part = Self::sync_one_collection_off_mutex(library, &collection)?;
+            report.added += part.added;
+            report.updated += part.updated;
+            report.skipped += part.skipped;
+            report.failed += part.failed;
+            report.errors.extend(part.errors);
+        }
+        Ok(report)
+    }
+
+    fn lock_library(m: &Mutex<Self>) -> Result<std::sync::MutexGuard<'_, Self>> {
+        m.lock().map_err(|_| LibraryError::Backend {
+            backend: "library",
+            message: "library lock poisoned".into(),
+        })
+    }
+
+    fn lock_decode_cache(
+        cache: &Mutex<HashMap<TrackId, Arc<LoadedAudio>>>,
+    ) -> Result<std::sync::MutexGuard<'_, HashMap<TrackId, Arc<LoadedAudio>>>> {
+        cache.lock().map_err(|_| LibraryError::Backend {
+            backend: "library",
+            message: "library decode cache lock poisoned".into(),
+        })
+    }
+
+    fn sync_one_collection_off_mutex(
+        library: &Mutex<Self>,
+        collection: &Collection,
+    ) -> Result<ScanReport> {
+        match collection.collection_type() {
+            CollectionType::Folder => Self::sync_folder_off_mutex(library, collection),
+            CollectionType::Playlist => Self::sync_playlist_off_mutex(library, collection),
+        }
+    }
+
+    fn sync_folder_off_mutex(library: &Mutex<Self>, folder: &Collection) -> Result<ScanReport> {
+        let fs_path = folder.fs_path().ok_or_else(|| LibraryError::Backend {
+            backend: "library",
+            message: format!("folder {} has no fs_path", folder.id),
+        })?;
+
+        let mut report = ScanReport::default();
+        if !fs_path.exists() {
+            report.failed += 1;
+            report
+                .errors
+                .push(format!("root not found: {}", fs_path.display()));
+            return Ok(report);
+        }
+
+        let CollectionConfig::Folder {
+            scan_folder_tree, ..
+        } = &folder.config
+        else {
+            return Err(LibraryError::Backend {
+                backend: "library",
+                message: format!("folder {} has non-folder config", folder.id),
+            });
+        };
+
+        let files = collect_audio_files(fs_path, *scan_folder_tree)?;
+        for file in files {
+            match Self::import_file_off_mutex(library, &file) {
+                Ok(FileImportOutcome::Added) => report.added += 1,
+                Ok(FileImportOutcome::Updated) => report.updated += 1,
+                Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
+                Err(err) => {
+                    report.failed += 1;
+                    report.errors.push(format!("{}: {err}", file.display()));
+                }
+            }
+        }
+        Ok(report)
+    }
+
+    fn sync_playlist_off_mutex(library: &Mutex<Self>, playlist: &Collection) -> Result<ScanReport> {
+        let paths = {
+            let lib = Self::lock_library(library)?;
+            lib.get_collection_tracks(&playlist.id)?
+                .into_iter()
+                .filter_map(|source| source.file().map(|file| file.path().to_path_buf()))
+                .collect::<Vec<_>>()
+        };
+
+        let mut report = ScanReport::default();
+        for path in paths {
+            if !path.is_file() {
+                report.skipped += 1;
+                continue;
+            }
+            match Self::refresh_file_off_mutex(library, &path) {
+                Ok(()) => report.updated += 1,
+                Err(LibraryError::UnsupportedFile(_)) => report.skipped += 1,
+                Err(err) => {
+                    report.failed += 1;
+                    report.errors.push(format!("{}: {err}", path.display()));
+                }
+            }
+        }
+        Ok(report)
+    }
+
+    fn import_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<FileImportOutcome> {
+        let path = normalize_path(path)?;
+        if !path.is_file() {
+            return Err(LibraryError::PathNotFound(path));
+        }
+        if !is_audio_file(&path) {
+            return Err(LibraryError::UnsupportedFile(path));
+        }
+        let metadata = tags::read_tags(&path)?;
+        let id = Self::track_id_for(&path);
+        let lib = Self::lock_library(library)?;
+        let existed = lib.get_track(&id)?.is_some();
+        lib.upsert_file_source(&path, &metadata)?;
+        Ok(if existed {
+            FileImportOutcome::Updated
+        } else {
+            FileImportOutcome::Added
+        })
+    }
+
+    fn refresh_file_off_mutex(library: &Mutex<Self>, path: &Path) -> Result<()> {
+        let path = normalize_path(path)?;
+        if !path.is_file() {
+            return Err(LibraryError::PathNotFound(path));
+        }
+        if !is_audio_file(&path) {
+            return Err(LibraryError::UnsupportedFile(path));
+        }
+        let metadata = tags::read_tags(&path)?;
+        let lib = Self::lock_library(library)?;
+        lib.upsert_file_source(&path, &metadata)?;
         Ok(())
     }
 
@@ -571,8 +771,8 @@ impl LibraryManager {
             });
         }
         let cached = {
-            let lib = library.lock().expect("library lock");
-            let cache = lib.decode_cache.lock().expect("library decode cache lock");
+            let lib = Self::lock_library(library)?;
+            let cache = Self::lock_decode_cache(&lib.decode_cache)?;
             cache.get(id).cloned()
         };
 
@@ -580,7 +780,7 @@ impl LibraryManager {
             cached
         } else {
             let source = {
-                let lib = library.lock().expect("library lock");
+                let lib = Self::lock_library(library)?;
                 lib.get_track(id)?
                     .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
             };
@@ -591,8 +791,8 @@ impl LibraryManager {
                 backend: "library",
                 message: format!("failed to decode track for waveform: {e}"),
             })?);
-            let lib = library.lock().expect("library lock");
-            let mut cache = lib.decode_cache.lock().expect("library decode cache lock");
+            let lib = Self::lock_library(library)?;
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
             cache
                 .entry(id.clone())
                 .or_insert_with(|| Arc::clone(&loaded));
@@ -633,7 +833,7 @@ impl LibraryManager {
         path: &Path,
     ) -> Result<PreparedTrackPlayback> {
         let source = {
-            let lib = library.lock().expect("library lock");
+            let lib = Self::lock_library(library)?;
             lib.import_file_path(path)?
         };
         Self::prepare_source_for_playback(library, source)
@@ -647,7 +847,7 @@ impl LibraryManager {
         id: &TrackId,
     ) -> Result<PreparedTrackPlayback> {
         let source = {
-            let lib = library.lock().expect("library lock");
+            let lib = Self::lock_library(library)?;
             lib.get_track(id)?
                 .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
         };
@@ -662,20 +862,20 @@ impl LibraryManager {
         if source.file().is_some() {
             Self::ensure_track_analysis(library, &track_id)?;
             source = {
-                let lib = library.lock().expect("library lock");
+                let lib = Self::lock_library(library)?;
                 lib.get_track(&track_id)?
                     .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
             };
         }
         let loudness_lufs = {
-            let lib = library.lock().expect("library lock");
+            let lib = Self::lock_library(library)?;
             lib.track_loudness_lufs(&track_id)?
         };
         source.metadata_mut().loudness_lufs = loudness_lufs;
 
         let cached = {
-            let lib = library.lock().expect("library lock");
-            let cache = lib.decode_cache.lock().expect("library decode cache lock");
+            let lib = Self::lock_library(library)?;
+            let cache = Self::lock_decode_cache(&lib.decode_cache)?;
             cache.get(&track_id).map(Arc::clone)
         };
 
@@ -687,8 +887,8 @@ impl LibraryManager {
                 backend: "library",
                 message: format!("failed to decode track for playback: {e}"),
             })?);
-            let lib = library.lock().expect("library lock");
-            let mut cache = lib.decode_cache.lock().expect("library decode cache lock");
+            let lib = Self::lock_library(library)?;
+            let mut cache = Self::lock_decode_cache(&lib.decode_cache)?;
             if let Some(existing) = cache.get(&track_id) {
                 Arc::clone(existing)
             } else {
@@ -1048,6 +1248,22 @@ impl LibraryManager {
             return Ok(());
         }
         self.store().delete_track(track_id)?;
+        Ok(())
+    }
+
+    /// After off-mutex work, confirm [id] still exists and still maps to [path].
+    fn ensure_track_still_at_path(&self, id: &TrackId, path: &Path) -> Result<()> {
+        let Some(source) = self.get_track(id)? else {
+            return Err(LibraryError::NotFound(id.to_string()));
+        };
+        let file = source.file().ok_or(LibraryError::Unsupported(
+            "stream track analysis not implemented",
+        ))?;
+        let current = normalize_path(file.path())?;
+        let expected = normalize_path(path)?;
+        if current != expected {
+            return Err(LibraryError::NotFound(id.to_string()));
+        }
         Ok(())
     }
 
@@ -1687,6 +1903,83 @@ mod tests {
         let second = lib.sync_collection(Some(&folder.id)).unwrap();
         assert_eq!(second.added, 0);
         assert_eq!(second.updated, 1);
+    }
+
+    #[test]
+    fn sync_collection_off_mutex_matches_in_process_sync() {
+        use std::sync::Mutex;
+
+        let dir = tempfile::tempdir().unwrap();
+        write_minimal_wav(&dir.path().join("a.wav"));
+
+        let direct = {
+            let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+            let folder = lib
+                .add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+                .unwrap();
+            lib.sync_collection(Some(&folder.id)).unwrap()
+        };
+
+        let off_mutex = {
+            let library =
+                Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+            let folder_id = {
+                let mut lib = library.lock().unwrap();
+                lib.add_collection(&NewCollection::folder_named(dir.path(), "Music"))
+                    .unwrap()
+                    .id
+            };
+            LibraryManager::sync_collection_off_mutex(&library, Some(&folder_id)).unwrap()
+        };
+
+        assert_eq!(direct.added, off_mutex.added);
+        assert_eq!(direct.updated, off_mutex.updated);
+        assert_eq!(direct.skipped, off_mutex.skipped);
+        assert_eq!(direct.failed, off_mutex.failed);
+    }
+
+    #[test]
+    #[cfg(feature = "analysis")]
+    fn analyze_track_off_mutex_does_not_recreate_deleted_track() {
+        use std::sync::Mutex;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("a.wav");
+        write_minimal_wav(&wav);
+
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_file_path(&wav).unwrap();
+        let id = track.id().clone();
+        let library = Mutex::new(lib);
+
+        let path = {
+            let lib = library.lock().unwrap();
+            lib.get_track(&id)
+                .unwrap()
+                .unwrap()
+                .file()
+                .unwrap()
+                .path()
+                .to_path_buf()
+        };
+
+        let options = AnalyzeTrackOptions {
+            force: true,
+            analysis_duration: AnalysisDurationMode::Fast,
+        };
+        let _computed = compute_file_analysis(&path, options).unwrap();
+
+        {
+            let lib = library.lock().unwrap();
+            lib.store().delete_track(&id).unwrap();
+            assert!(!lib.store().track_exists(&id).unwrap());
+            assert!(matches!(
+                lib.ensure_track_still_at_path(&id, &path),
+                Err(LibraryError::NotFound(_))
+            ));
+        }
+
+        assert!(!library.lock().unwrap().store().track_exists(&id).unwrap());
     }
 
     #[test]

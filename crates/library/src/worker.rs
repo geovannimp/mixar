@@ -6,9 +6,7 @@ use library_api::{
     decode_cmd_body, encode_evt_body, BeatGrid, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
     TrackSummary,
 };
-use library_core::{
-    AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, Library, TrackId, WritableLibrary,
-};
+use library_core::{AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, Library, TrackId};
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -268,10 +266,8 @@ fn handle_analyze(
         force,
         analysis_duration: duration,
     };
-    let result = library
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .analyze_track(&TrackId::new(track_id.clone()), options);
+    let result =
+        LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);
 
     match result {
         Ok(source) => match track_summary(&source) {
