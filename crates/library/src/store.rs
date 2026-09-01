@@ -454,13 +454,19 @@ impl<'a> Store<'a> {
     pub fn dedupe_playlist_entries(&self, playlist_id: &CollectionId) -> Result<()> {
         let rows = self.list_playlist_entries(playlist_id)?;
         let mut seen = std::collections::HashSet::new();
+        let mut duplicate_ids = Vec::new();
         for row in rows {
             if !seen.insert(row.track_id.as_str().to_string()) {
-                CollectionEntryEntity::delete_by_id(row.id.as_str())
-                    .exec(self.db.conn()?.as_connection())
-                    .map_err(db::db_err)?;
+                duplicate_ids.push(row.id.as_str().to_string());
             }
         }
+        if duplicate_ids.is_empty() {
+            return Ok(());
+        }
+        CollectionEntryEntity::delete_many()
+            .filter(collection_entries::Column::Id.is_in(duplicate_ids))
+            .exec(self.db.conn()?.as_connection())
+            .map_err(db::db_err)?;
         Ok(())
     }
 

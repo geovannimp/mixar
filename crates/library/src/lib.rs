@@ -1384,26 +1384,40 @@ fn is_audio_file(path: &Path) -> bool {
 }
 
 fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
+    let canonical_root = normalize_path(root)?;
     let mut files = Vec::new();
-    if root.is_file() {
-        if is_audio_file(root) {
-            files.push(normalize_path(root)?);
+    if canonical_root.is_file() {
+        if is_audio_file(&canonical_root) && path_under_folder(&canonical_root, &canonical_root) {
+            files.push(canonical_root);
         }
         return Ok(files);
     }
 
-    let mut stack = vec![root.to_path_buf()];
+    let mut stack = vec![canonical_root.clone()];
     while let Some(dir) = stack.pop() {
         let entries = std::fs::read_dir(&dir)?;
         for entry in entries {
             let entry = entry?;
+            let file_type = match entry.file_type() {
+                Ok(file_type) => file_type,
+                Err(_) => continue,
+            };
+            if file_type.is_symlink() {
+                continue;
+            }
             let path = entry.path();
-            if path.is_dir() {
+            if file_type.is_dir() {
                 if recursive {
-                    stack.push(path);
+                    let normalized = normalize_path(&path)?;
+                    if path_under_folder(&normalized, &canonical_root) {
+                        stack.push(normalized);
+                    }
                 }
-            } else if is_audio_file(&path) {
-                files.push(normalize_path(&path)?);
+            } else if file_type.is_file() && is_audio_file(&path) {
+                let normalized = normalize_path(&path)?;
+                if path_under_folder(&normalized, &canonical_root) {
+                    files.push(normalized);
+                }
             }
         }
     }
@@ -1802,6 +1816,24 @@ mod tests {
             )
             .unwrap_err();
         assert!(matches!(err, LibraryError::Unsupported(_)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_audio_files_skips_symlink_outside_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        write_minimal_wav(&outside.path().join("secret.wav"));
+        write_minimal_wav(&dir.path().join("inside.wav"));
+        std::os::unix::fs::symlink(
+            outside.path().join("secret.wav"),
+            dir.path().join("link.wav"),
+        )
+        .unwrap();
+
+        let files = collect_audio_files(dir.path(), false).unwrap();
+        assert_eq!(files.len(), 1);
+        assert!(files[0].ends_with("inside.wav"));
     }
 
     #[test]
