@@ -21,12 +21,13 @@ pub trait Library: Send + Sync {
     /// Fetch a single collection by id.
     fn get_collection(&self, id: &CollectionId) -> Result<Option<Collection>>;
 
-    /// Sources in a collection. Folders use path-prefix on file sources;
-    /// playlists use M2M membership.
-    fn get_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>>;
+    /// Tracks in a collection. Folders use path-prefix on file sources;
+    /// playlists use `collection_entries` membership order.
+    fn list_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>>;
 
-    /// Playlist entries in display order. Errors if not a playlist.
-    fn list_playlist_entries(&self, collection_id: &CollectionId) -> Result<Vec<CollectionEntry>>;
+    /// Playlist rows in `collection_entries` display order. Errors if not a playlist.
+    fn list_collection_entries(&self, collection_id: &CollectionId)
+        -> Result<Vec<CollectionEntry>>;
 }
 
 /// Mutable library manager operations.

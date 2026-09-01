@@ -418,7 +418,7 @@ pub struct AnalyzeTrackOptions {
 |--------|----------|
 | File tags (`InitialKey`) | Normalize to musical on read when value looks like Camelot; otherwise pass through if already musical |
 | Analyzer backend | Map backend result to `KeyAnalysis.musical` in the adapter (stratum-dsp: use musical name field, not DJ code) |
-| `get_track` / `get_collection_tracks` | Return `metadata.key` as musical only |
+| `get_track` / `list_collection_tracks` | Return `metadata.key` as musical only |
 | Adapters (Rekordbox, Serato, …) | Convert vendor Camelot or vendor-specific codes to musical on import; convert back only on export if the target format requires it |
 
 **Examples of stored values:** `Am`, `F#m`, `Db`, `G major`, `Bb minor` — pick one compact convention in implementation (recommend `"F#m"` / `"Bb"` style for minors/majors without the word *major*).

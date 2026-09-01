@@ -352,12 +352,12 @@ impl<'a> Store<'a> {
         Ok(result.rows_affected > 0)
     }
 
-    pub fn list_playlist_entries(
+    pub fn list_collection_entries(
         &self,
-        playlist_id: &CollectionId,
+        collection_id: &CollectionId,
     ) -> Result<Vec<CollectionEntry>> {
         let rows = CollectionEntryEntity::find()
-            .filter(collection_entries::Column::CollectionId.eq(playlist_id.as_str()))
+            .filter(collection_entries::Column::CollectionId.eq(collection_id.as_str()))
             .order_by(
                 Expr::cust("CASE WHEN position IS NULL THEN 1 ELSE 0 END"),
                 Order::Asc,
@@ -505,7 +505,7 @@ impl<'a> Store<'a> {
 
     /// Keep one entry per track (first in display order).
     pub fn dedupe_playlist_entries(&self, playlist_id: &CollectionId) -> Result<()> {
-        let rows = self.list_playlist_entries(playlist_id)?;
+        let rows = self.list_collection_entries(playlist_id)?;
         let mut seen = std::collections::HashSet::new();
         let mut duplicate_ids = Vec::new();
         for row in rows {
