@@ -203,14 +203,14 @@ class DeckKeyLockButton extends StatelessWidget {
         child: Row(
           mainAxisSize: .min,
           children: [
-          Text(
-            keyLabel,
-            style: theme.typography.body.xs.copyWith(
-              color: keyColor ?? muted,
-              fontWeight: .w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
+            Text(
+              keyLabel,
+              style: theme.typography.body.xs.copyWith(
+                color: keyColor ?? muted,
+                fontWeight: .w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
-          ),
             const SizedBox(width: 4),
             Icon(
               keyLock ? LucideIcons.lock : LucideIcons.lockOpen,
