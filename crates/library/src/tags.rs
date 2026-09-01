@@ -4,7 +4,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use audio_core::secs_to_ms;
-use library_core::TrackMetadata;
+use library_core::{path_label, TrackMetadata};
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::{Accessor, ItemKey};
@@ -12,9 +12,9 @@ use lofty::tag::{Accessor, ItemKey};
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
     let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
+        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
+        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
 
     let properties = tagged.properties();
     let tag = tagged.primary_tag().or_else(|| tagged.first_tag());
@@ -64,9 +64,9 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.
 pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result<Option<f64>> {
     let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
+        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
+        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
     Ok(replaygain_track_gain_db(&tagged))
 }
 
@@ -111,9 +111,9 @@ fn normalize_key_notation(raw: &str) -> String {
 /// Read embedded album artwork from an audio file, if present.
 pub fn read_artwork(path: &Path) -> library_core::Result<Option<Vec<u8>>> {
     let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path.display())))?
+        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path.display())))?;
+        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
 
     let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
         return Ok(None);
