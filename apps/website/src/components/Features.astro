@@ -1,28 +1,57 @@
 ---
+import {
+  AudioWaveform,
+  Disc3,
+  Flame,
+  Library,
+  SlidersHorizontal,
+  Usb,
+  Volume2,
+} from "@lucide/astro";
 import FeatureCard from "./ui/FeatureCard.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
+
+const iconProps = { size: 16, "stroke-width": 2 };
 ---
 
 <section id="features" class="px-6 py-20">
-  <SectionHeader title="Everything you need" description="Professional DJ mixing with no paywall surprises." />
-  <div class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3">
-    <FeatureCard icon="A" iconTone="deck-a" title="Dual decks">
+  <SectionHeader title="Everything you need" description="Professional DJ mixing with no paywall surprises.">
+    <Flame slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+  </SectionHeader>
+  <div
+    id="features-grid"
+    class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3"
+    data-reveal-group
+  >
+    <FeatureCard revealIndex={0} iconTone="deck-a" title="Dual decks">
+      <Disc3 slot="icon" {...iconProps} />
       Overview and scrolling waveforms, beat grid, play/pause, seek, and tempo on each deck.
     </FeatureCard>
-    <FeatureCard icon="B" iconTone="deck-b" title={`Mixer & metering`}>
+    <FeatureCard revealIndex={1} iconTone="deck-b" title={`Mixer & metering`}>
+      <SlidersHorizontal slot="icon" {...iconProps} />
       Gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters across the mix bus.
     </FeatureCard>
-    <FeatureCard icon="◎" title="Performance tools">
+    <FeatureCard revealIndex={2} title="Performance tools">
+      <AudioWaveform slot="icon" {...iconProps} />
       Hot cues, loops, performance pads, sampler, and beat sync for live sets.
     </FeatureCard>
-    <FeatureCard icon="♫" title={`Library & analysis`}>
+    <FeatureCard revealIndex={3} title={`Library & analysis`}>
+      <Library slot="icon" {...iconProps} />
       Folder collections, track metadata, and offline analysis for BPM, key, and loudness.
     </FeatureCard>
-    <FeatureCard icon="⌘" title="MIDI control">
+    <FeatureCard revealIndex={4} title="MIDI control">
+      <Usb slot="icon" {...iconProps} />
       Map any controller you already own, with no vendor lock-in and no surprise paywalls for hardware.
     </FeatureCard>
-    <FeatureCard icon="↯" title="Low-latency mixing">
+    <FeatureCard revealIndex={5} title="Low-latency mixing">
+      <Volume2 slot="icon" {...iconProps} />
       Responsive decks and a tight mixer feel, built for live performance when timing matters.
     </FeatureCard>
   </div>
 </section>
+
+<script>
+  import { initRevealGroups } from "../scripts/features-reveal";
+
+  initRevealGroups();
+</script>

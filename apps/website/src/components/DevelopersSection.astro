@@ -1,29 +1,51 @@
 ---
 import { GITHUB_REPO } from "../consts";
+import { Code, Handshake, Star } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
+
+const iconProps = { size: 16, "stroke-width": 2 };
+
+const bullets = [
+  "Inspectable codebase and a modular architecture",
+  "Real-time audio engine designed for low-latency mixing",
+  "Issues and pull requests welcome at every skill level",
+] as const;
+
+const bulletClass =
+  "relative pl-5 before:absolute before:top-[0.55em] before:left-0 before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent";
 ---
 
 <section id="developers" class="px-6 py-20">
   <div class="mx-auto max-w-[640px] text-center">
     <SectionHeader
-      title="Open source, built with the community"
+      title="Open source, built for the community"
       description="Mixar is GPL-3.0 licensed and open to contributors. Fork it, extend it, report bugs, or open a pull request, whether you write code or just want to follow along."
-    />
-    <ul class="mb-7 space-y-2.5 text-left text-[0.9375rem] text-muted">
-      <li class="relative pl-5 before:absolute before:top-[0.55em] before:left-0 before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
-        Inspectable codebase and a modular architecture
-      </li>
-      <li class="relative pl-5 before:absolute before:top-[0.55em] before:left-0 before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
-        Real-time audio engine designed for low-latency mixing
-      </li>
-      <li class="relative pl-5 before:absolute before:top-[0.55em] before:left-0 before:h-1.5 before:w-1.5 before:rounded-full before:bg-accent">
-        Issues and pull requests welcome at every skill level
-      </li>
+    >
+      <Handshake slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+    </SectionHeader>
+    <ul class="mb-7 space-y-2.5 text-left text-[0.9375rem] text-muted" data-reveal-group>
+      {
+        bullets.map((text, index) => (
+          <li
+            data-reveal-x
+            style={`--reveal-delay: ${index * 100}ms`}
+            class={bulletClass}
+          >
+            {text}
+          </li>
+        ))
+      }
     </ul>
     <div class="flex flex-wrap justify-center gap-3">
-      <Button href={GITHUB_REPO} external>Star on GitHub</Button>
-      <Button href="/developers" variant="secondary">Developer guide</Button>
+      <Button href={GITHUB_REPO} external>
+        <Star {...iconProps} aria-hidden="true" />
+        Star on GitHub
+      </Button>
+      <Button href="/developers" variant="secondary">
+        <Code {...iconProps} aria-hidden="true" />
+        Developer guide
+      </Button>
     </div>
   </div>
 </section>

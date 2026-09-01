@@ -1,30 +1,35 @@
 ---
 interface Props {
-  icon: string;
   iconTone?: "deck-a" | "deck-b" | "accent";
   title: string;
+  revealIndex?: number;
 }
 
-const { icon, iconTone = "accent", title } = Astro.props;
+const { iconTone = "accent", title, revealIndex } = Astro.props;
 
 const iconTones = {
   "deck-a": "bg-green-500/10 text-deck-a",
   "deck-b": "bg-sky-500/10 text-deck-b",
   accent: "bg-accent-dim text-accent",
 };
+
+const revealStyle =
+  revealIndex === undefined ? undefined : `--reveal-delay: ${revealIndex * 100}ms`;
 ---
 
 <article
+  data-reveal
+  style={revealStyle}
   class="rounded-xl border border-border bg-bg-card p-6 transition hover:border-zinc-400/25"
 >
   <div
     class:list={[
-      "mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] text-sm font-bold",
+      "mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] [&_svg]:size-4",
       iconTones[iconTone],
     ]}
     aria-hidden="true"
   >
-    {icon}
+    <slot name="icon" />
   </div>
   <h3 class="mb-2 text-[1.0625rem] font-semibold">{title}</h3>
   <p class="text-[0.9375rem] text-muted">

@@ -1,4 +1,5 @@
 ---
+import { MonitorSmartphone } from "@lucide/astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
 const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
@@ -13,12 +14,20 @@ const popover =
   <SectionHeader
     title="Built for every platform"
     description="Mixar is built with desktop and mobile in mind from the start. One product shaped for every screen you mix on, not a desktop app awkwardly ported elsewhere."
-  />
-  <ul class="mx-auto mt-8 flex max-w-content flex-wrap justify-center gap-3">
-    <li class:list={[pillBase, "border-accent bg-accent-dim text-accent"]}>Linux</li>
+  >
+    <MonitorSmartphone slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+  </SectionHeader>
+  <ul class="mx-auto mt-8 flex max-w-content flex-wrap justify-center gap-3" data-reveal-group>
+    <li
+      data-reveal
+      style="--reveal-delay: 0ms"
+      class:list={[pillBase, "border-accent bg-accent-dim text-accent"]}
+    >
+      Linux
+    </li>
     {
-      upcomingPlatforms.map((name) => (
-        <li>
+      upcomingPlatforms.map((name, index) => (
+        <li data-reveal style={`--reveal-delay: ${(index + 1) * 100}ms`}>
           <button
             type="button"
             class:list={[

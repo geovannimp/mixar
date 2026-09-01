@@ -9,7 +9,7 @@ interface Props {
 const { href, variant = "primary", external = false, class: className } = Astro.props;
 
 const base =
-  "inline-flex items-center justify-center rounded-full px-5.5 py-3 text-[0.9375rem] font-semibold transition hover:-translate-y-px";
+  "inline-flex items-center justify-center gap-2 rounded-full px-5.5 py-3 text-[0.9375rem] font-semibold transition hover:-translate-y-px";
 const variants = {
   primary: "bg-accent text-white hover:bg-accent-hover dark:text-teal-950",
   secondary:

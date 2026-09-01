@@ -1,7 +1,10 @@
 ---
 import { GITHUB_REPO } from "../consts";
+import { Star } from "@lucide/astro";
 import Badge from "./ui/Badge.astro";
 import Button from "./ui/Button.astro";
+
+const iconProps = { size: 16, "stroke-width": 2 };
 ---
 
 <section class="px-6 pt-16 pb-12">
@@ -12,6 +15,9 @@ import Button from "./ui/Button.astro";
       Mixar is a modular Rust audio engine with a Flutter UI. Inspect the code, run it locally, and
       help shape the future of open DJ software.
     </p>
-    <Button href={GITHUB_REPO} external>Star on GitHub</Button>
+    <Button href={GITHUB_REPO} external>
+      <Star {...iconProps} aria-hidden="true" />
+      Star on GitHub
+    </Button>
   </div>
 </section>
