@@ -35,8 +35,7 @@
   --deck-b: #38bdf8;
   --header-bg: rgba(9, 9, 11, 0.85);
   --screenshot-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.03),
-    0 24px 64px rgba(0, 0, 0, 0.5);
+    0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
 @theme inline {
@@ -100,75 +99,5 @@
   [data-reveal-group].is-visible [data-reveal-x] {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@media (max-width: 1023px) {
-  .hero-screenshot-stage {
-    perspective: 900px;
-    perspective-origin: 50% 55%;
-  }
-
-  .hero-screenshot-tilt {
-    transform: rotateY(-10deg) rotateX(12deg);
-    transform-origin: center center;
-    transform-style: preserve-3d;
-  }
-}
-
-@media (min-width: 1024px) {
-  .hero-screenshot-stage {
-    perspective: 1100px;
-    perspective-origin: 50% 40%;
-  }
-
-  .hero-screenshot-tilt {
-    transform: rotateY(-14deg) rotateX(8deg);
-    transform-origin: center center;
-    transform-style: preserve-3d;
-  }
-
-  .hero-screenshot-shadow {
-    position: absolute;
-    inset: auto 8% -10% 8%;
-    z-index: -1;
-    height: 28%;
-    border-radius: 50%;
-    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.28), transparent 72%);
-    transform: rotateX(78deg);
-    pointer-events: none;
-  }
-}
-
-@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
-  .hero-screenshot-tilt {
-    animation: hero-screenshot-float 7s ease-in-out infinite;
-  }
-}
-
-@keyframes hero-screenshot-float {
-  0%,
-  100% {
-    transform: rotateY(-14deg) rotateX(8deg) translate(0, 0);
-  }
-
-  50% {
-    transform: rotateY(-14deg) rotateX(8deg) translate(6px, -10px);
-  }
-}
-
-@media (max-width: 1023px) and (prefers-reduced-motion: reduce) {
-  .hero-screenshot-tilt {
-    transform: none;
-  }
-}
-
-@media (min-width: 1024px) and (prefers-reduced-motion: reduce) {
-  .hero-screenshot-tilt {
-    transform: none;
-  }
-
-  .hero-screenshot-shadow {
-    display: none;
   }
 }

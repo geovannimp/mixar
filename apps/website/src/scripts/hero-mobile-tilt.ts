@@ -1,37 +1,104 @@
-const START_ROTATE_Y = -10;
-const START_ROTATE_X = 12;
-const SCROLL_DISTANCE = 360;
+import { animate, scroll, type AnimationPlaybackControls } from "motion";
+
+const MOBILE_ROTATE_Y = 0;
+const MOBILE_ROTATE_X = 24;
+const MOBILE_SCALE = 1.1;
+const SCROLL_DISTANCE = 256;
+
+const DESKTOP_ROTATE_Y = -7;
+const DESKTOP_ROTATE_X = 8;
+const FLOAT_DURATION = 20;
 
 export function initHeroMobileTilt() {
   const tilt = document.querySelector<HTMLElement>(".hero-screenshot-tilt");
   if (!tilt) return;
 
-  const isDesktop = () => window.matchMedia("(min-width: 1024px)").matches;
-  const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const desktop = window.matchMedia("(min-width: 1024px)");
 
-  let ticking = false;
+  let cancelScroll: (() => void) | undefined;
+  let floatAnimation: AnimationPlaybackControls | undefined;
+  let unbindHover: (() => void) | undefined;
 
-  const update = () => {
-    ticking = false;
+  const clearTransforms = () => {
+    floatAnimation?.stop();
+    floatAnimation = undefined;
+    tilt.style.removeProperty("transform");
+  };
 
-    if (isDesktop() || prefersReducedMotion()) {
-      tilt.style.removeProperty("transform");
-      return;
+  const mountMobile = () => {
+    const animation = animate(
+      tilt,
+      {
+        rotateY: [MOBILE_ROTATE_Y, 0],
+        rotateX: [MOBILE_ROTATE_X, 0],
+        scale: [MOBILE_SCALE, 1],
+      },
+      { ease: "easeInOut", autoplay: false },
+    );
+
+    cancelScroll = scroll(
+      (progress: number) => {
+        animation.time = progress * animation.duration;
+      },
+      { offset: ["0px start", `${SCROLL_DISTANCE}px start`] },
+    );
+  };
+
+  const mountDesktop = () => {
+    const straight = { rotateY: 0, rotateX: 0, x: 0, y: 0 };
+
+    const startFloat = () => {
+      floatAnimation?.stop();
+      floatAnimation = animate(
+        tilt,
+        {
+          rotateY: DESKTOP_ROTATE_Y,
+          rotateX: DESKTOP_ROTATE_X,
+          x: [0, 6],
+          y: [0, -10],
+        },
+        {
+          duration: FLOAT_DURATION / 2,
+          ease: "easeInOut",
+          repeat: Infinity,
+          repeatType: "reverse",
+        },
+      );
+    };
+
+    const onEnter = () => {
+      floatAnimation?.stop();
+      animate(tilt, straight, { duration: 0.35, ease: "easeOut" });
+    };
+
+    const onLeave = () => {
+      startFloat();
+    };
+
+    tilt.addEventListener("mouseenter", onEnter);
+    tilt.addEventListener("mouseleave", onLeave);
+    unbindHover = () => {
+      tilt.removeEventListener("mouseenter", onEnter);
+      tilt.removeEventListener("mouseleave", onLeave);
+    };
+
+    startFloat();
+  };
+
+  const mount = () => {
+    cancelScroll?.();
+    cancelScroll = undefined;
+    unbindHover?.();
+    unbindHover = undefined;
+    clearTransforms();
+
+    if (desktop.matches) {
+      mountDesktop();
+    } else {
+      mountMobile();
     }
-
-    const progress = Math.min(1, Math.max(0, window.scrollY / SCROLL_DISTANCE));
-    const rotateY = START_ROTATE_Y * (1 - progress);
-    const rotateX = START_ROTATE_X * (1 - progress);
-    tilt.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
   };
 
-  const onScroll = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(update);
-  };
-
-  window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", onScroll, { passive: true });
-  update();
+  desktop.addEventListener("change", mount);
+  mount();
 }
