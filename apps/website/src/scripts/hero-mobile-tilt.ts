@@ -45,6 +45,9 @@ export function initHeroMobileTilt() {
   };
 
   const mountDesktop = () => {
+    const hoverZone = tilt.closest<HTMLElement>("[data-hero-screenshot-hover]");
+    if (!hoverZone) return;
+
     const straight = { rotateY: 0, rotateX: 0, x: 0, y: 0 };
 
     const startFloat = () => {
@@ -75,11 +78,11 @@ export function initHeroMobileTilt() {
       startFloat();
     };
 
-    tilt.addEventListener("mouseenter", onEnter);
-    tilt.addEventListener("mouseleave", onLeave);
+    hoverZone.addEventListener("pointerenter", onEnter);
+    hoverZone.addEventListener("pointerleave", onLeave);
     unbindHover = () => {
-      tilt.removeEventListener("mouseenter", onEnter);
-      tilt.removeEventListener("mouseleave", onLeave);
+      hoverZone.removeEventListener("pointerenter", onEnter);
+      hoverZone.removeEventListener("pointerleave", onLeave);
     };
 
     startFloat();
