@@ -1,6 +1,6 @@
 ---
-import { GITHUB_REPO } from "../consts";
-import { ArrowDown, Construction, Star } from "@lucide/astro";
+import { GITHUB_REPO, QUICK_START_URL } from "../consts";
+import { ArrowDown, Construction, Star, Terminal } from "@lucide/astro";
 import Badge from "./ui/Badge.astro";
 import Button from "./ui/Button.astro";
 
@@ -15,16 +15,20 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
       In development
     </Badge>
     <h1 class="mb-4 text-[clamp(2.25rem,5vw,3.25rem)] leading-[1.1] font-bold tracking-tight">
-      Open-source DJ software built for performance
+      Free DJ software that doesn't limit you
     </h1>
-    <p class="mb-6 max-w-[36ch] text-lg leading-relaxed text-muted">
-      Dual decks, scrolling waveforms, hot cues, and loops on a cross-platform mixing engine. Free to
-      use, fork, and extend.
+    <p class="mb-6 max-w-[40ch] text-lg leading-relaxed text-muted">
+      Open-source mixing with waveforms, hot cues, loops, and a full booth workflow. No paywall.
+      Free to use and extend.
     </p>
     <div class="flex flex-wrap gap-3">
       <Button href={GITHUB_REPO} external>
         <Star {...iconProps} aria-hidden="true" />
         Star on GitHub
+      </Button>
+      <Button href={QUICK_START_URL} external variant="secondary">
+        <Terminal {...iconProps} aria-hidden="true" />
+        Build on Linux
       </Button>
       <Button href="#features" variant="secondary">
         Explore features

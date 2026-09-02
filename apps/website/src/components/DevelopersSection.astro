@@ -1,6 +1,6 @@
 ---
 import { GITHUB_REPO } from "../consts";
-import { Code, Handshake, Star } from "@lucide/astro";
+import { Code, ExternalLink, Handshake } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
@@ -39,8 +39,8 @@ const bulletClass =
     </ul>
     <div class="flex flex-wrap justify-center gap-3">
       <Button href={GITHUB_REPO} external>
-        <Star {...iconProps} aria-hidden="true" />
-        Star on GitHub
+        <ExternalLink {...iconProps} aria-hidden="true" />
+        View source
       </Button>
       <Button href="/developers" variant="secondary">
         <Code {...iconProps} aria-hidden="true" />
