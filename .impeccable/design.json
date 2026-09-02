@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-02T17:10:00.000Z",
+  "title": "Design System: Mixar",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Live Teal",
+        "canonical": "#0d9488",
+        "tonalRamp": [
+          "#042f2e",
+          "#0f766e",
+          "#0d9488",
+          "#14b8a6",
+          "#2dd4bf",
+          "#5eead4",
+          "#99f6e4",
+          "#ccfbf1"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Teal Depth",
+        "canonical": "#0f766e",
+        "tonalRamp": [
+          "#042f2e",
+          "#064e3b",
+          "#0f766e",
+          "#0d9488",
+          "#14b8a6",
+          "#2dd4bf",
+          "#5eead4",
+          "#99f6e4"
+        ]
+      },
+      "accent-dim": {
+        "role": "primary",
+        "displayName": "Teal Mist",
+        "canonical": "rgba(13, 148, 136, 0.1)",
+        "tonalRamp": [
+          "rgba(13, 148, 136, 0.04)",
+          "rgba(13, 148, 136, 0.06)",
+          "rgba(13, 148, 136, 0.08)",
+          "rgba(13, 148, 136, 0.1)",
+          "rgba(13, 148, 136, 0.14)",
+          "rgba(13, 148, 136, 0.2)",
+          "rgba(13, 148, 136, 0.28)",
+          "rgba(13, 148, 136, 0.36)"
+        ]
+      },
+      "deck-a": {
+        "role": "secondary",
+        "displayName": "Deck A Green",
+        "canonical": "#16a34a",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#166534",
+          "#16a34a",
+          "#22c55e",
+          "#4ade80",
+          "#86efac",
+          "#dcfce7"
+        ]
+      },
+      "deck-b": {
+        "role": "secondary",
+        "displayName": "Deck B Sky",
+        "canonical": "#0284c7",
+        "tonalRamp": [
+          "#082f49",
+          "#0c4a6e",
+          "#0369a1",
+          "#0284c7",
+          "#0ea5e9",
+          "#38bdf8",
+          "#7dd3fc",
+          "#e0f2fe"
+        ]
+      },
+      "bg": {
+        "role": "neutral",
+        "displayName": "Floor",
+        "canonical": "#fafafa",
+        "tonalRamp": [
+          "#09090b",
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#fafafa"
+        ]
+      },
+      "bg-elevated": {
+        "role": "neutral",
+        "displayName": "Riser",
+        "canonical": "#f4f4f5",
+        "tonalRamp": [
+          "#09090b",
+          "#121216",
+          "#18181c",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#f4f4f5"
+        ]
+      },
+      "bg-card": {
+        "role": "neutral",
+        "displayName": "Panel",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#09090b",
+          "#18181c",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#e4e4e7",
+          "#ffffff"
+        ]
+      },
+      "fg": {
+        "role": "neutral",
+        "displayName": "Stage Black",
+        "canonical": "#18181b",
+        "tonalRamp": [
+          "#fafafa",
+          "#e4e4e7",
+          "#a1a1aa",
+          "#71717a",
+          "#52525b",
+          "#3f3f46",
+          "#27272a",
+          "#18181b"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Booth Muted",
+        "canonical": "#71717a",
+        "tonalRamp": [
+          "#fafafa",
+          "#d4d4d8",
+          "#a1a1aa",
+          "#71717a",
+          "#52525b",
+          "#3f3f46",
+          "#27272a",
+          "#18181b"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "rgba(0, 0, 0, 0.08)",
+        "tonalRamp": [
+          "rgba(0, 0, 0, 0.02)",
+          "rgba(0, 0, 0, 0.04)",
+          "rgba(0, 0, 0, 0.06)",
+          "rgba(0, 0, 0, 0.08)",
+          "rgba(0, 0, 0, 0.12)",
+          "rgba(0, 0, 0, 0.16)",
+          "rgba(0, 0, 0, 0.24)",
+          "rgba(0, 0, 0, 0.32)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headlines on landing and developer pages."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section titles with optional centered icon."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card and feature names."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and lead copy; max ~48ch in heroes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, active nav, pills."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "BPM, timecode, technical values with tabular figures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "screenshot-float-light",
+        "value": "0 24px 64px rgba(0, 0, 0, 0.12)",
+        "purpose": "Hero product screenshot on light theme only."
+      },
+      {
+        "name": "screenshot-float-dark",
+        "value": "0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5)",
+        "purpose": "Hero product screenshot on dark theme."
+      },
+      {
+        "name": "popover",
+        "value": "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)",
+        "purpose": "Platform roadmap tooltips and small floating labels."
+      }
+    ],
+    "motion": [
+      {
+        "name": "reveal",
+        "value": "opacity 0.5s ease, transform 0.5s ease",
+        "purpose": "Scroll-triggered section reveals; stagger via --reveal-delay."
+      },
+      {
+        "name": "button-lift",
+        "value": "transform 0.15s ease, background-color 0.15s ease",
+        "purpose": "Primary/secondary button hover with -1px translateY."
+      },
+      {
+        "name": "border-hover",
+        "value": "border-color 0.15s ease",
+        "purpose": "Card and icon button border brightening on hover."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main CTA — Star on GitHub, explore features.",
+      "html": "<a href=\"#\" class=\"ds-btn-primary\"><svg class=\"ds-btn-icon\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><polygon points=\"12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2\"/></svg>Star on GitHub</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 22px; border-radius: 9999px; background: #0d9488; color: #ffffff; font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; font-feature-settings: \"ss01\", \"case\", \"tnum\", \"zero\"; text-decoration: none; border: none; transition: transform 0.15s ease, background-color 0.15s ease; cursor: pointer; } .ds-btn-primary:hover { background: #0f766e; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; } .ds-btn-icon { flex-shrink: 0; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary action — ghost pill with hairline border.",
+      "html": "<a href=\"#\" class=\"ds-btn-secondary\">Explore features</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 22px; border-radius: 9999px; background: transparent; color: #18181b; font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; font-weight: 600; font-feature-settings: \"ss01\", \"case\", \"tnum\", \"zero\"; text-decoration: none; border: 1px solid rgba(0, 0, 0, 0.08); transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; cursor: pointer; } .ds-btn-secondary:hover { background: rgba(13, 148, 136, 0.1); border-color: rgba(161, 161, 170, 0.3); transform: translateY(-1px); } .ds-btn-secondary:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }"
+    },
+    {
+      "name": "Accent Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "Status or category pill — open source, feature labels.",
+      "html": "<span class=\"ds-badge\">Open source</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9999px; border: 1px solid rgba(0, 0, 0, 0.08); background: rgba(13, 148, 136, 0.1); color: #0d9488; font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; font-feature-settings: \"ss01\", \"case\", \"tnum\", \"zero\"; }"
+    },
+    {
+      "name": "Dev Badge",
+      "kind": "chip",
+      "refersTo": "badge-default",
+      "description": "In-development status on hero.",
+      "html": "<span class=\"ds-badge-dev\">In development</span>",
+      "css": ".ds-badge-dev { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; margin-bottom: 20px; border-radius: 9999px; border: 1px solid rgba(251, 191, 36, 0.4); background: rgba(251, 191, 36, 0.15); color: #b45309; font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.8125rem; font-weight: 500; }"
+    },
+    {
+      "name": "Feature Card",
+      "kind": "card",
+      "refersTo": "card-feature",
+      "description": "Marketing feature tile with icon, title, body.",
+      "html": "<article class=\"ds-feature-card\"><div class=\"ds-feature-icon\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg></div><h3 class=\"ds-feature-title\">Dual decks</h3><p class=\"ds-feature-body\">Overview and scrolling waveforms, beat grid, play/pause, seek, and tempo on each deck.</p></article>",
+      "css": ".ds-feature-card { border-radius: 12px; border: 1px solid rgba(0, 0, 0, 0.08); background: #ffffff; padding: 24px; transition: border-color 0.15s ease; } .ds-feature-card:hover { border-color: rgba(161, 161, 170, 0.25); } .ds-feature-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-bottom: 16px; border-radius: 10px; background: rgba(22, 163, 74, 0.1); color: #16a34a; } .ds-feature-title { margin: 0 0 8px; font-family: \"Space Grotesk Variable\", ui-serif, Georgia, serif; font-size: 1.0625rem; font-weight: 600; font-feature-settings: \"ss01\", \"ss04\", \"case\", \"tnum\", \"zero\"; color: #18181b; } .ds-feature-body { margin: 0; font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; line-height: 1.5; color: #71717a; }"
+    },
+    {
+      "name": "Nav Link",
+      "kind": "nav",
+      "refersTo": "button-secondary",
+      "description": "Header navigation link at rest and current page.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Primary\"><a href=\"#\" class=\"ds-nav-link\">Features</a><a href=\"#\" class=\"ds-nav-link is-current\" aria-current=\"page\">Developers</a></nav>",
+      "css": ".ds-nav { display: flex; gap: 24px; align-items: center; } .ds-nav-link { font-family: \"Outfit Variable\", ui-sans-serif, system-ui, sans-serif; font-size: 0.9375rem; color: #71717a; text-decoration: none; transition: color 0.15s ease; } .ds-nav-link:hover { color: #18181b; } .ds-nav-link.is-current { color: #18181b; font-weight: 600; } .ds-nav-link:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; border-radius: 4px; }"
+    },
+    {
+      "name": "Theme Toggle",
+      "kind": "custom",
+      "refersTo": "button-secondary",
+      "description": "Circular light/dark theme switcher in header.",
+      "html": "<button type=\"button\" class=\"ds-theme-toggle\" aria-label=\"Toggle light and dark theme\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41\"/></svg></button>",
+      "css": ".ds-theme-toggle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9999px; border: 1px solid rgba(0, 0, 0, 0.08); background: #ffffff; color: #71717a; cursor: pointer; transition: border-color 0.15s ease, color 0.15s ease; } .ds-theme-toggle:hover { border-color: rgba(161, 161, 170, 0.3); color: #18181b; } .ds-theme-toggle:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Open Deck",
+    "overview": "Mixar looks like what it is: open, performance-ready DJ software with nothing hidden behind a paywall. The visual system is restrained zinc neutrals, a single teal accent for action and live state, and deck identity colors (green / blue on marketing surfaces) that echo the booth without turning the UI into a light show. Density is comfortable — readable type, generous section rhythm, cards that breathe — while interactive elements feel tactile through soft hover lift and crisp pill shapes.\n\nThe marketing site (apps/website) is the most fully custom expression of this world: Outfit body, Space Grotesk headings, CSS token themes with light/dark via data-theme. The desktop app (apps/gui-flutter) operates in Forui neutral light/dark themes with domain-specific performance colors (fader accents, VU segments, cue amber). Shared brand commitments: Mixar logo (inverted on dark), teal as the primary interactive signal, honest in development status when applicable, and deck semantics that must stay distinguishable under pressure.",
+    "keyCharacteristics": [
+      "Neutral zinc surfaces with hairline borders; color earns its place",
+      "Teal accent for primary actions and brand signal; deck green/blue for dual-deck semantics on web",
+      "Pill buttons and badges; rounded cards (12px) and hero media (20px)",
+      "Outfit + Space Grotesk on web; tabular figures for BPM/time via OpenType features",
+      "Soft hover lift on CTAs; scroll reveals respect prefers-reduced-motion",
+      "App UI: Forui components, 40px custom title bar, 12px desktop window radius"
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Teal is the only brand accent on a given marketing viewport. Deck green/blue appear as semantic labels, not competing primaries.",
+        "section": "colors"
+      },
+      {
+        "name": "The Honest Status Rule",
+        "body": "Development and roadmap states use muted opacity or amber dev badges — never fake available styling for unreleased platforms.",
+        "section": "colors"
+      },
+      {
+        "name": "The Stable Numbers Rule",
+        "body": "Any value that changes during a set (BPM, elapsed time, bar count) uses tabular figures — font-mono on web, FontFeature.tabularFigures() in Flutter.",
+        "section": "typography"
+      },
+      {
+        "name": "The Headline Serif Rule",
+        "body": "Marketing h1–h3 use Space Grotesk (font-serif); body UI stays Outfit (font-sans).",
+        "section": "typography"
+      },
+      {
+        "name": "The Soft Lift Rule",
+        "body": "Primary buttons and interactive pills may translate -1px on hover. Cards lift through border brightening (hover:border-zinc-400/25), not shadow growth.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Flat Card Rule",
+        "body": "Feature cards and panels stay shadowless at rest; background bg-card + border is enough separation.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use semantic CSS tokens (bg, fg, accent, deck-a, deck-b) on the website — never hardcode zinc/teal one-offs in components.",
+      "Do keep one primary teal CTA per marketing section; secondary actions use ghost/secondary button variant.",
+      "Do mark unreleased platforms with reduced opacity and On roadmap tooltip — never full accent styling.",
+      "Do read colors from context.theme in Flutter; use FaderColors.forAccent for deck faders.",
+      "Do respect reduced motion for scroll reveals and hero animation."
+    ],
+    "donts": [
+      "Don't add drop shadows to feature cards or section backgrounds — borders and tonal layers carry depth.",
+      "Don't use deck green/blue as page-level accents; they are semantic deck identifiers only (on web).",
+      "Don't fabricate social proof, star counts, or available now platform badges.",
+      "Don't mix marketing deck colors (green/blue) into app fader tokens without an explicit alignment pass — surfaces currently differ.",
+      "Don't hide the in-development status on the landing hero until a real release ships."
+    ]
+  }
+}
