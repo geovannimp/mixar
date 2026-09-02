@@ -1,23 +1,18 @@
 ---
 import { Headphones } from "@lucide/astro";
+import SectionHeader from "./ui/SectionHeader.astro";
 ---
 
 <section class="bg-bg-elevated px-6 py-20">
   <div class="mx-auto max-w-[640px] text-center">
-    <h2
-      class="mb-4 flex flex-col items-center gap-3 text-[clamp(1.75rem,4vw,2.25rem)] font-bold tracking-tight"
+    <SectionHeader
+      title="DJ software that respects you"
+      description="Mixar is built for DJs who want professional tools without vendor lock-in—no features hidden behind a paywall, and software designed for how you mix today, not how the industry mixed a decade ago."
     >
-      <Headphones class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
-      DJ software that respects you
-    </h2>
-    <p class="mb-4 text-[1.0625rem] text-muted">
-      Mixar is built for DJs who want professional tools without vendor lock-in. No features hidden
-      behind a paywall, and software designed for how you mix today, not how the industry mixed a
-      decade ago.
-    </p>
-    <p class="text-[1.0625rem] text-muted">
-      Desktop or mobile: play your music wherever you're comfortable, with a booth that travels with
-      you.
+      <Headphones slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+    </SectionHeader>
+    <p class="-mt-4 mx-auto max-w-[48ch] text-[1.0625rem] leading-relaxed text-muted">
+      Desktop or mobile: mix wherever you're comfortable, with a booth that travels with you.
     </p>
   </div>
 </section>

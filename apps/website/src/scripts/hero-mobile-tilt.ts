@@ -13,6 +13,10 @@ export function initHeroMobileTilt() {
   const tilt = document.querySelector<HTMLElement>(".hero-screenshot-tilt");
   if (!tilt) return;
 
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
   const desktop = window.matchMedia("(min-width: 1024px)");
 
   let cancelScroll: (() => void) | undefined;

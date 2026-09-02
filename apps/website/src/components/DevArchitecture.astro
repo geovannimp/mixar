@@ -1,6 +1,7 @@
 ---
 import { TECH_SPEC_URL } from "../consts";
 import MermaidDiagram from "./MermaidDiagram.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
 
 const chart = `graph TB
   lib["Library / AudioSource"] -->|load PCM| eng["Engine: decks + mixer"]
@@ -11,15 +12,12 @@ const chart = `graph TB
 
 <section class="bg-bg-elevated px-6 py-20">
   <div class="mx-auto max-w-content">
-    <h2 class="mb-4 text-center text-[clamp(1.5rem,3vw,1.875rem)] font-bold tracking-tight">
-      Architecture
-    </h2>
-    <p class="mb-6 text-center text-muted">
-      A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The
-      audio callback only consumes. No allocations on the real-time thread.
-    </p>
+    <SectionHeader
+      title="Architecture"
+      description="A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The audio callback only consumes. No allocations on the real-time thread."
+    />
     <MermaidDiagram chart={chart} />
-    <p class="mt-5 text-center text-[0.9375rem]">
+    <p class="mt-6 text-center text-[0.9375rem]">
       <a
         class="font-semibold text-accent hover:text-accent-hover"
         href={TECH_SPEC_URL}

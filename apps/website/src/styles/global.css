@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/noto-sans-mono";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -9,6 +12,7 @@
   --bg-elevated: #f4f4f5;
   --bg-card: #ffffff;
   --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(113, 113, 122, 0.35);
   --text: #18181b;
   --text-muted: #71717a;
   --accent: #0d9488;
@@ -26,6 +30,7 @@
   --bg-elevated: #121216;
   --bg-card: #18181c;
   --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(161, 161, 170, 0.35);
   --text: #f4f4f5;
   --text-muted: #a1a1aa;
   --accent: #2dd4bf;
@@ -39,7 +44,13 @@
 }
 
 @theme inline {
-  --font-sans: "DM Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans--font-feature-settings: "ss01", "case", "tnum", "zero";
+  --font-serif: "Space Grotesk Variable", ui-serif, Georgia, serif;
+  --font-serif--font-feature-settings: "ss01", "ss04", "case", "tnum", "zero";
+  --font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
+  --font-mono--font-feature-settings: "tnum", "zero";
+  --font-heading: var(--font-serif);
   --color-bg: var(--bg);
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-card: var(--bg-card);
@@ -49,6 +60,8 @@
   --color-accent-hover: var(--accent-hover);
   --color-accent-dim: var(--accent-dim);
   --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --font-size-caption: 0.8125rem;
   --color-deck-a: var(--deck-a);
   --color-deck-b: var(--deck-b);
   --max-width-content: 70rem;
@@ -56,11 +69,24 @@
 
 @layer base {
   html {
-    @apply scroll-smooth;
+    @apply scroll-smooth font-sans;
   }
 
   body {
-    @apply m-0 bg-bg font-sans text-base leading-relaxed text-fg antialiased;
+    @apply m-0 bg-bg text-base leading-relaxed text-fg antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    @apply font-mono;
   }
 
   img {
@@ -69,6 +95,15 @@
 
   a {
     @apply text-inherit no-underline;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--text);
+  }
+
+  :where(a, button):focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
   }
 }
 

@@ -8,7 +8,7 @@ const { title, description } = Astro.props;
 const hasIcon = Astro.slots.has("icon");
 ---
 
-<div class="mx-auto mb-12 max-w-content text-center">
+<div class="mx-auto mb-10 max-w-content text-center">
   <h2
     class:list={[
       "mb-3 text-[clamp(1.75rem,4vw,2.25rem)] font-bold tracking-tight",
@@ -18,5 +18,5 @@ const hasIcon = Astro.slots.has("icon");
     {hasIcon && <slot name="icon" />}
     {title}
   </h2>
-  {description && <p class="mx-auto max-w-[48ch] text-[1.0625rem] text-muted">{description}</p>}
+  {description && <p class="mx-auto max-w-[48ch] text-[1.0625rem] leading-relaxed text-muted">{description}</p>}
 </div>

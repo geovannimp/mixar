@@ -21,12 +21,6 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
     <meta name="description" content={description} />
     <title>{fullTitle}</title>
     <link rel="icon" type="image/png" href="/mixar-logo.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap"
-      rel="stylesheet"
-    />
     <script is:inline>
       (function () {
         const stored = localStorage.getItem("theme");
@@ -38,7 +32,7 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
   </head>
   <body>
     <a
-      class="absolute -left-[9999px] top-0 z-1000 bg-accent px-4 py-3 font-semibold text-bg focus:left-4 focus:top-4"
+      class="absolute -left-[9999px] top-0 z-1000 rounded-sm bg-accent px-4 py-3 font-semibold text-bg focus-visible:left-4 focus-visible:top-4"
       href="#main">Skip to content</a
     >
     <Header currentPage={currentPage} />
@@ -54,15 +48,6 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
         root.setAttribute("data-theme", next);
         localStorage.setItem("theme", next);
       });
-
-      const header = document.getElementById("site-header");
-      if (header) {
-        const onScroll = () => {
-          header.style.boxShadow = window.scrollY > 8 ? "0 4px 24px rgba(0,0,0,0.15)" : "none";
-        };
-        window.addEventListener("scroll", onScroll, { passive: true });
-        onScroll();
-      }
     </script>
   </body>
 </html>

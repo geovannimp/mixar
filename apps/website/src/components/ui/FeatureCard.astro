@@ -20,7 +20,7 @@ const revealStyle =
 <article
   data-reveal
   style={revealStyle}
-  class="rounded-xl border border-border bg-bg-card p-6 transition hover:border-zinc-400/25"
+  class="rounded-xl border border-border bg-bg-card p-6 transition-[border-color] hover:border-border-hover"
 >
   <div
     class:list={[
@@ -31,8 +31,8 @@ const revealStyle =
   >
     <slot name="icon" />
   </div>
-  <h3 class="mb-2 text-[1.0625rem] font-semibold">{title}</h3>
-  <p class="text-[0.9375rem] text-muted">
+  <h3 class="mb-1.5 text-[1.0625rem] font-semibold leading-snug">{title}</h3>
+  <p class="text-[0.9375rem] leading-relaxed text-muted">
     <slot />
   </p>
 </article>

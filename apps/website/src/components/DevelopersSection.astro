@@ -7,8 +7,8 @@ import SectionHeader from "./ui/SectionHeader.astro";
 const iconProps = { size: 16, "stroke-width": 2 };
 
 const bullets = [
-  "Inspectable codebase and a modular architecture",
-  "Real-time audio engine designed for low-latency mixing",
+  "Inspectable codebase with a modular crate layout",
+  "Real-time, low-latency audio engine in Rust",
   "Issues and pull requests welcome at every skill level",
 ] as const;
 
@@ -20,11 +20,11 @@ const bulletClass =
   <div class="mx-auto max-w-[640px] text-center">
     <SectionHeader
       title="Open source, built for the community"
-      description="Mixar is GPL-3.0 licensed and open to contributors. Fork it, extend it, report bugs, or open a pull request, whether you write code or just want to follow along."
+      description="Mixar is GPL-3.0 licensed and open to contributors. Fork, extend, report bugs, or open a pull request—whether you code or just follow along."
     >
       <Handshake slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
     </SectionHeader>
-    <ul class="mb-7 space-y-2.5 text-left text-[0.9375rem] text-muted" data-reveal-group>
+    <ul class="-mt-2 mb-7 space-y-2.5 text-left text-[0.9375rem] leading-relaxed text-muted" data-reveal-group>
       {
         bullets.map((text, index) => (
           <li
