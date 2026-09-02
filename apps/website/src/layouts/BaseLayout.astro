@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { title, description, currentPage = "home" } = Astro.props;
-const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${title} · Mixar`;
+const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · Mixar`;
 ---
 
 <!doctype html>
@@ -39,14 +39,19 @@ const fullTitle = title === "Mixar" ? "Mixar | Open-source DJ software" : `${tit
     <main id="main">
       <slot />
     </main>
-    <Footer />
+    <Footer currentPage={currentPage} />
+    <span id="theme-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
     <script>
       const toggle = document.getElementById("theme-toggle");
+      const themeStatus = document.getElementById("theme-status");
       toggle?.addEventListener("click", () => {
         const root = document.documentElement;
         const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
         root.setAttribute("data-theme", next);
         localStorage.setItem("theme", next);
+        if (themeStatus) {
+          themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
+        }
       });
     </script>
   </body>

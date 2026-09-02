@@ -1,47 +1,55 @@
 ---
 import { MonitorSmartphone } from "@lucide/astro";
+import { QUICK_START_URL } from "../consts";
 import SectionHeader from "./ui/SectionHeader.astro";
 
 const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
-
-const pillBase =
-  "inline-flex items-center justify-center rounded-full border px-4 py-2 text-[0.9375rem] font-medium";
-const popover =
-  "pointer-events-none invisible absolute bottom-[calc(100%+0.5rem)] left-1/2 z-20 -translate-x-1/2 translate-y-1 rounded-lg border border-border bg-bg-card px-2.5 py-1.5 text-[length:var(--font-size-caption)] font-medium whitespace-nowrap text-fg opacity-0 shadow-lg transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:visible group-focus-visible:translate-y-0 group-focus-visible:opacity-100";
 ---
 
-<section class="bg-bg-elevated px-6 py-20">
+<section class="bg-bg-elevated px-6 py-24 lg:py-28">
   <SectionHeader
     title="Built for every platform"
-    description="Built for desktop and mobile from the start—one product for every screen you mix on, not a desktop app awkwardly ported elsewhere."
+    description="Built for desktop and mobile from the start. One product for every screen you mix on, not a desktop app awkwardly ported elsewhere."
   >
-    <MonitorSmartphone slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+    <MonitorSmartphone slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
-  <ul class="mx-auto mt-6 flex max-w-content flex-wrap justify-center gap-3" data-reveal-group>
-    <li
+  <div class="mx-auto mt-10 grid max-w-content gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6" data-reveal-group>
+    <article
       data-reveal
       style="--reveal-delay: 0ms"
-      class:list={[pillBase, "border-accent bg-accent-dim text-accent"]}
+      class="flex min-h-[220px] flex-col justify-between rounded-2xl border-2 border-accent/35 bg-bg-card p-10 sm:p-12"
     >
-      Linux
-    </li>
-    {
-      upcomingPlatforms.map((name, index) => (
-        <li data-reveal style={`--reveal-delay: ${(index + 1) * 100}ms`}>
-          <span
-            tabindex="0"
-            class:list={[
-              pillBase,
-              "group relative cursor-default border-border bg-bg-card text-muted opacity-40 focus-visible:opacity-70",
-            ]}
-          >
-            {name}
-            <span class={popover} role="tooltip">
-              On roadmap
-            </span>
-          </span>
-        </li>
-      ))
-    }
-  </ul>
+      <div>
+        <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-fg">
+          In progress
+        </h3>
+        <p class="mt-2 text-lg text-muted">Linux builds available today</p>
+      </div>
+      <a
+        href={QUICK_START_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mt-8 inline-flex w-fit items-center gap-2.5 rounded-full border border-accent bg-accent-dim px-7 py-3.5 text-base font-semibold text-accent transition hover:border-accent-hover hover:bg-accent hover:text-white dark:hover:text-teal-950"
+      >
+        <span class="h-2.5 w-2.5 shrink-0 rounded-full bg-deck-a" aria-hidden="true"></span>
+        Build on Linux
+      </a>
+    </article>
+    <article
+      data-reveal
+      style="--reveal-delay: 100ms"
+      class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-border p-10 sm:p-12"
+    >
+      <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-muted">
+        On roadmap
+      </h3>
+      <ul class="mt-4 space-y-1 font-serif text-[clamp(1.5rem,3.5vw,2.25rem)] font-bold leading-tight tracking-tight text-muted/50">
+        {
+          upcomingPlatforms.map((name) => (
+            <li>{name}</li>
+          ))
+        }
+      </ul>
+    </article>
+  </div>
 </section>

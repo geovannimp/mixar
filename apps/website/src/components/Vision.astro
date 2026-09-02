@@ -1,18 +1,16 @@
----
-import { Headphones } from "@lucide/astro";
-import SectionHeader from "./ui/SectionHeader.astro";
----
-
-<section class="bg-bg-elevated px-6 py-20">
-  <div class="mx-auto max-w-[640px] text-center">
-    <SectionHeader
-      title="Built for how you mix today"
-      description="Professional tools without vendor lock-in or paywalled features—software shaped for today's booth, not yesterday's industry playbook."
+<section class="border-y border-border bg-bg-elevated px-6 py-16 lg:py-20">
+  <div class="mx-auto max-w-content text-center">
+    <h2 class="font-serif text-[clamp(2rem,5vw,3rem)] font-bold leading-[1.08] tracking-[-0.03em]">
+      Built for how you mix today
+    </h2>
+    <p class="mx-auto mt-5 max-w-[52ch] text-[1.0625rem] leading-relaxed text-muted lg:text-lg">
+      Professional tools without vendor lock-in or paywalled features. Software shaped for today's
+      booth, not yesterday's industry playbook.
+    </p>
+    <p
+      class="mx-auto mt-8 max-w-[40ch] font-serif text-[clamp(1.125rem,2.5vw,1.5rem)] font-semibold leading-snug text-fg"
     >
-      <Headphones slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
-    </SectionHeader>
-    <p class="-mt-4 mx-auto max-w-[48ch] text-[1.0625rem] leading-relaxed text-muted">
-      Desktop or mobile: mix wherever you're comfortable, with a booth that travels with you.
+      Desktop or mobile: mix wherever you're comfortable, with a booth that stays with you.
     </p>
   </div>
 </section>

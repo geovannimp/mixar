@@ -8,9 +8,15 @@ interface Props {
 const { iconTone = "accent", title, revealIndex } = Astro.props;
 
 const iconTones = {
-  "deck-a": "bg-green-500/10 text-deck-a",
-  "deck-b": "bg-sky-500/10 text-deck-b",
+  "deck-a": "bg-green-500/15 text-deck-a",
+  "deck-b": "bg-sky-500/15 text-deck-b",
   accent: "bg-accent-dim text-accent",
+};
+
+const cardTones = {
+  "deck-a": "hover:border-deck-a/40",
+  "deck-b": "hover:border-deck-b/40",
+  accent: "hover:border-accent/40",
 };
 
 const revealStyle =
@@ -20,18 +26,21 @@ const revealStyle =
 <article
   data-reveal
   style={revealStyle}
-  class="rounded-xl border border-border bg-bg-card p-6 transition-[border-color] hover:border-border-hover"
+  class:list={[
+    "rounded-xl border border-border bg-bg-card p-7 transition-[border-color,transform] hover:-translate-y-0.5 sm:p-8",
+    cardTones[iconTone],
+  ]}
 >
   <div
     class:list={[
-      "mb-4 flex h-10 w-10 items-center justify-center rounded-[10px] [&_svg]:size-4",
+      "mb-5 flex h-14 w-14 items-center justify-center rounded-xl [&_svg]:size-6",
       iconTones[iconTone],
     ]}
     aria-hidden="true"
   >
     <slot name="icon" />
   </div>
-  <h3 class="mb-1.5 text-[1.0625rem] font-semibold leading-snug">{title}</h3>
+  <h3 class="mb-2 font-serif text-xl font-bold leading-snug tracking-tight">{title}</h3>
   <p class="text-[0.9375rem] leading-relaxed text-muted">
     <slot />
   </p>

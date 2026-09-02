@@ -11,16 +11,16 @@ import {
 import FeatureCard from "./ui/FeatureCard.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
-const iconProps = { size: 16, "stroke-width": 2 };
+const iconProps = { size: 24, "stroke-width": 2 };
 ---
 
-<section id="features" class="px-6 py-20">
+<section id="features" class="px-6 py-24 lg:py-28">
   <SectionHeader title="Everything you need" description="Professional mixing tools with no paywall surprises.">
-    <Flame slot="icon" class="size-16 shrink-0 text-accent" stroke-width={2} aria-hidden="true" />
+    <Flame slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
   <div
     id="features-grid"
-    class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3"
+    class="mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-3"
     data-reveal-group
   >
     <FeatureCard revealIndex={0} iconTone="deck-a" title="Dual decks">
@@ -31,19 +31,19 @@ const iconProps = { size: 16, "stroke-width": 2 };
       <SlidersHorizontal slot="icon" {...iconProps} />
       Gain, 3-band EQ, filter, volume, crossfader, cue/PFL, and VU meters across the mix bus.
     </FeatureCard>
-    <FeatureCard revealIndex={2} title="Performance tools">
+    <FeatureCard revealIndex={2} iconTone="accent" title="Performance tools">
       <AudioWaveform slot="icon" {...iconProps} />
       Hot cues, loops, performance pads, sampler, and beat sync for live sets.
     </FeatureCard>
-    <FeatureCard revealIndex={3} title="Library and analysis">
+    <FeatureCard revealIndex={3} iconTone="accent" title="Library and analysis">
       <Library slot="icon" {...iconProps} />
       Folder collections, track metadata, and offline analysis for BPM, key, and loudness.
     </FeatureCard>
-    <FeatureCard revealIndex={4} title="MIDI control">
+    <FeatureCard revealIndex={4} iconTone="accent" title="MIDI control">
       <Usb slot="icon" {...iconProps} />
-      Map any controller you already own—no vendor lock-in or hardware paywalls.
+      Map any controller you already own. No vendor lock-in or hardware paywalls.
     </FeatureCard>
-    <FeatureCard revealIndex={5} title="Low-latency mixing">
+    <FeatureCard revealIndex={5} iconTone="deck-a" title="Low-latency mixing">
       <Volume2 slot="icon" {...iconProps} />
       Responsive decks and a tight mixer feel, built for live performance when timing matters.
     </FeatureCard>

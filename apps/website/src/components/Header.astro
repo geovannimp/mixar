@@ -33,7 +33,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
     </a>
     <div class="flex items-center gap-6">
       <div class="flex items-center gap-6">
-        <a class:list={[navLink, "max-sm:hidden"]} href={currentPage === "home" ? "#features" : "/#features"}
+        <a class:list={[navLink]} href={currentPage === "home" ? "#features" : "/#features"}
           >Features</a
         >
         <a
@@ -43,7 +43,14 @@ const iconProps = { size: 18, "stroke-width": 2 };
         >
           Developers
         </a>
-        <a class={navLink} href={GITHUB_REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a
+          class={navLink}
+          href={GITHUB_REPO}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub repository (opens in new tab)"
+          >GitHub</a
+        >
       </div>
       <button
         id="theme-toggle"

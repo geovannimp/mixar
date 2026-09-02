@@ -1,30 +1,115 @@
 ---
-import { GITHUB_REPO } from "../consts";
+import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL } from "../consts";
+
+interface Props {
+  currentPage?: "home" | "developers";
+}
+
+const { currentPage = "home" } = Astro.props;
+
+const footerLink =
+  "text-[0.9375rem] font-medium text-muted transition hover:text-accent";
 ---
 
-<footer class="border-t border-border px-6 py-8">
-  <div class="mx-auto flex max-w-content flex-wrap items-center justify-between gap-4">
-    <p class="m-0 flex items-center text-sm text-muted">
-      <img
-        class="h-5 w-auto brightness-0 dark:invert"
-        src="/mixar-logo.png"
-        alt="Mixar"
-        width="80"
-        height="20"
-      />
-    </p>
-    <p class="m-0 text-sm text-muted">
-      Licensed under
-      <a
-        class="rounded-sm underline underline-offset-2 hover:text-fg"
-        href="https://www.gnu.org/licenses/gpl-3.0.html"
-        target="_blank"
-        rel="noopener noreferrer">GPL-3.0</a
-      >
-      ·
-      <a class="rounded-sm underline underline-offset-2 hover:text-fg" href={GITHUB_REPO} target="_blank" rel="noopener noreferrer"
-        >Source</a
-      >
-    </p>
+<footer class="border-t border-border bg-bg-elevated px-6 py-12 lg:py-14">
+  <div class="mx-auto max-w-content">
+    <div class="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
+      <div class="max-w-[28rem]">
+        <a class="inline-flex rounded-sm" href="/">
+          <img
+            class="h-6 w-auto brightness-0 dark:invert"
+            src="/mixar-logo.png"
+            alt="Mixar"
+            width="96"
+            height="24"
+          />
+        </a>
+        <p class="mt-4 font-serif text-[clamp(1.25rem,3vw,1.5rem)] font-bold leading-snug tracking-tight text-fg">
+          Free DJ software that doesn't limit you
+        </p>
+        <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
+          Open-source mixing for Linux today. Desktop and mobile platforms on the roadmap.
+        </p>
+      </div>
+      <nav aria-label="Footer">
+        <ul class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          <li>
+            <a class={footerLink} href={currentPage === "home" ? "#features" : "/#features"}>
+              Features
+            </a>
+          </li>
+          <li>
+            <a
+              class={footerLink}
+              href={currentPage === "home" ? "#developers" : "/developers"}
+              aria-current={currentPage === "developers" ? "page" : undefined}
+            >
+              Developers
+            </a>
+          </li>
+          <li>
+            <a
+              class={footerLink}
+              href={QUICK_START_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Build on Linux (opens in new tab)"
+            >
+              Build on Linux
+            </a>
+          </li>
+          <li>
+            <a
+              class={footerLink}
+              href={GITHUB_REPO}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub repository (opens in new tab)"
+            >
+              GitHub
+            </a>
+          </li>
+          <li>
+            <a class={footerLink} href="/developers">Developer guide</a>
+          </li>
+          <li>
+            <a
+              class={footerLink}
+              href={CONTRIBUTING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Contributing (opens in new tab)"
+            >
+              Contributing
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    <div
+      class="mt-10 flex flex-col gap-3 border-t border-border pt-8 text-[0.9375rem] text-muted sm:flex-row sm:items-center sm:justify-between"
+    >
+      <p class="m-0">Licensed under GPL-3.0. Free to use, fork, and extend.</p>
+      <p class="m-0 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <a
+          class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+          href="https://www.gnu.org/licenses/gpl-3.0.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GPL-3.0 license (opens in new tab)"
+        >
+          License
+        </a>
+        <a
+          class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+          href={GITHUB_REPO}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Source code (opens in new tab)"
+        >
+          Source
+        </a>
+      </p>
+    </div>
   </div>
 </footer>
