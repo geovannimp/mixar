@@ -1,32 +1,43 @@
 ---
 import History from "../icons/History.astro";
-import { PanelTop, Volume2 } from "@lucide/astro";
+import { Layers, PanelTop, Volume2 } from "@lucide/astro";
 import FeatureCard from "./ui/FeatureCard.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
-const iconProps = { size: 16, "stroke-width": 2 };
+const iconProps = { size: 24, "stroke-width": 2 };
 ---
 
-<section class="px-6 py-20">
+<section class="px-6 py-24 lg:py-28">
   <SectionHeader
     title="Stack"
     description="Engine-first design with clear boundaries between audio, library, and UI."
-  />
-  <div class="mx-auto grid max-w-content gap-5 sm:grid-cols-2 lg:grid-cols-3">
-    <FeatureCard title="Rust engine">
+  >
+    <Layers slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
+  </SectionHeader>
+  <div
+    class="mx-auto grid max-w-content gap-6 sm:grid-cols-2 lg:grid-cols-3"
+    data-reveal-group
+  >
+    <FeatureCard revealIndex={0} iconTone="deck-a" title="Rust engine">
       <Volume2 slot="icon" {...iconProps} />
       Real-time audio, mixing, library I/O, and analysis. Rust gives predictable performance and
       memory safety on the audio path.
     </FeatureCard>
-    <FeatureCard title="Flutter UI">
+    <FeatureCard revealIndex={1} iconTone="deck-b" title="Flutter UI">
       <PanelTop slot="icon" {...iconProps} />
       Cross-platform decks, waveforms, and mixer chrome. Flutter keeps one UI codebase for desktop
       and mobile targets.
     </FeatureCard>
-    <FeatureCard title="Async buses">
+    <FeatureCard revealIndex={2} iconTone="accent" title="Async buses">
       <History slot="icon" {...iconProps} />
       The UI talks to the engine, library, and controllers through async message buses instead of
       calling engine code on the UI thread.
     </FeatureCard>
   </div>
 </section>
+
+<script>
+  import { initRevealGroups } from "../scripts/features-reveal";
+
+  initRevealGroups();
+</script>

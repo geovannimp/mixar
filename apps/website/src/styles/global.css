@@ -116,6 +116,12 @@
   :where(a, button):focus-visible {
     @apply outline-2 outline-offset-2 outline-accent;
   }
+
+  .architecture-diagram {
+    --diagram-deck-a-fill: color-mix(in srgb, var(--deck-a) 14%, var(--bg-card));
+    --diagram-deck-b-fill: color-mix(in srgb, var(--deck-b) 14%, var(--bg-card));
+    --diagram-accent-fill: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {

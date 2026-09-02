@@ -1,29 +1,78 @@
 ---
 import { TECH_SPEC_URL } from "../consts";
+import { ExternalLink, GitBranch } from "@lucide/astro";
 import MermaidDiagram from "./MermaidDiagram.astro";
+import Button from "./ui/Button.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
-const chart = `graph TB
-  lib["Library / AudioSource"] -->|load PCM| eng["Engine: decks + mixer"]
-  eng --> prod["Producer thread"]
-  prod --> ring["Ring buffer"]
-  ring --> cb["Audio callback"]`;
+const iconProps = { size: 18, "stroke-width": 2 };
+
+const chart = `graph LR
+  ui["Flutter UI
+gui-flutter"]
+
+  midi[MIDI Hardware]
+
+  subgraph host["host-flutter"]
+    direction TB
+    et[EngineTransport]
+    lt[LibraryTransport]
+    ct["ControllerTransport
+controller"]
+  end
+
+  bus["MessagePack bus
+engine-api
+library-api"]
+
+  subgraph engine["Engine"]
+    direction TB
+    ec["engine-core · engine-dsp"]
+    ac["audio-core · codec · resampler"]
+    bk["backend-cpal · miniaudio · null"]
+  end
+
+  subgraph library["Library"]
+    direction TB
+    core["library · library-core"]
+    ext["analyzer · library-adapters"]
+  end
+
+  ui <-->|FRB| et
+  ui <-->|FRB| lt
+  ui <-->|FRB| ct
+
+  midi <-->|MIDI| ct
+
+  et <-->|cmd/evt| bus
+  lt <-->|cmd/evt| bus
+  ct <-->|cmd/evt| bus
+
+  bus <-->|cmd/evt| engine
+  bus <-->|cmd/evt| library`;
 ---
 
-<section class="bg-bg-elevated px-6 py-20">
+<section class="border-y border-border bg-bg-elevated px-6 py-24 lg:py-28">
   <div class="mx-auto max-w-content">
     <SectionHeader
       title="Architecture"
-      description="A producer thread runs DSP and writes interleaved stereo into a lock-free ring buffer. The audio callback only consumes. No allocations on the real-time thread."
-    />
-    <MermaidDiagram chart={chart} />
-    <p class="mt-6 text-center text-[0.9375rem]">
-      <a
-        class="font-semibold text-accent hover:text-accent-hover"
-        href={TECH_SPEC_URL}
-        target="_blank"
-        rel="noopener noreferrer">Read the full tech spec on GitHub</a
-      >
-    </p>
+      description="The Flutter UI, controller layer, and engine stay in sync over omnibus cmd/evt buses. Transports exchange MessagePack in both directions on a shared bus layer (engine-api and library-api); each domain maps to focused Rust crates behind it."
+    >
+      <GitBranch
+        slot="icon"
+        class="size-20 shrink-0 text-accent"
+        stroke-width={1.75}
+        aria-hidden="true"
+      />
+    </SectionHeader>
+    <div class="rounded-xl border border-border bg-bg-card p-4 sm:p-8">
+      <MermaidDiagram chart={chart} />
+    </div>
+    <div class="mt-8 text-center">
+      <Button href={TECH_SPEC_URL} external variant="secondary" class="px-7 py-3.5 text-base">
+        <ExternalLink {...iconProps} aria-hidden="true" />
+        Read the full tech spec
+      </Button>
+    </div>
   </div>
 </section>
