@@ -128,3 +128,8 @@ docs/superpowers/
 
 # moon
 .moon/cache
+
+# Impeccable runtime (skill lives in .agents/skills/impeccable/)
+.impeccable/live/
+.impeccable/config.local.json
+.agents/skills/impeccable/scripts/.impeccable/
