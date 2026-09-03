@@ -44,11 +44,17 @@ class AppHeader extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Center(
-                  child: Image.asset(
-                    'assets/mixar-icon.png',
-                    height: 18,
-                    filterQuality: FilterQuality.medium,
-                    semanticLabel: appTitle,
+                  child: ColorFiltered(
+                    colorFilter: const ColorFilter.mode(
+                      Color(0xFFFFFFFF),
+                      BlendMode.srcIn,
+                    ),
+                    child: Image.asset(
+                      'assets/mixar-logo.png',
+                      height: 12,
+                      filterQuality: FilterQuality.medium,
+                      semanticLabel: appTitle,
+                    ),
                   ),
                 ),
               ),
