@@ -1,5 +1,5 @@
 ---
-import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL } from "../consts";
+import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL, withBase } from "../consts";
 
 interface Props {
   currentPage?: "home" | "developers";
@@ -15,10 +15,10 @@ const footerLink =
   <div class="mx-auto max-w-content">
     <div class="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
       <div class="max-w-[28rem]">
-        <a class="inline-flex rounded-sm" href="/">
+        <a class="inline-flex rounded-sm" href={withBase("/")}>
           <img
             class="h-6 w-auto brightness-0 dark:invert"
-            src="/mixar-logo.png"
+            src={withBase("/mixar-logo.png")}
             alt="Mixar"
             width="96"
             height="24"
@@ -34,14 +34,14 @@ const footerLink =
       <nav aria-label="Footer">
         <ul class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
           <li>
-            <a class={footerLink} href={currentPage === "home" ? "#features" : "/#features"}>
+            <a class={footerLink} href={currentPage === "home" ? "#features" : withBase("/#features")}>
               Features
             </a>
           </li>
           <li>
             <a
               class={footerLink}
-              href={currentPage === "home" ? "#developers" : "/developers"}
+              href={currentPage === "home" ? "#developers" : withBase("/developers")}
               aria-current={currentPage === "developers" ? "page" : undefined}
             >
               Developers
@@ -70,7 +70,7 @@ const footerLink =
             </a>
           </li>
           <li>
-            <a class={footerLink} href="/developers">Developer guide</a>
+            <a class={footerLink} href={withBase("/developers")}>Developer guide</a>
           </li>
           <li>
             <a

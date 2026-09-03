@@ -1,8 +1,13 @@
-name: Deploy website
+name: Website
 
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/website/**"
+      - ".github/workflows/pages.yml"
+      - "package-lock.json"
+  pull_request:
     paths:
       - "apps/website/**"
       - ".github/workflows/pages.yml"
@@ -15,14 +20,20 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  LEFTHOOK: "0"
+  # Project Pages URL is https://geovannimp.github.io/mixar/ until a custom domain is set.
+  GITHUB_PAGES_BASE: /mixar/
 
 jobs:
   build:
+    name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -36,11 +47,14 @@ jobs:
         run: npx moon run website:build
 
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: apps/website/dist
 
   deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
+    name: deploy
     runs-on: ubuntu-latest
     environment:
       name: github-pages

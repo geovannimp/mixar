@@ -1,5 +1,5 @@
 ---
-import { GITHUB_REPO, QUICK_START_URL } from "../consts";
+import { GITHUB_REPO, QUICK_START_URL, withBase } from "../consts";
 import { ArrowDown, Star, Terminal } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
@@ -46,7 +46,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
       <div data-hero-screenshot-hover class="relative origin-center transform-3d -mt-4 pt-4">
         <img
           class="hero-screenshot-tilt relative w-full rounded-[20px] border border-border shadow-(--screenshot-shadow)"
-          src="/mixar-banner.png"
+          src={withBase("/mixar-banner.png")}
           alt="Mixar DJ interface with dual decks, waveforms, and mixer"
           width="1024"
           height="733"
