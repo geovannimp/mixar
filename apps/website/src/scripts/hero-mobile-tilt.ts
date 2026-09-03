@@ -5,8 +5,8 @@ const MOBILE_ROTATE_X = 24;
 const MOBILE_SCALE = 1.1;
 const SCROLL_DISTANCE = 256;
 
-const DESKTOP_ROTATE_Y = -7;
-const DESKTOP_ROTATE_X = 8;
+const DESKTOP_ROTATE_Y = -4;
+const DESKTOP_ROTATE_X = 5;
 const FLOAT_DURATION = 20;
 
 export function initHeroMobileTilt() {
@@ -61,8 +61,8 @@ export function initHeroMobileTilt() {
         {
           rotateY: DESKTOP_ROTATE_Y,
           rotateX: DESKTOP_ROTATE_X,
-          x: [0, 6],
-          y: [0, -10],
+          x: 0,
+          y: [0, -8],
         },
         {
           duration: FLOAT_DURATION / 2,

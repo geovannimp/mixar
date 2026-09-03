@@ -1,22 +1,16 @@
 ---
 import { GITHUB_REPO, QUICK_START_URL } from "../consts";
-import { ArrowDown, Construction, Star, Terminal } from "@lucide/astro";
-import Badge from "./ui/Badge.astro";
+import { ArrowDown, Star, Terminal } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
-const badgeIconProps = { size: 14, "stroke-width": 2 };
 ---
 
 <section
   id="hero"
-  class="mx-auto grid max-w-content gap-12 px-6 py-20 pb-10 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-14 lg:py-28 lg:pb-20"
+  class="mx-auto grid max-w-content gap-12 px-section py-20 pb-10 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-14 lg:py-28 lg:pb-20"
 >
   <div class="lg:py-4">
-    <Badge variant="dev">
-      <Construction {...badgeIconProps} aria-hidden="true" />
-      In development
-    </Badge>
     <h1
       class="mb-5 text-[clamp(2.75rem,7vw,4.5rem)] leading-[1.02] font-bold tracking-[-0.03em]"
     >
@@ -42,11 +36,9 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
       </Button>
     </div>
   </div>
-  <div class="relative overflow-visible">
-    <div
-      class="pointer-events-none absolute -inset-[12%] -z-10 bg-(--hero-glow)"
-      aria-hidden="true"
-    >
+  <div class="relative">
+    <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <div class="absolute -inset-[12%] bg-(--hero-glow)"></div>
     </div>
     <div
       class="relative max-lg:perspective-[900px] max-lg:perspective-origin-[50%_55%] lg:perspective-[1200px] lg:perspective-origin-[45%_40%]"

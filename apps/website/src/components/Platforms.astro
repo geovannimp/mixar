@@ -6,7 +6,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
 const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
 ---
 
-<section class="bg-bg-elevated px-6 py-24 lg:py-28">
+<section class="bg-bg-elevated px-section py-24 lg:py-28">
   <SectionHeader
     title="Built for every platform"
     description="Built for desktop and mobile from the start. One product for every screen you mix on, not a desktop app awkwardly ported elsewhere."
@@ -23,7 +23,9 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
         <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-fg">
           In progress
         </h3>
-        <p class="mt-2 text-lg text-muted">Linux builds available today</p>
+        <p class="mt-2 text-lg text-muted">
+          Actively developed. Linux builds available today.
+        </p>
       </div>
       <a
         href={QUICK_START_URL}

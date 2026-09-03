@@ -75,6 +75,7 @@
   --color-deck-a: var(--deck-a);
   --color-deck-b: var(--deck-b);
   --max-width-content: 70rem;
+  --spacing-section: clamp(2rem, 5vw, 4rem);
 }
 
 @layer base {
