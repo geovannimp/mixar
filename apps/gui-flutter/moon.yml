@@ -49,19 +49,6 @@ tasks:
     options:
       runInCI: false
 
-  # Regenerate macOS/Windows/Web launcher icons from assets/mixar-icon.png
-  icons:
-    command: "mise"
-    args: ["exec", "--", "dart", "run", "icons_launcher:create"]
-    toolchain: "system"
-    inputs:
-      - "assets/mixar-icon.png"
-      - "icons_launcher.yaml"
-      - "pubspec.yaml"
-    options:
-      runInCI: false
-      cache: false
-
   analyze:
     command: "mise"
     args: ["exec", "--", "flutter", "analyze"]
