@@ -57,6 +57,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  icons_launcher: ^3.1.0
   integration_test:
     sdk: flutter
 
@@ -71,7 +72,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/mixar-logo.png
+    - assets/mixar-icon.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

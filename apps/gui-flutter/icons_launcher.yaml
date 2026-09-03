@@ -1,0 +1,21 @@
+# https://pub.dev/packages/icons_launcher
+# Regenerate: moon run gui-flutter:icons  (or: dart run icons_launcher:create)
+icons_launcher:
+  image_path: "assets/mixar-icon.png"
+  platforms:
+    macos:
+      enable: true
+    windows:
+      enable: true
+    web:
+      enable: true
+      image_path: "assets/mixar-icon.png"
+      maskable_image_path: "assets/mixar-icon.png"
+      favicon_path: "assets/mixar-icon.png"
+    # Snap packaging only — enable when shipping a .snap.
+    linux:
+      enable: false
+    android:
+      enable: false
+    ios:
+      enable: false
