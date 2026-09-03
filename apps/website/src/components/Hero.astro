@@ -27,16 +27,16 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
       Open-source mixing with waveforms, hot cues, loops, and a full booth workflow. No paywall.
       Free to use and extend.
     </p>
-    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-      <Button href={GITHUB_REPO} external class="px-7 py-3.5 text-base">
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Button href={GITHUB_REPO} external class="w-full px-7 py-3.5 text-base">
         <Star {...iconProps} aria-hidden="true" />
         Star on GitHub
       </Button>
-      <Button href={QUICK_START_URL} external variant="secondary" class="px-7 py-3.5 text-base">
+      <Button href={QUICK_START_URL} external variant="secondary" class="w-full px-7 py-3.5 text-base">
         <Terminal {...iconProps} aria-hidden="true" />
         Build on Linux
       </Button>
-      <Button href="#features" variant="secondary" class="px-7 py-3.5 text-base sm:w-auto">
+      <Button href="#features" variant="secondary" class="w-full px-7 py-3.5 text-base sm:col-span-2">
         Explore features
         <ArrowDown {...iconProps} aria-hidden="true" />
       </Button>
