@@ -41,8 +41,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build via the workspace script (astro), not `moon run`, so a shallow
+      # PR checkout does not trip moon's defaultBranch (`main`) VCS lookup.
       - name: Build website
-        run: npx moon run website:build
+        run: npm run build -w website
 
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
