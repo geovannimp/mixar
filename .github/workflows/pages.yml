@@ -1,8 +1,13 @@
-name: Deploy website
+name: Website
 
 on:
   push:
     branches: [main]
+    paths:
+      - "apps/website/**"
+      - ".github/workflows/pages.yml"
+      - "package-lock.json"
+  pull_request:
     paths:
       - "apps/website/**"
       - ".github/workflows/pages.yml"
@@ -15,14 +20,18 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  LEFTHOOK: "0"
 
 jobs:
   build:
+    name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -32,19 +41,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Build via the workspace script (astro), not `moon run`, so a shallow
+      # PR checkout does not trip moon's defaultBranch (`main`) VCS lookup.
       - name: Build website
-        run: npx moon run website:build
+        run: npm run build -w website
 
       - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         with:
           path: apps/website/dist
 
   deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: build
+    name: deploy
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment
