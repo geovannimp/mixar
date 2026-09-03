@@ -1,0 +1,57 @@
+---
+import { GITHUB_REPO } from "../consts";
+import { Code, ExternalLink, Handshake } from "@lucide/astro";
+import Button from "./ui/Button.astro";
+
+const iconProps = { size: 18, "stroke-width": 2 };
+
+const bullets = [
+  "Inspectable codebase with a modular crate layout",
+  "Real-time, low-latency audio engine in Rust",
+  "Issues and pull requests welcome at every skill level",
+] as const;
+
+const bulletClass =
+  "relative pl-6 before:absolute before:top-[0.55em] before:left-0 before:h-2 before:w-2 before:rounded-full before:bg-accent";
+---
+
+<section id="developers" class="px-section py-24 lg:pb-28">
+  <div
+    class="mx-auto max-w-content rounded-2xl border border-accent/25 bg-accent-dim px-8 py-14 text-center sm:px-14 sm:py-16"
+  >
+    <Handshake class="mx-auto mb-6 size-20 text-accent" stroke-width={1.75} aria-hidden="true" />
+    <h2 class="mb-4 font-serif text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-[-0.03em]">
+      Open source, built for the community
+    </h2>
+    <p class="mx-auto mb-10 max-w-[50ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
+      Mixar is GPL-3.0 licensed and open to contributors. Fork, extend, report bugs, or open a pull
+      request, whether you code or just follow along.
+    </p>
+    <ul
+      class="mx-auto mb-10 max-w-[32rem] space-y-3 text-left text-base leading-relaxed text-muted"
+      data-reveal-group
+    >
+      {
+        bullets.map((text, index) => (
+          <li
+            data-reveal-x
+            style={`--reveal-delay: ${index * 100}ms`}
+            class={bulletClass}
+          >
+            {text}
+          </li>
+        ))
+      }
+    </ul>
+    <div class="flex flex-wrap justify-center gap-3">
+      <Button href={GITHUB_REPO} external class="px-7 py-3.5 text-base">
+        <ExternalLink {...iconProps} aria-hidden="true" />
+        View source
+      </Button>
+      <Button href="/developers" variant="secondary" class="px-7 py-3.5 text-base">
+        <Code {...iconProps} aria-hidden="true" />
+        Developer guide
+      </Button>
+    </div>
+  </div>
+</section>

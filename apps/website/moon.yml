@@ -1,0 +1,48 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+language: "javascript"
+layer: "application"
+stack: "frontend"
+id: "website"
+
+workspace:
+  inheritedTasks:
+    include: []
+
+toolchains:
+  default: "node"
+
+fileGroups:
+  sources:
+    - "src/**/*"
+    - "public/**/*"
+    - "astro.config.mjs"
+    - "package.json"
+
+tasks:
+  dev:
+    command: "npm"
+    args: ["run", "dev"]
+    toolchain: "node"
+    preset: "server"
+    inputs:
+      - "@group(sources)"
+
+  build:
+    command: "npm"
+    args: ["run", "build"]
+    toolchain: "node"
+    inputs:
+      - "@group(sources)"
+    outputs:
+      - "dist"
+
+  preview:
+    command: "npm"
+    args: ["run", "preview"]
+    toolchain: "node"
+    preset: "server"
+    deps:
+      - "build"
+    inputs:
+      - "@group(sources)"
+      - "dist/**/*"

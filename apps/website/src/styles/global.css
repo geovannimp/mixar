@@ -1,0 +1,156 @@
+@import "tailwindcss";
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/noto-sans-mono";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #fafafa;
+  --bg-elevated: #f4f4f5;
+  --bg-card: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(113, 113, 122, 0.35);
+  --text: #18181b;
+  --text-muted: #52525b;
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-dim: rgba(15, 118, 110, 0.1);
+  --deck-a: #16a34a;
+  --deck-b: #0284c7;
+  --header-bg: rgba(250, 250, 250, 0.9);
+  --screenshot-shadow: 0 24px 64px rgba(0, 0, 0, 0.12);
+  --hero-glow: radial-gradient(
+    ellipse 80% 60% at 50% 40%,
+    color-mix(in srgb, var(--accent) 22%, transparent),
+    transparent 70%
+  );
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #09090b;
+  --bg-elevated: #121216;
+  --bg-card: #18181c;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(161, 161, 170, 0.35);
+  --text: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --accent: #2dd4bf;
+  --accent-hover: #5eead4;
+  --accent-dim: rgba(45, 212, 191, 0.12);
+  --deck-a: #4ade80;
+  --deck-b: #38bdf8;
+  --header-bg: rgba(9, 9, 11, 0.85);
+  --screenshot-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5);
+  --hero-glow: radial-gradient(
+    ellipse 80% 60% at 50% 40%,
+    color-mix(in srgb, var(--accent) 18%, transparent),
+    transparent 70%
+  );
+}
+
+@theme inline {
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans--font-feature-settings: "ss01", "case", "tnum", "zero";
+  --font-serif: "Space Grotesk Variable", ui-serif, Georgia, serif;
+  --font-serif--font-feature-settings: "ss01", "ss04", "case", "tnum", "zero";
+  --font-mono: "Noto Sans Mono Variable", ui-monospace, monospace;
+  --font-mono--font-feature-settings: "tnum", "zero";
+  --font-heading: var(--font-serif);
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-card: var(--bg-card);
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dim: var(--accent-dim);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --font-size-caption: 0.8125rem;
+  --color-deck-a: var(--deck-a);
+  --color-deck-b: var(--deck-b);
+  --max-width-content: 70rem;
+  --spacing-section: clamp(2rem, 5vw, 4rem);
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth font-sans;
+    caret-color: var(--accent);
+  }
+
+  body {
+    @apply m-0 bg-bg text-base leading-relaxed text-fg antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif text-balance;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    @apply font-mono;
+  }
+
+  img {
+    @apply block h-auto max-w-full;
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 28%, transparent);
+    color: var(--text);
+  }
+
+  :where(a, button):focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  .architecture-diagram {
+    --diagram-deck-a-fill: color-mix(in srgb, var(--deck-a) 14%, var(--bg-card));
+    --diagram-deck-b-fill: color-mix(in srgb, var(--deck-b) 14%, var(--bg-card));
+    --diagram-accent-fill: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal-group] [data-reveal] {
+    opacity: 0;
+    transform: translateY(-1rem);
+    transition:
+      opacity 0.5s ease,
+      transform 0.5s ease;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal-group].is-visible [data-reveal] {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  [data-reveal-group] [data-reveal-x] {
+    opacity: 0;
+    transform: translateX(-1rem);
+    transition:
+      opacity 0.5s ease,
+      transform 0.5s ease;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal-group].is-visible [data-reveal-x] {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

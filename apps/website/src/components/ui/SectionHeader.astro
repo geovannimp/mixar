@@ -1,0 +1,28 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+const hasIcon = Astro.slots.has("icon");
+---
+
+<div class="mx-auto mb-12 max-w-content text-center">
+  <h2
+    class:list={[
+      "mb-4 text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-[-0.03em]",
+      hasIcon && "flex flex-col items-center gap-4",
+    ]}
+  >
+    {hasIcon && <slot name="icon" />}
+    {title}
+  </h2>
+  {
+    description && (
+      <p class="mx-auto max-w-[50ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
+        {description}
+      </p>
+    )
+  }
+</div>

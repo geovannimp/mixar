@@ -1,0 +1,79 @@
+---
+import { GITHUB_REPO } from "../consts";
+import { Moon, Sun } from "@lucide/astro";
+
+interface Props {
+  currentPage?: "home" | "developers";
+}
+
+const { currentPage = "home" } = Astro.props;
+
+const navLink =
+  "text-[0.9375rem] text-muted transition hover:text-fg aria-[current=page]:font-semibold aria-[current=page]:text-fg";
+
+const iconProps = { size: 18, "stroke-width": 2 };
+---
+
+<header
+  id="site-header"
+  class="sticky top-0 z-100 h-16 border-b border-transparent bg-(--header-bg) backdrop-blur-md transition-[border-color] duration-150"
+>
+  <nav
+    class="mx-auto flex h-full max-w-content items-center justify-between px-section"
+    aria-label="Primary"
+  >
+    <a class="-ml-2 flex h-10 items-center rounded-sm px-2" href="/">
+      <img
+        class="h-5 w-auto brightness-0 dark:invert"
+        src="/mixar-logo.png"
+        alt="Mixar"
+        width="86"
+        height="20"
+      />
+    </a>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-6">
+        <a class:list={[navLink]} href={currentPage === "home" ? "#features" : "/#features"}
+          >Features</a
+        >
+        <a
+          class={navLink}
+          href={currentPage === "home" ? "#developers" : "/developers"}
+          aria-current={currentPage === "developers" ? "page" : undefined}
+        >
+          Developers
+        </a>
+        <a
+          class={navLink}
+          href={GITHUB_REPO}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub repository (opens in new tab)"
+          >GitHub</a
+        >
+      </div>
+      <button
+        id="theme-toggle"
+        type="button"
+        class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border bg-bg-card text-muted transition hover:border-border-hover hover:text-fg"
+        aria-label="Toggle light and dark theme"
+      >
+        <Sun class="dark:hidden" {...iconProps} />
+        <Moon class="hidden dark:block" {...iconProps} />
+      </button>
+    </div>
+  </nav>
+</header>
+
+<script>
+  const header = document.getElementById("site-header");
+  if (header) {
+    const syncBorder = () => {
+      const scrolled = window.scrollY > 8;
+      header.classList.toggle("border-border", scrolled);
+      header.classList.toggle("border-transparent", !scrolled);
+    };
+    syncBorder();
+    window.addEventListener("scroll", syncBorder, { passive: true });
+  }
+</script>

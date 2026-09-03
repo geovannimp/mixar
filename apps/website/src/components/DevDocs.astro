@@ -1,0 +1,32 @@
+---
+import { README_URL, CONTRIBUTING_URL } from "../consts";
+import { BookOpen, Handshake } from "@lucide/astro";
+import Button from "./ui/Button.astro";
+
+const iconProps = { size: 18, "stroke-width": 2 };
+---
+
+<section class="px-section py-24 lg:pb-28">
+  <div
+    class="mx-auto max-w-content rounded-2xl border border-accent/25 bg-accent-dim px-8 py-14 text-center sm:px-14 sm:py-16"
+  >
+    <Handshake class="mx-auto mb-6 size-20 text-accent" stroke-width={1.75} aria-hidden="true" />
+    <h2
+      class="mb-4 font-serif text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-[-0.03em]"
+    >
+      Get involved
+    </h2>
+    <p class="mx-auto mb-10 max-w-[50ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
+      Local setup and prerequisites are in the README; contribution guidelines are on GitHub.
+    </p>
+    <div class="flex flex-wrap justify-center gap-3">
+      <Button href={README_URL} external class="px-7 py-3.5 text-base">
+        <BookOpen {...iconProps} aria-hidden="true" />
+        README
+      </Button>
+      <Button href={CONTRIBUTING_URL} external variant="secondary" class="px-7 py-3.5 text-base">
+        Contributing
+      </Button>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,65 @@
+---
+import { GITHUB_REPO, QUICK_START_URL } from "../consts";
+import { ArrowDown, Star, Terminal } from "@lucide/astro";
+import Button from "./ui/Button.astro";
+
+const iconProps = { size: 18, "stroke-width": 2 };
+---
+
+<section
+  id="hero"
+  class="mx-auto grid max-w-content gap-12 px-section py-20 pb-10 lg:grid-cols-[1fr_1.15fr] lg:items-center lg:gap-14 lg:py-28 lg:pb-20"
+>
+  <div class="lg:py-4">
+    <h1
+      class="mb-5 text-[clamp(2.75rem,7vw,4.5rem)] leading-[1.02] font-bold tracking-[-0.03em]"
+    >
+      <span class="text-accent">Free</span> DJ software<br class="hidden sm:block" />
+      {" "}that doesn't limit you
+    </h1>
+    <p class="mb-8 max-w-[38ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
+      Open-source mixing with waveforms, hot cues, loops, and a full booth workflow. No paywall.
+      Free to use and extend.
+    </p>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <Button href={GITHUB_REPO} external class="w-full px-7 py-3.5 text-base">
+        <Star {...iconProps} aria-hidden="true" />
+        Star on GitHub
+      </Button>
+      <Button href={QUICK_START_URL} external variant="secondary" class="w-full px-7 py-3.5 text-base">
+        <Terminal {...iconProps} aria-hidden="true" />
+        Build on Linux
+      </Button>
+      <Button href="#features" variant="secondary" class="w-full px-7 py-3.5 text-base sm:col-span-2">
+        Explore features
+        <ArrowDown {...iconProps} aria-hidden="true" />
+      </Button>
+    </div>
+  </div>
+  <div class="relative">
+    <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+      <div class="absolute -inset-[12%] bg-(--hero-glow)"></div>
+    </div>
+    <div
+      class="relative max-lg:perspective-[900px] max-lg:perspective-origin-[50%_55%] lg:perspective-[1200px] lg:perspective-origin-[45%_40%]"
+    >
+      <div data-hero-screenshot-hover class="relative origin-center transform-3d -mt-4 pt-4">
+        <img
+          class="hero-screenshot-tilt relative w-full rounded-[20px] border border-border shadow-(--screenshot-shadow)"
+          src="/mixar-banner.png"
+          alt="Mixar DJ interface with dual decks, waveforms, and mixer"
+          width="1024"
+          height="733"
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { initHeroMobileTilt } from "../scripts/hero-mobile-tilt";
+
+  initHeroMobileTilt();
+</script>

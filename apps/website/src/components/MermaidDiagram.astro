@@ -1,0 +1,26 @@
+---
+interface Props {
+  chart: string;
+}
+
+const { chart } = Astro.props;
+const chartB64 = Buffer.from(chart, "utf8").toString("base64");
+---
+
+<div
+  class="architecture-diagram min-h-[18rem] overflow-x-auto py-2 [&_svg]:h-[clamp(18rem,42vw,24rem)] [&_svg]:w-auto [&_svg]:max-w-none"
+  data-chart-b64={chartB64}
+  aria-label="Architecture diagram"
+  role="img"
+>
+</div>
+<script>
+  import { decodeBase64Utf8, mountMermaidDiagram } from "../scripts/mermaid-client";
+
+  for (const host of document.querySelectorAll("[data-chart-b64]")) {
+    if (!(host instanceof HTMLElement)) continue;
+    const encoded = host.dataset.chartB64;
+    if (!encoded) continue;
+    mountMermaidDiagram(host, decodeBase64Utf8(encoded));
+  }
+</script>

@@ -59,7 +59,7 @@ rounded:
   xl: "20px"
   full: "9999px"
 spacing:
-  section-x: "24px"
+  section-x: "clamp(2rem, 5vw, 4rem)"
   section-y: "80px"
   card: "24px"
   button-x: "22px"

@@ -1,0 +1,58 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+
+interface Props {
+  title: string;
+  description: string;
+  currentPage?: "home" | "developers";
+}
+
+const { title, description, currentPage = "home" } = Astro.props;
+const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · Mixar`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{fullTitle}</title>
+    <link rel="icon" type="image/png" href="/mixar-logo.png" />
+    <script is:inline>
+      (function () {
+        const stored = localStorage.getItem("theme");
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const theme = stored === "light" || stored === "dark" ? stored : prefersDark ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+  </head>
+  <body>
+    <a
+      class="absolute -left-[9999px] top-0 z-1000 rounded-sm bg-accent px-4 py-3 font-semibold text-white focus-visible:left-4 focus-visible:top-4"
+      href="#main">Skip to content</a
+    >
+    <Header currentPage={currentPage} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer currentPage={currentPage} />
+    <span id="theme-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
+    <script>
+      const toggle = document.getElementById("theme-toggle");
+      const themeStatus = document.getElementById("theme-status");
+      toggle?.addEventListener("click", () => {
+        const root = document.documentElement;
+        const next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        root.setAttribute("data-theme", next);
+        localStorage.setItem("theme", next);
+        if (themeStatus) {
+          themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
+        }
+      });
+    </script>
+  </body>
+</html>
