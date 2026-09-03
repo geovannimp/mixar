@@ -1,5 +1,5 @@
 ---
-import { GITHUB_REPO, withBase } from "../consts";
+import { GITHUB_REPO } from "../consts";
 import { Moon, Sun } from "@lucide/astro";
 
 interface Props {
@@ -22,10 +22,10 @@ const iconProps = { size: 18, "stroke-width": 2 };
     class="mx-auto flex h-full max-w-content items-center justify-between px-section"
     aria-label="Primary"
   >
-    <a class="-ml-2 flex h-10 items-center rounded-sm px-2" href={withBase("/")}>
+    <a class="-ml-2 flex h-10 items-center rounded-sm px-2" href="/">
       <img
         class="h-5 w-auto brightness-0 dark:invert"
-        src={withBase("/mixar-logo.png")}
+        src="/mixar-logo.png"
         alt="Mixar"
         width="86"
         height="20"
@@ -33,12 +33,12 @@ const iconProps = { size: 18, "stroke-width": 2 };
     </a>
     <div class="flex items-center gap-6">
       <div class="flex items-center gap-6">
-        <a class:list={[navLink]} href={currentPage === "home" ? "#features" : withBase("/#features")}
+        <a class:list={[navLink]} href={currentPage === "home" ? "#features" : "/#features"}
           >Features</a
         >
         <a
           class={navLink}
-          href={currentPage === "home" ? "#developers" : withBase("/developers")}
+          href={currentPage === "home" ? "#developers" : "/developers"}
           aria-current={currentPage === "developers" ? "page" : undefined}
         >
           Developers

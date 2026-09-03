@@ -1,5 +1,5 @@
 ---
-import { GITHUB_REPO, withBase } from "../consts";
+import { GITHUB_REPO } from "../consts";
 import { Code, ExternalLink, Handshake } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
@@ -48,7 +48,7 @@ const bulletClass =
         <ExternalLink {...iconProps} aria-hidden="true" />
         View source
       </Button>
-      <Button href={withBase("/developers")} variant="secondary" class="px-7 py-3.5 text-base">
+      <Button href="/developers" variant="secondary" class="px-7 py-3.5 text-base">
         <Code {...iconProps} aria-hidden="true" />
         Developer guide
       </Button>

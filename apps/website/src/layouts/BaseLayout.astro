@@ -2,7 +2,6 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { withBase } from "../consts";
 
 interface Props {
   title: string;
@@ -21,7 +20,7 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <title>{fullTitle}</title>
-    <link rel="icon" type="image/png" href={withBase("/mixar-logo.png")} />
+    <link rel="icon" type="image/png" href="/mixar-logo.png" />
     <script is:inline>
       (function () {
         const stored = localStorage.getItem("theme");
