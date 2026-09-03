@@ -22,6 +22,7 @@ fileGroups:
     - "macos/**/*"
     - "windows/**/*"
     - "web/**/*"
+    - "android/**/*"
   rustBuilder:
     - "rust_builder/**/*"
     - "/crates/host-flutter/**/*"
@@ -49,6 +50,23 @@ tasks:
     options:
       runInCI: false
 
+  # Regenerate launcher icons from assets/mixar-icon*.png
+  icons:
+    command: "bash"
+    args:
+      - "-c"
+      - "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX; mise exec -- dart run icons_launcher:create"
+    toolchain: "system"
+    inputs:
+      - "assets/mixar-icon.png"
+      - "assets/mixar-icon-foreground.png"
+      - "assets/mixar-icon-background.png"
+      - "icons_launcher.yaml"
+      - "pubspec.yaml"
+    options:
+      runInCI: false
+      cache: false
+
   analyze:
     command: "mise"
     args: ["exec", "--", "flutter", "analyze"]
@@ -75,11 +93,12 @@ tasks:
   # `pass: false` runs full `dart format` on app sources whenever any `.dart` is staged
   # (same scope as format-check; excludes vendored rust_builder).
   # `flutter pub get` first so analysis_options resolves before format (matches CI).
+  # Unset GIT_* so Flutter's version probe doesn't inherit the hook's repo and report 0.0.0-unknown.
   format-files:
     command: "bash"
     args:
       - "-c"
-      - "mise exec -- flutter pub get && mise exec -- dart format lib test integration_test"
+      - "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX; mise exec -- flutter pub get && mise exec -- dart format lib test integration_test"
     toolchain: "system"
     inputs:
       - "**/*.dart"
@@ -96,8 +115,10 @@ tasks:
   # Same analyze as CI `analyze`. `pass: false` so flutter does not get file path args;
   # `passDotWhenNoResults: false` skips when no `.dart` is staged.
   lint-files:
-    command: "mise"
-    args: ["exec", "--", "flutter", "analyze"]
+    command: "bash"
+    args:
+      - "-c"
+      - "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX; mise exec -- flutter analyze"
     toolchain: "system"
     inputs:
       - "**/*.dart"
