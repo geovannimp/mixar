@@ -23,13 +23,22 @@ fn deck_slot(d: u16) -> usize {
     (d as usize).min(3)
 }
 
-/// CC waiting for ≤60 Hz flush: absolute keeps latest; relative sums ticks.
+/// Rate-limited CC waiting for ≤60 Hz flush: absolute keeps latest; relative sums ticks.
 #[derive(Clone, Debug)]
 struct PendingCc {
     section: String,
     alias: String,
     value: ControlValue,
     active: bool,
+}
+
+/// Script-backed input binding failed; host logs with attach identity.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScriptBindingFailure {
+    pub section: String,
+    pub alias: String,
+    pub script_fn: String,
+    pub error: String,
 }
 
 pub trait ActionPublish {
@@ -241,14 +250,9 @@ impl MappingSession {
         bytes: &[u8],
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
-    ) {
-        let Some(parsed) = parse_short(bytes) else {
-            return;
-        };
-        let Some((section, alias, ep)) = self.bundle.device.find_input_match(parsed.match_key())
-        else {
-            return;
-        };
+    ) -> Option<ScriptBindingFailure> {
+        let parsed = parse_short(bytes)?;
+        let (section, alias, ep) = self.bundle.device.find_input_match(parsed.match_key())?;
         // Clone endpoint fields we need after borrow ends.
         let is_cc14 = ep.is_cc14();
         let cc14_pair = ep.cc14_pair();
@@ -265,7 +269,7 @@ impl MappingSession {
                 self.modifiers.remove(&mod_key);
             }
             // custom is not declarative-input bindable; still allow script-only later
-            return;
+            return None;
         }
 
         // Resolve absolute 0..1 (cc14 pairs MSB+LSB) or relative tick delta.
@@ -273,31 +277,29 @@ impl MappingSession {
         let is_cc = matches!(parsed.msg, ShortMsg::Cc { .. });
         if is_cc14 {
             let ShortMsg::Cc { cc, value: raw, .. } = parsed.msg else {
-                return;
+                return None;
             };
-            let Some((msb_cc, lsb_cc)) = cc14_pair else {
-                return;
-            };
+            let (msb_cc, lsb_cc) = cc14_pair?;
             let entry = self.cc14_state.entry(key.clone()).or_insert((None, None));
             if cc == msb_cc {
                 entry.0 = Some(raw);
             } else if cc == lsb_cc {
                 entry.1 = Some(raw);
             } else {
-                return;
+                return None;
             }
             let (Some(msb), Some(lsb)) = *entry else {
-                return; // wait until both bytes seen
+                return None; // wait until both bytes seen
             };
             value = ControlValue::Absolute(norm_from_cc14(msb, lsb));
         } else if is_cc {
             if let Some(mode) = relative_mode {
                 let ShortMsg::Cc { value: raw, .. } = parsed.msg else {
-                    return;
+                    return None;
                 };
                 let delta = decode_relative(mode, raw);
                 if delta == 0 {
-                    return;
+                    return None;
                 }
                 value = ControlValue::Relative(delta);
             }
@@ -307,10 +309,10 @@ impl MappingSession {
         if !is_cc {
             let prev = self.note_state.get(&key).copied().unwrap_or(false);
             if prev == parsed.active() {
-                return;
+                return None;
             }
             self.note_state.insert(key.clone(), parsed.active());
-            self.dispatch_input(
+            let (_handled, fail) = self.dispatch_input(
                 &section,
                 &alias,
                 &key,
@@ -320,7 +322,7 @@ impl MappingSession {
                 bus,
                 midi,
             );
-            return;
+            return fail;
         }
 
         // Absolute: keep latest. Relative: sum deltas. Both publish at ≤60 Hz.
@@ -359,14 +361,18 @@ impl MappingSession {
         let now = Instant::now();
         if let Some(last) = self.cc_last.get(&key) {
             if now.duration_since(*last) < CC_COALESCE {
-                return;
+                return None;
             }
         }
-        self.flush_pending_key(&key, bus, midi);
+        self.flush_pending_key(&key, bus, midi)
     }
 
     /// Publish any rate-limited CCs whose coalesce window has elapsed (call from MIDI pump).
-    pub fn flush_coalesced(&mut self, bus: &mut impl ActionPublish, midi: &mut impl MidiOut) {
+    pub fn flush_coalesced(
+        &mut self,
+        bus: &mut impl ActionPublish,
+        midi: &mut impl MidiOut,
+    ) -> Vec<ScriptBindingFailure> {
         let now = Instant::now();
         let ready: Vec<String> = self
             .cc_pending
@@ -379,9 +385,13 @@ impl MappingSession {
             })
             .cloned()
             .collect();
+        let mut fails = Vec::new();
         for key in ready {
-            self.flush_pending_key(&key, bus, midi);
+            if let Some(fail) = self.flush_pending_key(&key, bus, midi) {
+                fails.push(fail);
+            }
         }
+        fails
     }
 
     fn flush_pending_key(
@@ -389,15 +399,13 @@ impl MappingSession {
         key: &str,
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
-    ) {
-        let Some(pending) = self.cc_pending.get(key).cloned() else {
-            return;
-        };
+    ) -> Option<ScriptBindingFailure> {
+        let pending = self.cc_pending.get(key).cloned()?;
         if matches!(pending.value, ControlValue::Relative(0)) {
             self.cc_pending.remove(key);
-            return;
+            return None;
         }
-        if self.dispatch_input(
+        let (handled, fail) = self.dispatch_input(
             &pending.section,
             &pending.alias,
             key,
@@ -406,12 +414,14 @@ impl MappingSession {
             true,
             bus,
             midi,
-        ) {
+        );
+        if handled {
             self.cc_pending.remove(key);
         }
+        fail
     }
 
-    /// Resolve binding → soft-takeover → publish. Returns true if a publish was sent.
+    /// Resolve binding → soft-takeover → publish. Returns (handled, script failure).
     // ponytail: internal MIDI dispatch; packing into a struct is noise for CI threshold (7).
     #[allow(clippy::too_many_arguments)]
     fn dispatch_input(
@@ -424,18 +434,18 @@ impl MappingSession {
         is_cc: bool,
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
-    ) -> bool {
+    ) -> (bool, Option<ScriptBindingFailure>) {
         let bindings = self.bundle.map.bindings_for(section, alias);
         if bindings.is_empty() {
-            return false;
+            return (false, None);
         }
         let binding = select_binding(&bindings, &self.modifiers);
         let Some(binding) = binding else {
-            return false;
+            return (false, None);
         };
 
         if let Some(script_fn) = &binding.script {
-            if let Some(script) = self.script.as_mut() {
+            let fail = if let Some(script) = self.script.as_mut() {
                 // Script bindings get a null midi sink here; host can call on_init with midi.
                 struct NullMidi;
                 impl MidiOut for NullMidi {
@@ -451,27 +461,27 @@ impl MappingSession {
                     ControlValue::Absolute(n) => n,
                     ControlValue::Relative(d) => d as f32,
                 };
-                if let Err(err) = script.call_named(script_fn, &mut host, script_norm, active) {
-                    tracing::warn!(
-                        device_id = %self.bundle.device.id,
-                        mapping_root = %self.bundle.root.display(),
-                        section = %section,
-                        alias = %alias,
-                        script_fn = %script_fn,
-                        error = %err,
-                        "script binding failed"
-                    );
+                match script.call_named(script_fn, &mut host, script_norm, active) {
+                    Ok(()) => None,
+                    Err(err) => Some(ScriptBindingFailure {
+                        section: section.to_string(),
+                        alias: alias.to_string(),
+                        script_fn: script_fn.clone(),
+                        error: err.to_string(),
+                    }),
                 }
-            }
+            } else {
+                None
+            };
             if is_cc {
                 self.cc_last.insert(key.to_string(), Instant::now());
             }
-            return true;
+            return (true, fail);
         }
 
         let action = match &binding.action {
             Some(a) => a.as_str(),
-            None => return false,
+            None => return (false, None),
         };
         let soft = binding.soft_takeover_effective();
         let mut value = value;
@@ -483,7 +493,7 @@ impl MappingSession {
         }
         let Some(routed) = resolve_action(action, section, value, active, soft, &self.snapshot)
         else {
-            return false;
+            return (false, None);
         };
 
         if is_cc {
@@ -573,7 +583,7 @@ impl MappingSession {
                 bus.publish_library(origin.clone(), kind.clone(), body.clone());
             }
         }
-        true
+        (true, None)
     }
 
     /// Update playing signal and emit mapped LED MIDI if changed.

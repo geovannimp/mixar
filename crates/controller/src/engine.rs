@@ -669,8 +669,8 @@ impl ControllerEngine {
         );
         let device_id = bundle.device.id.clone();
         let mut session = MappingSession::from_bundle(bundle)?;
+        let mut send_gate = crate::report::FailureGate::default();
         {
-            let mut send_gate = crate::report::FailureGate::default();
             let mut sink = MidiSink {
                 out: &mut output,
                 mapping_id,
@@ -699,7 +699,7 @@ impl ControllerEngine {
                 session,
                 _input: input,
                 output,
-                send_gate: crate::report::FailureGate::default(),
+                send_gate,
                 lifecycle_gate: crate::report::FailureGate::default(),
             },
         );
@@ -768,14 +768,28 @@ impl ControllerEngine {
             match self.midi_rx.try_recv() {
                 Ok((port_name, bytes)) => {
                     if let Some(attached) = self.attached.get_mut(&port_name) {
-                        let mut sink = MidiSink {
-                            out: &mut attached.output,
-                            mapping_id: &attached.mapping_id,
-                            device_id: &attached.device_id,
-                            port_name: &port_name,
-                            send_gate: &mut attached.send_gate,
+                        let fail = {
+                            let mut sink = MidiSink {
+                                out: &mut attached.output,
+                                mapping_id: &attached.mapping_id,
+                                device_id: &attached.device_id,
+                                port_name: &port_name,
+                                send_gate: &mut attached.send_gate,
+                            };
+                            attached.session.handle_midi(&bytes, bus, &mut sink)
                         };
-                        attached.session.handle_midi(&bytes, bus, &mut sink);
+                        if let Some(fail) = fail {
+                            tracing::warn!(
+                                mapping_id = %attached.mapping_id,
+                                device_id = %attached.device_id,
+                                port_name = %port_name,
+                                section = %fail.section,
+                                alias = %fail.alias,
+                                script_fn = %fail.script_fn,
+                                error = %fail.error,
+                                "script binding failed"
+                            );
+                        }
                     }
                 }
                 Err(TryRecvError::Empty) => break,
@@ -787,7 +801,7 @@ impl ControllerEngine {
             let Some(attached) = self.attached.get_mut(&port_name) else {
                 continue;
             };
-            let heartbeat = {
+            let (flush_fails, heartbeat) = {
                 let mut sink = MidiSink {
                     out: &mut attached.output,
                     mapping_id: &attached.mapping_id,
@@ -795,9 +809,22 @@ impl ControllerEngine {
                     port_name: &port_name,
                     send_gate: &mut attached.send_gate,
                 };
-                attached.session.flush_coalesced(bus, &mut sink);
-                attached.session.idle_heartbeat(bus, &mut sink)
+                let flush_fails = attached.session.flush_coalesced(bus, &mut sink);
+                let heartbeat = attached.session.idle_heartbeat(bus, &mut sink);
+                (flush_fails, heartbeat)
             };
+            for fail in flush_fails {
+                tracing::warn!(
+                    mapping_id = %attached.mapping_id,
+                    device_id = %attached.device_id,
+                    port_name = %port_name,
+                    section = %fail.section,
+                    alias = %fail.alias,
+                    script_fn = %fail.script_fn,
+                    error = %fail.error,
+                    "script binding failed"
+                );
+            }
             attached.report_lifecycle_result(&port_name, "idle_heartbeat", heartbeat);
         }
     }
@@ -1084,5 +1111,34 @@ mod tests {
             );
         });
         assert!(recover.contains("midi send recovered"), "{recover}");
+    }
+
+    #[test]
+    fn send_gate_preserves_failure_state_across_move() {
+        // Mirrors enable_mapping: on_init gate is moved into Attached.
+        let mut send_gate = crate::report::FailureGate::default();
+        let bytes = [0x90_u8, 0x01, 0x7F];
+        report_midi_send(
+            &mut send_gate,
+            "ddj-400",
+            "pioneer.ddj-400",
+            "DDJ-400 MIDI 1",
+            &bytes,
+            Err("init send failed".into()),
+        );
+        assert!(send_gate.is_failing());
+        let mut attached_gate = send_gate;
+        let recover = with_capture(|| {
+            report_midi_send(
+                &mut attached_gate,
+                "ddj-400",
+                "pioneer.ddj-400",
+                "DDJ-400 MIDI 1",
+                &bytes,
+                Ok(()),
+            );
+        });
+        assert!(recover.contains("midi send recovered"), "{recover}");
+        assert!(!attached_gate.is_failing());
     }
 }

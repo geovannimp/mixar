@@ -44,8 +44,13 @@ impl Write for TeeWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let _ = io::stderr().write_all(buf);
         if let Ok(mut state) = tee_state().lock() {
-            if let Some(file) = state.file.as_mut() {
-                let _ = file.write_all(buf);
+            let write_err = state.file.as_mut().and_then(|f| f.write_all(buf).err());
+            if let Some(err) = write_err {
+                state.file = None;
+                let _ = writeln!(
+                    io::stderr(),
+                    "mixar: application log write failed ({err}); disabling mixar.log"
+                );
             }
         }
         Ok(buf.len())
@@ -54,8 +59,13 @@ impl Write for TeeWriter {
     fn flush(&mut self) -> io::Result<()> {
         let _ = io::stderr().flush();
         if let Ok(mut state) = tee_state().lock() {
-            if let Some(file) = state.file.as_mut() {
-                let _ = file.flush();
+            let flush_err = state.file.as_mut().and_then(|f| f.flush().err());
+            if let Some(err) = flush_err {
+                state.file = None;
+                let _ = writeln!(
+                    io::stderr(),
+                    "mixar: application log flush failed ({err}); disabling mixar.log"
+                );
             }
         }
         Ok(())
