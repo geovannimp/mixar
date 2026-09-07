@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 
 use engine_api::{CmdBody, Kind, Origin};
-use rhai::{Dynamic, Engine, Module, Scope, AST};
+use rhai::{CallFnOptions, Dynamic, Engine, Module, Scope, AST};
 
 use crate::error::{LoadError, RuntimeError};
 use crate::session::{ActionPublish, MidiOut};
@@ -29,6 +29,10 @@ pub struct ScriptHost<'a> {
 pub struct ScriptRuntime {
     engine: Engine,
     ast: AST,
+    /// Holds top-level `const` / `let` after one AST eval (Rhai's default `call_fn`
+    /// rewinds the scope and drops those bindings before the hook body runs).
+    scope: Scope<'static>,
+    globals_ready: bool,
     /// Scratch bridge for sync callbacks during a call.
     bridge: Arc<Mutex<ScriptScratch>>,
 }
@@ -104,8 +108,34 @@ impl ScriptRuntime {
         Ok(Self {
             engine,
             ast,
+            scope: Scope::new(),
+            globals_ready: false,
             bridge,
         })
+    }
+
+    fn ensure_globals(&mut self) -> Result<(), RuntimeError> {
+        if self.globals_ready {
+            return Ok(());
+        }
+        self.engine
+            .run_ast_with_scope(&mut self.scope, &self.ast)
+            .map_err(|e| RuntimeError::Script(e.to_string()))?;
+        self.globals_ready = true;
+        Ok(())
+    }
+
+    fn call_script_fn(
+        &mut self,
+        name: &str,
+        args: impl rhai::FuncArgs,
+    ) -> Result<(), RuntimeError> {
+        self.ensure_globals()?;
+        // Globals already in `scope`; rewind function-locals after the call.
+        let options = CallFnOptions::new().eval_ast(false).rewind_scope(true);
+        self.engine
+            .call_fn_with_options::<()>(options, &mut self.scope, &self.ast, name, args)
+            .map_err(|e| RuntimeError::Script(e.to_string()))
     }
 
     fn prepare_scratch(&self, host: &ScriptHost<'_>) {
@@ -154,11 +184,10 @@ impl ScriptRuntime {
             return Ok(());
         }
         self.prepare_scratch(host);
-        let mut scope = Scope::new();
         // Hooks take no args in v1; ctx is implicit via registered fns.
-        let result = self.engine.call_fn::<()>(&mut scope, &self.ast, name, ());
+        let result = self.call_script_fn(name, ());
         self.flush_scratch(host);
-        result.map_err(|e| RuntimeError::Script(e.to_string()))
+        result
     }
 
     pub fn call_named(
@@ -169,12 +198,9 @@ impl ScriptRuntime {
         active: bool,
     ) -> Result<(), RuntimeError> {
         self.prepare_scratch(host);
-        let mut scope = Scope::new();
-        let result =
-            self.engine
-                .call_fn::<()>(&mut scope, &self.ast, name, (value_01 as f64, active));
+        let result = self.call_script_fn(name, (value_01 as f64, active));
         self.flush_scratch(host);
-        result.map_err(|e| RuntimeError::Script(e.to_string()))
+        result
     }
 }
 
