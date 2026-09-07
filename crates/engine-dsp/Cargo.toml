@@ -13,6 +13,6 @@ resampler = { path = "../resampler" }
 stretch = { path = "../stretch" }
 anyhow.workspace = true
 thiserror.workspace = true
-log.workspace = true
+tracing.workspace = true
 dasp_graph.workspace = true
 petgraph.workspace = true

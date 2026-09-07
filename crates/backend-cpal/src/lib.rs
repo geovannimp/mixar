@@ -31,11 +31,13 @@ fn create_host() -> Result<Host> {
     {
         match cpal::host_from_id(cpal::HostId::PipeWire) {
             Ok(host) => {
-                log::info!("Using CPAL PipeWire host");
+                tracing::info!("Using CPAL PipeWire host");
                 return Ok(host);
             }
             Err(e) => {
-                log::warn!("PipeWire host unavailable ({e}), falling back to default CPAL host");
+                tracing::warn!(
+                    "PipeWire host unavailable ({e}), falling back to default CPAL host"
+                );
             }
         }
     }
@@ -108,7 +110,7 @@ impl CpalBackend {
         requested: u32,
     ) -> Result<()> {
         if let Ok(default) = device.default_output_config() {
-            log::info!(
+            tracing::info!(
                 "Device default output buffer size: {:?}",
                 default.config().buffer_size
             );
@@ -116,7 +118,7 @@ impl CpalBackend {
 
         match config_range.buffer_size() {
             SupportedBufferSize::Range { min, max } => {
-                log::info!(
+                tracing::info!(
                     "Device supported buffer size range: {}..={} frames",
                     min,
                     max
@@ -131,7 +133,7 @@ impl CpalBackend {
                 }
             }
             SupportedBufferSize::Unknown => {
-                log::info!(
+                tracing::info!(
                     "Device buffer size range unknown; requesting Fixed({}) (never use BufferSize::Default — see CPAL buffer size docs)",
                     requested
                 );
@@ -229,7 +231,7 @@ impl CpalBackend {
             match Self::select_stream_config(&cpal_device, params) {
                 Ok(config_range) => return Ok((cpal_device, config_range)),
                 Err(error) => {
-                    log::warn!(
+                    tracing::warn!(
                         "Skipping output device '{}' for stream setup: {}",
                         device_name,
                         error
@@ -326,7 +328,7 @@ impl AudioBackend for CpalBackend {
             ));
         }
 
-        log::info!(
+        tracing::info!(
             "Opening CPAL output on '{}' ({} Hz, {} channels, buffer size: {})",
             device_name,
             actual_sample_rate,
@@ -376,7 +378,7 @@ impl AudioBackend for CpalBackend {
             ));
         }
 
-        log::info!(
+        tracing::info!(
             "CPAL stream opened on '{}' with buffer size {} frames",
             device_name,
             granted_buffer

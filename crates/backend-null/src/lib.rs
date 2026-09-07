@@ -68,7 +68,7 @@ impl AudioBackend for NullBackend {
         params: &StreamParams,
         callback: Box<dyn AudioCallback>,
     ) -> Result<Box<dyn AudioStream>> {
-        log::info!(
+        tracing::info!(
             "Opening null stream: device={}, sample_rate={}, channels={}, buffer_size={}",
             device.as_str(),
             params.sample_rate,
@@ -139,7 +139,7 @@ impl NullStream {
 
         // In a real backend, we would send this to the audio device
         // For null backend, we just log that we processed the audio
-        log::debug!(
+        tracing::debug!(
             "Processed {} frames of audio ({} samples)",
             frames,
             buffer_size
@@ -151,7 +151,7 @@ impl NullStream {
 
 impl AudioStream for NullStream {
     fn start(&mut self) -> Result<()> {
-        log::info!("Starting null audio stream");
+        tracing::info!("Starting null audio stream");
         self.running.store(true, Ordering::Relaxed);
         self.start_time = Some(Instant::now());
         self.process_audio()?;
@@ -159,7 +159,7 @@ impl AudioStream for NullStream {
     }
 
     fn stop(&mut self) -> Result<()> {
-        log::info!("Stopping null audio stream");
+        tracing::info!("Stopping null audio stream");
         self.running.store(false, Ordering::Relaxed);
         self.start_time = None;
         Ok(())

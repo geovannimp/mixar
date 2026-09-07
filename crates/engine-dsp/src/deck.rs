@@ -316,7 +316,7 @@ impl Deck {
 
     /// Start playback
     pub fn play(&mut self) -> Result<()> {
-        log::info!(
+        tracing::info!(
             "Deck {} changing state to Playing (was: {:?})",
             self.id,
             self.state
@@ -715,7 +715,7 @@ impl Deck {
 
         if source_rate == self.sample_rate {
             self.resampler = None;
-            log::info!(
+            tracing::info!(
                 "Deck {} passthrough at {} Hz (no resampling)",
                 self.id,
                 self.sample_rate
@@ -732,7 +732,7 @@ impl Deck {
             Buffer::LEN,
             Some(&self.resampler_quality),
         )?);
-        log::info!(
+        tracing::info!(
             "Deck {} realtime resampler: {} Hz -> {} Hz (chunk_frames={}, quality={})",
             self.id,
             source_rate,
@@ -789,7 +789,7 @@ impl Deck {
         self.stretch_active = false;
 
         if let Some(loaded) = self.loaded.as_ref() {
-            log::info!(
+            tracing::info!(
                 "Loaded audio into deck {} from {}: {} source frames at {} Hz ({} channels, engine: {} Hz)",
                 self.id,
                 loaded.source_id,
@@ -856,7 +856,7 @@ impl Deck {
 
             if want_stretch {
                 if let Err(err) = self.ensure_stretcher() {
-                    log::error!(
+                    tracing::error!(
                         "Deck {}: stretcher unavailable ({err}); falling back to vinyl",
                         self.id
                     );
@@ -882,7 +882,7 @@ impl Deck {
         } else {
             static NO_TRACK_WARN: AtomicU32 = AtomicU32::new(0);
             if NO_TRACK_WARN.fetch_add(1, Ordering::Relaxed) == 0 {
-                log::warn!(
+                tracing::warn!(
                     "Deck {} is playing but no track is loaded; outputting silence",
                     self.id
                 );
@@ -1013,7 +1013,7 @@ impl Deck {
         let start_pos = self.position_frac as usize * 2;
 
         if self.position_frames.rem_euclid(1000) == 0 {
-            log::debug!(
+            tracing::debug!(
                 "Deck {}: position={}, start_pos={}, audio_len={}, frames={}",
                 self.id,
                 self.position_frames,
@@ -1101,7 +1101,7 @@ impl Deck {
         unsafe {
             RESAMPLE_LOG += 1;
             if RESAMPLE_LOG % 500 == 1 {
-                log::info!(
+                tracing::info!(
                     "Deck {} resample: pos={}, consumed={}, out_frames={}/{}",
                     self.id,
                     self.position_frames,

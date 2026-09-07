@@ -42,7 +42,7 @@ pub(crate) fn create_device_ring_buffer(
     for _ in 0..prefill {
         let _ = producer.push(0.0);
     }
-    log::info!(
+    tracing::info!(
         "Ring buffer: channels={}, capacity={}, pre-filled={} samples (spec: N×frames_per_buffer, zero alloc in callback)",
         channels,
         ring_buffer_capacity,
@@ -88,7 +88,7 @@ pub(crate) fn wait_for_callback_frames(
                     expected_frames
                 ));
             }
-            log::info!("Device callback size verified: {} frames", frames);
+            tracing::info!("Device callback size verified: {} frames", frames);
             return Ok(());
         }
         thread::sleep(Duration::from_millis(1));
@@ -118,7 +118,7 @@ pub(crate) fn producer_thread_loop(
     callback_count: Arc<AtomicU64>,
     transport_events: Arc<Mutex<Vec<TransportEvent>>>,
 ) {
-    log::info!(
+    tracing::info!(
         "Producer thread started ({} device stream(s), fallback_buffer_size={}, ring_capacity={}, sample_rate={})",
         device_producers.len(),
         fallback_buffer_size,
@@ -184,7 +184,7 @@ pub(crate) fn producer_thread_loop(
         {
             let mut dsp = dsp_engine.lock().unwrap();
             if let Err(e) = dsp.process(chunk_frames as u32, &mut output_buses) {
-                log::error!("DSP processing error: {}", e);
+                tracing::error!("DSP processing error: {}", e);
             }
             let deck_events = dsp.drain_transport_events();
             if !deck_events.is_empty() {
@@ -229,5 +229,5 @@ pub(crate) fn producer_thread_loop(
         }
     }
 
-    log::info!("Producer thread stopped");
+    tracing::info!("Producer thread stopped");
 }
