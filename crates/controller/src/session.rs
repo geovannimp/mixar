@@ -451,7 +451,17 @@ impl MappingSession {
                     ControlValue::Absolute(n) => n,
                     ControlValue::Relative(d) => d as f32,
                 };
-                let _ = script.call_named(script_fn, &mut host, script_norm, active);
+                if let Err(err) = script.call_named(script_fn, &mut host, script_norm, active) {
+                    tracing::warn!(
+                        device_id = %self.bundle.device.id,
+                        mapping_root = %self.bundle.root.display(),
+                        section = %section,
+                        alias = %alias,
+                        script_fn = %script_fn,
+                        error = %err,
+                        "script binding failed"
+                    );
+                }
             }
             if is_cc {
                 self.cc_last.insert(key.to_string(), Instant::now());

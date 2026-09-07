@@ -82,19 +82,149 @@ pub enum ControllerEvent {
 
 struct Attached {
     mapping_id: String,
+    device_id: String,
     session: MappingSession,
     _input: MidiInputConnection<()>,
     output: Option<MidiOutputConnection>,
+    send_gate: crate::report::FailureGate,
+    lifecycle_gate: crate::report::FailureGate,
 }
 
 struct MidiSink<'a> {
     out: &'a mut Option<MidiOutputConnection>,
+    mapping_id: &'a str,
+    device_id: &'a str,
+    port_name: &'a str,
+    send_gate: &'a mut crate::report::FailureGate,
 }
+
+/// Recurring MIDI send / idle-heartbeat failure log cadence.
+const FAILURE_LOG_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
 
 impl MidiOut for MidiSink<'_> {
     fn send(&mut self, bytes: &[u8]) {
-        if let Some(out) = self.out.as_mut() {
-            let _ = out.send(bytes);
+        let Some(out) = self.out.as_mut() else {
+            return;
+        };
+        let result = out.send(bytes).map_err(|e| e.to_string());
+        report_midi_send(
+            self.send_gate,
+            self.mapping_id,
+            self.device_id,
+            self.port_name,
+            bytes,
+            result,
+        );
+    }
+}
+
+pub(crate) fn report_midi_send(
+    gate: &mut crate::report::FailureGate,
+    mapping_id: &str,
+    device_id: &str,
+    port_name: &str,
+    bytes: &[u8],
+    result: Result<(), String>,
+) {
+    match result {
+        Ok(()) => {
+            gate.on_ok(|| {
+                tracing::info!(mapping_id, device_id, port_name, "midi send recovered");
+            });
+        }
+        Err(err) => {
+            let len = bytes.len();
+            let bytes_hex = crate::report::midi_bytes_hex(bytes);
+            gate.on_err(FAILURE_LOG_INTERVAL, || {
+                tracing::warn!(
+                    mapping_id,
+                    device_id,
+                    port_name,
+                    len,
+                    bytes_hex = %bytes_hex,
+                    error = %err,
+                    "midi send failed"
+                );
+            });
+        }
+    }
+}
+
+impl Attached {
+    fn report_lifecycle_result(
+        &mut self,
+        port_name: &str,
+        hook: &str,
+        result: Result<(), RuntimeError>,
+    ) {
+        match result {
+            Ok(()) => {
+                let mapping_id = self.mapping_id.as_str();
+                let device_id = self.device_id.as_str();
+                self.lifecycle_gate.on_ok(|| {
+                    tracing::info!(
+                        mapping_id,
+                        device_id,
+                        port_name,
+                        hook,
+                        "controller lifecycle recovered"
+                    );
+                });
+            }
+            Err(err) => {
+                let mapping_id = self.mapping_id.as_str();
+                let device_id = self.device_id.as_str();
+                let err = err.to_string();
+                self.lifecycle_gate.on_err(FAILURE_LOG_INTERVAL, || {
+                    tracing::warn!(
+                        mapping_id,
+                        device_id,
+                        port_name,
+                        hook,
+                        error = %err,
+                        "controller lifecycle failed"
+                    );
+                });
+            }
+        }
+    }
+}
+
+/// Open MIDI output or degrade to input-only; never silently discard errors.
+pub(crate) fn take_midi_output(
+    result: Result<Option<MidiOutputConnection>, EngineError>,
+    mapping_id: &str,
+    device_id: &str,
+    port_name: &str,
+) -> Option<MidiOutputConnection> {
+    match result {
+        Ok(Some(conn)) => {
+            tracing::info!(
+                mapping_id,
+                device_id,
+                port_name,
+                "midi output attached (full I/O)"
+            );
+            Some(conn)
+        }
+        Ok(None) => {
+            tracing::warn!(
+                mapping_id,
+                device_id,
+                port_name,
+                "midi output unavailable; attaching input-only (degraded)"
+            );
+            None
+        }
+        Err(err) => {
+            tracing::warn!(
+                mapping_id,
+                device_id,
+                port_name,
+                error = %err,
+                "midi output open failed; attaching input-only (degraded)"
+            );
+            None
         }
     }
 }
@@ -531,22 +661,46 @@ impl ControllerEngine {
             )
             .map_err(|e| EngineError::Midi(e.to_string()))?;
 
-        let mut output = open_matching_output(&self.app_name, &bundle, &port_name)
-            .ok()
-            .flatten();
+        let mut output = take_midi_output(
+            open_matching_output(&self.app_name, &bundle, &port_name),
+            mapping_id,
+            &bundle.device.id,
+            &port_name,
+        );
+        let device_id = bundle.device.id.clone();
         let mut session = MappingSession::from_bundle(bundle)?;
         {
-            let mut sink = MidiSink { out: &mut output };
-            session.on_init(&mut NullPublish, &mut sink)?;
+            let mut send_gate = crate::report::FailureGate::default();
+            let mut sink = MidiSink {
+                out: &mut output,
+                mapping_id,
+                device_id: &device_id,
+                port_name: &port_name,
+                send_gate: &mut send_gate,
+            };
+            if let Err(err) = session.on_init(&mut NullPublish, &mut sink) {
+                tracing::error!(
+                    mapping_id,
+                    device_id = %device_id,
+                    port_name = %port_name,
+                    hook = "on_init",
+                    error = %err,
+                    "controller lifecycle failed"
+                );
+                return Err(err.into());
+            }
         }
         self.suppressed_ports.remove(&port_name);
         self.attached.insert(
             port_name.clone(),
             Attached {
                 mapping_id: mapping_id.to_string(),
+                device_id,
                 session,
                 _input: input,
                 output,
+                send_gate: crate::report::FailureGate::default(),
+                lifecycle_gate: crate::report::FailureGate::default(),
             },
         );
         self.refresh_pending_offers_cache();
@@ -582,10 +736,26 @@ impl ControllerEngine {
         if suppress {
             self.suppressed_ports.insert(port_name.to_string());
         }
-        let mut sink = MidiSink {
-            out: &mut attached.output,
+        let shutdown = {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
+            };
+            attached.session.on_shutdown(&mut NullPublish, &mut sink)
         };
-        let _ = attached.session.on_shutdown(&mut NullPublish, &mut sink);
+        if let Err(err) = shutdown {
+            tracing::warn!(
+                mapping_id = %attached.mapping_id,
+                device_id = %attached.device_id,
+                port_name,
+                hook = "on_shutdown",
+                error = %err,
+                "controller lifecycle failed"
+            );
+        }
         self.events.push_back(ControllerEvent::MappingDetached {
             mapping_id: attached.mapping_id,
         });
@@ -600,6 +770,10 @@ impl ControllerEngine {
                     if let Some(attached) = self.attached.get_mut(&port_name) {
                         let mut sink = MidiSink {
                             out: &mut attached.output,
+                            mapping_id: &attached.mapping_id,
+                            device_id: &attached.device_id,
+                            port_name: &port_name,
+                            send_gate: &mut attached.send_gate,
                         };
                         attached.session.handle_midi(&bytes, bus, &mut sink);
                     }
@@ -608,19 +782,34 @@ impl ControllerEngine {
                 Err(TryRecvError::Disconnected) => break,
             }
         }
-        for attached in self.attached.values_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
+        let ports: Vec<String> = self.attached.keys().cloned().collect();
+        for port_name in ports {
+            let Some(attached) = self.attached.get_mut(&port_name) else {
+                continue;
             };
-            attached.session.flush_coalesced(bus, &mut sink);
-            let _ = attached.session.idle_heartbeat(bus, &mut sink);
+            let heartbeat = {
+                let mut sink = MidiSink {
+                    out: &mut attached.output,
+                    mapping_id: &attached.mapping_id,
+                    device_id: &attached.device_id,
+                    port_name: &port_name,
+                    send_gate: &mut attached.send_gate,
+                };
+                attached.session.flush_coalesced(bus, &mut sink);
+                attached.session.idle_heartbeat(bus, &mut sink)
+            };
+            attached.report_lifecycle_result(&port_name, "idle_heartbeat", heartbeat);
         }
     }
 
     pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
-        for attached in self.attached.values_mut() {
+        for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
             };
             attached.session.on_deck_playing(deck, playing, &mut sink);
         }
@@ -628,9 +817,13 @@ impl ControllerEngine {
 
     /// Mirror library hot cues into attached mappings (pad Trigger vs Save + LEDs).
     pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT]) {
-        for attached in self.attached.values_mut() {
+        for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
             };
             attached.session.set_deck_hot_cues(deck, cues, &mut sink);
         }
@@ -638,9 +831,13 @@ impl ControllerEngine {
 
     /// Mirror engine pad mode so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
-        for attached in self.attached.values_mut() {
+        for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
             };
             attached.session.set_deck_pad_mode(deck, mode, &mut sink);
         }
@@ -648,9 +845,13 @@ impl ControllerEngine {
 
     /// Push deck peak level to `vu_meter` MIDI out (no-op if mapping has none).
     pub fn set_deck_vu(&mut self, deck: u16, level: f32) {
-        for attached in self.attached.values_mut() {
+        for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
             };
             attached.session.set_deck_vu(deck, level, &mut sink);
         }
@@ -784,4 +985,104 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), EngineError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{self, Write};
+    use std::sync::{Arc, Mutex};
+
+    use tracing_subscriber::fmt::MakeWriter;
+
+    #[derive(Clone, Default)]
+    struct Capture(Arc<Mutex<Vec<u8>>>);
+
+    impl Write for Capture {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> MakeWriter<'a> for Capture {
+        type Writer = Capture;
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    fn with_capture(f: impl FnOnce()) -> String {
+        let buf = Capture::default();
+        let store = Arc::clone(&buf.0);
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_writer(buf)
+            .with_ansi(false)
+            .finish();
+        tracing::subscriber::with_default(subscriber, f);
+        let bytes = store.lock().unwrap().clone();
+        String::from_utf8(bytes).unwrap()
+    }
+
+    #[test]
+    fn take_midi_output_logs_open_failure_as_degraded() {
+        let log = with_capture(|| {
+            let out = take_midi_output(
+                Err(EngineError::Midi("device busy".into())),
+                "ddj-400",
+                "pioneer.ddj-400",
+                "DDJ-400 MIDI 1",
+            );
+            assert!(out.is_none());
+        });
+        assert!(log.contains("midi output open failed"), "{log}");
+        assert!(log.contains("input-only (degraded)"), "{log}");
+        assert!(log.contains("pioneer.ddj-400"), "{log}");
+        assert!(log.contains("device busy"), "{log}");
+    }
+
+    #[test]
+    fn take_midi_output_logs_missing_port_as_degraded() {
+        let log = with_capture(|| {
+            let out = take_midi_output(Ok(None), "ddj-400", "pioneer.ddj-400", "DDJ-400 MIDI 1");
+            assert!(out.is_none());
+        });
+        assert!(log.contains("midi output unavailable"), "{log}");
+        assert!(log.contains("input-only (degraded)"), "{log}");
+    }
+
+    #[test]
+    fn report_midi_send_logs_failure_with_hex_and_recovery() {
+        let mut gate = crate::report::FailureGate::default();
+        let bytes = [0xF0_u8, 0x00, 0x7F];
+        let fail = with_capture(|| {
+            report_midi_send(
+                &mut gate,
+                "ddj-400",
+                "pioneer.ddj-400",
+                "DDJ-400 MIDI 1",
+                &bytes,
+                Err("broken pipe".into()),
+            );
+        });
+        assert!(fail.contains("midi send failed"), "{fail}");
+        assert!(fail.contains("F0 00 7F"), "{fail}");
+        assert!(fail.contains("broken pipe"), "{fail}");
+
+        let recover = with_capture(|| {
+            report_midi_send(
+                &mut gate,
+                "ddj-400",
+                "pioneer.ddj-400",
+                "DDJ-400 MIDI 1",
+                &bytes,
+                Ok(()),
+            );
+        });
+        assert!(recover.contains("midi send recovered"), "{recover}");
+    }
 }

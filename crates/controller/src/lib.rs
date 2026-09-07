@@ -9,6 +9,7 @@ mod engine;
 mod error;
 mod map_file;
 mod midi;
+mod report;
 mod session;
 
 pub mod check;
