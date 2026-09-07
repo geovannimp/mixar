@@ -9,6 +9,7 @@ mod engine;
 mod error;
 mod map_file;
 mod midi;
+mod report;
 mod session;
 
 pub mod check;
@@ -38,4 +39,6 @@ pub use midi::{
     decode_relative, match_device, norm_from_cc14, parse_short, CcField, Direction, MidiEndpoint,
     MidiIdentity, MidiMsgType, ParsedMidi, RelativeMode, ShortMsg,
 };
-pub use session::{ActionPublish, BusPublish, MappingSession, MidiOut, MidiPort};
+pub use session::{
+    ActionPublish, BusPublish, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
+};

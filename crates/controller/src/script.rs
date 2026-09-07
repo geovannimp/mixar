@@ -149,23 +149,16 @@ impl ScriptRuntime {
     }
 
     pub fn call_hook(&mut self, name: &str, host: &mut ScriptHost<'_>) -> Result<(), RuntimeError> {
+        // Missing optional hook is fine; do not swallow VariableNotFound etc.
+        if !self.has_fn(name) {
+            return Ok(());
+        }
         self.prepare_scratch(host);
         let mut scope = Scope::new();
         // Hooks take no args in v1; ctx is implicit via registered fns.
         let result = self.engine.call_fn::<()>(&mut scope, &self.ast, name, ());
         self.flush_scratch(host);
-        match result {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                // Missing optional hook is fine.
-                let msg = e.to_string();
-                if msg.contains("not found") || msg.contains("Function not found") {
-                    Ok(())
-                } else {
-                    Err(RuntimeError::Script(msg))
-                }
-            }
-        }
+        result.map_err(|e| RuntimeError::Script(e.to_string()))
     }
 
     pub fn call_named(

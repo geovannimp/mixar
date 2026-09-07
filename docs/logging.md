@@ -7,7 +7,7 @@ The Flutter desktop host and Rust crates share [`tracing`](https://docs.rs/traci
 | Layer | Library | Role |
 | --- | --- | --- |
 | Rust crates / `host-flutter` | [`tracing`](https://docs.rs/tracing) | Facade in engine/library/controller crates; macros `tracing::{error,warn,info,debug,trace}!` |
-| Host init (`init_app`) | [`tracing-subscriber`](https://docs.rs/tracing-subscriber) + [`tracing-log`](https://docs.rs/tracing-log) | stderr fmt layer, `EnvFilter` (default `info`, override with `RUST_LOG`); bridges leftover `log` crate calls from dependencies |
+| Host init (`init_app`) | [`tracing-subscriber`](https://docs.rs/tracing-subscriber) + [`tracing-log`](https://docs.rs/tracing-log) | stderr + optional app-support file via tee writer; `EnvFilter` (default `info`, override with `RUST_LOG`); bridges leftover `log` crate calls from dependencies |
 | Flutter / Dart | console / `debugPrint` | UI diagnostics during development |
 
 ## Where app data lives
@@ -22,7 +22,7 @@ Library DB and settings sit next to each other under the platform application-su
 | macOS | `~/Library/Application Support/top.mixar.app` |
 | Windows | `%APPDATA%\top.mixar.app` |
 
-Files of interest: `library.db`, `settings.json`.
+Files of interest: `library.db`, `settings.json`, `mixar.log` (Rust diagnostics; attached when `ControllerTransport` starts).
 
 ## Raising verbosity
 
@@ -31,4 +31,4 @@ Files of interest: `library.db`, `settings.json`.
 
 ## Notes
 
-A durable application log file (rotation, shared categories across Rust and Dart) is a follow-up — needed by controller error reporting ([#303](https://github.com/geovannimp/mixar/issues/303)). Do not reintroduce a Tauri/LogTape pipeline or a parallel `log`-facade stack for first-party Mixar code.
+Controller MIDI/Rhai failures are written through `tracing` (and therefore into `mixar.log` once attached). Log rotation / shared Dart categories remain a follow-up — do not reintroduce a Tauri/LogTape pipeline or a parallel facade for first-party Mixar code.

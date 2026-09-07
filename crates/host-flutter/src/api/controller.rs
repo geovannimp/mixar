@@ -125,6 +125,7 @@ impl ControllerTransport {
         let shipped = shipped_mappings_dir
             .map(PathBuf::from)
             .unwrap_or_else(resolve_shipped_mappings);
+        crate::api::meta::attach_app_log_beside_mappings(&mappings_dir);
         let mut engine =
             ControllerEngine::open(engine_api::APP_DISPLAY_NAME, mappings_dir, shipped)
                 .map_err(|e| e.to_string())?;
