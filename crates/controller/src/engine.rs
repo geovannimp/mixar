@@ -308,7 +308,7 @@ impl ControllerEngine {
                     );
                 }
                 Err(err) => {
-                    log::warn!("skip invalid mapping {}: {err}", path.display());
+                    tracing::warn!("skip invalid mapping {}: {err}", path.display());
                 }
             }
         }

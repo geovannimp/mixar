@@ -25,12 +25,12 @@ pub fn create_backend(backend_name: &str) -> Result<Box<dyn audio_core::AudioBac
             #[cfg(feature = "backend-cpal")]
             match backend_cpal::CpalBackend::new() {
                 Ok(backend) => {
-                    log::info!("Using CPAL backend");
+                    tracing::info!("Using CPAL backend");
                     return Ok(Box::new(backend));
                 }
-                Err(e) => log::warn!("Failed to initialize CPAL backend: {}, using null", e),
+                Err(e) => tracing::warn!("Failed to initialize CPAL backend: {}, using null", e),
             }
-            log::info!("Using null backend");
+            tracing::info!("Using null backend");
             Ok(Box::new(backend_null::NullBackend::new()))
         }
         _ => Err(anyhow::anyhow!("Unknown backend: {}", backend_name)),

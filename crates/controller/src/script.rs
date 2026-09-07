@@ -133,7 +133,7 @@ impl ScriptRuntime {
             let body = match parse_cmd_body(&payload) {
                 Ok(body) => body,
                 Err(err) => {
-                    log::warn!("script publish payload parse failed: {err}");
+                    tracing::warn!("script publish payload parse failed: {err}");
                     continue;
                 }
             };

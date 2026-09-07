@@ -18,7 +18,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = "1.0"
 toml = { workspace = true }
 thiserror = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 # Git pin: midir#199 widens alsa to <0.13 so we share alsa-sys with cpal 0.18.
 # Switch to crates.io once a release includes that bound.
 midir = { git = "https://github.com/Boddlnagg/midir", rev = "e5a60b5" }

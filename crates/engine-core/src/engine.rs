@@ -184,7 +184,7 @@ impl Engine {
             return Err(anyhow::anyhow!("Engine is already running"));
         }
 
-        log::info!("Starting engine with backend: {}", self.backend.name());
+        tracing::info!("Starting engine with backend: {}", self.backend.name());
         *self.running.lock().unwrap() = true;
 
         let device_streams = match self.open_device_streams() {
@@ -238,7 +238,7 @@ impl Engine {
         self.streams = streams;
         self.producer_thread = Some(producer_thread);
 
-        log::info!(
+        tracing::info!(
             "Engine started successfully with producer/consumer model ({} device stream(s))",
             stream_count
         );
@@ -276,7 +276,7 @@ impl Engine {
                 .actual_sample_rate()
                 .unwrap_or(self.config.sample_rate);
 
-            log::info!(
+            tracing::info!(
                 "Audio stream opened on device '{}': {} Hz, {} frames/buffer, {} channel(s) (config: {} Hz, {} frames)",
                 plan.device.as_str(),
                 sample_rate,
@@ -373,7 +373,7 @@ impl Engine {
 
         const PRODUCER_WARMUP_MS: u64 = 200;
         thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
-        log::info!(
+        tracing::info!(
             "Producer warmup done ({} ms), starting stream(s)",
             PRODUCER_WARMUP_MS
         );
@@ -395,7 +395,7 @@ impl Engine {
 
     /// Stop the engine
     pub fn stop(&mut self) -> Result<()> {
-        log::info!("Stopping engine");
+        tracing::info!("Stopping engine");
 
         *self.running.lock().unwrap() = false;
         if let Some(thread) = self.producer_thread.take() {
@@ -407,14 +407,14 @@ impl Engine {
         let stream_count = self.streams.len();
         self.streams.clear();
         if stream_count > 0 {
-            log::info!("Audio stream(s) stopped ({})", stream_count);
+            tracing::info!("Audio stream(s) stopped ({})", stream_count);
         }
 
         self.dsp_engine = None;
         self.transport_events.lock().unwrap().clear();
         self.decode_cache.clear();
 
-        log::info!("Engine stopped");
+        tracing::info!("Engine stopped");
         Ok(())
     }
 
@@ -515,7 +515,7 @@ impl Engine {
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
-        log::info!("Track loaded into deck {}", deck_id);
+        tracing::info!("Track loaded into deck {}", deck_id);
         Ok(())
     }
 
@@ -559,7 +559,7 @@ impl Engine {
         drop(dsp);
         self.hydrate_hot_cues(deck_id)?;
         self.resync_followers_after_load(deck_id)?;
-        log::info!("Library-prepared track loaded into deck {}", deck_id);
+        tracing::info!("Library-prepared track loaded into deck {}", deck_id);
         Ok(())
     }
 
@@ -603,7 +603,7 @@ impl Engine {
 
     /// Play a deck
     pub fn play(&mut self, deck_id: usize) -> Result<()> {
-        log::info!("Playing deck {}", deck_id);
+        tracing::info!("Playing deck {}", deck_id);
 
         let dsp_engine = self
             .dsp_engine
@@ -620,7 +620,7 @@ impl Engine {
 
     /// Pause a deck
     pub fn pause(&mut self, deck_id: usize) -> Result<()> {
-        log::info!("Pausing deck {}", deck_id);
+        tracing::info!("Pausing deck {}", deck_id);
 
         let dsp_engine = self
             .dsp_engine
