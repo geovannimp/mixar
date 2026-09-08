@@ -33,9 +33,8 @@ This document defines what a **professional DJ deck** should contain in Mixar, b
 - [7 — Engine vs GUI Responsibilities](#7--engine-vs-gui-responsibilities)
 - [8 — API Surface](#8--api-surface)
 - [9 — Engine Event System](#9--engine-event-system)
-- [10 — Phased Roadmap](#10--phased-roadmap)
-- [11 — Acceptance Criteria](#11--acceptance-criteria)
-- [12 — References](#12--references)
+- [10 — Acceptance Criteria](#10--acceptance-criteria)
+- [11 — References](#11--references)
 
 ---
 
@@ -64,7 +63,7 @@ Industry decks (Rekordbox Performance, Serato, Traktor) share a common layout pa
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Our MVP deck today covers **load, play/pause, dual scrolling waveforms, volume, 3-band EQ, crossfader** only. This spec lists everything a complete deck needs and prioritizes implementation.
+§3 is the factual **current-state** snapshot (implemented / partial / not). Feature sections below are **product requirements**, not a second status board — unfinished work is tracked in GitHub issues.
 
 ---
 
@@ -94,16 +93,25 @@ Common expectations across all products:
 
 ## 3 — Current State (Mixar)
 
+**Authority:** GitHub issues track unfinished work. This section is a factual snapshot only — do not maintain a parallel roadmap here.
+
 ### GUI (`gui-flutter`)
 
-| Area | Implemented | Missing / next |
-|------|-------------|----------------|
-| Deck panel | Load (picker + drag-drop), play/pause, metadata, transport, pads, sync, sampler | Layout polish; some Phase 4+ (slip, FX UI) |
-| Waveforms | Dual-lane scroll + overview preview, beat grid when analyzed | Zoom; richer cue/loop overlays |
-| Mixer strip | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU | — |
-| Engine start | Auto-start on Decks via FRB `EngineTransport.start` (host opens streams) | — |
-| State sync | FRB **`EngineTransport.subscribeEvents`** → Riverpod (`engine_ui` / `applyEngineEvt`) | MIDI host; optional richer hydrate on the evt bus |
-| Library UI | FRB **`LibraryTransport`** for tracks / artwork / waveform peaks | — |
+| Area | Status | Notes / tracking |
+|------|--------|------------------|
+| Deck panel | Partial | Load, play/pause, metadata, transport, pads, sync, sampler, slip, key lock; layout polish → [#310](https://github.com/geovannimp/mixar/issues/310) |
+| Waveforms | Partial | Dual-lane scroll + overview, beat grid, cue/loop overlays; zoom → [#210](https://github.com/geovannimp/mixar/issues/210) |
+| Mixer strip | Implemented | Volume, 3-band EQ, filter, gain trim, crossfader, cue/PFL, VU |
+| Jog / scratch | Implemented | Engine jog + GUI platter ([#43](https://github.com/geovannimp/mixar/issues/43)) |
+| Engine start | Implemented | Auto-start on Decks via FRB `EngineTransport.start` |
+| State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
+| Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
+| FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
+| Stems pad mode | Not implemented | [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
+| Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
+| Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
+| 4-deck layout | Not implemented | [#63](https://github.com/geovannimp/mixar/issues/63), [#252](https://github.com/geovannimp/mixar/issues/252) |
 
 ### Engine / DSP (`engine-dsp`, `engine-core`)
 
@@ -116,7 +124,11 @@ Common expectations across all products:
 | Hot cues / loops / quantize | Yes |
 | Sync / master deck | Yes |
 | Sampler pads / banks | Yes |
-| FX chain / stems / scratch | No (later phases) |
+| Key lock (`SetKeyLock`) | Yes |
+| Slip mode | Yes |
+| Jog / scratch | Yes |
+| FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
+| Stems | No → [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 
@@ -130,8 +142,6 @@ Analysis + DB fields (`title`, `artist`, `bpm`, `key`, `duration_ms`, beat grid,
 | `duration_ms` / `durationMs` | Loaded track metadata on deck snapshot | Total track length |
 
 `remaining_ms` is derived in the UI as `duration_ms - position_ms` when both are set.
-
----
 
 ## 4 — Deck Information Architecture
 
@@ -169,7 +179,7 @@ UI layout zones (match competitor ergonomics):
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
-| **H — Extended pad modes** | P3+ | Stems, Sampler, Beat Jump, Slicer (reuse same 8 pads) |
+| **H — Extended pad modes** | P2 | Sampler + Beat Jump shipped; Stems / Slicer still open (reuse same 8 pads) |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
 
 ---
@@ -207,7 +217,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | W3 | **Beat grid overlay** | Vertical lines from `beat_grid`; downbeat emphasis | P0 |
 | W4 | **Hot cue markers** | Colored flags on overview + scroll | P1 |
 | W5 | **Loop region highlight** | Active loop bracket on waveform | P1 |
-| W6 | **Zoom** | Adjust `visible_ms` (e.g. 4000–64000 ms); mouse wheel or buttons | P1 |
+| W6 | **Zoom** | Adjust `visible_ms` (e.g. 4000–64000 ms); mouse wheel or buttons | P1 → [#210](https://github.com/geovannimp/mixar/issues/210) |
 | W7 | **Stacked dual-deck view** | Deck A lane above Deck B (current) | P0 |
 | W8 | **Phase / beat phase indicator** | Small bar showing position within beat/bar (Serato) | P2 |
 | W9 | **End-of-track warning** | Visual cue near track end | P2 |
@@ -264,7 +274,7 @@ The **8 numbered buttons** (slots 1–8) on each deck are **controller pads**, n
 └───────┴───────┴───────┴───────┘
 ```
 
-**Default mode:** **Hot Cue** — matches Serato/Rekordbox behavior and our Phase 2 implementation.
+**Default mode:** **Hot Cue** — matches Serato/Rekordbox behavior (shipped).
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
@@ -299,12 +309,12 @@ When `pad_mode = hot_cue`, pads behave as hot cues:
 | C2 | **Hot cue color** | User-selectable palette | — | P1 |
 | C3 | **Hot cue label** | Short text (e.g. “Drop”, “Intro”) | — | P1 |
 | C4 | **Hot cue set / delete** | Empty pad = set at playhead; shift+click = delete | — | P1 |
-| C5 | **Memory cues** | Non-destructive timeline markers (Rekordbox) | 10 | P2 |
+| C5 | **Memory cues** | Non-destructive timeline markers (Rekordbox) | 10 | P2 → [#44](https://github.com/geovannimp/mixar/issues/44) |
 | C6 | **Cue quantize on set/trigger** | Snap to beat grid when quantize on | — | P1 |
 | C7 | **Persist cues in library** | Save per track_id; load on deck load | — | P1 |
-| C8 | **Intelligent / auto cues** | Analysis-suggested cues (Rekordbox 7) | — | P3 |
+| C8 | **Intelligent / auto cues** | Analysis-suggested cues (Rekordbox 7) | — | P3 → [#62](https://github.com/geovannimp/mixar/issues/62) |
 
-**Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue in Phase 2).
+**Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue by default).
 
 **Implementation note:** Current Mixar code (`deck_pads_panel.dart`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
 
@@ -370,6 +380,8 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 
 **Engine placement:** Per-deck pre-fader insert chain in `engine-dsp` before mixer bus.
 
+**Tracking:** [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250).
+
 ---
 
 ### 5.10 Additional pad modes (Stems, Sampler, …)
@@ -387,6 +399,8 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 
 **Dependency:** Offline or real-time stem separation (Rekordbox Stems, Serato Stems, Virtual DJ stems). Requires separate analysis pipeline or third-party model — **not** in current analyzer MVP.
 
+**Tracking:** Stems [#46](https://github.com/geovannimp/mixar/issues/46); Slicer [#60](https://github.com/geovannimp/mixar/issues/60). Sampler / Loop Roll / Beat Jump pad modes are shipped.
+
 **Removed from this section:** pad mode selector and grid layout — defined in §5.5 (controller pads are the primary abstraction).
 
 ---
@@ -402,7 +416,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 | J5 | **Jog sensitivity** | Configurable | P3 |
 | J6 | **Platter animation** | Sync rotation to effective BPM | P2 |
 
-**Engine:** Jog updates via `jog_touch` / `jog_turn` / `set_jog_mode` (shared `JogMode`: vinyl | pitch_bend | ignore on top & outer). Transient `jog_rate` layered on deck speed; GUI platter is always top.
+**Engine:** Jog updates via `jog_touch` / `jog_turn` / `set_jog_mode` (shared `JogMode`: vinyl | pitch_bend | ignore on top & outer). Transient `jog_rate` layered on deck speed; GUI platter is always top. Core jog/scratch shipped ([#43](https://github.com/geovannimp/mixar/issues/43)).
 
 ---
 
@@ -410,8 +424,8 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit ([Serato manual](https://serato.com/dj/pro)) | P2 |
-| A2 | **Censor / censor button** | Temporary reverse or mute (Serato) | P3 |
+| A1 | **Slip mode** | Shadow playhead continues during loop/scratch/cue; catch up on exit ([Serato manual](https://serato.com/dj/pro)) — **shipped** ([#38](https://github.com/geovannimp/mixar/issues/38)) | P2 |
+| A2 | **Censor / censor button** | Temporary reverse or mute (Serato) | P3 → [#295](https://github.com/geovannimp/mixar/issues/295) |
 | A3 | **Brake / spin down** | Vinyl stop effect | P3 |
 
 ---
@@ -448,7 +462,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 | H2 | **Cue mix knob** | Master vs cue balance (mixer section) | P2 |
 | H3 | **Split cue** | Mono split left=master right=cue | P3 |
 
-**Engine:** Requires preview bus routing (config exists in settings; engine routing incomplete per main tech spec).
+**Engine / GUI:** Per-deck cue/PFL and cue-mix are shipped on the mixer strip; split-cue and advanced preview routing remain open if needed.
 
 ---
 
@@ -456,7 +470,7 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| HW1 | **MIDI map deck controls** | Learn mode; maps to `EngineCommand` → same events as UI (§9) | P3 |
+| HW1 | **MIDI map deck controls** | Learn mode; maps to `EngineCommand` → same events as UI (§9) | P3 → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | HW2 | **HID controller profiles** | Rekordbox / Serato compatible devices | P4 |
 | HW3 | **Motorized fader feedback** | — | P4 |
 | HW4 | **Low-latency WASAPI/ASIO** | Windows pro audio | v2 (main spec) |
@@ -719,92 +733,41 @@ Same events the UI sees from mouse clicks.
 
 ---
 
-## 10 — Phased Roadmap
+## 10 — Acceptance Criteria
 
-### Phase 1 — “Real DJ app shell” (current focus)
+Capability checks (not phase gates). GitHub issues own remaining work.
 
-Make **what we already have** reliable and **look like** professional deck software (Rekordbox / Serato / Traktor layout), without new engine features yet.
-
-**Engine / behavior (fix & wire existing):**
-
-- Stable load → play/pause on both decks (file picker + library drag-drop)
-- `position_ms` / `duration_ms` polled and shown (elapsed + remaining)
-- Volume faders, 3-band EQ, crossfader — responsive, no stale UI
-- Waveform scroll tracks playhead smoothly during playback
-- Engine auto-start + errors via Flutter host UI toasts (done)
-- Load library track metadata: **title, artist, BPM, key** on deck (from `TrackSummary` / analysis, not just filename)
-- **Engine event bus (§9):** MessagePack omnibus via FRB `EngineTransport`; UI subscribes in bootstrap (foundation for MIDI)
-
-**UI layout (visual parity, placeholders OK):**
-
-- **Metadata bar** per deck: title, artist, BPM, key, elapsed / remaining / total
-- **Deck chrome**: accent colors, transport row (play/pause prominent; cue/sync as disabled placeholders)
-- **Jog / platter** area: visual only (rotation tied to BPM when playing)
-- **Mixer column** between decks (desktop): faders + EQ + crossfader — already present; polish spacing and labels
-- **Waveform stack** on top: dual scrolling lanes (done); reserve space for overview strip (can be empty or low-res overview until Phase 2)
-- Responsive: deck controls usable at common window sizes
-
-**Explicitly not Phase 1:** hot cues, loops, sync, pitch fader, beat grid overlay, FX, stems, scratch, PFL.
-
-### Phase 2 — “Performance controls” (P1)
-
-- Overview waveform + click seek
-- Beat grid overlay on scroll lane
-- Cue button (hold) + seek/scrub on waveform
-- **Controller pads** in **Hot Cue mode** (default): set, trigger, delete + **`save_hot_cue`** / **`delete_hot_cue`** → `track_hot_cue` table
-- Auto loop + manual loop in/out + **`save_loop`** / **`delete_loop`** → `track_loop` table
-- Quantize toggle
-- Unload / eject track
-- Pitch fader (vinyl-style speed) + effective BPM display
-
-### Phase 3 — “Sync & mix tools” (P2)
-
-- Beat sync + master deck
-- **Pad mode selector** (PD2); Loop Roll + Beat Jump pad modes
-- Loop halve/double, beat jump
-- Filter knob (audio + optional waveform tint per dj-waveform-spec §8.6)
-- Key display modes (musical / Camelot)
-- Album art
-- Gain trim per track
-
-### Phase 4 — “Pro features” (P3)
-
-- Slip mode
-- Key lock / time-stretch (requires DSP crate)
-- FX slots (filter + echo + reverb)
-- Jog wheel / scratch (functional)
-- Cue/PFL routing to preview bus
-- VU meters
-- Memory cues
-
-### Phase 5 — “Differentiators” (P4+)
-
-- **Stems / Sampler / Slicer pad modes** (§5.10)
-- Intelligent cues
-- Grid editor
-- **MIDI mapping** (consumes §9 event bus + shared `EngineCommand` path)
-- 4-deck layout
-
----
-
-## 11 — Acceptance Criteria
-
-**Phase 1 complete when:**
+### Shipped baseline
 
 1. Both decks: load (picker + drag-drop), play, pause work reliably with no silent failures.
 2. Deck UI shows **title, artist, BPM, key**, **elapsed** (`position_ms`), **remaining**, and **total** (`duration_ms`).
 3. Layout reads as a **DJ app**: waveform stack → deck panels → center mixer; transport and platter visible per deck.
 4. **Volume, EQ, crossfader** reflect engine state; changes apply without glitching audio.
 5. Scrolling **waveforms track the playhead** during playback without visible drift vs. audio.
-6. Disabled placeholders for future controls (cue, sync, hot cues) do not clutter — clear “coming later” or omitted until Phase 2.
+6. **Hot cues, loops, quantize, sync, sampler, slip, key lock, jog/scratch, cue/PFL, VU** work from the Flutter host.
 7. Engine errors use **Flutter host UI** toasts only (`showFToast` / Forui).
 8. Evt omnibus delivered to UI: headless / simulated publish updates Flutter host state without a matching UI command return value.
+9. Overview, beat grid, pads in Hot Cue mode, and **`save_hot_cue`** / **`save_loop`** persistence; high-rate position on the bus (§9.6).
 
-**Phase 2 adds:** overview, beat grid, **pads in Hot Cue mode**, loops with **`save_hot_cue`** / **`save_loop`** persistence; high-rate position already on the bus (§9.6).
+### Open (tracked)
 
----
+| Capability | Issue(s) |
+|------------|----------|
+| Deck layout polish | [#310](https://github.com/geovannimp/mixar/issues/310) |
+| Waveform zoom | [#210](https://github.com/geovannimp/mixar/issues/210) |
+| FX slots / insert chain | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
+| Memory cues | [#44](https://github.com/geovannimp/mixar/issues/44) |
+| Stems pad mode | [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Slicer pad mode | [#60](https://github.com/geovannimp/mixar/issues/60) |
+| Intelligent cues | [#62](https://github.com/geovannimp/mixar/issues/62) |
+| MIDI mapping | [#49](https://github.com/geovannimp/mixar/issues/49) |
+| 4-deck layout / crossfader model | [#63](https://github.com/geovannimp/mixar/issues/63), [#252](https://github.com/geovannimp/mixar/issues/252) |
+| Filter/EQ waveform tint (optional) | [#35](https://github.com/geovannimp/mixar/issues/35) |
+| Persist per-track gain corrections | [#39](https://github.com/geovannimp/mixar/issues/39) |
+| Momentary reverse-roll / censor | [#295](https://github.com/geovannimp/mixar/issues/295) |
+| Keyboard / Key Shift pad modes | [#298](https://github.com/geovannimp/mixar/issues/298) |
 
-## 12 — References
+## 11 — References
 
 ### Competitor documentation
 
@@ -845,12 +808,12 @@ Make **what we already have** reliable and **look like** professional deck softw
 | DK12a | Pad abstraction | **8 controller pads** with **mode selector**; **Hot Cue = default mode** (Virtual DJ / Serato model); `track_hot_cue` stores Hot Cue mode data only |
 | DK2 | Key lock | Tempo fader + sync use [`timestretch`](https://crates.io/crates/timestretch) WideKeylock (`SetKeyLock`); vinyl jog stays fractional |
 | DK3 | Waveform EQ link | Static analysis colors MVP; optional EQ tint post-MVP (dj-waveform-spec) |
-| DK4 | Stems | **Phase 4**; separate spec when chosen |
+| DK4 | Stems | Separate analysis/spec when chosen; tracked in [#46](https://github.com/geovannimp/mixar/issues/46) |
 | DK5 | Deck layout | **Stacked waveforms + side mixer** (current); optional single-deck expanded view later |
-| DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (Phase 2) |
-| DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (Phase 2) |
+| DK6 | Cue persistence | **`track_hot_cue`** table; **`save_hot_cue`** per slot (shipped) |
+| DK7 | Loop persistence | **`track_loop`** table; **`save_loop`** per slot (shipped) |
 | DK8 | Deck state API | Bus `status` / `updated` snapshots — no `get_deck_state`; no `get_status` hydrate |
 | DK9 | Error UX | **Flutter host UI** toasts (`showFToast` / Forui); engine start surfaces start failures in host error UX |
-| DK10 | Phase 1 scope | **Polish existing features + DJ app look** — no new performance engine features |
-| DK11 | Position stream | Poll in Phase 1; **`engine://position`** push in Phase 2 |
+| DK10 | Status authority | **GitHub issues** track unfinished work; §3 is a factual snapshot only (no parallel roadmap in this doc) |
+| DK11 | Position stream | High-rate `position` evt on the MessagePack omnibus (FRB → `EngineEvt`) |
 | DK12 | State sync | **Event bus** — UI subscribes; engine + host publish via session evt bus (FRB forwarder → typed `EngineEvt`) |
