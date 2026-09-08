@@ -13,6 +13,7 @@ import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
@@ -93,6 +94,7 @@ class DeckPanel extends ConsumerWidget {
       child: AppTooltip(
         tip: playLabel,
         child: FButton(
+          variant: .primary,
           onPress: transportDisabled
               ? null
               : () {
@@ -112,9 +114,12 @@ class DeckPanel extends ConsumerWidget {
         Row(
           children: [
             Text(
-              label,
-              style: theme.typography.body.sm.copyWith(
+              label.toUpperCase(),
+              style: theme.typography.display.xs.copyWith(
+                fontFamily: MixarFonts.spaceGrotesk,
                 fontWeight: FontWeight.w700,
+                letterSpacing: 0.6,
+                height: 1,
                 color: accentColor,
               ),
             ),

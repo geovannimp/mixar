@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -110,7 +111,6 @@ class SamplerPads extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: theme.typography.body.xs.copyWith(
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'monospace',
                       ),
                     ),
                   ),
@@ -193,16 +193,20 @@ class SamplerPads extends StatelessWidget {
           Text(
             filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
             overflow: TextOverflow.ellipsis,
-            style: theme.typography.body.xs.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style:
+                (filled && label != null && label.isNotEmpty
+                        ? theme.typography.body.xs
+                        : theme.typography.mono.xs)
+                    .copyWith(fontWeight: FontWeight.w700),
           ),
           Text(
             filled && sample.durationMs != null
                 ? formatDeckTimeTenth(sample.durationMs)
                 : 'sample',
             overflow: TextOverflow.ellipsis,
-            style: theme.typography.body.xs,
+            style: filled && sample.durationMs != null
+                ? theme.typography.mono.xs
+                : theme.typography.body.xs,
           ),
         ],
       ),

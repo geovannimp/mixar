@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
@@ -56,11 +57,11 @@ class Application extends StatelessWidget {
   Widget build(BuildContext context) {
     // Transparent Material canvas so desktop rounded corners aren't filled square.
     final light = materialUiThemeFromForui(
-      FTheme.neutral.light.desktop,
+      mixarThemeData(FTheme.neutral.light.desktop, touch: false),
       scaffoldBackgroundColor: Colors.transparent,
     );
     final dark = materialUiThemeFromForui(
-      FTheme.neutral.dark.desktop,
+      mixarThemeData(FTheme.neutral.dark.desktop, touch: false),
       scaffoldBackgroundColor: Colors.transparent,
     );
 
@@ -87,9 +88,9 @@ class Application extends StatelessWidget {
           child: FAdaptiveScope(
             child: Builder(
               builder: (context) {
-                final data = context.platformVariant.touch
-                    ? platforms.touch
-                    : platforms.desktop;
+                final touch = context.platformVariant.touch;
+                final base = touch ? platforms.touch : platforms.desktop;
+                final data = mixarThemeData(base, touch: touch);
                 return DesktopChrome(
                   child: FTheme(
                     data: data,

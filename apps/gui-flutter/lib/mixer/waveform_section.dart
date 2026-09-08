@@ -20,9 +20,9 @@ class WaveformSection extends ConsumerWidget {
         children: [
           Column(
             children: [
-              const Expanded(child: ScrollingLane(deckId: 0, label: 'Deck A')),
+              const Expanded(child: ScrollingLane(deckId: 0, label: 'A')),
               const FDivider(style: .delta(padding: .value(.zero))),
-              const Expanded(child: ScrollingLane(deckId: 1, label: 'Deck B')),
+              const Expanded(child: ScrollingLane(deckId: 1, label: 'B')),
             ],
           ),
           if (!hasA && !hasB)

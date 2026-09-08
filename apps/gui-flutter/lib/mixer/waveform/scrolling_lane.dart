@@ -5,10 +5,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
   const ScrollingLane({required this.deckId, required this.label, super.key});
@@ -345,10 +347,16 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
-                      widget.label,
-                      style: theme.typography.body.xs.copyWith(
-                        color: theme.colors.mutedForeground,
-                        fontWeight: FontWeight.w600,
+                      widget.label.toUpperCase(),
+                      style: theme.typography.display.xs.copyWith(
+                        fontFamily: MixarFonts.spaceGrotesk,
+                        color: FaderColors.forAccent(
+                          faderAccentForDeck(widget.deckId) ??
+                              FaderAccent.neutral,
+                        ).grip.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        height: 1,
                       ),
                     ),
                   ),
