@@ -44,6 +44,17 @@ fn cmd_and_evt_bodies_roundtrip() {
         decode_cmd_body(&encode_cmd_body(&seek).unwrap()).unwrap(),
         seek
     );
+
+    let loop_in = CmdBody::LoopIn { position_ms: 1_234 };
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&loop_in).unwrap()).unwrap(),
+        loop_in
+    );
+    let loop_out = CmdBody::LoopOut { position_ms: 5_678 };
+    assert_eq!(
+        decode_cmd_body(&encode_cmd_body(&loop_out).unwrap()).unwrap(),
+        loop_out
+    );
 }
 
 #[test]

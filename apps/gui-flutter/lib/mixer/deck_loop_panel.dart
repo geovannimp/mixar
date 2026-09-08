@@ -87,6 +87,7 @@ class DeckLoopPanel extends StatelessWidget {
     this.savedLoopAtSlot = false,
     this.hasTrack = false,
     this.disabled = false,
+    this.disableBoundaryEdit = false,
     this.bordered = true,
     super.key,
   });
@@ -106,6 +107,9 @@ class DeckLoopPanel extends StatelessWidget {
   final bool hasTrack;
 
   final bool disabled;
+
+  /// When true, Loop In/Out are disabled (quantize on without BPM).
+  final bool disableBoundaryEdit;
 
   /// When false, skips the outer bordered chrome (parent supplies it).
   final bool bordered;
@@ -200,10 +204,16 @@ class DeckLoopPanel extends StatelessWidget {
               cellButton(
                 label: 'IN',
                 lit: active || loopPending,
+                forceDisabled: disableBoundaryEdit,
                 onPress: onLoopIn,
               ),
               const SizedBox(width: 8),
-              cellButton(label: 'OUT', lit: active, onPress: onLoopOut),
+              cellButton(
+                label: 'OUT',
+                lit: active,
+                forceDisabled: disableBoundaryEdit,
+                onPress: onLoopOut,
+              ),
             ],
           ),
         ],

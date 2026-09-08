@@ -226,6 +226,10 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
         ref.watch(deckPendingLoopInMsProvider(widget.deckId)) != null;
     final savedLoops = ref.watch(deckSavedLoopsProvider(widget.deckId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
+    final quantize = ref.watch(deckQuantizeProvider(widget.deckId));
+    final bpm = ref.watch(deckBpmProvider(widget.deckId));
+    final disableBoundaryEdit =
+        quantize && (bpm == null || !bpm.isFinite || bpm <= 0);
 
     final slot = autoLoopSlotForBeats(_loopBeats);
     SavedLoopInfo? savedAtSlot;
@@ -263,16 +267,23 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
         );
       },
       onLoopIn: () {
-        unawaited(_runEngine((e) => e.loopIn(deckId: widget.deckId)));
+        final ms = ref.read(deckPositionMsProvider(widget.deckId));
+        unawaited(
+          _runEngine((e) => e.loopIn(deckId: widget.deckId, positionMs: ms)),
+        );
       },
       onLoopOut: () {
-        unawaited(_runEngine((e) => e.loopOut(deckId: widget.deckId)));
+        final ms = ref.read(deckPositionMsProvider(widget.deckId));
+        unawaited(
+          _runEngine((e) => e.loopOut(deckId: widget.deckId, positionMs: ms)),
+        );
       },
       onBeatsChipPress: () {
         unawaited(_onBeatsChip(savedAtSlot: savedAtSlot, trackId: trackId));
       },
       hasTrack: widget.hasTrack,
       disabled: widget.disabled,
+      disableBoundaryEdit: disableBoundaryEdit,
       bordered: widget.bordered,
     );
   }

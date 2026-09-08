@@ -213,7 +213,7 @@ fn loop_in_after_load_publishes_pending_loop_in() {
     let transport = EngineTransport::start(&library, null_start_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
     load_fixture(&transport, &rx, 0);
-    transport.loop_in(0).unwrap();
+    transport.loop_in(0, 0).unwrap();
     // Load-time ensure analysis supplies BPM when tags omit it.
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
     assert_eq!(*event.origin(), Origin::Deck(0));

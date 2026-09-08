@@ -450,6 +450,13 @@ fn mirror_engine_library_to_controller(
     }
 }
 
+fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_position_ms(deck, position_ms);
+}
+
 fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
@@ -464,12 +471,22 @@ fn apply_engine_mirror(
             track_id,
             pad_mode,
             hot_cues,
+            position_ms,
             ..
         } => {
             let idx = (id as usize).min(3);
             deck_tracks[idx] = track_id;
             apply_pad_mode(controller, id, pad_mode);
             apply_hot_cues(controller, id, hot_cue_slots_deck(&hot_cues));
+            if let Some(ms) = position_ms {
+                apply_position(controller, id, ms);
+            }
+        }
+        EvtBody::Position { position_ms, .. } => {
+            let Origin::Deck(id) = ev.origin().clone() else {
+                return;
+            };
+            apply_position(controller, id, position_ms);
         }
         EvtBody::EngineStatus { status } => {
             for deck in status.decks {
@@ -477,6 +494,9 @@ fn apply_engine_mirror(
                 deck_tracks[idx] = deck.track_id;
                 apply_pad_mode(controller, deck.id, deck.pad_mode);
                 apply_hot_cues(controller, deck.id, hot_cue_slots_deck(&deck.hot_cues));
+                if let Some(ms) = deck.position_ms {
+                    apply_position(controller, deck.id, ms);
+                }
             }
         }
         _ => {}

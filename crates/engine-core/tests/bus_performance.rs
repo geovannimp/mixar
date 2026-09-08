@@ -40,6 +40,14 @@ fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
     ))
 }
 
+fn encode_loop_in(position_ms: i32) -> Vec<u8> {
+    encode_cmd_body(&CmdBody::LoopIn { position_ms }).unwrap()
+}
+
+fn encode_loop_out(position_ms: i32) -> Vec<u8> {
+    encode_cmd_body(&CmdBody::LoopOut { position_ms }).unwrap()
+}
+
 fn null_session_loaded() -> EngineSession {
     let config = EngineConfig {
         backend: "null".to_string(),
@@ -165,11 +173,7 @@ fn set_quantize_and_cue_point_roundtrip() {
     assert!(cue_point_ms.is_some());
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(0))
         .expect("loop in");
     let loop_in = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
@@ -194,7 +198,7 @@ fn set_quantize_and_cue_point_roundtrip() {
 }
 
 #[test]
-fn loop_in_snaps_to_nearest_beat_even_when_quantize_off() {
+fn loop_in_preserves_exact_position_when_quantize_off() {
     let session = null_session_loaded();
     let evt = session
         .evt_bus()
@@ -210,22 +214,8 @@ fn loop_in_snaps_to_nearest_beat_even_when_quantize_off() {
         .expect("quantize off");
     let _ = recv_evt_kind(&evt, Kind::Updated);
 
-    // 120 BPM → 500 ms/beat; 620 ms → nearest beat 500.
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
-        )
-        .expect("seek");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(123))
         .expect("loop in");
     let loop_in = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
@@ -237,7 +227,29 @@ fn loop_in_snaps_to_nearest_beat_even_when_quantize_off() {
         panic!("expected DeckUpdated");
     };
     assert!(active_loop.is_none());
-    assert_eq!(pending_loop_in_ms, Some(500));
+    assert_eq!(pending_loop_in_ms, Some(123));
+}
+
+#[test]
+fn loop_in_snaps_when_quantize_on() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // 120 BPM → 500 ms/beat; 200 ms → nearest beat 0 (fixture is 250 ms).
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
+        .expect("loop in");
+    let loop_in = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(0));
 }
 
 #[test]
@@ -251,36 +263,19 @@ fn loop_out_completes_pending_and_activates() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 500 }).unwrap(),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
         )
-        .expect("seek in");
+        .expect("quantize off");
     let _ = recv_evt_kind(&evt, Kind::Updated);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(40))
         .expect("loop in");
     let _ = recv_evt_kind(&evt, Kind::Updated);
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 2500 }).unwrap(),
-        )
-        .expect("seek out");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopOut,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopOut, encode_loop_out(200))
         .expect("loop out");
     let loop_out = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
@@ -293,8 +288,8 @@ fn loop_out_completes_pending_and_activates() {
     };
     let region = active_loop.expect("active after out");
     assert!(region.active);
-    assert_eq!(region.in_ms, 500);
-    assert_eq!(region.out_ms, 2500);
+    assert_eq!(region.in_ms, 40);
+    assert_eq!(region.out_ms, 200);
     assert!(pending_loop_in_ms.is_none());
 }
 
@@ -307,20 +302,7 @@ fn loop_out_without_pending_or_active_errors() {
         .expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 1000 }).unwrap(),
-        )
-        .expect("seek");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopOut,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopOut, encode_loop_out(1000))
         .expect("loop out cmd");
     let event = recv_evt_kind(&evt, Kind::Error);
     let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
@@ -341,20 +323,7 @@ fn exit_loop_clears_pending() {
         .expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 500 }).unwrap(),
-        )
-        .expect("seek");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(40))
         .expect("loop in");
     let _ = recv_evt_kind(&evt, Kind::Updated);
 
@@ -387,20 +356,7 @@ fn pending_loop_in_survives_quantize_toggle() {
         .expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::Seek,
-            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
-        )
-        .expect("seek");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
-
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(200))
         .expect("loop in");
     let pending = recv_evt_kind(&evt, Kind::Updated);
     let EvtBody::DeckUpdated {
@@ -409,7 +365,7 @@ fn pending_loop_in_survives_quantize_toggle() {
     else {
         panic!("expected DeckUpdated");
     };
-    assert_eq!(pending_loop_in_ms, Some(500));
+    assert_eq!(pending_loop_in_ms, Some(0));
 
     session
         .publish_cmd(
@@ -425,11 +381,80 @@ fn pending_loop_in_survives_quantize_toggle() {
     else {
         panic!("expected DeckUpdated");
     };
-    assert_eq!(pending_loop_in_ms, Some(500));
+    assert_eq!(pending_loop_in_ms, Some(0));
 }
 
 #[test]
-fn loop_in_without_bpm_publishes_error() {
+fn loop_out_uses_quantize_at_out_time_not_in_time() {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    // 480 BPM → 125 ms/beat; fits the 250 ms fixture (beats at 0, 125, 250).
+    session
+        .with_engine(|engine| {
+            engine.load_track(0, source_with_bpm("mid-q.wav", 480.0))?;
+            Ok(())
+        })
+        .expect("load");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(50))
+        .expect("loop in");
+    let pending = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(pending.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(50));
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: true }).unwrap(),
+        )
+        .expect("quantize on");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    // 200 → nearest beat 250.
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopOut, encode_loop_out(200))
+        .expect("loop out");
+    let loop_out = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(loop_out.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("active");
+    assert_eq!(region.in_ms, 50);
+    assert_eq!(region.out_ms, 250);
+    assert!(pending_loop_in_ms.is_none());
+}
+
+#[test]
+fn loop_in_without_bpm_publishes_error_when_quantize_on() {
     let config = EngineConfig {
         backend: "null".to_string(),
         ..Default::default()
@@ -455,11 +480,7 @@ fn loop_in_without_bpm_publishes_error() {
         .expect("sub");
 
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::LoopIn,
-            encode_cmd_body(&CmdBody::Empty).unwrap(),
-        )
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(100))
         .expect("loop in");
     let event = recv_evt_kind(&evt, Kind::Error);
     let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
@@ -469,6 +490,87 @@ fn loop_in_without_bpm_publishes_error() {
         message.contains("Track BPM is required for loop in"),
         "unexpected: {message}"
     );
+}
+
+#[test]
+fn loop_in_without_bpm_ok_when_quantize_off() {
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new(config).expect("session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    TrackId::new("no-bpm-exact.wav"),
+                    short_tone_fixture(),
+                    TrackMetadata::default(),
+                )),
+            )?;
+            Ok(())
+        })
+        .expect("load");
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(123))
+        .expect("loop in");
+    let loop_in = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(123));
+}
+
+#[test]
+fn loop_in_clamps_position_to_media_range() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(Origin::Deck(0), Kind::LoopIn, encode_loop_in(1_000_000))
+        .expect("loop in");
+    let loop_in = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms,
+        duration_ms,
+        ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let duration = duration_ms.expect("duration");
+    assert_eq!(pending_loop_in_ms, Some(duration));
 }
 
 #[test]

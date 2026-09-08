@@ -820,12 +820,20 @@ impl EngineTransport {
         )
     }
 
-    pub fn loop_in(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::LoopIn)
+    pub fn loop_in(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::LoopIn,
+            &CmdBody::LoopIn { position_ms },
+        )
     }
 
-    pub fn loop_out(&self, deck_id: u16) -> Result<(), String> {
-        self.publish_empty(Origin::Deck(deck_id), Kind::LoopOut)
+    pub fn loop_out(&self, deck_id: u16, position_ms: i32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::LoopOut,
+            &CmdBody::LoopOut { position_ms },
+        )
     }
 
     pub fn exit_loop(&self, deck_id: u16) -> Result<(), String> {

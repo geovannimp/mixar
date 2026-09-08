@@ -80,9 +80,9 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Load a filesystem path: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadPath({required int deckId, required String path});
 
-  Future<void> loopIn({required int deckId});
+  Future<void> loopIn({required int deckId, required int positionMs});
 
-  Future<void> loopOut({required int deckId});
+  Future<void> loopOut({required int deckId, required int positionMs});
 
   Future<void> loopRollPadPress({required int deckId, required int slot});
 
