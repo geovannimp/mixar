@@ -33,7 +33,8 @@ FTypeface _remapTypeface(
 }) {
   TextStyle remap(TextStyle style) => style.copyWith(
     fontFamily: fontFamily,
-    fontFamilyFallback: const <String>[],
+    // Keep Forui's fallbacks so missing glyphs don't tofu to boxes.
+    fontFamilyFallback: style.fontFamilyFallback,
     fontFeatures: fontFeatures ?? style.fontFeatures,
   );
 
@@ -74,20 +75,29 @@ FTypography mixarTypography(FTypography base) {
       MixarFonts.outfit,
       fontFeatures: _numericCaseFeatures,
     ),
-    extensions: [mono],
+    // Keep any existing scalable extensions; replace a prior mono FTypeface.
+    extensions: [
+      for (final ext in base.extensions)
+        if (ext is FScalableExtension<dynamic> && ext is! FTypeface) ext,
+      mono,
+    ],
   );
 }
 
-/// Forui theme with Mixar typography; colors and widget styles unchanged.
+/// Forui theme with Mixar typography; rebuilds widget styles so buttons/labels
+/// pick up the remapped faces (plain [FThemeData.copyWith] would leave stale
+/// styles baked with the old typefaces).
 FThemeData mixarThemeData(FThemeData base, {required bool touch}) {
   return FThemeData(
     colors: base.colors,
     touch: touch,
     debugLabel: base.debugLabel,
+    breakpoints: base.breakpoints,
     typography: mixarTypography(base.typography),
     icons: base.icons,
     style: base.style,
     hapticFeedback: base.hapticFeedback,
+    extensions: base.extensions,
   );
 }
 

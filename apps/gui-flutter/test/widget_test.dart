@@ -167,8 +167,8 @@ void main() {
     await pumpShell(tester);
 
     expect(find.bySemanticsLabel('Mixar'), findsOneWidget);
-    expect(find.text('Deck A'), findsWidgets);
-    expect(find.text('Deck B'), findsWidgets);
+    expect(find.text('DECK A'), findsWidgets);
+    expect(find.text('DECK B'), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
     expect(find.text('COLLECTIONS'), findsOneWidget);
     expect(find.text('samples'), findsOneWidget);
@@ -381,21 +381,21 @@ void main() {
     final deckA = find.ancestor(
       of: find.descendant(
         of: find.byType(DeckPanel),
-        matching: find.text('Deck A'),
+        matching: find.text('DECK A'),
       ),
       matching: find.byType(DeckPanel),
     );
     final deckB = find.ancestor(
       of: find.descendant(
         of: find.byType(DeckPanel),
-        matching: find.text('Deck B'),
+        matching: find.text('DECK B'),
       ),
       matching: find.byType(DeckPanel),
     );
     final laneA = find.ancestor(
       of: find.descendant(
         of: find.byType(ScrollingLane),
-        matching: find.text('Deck A'),
+        matching: find.text('A'),
       ),
       matching: find.byType(ScrollingLane),
     );
@@ -438,7 +438,7 @@ void main() {
     final deckA = find.ancestor(
       of: find.descendant(
         of: find.byType(DeckPanel),
-        matching: find.text('Deck A'),
+        matching: find.text('DECK A'),
       ),
       matching: find.byType(DeckPanel),
     );

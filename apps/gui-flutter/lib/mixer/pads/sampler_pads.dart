@@ -109,7 +109,7 @@ class SamplerPads extends StatelessWidget {
                       activeBank?.name ?? 'No bank',
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: theme.typography.mono.xs.copyWith(
+                      style: theme.typography.body.xs.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -193,16 +193,20 @@ class SamplerPads extends StatelessWidget {
           Text(
             filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
             overflow: TextOverflow.ellipsis,
-            style: theme.typography.mono.xs.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+            style:
+                (filled && label != null && label.isNotEmpty
+                        ? theme.typography.body.xs
+                        : theme.typography.mono.xs)
+                    .copyWith(fontWeight: FontWeight.w700),
           ),
           Text(
             filled && sample.durationMs != null
                 ? formatDeckTimeTenth(sample.durationMs)
                 : 'sample',
             overflow: TextOverflow.ellipsis,
-            style: theme.typography.mono.xs,
+            style: filled && sample.durationMs != null
+                ? theme.typography.mono.xs
+                : theme.typography.body.xs,
           ),
         ],
       ),
