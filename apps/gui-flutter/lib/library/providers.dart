@@ -350,12 +350,7 @@ Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
           engine.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
     );
-    ref
-        .read(engineUiProvider.notifier)
-        .setDeckTitle(
-          deckId,
-          trackDisplayTitle(title: payload.title, path: payload.path),
-        );
+    ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, payload.path);
     ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
   } finally {
     loading.set(deckId, false);

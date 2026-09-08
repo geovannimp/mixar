@@ -4,7 +4,7 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
   group('applyEngineEvt', () {
-    test('status sets running; updated sets deck title', () {
+    test('status sets running; updated stores track path', () {
       var snap = EngineUiSnapshot.empty;
       snap = applyEngineEvt(
         snap,
@@ -17,59 +17,28 @@ void main() {
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
-          track: 'Loaded Title',
+          trackPath: '/music/Loaded.opus',
         ),
       );
-      expect(snap.titleFor(0), 'Loaded Title');
-      expect(snap.titleFor(1), isNull);
+      expect(snap.trackPathFor(0), '/music/Loaded.opus');
+      expect(snap.trackPathFor(1), isNull);
     });
 
-    test('updated path-shaped track becomes file name', () {
-      final snap = applyEngineEvt(
+    test('updated keeps previous track path when omitted', () {
+      var snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(
           kind: EngineEvtKind.updated,
-          deckId: 0,
-          track: '/home/me/samples/Palawan by SKIRK.opus',
+          deckId: 1,
+          trackPath: '/x.wav',
         ),
       );
-      expect(snap.titleFor(0), 'Palawan by SKIRK');
-    });
-
-    test('updated relative path with extension becomes file name', () {
-      final snap = applyEngineEvt(
-        EngineUiSnapshot.empty,
-        const EngineEvt(
-          kind: EngineEvtKind.updated,
-          deckId: 0,
-          track: r'samples\Palawan by SKIRK.opus',
-        ),
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(kind: EngineEvtKind.updated, deckId: 1),
       );
-      expect(snap.titleFor(0), 'Palawan by SKIRK');
+      expect(snap.trackPathFor(1), '/x.wav');
     });
-
-    test('updated title with slash is preserved', () {
-      final snap = applyEngineEvt(
-        EngineUiSnapshot.empty,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, track: 'AC/DC'),
-      );
-      expect(snap.titleFor(0), 'AC/DC');
-    });
-
-    test(
-      'empty updated track keeps host title (engine snapshots omit library fields)',
-      () {
-        var snap = applyEngineEvt(
-          EngineUiSnapshot.empty,
-          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1, track: 'X'),
-        );
-        snap = applyEngineEvt(
-          snap,
-          const EngineEvt(kind: EngineEvtKind.updated, deckId: 1),
-        );
-        expect(snap.titleFor(1), 'X');
-      },
-    );
 
     test('empty updated trackId keeps previous trackId', () {
       var snap = applyEngineEvt(
@@ -99,10 +68,14 @@ void main() {
       expect(snap.isPlaying(1), isFalse);
     });
 
-    test('position events do not change titles', () {
+    test('position events do not change track paths', () {
       final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
-        const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, track: 'Keep'),
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          trackPath: '/keep.wav',
+        ),
       );
       final after = applyEngineEvt(
         snap,
@@ -112,7 +85,7 @@ void main() {
           positionMs: 12,
         ),
       );
-      expect(after.titleFor(0), 'Keep');
+      expect(after.trackPathFor(0), '/keep.wav');
       expect(identical(after, snap), isTrue);
     });
 
@@ -297,7 +270,7 @@ void main() {
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
-          track: 'Keep',
+          trackPath: '/keep.wav',
           trackId: 'abc',
           durationMs: 8000,
           loudnessLufs: -18,
@@ -315,7 +288,7 @@ void main() {
           quantize: false,
         ),
       );
-      expect(snap.titleFor(0), isNull);
+      expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
       expect(snap.durationMsFor(0), isNull);
       expect(snap.loudnessLufsFor(0), isNull);
@@ -329,7 +302,7 @@ void main() {
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
-          track: 'Keep',
+          trackPath: '/keep.wav',
           trackId: 'abc',
         ),
       );
@@ -341,7 +314,7 @@ void main() {
           durationKnown: true,
         ),
       );
-      expect(snap.titleFor(0), isNull);
+      expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
       expect(snap.durationMsFor(0), isNull);
     });
@@ -376,7 +349,7 @@ void main() {
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
-          track: 'Song',
+          trackPath: '/song.wav',
           trackId: 't1',
           durationMs: 1000,
           activeSamplerBankId: 'bank-1',
@@ -401,7 +374,7 @@ void main() {
           ],
         ),
       );
-      expect(snap.titleFor(0), isNull);
+      expect(snap.trackPathFor(0), isNull);
       expect(snap.trackIdFor(0), isNull);
       expect(snap.activeSamplerBankIdFor(0), 'bank-1');
       expect(snap.samplerSlotsFor(0).single.label, 'kick');

@@ -36,7 +36,7 @@ class DeckPanel extends ConsumerWidget {
     final theme = context.theme;
     final accentColor = FaderColors.forAccent(accent).grip;
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
-    final hasTrack = loadedTitle != null && loadedTitle.isNotEmpty;
+    final hasTrack = ref.watch(deckHasTrackProvider(deckId));
     final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final engineRunning = ref.watch(engineRunningProvider);

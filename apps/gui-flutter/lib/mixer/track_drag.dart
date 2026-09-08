@@ -70,6 +70,16 @@ String fileNameFromPath(String path) {
   return base.isEmpty ? path : base;
 }
 
+/// File name without the last extension segment.
+String fileStemFromPath(String path) {
+  final base = fileNameFromPath(path);
+  final dot = base.lastIndexOf('.');
+  if (dot > 0) {
+    return base.substring(0, dot);
+  }
+  return base;
+}
+
 /// Metadata title when present; otherwise the file name so a loaded deck
 /// never looks empty.
 String trackDisplayTitle({required String title, required String path}) {

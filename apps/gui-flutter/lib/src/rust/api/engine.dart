@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_display_title`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
@@ -236,7 +236,7 @@ class EngineEvt {
   final int? deckId;
   final bool? running;
   final bool? playing;
-  final String? track;
+  final String? trackPath;
   final String? trackId;
   final int? positionMs;
   final double? peakL;
@@ -294,7 +294,7 @@ class EngineEvt {
     this.deckId,
     this.running,
     this.playing,
-    this.track,
+    this.trackPath,
     this.trackId,
     this.positionMs,
     this.peakL,
@@ -340,7 +340,7 @@ class EngineEvt {
       deckId.hashCode ^
       running.hashCode ^
       playing.hashCode ^
-      track.hashCode ^
+      trackPath.hashCode ^
       trackId.hashCode ^
       positionMs.hashCode ^
       peakL.hashCode ^
@@ -388,7 +388,7 @@ class EngineEvt {
           deckId == other.deckId &&
           running == other.running &&
           playing == other.playing &&
-          track == other.track &&
+          trackPath == other.trackPath &&
           trackId == other.trackId &&
           positionMs == other.positionMs &&
           peakL == other.peakL &&

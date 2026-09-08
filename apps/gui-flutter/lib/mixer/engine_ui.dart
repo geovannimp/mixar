@@ -1,7 +1,6 @@
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
-import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
@@ -55,7 +54,7 @@ class MixerChannelUi {
 class EngineUiSnapshot {
   const EngineUiSnapshot({
     required this.running,
-    required this.titles,
+    required this.trackPaths,
     this.playing = const {},
     this.channels = const {},
     this.levels = const {},
@@ -80,10 +79,10 @@ class EngineUiSnapshot {
     this.masterCue = false,
   });
 
-  static const empty = EngineUiSnapshot(running: false, titles: {});
+  static const empty = EngineUiSnapshot(running: false, trackPaths: {});
 
   final bool running;
-  final Map<int, String> titles;
+  final Map<int, String> trackPaths;
   final Map<int, bool> playing;
   final Map<int, MixerChannelUi> channels;
   final Map<int, DeckLevels> levels;
@@ -107,7 +106,7 @@ class EngineUiSnapshot {
   final Map<int, List<SamplerSlotChrome>> samplerSlots;
   final int masterDeck;
 
-  String? titleFor(int deckId) => titles[deckId];
+  String? trackPathFor(int deckId) => trackPaths[deckId];
 
   bool isPlaying(int deckId) => playing[deckId] ?? false;
 
@@ -151,7 +150,7 @@ class EngineUiSnapshot {
 
   EngineUiSnapshot copyWith({
     bool? running,
-    Map<int, String>? titles,
+    Map<int, String>? trackPaths,
     Map<int, bool>? playing,
     Map<int, MixerChannelUi>? channels,
     Map<int, DeckLevels>? levels,
@@ -176,7 +175,7 @@ class EngineUiSnapshot {
     bool? masterCue,
   }) => EngineUiSnapshot(
     running: running ?? this.running,
-    titles: titles ?? this.titles,
+    trackPaths: trackPaths ?? this.trackPaths,
     playing: playing ?? this.playing,
     channels: channels ?? this.channels,
     levels: levels ?? this.levels,
@@ -218,14 +217,12 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         return prev;
       }
       final unloaded = evt.durationKnown && evt.durationMs == null;
-      final nextTitles = Map<int, String>.from(prev.titles);
-      final track = evt.track;
-      // `EngineEvt.track` is display title from the host; basename only when path-shaped
-      // so titles like `AC/DC` stay intact (see #202 for track_title cleanup).
+      final nextPaths = Map<int, String>.from(prev.trackPaths);
+      final trackPath = evt.trackPath;
       if (unloaded) {
-        nextTitles.remove(id);
-      } else if (track != null && track.isNotEmpty) {
-        nextTitles[id] = _deckTitleFromEvtTrack(track);
+        nextPaths.remove(id);
+      } else if (trackPath != null && trackPath.isNotEmpty) {
+        nextPaths[id] = trackPath;
       }
       final nextPlaying = Map<int, bool>.from(prev.playing);
       if (evt.playing != null) {
@@ -325,7 +322,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         );
       }
       return prev.copyWith(
-        titles: nextTitles,
+        trackPaths: nextPaths,
         playing: nextPlaying,
         channels: nextChannels,
         trackIds: nextTrackIds,
@@ -364,39 +361,3 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       return prev;
   }
 }
-
-/// Host display title, or file stem when [track] looks like a filesystem path.
-String _deckTitleFromEvtTrack(String track) {
-  if (!_evtTrackLooksLikePath(track)) {
-    return track;
-  }
-  final base = fileNameFromPath(track);
-  final dot = base.lastIndexOf('.');
-  if (dot > 0) {
-    return base.substring(0, dot);
-  }
-  return base;
-}
-
-/// Absolute paths, Windows drives, or relative paths with a file extension —
-/// not titles that merely contain `/` (e.g. `AC/DC`).
-bool _evtTrackLooksLikePath(String track) {
-  if (track.startsWith('/') || track.startsWith(r'\')) {
-    return true;
-  }
-  if (track.length >= 3 &&
-      track[1] == ':' &&
-      (track[2] == '/' || track[2] == r'\') &&
-      _isAsciiLetter(track.codeUnitAt(0))) {
-    return true;
-  }
-  if (!track.contains('/') && !track.contains(r'\')) {
-    return false;
-  }
-  final base = fileNameFromPath(track);
-  final dot = base.lastIndexOf('.');
-  return dot > 0 && dot < base.length - 1;
-}
-
-bool _isAsciiLetter(int unit) =>
-    (unit >= 0x41 && unit <= 0x5a) || (unit >= 0x61 && unit <= 0x7a);

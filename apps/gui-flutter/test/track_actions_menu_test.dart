@@ -13,7 +13,8 @@ import 'support/forui_material_app.dart';
 
 class _RunningEngineUi extends EngineUi {
   @override
-  EngineUiSnapshot build() => const EngineUiSnapshot(running: true, titles: {});
+  EngineUiSnapshot build() =>
+      const EngineUiSnapshot(running: true, trackPaths: {});
 }
 
 FButton _loadChip(WidgetTester tester, String letter) {
