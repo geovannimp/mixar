@@ -6265,7 +6265,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_deckId = <Option<u16>>::sse_decode(deserializer);
         let mut var_running = <Option<bool>>::sse_decode(deserializer);
         let mut var_playing = <Option<bool>>::sse_decode(deserializer);
-        let mut var_track = <Option<String>>::sse_decode(deserializer);
+        let mut var_trackPath = <Option<String>>::sse_decode(deserializer);
         let mut var_trackId = <Option<String>>::sse_decode(deserializer);
         let mut var_positionMs = <Option<i32>>::sse_decode(deserializer);
         let mut var_peakL = <Option<f32>>::sse_decode(deserializer);
@@ -6310,7 +6310,7 @@ impl SseDecode for crate::api::engine::EngineEvt {
             deck_id: var_deckId,
             running: var_running,
             playing: var_playing,
-            track: var_track,
+            track_path: var_trackPath,
             track_id: var_trackId,
             position_ms: var_positionMs,
             peak_l: var_peakL,
@@ -8505,7 +8505,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.deck_id.into_into_dart().into_dart(),
             self.running.into_into_dart().into_dart(),
             self.playing.into_into_dart().into_dart(),
-            self.track.into_into_dart().into_dart(),
+            self.track_path.into_into_dart().into_dart(),
             self.track_id.into_into_dart().into_dart(),
             self.position_ms.into_into_dart().into_dart(),
             self.peak_l.into_into_dart().into_dart(),
@@ -9657,7 +9657,7 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<u16>>::sse_encode(self.deck_id, serializer);
         <Option<bool>>::sse_encode(self.running, serializer);
         <Option<bool>>::sse_encode(self.playing, serializer);
-        <Option<String>>::sse_encode(self.track, serializer);
+        <Option<String>>::sse_encode(self.track_path, serializer);
         <Option<String>>::sse_encode(self.track_id, serializer);
         <Option<i32>>::sse_encode(self.position_ms, serializer);
         <Option<f32>>::sse_encode(self.peak_l, serializer);

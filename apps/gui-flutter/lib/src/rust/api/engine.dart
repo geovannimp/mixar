@@ -236,7 +236,7 @@ class EngineEvt {
   final int? deckId;
   final bool? running;
   final bool? playing;
-  final String? track;
+  final String? trackPath;
   final String? trackId;
   final int? positionMs;
   final double? peakL;
@@ -294,7 +294,7 @@ class EngineEvt {
     this.deckId,
     this.running,
     this.playing,
-    this.track,
+    this.trackPath,
     this.trackId,
     this.positionMs,
     this.peakL,
@@ -340,7 +340,7 @@ class EngineEvt {
       deckId.hashCode ^
       running.hashCode ^
       playing.hashCode ^
-      track.hashCode ^
+      trackPath.hashCode ^
       trackId.hashCode ^
       positionMs.hashCode ^
       peakL.hashCode ^
@@ -388,7 +388,7 @@ class EngineEvt {
           deckId == other.deckId &&
           running == other.running &&
           playing == other.playing &&
-          track == other.track &&
+          trackPath == other.trackPath &&
           trackId == other.trackId &&
           positionMs == other.positionMs &&
           peakL == other.peakL &&

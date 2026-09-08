@@ -52,14 +52,14 @@ class EngineUi extends Notifier<EngineUiSnapshot> {
 
   void setRunning(bool running) => state = state.copyWith(running: running);
 
-  void setDeckTitle(int deckId, String title) {
-    final next = Map<int, String>.from(state.titles);
-    if (title.isEmpty) {
+  void setDeckTrackPath(int deckId, String? path) {
+    final next = Map<int, String>.from(state.trackPaths);
+    if (path == null || path.isEmpty) {
       next.remove(deckId);
     } else {
-      next[deckId] = title;
+      next[deckId] = path;
     }
-    state = state.copyWith(titles: next);
+    state = state.copyWith(trackPaths: next);
   }
 
   void setDeckTrackId(int deckId, String? trackId) {
@@ -157,9 +157,34 @@ final engineRunningProvider = Provider<bool>(
   (ref) => ref.watch(engineUiProvider).running,
 );
 
-final deckTrackTitleProvider = Provider.family<String?, int>(
-  (ref, deckId) => ref.watch(engineUiProvider).titleFor(deckId),
-);
+final deckTrackTitleProvider = Provider.family<String?, int>((ref, deckId) {
+  final lib = ref.watch(deckLibraryTrackProvider(deckId));
+  final libTitle = lib?.title?.trim();
+  if (libTitle != null && libTitle.isNotEmpty) {
+    return libTitle;
+  }
+  if (lib != null) {
+    final fromLibPath = fileStemFromPath(lib.path);
+    if (fromLibPath.isNotEmpty) {
+      return fromLibPath;
+    }
+  }
+  final path = ref.watch(
+    engineUiProvider.select((s) => s.trackPathFor(deckId)),
+  );
+  if (path == null || path.isEmpty) {
+    return null;
+  }
+  final stem = fileStemFromPath(path);
+  return stem.isEmpty ? null : stem;
+});
+
+final deckHasTrackProvider = Provider.family<bool, int>((ref, deckId) {
+  final ui = ref.watch(engineUiProvider);
+  return ui.durationMsFor(deckId) != null ||
+      ui.trackIdFor(deckId) != null ||
+      ui.trackPathFor(deckId) != null;
+});
 
 /// Decks whose engine load is still in flight (drop/load started, not finished).
 class DeckLoadInFlight extends Notifier<Map<int, int>> {
@@ -465,12 +490,7 @@ Future<void> loadPayloadToDeck(
           engine.loadLibraryTrack(deckId: id, trackId: trackId),
       loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
     );
-    ref
-        .read(engineUiProvider.notifier)
-        .setDeckTitle(
-          deckId,
-          trackDisplayTitle(title: payload.title, path: payload.path),
-        );
+    ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, payload.path);
     ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
   } finally {
     loading.set(deckId, false);
@@ -631,7 +651,7 @@ Future<void> unloadDeck(WidgetRef ref, int deckId) async {
     return;
   }
   await engine.unload(deckId: deckId);
-  ref.read(engineUiProvider.notifier).setDeckTitle(deckId, '');
+  ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, null);
   ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, null);
 }
 

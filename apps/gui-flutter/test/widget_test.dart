@@ -36,7 +36,7 @@ class _HeaderCueEngineUi extends EngineUi {
   @override
   EngineUiSnapshot build() => const EngineUiSnapshot(
     running: true,
-    titles: {},
+    trackPaths: {},
     cueMix: 0.7,
     masterCue: true,
   );
@@ -49,7 +49,7 @@ class _SeededEngineUi extends EngineUi {
     const EngineEvt(
       kind: EngineEvtKind.updated,
       deckId: 0,
-      track: 'Seeded Track',
+      trackPath: '/seeded.flac',
       trackId: 't1',
       durationMs: 180000,
     ),
@@ -356,7 +356,13 @@ void main() {
       ],
     );
 
-    expect(find.text('Seeded Track'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(DeckPanel),
+        matching: find.text('Demo Track'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Load tracks to see waveforms.'), findsNothing);
     expect(
       find.descendant(

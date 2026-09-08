@@ -18,7 +18,7 @@ class _SeededEngineUi extends EngineUi {
     const EngineEvt(
       kind: EngineEvtKind.updated,
       deckId: 0,
-      track: 'T',
+      trackPath: '/t.flac',
       trackId: 't1',
       durationMs: 100000,
     ),

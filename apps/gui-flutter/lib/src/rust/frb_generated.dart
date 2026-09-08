@@ -5616,7 +5616,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
       running: dco_decode_opt_box_autoadd_bool(arr[2]),
       playing: dco_decode_opt_box_autoadd_bool(arr[3]),
-      track: dco_decode_opt_String(arr[4]),
+      trackPath: dco_decode_opt_String(arr[4]),
       trackId: dco_decode_opt_String(arr[5]),
       positionMs: dco_decode_opt_box_autoadd_i_32(arr[6]),
       peakL: dco_decode_opt_box_autoadd_f_32(arr[7]),
@@ -6973,7 +6973,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_deckId = sse_decode_opt_box_autoadd_u_16(deserializer);
     var var_running = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_playing = sse_decode_opt_box_autoadd_bool(deserializer);
-    var var_track = sse_decode_opt_String(deserializer);
+    var var_trackPath = sse_decode_opt_String(deserializer);
     var var_trackId = sse_decode_opt_String(deserializer);
     var var_positionMs = sse_decode_opt_box_autoadd_i_32(deserializer);
     var var_peakL = sse_decode_opt_box_autoadd_f_32(deserializer);
@@ -7022,7 +7022,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deckId: var_deckId,
       running: var_running,
       playing: var_playing,
-      track: var_track,
+      trackPath: var_trackPath,
       trackId: var_trackId,
       positionMs: var_positionMs,
       peakL: var_peakL,
@@ -8668,7 +8668,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_16(self.deckId, serializer);
     sse_encode_opt_box_autoadd_bool(self.running, serializer);
     sse_encode_opt_box_autoadd_bool(self.playing, serializer);
-    sse_encode_opt_String(self.track, serializer);
+    sse_encode_opt_String(self.trackPath, serializer);
     sse_encode_opt_String(self.trackId, serializer);
     sse_encode_opt_box_autoadd_i_32(self.positionMs, serializer);
     sse_encode_opt_box_autoadd_f_32(self.peakL, serializer);
