@@ -208,7 +208,7 @@ fn set_cue_point_after_load_publishes_updated() {
 }
 
 #[test]
-fn loop_in_after_load_publishes_active_loop() {
+fn loop_in_after_load_publishes_pending_loop_in() {
     let library = LibraryTransport::open_in_memory().unwrap();
     let transport = EngineTransport::start(&library, null_start_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
@@ -217,11 +217,16 @@ fn loop_in_after_load_publishes_active_loop() {
     // Load-time ensure analysis supplies BPM when tags omit it.
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
     assert_eq!(*event.origin(), Origin::Deck(0));
-    let EvtBody::DeckUpdated { active_loop, .. } = decode_evt_body(event.payload()).unwrap() else {
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(event.payload()).unwrap()
+    else {
         panic!("expected DeckUpdated");
     };
-    let region = active_loop.expect("active_loop after loop_in");
-    assert!(region.out_ms > region.in_ms);
+    assert!(active_loop.is_none());
+    assert!(pending_loop_in_ms.is_some());
 }
 
 #[test]

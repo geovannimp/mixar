@@ -6293,6 +6293,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_activeLoop =
             <Option<crate::api::engine::ActiveLoopInfo>>::sse_decode(deserializer);
         let mut var_activeLoopKnown = <bool>::sse_decode(deserializer);
+        let mut var_pendingLoopInMs = <Option<i32>>::sse_decode(deserializer);
+        let mut var_pendingLoopInMsKnown = <bool>::sse_decode(deserializer);
         let mut var_durationKnown = <bool>::sse_decode(deserializer);
         let mut var_quantize = <Option<bool>>::sse_decode(deserializer);
         let mut var_slipEnabled = <Option<bool>>::sse_decode(deserializer);
@@ -6337,6 +6339,8 @@ impl SseDecode for crate::api::engine::EngineEvt {
             master_deck: var_masterDeck,
             active_loop: var_activeLoop,
             active_loop_known: var_activeLoopKnown,
+            pending_loop_in_ms: var_pendingLoopInMs,
+            pending_loop_in_ms_known: var_pendingLoopInMsKnown,
             duration_known: var_durationKnown,
             quantize: var_quantize,
             slip_enabled: var_slipEnabled,
@@ -8532,6 +8536,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
             self.master_deck.into_into_dart().into_dart(),
             self.active_loop.into_into_dart().into_dart(),
             self.active_loop_known.into_into_dart().into_dart(),
+            self.pending_loop_in_ms.into_into_dart().into_dart(),
+            self.pending_loop_in_ms_known.into_into_dart().into_dart(),
             self.duration_known.into_into_dart().into_dart(),
             self.quantize.into_into_dart().into_dart(),
             self.slip_enabled.into_into_dart().into_dart(),
@@ -9684,6 +9690,8 @@ impl SseEncode for crate::api::engine::EngineEvt {
         <Option<u16>>::sse_encode(self.master_deck, serializer);
         <Option<crate::api::engine::ActiveLoopInfo>>::sse_encode(self.active_loop, serializer);
         <bool>::sse_encode(self.active_loop_known, serializer);
+        <Option<i32>>::sse_encode(self.pending_loop_in_ms, serializer);
+        <bool>::sse_encode(self.pending_loop_in_ms_known, serializer);
         <bool>::sse_encode(self.duration_known, serializer);
         <Option<bool>>::sse_encode(self.quantize, serializer);
         <Option<bool>>::sse_encode(self.slip_enabled, serializer);

@@ -4,10 +4,9 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import '../frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`

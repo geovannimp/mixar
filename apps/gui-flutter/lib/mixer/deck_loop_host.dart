@@ -222,6 +222,8 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
 
     final activeLoop = ref.watch(deckActiveLoopProvider(widget.deckId));
     final loopActive = activeLoop != null && activeLoop.active;
+    final loopPending =
+        ref.watch(deckPendingLoopInMsProvider(widget.deckId)) != null;
     final savedLoops = ref.watch(deckSavedLoopsProvider(widget.deckId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
 
@@ -236,6 +238,7 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
 
     return DeckLoopPanel(
       loopActive: loopActive,
+      loopPending: loopPending,
       loopBeats: _loopBeats,
       savedLoopAtSlot: savedAtSlot != null,
       onToggleLoop: () {

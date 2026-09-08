@@ -172,12 +172,16 @@ fn set_quantize_and_cue_point_roundtrip() {
         )
         .expect("loop in");
     let loop_in = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(loop_in.payload()).expect("decode")
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
-    assert!(active_loop.is_some());
+    assert!(active_loop.is_none());
+    assert!(pending_loop_in_ms.is_some());
 
     session
         .publish_cmd(
@@ -224,13 +228,204 @@ fn loop_in_snaps_to_nearest_beat_even_when_quantize_off() {
         )
         .expect("loop in");
     let loop_in = recv_evt_kind(&evt, Kind::Updated);
-    let EvtBody::DeckUpdated { active_loop, .. } =
-        decode_evt_body(loop_in.payload()).expect("decode")
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(loop_in.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
     };
-    let region = active_loop.expect("loop region");
+    assert!(active_loop.is_none());
+    assert_eq!(pending_loop_in_ms, Some(500));
+}
+
+#[test]
+fn loop_out_completes_pending_and_activates() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 500 }).unwrap(),
+        )
+        .expect("seek in");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopIn,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop in");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 2500 }).unwrap(),
+        )
+        .expect("seek out");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopOut,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop out");
+    let loop_out = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(loop_out.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    let region = active_loop.expect("active after out");
+    assert!(region.active);
     assert_eq!(region.in_ms, 500);
+    assert_eq!(region.out_ms, 2500);
+    assert!(pending_loop_in_ms.is_none());
+}
+
+#[test]
+fn loop_out_without_pending_or_active_errors() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 1000 }).unwrap(),
+        )
+        .expect("seek");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopOut,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop out cmd");
+    let event = recv_evt_kind(&evt, Kind::Error);
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
+        panic!("expected Error");
+    };
+    assert!(
+        message.contains("Set Loop In before Loop Out"),
+        "unexpected: {message}"
+    );
+}
+
+#[test]
+fn exit_loop_clears_pending() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 500 }).unwrap(),
+        )
+        .expect("seek");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopIn,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop in");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::ExitLoop,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("exit");
+    let exit = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        active_loop,
+        pending_loop_in_ms,
+        ..
+    } = decode_evt_body(exit.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert!(active_loop.is_none());
+    assert!(pending_loop_in_ms.is_none());
+}
+
+#[test]
+fn pending_loop_in_survives_quantize_toggle() {
+    let session = null_session_loaded();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::Seek,
+            encode_cmd_body(&CmdBody::Seek { position_ms: 620 }).unwrap(),
+        )
+        .expect("seek");
+    let _ = recv_evt_kind(&evt, Kind::Updated);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::LoopIn,
+            encode_cmd_body(&CmdBody::Empty).unwrap(),
+        )
+        .expect("loop in");
+    let pending = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(pending.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(500));
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetQuantize,
+            encode_cmd_body(&CmdBody::SetQuantize { enabled: false }).unwrap(),
+        )
+        .expect("quantize off");
+    let after = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated {
+        pending_loop_in_ms, ..
+    } = decode_evt_body(after.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pending_loop_in_ms, Some(500));
 }
 
 #[test]
@@ -344,6 +539,7 @@ fn unload_clears_duration() {
         duration_ms,
         cue_point_ms,
         active_loop,
+        pending_loop_in_ms,
         ..
     } = decode_evt_body(event.payload()).expect("decode")
     else {
@@ -352,4 +548,5 @@ fn unload_clears_duration() {
     assert!(duration_ms.is_none());
     assert!(cue_point_ms.is_none() || cue_point_ms == Some(0));
     assert!(active_loop.is_none());
+    assert!(pending_loop_in_ms.is_none());
 }

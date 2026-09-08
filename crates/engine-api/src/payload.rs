@@ -146,6 +146,9 @@ pub struct DeckSnapshot {
     pub cue_point_ms: Option<i32>,
     pub quantize: bool,
     pub active_loop: Option<LoopRegion>,
+    /// Transient Loop In marker before Loop Out completes the region.
+    #[serde(default)]
+    pub pending_loop_in_ms: Option<i32>,
     #[serde(default)]
     pub slip_enabled: bool,
     #[serde(default)]
@@ -367,6 +370,7 @@ pub enum CmdBody {
 /// Event bus payload nested inside [`crate::WireMessage::body`].
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)] // DeckUpdated mirrors DeckSnapshot wire fields.
 pub enum EvtBody {
     Empty,
     DeckUpdated {
@@ -395,6 +399,8 @@ pub enum EvtBody {
         cue_point_ms: Option<i32>,
         quantize: bool,
         active_loop: Option<LoopRegion>,
+        #[serde(default)]
+        pending_loop_in_ms: Option<i32>,
         #[serde(default)]
         slip_enabled: bool,
         #[serde(default)]

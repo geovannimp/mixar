@@ -1340,10 +1340,14 @@ impl Engine {
         let mut dsp = dsp_engine.lock().unwrap();
         if let Some(deck) = dsp.deck_mut(deck_id) {
             deck.clear_loop();
-            Ok(())
         } else {
-            Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id))
+            return Err(anyhow::anyhow!("Invalid deck ID: {}", deck_id));
         }
+        drop(dsp);
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.pending_loop_in_ms = None;
+        }
+        Ok(())
     }
 
     /// Trigger hot cue: snap position, seek, play.
@@ -1568,6 +1572,9 @@ impl Engine {
                 "Load a track before recalling a saved loop."
             ));
         }
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.pending_loop_in_ms = None;
+        }
         self.set_deck_loop_region(deck_id, in_ms, out_ms)?;
         self.seek_deck(deck_id, in_ms)?;
         self.play(deck_id)
@@ -1609,6 +1616,7 @@ impl Engine {
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
         control.loop_roll_restore = restore;
+        control.pending_loop_in_ms = None;
 
         let beat_len = 60.0 / bpm;
         let in_ms = snap_ms(position_ms, Some(bpm), quantize);
@@ -1670,33 +1678,62 @@ impl Engine {
         let in_secs = ms_to_secs(in_ms);
         let duration = ms_to_secs(duration_ms);
         let out_ms = secs_to_ms((in_secs + beat_len * f64::from(beats)).min(duration));
+        if let Some(control) = self.deck_control.get_mut(deck_id) {
+            control.pending_loop_in_ms = None;
+        }
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
-    /// Move loop-in to the nearest beat at the playhead (keeps existing out, or default 4 beats).
+    /// Set manual Loop In: pending when no active region; edit In when a region is active.
     pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
         let bpm = require_positive_bpm(bpm, "loop in")?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let in_ms = snap_ms(position_ms, Some(bpm), true);
-        let default_out = in_ms + secs_to_ms(60.0 / bpm * 4.0);
-        let out_ms = self
+        if let Some((_, out_ms)) = self
             .deck_transport_state(deck_id)
-            .and_then(|(_, loop_region)| loop_region.map(|(_, out)| out))
-            .unwrap_or(default_out);
-        self.set_deck_loop_region(deck_id, in_ms, out_ms.max(in_ms + 10))
+            .and_then(|(_, loop_region)| loop_region)
+        {
+            if let Some(control) = self.deck_control.get_mut(deck_id) {
+                control.pending_loop_in_ms = None;
+            }
+            return self.set_deck_loop_region(deck_id, in_ms, out_ms.max(in_ms + 10));
+        }
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.pending_loop_in_ms = Some(in_ms);
+        Ok(())
     }
 
-    /// Move loop-out to the nearest beat at the playhead (keeps existing in, or 0).
+    /// Set manual Loop Out: complete pending In, or edit Out of an active region.
     pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
         let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
         let bpm = require_positive_bpm(bpm, "loop out")?;
         let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
         let out_ms = snap_ms(position_ms, Some(bpm), true);
+        let pending_in = self
+            .deck_control
+            .get(deck_id)
+            .and_then(|c| c.pending_loop_in_ms);
+        if let Some(in_ms) = pending_in {
+            if out_ms <= in_ms {
+                return Err(anyhow::anyhow!("Loop out must be after loop in."));
+            }
+            if let Some(control) = self.deck_control.get_mut(deck_id) {
+                control.pending_loop_in_ms = None;
+            }
+            return self.set_deck_loop_region(deck_id, in_ms, out_ms);
+        }
         let in_ms = self
             .deck_transport_state(deck_id)
-            .and_then(|(_, loop_region)| loop_region.map(|(inn, _)| inn))
-            .unwrap_or(0);
+            .and_then(|(_, loop_region)| loop_region.map(|(inn, _)| inn));
+        let Some(in_ms) = in_ms else {
+            return Err(anyhow::anyhow!(
+                "Set Loop In before Loop Out, or edit an active loop."
+            ));
+        };
         if out_ms <= in_ms {
             return Err(anyhow::anyhow!("Loop out must be after loop in."));
         }
@@ -2055,6 +2092,7 @@ fn deck_snapshot_from_dsp(
         cue_point_ms: deck.cue_point_ms(),
         quantize: control.quantize,
         active_loop,
+        pending_loop_in_ms: control.pending_loop_in_ms,
         slip_enabled: deck.slip_enabled(),
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,

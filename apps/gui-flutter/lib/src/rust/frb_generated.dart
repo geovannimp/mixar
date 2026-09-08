@@ -9,14 +9,11 @@ import 'api/fs_browser.dart';
 import 'api/library.dart';
 import 'api/meta.dart';
 import 'api/settings.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
 import 'frb_generated.dart';
 import 'frb_generated.io.dart'
     if (dart.library.js_interop) 'frb_generated.web.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Main entrypoint of the Rust API
@@ -5609,8 +5606,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 42)
-      throw Exception('unexpected arr length: expect 42 but see ${arr.length}');
+    if (arr.length != 44)
+      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -5643,17 +5640,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       masterDeck: dco_decode_opt_box_autoadd_u_16(arr[28]),
       activeLoop: dco_decode_opt_box_autoadd_active_loop_info(arr[29]),
       activeLoopKnown: dco_decode_bool(arr[30]),
-      durationKnown: dco_decode_bool(arr[31]),
-      quantize: dco_decode_opt_box_autoadd_bool(arr[32]),
-      slipEnabled: dco_decode_opt_box_autoadd_bool(arr[33]),
-      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[34]),
-      jogTouching: dco_decode_opt_box_autoadd_bool(arr[35]),
-      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[36]),
-      autoGainDb: dco_decode_opt_box_autoadd_f_32(arr[37]),
-      activeSamplerBankId: dco_decode_opt_String(arr[38]),
-      activeSamplerBankIdKnown: dco_decode_bool(arr[39]),
-      samplerSlots: dco_decode_opt_list_sampler_slot_chrome(arr[40]),
-      samplerSlotsKnown: dco_decode_bool(arr[41]),
+      pendingLoopInMs: dco_decode_opt_box_autoadd_i_32(arr[31]),
+      pendingLoopInMsKnown: dco_decode_bool(arr[32]),
+      durationKnown: dco_decode_bool(arr[33]),
+      quantize: dco_decode_opt_box_autoadd_bool(arr[34]),
+      slipEnabled: dco_decode_opt_box_autoadd_bool(arr[35]),
+      slipShadowPositionMs: dco_decode_opt_box_autoadd_i_32(arr[36]),
+      jogTouching: dco_decode_opt_box_autoadd_bool(arr[37]),
+      loudnessLufs: dco_decode_opt_box_autoadd_f_64(arr[38]),
+      autoGainDb: dco_decode_opt_box_autoadd_f_32(arr[39]),
+      activeSamplerBankId: dco_decode_opt_String(arr[40]),
+      activeSamplerBankIdKnown: dco_decode_bool(arr[41]),
+      samplerSlots: dco_decode_opt_list_sampler_slot_chrome(arr[42]),
+      samplerSlotsKnown: dco_decode_bool(arr[43]),
     );
   }
 
@@ -7002,6 +7001,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_activeLoopKnown = sse_decode_bool(deserializer);
+    var var_pendingLoopInMs = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_pendingLoopInMsKnown = sse_decode_bool(deserializer);
     var var_durationKnown = sse_decode_bool(deserializer);
     var var_quantize = sse_decode_opt_box_autoadd_bool(deserializer);
     var var_slipEnabled = sse_decode_opt_box_autoadd_bool(deserializer);
@@ -7049,6 +7050,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       masterDeck: var_masterDeck,
       activeLoop: var_activeLoop,
       activeLoopKnown: var_activeLoopKnown,
+      pendingLoopInMs: var_pendingLoopInMs,
+      pendingLoopInMsKnown: var_pendingLoopInMsKnown,
       durationKnown: var_durationKnown,
       quantize: var_quantize,
       slipEnabled: var_slipEnabled,
@@ -8695,6 +8698,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_box_autoadd_u_16(self.masterDeck, serializer);
     sse_encode_opt_box_autoadd_active_loop_info(self.activeLoop, serializer);
     sse_encode_bool(self.activeLoopKnown, serializer);
+    sse_encode_opt_box_autoadd_i_32(self.pendingLoopInMs, serializer);
+    sse_encode_bool(self.pendingLoopInMsKnown, serializer);
     sse_encode_bool(self.durationKnown, serializer);
     sse_encode_opt_box_autoadd_bool(self.quantize, serializer);
     sse_encode_opt_box_autoadd_bool(self.slipEnabled, serializer);

@@ -87,6 +87,27 @@ void main() {
     picture!.dispose();
   });
 
+  test('recordPendingLoopInPicture is null without position', () {
+    expect(
+      recordPendingLoopInPicture(
+        pendingInMs: null,
+        durationMs: 10_000,
+        size: const Size(100, 40),
+      ),
+      isNull,
+    );
+  });
+
+  test('recordPendingLoopInPicture returns a picture when pending', () {
+    final picture = recordPendingLoopInPicture(
+      pendingInMs: 2500,
+      durationMs: 10_000,
+      size: const Size(100, 40),
+    );
+    expect(picture, isNotNull);
+    picture!.dispose();
+  });
+
   test('recordCuePicture and recordLoopPicture record without throw', () {
     final cues = recordCuePicture(
       cues: const [

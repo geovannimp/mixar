@@ -11,6 +11,8 @@ pub(crate) struct DeckControlState {
     pub quantize: bool,
     pub pad_mode: PadMode,
     pub loop_roll_restore: Option<LoopRegion>,
+    /// Pending manual Loop In (ms) before Loop Out completes the region.
+    pub pending_loop_in_ms: Option<i32>,
     /// Library track id when the deck holds a library-backed (or id'd) load.
     pub track_id: Option<TrackId>,
     /// Filesystem path or stream URI for the loaded source.
@@ -32,6 +34,7 @@ impl DeckControlState {
         self.bpm = None;
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
+        self.pending_loop_in_ms = None;
         self.track_id = None;
         self.track_path = None;
         self.title = None;
@@ -55,6 +58,7 @@ impl DeckControlState {
         self.bpm = metadata.bpm.filter(|b| b.is_finite() && *b > 0.0);
         self.sync_mode = SyncMode::Off;
         self.loop_roll_restore = None;
+        self.pending_loop_in_ms = None;
         self.track_id = Some(track_id);
         self.track_path = Some(track_path);
         self.title = non_empty_opt(metadata.title.clone());
