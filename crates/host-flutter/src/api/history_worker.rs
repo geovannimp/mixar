@@ -142,3 +142,34 @@ fn deck_snapshot(deck: &DeckSnapshot) -> DeckPlaySnapshot {
         duration_ms: deck.duration_ms,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn drives_history(body: &EvtBody) -> bool {
+        matches!(
+            body,
+            EvtBody::DeckUpdated { .. } | EvtBody::EngineStatus { .. }
+        )
+    }
+
+    #[test]
+    fn non_deck_events_do_not_drive_history() {
+        // Sampler / PFL are CmdBody or DeckUpdated.headphone_cue — never history inputs.
+        assert!(!drives_history(&EvtBody::Empty));
+        assert!(!drives_history(&EvtBody::Position {
+            position_ms: 0,
+            slip_shadow_position_ms: None,
+        }));
+        assert!(!drives_history(&EvtBody::Levels {
+            peak_l: 0.0,
+            peak_r: 0.0,
+            peak_hold_l: 0.0,
+            peak_hold_r: 0.0,
+        }));
+        assert!(!drives_history(&EvtBody::Notice {
+            message: "hi".into(),
+        }));
+    }
+}

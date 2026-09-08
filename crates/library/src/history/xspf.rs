@@ -64,12 +64,13 @@ pub fn utc_now_rfc3339() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
 }
 
-pub fn session_filename_from_started_at(started_at: &str) -> String {
+/// Unique on-disk name. Session id avoids collisions when two sessions start in the same second.
+pub fn session_filename(started_at: &str, session_id: &str) -> String {
     let compact = started_at
         .chars()
         .filter(|c| c.is_ascii_alphanumeric())
         .collect::<String>();
-    format!("{compact}.xspf")
+    format!("{compact}-{session_id}.xspf")
 }
 
 pub fn write_document(path: &Path, doc: &HistoryDocument) -> Result<()> {
@@ -339,5 +340,13 @@ mod tests {
             read.entries[0].ended_at.as_deref(),
             Some("2026-08-27T14:36:12Z")
         );
+    }
+
+    #[test]
+    fn session_filename_includes_id_to_avoid_same_second_collisions() {
+        let a = session_filename("2026-08-27T14:30:22Z", "aaa");
+        let b = session_filename("2026-08-27T14:30:22Z", "bbb");
+        assert_eq!(a, "20260827T143022Z-aaa.xspf");
+        assert_ne!(a, b);
     }
 }
