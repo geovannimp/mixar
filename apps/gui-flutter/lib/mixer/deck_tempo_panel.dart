@@ -4,6 +4,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -64,7 +65,7 @@ class DeckTempoPanel extends StatelessWidget {
     const compactPad = EdgeInsets.symmetric(horizontal: 4, vertical: 6);
 
     return SizedBox(
-      width: 84,
+      width: 88,
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(color: theme.colors.border),
@@ -80,10 +81,15 @@ class DeckTempoPanel extends StatelessWidget {
                 child: Text(
                   loading ? '000.00' : formatBpm(liveBpm),
                   textAlign: .center,
-                  style: theme.typography.body.sm.copyWith(
+                  style: theme.typography.body.md.copyWith(
+                    fontFamily: MixarFonts.notoSansMono,
                     color: accent,
                     fontWeight: .w700,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                    height: 1.1,
+                    fontFeatures: const [
+                      FontFeature.tabularFigures(),
+                      FontFeature.slashedZero(),
+                    ],
                   ),
                 ),
               ),
@@ -92,6 +98,7 @@ class DeckTempoPanel extends StatelessWidget {
                 formatPitchPercent(speed, tempoRange),
                 textAlign: .center,
                 style: theme.typography.body.xs.copyWith(
+                  fontFamily: MixarFonts.notoSansMono,
                   color: theme.colors.mutedForeground,
                   fontWeight: .w500,
                   fontFeatures: const [FontFeature.tabularFigures()],

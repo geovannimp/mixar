@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
+/// Cue amber — same tokens as master PFL (`master_strip.dart` / DESIGN.md).
+const _cueOn = Color(0xFFFCD34D); // amber-300
+const _cueBorder = Color(0x66F59E0B); // amber-500/40
+const _cueFill = Color(0x28F59E0B); // amber-500/16
+
 /// Hold to audition cue; tap (under [_holdThreshold]) sets the cue point.
 class DeckCueButton extends StatefulWidget {
   const DeckCueButton({
@@ -75,33 +80,35 @@ class _DeckCueButtonState extends State<DeckCueButton> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final enabled = !widget.disabled;
     return Semantics(
       button: true,
-      enabled: !widget.disabled,
+      enabled: enabled,
       label: 'Cue',
       child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPointerDown: widget.disabled ? null : (_) => _down(),
-        onPointerUp: widget.disabled ? null : (_) => _up(),
-        onPointerCancel: widget.disabled ? null : (_) => _up(),
+        onPointerDown: enabled ? (_) => _down() : null,
+        onPointerUp: enabled ? (_) => _up() : null,
+        onPointerCancel: enabled ? (_) => _up() : null,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 36, minWidth: 64),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: widget.disabled
-                  ? theme.colors.secondary.withValues(alpha: 0.35)
-                  : theme.colors.secondary.withValues(alpha: 0.45),
-              border: Border.all(color: theme.colors.border),
+              color: enabled
+                  ? _cueFill
+                  : theme.colors.secondary.withValues(alpha: 0.35),
+              border: Border.all(
+                color: enabled ? _cueBorder : theme.colors.border,
+              ),
               borderRadius: theme.style.borderRadius.md,
             ),
             child: Center(
               child: Text(
                 'Cue',
                 style: theme.typography.body.sm.copyWith(
-                  color: widget.disabled
-                      ? theme.colors.mutedForeground
-                      : theme.colors.foreground,
-                  fontWeight: .w600,
+                  color: enabled ? _cueOn : theme.colors.mutedForeground,
+                  fontWeight: .w700,
+                  letterSpacing: 0.4,
                 ),
               ),
             ),

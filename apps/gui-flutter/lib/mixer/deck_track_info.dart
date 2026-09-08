@@ -13,6 +13,7 @@ import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -252,7 +253,12 @@ class _DeckTitleArtist extends StatelessWidget {
             title ?? 'No track loaded',
             maxLines: 1,
             overflow: .ellipsis,
-            style: theme.typography.body.sm.copyWith(fontWeight: .w700),
+            style: theme.typography.display.xs.copyWith(
+              fontFamily: MixarFonts.spaceGrotesk,
+              fontWeight: .w700,
+              height: 1.15,
+              letterSpacing: -0.02,
+            ),
           ),
         ),
         Text(
@@ -289,14 +295,19 @@ class _DeckTimeRow extends StatelessWidget {
         Text(
           formatDeckRemainingDisplay(hasTrack ? positionMs : null, durationMs),
           style: theme.typography.body.sm.copyWith(
-            fontWeight: .w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
+            fontFamily: MixarFonts.notoSansMono,
+            fontWeight: .w700,
+            fontFeatures: const [
+              FontFeature.tabularFigures(),
+              FontFeature.slashedZero(),
+            ],
           ),
         ),
         const Spacer(),
         Text(
           formatDeckTotalDisplay(durationMs),
           style: theme.typography.body.xs.copyWith(
+            fontFamily: MixarFonts.notoSansMono,
             color: theme.colors.mutedForeground,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),

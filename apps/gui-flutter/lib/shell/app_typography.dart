@@ -8,17 +8,20 @@ abstract final class MixarFonts {
   static const notoSansMono = 'Noto Sans Mono';
 }
 
-/// Stylistic features mirrored from the Tauri-era CSS (`apps/gui-app/src/index.css`).
-final _brandFeatures = [
-  FontFeature.stylisticSet(1), // ss01
+/// Shared numeric / case features. Do **not** put Outfit `ss01` here — that set
+/// swaps the default horizontal-`e` glyphs for angled Kabel-style alternates
+/// (what Google Fonts shows without stylistic sets).
+final _numericCaseFeatures = [
   FontFeature.enable('case'),
   FontFeature.tabularFigures(),
   FontFeature.slashedZero(),
 ];
 
+/// Space Grotesk display: keep ss01/ss04 from the marketing stack.
 final _displayFeatures = [
-  ..._brandFeatures,
-  FontFeature.stylisticSet(4), // ss04 on Space Grotesk
+  FontFeature.stylisticSet(1), // ss01
+  FontFeature.stylisticSet(4), // ss04
+  ..._numericCaseFeatures,
 ];
 
 final _monoFeatures = [FontFeature.tabularFigures(), FontFeature.slashedZero()];
@@ -69,7 +72,7 @@ FTypography mixarTypography(FTypography base) {
     body: _remapTypeface(
       base.body,
       MixarFonts.outfit,
-      fontFeatures: _brandFeatures,
+      fontFeatures: _numericCaseFeatures,
     ),
     extensions: [mono],
   );
