@@ -121,6 +121,36 @@ class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
   }
 }
 
+class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
+  StripPendingLoopInPictureNotifier(this.arg);
+
+  final (int, int) arg;
+  Picture? _owned;
+
+  @override
+  Picture? build() {
+    final (deckId, durationMs) = arg;
+    ref.onDispose(() {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+    });
+    if (durationMs <= 0) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final pending = ref.watch(deckPendingLoopInMsProvider(deckId));
+    final next = recordPendingLoopInPicture(
+      pendingInMs: pending,
+      durationMs: durationMs,
+      size: _stripSize(durationMs),
+    );
+    _dropPictureAfterFrame(_owned);
+    _owned = next;
+    return next;
+  }
+}
+
 class StripCuePictureNotifier extends Notifier<Picture?> {
   StripCuePictureNotifier(this.arg);
 
@@ -177,6 +207,11 @@ final stripLoopPictureProvider = NotifierProvider.autoDispose
 final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
       StripActiveLoopPictureNotifier.new,
+    );
+
+final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
+    .family<StripPendingLoopInPictureNotifier, Picture?, (int, int)>(
+      StripPendingLoopInPictureNotifier.new,
     );
 
 final stripCuePictureProvider = NotifierProvider.autoDispose

@@ -83,6 +83,7 @@ class DeckLoopPanel extends StatelessWidget {
     required this.onLoopIn,
     required this.onLoopOut,
     required this.onBeatsChipPress,
+    this.loopPending = false,
     this.savedLoopAtSlot = false,
     this.hasTrack = false,
     this.disabled = false,
@@ -91,6 +92,7 @@ class DeckLoopPanel extends StatelessWidget {
   });
 
   final bool loopActive;
+  final bool loopPending;
   final int loopBeats;
   final bool savedLoopAtSlot;
   final VoidCallback onToggleLoop;
@@ -195,7 +197,11 @@ class DeckLoopPanel extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              cellButton(label: 'IN', lit: active, onPress: onLoopIn),
+              cellButton(
+                label: 'IN',
+                lit: active || loopPending,
+                onPress: onLoopIn,
+              ),
               const SizedBox(width: 8),
               cellButton(label: 'OUT', lit: active, onPress: onLoopOut),
             ],

@@ -128,6 +128,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         : ref.watch(
             stripActiveLoopPictureProvider((widget.deckId, durationMs)),
           );
+    final pendingLoopIn = durationMs <= 0
+        ? null
+        : ref.watch(
+            stripPendingLoopInPictureProvider((widget.deckId, durationMs)),
+          );
     final cues = trackId == null || durationMs <= 0
         ? null
         : ref.watch(stripCuePictureProvider((trackId, durationMs)));
@@ -311,6 +316,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         beatGrid: beatGrid,
                         loops: loops,
                         activeLoop: activeLoop,
+                        pendingLoopIn: pendingLoopIn,
                         cues: cues,
                       ),
                     ),
@@ -398,6 +404,7 @@ class _StripLayer extends StatelessWidget {
     required this.beatGrid,
     required this.loops,
     required this.activeLoop,
+    required this.pendingLoopIn,
     required this.cues,
   });
 
@@ -406,6 +413,7 @@ class _StripLayer extends StatelessWidget {
   final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
+  final Picture? pendingLoopIn;
   final Picture? cues;
 
   @override
@@ -419,6 +427,7 @@ class _StripLayer extends StatelessWidget {
           beatGrid: beatGrid,
           loops: loops,
           activeLoop: activeLoop,
+          pendingLoopIn: pendingLoopIn,
           cues: cues,
         ),
         size: Size(strip.widthPx.toDouble(), height),
@@ -433,6 +442,7 @@ class _StripPainter extends CustomPainter {
     required this.beatGrid,
     required this.loops,
     required this.activeLoop,
+    required this.pendingLoopIn,
     required this.cues,
   });
 
@@ -440,6 +450,7 @@ class _StripPainter extends CustomPainter {
   final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
+  final Picture? pendingLoopIn;
   final Picture? cues;
 
   @override
@@ -458,7 +469,7 @@ class _StripPainter extends CustomPainter {
       canvas.restore();
     }
     // Overlays are authored at strip height; scale with the waveform.
-    for (final picture in [beatGrid, loops, activeLoop, cues]) {
+    for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
       if (picture != null) {
         canvas.drawPicture(picture);
       }
@@ -472,5 +483,6 @@ class _StripPainter extends CustomPainter {
       !identical(beatGrid, oldDelegate.beatGrid) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||
+      !identical(pendingLoopIn, oldDelegate.pendingLoopIn) ||
       !identical(cues, oldDelegate.cues);
 }

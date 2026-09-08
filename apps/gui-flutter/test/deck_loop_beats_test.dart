@@ -69,4 +69,27 @@ void main() {
     );
     expect(snap.activeLoopFor(0)?.inMs, 1);
   });
+
+  test('applyEngineEvt stores and clears pending_loop_in when known', () {
+    var snap = applyEngineEvt(
+      EngineUiSnapshot.empty,
+      const EngineEvt(
+        kind: EngineEvtKind.updated,
+        deckId: 0,
+        pendingLoopInMs: 1500,
+        pendingLoopInMsKnown: true,
+      ),
+    );
+    expect(snap.pendingLoopInMsFor(0), 1500);
+
+    snap = applyEngineEvt(
+      snap,
+      const EngineEvt(
+        kind: EngineEvtKind.updated,
+        deckId: 0,
+        pendingLoopInMsKnown: true,
+      ),
+    );
+    expect(snap.pendingLoopInMsFor(0), isNull);
+  });
 }

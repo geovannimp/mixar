@@ -227,6 +227,7 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         cue_point_ms: snap.cue_point_ms,
         quantize: snap.quantize,
         active_loop: snap.active_loop,
+        pending_loop_in_ms: snap.pending_loop_in_ms,
         slip_enabled: snap.slip_enabled,
         slip_shadow_position_ms: snap.slip_shadow_position_ms,
         pad_mode: snap.pad_mode,

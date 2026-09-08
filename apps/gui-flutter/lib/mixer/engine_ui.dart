@@ -67,6 +67,7 @@ class EngineUiSnapshot {
     this.padModes = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
+    this.pendingLoopInMs = const {},
     this.quantize = const {},
     this.slipEnabled = const {},
     this.jogTouching = const {},
@@ -97,6 +98,7 @@ class EngineUiSnapshot {
   final Map<int, PadMode> padModes;
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
+  final Map<int, int> pendingLoopInMs;
   final Map<int, bool> quantize;
   final Map<int, bool> slipEnabled;
   final Map<int, bool> jogTouching;
@@ -125,6 +127,8 @@ class EngineUiSnapshot {
   SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
 
   ActiveLoopInfo? activeLoopFor(int deckId) => activeLoops[deckId];
+
+  int? pendingLoopInMsFor(int deckId) => pendingLoopInMs[deckId];
 
   bool quantizeFor(int deckId) => quantize[deckId] ?? true;
 
@@ -163,6 +167,7 @@ class EngineUiSnapshot {
     Map<int, PadMode>? padModes,
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
+    Map<int, int>? pendingLoopInMs,
     Map<int, bool>? quantize,
     Map<int, bool>? slipEnabled,
     Map<int, bool>? jogTouching,
@@ -188,6 +193,7 @@ class EngineUiSnapshot {
     padModes: padModes ?? this.padModes,
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
+    pendingLoopInMs: pendingLoopInMs ?? this.pendingLoopInMs,
     quantize: quantize ?? this.quantize,
     slipEnabled: slipEnabled ?? this.slipEnabled,
     jogTouching: jogTouching ?? this.jogTouching,
@@ -275,6 +281,18 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       if (unloaded) {
         nextActiveLoops.remove(id);
       }
+      final nextPendingLoopIn = Map<int, int>.from(prev.pendingLoopInMs);
+      if (evt.pendingLoopInMsKnown) {
+        final pending = evt.pendingLoopInMs;
+        if (pending != null) {
+          nextPendingLoopIn[id] = pending;
+        } else {
+          nextPendingLoopIn.remove(id);
+        }
+      }
+      if (unloaded) {
+        nextPendingLoopIn.remove(id);
+      }
       final nextQuantize = Map<int, bool>.from(prev.quantize);
       if (evt.quantize != null) {
         nextQuantize[id] = evt.quantize!;
@@ -333,6 +351,7 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         padModes: nextPadModes,
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,
+        pendingLoopInMs: nextPendingLoopIn,
         quantize: nextQuantize,
         slipEnabled: nextSlip,
         jogTouching: nextJog,

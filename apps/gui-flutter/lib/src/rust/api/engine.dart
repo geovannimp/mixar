@@ -5,9 +5,7 @@
 
 import '../frb_generated.dart';
 import 'library.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-
 import 'settings.dart';
 
 // These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
@@ -236,6 +234,8 @@ class EngineEvt {
   final int? deckId;
   final bool? running;
   final bool? playing;
+
+  /// Filesystem path of the loaded track (`DeckSnapshot.track`); not a display title.
   final String? trackPath;
   final String? trackId;
   final int? positionMs;
@@ -267,6 +267,12 @@ class EngineEvt {
 
   /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
   final bool activeLoopKnown;
+
+  /// Pending Loop In position (ms) before Loop Out completes the region.
+  final int? pendingLoopInMs;
+
+  /// True when [`Self::pending_loop_in_ms`] was authored on this Updated evt (even if `None`).
+  final bool pendingLoopInMsKnown;
 
   /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
   final bool durationKnown;
@@ -321,6 +327,8 @@ class EngineEvt {
     this.masterDeck,
     this.activeLoop,
     this.activeLoopKnown = false,
+    this.pendingLoopInMs,
+    this.pendingLoopInMsKnown = false,
     this.durationKnown = false,
     this.quantize,
     this.slipEnabled,
@@ -367,6 +375,8 @@ class EngineEvt {
       masterDeck.hashCode ^
       activeLoop.hashCode ^
       activeLoopKnown.hashCode ^
+      pendingLoopInMs.hashCode ^
+      pendingLoopInMsKnown.hashCode ^
       durationKnown.hashCode ^
       quantize.hashCode ^
       slipEnabled.hashCode ^
@@ -415,6 +425,8 @@ class EngineEvt {
           masterDeck == other.masterDeck &&
           activeLoop == other.activeLoop &&
           activeLoopKnown == other.activeLoopKnown &&
+          pendingLoopInMs == other.pendingLoopInMs &&
+          pendingLoopInMsKnown == other.pendingLoopInMsKnown &&
           durationKnown == other.durationKnown &&
           quantize == other.quantize &&
           slipEnabled == other.slipEnabled &&

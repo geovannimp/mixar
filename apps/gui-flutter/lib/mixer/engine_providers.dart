@@ -400,6 +400,11 @@ final deckActiveLoopProvider = Provider.family<ActiveLoopInfo?, int>(
       ref.watch(engineUiProvider.select((s) => s.activeLoopFor(deckId))),
 );
 
+final deckPendingLoopInMsProvider = Provider.family<int?, int>(
+  (ref, deckId) =>
+      ref.watch(engineUiProvider.select((s) => s.pendingLoopInMsFor(deckId))),
+);
+
 final deckSavedLoopsProvider = Provider.family<List<SavedLoopInfo>, int>((
   ref,
   deckId,

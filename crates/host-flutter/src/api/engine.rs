@@ -318,6 +318,11 @@ pub struct EngineEvt {
     /// True when [`Self::active_loop`] was authored on this Updated evt (even if `None`).
     #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub active_loop_known: bool,
+    /// Pending Loop In position (ms) before Loop Out completes the region.
+    pub pending_loop_in_ms: Option<i32>,
+    /// True when [`Self::pending_loop_in_ms`] was authored on this Updated evt (even if `None`).
+    #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
+    pub pending_loop_in_ms_known: bool,
     /// True when [`Self::duration_ms`] was authored on this Updated evt (even if `None`).
     #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub duration_known: bool,
@@ -373,6 +378,8 @@ impl EngineEvt {
             master_deck: None,
             active_loop: None,
             active_loop_known: false,
+            pending_loop_in_ms: None,
+            pending_loop_in_ms_known: false,
             duration_known: false,
             quantize: None,
             slip_enabled: None,
@@ -1278,6 +1285,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
     evt.active_loop_known = true;
+    evt.pending_loop_in_ms = snap.pending_loop_in_ms;
+    evt.pending_loop_in_ms_known = true;
     evt.quantize = Some(snap.quantize);
     evt.slip_enabled = Some(snap.slip_enabled);
     evt.slip_shadow_position_ms = snap.slip_shadow_position_ms;
@@ -1325,6 +1334,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             pad_mode,
             sync_mode,
             active_loop,
+            pending_loop_in_ms,
             quantize,
             slip_enabled,
             slip_shadow_position_ms,
@@ -1356,6 +1366,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
             evt.active_loop_known = true;
+            evt.pending_loop_in_ms = pending_loop_in_ms;
+            evt.pending_loop_in_ms_known = true;
             evt.quantize = Some(quantize);
             evt.slip_enabled = Some(slip_enabled);
             evt.slip_shadow_position_ms = slip_shadow_position_ms;
@@ -1453,6 +1465,7 @@ mod tests {
             cue_point_ms: None,
             quantize: true,
             active_loop: None,
+            pending_loop_in_ms: None,
             slip_enabled: false,
             slip_shadow_position_ms: None,
             pad_mode: PadMode::HotCue,
@@ -1615,6 +1628,38 @@ mod tests {
         assert_eq!(region.in_ms, 1000);
         assert_eq!(region.out_ms, 5000);
         assert!(region.active);
+    }
+
+    #[test]
+    fn map_status_forwards_pending_loop_in() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.pending_loop_in_ms = Some(1500);
+        let mapped = recv_mapped(
+            Origin::Mixer,
+            Kind::Status,
+            EvtBody::EngineStatus {
+                status: EngineStatus {
+                    running: true,
+                    sample_rate: 48_000,
+                    crossfader: 0.5,
+                    cue_mix: 0.0,
+                    master_cue: false,
+                    master_deck: 0,
+                    decks: vec![deck],
+                    sampler: SamplerStatus {
+                        banks: Vec::new(),
+                        active_bank_id: None,
+                        active_bank_name: None,
+                        bank_play_mode: None,
+                        deck_slots: Vec::new(),
+                        effective_play_modes: Vec::new(),
+                    },
+                },
+            },
+        );
+        assert_eq!(mapped.len(), 2);
+        assert!(mapped[1].pending_loop_in_ms_known);
+        assert_eq!(mapped[1].pending_loop_in_ms, Some(1500));
     }
 
     #[test]

@@ -12,6 +12,7 @@ const _savedLoopFill = Color.fromRGBO(255, 255, 255, 0.08);
 const _savedLoopBorder = Color.fromRGBO(255, 255, 255, 0.20);
 const _activeLoopFill = Color.fromRGBO(52, 211, 153, 0.18);
 const _activeLoopBorder = Color.fromRGBO(52, 211, 153, 0.70);
+const _pendingLoopIn = Color.fromRGBO(251, 191, 36, 0.95);
 
 Picture recordBeatGridPicture({
   required List<BeatMark> marks,
@@ -104,6 +105,35 @@ Picture? recordActiveLoopPicture({
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
       ..isAntiAlias = false,
+  );
+  return recorder.endRecording();
+}
+
+/// Vertical amber marker for a pending Loop In (no active region yet).
+Picture? recordPendingLoopInPicture({
+  required int? pendingInMs,
+  required int durationMs,
+  required Size size,
+}) {
+  if (pendingInMs == null || durationMs <= 0) {
+    return null;
+  }
+  final x = msToX(ms: pendingInMs, durationMs: durationMs, width: size.width);
+  final recorder = PictureRecorder();
+  final canvas = Canvas(recorder, Offset.zero & size);
+  final line = Paint()
+    ..color = _pendingLoopIn
+    ..strokeWidth = 2
+    ..isAntiAlias = false;
+  canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+  final flag = Paint()..color = _pendingLoopIn;
+  canvas.drawPath(
+    Path()
+      ..moveTo(x, 0)
+      ..lineTo(x + 8, 0)
+      ..lineTo(x, 8)
+      ..close(),
+    flag,
   );
   return recorder.endRecording();
 }
