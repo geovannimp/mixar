@@ -798,6 +798,25 @@ mod tests {
     }
 
     #[test]
+    fn history_settings_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.history_enabled = false;
+        settings.history_session_idle_minutes = 12;
+        settings.history_min_play_seconds = 8;
+        settings.history_min_deck_volume = 0.2;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert!(!restored.history_enabled);
+        assert_eq!(restored.history_session_idle_minutes, 12);
+        assert_eq!(restored.history_min_play_seconds, 8);
+        assert!((restored.history_min_deck_volume - 0.2).abs() < f32::EPSILON);
+    }
+
+    #[test]
     fn trusted_controller_device_ids_round_trip() {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");

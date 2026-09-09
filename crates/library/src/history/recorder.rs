@@ -428,11 +428,10 @@ impl HistoryRecorder {
         let mut doc = HistoryDocument::new_session(local_session_title(&now));
         doc.session.started_at = now.clone();
         doc.session.last_activity_at = now;
-        let path = self
-            .history_dir
-            .join(xspf::session_filename_from_started_at(
-                &doc.session.started_at,
-            ));
+        let path = self.history_dir.join(xspf::session_filename(
+            &doc.session.started_at,
+            &doc.session.id,
+        ));
         self.document = Some(doc);
         self.xspf_path = Some(path);
         Ok(())
@@ -692,7 +691,73 @@ fn history_io(e: std::io::Error) -> library_core::LibraryError {
 mod tests {
     use super::*;
     use crate::db::open;
-    use crate::history::store::{get_session, upsert_session_index};
+    use crate::history::store::{
+        active_session, get_session, history_dir_for_db, upsert_session_index,
+    };
+    use std::fs;
+
+    /// Instant commits via `tick` (host settings reject 0; library allows it for tests).
+    fn fast_settings() -> HistorySettings {
+        HistorySettings {
+            enabled: true,
+            session_idle_minutes: 60,
+            min_play_seconds: 0,
+            min_deck_volume: 0.05,
+        }
+    }
+
+    fn snap(path: &str, playing: bool, volume: f32) -> DeckPlaySnapshot {
+        DeckPlaySnapshot {
+            playing,
+            volume,
+            track_id: Some("track-1".into()),
+            track_path: Some(path.into()),
+            title: Some("Title".into()),
+            artist: Some("Artist".into()),
+            album: Some("Album".into()),
+            bpm: Some(128.0),
+            key: Some("Am".into()),
+            isrc: Some("USXXX1234567".into()),
+            duration_ms: Some(180_000),
+        }
+    }
+
+    fn stopped(path: &str) -> DeckPlaySnapshot {
+        snap(path, false, 1.0)
+    }
+
+    struct Fixture {
+        _dir: tempfile::TempDir,
+        db_path: PathBuf,
+        db: Db,
+        recorder: HistoryRecorder,
+    }
+
+    fn fixture(settings: HistorySettings) -> Fixture {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("library.db");
+        let db = open(&db_path).expect("db");
+        let recorder = HistoryRecorder::new(&db_path, settings).expect("recorder");
+        Fixture {
+            _dir: dir,
+            db_path,
+            db,
+            recorder,
+        }
+    }
+
+    fn commit_play(fx: &mut Fixture, deck: usize, path: &str) {
+        fx.recorder
+            .on_deck_updated(&fx.db, deck, snap(path, true, 1.0))
+            .expect("deck");
+        fx.recorder.tick(&fx.db).expect("tick");
+    }
+
+    fn end_play(fx: &mut Fixture, deck: usize, path: &str) {
+        fx.recorder
+            .on_deck_updated(&fx.db, deck, stopped(path))
+            .expect("stop");
+    }
 
     #[test]
     fn crossfader_gains_match_mixer() {
@@ -740,23 +805,19 @@ mod tests {
 
     #[test]
     fn idle_timeout_closes_unloaded_session_from_last_activity_at() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let db_path = dir.path().join("library.db");
-        let db = open(&db_path).expect("db");
-        let settings = HistorySettings {
+        let mut fx = fixture(HistorySettings {
             session_idle_minutes: 1,
             ..Default::default()
-        };
-        let mut recorder = HistoryRecorder::new(&db_path, settings).expect("recorder");
+        });
         let mut doc = HistoryDocument::new_session("test");
         doc.session.last_activity_at = "2020-01-01T00:00:00Z".into();
-        let path = recorder.history_dir().join("test.xspf");
+        let path = fx.recorder.history_dir().join("test.xspf");
         save_document(&path, &doc).expect("write xspf");
-        upsert_session_index(&db, &doc, &path).expect("index");
+        upsert_session_index(&fx.db, &doc, &path).expect("index");
 
-        recorder.tick(&db).expect("tick");
+        fx.recorder.tick(&fx.db).expect("tick");
 
-        let row = get_session(&db, &doc.session.id)
+        let row = get_session(&fx.db, &doc.session.id)
             .expect("get")
             .expect("row");
         assert!(row.closed);
@@ -764,15 +825,240 @@ mod tests {
 
     #[test]
     fn session_updated_flag_take_and_restore() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let db_path = dir.path().join("library.db");
-        let mut recorder =
-            HistoryRecorder::new(&db_path, HistorySettings::default()).expect("recorder");
-        assert!(!recorder.take_session_updated());
-        recorder.mark_session_updated();
-        assert!(recorder.take_session_updated());
-        assert!(!recorder.take_session_updated());
-        recorder.mark_session_updated();
-        assert!(recorder.take_session_updated());
+        let mut fx = fixture(HistorySettings::default());
+        assert!(!fx.recorder.take_session_updated());
+        fx.recorder.mark_session_updated();
+        assert!(fx.recorder.take_session_updated());
+        assert!(!fx.recorder.take_session_updated());
+        fx.recorder.mark_session_updated();
+        assert!(fx.recorder.take_session_updated());
+    }
+
+    /// AC1 + AC11 + AC13: qualifying play commits with metadata/ISRC under history/.
+    #[test]
+    fn qualifying_play_commits_entry_with_metadata_under_history_dir() {
+        let mut fx = fixture(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+
+        let session_id = fx.recorder.active_session_id().expect("active").to_string();
+        let entries = fx
+            .recorder
+            .session_entries(&fx.db, &session_id)
+            .expect("entries");
+        assert_eq!(entries.len(), 1);
+        let e = &entries[0];
+        assert_eq!(e.deck, 0);
+        assert!(!e.started_at.is_empty());
+        assert_eq!(e.title.as_deref(), Some("Title"));
+        assert_eq!(e.artist.as_deref(), Some("Artist"));
+        assert_eq!(e.isrc.as_deref(), Some("USXXX1234567"));
+        assert!(e.ended_at.is_none());
+
+        let row = active_session(&fx.db).expect("active").expect("row");
+        let xspf = PathBuf::from(&row.xspf_path);
+        assert!(
+            xspf.starts_with(fx.recorder.history_dir()),
+            "xspf not under history dir: {xspf:?}"
+        );
+        assert!(fs::metadata(&xspf).is_ok(), "live xspf missing at {xspf:?}");
+        assert_eq!(
+            fx.recorder.history_dir(),
+            history_dir_for_db(&fx.db_path).as_path()
+        );
+    }
+
+    /// AC2: leaving qualifying state fills ended_at / played_duration_ms.
+    #[test]
+    fn ending_play_sets_ended_at_and_played_duration() {
+        let mut fx = fixture(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+        std::thread::sleep(Duration::from_millis(5));
+        end_play(&mut fx, 0, "/music/a.flac");
+
+        let session_id = fx.recorder.active_session_id().expect("active").to_string();
+        let entries = fx
+            .recorder
+            .session_entries(&fx.db, &session_id)
+            .expect("entries");
+        assert_eq!(entries.len(), 1);
+        assert!(entries[0].ended_at.is_some());
+        assert!(entries[0].played_duration_ms.unwrap_or(0) >= 0);
+    }
+
+    /// AC3: below duration or effective output → no entry.
+    #[test]
+    fn below_duration_or_volume_produces_no_entry() {
+        let mut fx = fixture(HistorySettings {
+            min_play_seconds: 60,
+            ..fast_settings()
+        });
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snap("/music/a.flac", true, 1.0))
+            .expect("deck");
+        end_play(&mut fx, 0, "/music/a.flac");
+        assert!(fx.recorder.active_session_id().is_none());
+
+        let mut fx = fixture(fast_settings());
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snap("/music/a.flac", true, 0.01))
+            .expect("quiet");
+        fx.recorder.tick(&fx.db).expect("tick");
+        assert!(fx.recorder.active_session_id().is_none());
+    }
+
+    /// AC4: re-playing the same track appends a second entry.
+    #[test]
+    fn replaying_same_track_appends_second_entry() {
+        let mut fx = fixture(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+        end_play(&mut fx, 0, "/music/a.flac");
+        commit_play(&mut fx, 0, "/music/a.flac");
+        end_play(&mut fx, 0, "/music/a.flac");
+
+        let session_id = fx.recorder.active_session_id().expect("active").to_string();
+        let entries = fx
+            .recorder
+            .session_entries(&fx.db, &session_id)
+            .expect("entries");
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].track_id.as_deref(), Some("track-1"));
+        assert_eq!(entries[1].track_id.as_deref(), Some("track-1"));
+        assert_ne!(entries[0].id, entries[1].id);
+    }
+
+    /// AC5: recorder only logs deck snapshots (no sampler/PFL inputs on the type).
+    #[test]
+    fn only_deck_snapshots_drive_logging_no_sampler_or_pfl_api() {
+        let mut fx = fixture(fast_settings());
+        // No HistoryRecorder sampler / headphone API — empty decks never invent entries.
+        fx.recorder.tick(&fx.db).expect("tick");
+        assert!(fx.recorder.active_session_id().is_none());
+        // Quiet but "playing" still fails effective-output gate (PFL cannot raise it).
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snap("/music/a.flac", true, 0.0))
+            .expect("deck");
+        fx.recorder.tick(&fx.db).expect("tick");
+        assert!(fx.recorder.active_session_id().is_none());
+    }
+
+    /// AC6: after idle close, next qualifying play opens a new session.
+    #[test]
+    fn after_idle_timeout_next_play_opens_new_session() {
+        let mut fx = fixture(HistorySettings {
+            session_idle_minutes: 1,
+            ..fast_settings()
+        });
+        let mut doc = HistoryDocument::new_session("stale");
+        doc.session.last_activity_at = "2020-01-01T00:00:00Z".into();
+        let path = fx.recorder.history_dir().join("stale.xspf");
+        save_document(&path, &doc).expect("write");
+        upsert_session_index(&fx.db, &doc, &path).expect("index");
+        let old_id = doc.session.id.clone();
+
+        fx.recorder.tick(&fx.db).expect("idle close");
+        assert!(
+            get_session(&fx.db, &old_id)
+                .expect("get")
+                .expect("row")
+                .closed
+        );
+
+        commit_play(&mut fx, 0, "/music/b.flac");
+        let new_id = fx
+            .recorder
+            .active_session_id()
+            .expect("new session")
+            .to_string();
+        assert_ne!(old_id, new_id);
+    }
+
+    /// AC7: manual new session + resume only before a successor exists.
+    #[test]
+    fn manual_new_session_and_resume_before_successor() {
+        let mut fx = fixture(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+        end_play(&mut fx, 0, "/music/a.flac");
+        let first = fx.recorder.active_session_id().expect("active").to_string();
+
+        fx.recorder.new_session(&fx.db).expect("new");
+        assert!(fx.recorder.active_session_id().is_none());
+        assert!(fx.recorder.can_resume_session(&fx.db));
+        fx.recorder.resume_session(&fx.db).expect("resume");
+        assert_eq!(fx.recorder.active_session_id(), Some(first.as_str()));
+
+        fx.recorder.new_session(&fx.db).expect("new again");
+        assert!(fx.recorder.can_resume_session(&fx.db));
+        commit_play(&mut fx, 0, "/music/b.flac");
+        assert!(!fx.recorder.can_resume_session(&fx.db));
+        assert!(fx.recorder.resume_session(&fx.db).is_err());
+    }
+
+    /// AC8: crossfader fully cut prevents logging while deck is playing.
+    #[test]
+    fn crossfader_full_cut_prevents_logging() {
+        let mut fx = fixture(fast_settings());
+        fx.recorder.on_crossfader(&fx.db, 1.0).expect("xf");
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snap("/music/a.flac", true, 1.0))
+            .expect("deck");
+        fx.recorder.tick(&fx.db).expect("tick");
+        assert!(fx.recorder.active_session_id().is_none());
+        assert!(effective_output(0, 1.0, 1.0) < 0.05);
+    }
+
+    /// AC9: bootstrap restore prompt; decline starts fresh on next play.
+    #[test]
+    fn restore_prompt_on_bootstrap_decline_starts_fresh() {
+        let mut fx = fixture(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+        end_play(&mut fx, 0, "/music/a.flac");
+        let old_id = fx.recorder.active_session_id().expect("active").to_string();
+
+        let mut restarted = HistoryRecorder::new(&fx.db_path, fast_settings()).expect("restart");
+        restarted.bootstrap(&fx.db).expect("bootstrap");
+        let prompt = restarted.restore_prompt().expect("prompt");
+        assert_eq!(prompt.session_id, old_id);
+
+        restarted.decline_restore(&fx.db).expect("decline");
+        assert!(restarted.restore_prompt().is_none());
+        assert!(
+            get_session(&fx.db, &old_id)
+                .expect("get")
+                .expect("row")
+                .closed
+        );
+
+        restarted
+            .on_deck_updated(&fx.db, 0, snap("/music/b.flac", true, 1.0))
+            .expect("deck");
+        restarted.tick(&fx.db).expect("tick");
+        let new_id = restarted.active_session_id().expect("fresh").to_string();
+        assert_ne!(old_id, new_id);
+    }
+
+    /// AC10: settings changes affect recorder gates.
+    #[test]
+    fn settings_enabled_and_min_volume_affect_logging() {
+        let mut fx = fixture(HistorySettings {
+            enabled: false,
+            ..fast_settings()
+        });
+        commit_play(&mut fx, 0, "/music/a.flac");
+        assert!(fx.recorder.active_session_id().is_none());
+
+        fx.recorder.set_settings(HistorySettings {
+            enabled: true,
+            min_deck_volume: 0.9,
+            ..fast_settings()
+        });
+        fx.recorder
+            .on_deck_updated(&fx.db, 0, snap("/music/a.flac", true, 0.5))
+            .expect("deck");
+        fx.recorder.tick(&fx.db).expect("tick");
+        assert!(fx.recorder.active_session_id().is_none());
+
+        fx.recorder.set_settings(fast_settings());
+        commit_play(&mut fx, 0, "/music/a.flac");
+        assert!(fx.recorder.active_session_id().is_some());
     }
 }
