@@ -1,0 +1,110 @@
+name: Create release tag
+
+# Creates an annotated v* tag and (by default) starts the Release workflow.
+# Tag pushes made with GITHUB_TOKEN do not trigger other workflows, so we
+# dispatch Release explicitly after the tag exists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver version (e.g. 0.1.0 or v0.1.0-beta.1)
+        required: true
+        type: string
+      ref:
+        description: Git ref to tag (branch or SHA). Empty = this workflow's ref.
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: Validate and print the tag without creating or releasing
+        required: false
+        type: boolean
+        default: false
+      skip_release:
+        description: Only create the tag; do not start the Release workflow
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    name: create-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Normalize and validate version
+        id: ver
+        shell: bash
+        env:
+          RAW: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          RAW="${RAW#"${RAW%%[![:space:]]*}"}"
+          RAW="${RAW%"${RAW##*[![:space:]]}"}"
+          case "$RAW" in
+            v*) TAG="$RAW" ;;
+            *) TAG="v$RAW" ;;
+          esac
+          # Same rules as scripts/stamp-release-version.sh
+          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "Invalid version (want MAJOR.MINOR.PATCH[-prerelease]): $RAW → $TAG" >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Will use tag: $TAG"
+
+      - name: Checkout
+        if: ${{ !inputs.dry_run }}
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push annotated tag
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag already exists locally: $TAG" >&2
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag already exists on origin: $TAG" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
+          echo "Pushed $TAG → $(git rev-parse HEAD)"
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          REF: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+        run: |
+          echo "dry_run=true tag=$TAG ref=$REF skip_release=${{ inputs.skip_release }}"
+
+      - name: Dispatch Release workflow
+        if: ${{ !inputs.dry_run && !inputs.skip_release }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # workflow file lives on the branch that ran this job (usually main).
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}" \
+            -f "tag=$TAG"
+          echo "Started Release for $TAG (draft when packaging finishes)"

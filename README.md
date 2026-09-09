@@ -100,9 +100,16 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 
 ## Cutting a release
 
-1. Push a semver tag: `git tag v0.1.0 && git push origin v0.1.0` (pre-releases: `v0.1.0-beta.1`).
-2. GitHub Actions workflow **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release (pre-release tags are marked `prerelease`).
-3. Review assets/notes on the draft, then publish.
+**Manual (Actions UI):** run workflow **Create release tag**, enter a version (`0.1.0` or `v0.1.0-beta.1`), optionally choose a git ref. It creates an annotated `v*` tag and starts **Release** (use *dry_run* to validate only, or *skip_release* to tag without packaging).
+
+**CLI:**
+
+```bash
+git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0
+# pre-release: v0.1.0-beta.1
+```
+
+Either path: **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release (pre-release tags are marked `prerelease`). Review assets/notes on the draft, then publish.
 
 Version in `apps/gui-flutter/pubspec.yaml` is stamped from the tag for that build only (tag is source of truth). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
 
