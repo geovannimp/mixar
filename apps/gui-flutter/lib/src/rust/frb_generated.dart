@@ -236,11 +236,13 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiEngineEngineTransportLoopIn({
     required EngineTransport that,
     required int deckId,
+    required int positionMs,
   });
 
   Future<void> crateApiEngineEngineTransportLoopOut({
     required EngineTransport that,
     required int deckId,
+    required int positionMs,
   });
 
   Future<void> crateApiEngineEngineTransportLoopRollPadPress({
@@ -1846,6 +1848,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiEngineEngineTransportLoopIn({
     required EngineTransport that,
     required int deckId,
+    required int positionMs,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1856,6 +1859,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_u_16(deckId, serializer);
+          sse_encode_i_32(positionMs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1868,7 +1872,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiEngineEngineTransportLoopInConstMeta,
-        argValues: [that, deckId],
+        argValues: [that, deckId, positionMs],
         apiImpl: this,
       ),
     );
@@ -1877,13 +1881,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiEngineEngineTransportLoopInConstMeta =>
       const TaskConstMeta(
         debugName: "EngineTransport_loop_in",
-        argNames: ["that", "deckId"],
+        argNames: ["that", "deckId", "positionMs"],
       );
 
   @override
   Future<void> crateApiEngineEngineTransportLoopOut({
     required EngineTransport that,
     required int deckId,
+    required int positionMs,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -1894,6 +1899,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             serializer,
           );
           sse_encode_u_16(deckId, serializer);
+          sse_encode_i_32(positionMs, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -1906,7 +1912,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: sse_decode_String,
         ),
         constMeta: kCrateApiEngineEngineTransportLoopOutConstMeta,
-        argValues: [that, deckId],
+        argValues: [that, deckId, positionMs],
         apiImpl: this,
       ),
     );
@@ -1915,7 +1921,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiEngineEngineTransportLoopOutConstMeta =>
       const TaskConstMeta(
         debugName: "EngineTransport_loop_out",
-        argNames: ["that", "deckId"],
+        argNames: ["that", "deckId", "positionMs"],
       );
 
   @override
@@ -9805,11 +9811,19 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         path: path,
       );
 
-  Future<void> loopIn({required int deckId}) => RustLib.instance.api
-      .crateApiEngineEngineTransportLoopIn(that: this, deckId: deckId);
+  Future<void> loopIn({required int deckId, required int positionMs}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportLoopIn(
+        that: this,
+        deckId: deckId,
+        positionMs: positionMs,
+      );
 
-  Future<void> loopOut({required int deckId}) => RustLib.instance.api
-      .crateApiEngineEngineTransportLoopOut(that: this, deckId: deckId);
+  Future<void> loopOut({required int deckId, required int positionMs}) =>
+      RustLib.instance.api.crateApiEngineEngineTransportLoopOut(
+        that: this,
+        deckId: deckId,
+        positionMs: positionMs,
+      );
 
   Future<void> loopRollPadPress({required int deckId, required int slot}) =>
       RustLib.instance.api.crateApiEngineEngineTransportLoopRollPadPress(

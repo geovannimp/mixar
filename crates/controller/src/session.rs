@@ -131,6 +131,12 @@ impl MappingSession {
         self.refresh_hot_cue_leds(deck, midi);
     }
 
+    /// Mirror engine playhead so `loop_in` / `loop_out` can stamp `position_ms`.
+    pub fn set_deck_position_ms(&mut self, deck: u16, position_ms: i32) {
+        let i = (deck as usize).min(3);
+        self.snapshot.position_ms[i] = position_ms;
+    }
+
     /// Mirror engine `pad_mode` so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);

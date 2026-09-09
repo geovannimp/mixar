@@ -1561,6 +1561,7 @@ fn wire__crate__api__engine__EngineTransport_loop_in_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>,
             >>::sse_decode(&mut deserializer);
             let api_deck_id = <u16>::sse_decode(&mut deserializer);
+            let api_position_ms = <i32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -1581,6 +1582,7 @@ fn wire__crate__api__engine__EngineTransport_loop_in_impl(
                     let output_ok = crate::api::engine::EngineTransport::loop_in(
                         &*api_that_guard,
                         api_deck_id,
+                        api_position_ms,
                     )?;
                     Ok(output_ok)
                 })())
@@ -1614,6 +1616,7 @@ fn wire__crate__api__engine__EngineTransport_loop_out_impl(
                 flutter_rust_bridge::for_generated::RustAutoOpaqueInner<EngineTransport>,
             >>::sse_decode(&mut deserializer);
             let api_deck_id = <u16>::sse_decode(&mut deserializer);
+            let api_position_ms = <i32>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -1634,6 +1637,7 @@ fn wire__crate__api__engine__EngineTransport_loop_out_impl(
                     let output_ok = crate::api::engine::EngineTransport::loop_out(
                         &*api_that_guard,
                         api_deck_id,
+                        api_position_ms,
                     )?;
                     Ok(output_ok)
                 })())

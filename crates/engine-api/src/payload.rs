@@ -259,6 +259,14 @@ pub enum CmdBody {
     SetAutoLoop {
         beats: f32,
     },
+    /// Manual Loop In at caller-supplied media position (ms).
+    LoopIn {
+        position_ms: i32,
+    },
+    /// Manual Loop Out at caller-supplied media position (ms).
+    LoopOut {
+        position_ms: i32,
+    },
     BeatJump {
         beats: f32,
     },

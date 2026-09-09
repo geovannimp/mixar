@@ -351,8 +351,6 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
             | Kind::SetCuePoint
             | Kind::BeginCueHold
             | Kind::EndCueHold
-            | Kind::LoopIn
-            | Kind::LoopOut
             | Kind::ExitLoop
             | Kind::EndLoopRoll,
             CmdBody::Empty,
@@ -371,6 +369,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetQuantize, CmdBody::SetQuantize { .. })
         | (Kind::SetSlip, CmdBody::SetSlip { .. })
         | (Kind::SetAutoLoop, CmdBody::SetAutoLoop { .. })
+        | (Kind::LoopIn, CmdBody::LoopIn { .. })
+        | (Kind::LoopOut, CmdBody::LoopOut { .. })
         | (Kind::BeatJump, CmdBody::BeatJump { .. })
         | (Kind::SetPadMode, CmdBody::SetPadMode { .. })
         | (Kind::BeginLoopRoll, CmdBody::BeginLoopRoll { .. })
@@ -671,13 +671,17 @@ fn dispatch_deck_cmd(
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::LoopIn => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.set_deck_loop_in_at_playhead(deck_id)?;
+            let CmdBody::LoopIn { position_ms } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_loop_in(deck_id, position_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::LoopOut => {
-            let _ = decode_cmd_body_for(kind, payload)?;
-            eng.set_deck_loop_out_at_playhead(deck_id)?;
+            let CmdBody::LoopOut { position_ms } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_loop_out(deck_id, position_ms)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::ExitLoop => {

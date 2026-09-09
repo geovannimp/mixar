@@ -856,6 +856,13 @@ impl ControllerEngine {
         }
     }
 
+    /// Mirror engine playhead for loop In/Out position stamps.
+    pub fn set_deck_position_ms(&mut self, deck: u16, position_ms: i32) {
+        for attached in self.attached.values_mut() {
+            attached.session.set_deck_position_ms(deck, position_ms);
+        }
+    }
+
     /// Mirror engine pad mode so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
         for (port_name, attached) in self.attached.iter_mut() {

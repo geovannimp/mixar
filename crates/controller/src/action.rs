@@ -28,6 +28,8 @@ pub struct ControlSnapshot {
     pub crossfader: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
+    /// Last known playhead ms per deck (from Position / DeckUpdated).
+    pub position_ms: [i32; 4],
     /// Hot cue positions ms per deck/slot (None = empty).
     pub hot_cues: [[Option<i32>; HOT_CUE_SLOT_COUNT]; 4],
 }
@@ -50,6 +52,7 @@ impl Default for ControlSnapshot {
             crossfader: 0.5,
             cue_mix: 0.5,
             master_cue: false,
+            position_ms: [0; 4],
             hot_cues: [[None; HOT_CUE_SLOT_COUNT]; 4],
         }
     }
@@ -409,8 +412,36 @@ pub fn resolve_action(
                 },
             ))
         }
-        "loop_in" => active.then_some(engine_cmd(origin, Kind::LoopIn, CmdBody::Empty)),
-        "loop_out" => active.then_some(engine_cmd(origin, Kind::LoopOut, CmdBody::Empty)),
+        "loop_in" => {
+            if !active {
+                return None;
+            }
+            let Origin::Deck(d) = origin else {
+                return None;
+            };
+            Some(engine_cmd(
+                origin,
+                Kind::LoopIn,
+                CmdBody::LoopIn {
+                    position_ms: snap.position_ms[deck_idx(d)],
+                },
+            ))
+        }
+        "loop_out" => {
+            if !active {
+                return None;
+            }
+            let Origin::Deck(d) = origin else {
+                return None;
+            };
+            Some(engine_cmd(
+                origin,
+                Kind::LoopOut,
+                CmdBody::LoopOut {
+                    position_ms: snap.position_ms[deck_idx(d)],
+                },
+            ))
+        }
         "exit_loop" => active.then_some(engine_cmd(origin, Kind::ExitLoop, CmdBody::Empty)),
         "auto_loop" => {
             if !active {
@@ -970,6 +1001,44 @@ mod tests {
                 body: CmdBody::SetPadMode { mode },
                 ..
             } => assert_eq!(mode, PadMode::LoopRoll),
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+
+    #[test]
+    fn loop_in_out_stamp_snapshot_position() {
+        let mut snap = ControlSnapshot::default();
+        snap.position_ms[0] = 12_345;
+        let inn = resolve_action(
+            "Deck(_)::loop_in",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match inn {
+            RoutedAction::EngineCmd {
+                body: CmdBody::LoopIn { position_ms },
+                ..
+            } => assert_eq!(position_ms, 12_345),
+            other => panic!("unexpected {other:?}"),
+        }
+        let out = resolve_action(
+            "Deck(_)::loop_out",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        match out {
+            RoutedAction::EngineCmd {
+                body: CmdBody::LoopOut { position_ms },
+                ..
+            } => assert_eq!(position_ms, 12_345),
             other => panic!("unexpected {other:?}"),
         }
     }

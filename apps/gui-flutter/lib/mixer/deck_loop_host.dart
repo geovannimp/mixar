@@ -263,10 +263,16 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
         );
       },
       onLoopIn: () {
-        unawaited(_runEngine((e) => e.loopIn(deckId: widget.deckId)));
+        final ms = ref.read(deckPositionMsProvider(widget.deckId));
+        unawaited(
+          _runEngine((e) => e.loopIn(deckId: widget.deckId, positionMs: ms)),
+        );
       },
       onLoopOut: () {
-        unawaited(_runEngine((e) => e.loopOut(deckId: widget.deckId)));
+        final ms = ref.read(deckPositionMsProvider(widget.deckId));
+        unawaited(
+          _runEngine((e) => e.loopOut(deckId: widget.deckId, positionMs: ms)),
+        );
       },
       onBeatsChipPress: () {
         unawaited(_onBeatsChip(savedAtSlot: savedAtSlot, trackId: trackId));

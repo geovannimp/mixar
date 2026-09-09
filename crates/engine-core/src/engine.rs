@@ -1684,12 +1684,29 @@ impl Engine {
         self.set_deck_loop_region(deck_id, in_ms, out_ms)
     }
 
+    /// Resolve a caller-supplied loop boundary: clamp, then snap only when Quantize is on.
+    fn resolve_loop_boundary_ms(&self, deck_id: usize, position_ms: i32, op: &str) -> Result<i32> {
+        let (bpm, quantize) = self.deck_bpm_quantize(deck_id)?;
+        let (_, duration_ms) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
+        let clamp = |ms: i32| {
+            if duration_ms > 0 {
+                ms.clamp(0, duration_ms)
+            } else {
+                ms.max(0)
+            }
+        };
+        let raw = clamp(position_ms);
+        if quantize {
+            let bpm = require_positive_bpm(bpm, op)?;
+            Ok(clamp(snap_ms(raw, Some(bpm), true)))
+        } else {
+            Ok(raw)
+        }
+    }
+
     /// Set manual Loop In: pending when no active region; edit In when a region is active.
-    pub fn set_deck_loop_in_at_playhead(&mut self, deck_id: usize) -> Result<()> {
-        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = require_positive_bpm(bpm, "loop in")?;
-        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let in_ms = snap_ms(position_ms, Some(bpm), true);
+    pub fn set_deck_loop_in(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
+        let in_ms = self.resolve_loop_boundary_ms(deck_id, position_ms, "loop in")?;
         if let Some((_, out_ms)) = self
             .deck_transport_state(deck_id)
             .and_then(|(_, loop_region)| loop_region)
@@ -1708,11 +1725,8 @@ impl Engine {
     }
 
     /// Set manual Loop Out: complete pending In, or edit Out of an active region.
-    pub fn set_deck_loop_out_at_playhead(&mut self, deck_id: usize) -> Result<()> {
-        let (bpm, _) = self.deck_bpm_quantize(deck_id)?;
-        let bpm = require_positive_bpm(bpm, "loop out")?;
-        let (position_ms, _) = self.deck_playback_ms(deck_id).unwrap_or((0, 0));
-        let out_ms = snap_ms(position_ms, Some(bpm), true);
+    pub fn set_deck_loop_out(&mut self, deck_id: usize, position_ms: i32) -> Result<()> {
+        let out_ms = self.resolve_loop_boundary_ms(deck_id, position_ms, "loop out")?;
         let pending_in = self
             .deck_control
             .get(deck_id)
