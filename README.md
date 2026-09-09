@@ -98,6 +98,21 @@ engine.play(0)?;
 
 For external tools (e.g. OBS text sources), watch the active session file under `{appSupport}/history/*.xspf` — see [history-spec §11](docs/history-spec.md#11--live-output-obs).
 
+## Cutting a release
+
+1. Push a semver tag: `git tag v0.1.0 && git push origin v0.1.0` (pre-releases: `v0.1.0-beta.1`).
+2. GitHub Actions workflow **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release (pre-release tags are marked `prerelease`).
+3. Review assets/notes on the draft, then publish.
+
+Version in `apps/gui-flutter/pubspec.yaml` is stamped from the tag for that build only (tag is source of truth). Artifacts are unsigned until signing secrets are configured (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`; `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`).
+
+Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
+
+```bash
+npx moon run gui-flutter:package-linux
+# RELEASE_TAG=v0.1.0 BUILD_NUMBER=1 npx moon run gui-flutter:package-linux
+```
+
 ## Contributing
 
 Open a pull request against `main`. Run `npm install` once so git hooks are installed, then keep `cargo fmt` / `cargo clippy` and Flutter analyze clean.

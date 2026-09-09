@@ -1,0 +1,39 @@
+name: Install Flutter desktop packaging deps
+description: Install OS packages needed to build and package Flutter desktop (AppImage/DMG/EXE)
+
+inputs:
+  platform:
+    description: linux | macos | windows
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Linux Flutter + AppImage tools
+      if: inputs.platform == 'linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang cmake ninja-build pkg-config \
+          libgtk-3-dev liblzma-dev libstdc++-12-dev \
+          libfuse2 fuse locate wget
+        sudo updatedb || true
+        curl -fsSL -o appimagetool \
+          "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+        chmod +x appimagetool
+        sudo mv appimagetool /usr/local/bin/appimagetool
+
+    - name: macOS DMG tools
+      if: inputs.platform == 'macos'
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install -g appdmg
+
+    - name: Windows Inno Setup
+      if: inputs.platform == 'windows'
+      shell: pwsh
+      run: |
+        choco install innosetup -y --no-progress

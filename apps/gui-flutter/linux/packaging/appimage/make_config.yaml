@@ -1,0 +1,12 @@
+display_name: Mixar
+icon: assets/mixar-icon.png
+generic_name: DJ Software
+categories:
+  - AudioVideo
+  - Audio
+keywords:
+  - DJ
+  - mixer
+  - audio
+startup_notify: true
+include: []

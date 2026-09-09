@@ -50,6 +50,91 @@ tasks:
     options:
       runInCI: false
 
+  build-linux-release:
+    command: "mise"
+    args: ["exec", "--", "flutter", "build", "linux", "--release"]
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+    options:
+      runInCI: false
+
+  # Local installer smoke tests (host OS must match). Optional:
+  #   RELEASE_TAG=v0.1.0 BUILD_NUMBER=1 moon run gui-flutter:package-linux
+  # Requires: fastforge (+ appimagetool on Linux / appdmg on macOS / Inno Setup on Windows).
+  package-linux:
+    command: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+        ROOT="$(git rev-parse --show-toplevel)"
+        if [ -n "${RELEASE_TAG:-}" ]; then
+          bash "$ROOT/scripts/stamp-release-version.sh" "$RELEASE_TAG" "${BUILD_NUMBER:-1}" "$ROOT/apps/gui-flutter/pubspec.yaml"
+        fi
+        mise exec -- dart pub global activate fastforge
+        export PATH="${HOME}/.pub-cache/bin:${PATH}"
+        mise exec -- bash -c 'export PATH="${HOME}/.pub-cache/bin:${PATH}"; exec fastforge package --platform linux --targets appimage'
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+      - "distribute_options.yaml"
+      - "linux/packaging/**/*"
+    options:
+      runInCI: false
+      cache: false
+
+  package-macos:
+    command: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+        ROOT="$(git rev-parse --show-toplevel)"
+        if [ -n "${RELEASE_TAG:-}" ]; then
+          bash "$ROOT/scripts/stamp-release-version.sh" "$RELEASE_TAG" "${BUILD_NUMBER:-1}" "$ROOT/apps/gui-flutter/pubspec.yaml"
+        fi
+        mise exec -- dart pub global activate fastforge
+        export PATH="${HOME}/.pub-cache/bin:${PATH}"
+        mise exec -- bash -c 'export PATH="${HOME}/.pub-cache/bin:${PATH}"; exec fastforge package --platform macos --targets dmg'
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+      - "distribute_options.yaml"
+      - "macos/packaging/**/*"
+    options:
+      runInCI: false
+      cache: false
+
+  package-windows:
+    command: "bash"
+    args:
+      - "-c"
+      - |
+        set -euo pipefail
+        unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX
+        ROOT="$(git rev-parse --show-toplevel)"
+        if [ -n "${RELEASE_TAG:-}" ]; then
+          bash "$ROOT/scripts/stamp-release-version.sh" "$RELEASE_TAG" "${BUILD_NUMBER:-1}" "$ROOT/apps/gui-flutter/pubspec.yaml"
+        fi
+        mise exec -- dart pub global activate fastforge
+        export PATH="${HOME}/.pub-cache/bin:${LOCALAPPDATA:+$LOCALAPPDATA/Pub/Cache/bin:}${PATH}"
+        mise exec -- bash -c 'export PATH="${HOME}/.pub-cache/bin:${LOCALAPPDATA:+$LOCALAPPDATA/Pub/Cache/bin:}${PATH}"; exec fastforge package --platform windows --targets exe'
+    toolchain: "system"
+    inputs:
+      - "@group(sources)"
+      - "@group(rustBuilder)"
+      - "distribute_options.yaml"
+      - "windows/packaging/**/*"
+    options:
+      runInCI: false
+      cache: false
+
   # Regenerate launcher icons from assets/mixar-icon*.png
   icons:
     command: "bash"
