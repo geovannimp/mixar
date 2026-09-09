@@ -22,6 +22,8 @@ fail() {
 "$SCRIPT" "1.0.0" 1 "$FIXTURE" >/dev/null 2>&1 && fail "expected tag without v to fail"
 "$SCRIPT" "vabc" 1 "$FIXTURE" >/dev/null 2>&1 && fail "expected non-semver to fail"
 "$SCRIPT" "v1.2.3" nope "$FIXTURE" >/dev/null 2>&1 && fail "expected non-numeric build to fail"
+"$SCRIPT" "v1.2.3-beta." 1 "$FIXTURE" >/dev/null 2>&1 && fail "expected trailing-dot prerelease to fail"
+"$SCRIPT" "v1.2.3-beta..1" 1 "$FIXTURE" >/dev/null 2>&1 && fail "expected empty prerelease segment to fail"
 
 out="$("$SCRIPT" "v1.2.3" 42 "$FIXTURE")"
 grep -q '^version: 1\.2\.3+42$' "$FIXTURE" || fail "stable stamp: $(cat "$FIXTURE")"

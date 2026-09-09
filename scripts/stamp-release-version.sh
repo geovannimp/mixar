@@ -18,8 +18,8 @@ if [[ ! "$BUILD" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
-# v1.2.3 or v1.2.3-beta.1 (pre-release after first hyphen)
-if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]]; then
+# v1.2.3 or v1.2.3-beta.1 — prerelease ids must be non-empty and dot-separated
+if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
   echo "invalid tag (want vMAJOR.MINOR.PATCH[-prerelease]): $TAG" >&2
   exit 1
 fi

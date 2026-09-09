@@ -104,7 +104,7 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 2. GitHub Actions workflow **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release (pre-release tags are marked `prerelease`).
 3. Review assets/notes on the draft, then publish.
 
-Version in `apps/gui-flutter/pubspec.yaml` is stamped from the tag for that build only (tag is source of truth). Artifacts are unsigned until signing secrets are configured (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`; `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`).
+Version in `apps/gui-flutter/pubspec.yaml` is stamped from the tag for that build only (tag is source of truth). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
 
 Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
 
