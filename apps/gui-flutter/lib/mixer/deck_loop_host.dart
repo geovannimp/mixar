@@ -226,10 +226,6 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
         ref.watch(deckPendingLoopInMsProvider(widget.deckId)) != null;
     final savedLoops = ref.watch(deckSavedLoopsProvider(widget.deckId));
     final positionMs = ref.watch(deckPositionMsProvider(widget.deckId));
-    final quantize = ref.watch(deckQuantizeProvider(widget.deckId));
-    final bpm = ref.watch(deckBpmProvider(widget.deckId));
-    final disableBoundaryEdit =
-        quantize && (bpm == null || !bpm.isFinite || bpm <= 0);
 
     final slot = autoLoopSlotForBeats(_loopBeats);
     SavedLoopInfo? savedAtSlot;
@@ -283,7 +279,6 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
       },
       hasTrack: widget.hasTrack,
       disabled: widget.disabled,
-      disableBoundaryEdit: disableBoundaryEdit,
       bordered: widget.bordered,
     );
   }

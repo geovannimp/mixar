@@ -14,10 +14,11 @@ fn recv_evt_kind(
     let deadline = Instant::now() + Duration::from_secs(2);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
+        let event = match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) => event,
+            Ok(None) => continue,
+            Err(error) => panic!("recv: {error}"),
+        };
         if *event.kind() == kind {
             return (*event).clone();
         }
