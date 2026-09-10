@@ -109,15 +109,14 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0
 ```
 
-Either path: **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release. Review assets/notes on the draft, then publish.
+Either path: **Release** checks out the tag (already containing the bumped pubspec) and builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release. Review assets/notes on the draft, then publish.
 
-The create-tag workflow owns the marketed Flutter version on the branch; **Release** still stamps build-name/number from the tag for that packaging run. Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
+App version is set once at tag creation (`dart pub bump` + commit). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
 
 Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
 
 ```bash
 npx moon run gui-flutter:package-linux
-# RELEASE_TAG=v0.1.0 BUILD_NUMBER=1 npx moon run gui-flutter:package-linux
 ```
 
 ## Contributing

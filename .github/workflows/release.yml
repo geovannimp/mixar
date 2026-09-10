@@ -89,18 +89,6 @@ jobs:
           shared-key: release-${{ matrix.platform }}
           cache-on-failure: true
 
-      - name: Stamp version from tag
-        id: version
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash scripts/stamp-release-version.sh \
-            "${{ steps.tag.outputs.name }}" \
-            "${{ github.run_number }}" \
-            apps/gui-flutter/pubspec.yaml | tee /tmp/stamp.out
-          grep '^VERSION_NAME=' /tmp/stamp.out >> "$GITHUB_OUTPUT"
-          grep '^VERSION_BUILD=' /tmp/stamp.out >> "$GITHUB_OUTPUT"
-
       - name: Scaffold macOS signing (optional)
         if: matrix.platform == 'macos'
         shell: bash
