@@ -67,7 +67,7 @@ jobs:
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             mise exec -- dart pub bump "${{ inputs.bump }}" --dry-run | tee /tmp/bump.out
             # "Would update version from 1.0.0+1 to 1.0.1."
-            NEW="$(sed -nE 's/.* to ([0-9][0-9A-Za-z.+-]+)\.?$/\1/p' /tmp/bump.out | head -n1)"
+            NEW="$(sed -nE 's/.* to ([0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)?).*/\1/p' /tmp/bump.out | head -n1)"
             if [ -z "$NEW" ]; then
               echo "failed to parse dry-run version from dart pub bump output" >&2
               cat /tmp/bump.out >&2
