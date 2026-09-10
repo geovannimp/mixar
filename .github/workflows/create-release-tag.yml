@@ -1,10 +1,10 @@
 name: Create release tag
 
-# Bumps Flutter pubspec via `dart pub bump` (major|minor|patch), commits, tags v*,
-# and starts the Release workflow. Uses RELEASE_TOKEN (admin PAT) to push to the
-# protected default branch — GITHUB_TOKEN cannot bypass personal-repo rulesets.
-# Tag pushes with GITHUB_TOKEN also do not trigger other workflows, so Release is
-# dispatched explicitly. See: https://dart.dev/tools/pub/cmd/pub-bump
+# Bumps Flutter pubspec via `dart pub bump` (major|minor|patch), commits, and
+# pushes an annotated v* tag with RELEASE_TOKEN (admin PAT). That tag push
+# starts the Release workflow (PAT tag pushes DO trigger workflows; the old
+# explicit gh workflow run was redundant and caused double builds).
+# See: https://dart.dev/tools/pub/cmd/pub-bump
 
 on:
   workflow_dispatch:
@@ -23,19 +23,18 @@ on:
         type: string
         default: ''
       dry_run:
-        description: Preview next version without committing, tagging, or releasing
+        description: Preview next version without committing or tagging
         required: false
         type: boolean
         default: false
-      skip_release:
-        description: Commit + tag only; do not start the Release workflow
+      skip_tag:
+        description: Commit the version bump only; do not create/push the tag (no Release)
         required: false
         type: boolean
         default: false
 
 permissions:
   contents: write
-  actions: write
 
 concurrency:
   group: create-release-tag-${{ inputs.ref != '' && inputs.ref || github.ref_name }}
@@ -101,7 +100,7 @@ jobs:
         if: ${{ inputs.dry_run }}
         shell: bash
         run: |
-          echo "dry_run=true — no commit, tag, or release was created."
+          echo "dry_run=true — no commit or tag was created."
 
       - name: Commit version bump
         if: ${{ !inputs.dry_run }}
@@ -112,7 +111,7 @@ jobs:
           RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
-          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+          if [ "${{ inputs.skip_tag }}" != "true" ] && git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             echo "Tag already exists on origin: $TAG" >&2
             exit 1
           fi
@@ -128,7 +127,7 @@ jobs:
           echo "Pushed version commit $(git rev-parse --short HEAD) as ${login}"
 
       - name: Create and push annotated tag
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && !inputs.skip_tag }}
         shell: bash
         env:
           TAG: ${{ steps.ver.outputs.TAG }}
@@ -137,16 +136,4 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "refs/tags/$TAG"
           echo "Pushed $TAG → $(git rev-parse HEAD)"
-
-      - name: Dispatch Release workflow
-        if: ${{ !inputs.dry_run && !inputs.skip_release }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.ver.outputs.TAG }}
-        run: |
-          set -euo pipefail
-          gh workflow run release.yml \
-            --repo "${{ github.repository }}" \
-            --ref "${{ github.ref_name }}" \
-            -f "tag=$TAG"
-          echo "Started Release for $TAG (draft when packaging finishes)"
+          echo "Release workflow should start from this tag push (no separate dispatch)."

@@ -100,7 +100,7 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 
 ## Cutting a release
 
-**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It runs [`dart pub bump`](https://dart.dev/tools/pub/cmd/pub-bump) in `apps/gui-flutter`, commits the pubspec change with `RELEASE_TOKEN`, creates an annotated `v*` tag, and starts **Release** (use *dry_run* to preview only, or *skip_release* to bump+tag without packaging).
+**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It runs [`dart pub bump`](https://dart.dev/tools/pub/cmd/pub-bump) in `apps/gui-flutter`, commits with `RELEASE_TOKEN`, and pushes an annotated `v*` tag. That tag push starts **Release** once (use *dry_run* to preview, or *skip_tag* to bump without tagging/packaging).
 
 Requires repository secret **`RELEASE_TOKEN`**: a PAT for a repo admin with `contents: write`. On personal repos GitHub Actions cannot be added to the ruleset bypass list, so the PAT owner (or **Repository role: Admin**) must be on **Main Protect → Bypass list → Always allow**, or the push will still fail required-PR / signed-commit rules.
 
