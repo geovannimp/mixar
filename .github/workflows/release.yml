@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             platform: linux
             target: appimage
             artifact_pattern: 'apps/gui-flutter/dist/**/*.AppImage'
@@ -163,10 +163,17 @@ jobs:
         run: |
           set -euo pipefail
           mise exec -- dart pub global activate fastforge
-          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
-          if [ -n "${LOCALAPPDATA:-}" ]; then
-            echo "$LOCALAPPDATA/Pub/Cache/bin" >> "$GITHUB_PATH"
+          # Linux/macOS: ~/.pub-cache/bin — Windows: %LOCALAPPDATA%\Pub\Cache\bin
+          # Git bash often has no LOCALAPPDATA, so fall back to $HOME/AppData/...
+          if [ -d "${LOCALAPPDATA:-}/Pub/Cache/bin" ]; then
+            PUB_BIN="${LOCALAPPDATA}/Pub/Cache/bin"
+          elif [ -d "${HOME}/AppData/Local/Pub/Cache/bin" ]; then
+            PUB_BIN="${HOME}/AppData/Local/Pub/Cache/bin"
+          else
+            PUB_BIN="${HOME}/.pub-cache/bin"
           fi
+          echo "PUB_BIN=$PUB_BIN" >> "$GITHUB_ENV"
+          echo "$PUB_BIN" >> "$GITHUB_PATH"
           mise exec -- flutter config --enable-linux-desktop --enable-macos-desktop --enable-windows-desktop || true
 
       - name: Package with Fastforge
@@ -174,11 +181,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:${HOME}/.pub-cache/bin:${LOCALAPPDATA:+$LOCALAPPDATA/Pub/Cache/bin:}$PATH"
-          # mise-action puts Flutter/Rust on PATH; fastforge shells out to `flutter build`.
-          fastforge package \
-            --platform "${{ matrix.platform }}" \
-            --targets "${{ matrix.target }}"
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:${PUB_BIN:-$HOME/.pub-cache/bin}:$PATH"
+          if ! command -v fastforge >/dev/null 2>&1; then
+            # Fallback when PATH/GITHUB_PATH did not pick up the Windows pub bin.
+            mise exec -- dart pub global run fastforge:main -- package \
+              --platform "${{ matrix.platform }}" \
+              --targets "${{ matrix.target }}"
+          else
+            fastforge package \
+              --platform "${{ matrix.platform }}" \
+              --targets "${{ matrix.target }}"
+          fi
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
