@@ -35,11 +35,13 @@ A new Flutter FFI plugin project.
     # created by this build step.
     :output_files => ["${BUILT_PRODUCTS_DIR}/libhost_flutter.a"],
   }
+  # force_load of the static Rust lib does not pull cargo's framework link args;
+  # midir/cpal need these for universal (x86_64) Flutter macOS links.
+  s.frameworks = 'AudioToolbox', 'CoreAudio', 'CoreMIDI'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    # midir/coremidi needs CoreMIDI; without it universal (x86_64) link fails.
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -framework CoreMIDI',
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a',
   }
 end
