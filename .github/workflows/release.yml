@@ -23,6 +23,9 @@ jobs:
     name: package-${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: write
     strategy:
       fail-fast: false
       matrix:
@@ -192,6 +195,7 @@ jobs:
     if: github.event_name == 'push' || inputs.tag != ''
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v7
 
