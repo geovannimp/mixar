@@ -70,6 +70,21 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify tag matches pubspec version
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          set -euo pipefail
+          PUBSPEC_VER="$(grep -E '^version:' apps/gui-flutter/pubspec.yaml | head -n1 | awk '{print $2}')"
+          PUBSPEC_NAME="${PUBSPEC_VER%%+*}"
+          TAG_NAME="${TAG#v}"
+          if [ "$TAG_NAME" != "$PUBSPEC_NAME" ]; then
+            echo "Tag $TAG does not match pubspec version $PUBSPEC_VER (expected v${PUBSPEC_NAME})" >&2
+            exit 1
+          fi
+          echo "OK: $TAG matches pubspec $PUBSPEC_VER"
+
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
 
