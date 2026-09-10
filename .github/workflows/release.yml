@@ -49,6 +49,17 @@ jobs:
           # Tag push uses github.ref; manual rebuild checks out the given tag.
           ref: ${{ (github.event_name == 'workflow_dispatch' && inputs.tag != '') && inputs.tag || github.ref }}
 
+      # Plugin cargokit copies under %PUB_CACHE% hit Hidden AppData via
+      # resolve_symlinks.ps1 (Get-Item without -Force). Keep Windows pub cache
+      # off AppData so super_native_extensions / host_flutter can build.
+      - name: Use non-AppData PUB_CACHE (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /c/tmp/pubcache
+          echo "PUB_CACHE=C:/tmp/pubcache" >> "$GITHUB_ENV"
+
       - name: Resolve tag
         id: tag
         shell: bash
