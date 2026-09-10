@@ -1,9 +1,10 @@
 name: Create release tag
 
 # Bumps Flutter pubspec via `dart pub bump` (major|minor|patch), commits, tags v*,
-# and starts the Release workflow. GITHUB_TOKEN tag pushes do not trigger other
-# workflows, so Release is dispatched explicitly.
-# See: https://dart.dev/tools/pub/cmd/pub-bump
+# and starts the Release workflow. Uses RELEASE_TOKEN (admin PAT) to push to the
+# protected default branch — GITHUB_TOKEN cannot bypass personal-repo rulesets.
+# Tag pushes with GITHUB_TOKEN also do not trigger other workflows, so Release is
+# dispatched explicitly. See: https://dart.dev/tools/pub/cmd/pub-bump
 
 on:
   workflow_dispatch:
@@ -45,12 +46,25 @@ jobs:
     name: bump-and-tag
     runs-on: ubuntu-latest
     steps:
+      - name: Require RELEASE_TOKEN
+        if: ${{ !inputs.dry_run }}
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_TOKEN}" ]; then
+            echo "Missing repository secret RELEASE_TOKEN (admin PAT with contents:write)." >&2
+            echo "The PAT owner must be on the Main Protect ruleset bypass list (Always allow)," >&2
+            echo "because GitHub Actions cannot be added as a bypass actor on personal repos." >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ inputs.dry_run && github.token || secrets.RELEASE_TOKEN }}
 
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
@@ -95,18 +109,23 @@ jobs:
         env:
           TAG: ${{ steps.ver.outputs.TAG }}
           NAME: ${{ steps.ver.outputs.VERSION_NAME }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           set -euo pipefail
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             echo "Tag already exists on origin: $TAG" >&2
             exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Attribute the commit to the PAT owner (ruleset evaluates the pusher).
+          login="$(curl -fsSL -H "Authorization: Bearer ${RELEASE_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user | jq -r .login)"
+          git config user.name "${login}"
+          git config user.email "${login}@users.noreply.github.com"
           git add apps/gui-flutter/pubspec.yaml
           git commit -m "chore(gui-flutter): bump version to ${NAME}"
           git push origin HEAD
-          echo "Pushed version commit $(git rev-parse --short HEAD)"
+          echo "Pushed version commit $(git rev-parse --short HEAD) as ${login}"
 
       - name: Create and push annotated tag
         if: ${{ !inputs.dry_run }}
