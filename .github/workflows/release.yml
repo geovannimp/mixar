@@ -163,7 +163,8 @@ jobs:
         run: |
           set -euo pipefail
           mise exec -- dart pub global activate fastforge
-          # Linux/macOS: ~/.pub-cache/bin — Windows: %LOCALAPPDATA%\Pub\Cache\bin
+          # Linux/macOS: ~/.pub-cache/bin
+          # Windows: %LOCALAPPDATA%\Pub\Cache\bin
           # Git bash often has no LOCALAPPDATA, so fall back to $HOME/AppData/...
           if [ -d "${LOCALAPPDATA:-}/Pub/Cache/bin" ]; then
             PUB_BIN="${LOCALAPPDATA}/Pub/Cache/bin"
