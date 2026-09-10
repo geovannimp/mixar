@@ -1,0 +1,47 @@
+name: Install Flutter desktop packaging deps
+description: Install OS packages needed to build and package Flutter desktop (AppImage/DMG/EXE)
+
+inputs:
+  platform:
+    description: linux | macos | windows
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Linux Flutter + AppImage tools
+      if: inputs.platform == 'linux'
+      shell: bash
+      env:
+        # Pinned release — bump deliberately; verify SHA-256 below.
+        APPIMAGETOOL_URL: https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+        APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang cmake ninja-build pkg-config \
+          libgtk-3-dev liblzma-dev libstdc++-12-dev \
+          libfuse2 fuse locate wget desktop-file-utils
+        sudo updatedb || true
+        curl -fsSL --retry 3 -o appimagetool "$APPIMAGETOOL_URL"
+        actual="$(sha256sum appimagetool | awk '{print $1}')"
+        if [ "$actual" != "$APPIMAGETOOL_SHA256" ]; then
+          echo "appimagetool SHA-256 mismatch: expected $APPIMAGETOOL_SHA256 got $actual" >&2
+          exit 1
+        fi
+        chmod +x appimagetool
+        sudo mv appimagetool /usr/local/bin/appimagetool
+
+    - name: macOS DMG tools
+      if: inputs.platform == 'macos'
+      shell: bash
+      run: |
+        set -euo pipefail
+        npm install -g appdmg@0.6.6
+
+    - name: Windows Inno Setup
+      if: inputs.platform == 'windows'
+      shell: pwsh
+      run: |
+        choco install innosetup --version=6.7.1 -y --no-progress

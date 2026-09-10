@@ -1,0 +1,18 @@
+# Fastforge packaging config for Mixar desktop installers.
+# Run from this directory: fastforge package --platform <os> --targets <target>
+output: dist/
+releases:
+  - name: production
+    jobs:
+      - name: linux-appimage
+        package:
+          platform: linux
+          target: appimage
+      - name: macos-dmg
+        package:
+          platform: macos
+          target: dmg
+      - name: windows-exe
+        package:
+          platform: windows
+          target: exe

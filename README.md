@@ -98,6 +98,27 @@ engine.play(0)?;
 
 For external tools (e.g. OBS text sources), watch the active session file under `{appSupport}/history/*.xspf` — see [history-spec §11](docs/history-spec.md#11--live-output-obs).
 
+## Cutting a release
+
+**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It runs [`dart pub bump`](https://dart.dev/tools/pub/cmd/pub-bump) in `apps/gui-flutter`, commits the pubspec change, creates an annotated `v*` tag, and starts **Release** (use *dry_run* to preview only, or *skip_release* to bump+tag without packaging).
+
+**CLI:**
+
+```bash
+# bump pubspec first, then:
+git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0
+```
+
+Either path: **Release** checks out the tag (already containing the bumped pubspec) and builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release. Review assets/notes on the draft, then publish.
+
+App version is set once at tag creation (`dart pub bump` + commit). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
+
+Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
+
+```bash
+npx moon run gui-flutter:package-linux
+```
+
 ## Contributing
 
 Open a pull request against `main`. Run `npm install` once so git hooks are installed, then keep `cargo fmt` / `cargo clippy` and Flutter analyze clean.

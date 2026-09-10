@@ -1,0 +1,133 @@
+name: Create release tag
+
+# Bumps Flutter pubspec via `dart pub bump` (major|minor|patch), commits, tags v*,
+# and starts the Release workflow. GITHUB_TOKEN tag pushes do not trigger other
+# workflows, so Release is dispatched explicitly.
+# See: https://dart.dev/tools/pub/cmd/pub-bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semver component to increment
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      ref:
+        description: Branch to bump and tag (empty = this workflow's ref)
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: Preview next version without committing, tagging, or releasing
+        required: false
+        type: boolean
+        default: false
+      skip_release:
+        description: Commit + tag only; do not start the Release workflow
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: create-release-tag-${{ inputs.ref != '' && inputs.ref || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: bump-and-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup toolchains
+        uses: ./.github/actions/setup-toolchains
+
+      - name: Bump Flutter version
+        id: ver
+        working-directory: apps/gui-flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          OLD="$(grep -E '^version:' pubspec.yaml | head -n1 | awk '{print $2}')"
+          echo "OLD_VERSION=$OLD" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            mise exec -- dart pub bump "${{ inputs.bump }}" --dry-run | tee /tmp/bump.out
+            # "Would update version from 1.0.0+1 to 1.0.1."
+            NEW="$(sed -nE 's/.* to ([0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.]+)?).*/\1/p' /tmp/bump.out | head -n1)"
+            if [ -z "$NEW" ]; then
+              echo "failed to parse dry-run version from dart pub bump output" >&2
+              cat /tmp/bump.out >&2
+              exit 1
+            fi
+          else
+            mise exec -- dart pub bump "${{ inputs.bump }}"
+            NEW="$(grep -E '^version:' pubspec.yaml | head -n1 | awk '{print $2}')"
+          fi
+
+          NAME="${NEW%%+*}"
+          echo "VERSION_NAME=$NAME" >> "$GITHUB_OUTPUT"
+          echo "TAG=v${NAME}" >> "$GITHUB_OUTPUT"
+          echo "bump=${{ inputs.bump }} $OLD → $NEW (tag=v${NAME})"
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        shell: bash
+        run: |
+          echo "dry_run=true — no commit, tag, or release was created."
+
+      - name: Commit version bump
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.TAG }}
+          NAME: ${{ steps.ver.outputs.VERSION_NAME }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Tag already exists on origin: $TAG" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/gui-flutter/pubspec.yaml
+          git commit -m "chore(gui-flutter): bump version to ${NAME}"
+          git push origin HEAD
+          echo "Pushed version commit $(git rev-parse --short HEAD)"
+
+      - name: Create and push annotated tag
+        if: ${{ !inputs.dry_run }}
+        shell: bash
+        env:
+          TAG: ${{ steps.ver.outputs.TAG }}
+        run: |
+          set -euo pipefail
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/$TAG"
+          echo "Pushed $TAG → $(git rev-parse HEAD)"
+
+      - name: Dispatch Release workflow
+        if: ${{ !inputs.dry_run && !inputs.skip_release }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.ver.outputs.TAG }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${{ github.ref_name }}" \
+            -f "tag=$TAG"
+          echo "Started Release for $TAG (draft when packaging finishes)"

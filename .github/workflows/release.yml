@@ -1,0 +1,244 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to rebuild (e.g. v0.1.0). Leave empty when triggered by a tag push.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  LEFTHOOK: '0'
+
+jobs:
+  build:
+    name: package-${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+            target: appimage
+            artifact_pattern: 'apps/gui-flutter/dist/**/*.AppImage'
+          - os: macos-latest
+            platform: macos
+            target: dmg
+            artifact_pattern: 'apps/gui-flutter/dist/**/*.dmg'
+          - os: windows-latest
+            platform: windows
+            target: exe
+            artifact_pattern: 'apps/gui-flutter/dist/**/*.exe'
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Tag push uses github.ref; manual rebuild checks out the given tag.
+          ref: ${{ (github.event_name == 'workflow_dispatch' && inputs.tag != '') && inputs.tag || github.ref }}
+
+      - name: Resolve tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v*) ;;
+            *)
+              echo "Tag must start with v (got: $TAG)" >&2
+              exit 1
+              ;;
+          esac
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify tag matches pubspec version
+        shell: bash
+        env:
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          set -euo pipefail
+          PUBSPEC_VER="$(grep -E '^version:' apps/gui-flutter/pubspec.yaml | head -n1 | awk '{print $2}')"
+          PUBSPEC_NAME="${PUBSPEC_VER%%+*}"
+          TAG_NAME="${TAG#v}"
+          if [ "$TAG_NAME" != "$PUBSPEC_NAME" ]; then
+            echo "Tag $TAG does not match pubspec version $PUBSPEC_VER (expected v${PUBSPEC_NAME})" >&2
+            exit 1
+          fi
+          echo "OK: $TAG matches pubspec $PUBSPEC_VER"
+
+      - name: Setup toolchains
+        uses: ./.github/actions/setup-toolchains
+
+      - name: Install native audio deps (Linux)
+        if: matrix.platform == 'linux'
+        uses: ./.github/actions/install-native-deps
+
+      - name: Install Flutter desktop packaging deps
+        uses: ./.github/actions/install-flutter-desktop-deps
+        with:
+          platform: ${{ matrix.platform }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates -> target
+          shared-key: release-${{ matrix.platform }}
+          cache-on-failure: true
+
+      - name: Scaffold macOS signing (optional)
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MACOS_CERTIFICATE:-}" ]; then
+            echo "MACOS_CERTIFICATE unset — shipping unsigned macOS build"
+            exit 0
+          fi
+          if [ -z "${MACOS_CERTIFICATE_PASSWORD:-}" ] || [ -z "${KEYCHAIN_PASSWORD:-}" ]; then
+            echo "macOS signing secrets incomplete — shipping unsigned" >&2
+            exit 0
+          fi
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import "$RUNNER_TEMP/certificate.p12" -k build.keychain \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          if [ -n "${MACOS_SIGNING_IDENTITY:-}" ]; then
+            echo "CODESIGN_IDENTITY=$MACOS_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          fi
+          echo "macOS signing keychain ready (notarization not configured in v1)"
+
+      - name: Scaffold Windows signing (optional)
+        if: matrix.platform == 'windows'
+        shell: bash
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${WINDOWS_CERTIFICATE:-}" ]; then
+            echo "WINDOWS_CERTIFICATE unset — shipping unsigned Windows build"
+            exit 0
+          fi
+          if [ -z "${WINDOWS_CERTIFICATE_PASSWORD:-}" ]; then
+            echo "WINDOWS_CERTIFICATE_PASSWORD unset — shipping unsigned" >&2
+            exit 0
+          fi
+          echo "$WINDOWS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/windows-cert.pfx"
+          echo "WINDOWS_PFX_PATH=$RUNNER_TEMP/windows-cert.pfx" >> "$GITHUB_ENV"
+          echo "WINDOWS_PFX_PASSWORD=$WINDOWS_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
+          echo "Windows PFX written — Authenticode/Inno signing hook ready for a follow-up"
+
+      - name: Install Fastforge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mise exec -- dart pub global activate fastforge
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+          if [ -n "${LOCALAPPDATA:-}" ]; then
+            echo "$LOCALAPPDATA/Pub/Cache/bin" >> "$GITHUB_PATH"
+          fi
+          mise exec -- flutter config --enable-linux-desktop --enable-macos-desktop --enable-windows-desktop || true
+
+      - name: Package with Fastforge
+        working-directory: apps/gui-flutter
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:${HOME}/.pub-cache/bin:${LOCALAPPDATA:+$LOCALAPPDATA/Pub/Cache/bin:}$PATH"
+          # mise-action puts Flutter/Rust on PATH; fastforge shells out to `flutter build`.
+          fastforge package \
+            --platform "${{ matrix.platform }}" \
+            --targets "${{ matrix.target }}"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mixar-${{ matrix.platform }}-${{ steps.tag.outputs.name }}
+          path: ${{ matrix.artifact_pattern }}
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: draft-github-release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || inputs.tag != ''
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Resolve tag metadata
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: mixar-*
+          merge-multiple: true
+
+      - name: List assets
+        shell: bash
+        run: find release-assets -type f -print
+
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: Mixar ${{ steps.tag.outputs.name }}
+          draft: true
+          prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            release-assets/**/*.AppImage
+            release-assets/**/*.dmg
+            release-assets/**/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
