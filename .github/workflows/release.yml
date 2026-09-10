@@ -102,6 +102,19 @@ jobs:
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
 
+      # Windows cargokit run_build_tool.cmd needs FLUTTER_ROOT; mise only puts
+      # flutter on PATH. Export it so MSBuild custom builds find Dart.
+      - name: Export FLUTTER_ROOT (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$(mise where flutter)"
+          # Normalize for cmd.exe / MSBuild env inheritance.
+          ROOT="${ROOT//\\//}"
+          echo "FLUTTER_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "FLUTTER_ROOT=$ROOT"
+
       - name: Install native audio deps (Linux)
         if: matrix.platform == 'linux'
         uses: ./.github/actions/install-native-deps
