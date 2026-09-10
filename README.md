@@ -100,18 +100,18 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 
 ## Cutting a release
 
-**Manual (Actions UI):** run workflow **Create release tag**, enter a version (`0.1.0` or `v0.1.0-beta.1`), optionally choose a git ref. It creates an annotated `v*` tag and starts **Release** (use *dry_run* to validate only, or *skip_release* to tag without packaging).
+**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It bumps `apps/gui-flutter/pubspec.yaml`, commits on the selected branch, creates an annotated `v*` tag, and starts **Release** (use *dry_run* to preview only, or *skip_release* to bump+tag without packaging).
 
 **CLI:**
 
 ```bash
+# bump pubspec first, then:
 git tag -a v0.1.0 -m "Release v0.1.0" && git push origin v0.1.0
-# pre-release: v0.1.0-beta.1
 ```
 
-Either path: **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release (pre-release tags are marked `prerelease`). Review assets/notes on the draft, then publish.
+Either path: **Release** builds Linux AppImage, macOS DMG, and Windows EXE via [fastforge](https://pub.dev/packages/fastforge), then opens a **draft** GitHub Release. Review assets/notes on the draft, then publish.
 
-Version in `apps/gui-flutter/pubspec.yaml` is stamped from the tag for that build only (tag is source of truth). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
+The create-tag workflow owns the marketed Flutter version on the branch; **Release** still stamps build-name/number from the tag for that packaging run. Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
 
 Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
 
