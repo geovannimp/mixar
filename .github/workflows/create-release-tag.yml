@@ -1,8 +1,9 @@
 name: Create release tag
 
-# Bumps Flutter pubspec semver (major|minor|patch), commits, tags v*, and
-# starts the Release workflow. GITHUB_TOKEN tag pushes do not trigger other
+# Bumps Flutter pubspec via `dart pub bump` (major|minor|patch), commits, tags v*,
+# and starts the Release workflow. GITHUB_TOKEN tag pushes do not trigger other
 # workflows, so Release is dispatched explicitly.
+# See: https://dart.dev/tools/pub/cmd/pub-bump
 
 on:
   workflow_dispatch:
@@ -21,7 +22,7 @@ on:
         type: string
         default: ''
       dry_run:
-        description: Compute next version without committing, tagging, or releasing
+        description: Preview next version without committing, tagging, or releasing
         required: false
         type: boolean
         default: false
@@ -51,31 +52,42 @@ jobs:
           ref: ${{ inputs.ref != '' && inputs.ref || github.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup toolchains
+        uses: ./.github/actions/setup-toolchains
+
       - name: Bump Flutter version
         id: ver
+        working-directory: apps/gui-flutter
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/bump-flutter-version.sh "${{ inputs.bump }}" apps/gui-flutter/pubspec.yaml \
-            | tee /tmp/bump.out
-          grep '^OLD_VERSION=' /tmp/bump.out >> "$GITHUB_OUTPUT"
-          grep '^VERSION_NAME=' /tmp/bump.out >> "$GITHUB_OUTPUT"
-          grep '^VERSION_BUILD=' /tmp/bump.out >> "$GITHUB_OUTPUT"
-          grep '^TAG=' /tmp/bump.out >> "$GITHUB_OUTPUT"
+          OLD="$(grep -E '^version:' pubspec.yaml | head -n1 | awk '{print $2}')"
+          echo "OLD_VERSION=$OLD" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            mise exec -- dart pub bump "${{ inputs.bump }}" --dry-run | tee /tmp/bump.out
+            # "Would update version from 1.0.0+1 to 1.0.1."
+            NEW="$(sed -nE 's/.* to ([0-9][0-9A-Za-z.+-]+)\.?$/\1/p' /tmp/bump.out | head -n1)"
+            if [ -z "$NEW" ]; then
+              echo "failed to parse dry-run version from dart pub bump output" >&2
+              cat /tmp/bump.out >&2
+              exit 1
+            fi
+          else
+            mise exec -- dart pub bump "${{ inputs.bump }}"
+            NEW="$(grep -E '^version:' pubspec.yaml | head -n1 | awk '{print $2}')"
+          fi
+
+          NAME="${NEW%%+*}"
+          echo "VERSION_NAME=$NAME" >> "$GITHUB_OUTPUT"
+          echo "TAG=v${NAME}" >> "$GITHUB_OUTPUT"
+          echo "bump=${{ inputs.bump }} $OLD → $NEW (tag=v${NAME})"
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
         shell: bash
-        env:
-          OLD: ${{ steps.ver.outputs.OLD_VERSION }}
-          TAG: ${{ steps.ver.outputs.TAG }}
-          NAME: ${{ steps.ver.outputs.VERSION_NAME }}
         run: |
-          set -euo pipefail
-          echo "dry_run=true bump=${{ inputs.bump }} $OLD → ${NAME}+${{ steps.ver.outputs.VERSION_BUILD }} tag=$TAG"
-          echo "No commit, tag, or release was created."
-          # Discard working tree change from the bump step.
-          git checkout -- apps/gui-flutter/pubspec.yaml
+          echo "dry_run=true — no commit, tag, or release was created."
 
       - name: Commit version bump
         if: ${{ !inputs.dry_run }}

@@ -100,7 +100,7 @@ For external tools (e.g. OBS text sources), watch the active session file under 
 
 ## Cutting a release
 
-**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It bumps `apps/gui-flutter/pubspec.yaml`, commits on the selected branch, creates an annotated `v*` tag, and starts **Release** (use *dry_run* to preview only, or *skip_release* to bump+tag without packaging).
+**Manual (Actions UI):** run workflow **Create release tag**, choose **patch** / **minor** / **major**. It runs [`dart pub bump`](https://dart.dev/tools/pub/cmd/pub-bump) in `apps/gui-flutter`, commits the pubspec change, creates an annotated `v*` tag, and starts **Release** (use *dry_run* to preview only, or *skip_release* to bump+tag without packaging).
 
 **CLI:**
 
