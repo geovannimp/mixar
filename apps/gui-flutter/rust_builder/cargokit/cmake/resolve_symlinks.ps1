@@ -22,7 +22,9 @@ function Resolve-Symlinks {
             $realPath += '/'
         }
 
-        $item = Get-Item $realPath
+        # -Force: AppData (and similar) are Hidden/System; bare Get-Item fails
+        # with "Could not find item ...\AppData" on Windows CI runners.
+        $item = Get-Item -Force $realPath
         if ($item.LinkTarget) {
             $realPath = $item.LinkTarget.Replace('\', '/')
         }
