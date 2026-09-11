@@ -33,21 +33,21 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_TARGET_PLATFORM "windows-x64")
     endif()
 
-    # Resolve plugin source dir before joining relative manifest_dir.
-    # Flutter builds via .plugin_symlinks; relative ../../../../crates/... must
-    # start from the real rust_builder path. CMake ABSOLUTE is lexical only —
-    # without resolving the symlink/junction first it collapses to
-    # apps/gui-flutter/{linux,windows}/flutter/crates/... (v0.0.7 Linux failure).
+    # Flutter builds via .plugin_symlinks. Relative ../../../../crates/... only
+    # works after resolving that link to rust_builder. CMake ABSOLUTE is lexical
+    # (v0.0.7 Linux). Windows often leaves the junction unresolved (v0.0.8:
+    # src still under .plugin_symlinks → windows/flutter/crates/...). Prefer
+    # resolved+relative, then walk up for crates/<lib_name>/Cargo.toml.
+    set(_cargokit_src_dir "${CMAKE_CURRENT_SOURCE_DIR}")
     if (WIN32)
-        # Windows junctions: CMake REALPATH does not follow them.
         execute_process(
             COMMAND powershell -ExecutionPolicy Bypass -File "${cargokit_cmake_root}/cmake/resolve_symlinks.ps1" "${CMAKE_CURRENT_SOURCE_DIR}"
-            OUTPUT_VARIABLE _cargokit_src_dir
+            OUTPUT_VARIABLE _cargokit_resolved
             OUTPUT_STRIP_TRAILING_WHITESPACE
             RESULT_VARIABLE _cargokit_resolve_rc
         )
-        if (NOT _cargokit_resolve_rc EQUAL 0 OR _cargokit_src_dir STREQUAL "")
-            message(FATAL_ERROR "cargokit: failed to resolve plugin source dir (Windows junctions)")
+        if (_cargokit_resolve_rc EQUAL 0 AND NOT _cargokit_resolved STREQUAL "")
+            set(_cargokit_src_dir "${_cargokit_resolved}")
         endif()
     else()
         get_filename_component(_cargokit_src_dir "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
@@ -59,7 +59,21 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
     endif()
     get_filename_component(_cargokit_manifest_dir "${_cargokit_manifest_dir}" ABSOLUTE)
     if (NOT EXISTS "${_cargokit_manifest_dir}/Cargo.toml")
-        message(FATAL_ERROR "cargokit: no Cargo.toml at ${_cargokit_manifest_dir} (src=${_cargokit_src_dir})")
+        # Package dir is crates/host-flutter; lib_name is host_flutter (cdylib).
+        get_filename_component(_cargokit_crate_dirname "${manifest_dir}" NAME)
+        set(_cargokit_walk "${CMAKE_CURRENT_SOURCE_DIR}")
+        set(_cargokit_manifest_dir "")
+        foreach(_cargokit_i RANGE 0 16)
+            set(_cargokit_candidate "${_cargokit_walk}/crates/${_cargokit_crate_dirname}")
+            if (EXISTS "${_cargokit_candidate}/Cargo.toml")
+                get_filename_component(_cargokit_manifest_dir "${_cargokit_candidate}" ABSOLUTE)
+                break()
+            endif()
+            get_filename_component(_cargokit_walk "${_cargokit_walk}/.." ABSOLUTE)
+        endforeach()
+        if (_cargokit_manifest_dir STREQUAL "")
+            message(FATAL_ERROR "cargokit: could not find crates/${_cargokit_crate_dirname}/Cargo.toml walking up from ${CMAKE_CURRENT_SOURCE_DIR}")
+        endif()
     endif()
     message(STATUS "cargokit: CARGOKIT_MANIFEST_DIR=${_cargokit_manifest_dir}")
 
