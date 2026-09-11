@@ -33,10 +33,35 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_TARGET_PLATFORM "windows-x64")
     endif()
 
+    # Resolve plugin source dir before joining relative manifest_dir. On Windows,
+    # Flutter's .plugin_symlinks junctions make lexical ../ stop at the junction
+    # parent (ephemeral/flutter) instead of rust_builder — so
+    # ../../../../crates/host-flutter misses the monorepo crates/ tree and
+    # cargokit exits -1 with MSB8066. POSIX realpath follows the symlink.
+    set(_cargokit_src_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+    if (WIN32)
+        execute_process(
+            COMMAND powershell -ExecutionPolicy Bypass -File "${cargokit_cmake_root}/cmake/resolve_symlinks.ps1" "${CMAKE_CURRENT_SOURCE_DIR}"
+            OUTPUT_VARIABLE _cargokit_src_dir
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE _cargokit_resolve_rc
+        )
+        if (NOT _cargokit_resolve_rc EQUAL 0 OR _cargokit_src_dir STREQUAL "")
+            message(FATAL_ERROR "cargokit: failed to resolve plugin source dir (Windows junctions)")
+        endif()
+    endif()
+    if (IS_ABSOLUTE "${manifest_dir}")
+        set(_cargokit_manifest_dir "${manifest_dir}")
+    else()
+        set(_cargokit_manifest_dir "${_cargokit_src_dir}/${manifest_dir}")
+    endif()
+    get_filename_component(_cargokit_manifest_dir "${_cargokit_manifest_dir}" ABSOLUTE)
+    message(STATUS "cargokit: CARGOKIT_MANIFEST_DIR=${_cargokit_manifest_dir}")
+
     set(CARGOKIT_ENV
         "CARGOKIT_CMAKE=${CMAKE_COMMAND}"
         "CARGOKIT_CONFIGURATION=$<CONFIG>"
-        "CARGOKIT_MANIFEST_DIR=${CMAKE_CURRENT_SOURCE_DIR}/${manifest_dir}"
+        "CARGOKIT_MANIFEST_DIR=${_cargokit_manifest_dir}"
         "CARGOKIT_TARGET_TEMP_DIR=${CARGOKIT_TEMP_DIR}"
         "CARGOKIT_OUTPUT_DIR=${CARGOKIT_OUTPUT_DIR}"
         "CARGOKIT_TARGET_PLATFORM=${CARGOKIT_TARGET_PLATFORM}"
