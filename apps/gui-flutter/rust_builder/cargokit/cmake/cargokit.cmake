@@ -33,13 +33,13 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(CARGOKIT_TARGET_PLATFORM "windows-x64")
     endif()
 
-    # Resolve plugin source dir before joining relative manifest_dir. On Windows,
-    # Flutter's .plugin_symlinks junctions make lexical ../ stop at the junction
-    # parent (ephemeral/flutter) instead of rust_builder — so
-    # ../../../../crates/host-flutter misses the monorepo crates/ tree and
-    # cargokit exits -1 with MSB8066. POSIX realpath follows the symlink.
-    set(_cargokit_src_dir "${CMAKE_CURRENT_SOURCE_DIR}")
+    # Resolve plugin source dir before joining relative manifest_dir.
+    # Flutter builds via .plugin_symlinks; relative ../../../../crates/... must
+    # start from the real rust_builder path. CMake ABSOLUTE is lexical only —
+    # without resolving the symlink/junction first it collapses to
+    # apps/gui-flutter/{linux,windows}/flutter/crates/... (v0.0.7 Linux failure).
     if (WIN32)
+        # Windows junctions: CMake REALPATH does not follow them.
         execute_process(
             COMMAND powershell -ExecutionPolicy Bypass -File "${cargokit_cmake_root}/cmake/resolve_symlinks.ps1" "${CMAKE_CURRENT_SOURCE_DIR}"
             OUTPUT_VARIABLE _cargokit_src_dir
@@ -49,6 +49,8 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         if (NOT _cargokit_resolve_rc EQUAL 0 OR _cargokit_src_dir STREQUAL "")
             message(FATAL_ERROR "cargokit: failed to resolve plugin source dir (Windows junctions)")
         endif()
+    else()
+        get_filename_component(_cargokit_src_dir "${CMAKE_CURRENT_SOURCE_DIR}" REALPATH)
     endif()
     if (IS_ABSOLUTE "${manifest_dir}")
         set(_cargokit_manifest_dir "${manifest_dir}")
@@ -56,6 +58,9 @@ function(apply_cargokit target manifest_dir lib_name any_symbol_name)
         set(_cargokit_manifest_dir "${_cargokit_src_dir}/${manifest_dir}")
     endif()
     get_filename_component(_cargokit_manifest_dir "${_cargokit_manifest_dir}" ABSOLUTE)
+    if (NOT EXISTS "${_cargokit_manifest_dir}/Cargo.toml")
+        message(FATAL_ERROR "cargokit: no Cargo.toml at ${_cargokit_manifest_dir} (src=${_cargokit_src_dir})")
+    endif()
     message(STATUS "cargokit: CARGOKIT_MANIFEST_DIR=${_cargokit_manifest_dir}")
 
     set(CARGOKIT_ENV
