@@ -196,6 +196,7 @@ jobs:
           set -euo pipefail
           export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
           # dart pub global run: avoids Windows pub-cache shim PATH issues.
+          # Linux: .appimageignore in this cwd excludes bundled libasound/libpipewire.
           dart pub global run fastforge:main package \
             --platform "${{ matrix.platform }}" \
             --targets "${{ matrix.target }}"

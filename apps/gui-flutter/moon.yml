@@ -62,6 +62,7 @@ tasks:
 
   # Local installer smoke tests (host OS must match).
   # Requires: fastforge (+ appimagetool on Linux / appdmg on macOS / Inno Setup on Windows).
+  # Linux: .appimageignore excludes bundled libasound/libpipewire (system audio stack).
   package-linux:
     command: "bash"
     args:
@@ -78,6 +79,7 @@ tasks:
       - "@group(rustBuilder)"
       - "distribute_options.yaml"
       - "linux/packaging/**/*"
+      - ".appimageignore"
     options:
       runInCI: false
       cache: false
