@@ -225,161 +225,163 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         final speedScale = waveformSpeedScale(speed);
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
-        return Listener(
-          onPointerDown: durationMs <= 0
-              ? null
-              : (e) {
-                  _scrubbing = true;
-                  _playhead.stop();
-                  _scrubAnchorX = e.localPosition.dx;
-                  _scrubAnchorMs = _displayMs(durationMs);
-                },
-          onPointerMove: (e) {
-            if (!_scrubbing || durationMs <= 0) {
-              return;
-            }
-            final ms = centerScrubMs(
-              anchorPosMs: _scrubAnchorMs,
-              deltaX: e.localPosition.dx - _scrubAnchorX,
-              width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-                speed: speed,
-              ).toDouble(),
-            );
-            _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
-            _throttledSeek(ms.round());
-          },
-          onPointerUp: (e) {
-            if (!_scrubbing) {
-              return;
-            }
-            final ms = durationMs <= 0
-                ? 0
-                : centerScrubMs(
-                    anchorPosMs: _scrubAnchorMs,
-                    deltaX: e.localPosition.dx - _scrubAnchorX,
-                    width: width,
-                    spanMs: cropVisibleMs(
-                      durationMs: durationMs,
-                      viewportWidth: width,
-                      speed: speed,
-                    ).toDouble(),
-                  ).round();
-            _scrubbing = false;
-            if (durationMs > 0) {
-              _setDisplayMs(
-                ms.toDouble(),
-                durationMs: durationMs,
-                speed: speed,
-                playing: advancing,
+        return ExcludeSemantics(
+          child: Listener(
+            onPointerDown: durationMs <= 0
+                ? null
+                : (e) {
+                    _scrubbing = true;
+                    _playhead.stop();
+                    _scrubAnchorX = e.localPosition.dx;
+                    _scrubAnchorMs = _displayMs(durationMs);
+                  },
+            onPointerMove: (e) {
+              if (!_scrubbing || durationMs <= 0) {
+                return;
+              }
+              final ms = centerScrubMs(
+                anchorPosMs: _scrubAnchorMs,
+                deltaX: e.localPosition.dx - _scrubAnchorX,
+                width: width,
+                spanMs: cropVisibleMs(
+                  durationMs: durationMs,
+                  viewportWidth: width,
+                  speed: speed,
+                ).toDouble(),
               );
-            }
-            unawaited(_seek(ms));
-          },
-          onPointerCancel: (_) {
-            _scrubbing = false;
-            if (advancing && durationMs > 0) {
-              _syncPlayback(
-                playing: advancing,
-                durationMs: durationMs,
-                speed: speed,
-              );
-            }
-          },
-          child: ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const ColoredBox(color: kWaveformBg),
-                if (strip != null)
-                  AnimatedBuilder(
-                    animation: _playhead,
-                    builder: (context, child) {
-                      final positionMs = _displayMs(durationMs);
-                      final displayWidth = strip.widthPx / speedScale;
-                      return Positioned(
-                        left: snapPx(
-                          stripTranslateX(
-                            positionMs: positionMs,
-                            viewportWidth: width,
-                            pxPerMs: pxPerMs,
+              _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
+              _throttledSeek(ms.round());
+            },
+            onPointerUp: (e) {
+              if (!_scrubbing) {
+                return;
+              }
+              final ms = durationMs <= 0
+                  ? 0
+                  : centerScrubMs(
+                      anchorPosMs: _scrubAnchorMs,
+                      deltaX: e.localPosition.dx - _scrubAnchorX,
+                      width: width,
+                      spanMs: cropVisibleMs(
+                        durationMs: durationMs,
+                        viewportWidth: width,
+                        speed: speed,
+                      ).toDouble(),
+                    ).round();
+              _scrubbing = false;
+              if (durationMs > 0) {
+                _setDisplayMs(
+                  ms.toDouble(),
+                  durationMs: durationMs,
+                  speed: speed,
+                  playing: advancing,
+                );
+              }
+              unawaited(_seek(ms));
+            },
+            onPointerCancel: (_) {
+              _scrubbing = false;
+              if (advancing && durationMs > 0) {
+                _syncPlayback(
+                  playing: advancing,
+                  durationMs: durationMs,
+                  speed: speed,
+                );
+              }
+            },
+            child: ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: kWaveformBg),
+                  if (strip != null)
+                    AnimatedBuilder(
+                      animation: _playhead,
+                      builder: (context, child) {
+                        final positionMs = _displayMs(durationMs);
+                        final displayWidth = strip.widthPx / speedScale;
+                        return Positioned(
+                          left: snapPx(
+                            stripTranslateX(
+                              positionMs: positionMs,
+                              viewportWidth: width,
+                              pxPerMs: pxPerMs,
+                            ),
+                            dpr,
                           ),
-                          dpr,
-                        ),
-                        top: 0,
-                        bottom: 0,
-                        width: displayWidth,
-                        child: FittedBox(
-                          fit: BoxFit.fill,
-                          child: SizedBox(
-                            width: strip.widthPx.toDouble(),
-                            height: height,
-                            child: child ?? const SizedBox.shrink(),
+                          top: 0,
+                          bottom: 0,
+                          width: displayWidth,
+                          child: FittedBox(
+                            fit: BoxFit.fill,
+                            child: SizedBox(
+                              width: strip.widthPx.toDouble(),
+                              height: height,
+                              child: child ?? const SizedBox.shrink(),
+                            ),
                           ),
+                        );
+                      },
+                      child: RepaintBoundary(
+                        child: _StripLayer(
+                          strip: strip,
+                          height: height,
+                          beatGrid: beatGrid,
+                          loops: loops,
+                          activeLoop: activeLoop,
+                          pendingLoopIn: pendingLoopIn,
+                          cues: cues,
                         ),
-                      );
-                    },
-                    child: RepaintBoundary(
-                      child: _StripLayer(
-                        strip: strip,
-                        height: height,
-                        beatGrid: beatGrid,
-                        loops: loops,
-                        activeLoop: activeLoop,
-                        pendingLoopIn: pendingLoopIn,
-                        cues: cues,
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: ColoredBox(
+                      color: theme.colors.foreground.withValues(alpha: 0.9),
+                      child: const SizedBox(width: 1, height: double.infinity),
+                    ),
+                  ),
+                  if (slipOn && slipShadowMs != null && strip != null)
+                    AnimatedBuilder(
+                      animation: _playhead,
+                      builder: (context, _) {
+                        final audibleMs = _displayMs(durationMs);
+                        final delta = slipShadowMs - audibleMs;
+                        if (delta.abs() < 3) {
+                          return const SizedBox.shrink();
+                        }
+                        return Positioned(
+                          left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
+                          top: 0,
+                          bottom: 0,
+                          width: 1,
+                          child: ColoredBox(
+                            color: theme.colors.primary.withValues(alpha: 0.65),
+                          ),
+                        );
+                      },
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        widget.label.toUpperCase(),
+                        style: theme.typography.display.xs.copyWith(
+                          fontFamily: MixarFonts.spaceGrotesk,
+                          color: FaderColors.forAccent(
+                            faderAccentForDeck(widget.deckId) ??
+                                FaderAccent.neutral,
+                          ).grip.withValues(alpha: 0.55),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ),
-                Align(
-                  alignment: Alignment.center,
-                  child: ColoredBox(
-                    color: theme.colors.foreground.withValues(alpha: 0.9),
-                    child: const SizedBox(width: 1, height: double.infinity),
-                  ),
-                ),
-                if (slipOn && slipShadowMs != null && strip != null)
-                  AnimatedBuilder(
-                    animation: _playhead,
-                    builder: (context, _) {
-                      final audibleMs = _displayMs(durationMs);
-                      final delta = slipShadowMs - audibleMs;
-                      if (delta.abs() < 3) {
-                        return const SizedBox.shrink();
-                      }
-                      return Positioned(
-                        left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
-                        top: 0,
-                        bottom: 0,
-                        width: 1,
-                        child: ColoredBox(
-                          color: theme.colors.primary.withValues(alpha: 0.65),
-                        ),
-                      );
-                    },
-                  ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      widget.label.toUpperCase(),
-                      style: theme.typography.display.xs.copyWith(
-                        fontFamily: MixarFonts.spaceGrotesk,
-                        color: FaderColors.forAccent(
-                          faderAccentForDeck(widget.deckId) ??
-                              FaderAccent.neutral,
-                        ).grip.withValues(alpha: 0.55),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

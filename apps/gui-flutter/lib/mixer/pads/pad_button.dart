@@ -107,9 +107,14 @@ class PadButton extends StatelessWidget {
     );
 
     if (tooltip != null && tooltip!.isNotEmpty) {
-      pad = AppTooltip(
-        tip: tooltip!,
-        child: Semantics(label: tooltip, button: true, child: pad),
+      // One Semantics node; ExcludeSemantics keeps FTooltip from doubling labels.
+      pad = Semantics(
+        label: tooltip,
+        button: true,
+        child: AppTooltip(
+          tip: tooltip!,
+          child: ExcludeSemantics(child: pad),
+        ),
       );
     }
     return pad;

@@ -67,52 +67,54 @@ class OverviewStrip extends ConsumerWidget {
                                 .round();
                         unawaited(_seek(ref, context, deckId, ms));
                       },
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CustomPaint(
-                      painter: WaveformBarPainter(
-                        overview: peaks,
-                        detail: null,
-                        durationMs: durationMs,
-                        originMs: 0,
-                        spanMs: durationMs.toDouble(),
-                        mode: mode,
-                      ),
-                    ),
-                    if (durationMs > 0)
-                      Positioned(
-                        left: 0,
-                        width: playheadX,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: const Color.fromRGBO(0, 0, 0, 0.6),
-                        ),
-                      ),
-                    if (durationMs > 0 && width > 0)
-                      IgnorePointer(
-                        child: _OverviewOverlayLayer(
+                child: ExcludeSemantics(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CustomPaint(
+                        painter: WaveformBarPainter(
+                          overview: peaks,
+                          detail: null,
                           durationMs: durationMs,
-                          width: width,
-                          height: height,
-                          hotCues: hotCues,
-                          savedLoops: savedLoops,
+                          originMs: 0,
+                          spanMs: durationMs.toDouble(),
+                          mode: mode,
                         ),
                       ),
-                    if (durationMs > 0)
-                      Positioned(
-                        left: playheadX,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: theme.colors.foreground.withValues(
-                            alpha: 0.85,
+                      if (durationMs > 0)
+                        Positioned(
+                          left: 0,
+                          width: playheadX,
+                          top: 0,
+                          bottom: 0,
+                          child: ColoredBox(
+                            color: const Color.fromRGBO(0, 0, 0, 0.6),
                           ),
-                          child: const SizedBox(width: 1),
                         ),
-                      ),
-                  ],
+                      if (durationMs > 0 && width > 0)
+                        IgnorePointer(
+                          child: _OverviewOverlayLayer(
+                            durationMs: durationMs,
+                            width: width,
+                            height: height,
+                            hotCues: hotCues,
+                            savedLoops: savedLoops,
+                          ),
+                        ),
+                      if (durationMs > 0)
+                        Positioned(
+                          left: playheadX,
+                          top: 0,
+                          bottom: 0,
+                          child: ColoredBox(
+                            color: theme.colors.foreground.withValues(
+                              alpha: 0.85,
+                            ),
+                            child: const SizedBox(width: 1),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               );
             },
