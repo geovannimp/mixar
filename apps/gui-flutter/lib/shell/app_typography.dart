@@ -101,6 +101,38 @@ FThemeData mixarThemeData(FThemeData base, {required bool touch}) {
   );
 }
 
+/// Stable Mixar [FThemeData] instances for the stock neutral light/dark ×
+/// desktop/touch variants.
+///
+/// [FTheme]'s inherited notify uses `data != old.data`. Recreating equivalent
+/// themes on every [MaterialApp.builder] frame forces a full style rebuild
+/// (FButtonStyles, TextStyle, FVariants, …). Keep one instance per variant.
+abstract final class MixarThemes {
+  static final lightDesktop = mixarThemeData(
+    FTheme.neutral.light.desktop,
+    touch: false,
+  );
+  static final lightTouch = mixarThemeData(
+    FTheme.neutral.light.touch,
+    touch: true,
+  );
+  static final darkDesktop = mixarThemeData(
+    FTheme.neutral.dark.desktop,
+    touch: false,
+  );
+  static final darkTouch = mixarThemeData(
+    FTheme.neutral.dark.touch,
+    touch: true,
+  );
+
+  static FThemeData resolve({required bool dark, required bool touch}) {
+    if (dark) {
+      return touch ? darkTouch : darkDesktop;
+    }
+    return touch ? lightTouch : lightDesktop;
+  }
+}
+
 extension MixarTypography on FTypography {
   /// Mono numerics (BPM, timers, pad slot numbers).
   FTypeface get mono => extension<FTypeface>();

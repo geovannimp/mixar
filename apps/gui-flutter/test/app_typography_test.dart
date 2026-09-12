@@ -13,4 +13,28 @@ void main() {
     expect(typography.display.lg.fontFamily, MixarFonts.spaceGrotesk);
     expect(typography.mono.xs.fontFamily, MixarFonts.notoSansMono);
   });
+
+  test('MixarThemes.resolve returns stable instances', () {
+    expect(
+      identical(
+        MixarThemes.resolve(dark: false, touch: false),
+        MixarThemes.lightDesktop,
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        MixarThemes.resolve(dark: true, touch: true),
+        MixarThemes.darkTouch,
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        MixarThemes.resolve(dark: false, touch: false),
+        MixarThemes.resolve(dark: false, touch: false),
+      ),
+      isTrue,
+    );
+  });
 }

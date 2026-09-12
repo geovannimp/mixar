@@ -47,6 +47,16 @@ Future<void> main() async {
   runApp(ProviderScope(child: Application(appTitle: appTitle)));
 }
 
+/// Cached Material themes so [Application.build] does not rebuild style graphs.
+final _materialLight = materialUiThemeFromForui(
+  MixarThemes.lightDesktop,
+  scaffoldBackgroundColor: Colors.transparent,
+);
+final _materialDark = materialUiThemeFromForui(
+  MixarThemes.darkDesktop,
+  scaffoldBackgroundColor: Colors.transparent,
+);
+
 /// Root app: [Forui](https://forui.dev/) light/dark themes + mixer shell.
 class Application extends StatelessWidget {
   const Application({required this.appTitle, super.key});
@@ -55,16 +65,6 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Transparent Material canvas so desktop rounded corners aren't filled square.
-    final light = materialUiThemeFromForui(
-      mixarThemeData(FTheme.neutral.light.desktop, touch: false),
-      scaffoldBackgroundColor: Colors.transparent,
-    );
-    final dark = materialUiThemeFromForui(
-      mixarThemeData(FTheme.neutral.dark.desktop, touch: false),
-      scaffoldBackgroundColor: Colors.transparent,
-    );
-
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
@@ -75,12 +75,10 @@ class Application extends StatelessWidget {
         FLocalizations.delegate,
         ...GlobalMaterialLocalizations.delegates,
       ],
-      theme: light,
-      darkTheme: dark,
+      theme: _materialLight,
+      darkTheme: _materialDark,
       builder: (context, child) {
-        final platforms = Theme.brightnessOf(context) == Brightness.dark
-            ? FTheme.neutral.dark
-            : FTheme.neutral.light;
+        final dark = Theme.brightnessOf(context) == Brightness.dark;
         // Resolve touch vs desktop via Forui's platformVariant:
         // https://forui.dev/docs/concepts/responsive
         // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
@@ -88,9 +86,10 @@ class Application extends StatelessWidget {
           child: FAdaptiveScope(
             child: Builder(
               builder: (context) {
-                final touch = context.platformVariant.touch;
-                final base = touch ? platforms.touch : platforms.desktop;
-                final data = mixarThemeData(base, touch: touch);
+                final data = MixarThemes.resolve(
+                  dark: dark,
+                  touch: context.platformVariant.touch,
+                );
                 return DesktopChrome(
                   child: FTheme(
                     data: data,
