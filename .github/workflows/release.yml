@@ -202,7 +202,7 @@ jobs:
             --targets "${{ matrix.target }}"
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mixar-${{ matrix.platform }}-${{ steps.tag.outputs.name }}
           path: ${{ matrix.artifact_pattern }}
@@ -238,7 +238,7 @@ jobs:
           fi
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           pattern: mixar-*
