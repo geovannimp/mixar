@@ -1,8 +1,11 @@
 # Stable Inno Setup AppId for Mixar — do not change between releases.
 app_id: e8ba765e-2776-414f-84f7-233d0991b270
-publisher: Mixar
+# fastforge reads publisher_name (not publisher); executable from BINARY_NAME / build output.
+publisher_name: Mixar
 publisher_url: https://github.com/geovannimp/mixar
 display_name: Mixar
+executable_name: Mixar.exe
+install_dir_name: '{autopf64}\Mixar'
 create_desktop_icon: true
 setup_icon_file: windows\runner\resources\app_icon.ico
 locales:

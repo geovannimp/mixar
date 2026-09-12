@@ -94,6 +94,18 @@ set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
   COMPONENT Runtime)
 
+# fastforge AppImage AppRun/desktop Exec use pubspec.name (gui_flutter), not BINARY_NAME.
+# Prefix matches absolute DESTINATION above (configure-time); DESTDIR is install-time.
+install(CODE "
+  execute_process(
+    COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"${BINARY_NAME}\" \"gui_flutter\"
+    WORKING_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}\"
+    RESULT_VARIABLE _gui_flutter_symlink_result)
+  if(NOT _gui_flutter_symlink_result EQUAL 0)
+    message(FATAL_ERROR \"Failed to create gui_flutter -> ${BINARY_NAME} symlink: \${_gui_flutter_symlink_result}\")
+  endif()
+  " COMPONENT Runtime)
+
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   COMPONENT Runtime)
 
