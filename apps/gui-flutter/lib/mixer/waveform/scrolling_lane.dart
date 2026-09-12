@@ -220,7 +220,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         if (width <= 0 || height <= 0) {
           return const SizedBox.expand();
         }
-        final pxPerMs = strip?.pxPerMs ?? stripPxPerMs(durationMs);
+        final basePxPerMs = strip?.pxPerMs ?? stripPxPerMs(durationMs);
+        final pxPerMs = stripDisplayPxPerMs(pxPerMs: basePxPerMs, speed: speed);
+        final speedScale = waveformSpeedScale(speed);
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
         return Listener(
@@ -243,6 +245,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               spanMs: cropVisibleMs(
                 durationMs: durationMs,
                 viewportWidth: width,
+                speed: speed,
               ).toDouble(),
             );
             _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
@@ -261,6 +264,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     spanMs: cropVisibleMs(
                       durationMs: durationMs,
                       viewportWidth: width,
+                      speed: speed,
                     ).toDouble(),
                   ).round();
             _scrubbing = false;
@@ -294,6 +298,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     animation: _playhead,
                     builder: (context, child) {
                       final positionMs = _displayMs(durationMs);
+                      final displayWidth = strip.widthPx / speedScale;
                       return Positioned(
                         left: snapPx(
                           stripTranslateX(
@@ -305,8 +310,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                         ),
                         top: 0,
                         bottom: 0,
-                        width: strip.widthPx.toDouble(),
-                        child: child ?? const SizedBox.shrink(),
+                        width: displayWidth,
+                        child: FittedBox(
+                          fit: BoxFit.fill,
+                          child: SizedBox(
+                            width: strip.widthPx.toDouble(),
+                            height: height,
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                        ),
                       );
                     },
                     child: RepaintBoundary(

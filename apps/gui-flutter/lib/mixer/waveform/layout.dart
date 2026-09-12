@@ -10,9 +10,18 @@ const kWaveformStripHeight = 128.0;
 const kWaveformStripTilePx = 2048;
 
 int visibleSourceMs(double speed) {
-  final clamped = speed.isFinite && speed > 0 ? speed : 1.0;
-  return (kWaveformVisibleMs * clamped.clamp(0.5, 2.0)).round();
+  return (kWaveformVisibleMs * waveformSpeedScale(speed)).round();
 }
+
+/// Playback-ratio factor for waveform zoom (faster → show more source time).
+double waveformSpeedScale(double speed) {
+  final clamped = speed.isFinite && speed > 0 ? speed : 1.0;
+  return clamped.clamp(0.5, 2.0);
+}
+
+/// Strip density scaled so tempo changes zoom the scrolling viewport.
+double stripDisplayPxPerMs({required double pxPerMs, required double speed}) =>
+    pxPerMs / waveformSpeedScale(speed);
 
 double centerScrubMs({
   required double anchorPosMs,
@@ -61,8 +70,15 @@ double stripTranslateX({
   required double pxPerMs,
 }) => viewportWidth / 2 - positionMs * pxPerMs;
 
-int cropVisibleMs({required int durationMs, required double viewportWidth}) {
-  final px = stripPxPerMs(durationMs);
+int cropVisibleMs({
+  required int durationMs,
+  required double viewportWidth,
+  double speed = 1.0,
+}) {
+  final px = stripDisplayPxPerMs(
+    pxPerMs: stripPxPerMs(durationMs),
+    speed: speed,
+  );
   if (px <= 0) {
     return kWaveformVisibleMs;
   }

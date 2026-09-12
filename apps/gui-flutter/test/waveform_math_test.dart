@@ -131,6 +131,33 @@ void main() {
     expect(visibleSourceMs(0), kWaveformVisibleMs);
   });
 
+  test('strip display pxPerMs zooms out when tempo increases', () {
+    const base = 1 / 13;
+    expect(stripDisplayPxPerMs(pxPerMs: base, speed: 1), closeTo(base, 1e-12));
+    expect(
+      stripDisplayPxPerMs(pxPerMs: base, speed: 2),
+      closeTo(base / 2, 1e-12),
+    );
+    expect(
+      stripDisplayPxPerMs(pxPerMs: base, speed: 0.5),
+      closeTo(base / 0.5, 1e-12),
+    );
+    expect(
+      stripDisplayPxPerMs(pxPerMs: base, speed: 8),
+      closeTo(base / 2, 1e-12),
+    );
+  });
+
+  test('cropVisibleMs widens with faster tempo', () {
+    final atOne = cropVisibleMs(durationMs: 180_000, viewportWidth: 800);
+    final atTwo = cropVisibleMs(
+      durationMs: 180_000,
+      viewportWidth: 800,
+      speed: 2,
+    );
+    expect(atTwo, closeTo(atOne * 2, 2));
+  });
+
   test('l1Range clamps to the track so t=0 maps to the first L1 peak', () {
     final range = l1Range(
       positionMs: 0,
