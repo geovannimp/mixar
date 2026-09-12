@@ -1,0 +1,6 @@
+# Host audio stack must stay on the system — bundling these into usr/lib breaks
+# ALSA plugin paths (CPAL then panics). Patterns are mksquashfs -wildcards -ef.
+usr/lib/libasound.so*
+usr/lib/libpipewire*.so*
+lib/libasound.so*
+lib/libpipewire*.so*

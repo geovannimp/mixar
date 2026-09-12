@@ -115,7 +115,7 @@ Either path: **Release** checks out the tag (already containing the bumped pubsp
 
 App version is set once at tag creation (`dart pub bump` + commit). Artifacts ship unsigned by default. Optional macOS signing secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `KEYCHAIN_PASSWORD`, optional `MACOS_SIGNING_IDENTITY`) import a keychain when set; notarization is not wired yet. Windows secrets (`WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD`) only stage a PFX for a future Authenticode/Inno step — the EXE remains unsigned until that is implemented.
 
-Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed):
+Local packaging smoke tests (matching host OS; install appimagetool / appdmg / Inno Setup as needed). Linux relies on `apps/gui-flutter/.appimageignore` so bundled `libasound`/`libpipewire` are not shipped (they break ALSA inside the AppImage):
 
 ```bash
 npx moon run gui-flutter:package-linux
