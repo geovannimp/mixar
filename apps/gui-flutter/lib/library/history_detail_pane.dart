@@ -14,6 +14,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Session detail: entry table + session actions.
 class HistoryDetailPane extends ConsumerWidget {
@@ -448,7 +449,7 @@ class _HistorySessionActionsMenu extends ConsumerWidget {
         onPress: controller.toggle,
         child: child!,
       ),
-      child: const Icon(FLucideIcons.ellipsisVertical),
+      child: const Icon(LucideIcons.ellipsisVertical),
     );
   }
 }

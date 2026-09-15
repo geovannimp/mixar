@@ -32,6 +32,7 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'support/forui_material_app.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
   @override
@@ -299,7 +300,7 @@ void main() {
 
   testWidgets('settings switches waveform display mode', (tester) async {
     await pumpShell(tester);
-    await tester.tap(find.byIcon(FLucideIcons.settings));
+    await tester.tap(find.byIcon(LucideIcons.settings));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Waveform'));
     await tester.pumpAndSettle();

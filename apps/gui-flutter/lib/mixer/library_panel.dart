@@ -9,6 +9,7 @@ import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Library panel: left [FTabs](https://forui.dev/docs/widgets/navigation/tabs)
 /// (Collections / Drive / History); right pane follows the selected tab.
@@ -81,7 +82,7 @@ class LibraryPanel extends ConsumerWidget {
                             tip: 'Collections',
                             child: Semantics(
                               label: 'Collections',
-                              child: Icon(FLucideIcons.library, size: 16),
+                              child: Icon(LucideIcons.library, size: 16),
                             ),
                           ),
                           child: const CollectionsPane(),
@@ -91,7 +92,7 @@ class LibraryPanel extends ConsumerWidget {
                             tip: 'Drive',
                             child: Semantics(
                               label: 'Drive',
-                              child: Icon(FLucideIcons.hardDrive, size: 16),
+                              child: Icon(LucideIcons.hardDrive, size: 16),
                             ),
                           ),
                           child: const DrivePane(),
@@ -101,7 +102,7 @@ class LibraryPanel extends ConsumerWidget {
                             tip: 'History',
                             child: Semantics(
                               label: 'History',
-                              child: Icon(FLucideIcons.history, size: 16),
+                              child: Icon(LucideIcons.history, size: 16),
                             ),
                           ),
                           child: const HistoryPane(),

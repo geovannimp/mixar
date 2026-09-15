@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
   Future<void> pumpPanel(WidgetTester tester) async {
@@ -35,23 +36,23 @@ void main() {
   ) async {
     await pumpPanel(tester);
 
-    expect(find.byIcon(FLucideIcons.layoutGrid), findsOneWidget);
-    expect(find.byIcon(FLucideIcons.repeat2), findsOneWidget);
-    expect(find.byIcon(FLucideIcons.audioLines), findsOneWidget);
-    expect(find.byIcon(FLucideIcons.disc3), findsOneWidget);
+    expect(find.byIcon(LucideIcons.layoutGrid), findsOneWidget);
+    expect(find.byIcon(LucideIcons.repeat2), findsOneWidget);
+    expect(find.byIcon(LucideIcons.audioLines), findsOneWidget);
+    expect(find.byIcon(LucideIcons.disc3), findsOneWidget);
     expect(
-      tester.getCenter(find.byIcon(FLucideIcons.layoutGrid)).dy <
-          tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy,
+      tester.getCenter(find.byIcon(LucideIcons.layoutGrid)).dy <
+          tester.getCenter(find.byIcon(LucideIcons.repeat2)).dy,
       isTrue,
     );
     expect(
-      tester.getCenter(find.byIcon(FLucideIcons.repeat2)).dy <
-          tester.getCenter(find.byIcon(FLucideIcons.audioLines)).dy,
+      tester.getCenter(find.byIcon(LucideIcons.repeat2)).dy <
+          tester.getCenter(find.byIcon(LucideIcons.audioLines)).dy,
       isTrue,
     );
     expect(
-      tester.getCenter(find.byIcon(FLucideIcons.audioLines)).dy <
-          tester.getCenter(find.byIcon(FLucideIcons.disc3)).dy,
+      tester.getCenter(find.byIcon(LucideIcons.audioLines)).dy <
+          tester.getCenter(find.byIcon(LucideIcons.disc3)).dy,
       isTrue,
     );
     expect(find.text('CUE'), findsOneWidget);
@@ -59,7 +60,7 @@ void main() {
     expect(find.text('Now'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
-    await tester.tap(find.byIcon(FLucideIcons.repeat2));
+    await tester.tap(find.byIcon(LucideIcons.repeat2));
     await tester.pumpAndSettle();
     expect(find.text('IN'), findsOneWidget);
     expect(find.text('OUT'), findsOneWidget);
@@ -67,21 +68,21 @@ void main() {
     expect(find.text('Now'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
-    await tester.tap(find.byIcon(FLucideIcons.audioLines));
+    await tester.tap(find.byIcon(LucideIcons.audioLines));
     await tester.pumpAndSettle();
     expect(find.text('Now'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('IN'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
-    await tester.tap(find.byIcon(FLucideIcons.disc3));
+    await tester.tap(find.byIcon(LucideIcons.disc3));
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Jog wheel'), findsOneWidget);
     expect(find.text('CUE'), findsNothing);
     expect(find.text('IN'), findsNothing);
     expect(find.text('Now'), findsNothing);
 
-    await tester.tap(find.byIcon(FLucideIcons.layoutGrid));
+    await tester.tap(find.byIcon(LucideIcons.layoutGrid));
     await tester.pumpAndSettle();
     expect(find.text('CUE'), findsOneWidget);
     expect(find.text('IN'), findsNothing);

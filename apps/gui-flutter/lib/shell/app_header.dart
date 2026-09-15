@@ -8,6 +8,7 @@ import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Brand | drag region | status | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {
@@ -87,7 +88,7 @@ class AppHeader extends ConsumerWidget {
                 size: .sm,
                 semanticsLabel: 'Settings',
                 onPress: () => onTabChanged(ShellTab.settings),
-                child: const Icon(FLucideIcons.settings),
+                child: const Icon(LucideIcons.settings),
               ),
             ),
             if (desktop) const WindowTitleBarControls(),

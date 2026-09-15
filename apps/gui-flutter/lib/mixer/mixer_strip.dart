@@ -12,6 +12,7 @@ import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Matches Forui `MixerButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
@@ -373,7 +374,7 @@ class _MixerCueFooter extends StatelessWidget {
             semanticsLabel: 'Headphone cue',
             onPress: disabled ? null : onCue,
             child: Icon(
-              FLucideIcons.headphones,
+              LucideIcons.headphones,
               size: 14,
               color: cue ? cueOn : theme.colors.mutedForeground,
             ),

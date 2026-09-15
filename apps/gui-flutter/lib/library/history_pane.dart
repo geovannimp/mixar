@@ -7,6 +7,7 @@ import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Sidebar list of performance history sessions.
 class HistoryPane extends ConsumerStatefulWidget {
@@ -117,7 +118,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                             child: Padding(
                               padding: const EdgeInsets.all(4),
                               child: Icon(
-                                FLucideIcons.iterationCw,
+                                LucideIcons.iterationCw,
                                 size: 14,
                                 color: colors.mutedForeground,
                               ),
