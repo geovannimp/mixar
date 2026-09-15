@@ -27,6 +27,8 @@ class AppTooltip extends ConsumerWidget {
   static const _theme = HintThemeData(
     preset: HintPreset.minimal,
     maxWidth: 280,
+    borderWidth: 0,
+    borderColor: Color(0x00000000),
     transition: HintTransition.fade,
   );
 
