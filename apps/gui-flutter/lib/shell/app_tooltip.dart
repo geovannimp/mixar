@@ -2,11 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:hint_kit/hint_kit.dart';
 
-/// Forui tip gated by Settings → UI → Show tooltips (default on).
+/// Tip gated by Settings → UI → Show tooltips (default on).
 ///
 /// When off, returns [child] unchanged so press handlers stay intact.
 /// Optional [description] shows muted secondary copy under [tip].
+///
+/// Uses [hint_kit](https://pub.dev/packages/hint_kit) instead of Forui tooltips.
 class AppTooltip extends ConsumerWidget {
   const AppTooltip({
     required this.tip,
@@ -19,6 +22,14 @@ class AppTooltip extends ConsumerWidget {
   final String? description;
   final Widget child;
 
+  static const _triggers = {HintTrigger.hover};
+  static const _wait = Duration(milliseconds: 400);
+  static const _theme = HintThemeData(
+    preset: HintPreset.minimal,
+    maxWidth: 280,
+    transition: HintTransition.fade,
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enabled = ref
@@ -28,15 +39,18 @@ class AppTooltip extends ConsumerWidget {
       return child;
     }
     final detail = description?.trim();
-    return FTooltip(
-      tipBuilder: (context, controller) {
+    return Hint(
+      triggers: _triggers,
+      waitDuration: _wait,
+      theme: _theme,
+      contentBuilder: (context) {
         if (detail == null || detail.isEmpty) {
           return Text(tip);
         }
         final theme = context.theme;
         return Column(
-          mainAxisSize: .min,
-          crossAxisAlignment: .start,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(tip),
             const SizedBox(height: 2),
@@ -49,7 +63,6 @@ class AppTooltip extends ConsumerWidget {
           ],
         );
       },
-      builder: (context, controller, child) => child!,
       child: child,
     );
   }
