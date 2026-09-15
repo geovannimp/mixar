@@ -115,7 +115,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
-    final analyzingId = ref.watch(analyzingTrackIdProvider);
+    final analyzingIds = ref.watch(analyzingTrackIdsProvider);
     final engineRunning = ref.watch(engineRunningProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
     ref.watch(sessionPlayedKeysProvider);
@@ -127,7 +127,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
     final config = _gridConfig(theme);
 
-    ref.listen(analyzingTrackIdProvider, (_, next) {
+    ref.listen(analyzingTrackIdsProvider, (_, next) {
       final manager = _manager;
       if (manager == null || _tracks.isEmpty) {
         return;
@@ -142,7 +142,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         return;
       }
       manager.removeAllRows();
-      manager.appendRows(_rowsFor(_tracks, ref.read(analyzingTrackIdProvider)));
+      manager.appendRows(
+        _rowsFor(_tracks, ref.read(analyzingTrackIdsProvider)),
+      );
       _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
     ref.listen(artworkCacheProvider, (_, _) {
@@ -167,7 +169,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         _tracks = tracks;
         manager.removeAllRows();
         if (tracks.isNotEmpty) {
-          manager.appendRows(_rowsFor(tracks, analyzingId));
+          manager.appendRows(_rowsFor(tracks, analyzingIds));
         }
         _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
         _requestVisibleArtwork(manager);
@@ -254,7 +256,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                                 keyColorMode: keyColorMode,
                                 harmonicReferenceKey: harmonicReferenceKey,
                               ),
-                              rows: _rowsFor(tracks, analyzingId),
+                              rows: _rowsFor(tracks, analyzingIds),
                               mode: TrinaGridMode.readOnly,
                               rowWrapper: _rowWrapper,
                               onLoaded: (e) {
@@ -484,7 +486,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           if (trackId == null || path == null) {
             return const SizedBox.shrink();
           }
-          final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
+          final analyzing = ref
+              .read(analyzingTrackIdsProvider)
+              .contains(trackId);
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           final title =
               ctx.row.cells['dragTitle']?.value as String? ??
@@ -579,7 +583,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 
   List<TrinaRow> _rowsFor(
     List<LibraryTrackSummary> tracks,
-    String? analyzingId,
+    Set<String> analyzingIds,
   ) {
     final tab = ref.read(librarySourceTabProvider);
     final resolved =
@@ -600,7 +604,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
             'dragTitle': TrinaCell(value: trackTitleLabel(t)),
             'artwork': TrinaCell(value: t.id),
             'title': TrinaCell(
-              value: analyzingId == t.id
+              value: analyzingIds.contains(t.id)
                   ? '${trackTitleLabel(t)} …'
                   : trackTitleLabel(t),
             ),
@@ -646,7 +650,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         rowData.cells['dragTitle']?.value as String? ??
         rowData.cells['title']?.value as String? ??
         '';
-    final analyzing = ref.read(analyzingTrackIdProvider) == trackId;
+    final analyzing = ref.read(analyzingTrackIdsProvider).contains(trackId);
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so Trina's onTapUp never selects the row.
     return Listener(

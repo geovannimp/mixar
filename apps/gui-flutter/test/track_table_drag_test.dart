@@ -132,7 +132,7 @@ void main() {
       1,
     );
 
-    container.read(analyzingTrackIdProvider.notifier).set(track.id);
+    container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
     expect(
       tester
