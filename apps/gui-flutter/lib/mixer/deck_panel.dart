@@ -15,6 +15,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -93,7 +94,7 @@ class DeckPanel extends ConsumerWidget {
     final play = Expanded(
       child: AppTooltip(
         tip: playLabel,
-        child: FButton(
+        child: MixerButton(
           variant: .primary,
           onPress: transportDisabled
               ? null
@@ -214,18 +215,14 @@ class _EjectLoadButton extends StatelessWidget {
     final tip = hasTrack ? 'Eject track' : 'Load track';
     return AppTooltip(
       tip: tip,
-      child: FButton(
+      child: MixerButton(
         variant: .outline,
         size: .xs,
         mainAxisSize: .min,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        style: .delta(
-          contentStyle: .delta(
-            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
-          ),
-        ),
-        child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        child: Icon(hasTrack ? LucideIcons.eject : LucideIcons.fileInput),
       ),
     );
   }
@@ -253,18 +250,15 @@ class _QuantizeButton extends StatelessWidget {
     return AppTooltip(
       tip: tip,
       description: 'Snap cues, loops, and hot cues to the beat grid.',
-      child: FButton(
+      child: MixerButton(
         variant: .outline,
         size: .xs,
         mainAxisSize: .min,
+        selected: on,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        style: .delta(
-          decoration: on ? .delta([.all(.shapeDelta(color: cueFill))]) : null,
-          contentStyle: .delta(
-            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        backgroundColor: on ? cueFill : null,
         child: Text(
           'Q',
           style: TextStyle(
@@ -299,18 +293,15 @@ class _SlipButton extends StatelessWidget {
       tip: tip,
       description:
           'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
-      child: FButton(
+      child: MixerButton(
         variant: .outline,
         size: .xs,
         mainAxisSize: .min,
+        selected: on,
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
-        style: .delta(
-          decoration: on ? .delta([.all(.shapeDelta(color: slipFill))]) : null,
-          contentStyle: .delta(
-            padding: .value(.symmetric(horizontal: 14, vertical: 2)),
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        backgroundColor: on ? slipFill : null,
         child: Text(
           'S',
           style: TextStyle(

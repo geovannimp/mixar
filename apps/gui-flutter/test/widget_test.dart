@@ -13,6 +13,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/master_strip.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/mixer_strip.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/shell/app_header.dart';
@@ -201,10 +202,10 @@ void main() {
       ),
       findsOneWidget,
     );
-    final masterCue = tester.widget<FButton>(
+    final masterCue = tester.widget<MixerButton>(
       find.descendant(
         of: find.byType(MasterStrip),
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithText(MixerButton, 'Cue'),
       ),
     );
     expect(masterCue.onPress, isNull);
@@ -232,10 +233,10 @@ void main() {
     await tester.pumpAndSettle();
 
     final master = find.byType(MasterStrip);
-    final masterCue = tester.widget<FButton>(
+    final masterCue = tester.widget<MixerButton>(
       find.descendant(
         of: master,
-        matching: find.widgetWithText(FButton, 'Cue'),
+        matching: find.widgetWithText(MixerButton, 'Cue'),
       ),
     );
     expect(masterCue.onPress, isNotNull);
@@ -267,7 +268,7 @@ void main() {
     Future<void> press(Finder button) async {
       // Deck chrome can sit above the narrow mixer header in the fixed deck
       // row; drive the Forui button directly so the toggle still verifies.
-      tester.widget<FButton>(button).onPress?.call();
+      tester.widget<MixerButton>(button).onPress?.call();
       await tester.pumpAndSettle();
     }
 

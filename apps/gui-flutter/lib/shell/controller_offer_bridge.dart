@@ -7,6 +7,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 /// Listens for MIDI mapping offers and prompts to enable (Tauri toast flow).
 class ControllerOfferBridge extends ConsumerStatefulWidget {
@@ -137,7 +138,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
           );
         },
       ),
-      suffixBuilder: (context, entry) => FButton(
+      suffixBuilder: (context, entry) => AppButton(
         size: .sm,
         mainAxisSize: .min,
         onPress: () {

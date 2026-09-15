@@ -7,6 +7,7 @@ import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
 class DeckTempoPanel extends StatelessWidget {
@@ -135,12 +136,10 @@ class DeckTempoPanel extends StatelessWidget {
                     return AppTooltip(
                       tip: tip,
                       description: description,
-                      child: FButton(
+                      child: MixerButton(
                         variant: .secondary,
                         size: .sm,
-                        style: .delta(
-                          contentStyle: .delta(padding: .value(compactPad)),
-                        ),
+                        padding: compactPad,
                         onPress: (!enabled || isMaster)
                             ? null
                             : () => onToggleSync(shiftKeyPressed()),
@@ -168,12 +167,10 @@ class DeckTempoPanel extends StatelessWidget {
                   description: isMaster
                       ? 'This deck is the sync reference.'
                       : 'Make this deck the tempo reference for sync.',
-                  child: FButton(
+                  child: MixerButton(
                     variant: isMaster ? .secondary : .ghost,
                     size: .xs,
-                    style: .delta(
-                      contentStyle: .delta(padding: .value(compactPad)),
-                    ),
+                    padding: compactPad,
                     onPress: (!enabled || isMaster) ? null : onSetMaster,
                     semanticsLabel: isMaster ? 'Master' : 'Set master',
                     child: SizedBox(
@@ -224,7 +221,7 @@ class DeckTempoPanel extends StatelessWidget {
                   tip: 'Tempo range',
                   description:
                       'Pitch fader span. Click to cycle the max ±% range.',
-                  child: FButton(
+                  child: MixerButton(
                     variant: .ghost,
                     size: .xs,
                     mainAxisSize: .min,

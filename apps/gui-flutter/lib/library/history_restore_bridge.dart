@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 /// Prompt to restore the previous session on launch (inside idle window).
 class HistoryRestoreBridge extends ConsumerStatefulWidget {
@@ -64,12 +65,12 @@ class _HistoryRestoreBridgeState extends ConsumerState<HistoryRestoreBridge> {
                     Row(
                       spacing: 8,
                       children: [
-                        FButton(
+                        AppButton(
                           variant: .outline,
                           onPress: () => Navigator.of(context).pop(false),
                           child: const Text('Start new'),
                         ),
-                        FButton(
+                        AppButton(
                           onPress: () => Navigator.of(context).pop(true),
                           child: const Text('Restore'),
                         ),

@@ -7,6 +7,7 @@ import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 class SamplerSlot {
   const SamplerSlot({this.label, this.durationMs, this.path});
@@ -282,7 +283,7 @@ class SamplerPads extends StatelessWidget {
                         runSpacing: 6,
                         children: [
                           for (final opt in kSamplerPlayModeOptions)
-                            FButton(
+                            MixerButton(
                               variant: modeValue == opt ? .primary : .secondary,
                               onPress: () => setLocal(() => modeValue = opt),
                               child: Text(opt),
@@ -293,7 +294,7 @@ class SamplerPads extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: FButton(
+                            child: MixerButton(
                               variant: .secondary,
                               onPress: () => Navigator.of(context).pop(),
                               child: const Text('Cancel'),
@@ -301,7 +302,7 @@ class SamplerPads extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: FButton(
+                            child: MixerButton(
                               onPress: () {
                                 final playMode = modeValue == 'default'
                                     ? null
@@ -399,18 +400,12 @@ class _BankChromeButton extends StatelessWidget {
       button: true,
       label: semanticLabel,
       enabled: !disabled,
-      child: FButton(
+      child: MixerButton(
         variant: .ghost,
         size: .xs,
         mainAxisSize: .min,
         onPress: disabled ? null : onPress,
-        style: .delta(
-          contentStyle: .delta(
-            padding: .value(
-              const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-            ),
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: ExcludeSemantics(
           child: Text(
             glyph,

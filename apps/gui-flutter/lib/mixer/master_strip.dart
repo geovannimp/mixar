@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 const _cueOn = Color(0xFFFCD34D); // amber-300
 const _cueRing = Color(0x66F59E0B); // amber-500/40
@@ -42,7 +43,7 @@ class MasterStrip extends ConsumerWidget {
               unawaited(_cueCmd(context, () => setCueMix(ref, mix)));
             },
           ),
-          FButton(
+          MixerButton(
             variant: masterCue ? .secondary : .outline,
             size: .sm,
             mainAxisSize: .min,

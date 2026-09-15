@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 enum CreateCollectionType { folder, playlist }
 
@@ -245,7 +246,7 @@ class _CreateCollectionDialogBodyState
                                 ),
                               ),
                             ),
-                            FButton(
+                            AppButton(
                               variant: .outline,
                               onPress: _browseFolder,
                               child: const Text('Browse…'),
@@ -275,12 +276,12 @@ class _CreateCollectionDialogBodyState
           Row(
             spacing: 8,
             children: [
-              FButton(
+              AppButton(
                 variant: .outline,
                 onPress: () => Navigator.of(context).pop(),
                 child: const Text('Cancel'),
               ),
-              FButton(
+              AppButton(
                 onPress: _canCreate
                     ? () {
                         Navigator.of(context).pop(

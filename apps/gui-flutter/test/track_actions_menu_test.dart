@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -17,11 +18,11 @@ class _RunningEngineUi extends EngineUi {
       const EngineUiSnapshot(running: true, trackPaths: {});
 }
 
-FButton _loadChip(WidgetTester tester, String letter) {
-  return tester.widget<FButton>(
+AppButton _loadChip(WidgetTester tester, String letter) {
+  return tester.widget<AppButton>(
     find.byWidgetPredicate(
       (widget) =>
-          widget is FButton && widget.semanticsLabel == 'Load to $letter',
+          widget is AppButton && widget.semanticsLabel == 'Load to $letter',
     ),
   );
 }

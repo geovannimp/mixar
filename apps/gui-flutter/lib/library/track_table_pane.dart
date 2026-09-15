@@ -18,6 +18,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 /// Row selection fill. Forui neutral dark uses the same hex for `muted` and
 /// `secondary`, so `theme.colors.muted` is invisible on the table surface.
@@ -818,7 +819,7 @@ class TrackActionsMenu extends ConsumerWidget {
         analyzing: analyzing,
         engineRunning: engineRunning,
       ),
-      builder: (context, controller, child) => FButton.icon(
+      builder: (context, controller, child) => AppButton.icon(
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
@@ -997,7 +998,7 @@ class _LoadDeckChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     return Expanded(
-      child: FButton(
+      child: AppButton(
         semanticsLabel: 'Load to $letter',
         onPress: enabled ? onPress : null,
         variant: .ghost,
