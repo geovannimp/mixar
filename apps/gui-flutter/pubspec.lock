@@ -303,6 +303,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  hint_kit:
+    dependency: "direct main"
+    description:
+      name: hint_kit
+      sha256: "8484e03b5cd711761b30a2399af321f921dc5b47573e705cc2b258d7ebad626b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.0"
   hooks:
     dependency: transitive
     description:

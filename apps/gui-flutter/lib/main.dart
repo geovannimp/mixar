@@ -94,7 +94,7 @@ class Application extends StatelessWidget {
                 return DesktopChrome(
                   child: FTheme(
                     data: data,
-                    child: FToaster(child: FTooltipGroup(child: child!)),
+                    child: FToaster(child: child!),
                   ),
                 );
               },

@@ -5,6 +5,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:hint_kit/hint_kit.dart';
 import 'package:material_ui/material_ui.dart';
 import 'support/forui_material_app.dart';
 
@@ -26,10 +27,7 @@ void main() {
         overrides: [appSettingsProvider.overrideWith((ref) async => settings)],
         child: MaterialApp(
           theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(
-            theme,
-            wrapChild: (child) => FTooltipGroup(child: child),
-          ),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: AppTooltip(
               tip: 'Play',
@@ -43,17 +41,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('wraps child in FTooltip when showTooltips is on', (
-    tester,
-  ) async {
+  testWidgets('wraps child in Hint when showTooltips is on', (tester) async {
     await pumpTip(tester, showTooltips: true);
-    expect(find.byType(FTooltip), findsOneWidget);
+    expect(find.byType(Hint), findsOneWidget);
     expect(find.text('child'), findsOneWidget);
   });
 
-  testWidgets('skips FTooltip when showTooltips is off', (tester) async {
+  testWidgets('skips Hint when showTooltips is off', (tester) async {
     await pumpTip(tester, showTooltips: false);
-    expect(find.byType(FTooltip), findsNothing);
+    expect(find.byType(Hint), findsNothing);
     expect(find.text('child'), findsOneWidget);
   });
 
@@ -63,6 +59,6 @@ void main() {
       showTooltips: true,
       description: 'Keeps pitch when changing tempo.',
     );
-    expect(find.byType(FTooltip), findsOneWidget);
+    expect(find.byType(Hint), findsOneWidget);
   });
 }
