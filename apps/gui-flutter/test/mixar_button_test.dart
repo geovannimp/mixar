@@ -1,3 +1,6 @@
+import 'dart:ui' show Tristate;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
@@ -79,5 +82,45 @@ void main() {
     await tester.tap(find.byIcon(FLucideIcons.settings));
     await tester.pump();
     expect(taps, 1);
+  });
+
+  testWidgets('selected latched button reports Semantics.selected', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    try {
+      await pumpApp(
+        tester,
+        MixerButton(
+          selected: true,
+          onPress: () {},
+          semanticsLabel: 'Cue',
+          child: const Text('Cue'),
+        ),
+      );
+      final flags = tester
+          .getSemantics(find.text('Cue'))
+          .getSemanticsData()
+          .flagsCollection;
+      expect(flags.isSelected, Tristate.isTrue);
+      expect(flags.isButton, isTrue);
+    } finally {
+      handle.dispose();
+    }
+  });
+
+  testWidgets('disabled ignores secondary press', (tester) async {
+    var secondary = 0;
+    await pumpApp(
+      tester,
+      MTappable(
+        onPress: null,
+        onSecondaryPress: () => secondary++,
+        builder: (_, _) => const Text('Chip'),
+      ),
+    );
+    await tester.tap(find.text('Chip'), buttons: kSecondaryMouseButton);
+    await tester.pump();
+    expect(secondary, 0);
   });
 }

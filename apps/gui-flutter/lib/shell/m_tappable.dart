@@ -107,10 +107,14 @@ class _MTappableState extends State<MTappable> {
     return Semantics(
       button: true,
       enabled: !_disabled,
+      // Only latched-on controls expose selected; momentary stay unset.
+      selected: widget.selected ? true : null,
       label: widget.semanticsLabel,
       child: Focus(
         focusNode: widget.focusNode,
-        autofocus: widget.autofocus,
+        autofocus: widget.autofocus && !_disabled,
+        canRequestFocus: !_disabled,
+        skipTraversal: _disabled,
         onFocusChange: _setFocused,
         onKeyEvent: _onKey,
         child: MouseRegion(
@@ -132,7 +136,7 @@ class _MTappableState extends State<MTappable> {
                 ? null
                 : () => _setPressed(false),
             onTap: widget.onPress,
-            onSecondaryTap: widget.onSecondaryPress,
+            onSecondaryTap: _disabled ? null : widget.onSecondaryPress,
             child: child,
           ),
         ),
