@@ -222,7 +222,7 @@ class _EjectLoadButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         semanticsLabel: tip,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        child: Icon(hasTrack ? LucideIcons.eject600 : LucideIcons.fileInput600),
+        child: Icon(hasTrack ? LucideIcons.eject : LucideIcons.fileInput),
       ),
     );
   }
