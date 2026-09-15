@@ -438,14 +438,16 @@ class _LevelMetersColumn extends ConsumerWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Row(
-              mainAxisAlignment: .center,
-              crossAxisAlignment: .stretch,
-              children: [
-                LevelMeter(levels: levelsA, mode: mode),
-                const SizedBox(width: 2),
-                LevelMeter(levels: levelsB, mode: mode),
-              ],
+            child: RepaintBoundary(
+              child: Row(
+                mainAxisAlignment: .center,
+                crossAxisAlignment: .stretch,
+                children: [
+                  LevelMeter(levels: levelsA, mode: mode),
+                  const SizedBox(width: 2),
+                  LevelMeter(levels: levelsB, mode: mode),
+                ],
+              ),
             ),
           ),
         ),

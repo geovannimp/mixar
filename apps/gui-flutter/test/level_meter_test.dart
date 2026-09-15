@@ -1,8 +1,8 @@
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:material_ui/material_ui.dart';
 import 'support/forui_material_app.dart';
 
 void main() {
@@ -42,21 +42,14 @@ void main() {
     );
 
     expect(find.byType(LevelMeter), findsNWidgets(2));
-    // mono: 12 segments; stereo: 24
-    expect(find.byType(DecoratedBox), findsNWidgets(12 + 24));
+    final paints = find.descendant(
+      of: find.byType(LevelMeter),
+      matching: find.byType(CustomPaint),
+    );
+    expect(paints, findsNWidgets(3));
 
-    final boxes = tester.renderObjectList<RenderBox>(find.byType(DecoratedBox));
+    final boxes = tester.renderObjectList<RenderBox>(paints);
     expect(boxes.every((b) => b.size.width >= 6), isTrue);
     expect(boxes.every((b) => b.size.height > 0), isTrue);
-
-    final decorations = tester.widgetList<DecoratedBox>(
-      find.byType(DecoratedBox),
-    );
-    expect(
-      decorations.every(
-        (d) => (d.decoration as BoxDecoration).color == theme.colors.muted,
-      ),
-      isTrue,
-    );
   });
 }

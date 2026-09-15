@@ -111,13 +111,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
-    final enginePosMs = ref.watch(deckPositionMsProvider(widget.deckId));
     final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
 
-    // When not interpolating (pause / vinyl touch), drive the lane from the
-    // engine playhead every build so jog Position updates cannot be missed.
+    // Do not watch deckPositionMs here: during play the AnimationController
+    // owns the scroll; watching would rebuild this lane on every engine poll.
     if (!advancing && !_scrubbing && durationMs > 0) {
+      final enginePosMs = ref.read(deckPositionMsProvider(widget.deckId));
       final v = (enginePosMs / durationMs).clamp(0.0, 1.0);
       if ((_playhead.value - v).abs() > 1e-12) {
         _playhead.value = v;
@@ -134,6 +134,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       final engineMs = next.toDouble();
       final advancingNow = _advancingNow();
       final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
+      if (!advancingNow) {
+        _setDisplayMs(
+          engineMs,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: false,
+        );
+        return;
+      }
       if (playheadShouldSnap(
         displayMs: display,
         engineMs: engineMs,
@@ -296,31 +305,36 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     animation: _playhead,
                     builder: (context, child) {
                       final positionMs = _displayMs(durationMs);
-                      return Positioned(
-                        left: snapPx(
-                          playheadDx(
-                            positionMs: positionMs,
-                            originMs: ring.originMs,
-                            width: width,
-                            pxPerMs: pxPerMs,
-                          ),
-                          dpr,
+                      final dx = snapPx(
+                        playheadDx(
+                          positionMs: positionMs,
+                          originMs: ring.originMs,
+                          width: width,
+                          pxPerMs: pxPerMs,
                         ),
-                        top: 0,
-                        bottom: 0,
-                        width: ring.widthPx.toDouble(),
-                        child: child ?? const SizedBox.shrink(),
+                        dpr,
+                      );
+                      // Transform a cached layer — avoids Stack/Positioned
+                      // relayout of a 2×-viewport picture every vsync.
+                      return Transform.translate(
+                        offset: Offset(dx, 0),
+                        filterQuality: FilterQuality.none,
+                        child: child,
                       );
                     },
-                    child: RepaintBoundary(
-                      child: _RingLayer(
-                        ring: ring,
-                        height: height,
-                        beatGrid: beatGrid,
-                        loops: loops,
-                        activeLoop: activeLoop,
-                        pendingLoopIn: pendingLoopIn,
-                        cues: cues,
+                    child: SizedBox(
+                      width: ring.widthPx.toDouble(),
+                      height: height,
+                      child: RepaintBoundary(
+                        child: _RingLayer(
+                          ring: ring,
+                          height: height,
+                          beatGrid: beatGrid,
+                          loops: loops,
+                          activeLoop: activeLoop,
+                          pendingLoopIn: pendingLoopIn,
+                          cues: cues,
+                        ),
                       ),
                     ),
                   ),
@@ -334,22 +348,25 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                 if (slipOn && slipShadowMs != null && ring != null)
                   AnimatedBuilder(
                     animation: _playhead,
-                    builder: (context, _) {
+                    builder: (context, child) {
                       final audibleMs = _displayMs(durationMs);
                       final delta = slipShadowMs - audibleMs;
                       if (delta.abs() < 3) {
                         return const SizedBox.shrink();
                       }
-                      return Positioned(
-                        left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
-                        top: 0,
-                        bottom: 0,
-                        width: 1,
-                        child: ColoredBox(
-                          color: theme.colors.primary.withValues(alpha: 0.65),
+                      return Transform.translate(
+                        offset: Offset(
+                          snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
+                          0,
                         ),
+                        filterQuality: FilterQuality.none,
+                        child: child,
                       );
                     },
+                    child: ColoredBox(
+                      color: theme.colors.primary.withValues(alpha: 0.65),
+                      child: SizedBox(width: 1, height: height),
+                    ),
                   ),
                 Align(
                   alignment: Alignment.centerLeft,
