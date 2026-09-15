@@ -80,6 +80,11 @@ void main() {
       peakAtTime(overview, detail, 4000, 0, fallbackToOverview: false).low,
       0,
     );
+    // Ring chunks paint detail-only (empty overview).
+    expect(
+      peakAtTime(const [], detail, 4000, 1500, fallbackToOverview: false).mid,
+      closeTo(1, 1e-6),
+    );
   });
 
   test('ringChunkPx is floor(window/4) with a floor of 1', () {
