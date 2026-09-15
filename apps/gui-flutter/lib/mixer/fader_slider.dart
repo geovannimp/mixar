@@ -68,6 +68,19 @@ class FaderColors {
     FaderAccent.b => b,
     FaderAccent.neutral => neutral,
   };
+
+  /// Scale alpha on paint colors (avoids an [Opacity] saveLayer).
+  FaderColors faded(double opacity) {
+    final o = opacity.clamp(0.0, 1.0);
+    if (o >= 1.0) {
+      return this;
+    }
+    return FaderColors(
+      track: track.withValues(alpha: track.a * o),
+      indicator: indicator.withValues(alpha: indicator.a * o),
+      grip: grip.withValues(alpha: grip.a * o),
+    );
+  }
 }
 
 FaderAccent? faderAccentForDeck(int deckId) => switch (deckId) {
@@ -396,118 +409,116 @@ class _FaderSliderState extends State<FaderSlider> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = FaderColors.forAccent(widget.accent);
-    final opacity = widget.disabled ? 0.45 : 1.0;
+    final colors = FaderColors.forAccent(
+      widget.accent,
+    ).faded(widget.disabled ? 0.45 : 1.0);
     final t = _normalizeFaderT(widget.value, widget.min, widget.max);
     final step = widget.step > 0 ? widget.step : 1.0;
 
-    return Opacity(
-      opacity: opacity,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final size = Size(constraints.maxWidth, constraints.maxHeight);
-          return Focus(
-            child: Shortcuts(
-              shortcuts: <ShortcutActivator, Intent>{
-                const SingleActivator(LogicalKeyboardKey.arrowUp):
-                    _FaderAdjustIntent(step),
-                const SingleActivator(LogicalKeyboardKey.arrowDown):
-                    _FaderAdjustIntent(-step),
-                const SingleActivator(LogicalKeyboardKey.arrowRight):
-                    _FaderAdjustIntent(step),
-                const SingleActivator(LogicalKeyboardKey.arrowLeft):
-                    _FaderAdjustIntent(-step),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        return Focus(
+          child: Shortcuts(
+            shortcuts: <ShortcutActivator, Intent>{
+              const SingleActivator(LogicalKeyboardKey.arrowUp):
+                  _FaderAdjustIntent(step),
+              const SingleActivator(LogicalKeyboardKey.arrowDown):
+                  _FaderAdjustIntent(-step),
+              const SingleActivator(LogicalKeyboardKey.arrowRight):
+                  _FaderAdjustIntent(step),
+              const SingleActivator(LogicalKeyboardKey.arrowLeft):
+                  _FaderAdjustIntent(-step),
+            },
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                _FaderAdjustIntent: CallbackAction<_FaderAdjustIntent>(
+                  onInvoke: (intent) {
+                    _nudgeBy(intent.delta);
+                    return null;
+                  },
+                ),
               },
-              child: Actions(
-                actions: <Type, Action<Intent>>{
-                  _FaderAdjustIntent: CallbackAction<_FaderAdjustIntent>(
-                    onInvoke: (intent) {
-                      _nudgeBy(intent.delta);
-                      return null;
-                    },
-                  ),
-                },
-                child: Semantics(
-                  label: widget.semanticLabel,
-                  slider: true,
-                  enabled: !widget.disabled,
-                  value: widget.value.toStringAsFixed(2),
-                  increasedValue: widget.disabled
+              child: Semantics(
+                label: widget.semanticLabel,
+                slider: true,
+                enabled: !widget.disabled,
+                value: widget.value.toStringAsFixed(2),
+                increasedValue: widget.disabled
+                    ? null
+                    : (widget.value + step)
+                          .clamp(widget.min, widget.max)
+                          .toStringAsFixed(2),
+                decreasedValue: widget.disabled
+                    ? null
+                    : (widget.value - step)
+                          .clamp(widget.min, widget.max)
+                          .toStringAsFixed(2),
+                onIncrease: widget.disabled ? null : () => _nudgeBy(step),
+                onDecrease: widget.disabled ? null : () => _nudgeBy(-step),
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: widget.disabled
                       ? null
-                      : (widget.value + step)
-                            .clamp(widget.min, widget.max)
-                            .toStringAsFixed(2),
-                  decreasedValue: widget.disabled
-                      ? null
-                      : (widget.value - step)
-                            .clamp(widget.min, widget.max)
-                            .toStringAsFixed(2),
-                  onIncrease: widget.disabled ? null : () => _nudgeBy(step),
-                  onDecrease: widget.disabled ? null : () => _nudgeBy(-step),
-                  child: Listener(
-                    behavior: HitTestBehavior.opaque,
-                    onPointerDown: widget.disabled
-                        ? null
-                        : (event) {
-                            final onThumb = faderThumbHitRect(
-                              size: size,
-                              orientation: widget.orientation,
-                              t: t,
-                            ).contains(event.localPosition);
-                            setState(() {
-                              _dragging = true;
-                              _relative = onThumb;
-                              if (onThumb) {
-                                _startValue = widget.value;
-                                _startAxis = switch (widget.orientation) {
-                                  FaderOrientation.vertical =>
-                                    event.localPosition.dy,
-                                  FaderOrientation.horizontal =>
-                                    event.localPosition.dx,
-                                };
-                              } else {
-                                _startValue = null;
-                                _startAxis = null;
-                              }
-                            });
-                            if (!onThumb) {
-                              _emitFromLocal(event.localPosition, size);
-                            }
-                          },
-                    onPointerMove: widget.disabled
-                        ? null
-                        : (event) {
-                            if (!_dragging) {
-                              return;
-                            }
-                            if (_relative) {
-                              _emitRelative(event.localPosition, size);
+                      : (event) {
+                          final onThumb = faderThumbHitRect(
+                            size: size,
+                            orientation: widget.orientation,
+                            t: t,
+                          ).contains(event.localPosition);
+                          setState(() {
+                            _dragging = true;
+                            _relative = onThumb;
+                            if (onThumb) {
+                              _startValue = widget.value;
+                              _startAxis = switch (widget.orientation) {
+                                FaderOrientation.vertical =>
+                                  event.localPosition.dy,
+                                FaderOrientation.horizontal =>
+                                  event.localPosition.dx,
+                              };
                             } else {
-                              _emitFromLocal(event.localPosition, size);
+                              _startValue = null;
+                              _startAxis = null;
                             }
-                          },
-                    onPointerUp: (_) => _clearDrag(),
-                    onPointerCancel: (_) => _clearDrag(),
-                    child: CustomPaint(
-                      size: size,
-                      painter: _FaderPainter(
-                        t: t,
-                        orientation: widget.orientation,
-                        colors: colors,
-                        showIndicator: widget.showIndicator,
-                        showMarkers: widget.showMarkers,
-                        centerNotch: widget.centerNotch,
-                        crossfaderTrack: widget.crossfaderTrack,
-                        dragging: _dragging,
-                      ),
+                          });
+                          if (!onThumb) {
+                            _emitFromLocal(event.localPosition, size);
+                          }
+                        },
+                  onPointerMove: widget.disabled
+                      ? null
+                      : (event) {
+                          if (!_dragging) {
+                            return;
+                          }
+                          if (_relative) {
+                            _emitRelative(event.localPosition, size);
+                          } else {
+                            _emitFromLocal(event.localPosition, size);
+                          }
+                        },
+                  onPointerUp: (_) => _clearDrag(),
+                  onPointerCancel: (_) => _clearDrag(),
+                  child: CustomPaint(
+                    size: size,
+                    painter: _FaderPainter(
+                      t: t,
+                      orientation: widget.orientation,
+                      colors: colors,
+                      showIndicator: widget.showIndicator,
+                      showMarkers: widget.showMarkers,
+                      centerNotch: widget.centerNotch,
+                      crossfaderTrack: widget.crossfaderTrack,
+                      dragging: _dragging,
                     ),
                   ),
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }

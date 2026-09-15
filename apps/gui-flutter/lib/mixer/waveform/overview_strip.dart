@@ -20,6 +20,8 @@ const _waveformSkeletonEffect = ShimmerEffect(
   highlightColor: Color.fromARGB(255, 32, 34, 42),
 );
 
+const _overviewPlayedDim = Color.fromRGBO(0, 0, 0, 0.6);
+
 class OverviewStrip extends ConsumerWidget {
   const OverviewStrip({required this.deckId, this.height = 28, super.key});
 
@@ -28,10 +30,8 @@ class OverviewStrip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId)) ?? 0;
-    final positionMs = ref.watch(deckPositionMsProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final peaks = trackId == null
         ? const <SpectralPeak>[]
@@ -54,9 +54,6 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final playheadX = durationMs > 0
-                  ? (positionMs / durationMs).clamp(0.0, 1.0) * width
-                  : 0.0;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: durationMs <= 0
@@ -70,47 +67,37 @@ class OverviewStrip extends ConsumerWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CustomPaint(
-                      painter: WaveformBarPainter(
-                        overview: peaks,
-                        detail: null,
-                        durationMs: durationMs,
-                        originMs: 0,
-                        spanMs: durationMs.toDouble(),
-                        mode: mode,
+                    // Bars are static vs playhead — cache so position ticks
+                    // don't re-issue per-pixel drawRects.
+                    RepaintBoundary(
+                      child: CustomPaint(
+                        painter: WaveformBarPainter(
+                          overview: peaks,
+                          detail: null,
+                          durationMs: durationMs,
+                          originMs: 0,
+                          spanMs: durationMs.toDouble(),
+                          mode: mode,
+                        ),
                       ),
                     ),
-                    if (durationMs > 0)
-                      Positioned(
-                        left: 0,
-                        width: playheadX,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: const Color.fromRGBO(0, 0, 0, 0.6),
-                        ),
-                      ),
                     if (durationMs > 0 && width > 0)
                       IgnorePointer(
-                        child: _OverviewOverlayLayer(
-                          durationMs: durationMs,
-                          width: width,
-                          height: height,
-                          hotCues: hotCues,
-                          savedLoops: savedLoops,
+                        child: RepaintBoundary(
+                          child: _OverviewOverlayLayer(
+                            durationMs: durationMs,
+                            width: width,
+                            height: height,
+                            hotCues: hotCues,
+                            savedLoops: savedLoops,
+                          ),
                         ),
                       ),
                     if (durationMs > 0)
-                      Positioned(
-                        left: playheadX,
-                        top: 0,
-                        bottom: 0,
-                        child: ColoredBox(
-                          color: theme.colors.foreground.withValues(
-                            alpha: 0.85,
-                          ),
-                          child: const SizedBox(width: 1),
-                        ),
+                      _OverviewPlayhead(
+                        deckId: deckId,
+                        durationMs: durationMs,
+                        width: width,
                       ),
                   ],
                 ),
@@ -119,6 +106,49 @@ class OverviewStrip extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Playhead + played-dim only — watches engine position without rebuilding bars.
+class _OverviewPlayhead extends ConsumerWidget {
+  const _OverviewPlayhead({
+    required this.deckId,
+    required this.durationMs,
+    required this.width,
+  });
+
+  final int deckId;
+  final int durationMs;
+  final double width;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = context.theme;
+    final positionMs = ref.watch(deckPositionMsProvider(deckId));
+    final playheadX = durationMs > 0
+        ? (positionMs / durationMs).clamp(0.0, 1.0) * width
+        : 0.0;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          left: 0,
+          width: playheadX,
+          top: 0,
+          bottom: 0,
+          child: const ColoredBox(color: _overviewPlayedDim),
+        ),
+        Positioned(
+          left: playheadX,
+          top: 0,
+          bottom: 0,
+          child: ColoredBox(
+            color: theme.colors.foreground.withValues(alpha: 0.85),
+            child: const SizedBox(width: 1),
+          ),
+        ),
+      ],
     );
   }
 }
