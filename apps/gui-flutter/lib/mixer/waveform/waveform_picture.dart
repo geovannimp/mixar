@@ -104,3 +104,23 @@ Picture recordWaveformPicture({
   ).paint(canvas, size);
   return recorder.endRecording();
 }
+
+/// Side-by-side composite of chunk pictures (each [chunkPx] wide).
+Picture recordCompositePicture({
+  required List<Picture> chunks,
+  required int chunkPx,
+  required double height,
+}) {
+  final n = chunks.length;
+  final width = (chunkPx * n).toDouble();
+  final size = Size(width, height);
+  final recorder = PictureRecorder();
+  final canvas = Canvas(recorder, Offset.zero & size);
+  for (var i = 0; i < n; i++) {
+    canvas.save();
+    canvas.translate(chunkPx * i.toDouble(), 0);
+    canvas.drawPicture(chunks[i]);
+    canvas.restore();
+  }
+  return recorder.endRecording();
+}

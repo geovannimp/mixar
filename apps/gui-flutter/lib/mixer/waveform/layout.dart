@@ -1,13 +1,99 @@
 const kWaveformVisibleMs = 24000;
-const kWaveformBufferRatio = 1.0;
-const kWaveformRefreshMargin = 0.35;
 const kWaveformSeekSnapMs = 180.0;
 const kWaveformDriftCorrectMs = 60.0;
 const kWaveformStripMsPerPx = 13.0;
 const kWaveformStripMinPx = 2048;
 const kWaveformStripMaxPx = 16384;
 const kWaveformStripHeight = 128.0;
-const kWaveformStripTilePx = 2048;
+
+/// Viewport ring: 8 chunks, 4 visible, slide by 2.
+const kWaveformRingChunks = 8;
+const kWaveformRingVisibleChunks = 4;
+const kWaveformRingSlideChunks = 2;
+
+int ringChunkPx(double windowWidth) {
+  if (!(windowWidth > 0) || !windowWidth.isFinite) {
+    return 1;
+  }
+  return (windowWidth / kWaveformRingVisibleChunks).floor().clamp(1, 1 << 20);
+}
+
+/// Centered ring time range clamped to the track.
+({double originMs, double chunkMs, int chunkCount}) ringRange({
+  required double positionMs,
+  required double visibleMs,
+  required int durationMs,
+}) {
+  if (durationMs <= 0 || !(visibleMs > 0)) {
+    return (originMs: 0, chunkMs: 0, chunkCount: 0);
+  }
+  final chunkMs = visibleMs / kWaveformRingVisibleChunks;
+  if (!(chunkMs > 0)) {
+    return (originMs: 0, chunkMs: 0, chunkCount: 0);
+  }
+  final maxChunks = (durationMs / chunkMs).floor().clamp(
+    1,
+    kWaveformRingChunks,
+  );
+  final spanMs = chunkMs * maxChunks;
+  var origin = positionMs - (chunkMs * kWaveformRingChunks) / 2;
+  if (origin < 0) {
+    origin = 0;
+  }
+  if (origin + spanMs > durationMs) {
+    origin = (durationMs - spanMs).clamp(0, durationMs.toDouble());
+  }
+  return (originMs: origin, chunkMs: chunkMs, chunkCount: maxChunks);
+}
+
+bool ringNeedsSlide({
+  required double positionMs,
+  required double ringOriginMs,
+  required double chunkMs,
+  required int chunkCount,
+  required int durationMs,
+}) {
+  if (chunkMs <= 0 || chunkCount <= 0 || durationMs <= 0) {
+    return false;
+  }
+  final half = chunkMs * chunkCount / 2;
+  final center = ringOriginMs + half;
+  final delta = positionMs - center;
+  final threshold = chunkMs * kWaveformRingSlideChunks;
+  if (delta.abs() < threshold) {
+    return false;
+  }
+  // No slide past ends when the ring already covers the track edge.
+  if (delta > 0) {
+    final end = ringOriginMs + chunkMs * chunkCount;
+    if (end >= durationMs - 1e-6) {
+      return false;
+    }
+  } else if (ringOriginMs <= 1e-6) {
+    return false;
+  }
+  return true;
+}
+
+/// New origin after a ±2-chunk slide toward [positionMs], clamped.
+double ringSlideOriginMs({
+  required double ringOriginMs,
+  required double chunkMs,
+  required int chunkCount,
+  required double positionMs,
+  required int durationMs,
+}) {
+  if (chunkMs <= 0 || chunkCount <= 0 || durationMs <= 0) {
+    return ringOriginMs;
+  }
+  final half = chunkMs * chunkCount / 2;
+  final center = ringOriginMs + half;
+  final step = chunkMs * kWaveformRingSlideChunks;
+  final delta = positionMs - center;
+  final next = delta >= 0 ? ringOriginMs + step : ringOriginMs - step;
+  final spanMs = chunkMs * chunkCount;
+  return next.clamp(0.0, (durationMs - spanMs).clamp(0, durationMs).toDouble());
+}
 
 int visibleSourceMs(double speed) {
   return (kWaveformVisibleMs * waveformSpeedScale(speed)).round();
@@ -128,87 +214,3 @@ bool playheadShouldSnap({
 /// must treat touch like pause or the lane keeps scrolling with no audio.
 bool playheadAdvancing({required bool playing, required bool jogTouching}) =>
     playing && !jogTouching;
-
-int l1StartMs({required int positionMs, required int visibleMs}) =>
-    positionMs - (visibleMs * 3 / 2).round();
-
-int l1EndMs({required int positionMs, required int visibleMs}) =>
-    positionMs + (visibleMs * 3 / 2).round();
-
-({int startMs, int endMs}) l1Range({
-  required int positionMs,
-  required int visibleMs,
-  required int durationMs,
-}) {
-  if (durationMs <= 0) {
-    return (startMs: 0, endMs: 0);
-  }
-  final start = l1StartMs(
-    positionMs: positionMs,
-    visibleMs: visibleMs,
-  ).clamp(0, durationMs).toInt();
-  final end = l1EndMs(
-    positionMs: positionMs,
-    visibleMs: visibleMs,
-  ).clamp(start, durationMs).toInt();
-  return (startMs: start, endMs: end);
-}
-
-/// Keep ~1 bucket per viewport pixel so L1 swaps don't change peak density.
-int l1BucketCount({
-  required int startMs,
-  required int endMs,
-  required int visibleMs,
-  required double width,
-}) {
-  if (visibleMs <= 0 || width <= 0 || endMs <= startMs) {
-    return 16;
-  }
-  return ((endMs - startMs) / visibleMs * width).round().clamp(16, 16384);
-}
-
-bool l1CoversVisible({
-  required double positionMs,
-  required int visibleMs,
-  required int startMs,
-  required int endMs,
-  int durationMs = 1 << 30,
-}) {
-  if (visibleMs <= 0 || endMs <= startMs) {
-    return false;
-  }
-  final half = visibleMs / 2;
-  final viewStart = (positionMs - half).clamp(0, durationMs.toDouble());
-  final viewEnd = (positionMs + half).clamp(0, durationMs.toDouble());
-  return startMs <= viewStart && endMs >= viewEnd;
-}
-
-bool l1NeedsRefresh({
-  required double positionMs,
-  required int? detailStartMs,
-  required int? detailEndMs,
-  required int visibleMs,
-  required int durationMs,
-}) {
-  if (detailStartMs == null || detailEndMs == null) {
-    return true;
-  }
-  if (detailEndMs <= detailStartMs || visibleMs <= 0) {
-    return true;
-  }
-  final margin = visibleMs * kWaveformRefreshMargin;
-  final nearStart = positionMs < detailStartMs + margin;
-  final nearEnd = positionMs > detailEndMs - margin;
-  if (!nearStart && !nearEnd) {
-    return false;
-  }
-  final canSlideStart = detailStartMs > 0;
-  final canSlideEnd = detailEndMs < durationMs;
-  if (nearStart && !canSlideStart && !(nearEnd && canSlideEnd)) {
-    return false;
-  }
-  if (nearEnd && !canSlideEnd && !(nearStart && canSlideStart)) {
-    return false;
-  }
-  return true;
-}

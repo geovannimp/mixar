@@ -191,7 +191,8 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
           ? null
           : recordLoopPicture(
               loops: widget.savedLoops,
-              durationMs: widget.durationMs,
+              originMs: 0,
+              spanMs: widget.durationMs.toDouble(),
               size: size,
             );
       _loopKey = loopKey;
@@ -210,7 +211,8 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
           ? null
           : recordCuePicture(
               cues: widget.hotCues,
-              durationMs: widget.durationMs,
+              originMs: 0,
+              spanMs: widget.durationMs.toDouble(),
               size: size,
             );
       _cueKey = cueKey;

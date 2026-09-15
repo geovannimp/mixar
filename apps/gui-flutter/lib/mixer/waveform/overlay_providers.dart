@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_ring.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
   if (picture == null) {
@@ -19,34 +20,40 @@ void _dropPictureAfterFrame(Picture? picture) {
   });
 }
 
-Size _stripSize(int durationMs) =>
-    Size(stripWidthPx(durationMs).toDouble(), kWaveformStripHeight);
+Size _ringSize(WaveformRing ring) =>
+    Size(ring.widthPx.toDouble(), kWaveformStripHeight);
 
-class StripBeatGridPictureNotifier extends Notifier<Picture?> {
-  StripBeatGridPictureNotifier(this.arg);
+class RingBeatGridPictureNotifier extends Notifier<Picture?> {
+  RingBeatGridPictureNotifier(this.arg);
 
-  final (String, int) arg;
+  final (int, int, int) arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    final grid = ref.watch(beatGridProvider(trackId));
-    if (grid == null || grid.bpm == null || durationMs <= 0) {
+    final ring = ref.watch(waveformRingProvider(arg));
+    final trackId = ref.watch(deckTrackIdProvider(arg.$1));
+    if (ring == null || trackId == null) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
     }
-    final size = _stripSize(durationMs);
+    final grid = ref.watch(beatGridProvider(trackId));
+    if (grid == null || grid.bpm == null) {
+      _dropPictureAfterFrame(_owned);
+      _owned = null;
+      return null;
+    }
+    final size = _ringSize(ring);
     final marks = beatGridXs(
       bpm: grid.bpm!,
       firstBeatSecs: grid.beats.isEmpty ? 0 : grid.beats.first,
-      originMs: 0,
-      spanMs: durationMs.toDouble(),
+      originMs: ring.originMs,
+      spanMs: ring.spanMs,
       width: size.width,
     );
     final next = recordBeatGridPicture(marks: marks, size: size);
@@ -56,20 +63,21 @@ class StripBeatGridPictureNotifier extends Notifier<Picture?> {
   }
 }
 
-class StripLoopPictureNotifier extends Notifier<Picture?> {
-  StripLoopPictureNotifier(this.arg);
+class RingLoopPictureNotifier extends Notifier<Picture?> {
+  RingLoopPictureNotifier(this.arg);
 
-  final (String, int) arg;
+  final (int, int, int) arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    final ring = ref.watch(waveformRingProvider(arg));
+    final trackId = ref.watch(deckTrackIdProvider(arg.$1));
+    if (ring == null || trackId == null) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -82,8 +90,9 @@ class StripLoopPictureNotifier extends Notifier<Picture?> {
     }
     final next = recordLoopPicture(
       loops: loops,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: ring.originMs,
+      spanMs: ring.spanMs,
+      size: _ringSize(ring),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -91,29 +100,30 @@ class StripLoopPictureNotifier extends Notifier<Picture?> {
   }
 }
 
-class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
-  StripActiveLoopPictureNotifier(this.arg);
+class RingActiveLoopPictureNotifier extends Notifier<Picture?> {
+  RingActiveLoopPictureNotifier(this.arg);
 
-  final (int, int) arg;
+  final (int, int, int) arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (deckId, durationMs) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    final ring = ref.watch(waveformRingProvider(arg));
+    if (ring == null) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
     }
-    final loop = ref.watch(deckActiveLoopProvider(deckId));
+    final loop = ref.watch(deckActiveLoopProvider(arg.$1));
     final next = recordActiveLoopPicture(
       loop: loop,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: ring.originMs,
+      spanMs: ring.spanMs,
+      size: _ringSize(ring),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -121,29 +131,30 @@ class StripActiveLoopPictureNotifier extends Notifier<Picture?> {
   }
 }
 
-class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
-  StripPendingLoopInPictureNotifier(this.arg);
+class RingPendingLoopInPictureNotifier extends Notifier<Picture?> {
+  RingPendingLoopInPictureNotifier(this.arg);
 
-  final (int, int) arg;
+  final (int, int, int) arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (deckId, durationMs) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    final ring = ref.watch(waveformRingProvider(arg));
+    if (ring == null) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
     }
-    final pending = ref.watch(deckPendingLoopInMsProvider(deckId));
+    final pending = ref.watch(deckPendingLoopInMsProvider(arg.$1));
     final next = recordPendingLoopInPicture(
       pendingInMs: pending,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: ring.originMs,
+      spanMs: ring.spanMs,
+      size: _ringSize(ring),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -151,20 +162,21 @@ class StripPendingLoopInPictureNotifier extends Notifier<Picture?> {
   }
 }
 
-class StripCuePictureNotifier extends Notifier<Picture?> {
-  StripCuePictureNotifier(this.arg);
+class RingCuePictureNotifier extends Notifier<Picture?> {
+  RingCuePictureNotifier(this.arg);
 
-  final (String, int) arg;
+  final (int, int, int) arg;
   Picture? _owned;
 
   @override
   Picture? build() {
-    final (trackId, durationMs) = arg;
     ref.onDispose(() {
       _dropPictureAfterFrame(_owned);
       _owned = null;
     });
-    if (durationMs <= 0) {
+    final ring = ref.watch(waveformRingProvider(arg));
+    final trackId = ref.watch(deckTrackIdProvider(arg.$1));
+    if (ring == null || trackId == null) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
       return null;
@@ -185,8 +197,9 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
     ];
     final next = recordCuePicture(
       cues: cues,
-      durationMs: durationMs,
-      size: _stripSize(durationMs),
+      originMs: ring.originMs,
+      spanMs: ring.spanMs,
+      size: _ringSize(ring),
     );
     _dropPictureAfterFrame(_owned);
     _owned = next;
@@ -194,27 +207,27 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
   }
 }
 
-final stripBeatGridPictureProvider = NotifierProvider.autoDispose
-    .family<StripBeatGridPictureNotifier, Picture?, (String, int)>(
-      StripBeatGridPictureNotifier.new,
+final ringBeatGridPictureProvider = NotifierProvider.autoDispose
+    .family<RingBeatGridPictureNotifier, Picture?, (int, int, int)>(
+      RingBeatGridPictureNotifier.new,
     );
 
-final stripLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripLoopPictureNotifier, Picture?, (String, int)>(
-      StripLoopPictureNotifier.new,
+final ringLoopPictureProvider = NotifierProvider.autoDispose
+    .family<RingLoopPictureNotifier, Picture?, (int, int, int)>(
+      RingLoopPictureNotifier.new,
     );
 
-final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
-    .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
-      StripActiveLoopPictureNotifier.new,
+final ringActiveLoopPictureProvider = NotifierProvider.autoDispose
+    .family<RingActiveLoopPictureNotifier, Picture?, (int, int, int)>(
+      RingActiveLoopPictureNotifier.new,
     );
 
-final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
-    .family<StripPendingLoopInPictureNotifier, Picture?, (int, int)>(
-      StripPendingLoopInPictureNotifier.new,
+final ringPendingLoopInPictureProvider = NotifierProvider.autoDispose
+    .family<RingPendingLoopInPictureNotifier, Picture?, (int, int, int)>(
+      RingPendingLoopInPictureNotifier.new,
     );
 
-final stripCuePictureProvider = NotifierProvider.autoDispose
-    .family<StripCuePictureNotifier, Picture?, (String, int)>(
-      StripCuePictureNotifier.new,
+final ringCuePictureProvider = NotifierProvider.autoDispose
+    .family<RingCuePictureNotifier, Picture?, (int, int, int)>(
+      RingCuePictureNotifier.new,
     );
