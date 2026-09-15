@@ -11,6 +11,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'support/forui_material_app.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class _RunningEngineUi extends EngineUi {
   @override
@@ -70,12 +71,12 @@ void main() {
 
     await pumpMenu(tester, inLibrary: true, width: 40);
     expect(overflow, isNull);
-    expect(find.byIcon(FLucideIcons.ellipsisVertical), findsOneWidget);
+    expect(find.byIcon(LucideIcons.ellipsisVertical), findsOneWidget);
   });
 
   testWidgets('Analyze is enabled for library tracks', (tester) async {
     await pumpMenu(tester, inLibrary: true);
-    await tester.tap(find.byIcon(FLucideIcons.ellipsisVertical));
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     final item = tester.widget<FItem>(find.widgetWithText(FItem, 'Analyze'));
     expect(item.enabled, isNot(false));
@@ -86,7 +87,7 @@ void main() {
     tester,
   ) async {
     await pumpMenu(tester, inLibrary: true);
-    await tester.tap(find.byIcon(FLucideIcons.ellipsisVertical));
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Load to deck'), findsOneWidget);
     expect(_loadChip(tester, 'A').onPress, isNull);
@@ -96,7 +97,7 @@ void main() {
   testWidgets('right-click opens the track actions menu', (tester) async {
     await pumpMenu(tester, inLibrary: true);
     await tester.tap(
-      find.byIcon(FLucideIcons.ellipsisVertical),
+      find.byIcon(LucideIcons.ellipsisVertical),
       buttons: kSecondaryButton,
     );
     await tester.pumpAndSettle();
@@ -129,7 +130,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byIcon(FLucideIcons.ellipsisVertical));
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Load to deck'), findsOneWidget);
     expect(_loadChip(tester, 'A').onPress, isNotNull);

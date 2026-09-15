@@ -327,7 +327,7 @@ class _ArtworkThumb extends StatelessWidget {
       bottomLeft: Radius.circular(0),
     );
     final disc = Icon(
-      FLucideIcons.disc3,
+      LucideIcons.disc3,
       size: 20,
       color: hasTrack ? theme.colors.mutedForeground : theme.colors.border,
     );

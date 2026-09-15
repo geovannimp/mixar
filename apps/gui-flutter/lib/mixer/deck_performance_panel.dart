@@ -11,6 +11,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Grid / Jog content.
 ///
@@ -66,10 +67,10 @@ class DeckPerformancePanel extends StatelessWidget {
                         tip: deckPerformanceModeLabel(mode),
                         child: Icon(
                           switch (mode) {
-                            DeckPerformanceMode.pads => FLucideIcons.layoutGrid,
-                            DeckPerformanceMode.loop => FLucideIcons.repeat2,
-                            DeckPerformanceMode.grid => FLucideIcons.audioLines,
-                            DeckPerformanceMode.jog => FLucideIcons.disc3,
+                            DeckPerformanceMode.pads => LucideIcons.layoutGrid,
+                            DeckPerformanceMode.loop => LucideIcons.repeat2,
+                            DeckPerformanceMode.grid => LucideIcons.audioLines,
+                            DeckPerformanceMode.jog => LucideIcons.disc3,
                           },
                           size: 16,
                           semanticLabel: deckPerformanceModeLabel(mode),

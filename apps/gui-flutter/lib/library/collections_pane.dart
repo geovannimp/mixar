@@ -5,6 +5,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
 class CollectionsPane extends ConsumerStatefulWidget {
@@ -118,7 +119,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                     LibraryNavRow(
                       title: c.name,
                       subtitle: '${c.trackCount} tracks',
-                      icon: FLucideIcons.folder,
+                      icon: LucideIcons.folder,
                       selected: c.id == selectedId,
                       onPress: () => ref
                           .read(selectedCollectionIdProvider.notifier)
@@ -130,7 +131,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                               child: Padding(
                                 padding: const EdgeInsets.all(4),
                                 child: Icon(
-                                  FLucideIcons.folderOpen,
+                                  LucideIcons.folderOpen,
                                   size: 14,
                                   color: colors.mutedForeground,
                                 ),

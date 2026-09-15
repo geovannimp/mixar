@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({
@@ -44,13 +45,13 @@ class SettingsSidebar extends StatelessWidget {
 
 IconData _iconFor(SettingsSection section) {
   return switch (section) {
-    SettingsSection.audio => FLucideIcons.volume2,
-    SettingsSection.mixer => FLucideIcons.slidersHorizontal,
-    SettingsSection.waveform => FLucideIcons.audioWaveform,
-    SettingsSection.deck => FLucideIcons.disc3,
-    SettingsSection.ui => FLucideIcons.panelTop,
-    SettingsSection.library => FLucideIcons.library,
-    SettingsSection.session => FLucideIcons.history,
-    SettingsSection.controllers => FLucideIcons.gamepad2,
+    SettingsSection.audio => LucideIcons.volume2,
+    SettingsSection.mixer => LucideIcons.slidersHorizontal,
+    SettingsSection.waveform => LucideIcons.audioWaveform,
+    SettingsSection.deck => LucideIcons.disc3,
+    SettingsSection.ui => LucideIcons.panelTop,
+    SettingsSection.library => LucideIcons.library,
+    SettingsSection.session => LucideIcons.history,
+    SettingsSection.controllers => LucideIcons.gamepad2,
   };
 }

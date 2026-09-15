@@ -10,6 +10,7 @@ import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/forui_material_app.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester, Widget child) async {
@@ -76,10 +77,10 @@ void main() {
       MixerButton.icon(
         semanticsLabel: 'Gear',
         onPress: () => taps++,
-        child: const Icon(FLucideIcons.settings),
+        child: const Icon(LucideIcons.settings),
       ),
     );
-    await tester.tap(find.byIcon(FLucideIcons.settings));
+    await tester.tap(find.byIcon(LucideIcons.settings));
     await tester.pump();
     expect(taps, 1);
   });

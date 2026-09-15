@@ -16,6 +16,7 @@ import 'package:gui_flutter/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({this.onClose, super.key});
@@ -84,7 +85,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         size: .sm,
                         semanticsLabel: 'Close',
                         onPress: _busy ? null : () => _close(dirty),
-                        child: const Icon(FLucideIcons.x),
+                        child: const Icon(LucideIcons.x),
                       ),
                     Expanded(
                       child: Column(
