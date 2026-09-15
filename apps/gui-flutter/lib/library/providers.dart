@@ -106,45 +106,48 @@ final filteredTracksProvider = Provider<AsyncValue<List<LibraryTrackSummary>>>((
 
 // --- Library events (Task 3) ---
 
-class AnalyzingTrackId extends Notifier<String?> {
-  Timer? _stuckClear;
+class AnalyzingTrackIds extends Notifier<Set<String>> {
+  final Map<String, Timer> _stuckClears = {};
 
   @override
-  String? build() {
-    ref.onDispose(() => _stuckClear?.cancel());
-    return null;
+  Set<String> build() {
+    ref.onDispose(() {
+      for (final timer in _stuckClears.values) {
+        timer.cancel();
+      }
+    });
+    return const {};
   }
 
-  void set(String? id) {
-    _stuckClear?.cancel();
-    state = id;
-    if (id == null) {
-      return;
-    }
+  void add(String id) {
+    _stuckClears.remove(id)?.cancel();
+    state = {...state, id};
     // ponytail: clear stuck spinner if evt never arrives. Upgrade: correlate cmd/evt ids.
-    _stuckClear = Timer(const Duration(seconds: 60), () {
-      if (state == id) {
-        state = null;
-      }
+    _stuckClears[id] = Timer(const Duration(seconds: 60), () {
+      clearIf(id);
     });
   }
 
   void clearIf(String? trackId) {
-    if (trackId != null && state == trackId) {
-      _stuckClear?.cancel();
-      state = null;
+    if (trackId == null || !state.contains(trackId)) {
+      return;
     }
+    _stuckClears.remove(trackId)?.cancel();
+    final next = {...state}..remove(trackId);
+    state = next;
   }
 
   void clear() {
-    _stuckClear?.cancel();
-    state = null;
+    for (final timer in _stuckClears.values) {
+      timer.cancel();
+    }
+    _stuckClears.clear();
+    state = const {};
   }
 }
 
-final analyzingTrackIdProvider = NotifierProvider<AnalyzingTrackId, String?>(
-  AnalyzingTrackId.new,
-);
+final analyzingTrackIdsProvider =
+    NotifierProvider<AnalyzingTrackIds, Set<String>>(AnalyzingTrackIds.new);
 
 class LibraryMessage extends Notifier<String?> {
   @override
@@ -266,7 +269,7 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       ref.invalidate(collectionsProvider);
       if (evt.kind == LibraryEvtKind.trackAnalyzed) {
         ref
-            .read(analyzingTrackIdProvider.notifier)
+            .read(analyzingTrackIdsProvider.notifier)
             .clearIf(evt.trackId ?? evt.track?.id);
         final trackId = evt.trackId ?? evt.track?.id;
         if (trackId != null) {
@@ -279,9 +282,9 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
           .read(libraryMessageProvider.notifier)
           .setError(evt.message ?? 'Error');
       if (evt.trackId != null) {
-        ref.read(analyzingTrackIdProvider.notifier).clearIf(evt.trackId);
+        ref.read(analyzingTrackIdsProvider.notifier).clearIf(evt.trackId);
       } else {
-        ref.read(analyzingTrackIdProvider.notifier).clear();
+        ref.read(analyzingTrackIdsProvider.notifier).clear();
       }
     case LibraryEvtKind.notice:
       ref.read(libraryMessageProvider.notifier).setNotice(evt.message);
@@ -369,13 +372,13 @@ final libraryEventsBootstrapProvider = Provider<void>((ref) {
 });
 
 Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
-  ref.read(analyzingTrackIdProvider.notifier).set(trackId);
+  ref.read(analyzingTrackIdsProvider.notifier).add(trackId);
   ref.read(libraryMessageProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     await transport.analyzeTrack(trackId: trackId, force: false);
   } catch (e) {
-    ref.read(analyzingTrackIdProvider.notifier).clearIf(trackId);
+    ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
     ref.read(libraryMessageProvider.notifier).setError('$e');
   }
 }
