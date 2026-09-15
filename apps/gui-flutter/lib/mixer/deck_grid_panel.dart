@@ -7,6 +7,7 @@ import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Beat-grid edit panel for the performance surface.
 ///
@@ -62,7 +63,7 @@ class DeckGridPanel extends StatelessWidget {
         aspectRatio: 1,
         child: AppTooltip(
           tip: tip,
-          child: FButton(
+          child: MixerButton(
             variant: .outline,
             size: .xs,
             semanticsLabel: tip,
@@ -80,7 +81,7 @@ class DeckGridPanel extends StatelessWidget {
     }) {
       return Expanded(
         flex: flex,
-        child: FButton(
+        child: MixerButton(
           variant: .outline,
           size: .xs,
           onPress: controlsDisabled ? null : onPress,

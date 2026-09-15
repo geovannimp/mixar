@@ -4,6 +4,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
   const SettingsMixerPanel({
@@ -88,7 +89,7 @@ class _NumericStepper extends StatelessWidget {
     final atMax = value >= max - step / 2;
     return Row(
       children: [
-        FButton(
+        AppButton(
           variant: .outline,
           size: .sm,
           onPress: atMin
@@ -104,7 +105,7 @@ class _NumericStepper extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        FButton(
+        AppButton(
           variant: .outline,
           size: .sm,
           onPress: atMax

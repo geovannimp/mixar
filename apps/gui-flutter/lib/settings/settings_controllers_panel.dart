@@ -6,6 +6,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
   const SettingsControllersPanel({
@@ -73,7 +74,7 @@ class _SettingsControllersPanelState
         const SizedBox(height: 16),
         SettingsField(
           label: 'Mappings',
-          trailing: FButton(
+          trailing: AppButton(
             variant: .outline,
             size: .sm,
             mainAxisSize: .min,
@@ -211,7 +212,7 @@ FItem _mappingItem({
       mainAxisSize: MainAxisSize.min,
       spacing: 8,
       children: [
-        FButton(
+        AppButton(
           variant: .outline,
           size: .sm,
           mainAxisSize: .min,

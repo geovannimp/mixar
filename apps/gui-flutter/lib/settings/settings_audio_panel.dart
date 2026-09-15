@@ -9,6 +9,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 class SettingsAudioPanel extends ConsumerWidget {
   const SettingsAudioPanel({
@@ -432,7 +433,7 @@ class _ChannelStepper extends StatelessWidget {
     final max = maxChannels < 1 ? 1 : maxChannels;
     return Row(
       children: [
-        FButton(
+        AppButton(
           variant: .outline,
           size: .sm,
           onPress: !enabled || value <= 1 ? null : () => onChanged(value - 1),
@@ -441,7 +442,7 @@ class _ChannelStepper extends StatelessWidget {
         const SizedBox(width: 8),
         Text('$value'),
         const SizedBox(width: 8),
-        FButton(
+        AppButton(
           variant: .outline,
           size: .sm,
           onPress: !enabled || value >= max ? null : () => onChanged(value + 1),

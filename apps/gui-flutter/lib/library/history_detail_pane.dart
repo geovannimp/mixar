@@ -13,6 +13,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:trina_grid/trina_grid.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 /// Session detail: entry table + session actions.
 class HistoryDetailPane extends ConsumerWidget {
@@ -168,12 +169,12 @@ class HistoryDetailPane extends ConsumerWidget {
                   Row(
                     spacing: 8,
                     children: [
-                      FButton(
+                      AppButton(
                         variant: .outline,
                         onPress: () => Navigator.of(context).pop(),
                         child: const Text('Cancel'),
                       ),
-                      FButton(
+                      AppButton(
                         onPress: () => Navigator.of(context).pop(title.trim()),
                         child: const Text('Save'),
                       ),
@@ -225,7 +226,7 @@ class HistoryDetailPane extends ConsumerWidget {
                   ])
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
-                      child: FButton(
+                      child: AppButton(
                         variant: .outline,
                         onPress: () => Navigator.of(context).pop(value),
                         child: Text(label),
@@ -317,12 +318,12 @@ class HistoryDetailPane extends ConsumerWidget {
                   Row(
                     spacing: 8,
                     children: [
-                      FButton(
+                      AppButton(
                         variant: .outline,
                         onPress: () => Navigator.of(context).pop(false),
                         child: const Text('Cancel'),
                       ),
-                      FButton(
+                      AppButton(
                         variant: .destructive,
                         onPress: () => Navigator.of(context).pop(true),
                         child: const Text('Delete'),
@@ -441,7 +442,7 @@ class _HistorySessionActionsMenu extends ConsumerWidget {
           ],
         ),
       ],
-      builder: (context, controller, child) => FButton.icon(
+      builder: (context, controller, child) => AppButton.icon(
         variant: .ghost,
         semanticsLabel: 'Session actions',
         onPress: controller.toggle,

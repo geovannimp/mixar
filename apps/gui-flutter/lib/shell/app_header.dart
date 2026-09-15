@@ -7,6 +7,7 @@ import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 /// Brand | drag region | status | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {
@@ -81,7 +82,7 @@ class AppHeader extends ConsumerWidget {
             ),
             AppTooltip(
               tip: 'Settings',
-              child: FButton.icon(
+              child: AppButton.icon(
                 variant: .ghost,
                 size: .sm,
                 semanticsLabel: 'Settings',

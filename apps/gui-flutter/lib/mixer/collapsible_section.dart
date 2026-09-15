@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Header `--- Label ---` that shows or hides [child].
 ///
@@ -41,7 +42,7 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
           spacing: 4,
           children: [
             if (widget.expandHeader) const Expanded(child: FDivider()),
-            FButton(
+            MixerButton(
               key: ValueKey('${widget.label.toLowerCase()}-panel-toggle'),
               variant: .ghost,
               size: .xs,

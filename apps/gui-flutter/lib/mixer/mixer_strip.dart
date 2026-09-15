@@ -11,8 +11,9 @@ import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
-/// Matches Forui `FButton(size: .sm)` desktop height used for cue / meter spacer.
+/// Matches Forui `MixerButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
 
 /// Tick half-span (gap + major) ≈ 15; thumb 20 — keep fader ≥ this.
@@ -364,7 +365,7 @@ class _MixerCueFooter extends StatelessWidget {
       child: Center(
         child: AppTooltip(
           tip: 'Headphone cue',
-          child: FButton(
+          child: MixerButton(
             variant: cue ? .secondary : .ghost,
             size: .sm,
             mainAxisSize: .min,
@@ -425,7 +426,7 @@ class _LevelMetersColumn extends ConsumerWidget {
               tip: mono
                   ? 'Level meters: mono. Switch to stereo.'
                   : 'Level meters: stereo. Switch to mono.',
-              child: FButton(
+              child: MixerButton(
                 variant: .outline,
                 size: .xs,
                 mainAxisSize: .min,

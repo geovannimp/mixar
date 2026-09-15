@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 Future<void> showTrackDetailDialog(
   BuildContext context,
@@ -58,12 +59,12 @@ Future<void> showTrackDetailDialog(
                 Row(
                   spacing: 8,
                   children: [
-                    FButton(
+                    AppButton(
                       variant: .outline,
                       onPress: () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
-                    FButton(
+                    AppButton(
                       onPress: () async {
                         try {
                           await transport.updateTrackIsrc(

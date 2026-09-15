@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Tauri `AUTO_LOOP_BEATS`.
 const kAutoLoopBeats = [1, 2, 4, 8, 16, 32];
@@ -129,7 +130,8 @@ class DeckLoopPanel extends StatelessWidget {
         ? theme.colors.primary.withValues(alpha: 0.12)
         : theme.colors.background.withValues(alpha: 0.8);
 
-    FButtonVariant activeVariant(bool lit) => lit ? .secondary : .outline;
+    MixarButtonVariant activeVariant(bool lit) =>
+        lit ? MixarButtonVariant.secondary : MixarButtonVariant.outline;
 
     Widget cellButton({
       required String label,
@@ -139,10 +141,10 @@ class DeckLoopPanel extends StatelessWidget {
       TextStyle? style,
       String? tip,
     }) {
-      final button = FButton(
+      final button = MixerButton(
         variant: activeVariant(lit),
         size: .sm,
-        style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
+        padding: buttonPad,
         onPress: (disabled || forceDisabled) ? null : onPress,
         semanticsLabel: tip,
         child: Text(label, style: style ?? chipStyle),
@@ -158,10 +160,10 @@ class DeckLoopPanel extends StatelessWidget {
         mainAxisSize: .min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FButton(
+          MixerButton(
             variant: activeVariant(active),
             size: .sm,
-            style: .delta(contentStyle: .delta(padding: .value(buttonPad))),
+            padding: buttonPad,
             onPress: disabled ? null : onToggleLoop,
             child: Text('Loop', style: chipStyle),
           ),

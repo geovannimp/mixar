@@ -17,6 +17,7 @@ import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerWidget {
@@ -188,19 +189,13 @@ class DeckKeyLockButton extends StatelessWidget {
     return AppTooltip(
       tip: tip,
       description: description,
-      child: FButton(
+      child: MixerButton(
         variant: .ghost,
         size: .xs,
         mainAxisSize: .min,
         onPress: enabled ? onToggle : null,
         semanticsLabel: tip,
-        style: .delta(
-          contentStyle: .delta(
-            padding: .value(
-              const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-            ),
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Row(
           mainAxisSize: .min,
           children: [

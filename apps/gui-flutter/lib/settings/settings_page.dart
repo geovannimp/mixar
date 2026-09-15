@@ -15,6 +15,7 @@ import 'package:gui_flutter/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({this.onClose, super.key});
@@ -78,7 +79,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   spacing: 12,
                   children: [
                     if (widget.onClose != null)
-                      FButton.icon(
+                      AppButton.icon(
                         variant: .ghost,
                         size: .sm,
                         semanticsLabel: 'Close',
@@ -125,7 +126,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                     ),
                     if (dirty)
-                      FButton(
+                      AppButton(
                         size: .sm,
                         mainAxisSize: .min,
                         onPress: _busy ? null : () => _save(draft),
@@ -231,21 +232,21 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   Row(
                     spacing: 8,
                     children: [
-                      FButton(
+                      AppButton(
                         variant: .outline,
                         size: .sm,
                         onPress: () =>
                             Navigator.of(context).pop(_CloseChoice.cancel),
                         child: const Text('Cancel'),
                       ),
-                      FButton(
+                      AppButton(
                         variant: .ghost,
                         size: .sm,
                         onPress: () =>
                             Navigator.of(context).pop(_CloseChoice.discard),
                         child: const Text('Discard'),
                       ),
-                      FButton(
+                      AppButton(
                         size: .sm,
                         onPress: () =>
                             Navigator.of(context).pop(_CloseChoice.save),

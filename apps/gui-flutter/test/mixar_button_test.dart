@@ -1,0 +1,83 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:forui/forui.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'support/forui_material_app.dart';
+
+void main() {
+  Future<void> pumpApp(WidgetTester tester, Widget child) async {
+    final theme = FTheme.neutral.dark.desktop;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromForui(theme),
+        builder: foruiMaterialAppBuilder(theme),
+        home: Scaffold(body: Center(child: child)),
+      ),
+    );
+  }
+
+  testWidgets('MTappable invokes onPress', (tester) async {
+    var taps = 0;
+    await pumpApp(
+      tester,
+      MTappable(onPress: () => taps++, builder: (_, _) => const Text('Tap')),
+    );
+    await tester.tap(find.text('Tap'));
+    await tester.pump();
+    expect(taps, 1);
+  });
+
+  testWidgets('MTappable disabled ignores presses', (tester) async {
+    var taps = 0;
+    await pumpApp(
+      tester,
+      MTappable(
+        onPress: null,
+        builder: (_, state) => Text(state.disabled ? 'Off' : 'On'),
+      ),
+    );
+    expect(find.text('Off'), findsOneWidget);
+    await tester.tap(find.text('Off'));
+    await tester.pump();
+    expect(taps, 0);
+  });
+
+  testWidgets('AppButton and MixerButton fire onPress', (tester) async {
+    var app = 0;
+    var mix = 0;
+    await pumpApp(
+      tester,
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppButton(onPress: () => app++, child: const Text('App')),
+          MixerButton(onPress: () => mix++, child: const Text('Mix')),
+        ],
+      ),
+    );
+    await tester.tap(find.text('App'));
+    await tester.tap(find.text('Mix'));
+    await tester.pump();
+    expect(app, 1);
+    expect(mix, 1);
+  });
+
+  testWidgets('MixerButton.icon is tappable', (tester) async {
+    var taps = 0;
+    await pumpApp(
+      tester,
+      MixerButton.icon(
+        semanticsLabel: 'Gear',
+        onPress: () => taps++,
+        child: const Icon(FLucideIcons.settings),
+      ),
+    );
+    await tester.tap(find.byIcon(FLucideIcons.settings));
+    await tester.pump();
+    expect(taps, 1);
+  });
+}
