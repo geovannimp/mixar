@@ -64,7 +64,7 @@ class MixarButtonBody extends StatelessWidget {
             child: Row(
               mainAxisSize: mainAxisSize,
               mainAxisAlignment: MainAxisAlignment.center,
-              children: [Flexible(child: content)],
+              children: [content],
             ),
           );
         } else {
