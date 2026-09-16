@@ -3,12 +3,14 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_grid.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/waveform_section.dart';
+import 'package:panes/panes.dart';
 
-/// Mixer page with Tauri-like resizable regions (Forui [FResizable]).
+/// Mixer page with resizable regions ([MultiPane]).
 ///
 /// Vertical: waveforms | (fixed decks + library). Decks are not a resizable
-/// region — only the waveform/library split moves.
-class MixerPage extends StatelessWidget {
+/// region — only the waveform/library split moves. Sizes are session-local
+/// (no [PaneController.save] / [PaneController.load]).
+class MixerPage extends StatefulWidget {
   const MixerPage({super.key});
 
   static const _waveformDefault = 160.0;
@@ -16,40 +18,66 @@ class MixerPage extends StatelessWidget {
   static const _deckRowHeight = 410.0;
 
   @override
-  Widget build(BuildContext context) {
-    return FResizable(
-      axis: .vertical,
-      divider: .dividerWithThumb,
-      children: [
-        FResizableRegion.fixed(
-          extent: _waveformDefault,
-          minExtent: _waveformMin,
-          builder: _fill,
-          child: const WaveformSection(),
+  State<MixerPage> createState() => _MixerPageState();
+}
+
+class _MixerPageState extends State<MixerPage> {
+  late final PaneController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PaneController(
+      entries: [
+        PaneEntry(
+          id: 'waveforms',
+          initialSize: PaneSize.pixel(MixerPage._waveformDefault),
+          minSize: PaneSize.pixel(MixerPage._waveformMin),
         ),
-        FResizableRegion.flex(
-          flex: 1,
-          minFlex: 1,
-          builder: _fill,
-          child: ColoredBox(
-            color: context.theme.colors.card,
-            child: Column(
-              crossAxisAlignment: .stretch,
-              children: [
-                SizedBox(
-                  height: _deckRowHeight,
-                  child: const ClipRect(child: DeckGrid()),
-                ),
-                FDivider(style: .delta(padding: .value(.all(0)))),
-                Expanded(child: LibraryPanel()),
-              ],
-            ),
-          ),
-        ),
+        PaneEntry(id: 'decks_library', initialSize: PaneSize.fraction(1.0)),
       ],
     );
   }
 
-  static Widget _fill(BuildContext _, FResizableRegionData _, Widget? child) =>
-      SizedBox.expand(child: child);
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Invisible chrome; keep a grab hit-area (matches former library divider:none).
+    return PaneTheme(
+      data: const PaneThemeData(
+        resizerColor: Color(0x00000000),
+        resizerHoverColor: Color(0x00000000),
+        resizerFocusedColor: Color(0x00000000),
+        resizerThickness: 0,
+        resizerHitTestThickness: 8,
+      ),
+      child: MultiPane(
+        direction: Axis.vertical,
+        controller: _controller,
+        paneBuilder: (context, id, _) => switch (id) {
+          'waveforms' => const WaveformSection(),
+          'decks_library' => ColoredBox(
+            color: context.theme.colors.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: MixerPage._deckRowHeight,
+                  child: const ClipRect(child: DeckGrid()),
+                ),
+                FDivider(style: .delta(padding: .value(.all(0)))),
+                const Expanded(child: LibraryPanel()),
+              ],
+            ),
+          ),
+          _ => const SizedBox.shrink(),
+        },
+      ),
+    );
+  }
 }
