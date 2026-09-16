@@ -5,6 +5,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -215,17 +216,16 @@ class _VolumeSelectButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final colors = theme.colors;
-    return FTappable(
+    return MTappable(
       semanticsLabel: 'Select drive',
       selected: open,
       onPress: onToggle,
-      builder: (context, variants, _) {
-        final hovered = variants.contains(FTappableVariant.hovered);
+      builder: (context, state) {
         return DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: theme.style.borderRadius.sm,
             border: Border.all(color: colors.border),
-            color: hovered || open
+            color: state.hovered || open
                 ? colors.foreground.withValues(alpha: 0.05)
                 : colors.secondary,
           ),
@@ -311,7 +311,7 @@ class _VolumeDropdown extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: FTappable(
+          child: MTappable.child(
             semanticsLabel: 'Dismiss drive picker',
             onPress: onDismiss,
             child: const ColoredBox(color: Color(0x00000000)),
@@ -368,7 +368,7 @@ class _CreateCollectionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.theme.colors;
-    return FTappable(
+    return MTappable.child(
       semanticsLabel: 'Create collection',
       onPress: onPress,
       child: Padding(

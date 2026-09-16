@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {
@@ -47,8 +48,7 @@ class LibraryNavRow extends StatelessWidget {
     final theme = context.theme;
     final colors = theme.colors;
 
-    Widget row(Set<WidgetState> states) {
-      final hovered = states.contains(WidgetState.hovered);
+    Widget row({required bool hovered}) {
       final fill = selected
           ? colors.primary.withValues(alpha: 0.10)
           : hovered
@@ -105,19 +105,13 @@ class LibraryNavRow extends StatelessWidget {
     }
 
     if (onPress == null) {
-      return row({if (selected) WidgetState.selected});
+      return row(hovered: false);
     }
 
-    return FTappable(
+    return MTappable(
       selected: selected,
       onPress: onPress,
-      builder: (context, variants, _) {
-        final states = <WidgetState>{
-          if (selected) WidgetState.selected,
-          if (variants.contains(FTappableVariant.hovered)) WidgetState.hovered,
-        };
-        return row(states);
-      },
+      builder: (context, state) => row(hovered: state.hovered),
     );
   }
 }

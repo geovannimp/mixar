@@ -38,6 +38,18 @@ class MTappable extends StatefulWidget {
     super.key,
   });
 
+  /// Static child that ignores hover/press paint (icon chips, dismiss overlays).
+  MTappable.child({
+    required Widget child,
+    this.onPress,
+    this.onSecondaryPress,
+    this.selected = false,
+    this.semanticsLabel,
+    this.focusNode,
+    this.autofocus = false,
+    super.key,
+  }) : builder = ((_, _) => child);
+
   final MTappableBuilder builder;
   final VoidCallback? onPress;
   final VoidCallback? onSecondaryPress;
