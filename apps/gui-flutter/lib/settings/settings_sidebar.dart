@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsSidebar extends StatelessWidget {
@@ -16,29 +17,89 @@ class SettingsSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return SizedBox(
-      width: 176,
-      child: FSidebar(
-        style: .delta(
-          constraints: const BoxConstraints.tightFor(width: 176),
-          decoration: DecorationDelta.boxDelta(
-            border: Border(right: BorderSide(color: theme.colors.border)),
-          ),
-        ),
-        children: [
-          FSidebarGroup(
-            children: [
-              for (final section in kSettingsSections)
-                FSidebarItem(
-                  selected: section == active,
-                  icon: Icon(_iconFor(section), size: 16),
-                  label: Text(section.label),
-                  onPress: () => onSelect(section),
-                ),
-            ],
-          ),
-        ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(right: BorderSide(color: theme.colors.border)),
       ),
+      child: SizedBox(
+        width: 176,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final section in kSettingsSections)
+              _SettingsNavItem(
+                label: section.label,
+                icon: _iconFor(section),
+                selected: section == active,
+                onPress: () => onSelect(section),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsNavItem extends StatelessWidget {
+  const _SettingsNavItem({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onPress,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final colors = theme.colors;
+
+    return MTappable(
+      selected: selected,
+      semanticsLabel: label,
+      onPress: onPress,
+      builder: (context, state) {
+        final fill = selected
+            ? colors.primary.withValues(alpha: 0.10)
+            : state.hovered
+            ? colors.foreground.withValues(alpha: 0.05)
+            : null;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: fill,
+            border: Border(
+              left: BorderSide(
+                width: 2,
+                color: selected ? colors.primary : const Color(0x00000000),
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: colors.mutedForeground),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.typography.body.sm.copyWith(
+                      color: colors.foreground,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
