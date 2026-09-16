@@ -9,7 +9,7 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
-import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
+import 'package:gui_flutter/mixer/waveform/waveform_ring.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
@@ -111,35 +111,13 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
     final speed = ref.watch(deckSpeedRatioProvider(widget.deckId));
     final trackId = ref.watch(deckTrackIdProvider(widget.deckId));
     final durationMs = ref.watch(deckDurationMsProvider(widget.deckId)) ?? 0;
-    final enginePosMs = ref.watch(deckPositionMsProvider(widget.deckId));
     final slipOn = ref.watch(deckSlipEnabledProvider(widget.deckId));
     final slipShadowMs = ref.watch(deckSlipShadowMsProvider(widget.deckId));
-    final strip = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(waveformStripProvider((trackId, durationMs)));
-    final beatGrid = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripBeatGridPictureProvider((trackId, durationMs)));
-    final loops = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripLoopPictureProvider((trackId, durationMs)));
-    final activeLoop = durationMs <= 0
-        ? null
-        : ref.watch(
-            stripActiveLoopPictureProvider((widget.deckId, durationMs)),
-          );
-    final pendingLoopIn = durationMs <= 0
-        ? null
-        : ref.watch(
-            stripPendingLoopInPictureProvider((widget.deckId, durationMs)),
-          );
-    final cues = trackId == null || durationMs <= 0
-        ? null
-        : ref.watch(stripCuePictureProvider((trackId, durationMs)));
 
-    // When not interpolating (pause / vinyl touch), drive the lane from the
-    // engine playhead every build so jog Position updates cannot be missed.
+    // Do not watch deckPositionMs here: during play the AnimationController
+    // owns the scroll; watching would rebuild this lane on every engine poll.
     if (!advancing && !_scrubbing && durationMs > 0) {
+      final enginePosMs = ref.read(deckPositionMsProvider(widget.deckId));
       final v = (enginePosMs / durationMs).clamp(0.0, 1.0);
       if ((_playhead.value - v).abs() > 1e-12) {
         _playhead.value = v;
@@ -156,6 +134,15 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       final engineMs = next.toDouble();
       final advancingNow = _advancingNow();
       final speedNow = ref.read(deckSpeedRatioProvider(widget.deckId));
+      if (!advancingNow) {
+        _setDisplayMs(
+          engineMs,
+          durationMs: durationMs,
+          speed: speedNow,
+          playing: false,
+        );
+        return;
+      }
       if (playheadShouldSnap(
         displayMs: display,
         engineMs: engineMs,
@@ -220,9 +207,37 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
         if (width <= 0 || height <= 0) {
           return const SizedBox.expand();
         }
-        final basePxPerMs = strip?.pxPerMs ?? stripPxPerMs(durationMs);
-        final pxPerMs = stripDisplayPxPerMs(pxPerMs: basePxPerMs, speed: speed);
-        final speedScale = waveformSpeedScale(speed);
+        final visibleMs = cropVisibleMs(
+          durationMs: durationMs,
+          viewportWidth: width,
+          speed: speed,
+        );
+        final ringArg = (widget.deckId, width.round(), visibleMs);
+        final ring = trackId == null || durationMs <= 0
+            ? null
+            : ref.watch(waveformRingProvider(ringArg));
+        final beatGrid = trackId == null || durationMs <= 0
+            ? null
+            : ref.watch(ringBeatGridPictureProvider(ringArg));
+        final loops = trackId == null || durationMs <= 0
+            ? null
+            : ref.watch(ringLoopPictureProvider(ringArg));
+        final activeLoop = durationMs <= 0
+            ? null
+            : ref.watch(ringActiveLoopPictureProvider(ringArg));
+        final pendingLoopIn = durationMs <= 0
+            ? null
+            : ref.watch(ringPendingLoopInPictureProvider(ringArg));
+        final cues = trackId == null || durationMs <= 0
+            ? null
+            : ref.watch(ringCuePictureProvider(ringArg));
+        final basePxPerMs =
+            ring?.pxPerMs ??
+            stripDisplayPxPerMs(
+              pxPerMs: stripPxPerMs(durationMs),
+              speed: speed,
+            );
+        final pxPerMs = basePxPerMs;
         final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 1;
 
         return Listener(
@@ -242,11 +257,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               anchorPosMs: _scrubAnchorMs,
               deltaX: e.localPosition.dx - _scrubAnchorX,
               width: width,
-              spanMs: cropVisibleMs(
-                durationMs: durationMs,
-                viewportWidth: width,
-                speed: speed,
-              ).toDouble(),
+              spanMs: visibleMs.toDouble(),
             );
             _playhead.value = (ms / durationMs).clamp(0.0, 1.0);
             _throttledSeek(ms.round());
@@ -261,11 +272,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     anchorPosMs: _scrubAnchorMs,
                     deltaX: e.localPosition.dx - _scrubAnchorX,
                     width: width,
-                    spanMs: cropVisibleMs(
-                      durationMs: durationMs,
-                      viewportWidth: width,
-                      speed: speed,
-                    ).toDouble(),
+                    spanMs: visibleMs.toDouble(),
                   ).round();
             _scrubbing = false;
             if (durationMs > 0) {
@@ -293,43 +300,41 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               fit: StackFit.expand,
               children: [
                 const ColoredBox(color: kWaveformBg),
-                if (strip != null)
+                if (ring != null)
                   AnimatedBuilder(
                     animation: _playhead,
                     builder: (context, child) {
                       final positionMs = _displayMs(durationMs);
-                      final displayWidth = strip.widthPx / speedScale;
-                      return Positioned(
-                        left: snapPx(
-                          stripTranslateX(
-                            positionMs: positionMs,
-                            viewportWidth: width,
-                            pxPerMs: pxPerMs,
-                          ),
-                          dpr,
+                      final dx = snapPx(
+                        playheadDx(
+                          positionMs: positionMs,
+                          originMs: ring.originMs,
+                          width: width,
+                          pxPerMs: pxPerMs,
                         ),
-                        top: 0,
-                        bottom: 0,
-                        width: displayWidth,
-                        child: FittedBox(
-                          fit: BoxFit.fill,
-                          child: SizedBox(
-                            width: strip.widthPx.toDouble(),
-                            height: height,
-                            child: child ?? const SizedBox.shrink(),
-                          ),
-                        ),
+                        dpr,
+                      );
+                      // Transform a cached layer — avoids Stack/Positioned
+                      // relayout of a 2×-viewport picture every vsync.
+                      return Transform.translate(
+                        offset: Offset(dx, 0),
+                        filterQuality: FilterQuality.none,
+                        child: child,
                       );
                     },
-                    child: RepaintBoundary(
-                      child: _StripLayer(
-                        strip: strip,
-                        height: height,
-                        beatGrid: beatGrid,
-                        loops: loops,
-                        activeLoop: activeLoop,
-                        pendingLoopIn: pendingLoopIn,
-                        cues: cues,
+                    child: SizedBox(
+                      width: ring.widthPx.toDouble(),
+                      height: height,
+                      child: RepaintBoundary(
+                        child: _RingLayer(
+                          ring: ring,
+                          height: height,
+                          beatGrid: beatGrid,
+                          loops: loops,
+                          activeLoop: activeLoop,
+                          pendingLoopIn: pendingLoopIn,
+                          cues: cues,
+                        ),
                       ),
                     ),
                   ),
@@ -340,25 +345,28 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     child: const SizedBox(width: 1, height: double.infinity),
                   ),
                 ),
-                if (slipOn && slipShadowMs != null && strip != null)
+                if (slipOn && slipShadowMs != null && ring != null)
                   AnimatedBuilder(
                     animation: _playhead,
-                    builder: (context, _) {
+                    builder: (context, child) {
                       final audibleMs = _displayMs(durationMs);
                       final delta = slipShadowMs - audibleMs;
                       if (delta.abs() < 3) {
                         return const SizedBox.shrink();
                       }
-                      return Positioned(
-                        left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
-                        top: 0,
-                        bottom: 0,
-                        width: 1,
-                        child: ColoredBox(
-                          color: theme.colors.primary.withValues(alpha: 0.65),
+                      return Transform.translate(
+                        offset: Offset(
+                          snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
+                          0,
                         ),
+                        filterQuality: FilterQuality.none,
+                        child: child,
                       );
                     },
+                    child: ColoredBox(
+                      color: theme.colors.primary.withValues(alpha: 0.65),
+                      child: SizedBox(width: 1, height: height),
+                    ),
                   ),
                 Align(
                   alignment: Alignment.centerLeft,
@@ -409,9 +417,9 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
   }
 }
 
-class _StripLayer extends StatelessWidget {
-  const _StripLayer({
-    required this.strip,
+class _RingLayer extends StatelessWidget {
+  const _RingLayer({
+    required this.ring,
     required this.height,
     required this.beatGrid,
     required this.loops,
@@ -420,7 +428,7 @@ class _StripLayer extends StatelessWidget {
     required this.cues,
   });
 
-  final WaveformStrip strip;
+  final WaveformRing ring;
   final double height;
   final Picture? beatGrid;
   final Picture? loops;
@@ -431,26 +439,26 @@ class _StripLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: strip.widthPx.toDouble(),
+      width: ring.widthPx.toDouble(),
       height: height,
       child: CustomPaint(
-        painter: _StripPainter(
-          strip: strip,
+        painter: _RingPainter(
+          ring: ring,
           beatGrid: beatGrid,
           loops: loops,
           activeLoop: activeLoop,
           pendingLoopIn: pendingLoopIn,
           cues: cues,
         ),
-        size: Size(strip.widthPx.toDouble(), height),
+        size: Size(ring.widthPx.toDouble(), height),
       ),
     );
   }
 }
 
-class _StripPainter extends CustomPainter {
-  _StripPainter({
-    required this.strip,
+class _RingPainter extends CustomPainter {
+  _RingPainter({
+    required this.ring,
     required this.beatGrid,
     required this.loops,
     required this.activeLoop,
@@ -458,7 +466,7 @@ class _StripPainter extends CustomPainter {
     required this.cues,
   });
 
-  final WaveformStrip strip;
+  final WaveformRing ring;
   final Picture? beatGrid;
   final Picture? loops;
   final Picture? activeLoop;
@@ -467,20 +475,13 @@ class _StripPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (strip.heightPx <= 0) {
+    if (ring.heightPx <= 0) {
       return;
     }
-    final sy = size.height / strip.heightPx;
+    final sy = size.height / ring.heightPx;
     canvas.save();
     canvas.scale(1, sy);
-    canvas.drawPicture(strip.l0);
-    for (final tile in strip.tiles) {
-      canvas.save();
-      canvas.translate(tile.startPx, 0);
-      canvas.drawPicture(tile.picture);
-      canvas.restore();
-    }
-    // Overlays are authored at strip height; scale with the waveform.
+    canvas.drawPicture(ring.composite);
     for (final picture in [beatGrid, loops, activeLoop, pendingLoopIn, cues]) {
       if (picture != null) {
         canvas.drawPicture(picture);
@@ -490,8 +491,8 @@ class _StripPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_StripPainter oldDelegate) =>
-      !identical(strip, oldDelegate.strip) ||
+  bool shouldRepaint(_RingPainter oldDelegate) =>
+      !identical(ring, oldDelegate.ring) ||
       !identical(beatGrid, oldDelegate.beatGrid) ||
       !identical(loops, oldDelegate.loops) ||
       !identical(activeLoop, oldDelegate.activeLoop) ||

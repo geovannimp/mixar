@@ -80,47 +80,118 @@ void main() {
       peakAtTime(overview, detail, 4000, 0, fallbackToOverview: false).low,
       0,
     );
-  });
-
-  test('l1BucketCount stays one bucket per viewport pixel', () {
+    // Ring chunks paint detail-only (empty overview).
     expect(
-      l1BucketCount(startMs: 0, endMs: 36_000, visibleMs: 24_000, width: 1920),
-      2880,
-    );
-    expect(
-      l1BucketCount(startMs: 0, endMs: 72_000, visibleMs: 24_000, width: 1920),
-      5760,
+      peakAtTime(const [], detail, 4000, 1500, fallbackToOverview: false).mid,
+      closeTo(1, 1e-6),
     );
   });
 
-  test('l1CoversVisible is true when the window contains the viewport', () {
+  test('ringChunkPx is floor(window/4) with a floor of 1', () {
+    expect(ringChunkPx(1920), 480);
+    expect(ringChunkPx(800), 200);
+    expect(ringChunkPx(3), 1);
+    expect(ringChunkPx(0), 1);
+  });
+
+  test('ringRange centers eight chunks and clamps at track ends', () {
+    final mid = ringRange(
+      positionMs: 90_000,
+      visibleMs: 24_000,
+      durationMs: 180_000,
+    );
+    expect(mid.chunkMs, 6_000);
+    expect(mid.chunkCount, 8);
+    expect(mid.originMs, closeTo(66_000, 1e-6));
+
+    final head = ringRange(
+      positionMs: 0,
+      visibleMs: 24_000,
+      durationMs: 180_000,
+    );
+    expect(head.originMs, 0);
+    expect(head.chunkCount, 8);
+
+    final short = ringRange(
+      positionMs: 5_000,
+      visibleMs: 24_000,
+      durationMs: 20_000,
+    );
+    expect(short.chunkCount, lessThanOrEqualTo(8));
+    expect(short.originMs, 0);
     expect(
-      l1CoversVisible(
-        positionMs: 0,
-        visibleMs: 24_000,
-        startMs: 0,
-        endMs: 36_000,
+      short.originMs + short.chunkMs * short.chunkCount,
+      lessThanOrEqualTo(20_000 + 1e-6),
+    );
+  });
+
+  test('ringNeedsSlide trips after two chunks of drift', () {
+    const origin = 66_000.0;
+    const chunk = 6_000.0;
+    const count = 8;
+    // Center at origin + 4*chunk = 90_000
+    expect(
+      ringNeedsSlide(
+        positionMs: 90_000,
+        ringOriginMs: origin,
+        chunkMs: chunk,
+        chunkCount: count,
+        durationMs: 180_000,
+      ),
+      isFalse,
+    );
+    expect(
+      ringNeedsSlide(
+        positionMs: 90_000 + 2 * chunk - 1,
+        ringOriginMs: origin,
+        chunkMs: chunk,
+        chunkCount: count,
+        durationMs: 180_000,
+      ),
+      isFalse,
+    );
+    expect(
+      ringNeedsSlide(
+        positionMs: 90_000 + 2 * chunk,
+        ringOriginMs: origin,
+        chunkMs: chunk,
+        chunkCount: count,
         durationMs: 180_000,
       ),
       isTrue,
     );
     expect(
-      l1CoversVisible(
-        positionMs: 12_000,
-        visibleMs: 24_000,
-        startMs: 0,
-        endMs: 36_000,
-      ),
-      isTrue,
-    );
-    expect(
-      l1CoversVisible(
-        positionMs: 30_000,
-        visibleMs: 24_000,
-        startMs: 0,
-        endMs: 36_000,
+      ringNeedsSlide(
+        positionMs: 179_000,
+        ringOriginMs: 180_000 - 8 * chunk,
+        chunkMs: chunk,
+        chunkCount: count,
+        durationMs: 180_000,
       ),
       isFalse,
+    );
+  });
+
+  test('ringSlideOriginMs shifts by two chunks and clamps', () {
+    expect(
+      ringSlideOriginMs(
+        ringOriginMs: 66_000,
+        chunkMs: 6_000,
+        chunkCount: 8,
+        positionMs: 102_000,
+        durationMs: 180_000,
+      ),
+      closeTo(78_000, 1e-6),
+    );
+    expect(
+      ringSlideOriginMs(
+        ringOriginMs: 0,
+        chunkMs: 6_000,
+        chunkCount: 8,
+        positionMs: 0,
+        durationMs: 180_000,
+      ),
+      0,
     );
   });
 
@@ -156,71 +227,6 @@ void main() {
       speed: 2,
     );
     expect(atTwo, closeTo(atOne * 2, 2));
-  });
-
-  test('l1Range clamps to the track so t=0 maps to the first L1 peak', () {
-    final range = l1Range(
-      positionMs: 0,
-      visibleMs: 24_000,
-      durationMs: 180_000,
-    );
-    expect(range.startMs, 0);
-    expect(range.endMs, 36_000);
-
-    const overview = [
-      SpectralPeak(low: 1, mid: 0, high: 0),
-      SpectralPeak(low: 1, mid: 0, high: 0),
-    ];
-    final detail = DetailWindow(
-      peaks: const [
-        SpectralPeak(low: 0, mid: 0, high: 1),
-        SpectralPeak(low: 0, mid: 1, high: 0),
-      ],
-      startMs: range.startMs,
-      endMs: range.endMs,
-    );
-    expect(peakAtTime(overview, detail, 180_000, 0).high, closeTo(1, 1e-6));
-
-    final tail = l1Range(
-      positionMs: 170_000,
-      visibleMs: 24_000,
-      durationMs: 180_000,
-    );
-    expect(tail.startMs, 134_000);
-    expect(tail.endMs, 180_000);
-  });
-
-  test('l1NeedsRefresh is false at t=0 once the clamped window is loaded', () {
-    expect(
-      l1NeedsRefresh(
-        positionMs: 0,
-        detailStartMs: 0,
-        detailEndMs: 36_000,
-        visibleMs: 24_000,
-        durationMs: 180_000,
-      ),
-      isFalse,
-    );
-    expect(
-      l1NeedsRefresh(
-        positionMs: 28_000,
-        detailStartMs: 0,
-        detailEndMs: 36_000,
-        visibleMs: 24_000,
-        durationMs: 180_000,
-      ),
-      isTrue,
-    );
-    expect(
-      l1NeedsRefresh(
-        positionMs: 179_000,
-        detailStartMs: 144_000,
-        detailEndMs: 180_000,
-        visibleMs: 24_000,
-        durationMs: 180_000,
-      ),
-      isFalse,
-    );
   });
 
   test('centerScrubMs subtracts pointer delta across the span', () {

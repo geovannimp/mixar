@@ -408,19 +408,8 @@ class _LevelMetersColumn extends ConsumerWidget {
           children: [
             ExcludeSemantics(
               child: IgnorePointer(
-                child: Opacity(
-                  opacity: 0,
-                  child: RotaryKnob(
-                    label: 'GAIN',
-                    value: kControlNormCenter,
-                    min: kControlNormMin,
-                    max: kControlNormMax,
-                    step: kControlNormStep,
-                    center: kControlNormCenter,
-                    size: .md,
-                    onValueChange: _noopGain,
-                  ),
-                ),
+                // Match RotaryKnobSize.md footprint without Opacity(0) saveLayer.
+                child: SizedBox(width: 36, height: 10 + 2 + 36),
               ),
             ),
             AppTooltip(
@@ -451,14 +440,16 @@ class _LevelMetersColumn extends ConsumerWidget {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
-            child: Row(
-              mainAxisAlignment: .center,
-              crossAxisAlignment: .stretch,
-              children: [
-                LevelMeter(levels: levelsA, mode: mode),
-                const SizedBox(width: 2),
-                LevelMeter(levels: levelsB, mode: mode),
-              ],
+            child: RepaintBoundary(
+              child: Row(
+                mainAxisAlignment: .center,
+                crossAxisAlignment: .stretch,
+                children: [
+                  LevelMeter(levels: levelsA, mode: mode),
+                  const SizedBox(width: 2),
+                  LevelMeter(levels: levelsB, mode: mode),
+                ],
+              ),
             ),
           ),
         ),
@@ -467,5 +458,3 @@ class _LevelMetersColumn extends ConsumerWidget {
     );
   }
 }
-
-void _noopGain(double _) {}

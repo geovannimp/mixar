@@ -56,7 +56,6 @@ int? holdSegment(double hold) {
   );
 }
 
-// Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on FCard).
 final _green = const Color(
   0xff10b981,
 ).withValues(alpha: 0.45); // emerald-500/45
@@ -79,18 +78,19 @@ class LevelMeter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final off = context.theme.colors.muted;
     switch (mode) {
       case LevelMeterMode.mono:
         final peak = math.max(levels.peakL, levels.peakR);
         final hold = math.max(levels.peakHoldL, levels.peakHoldR);
-        return _Ladder(peak: peak, hold: hold);
+        return _Ladder(peak: peak, hold: hold, off: off);
       case LevelMeterMode.stereo:
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _Ladder(peak: levels.peakL, hold: levels.peakHoldL),
+            _Ladder(peak: levels.peakL, hold: levels.peakHoldL, off: off),
             const SizedBox(width: 1),
-            _Ladder(peak: levels.peakR, hold: levels.peakHoldR),
+            _Ladder(peak: levels.peakR, hold: levels.peakHoldR, off: off),
           ],
         );
     }
@@ -98,43 +98,63 @@ class LevelMeter extends StatelessWidget {
 }
 
 class _Ladder extends StatelessWidget {
-  const _Ladder({required this.peak, required this.hold});
+  const _Ladder({required this.peak, required this.hold, required this.off});
 
   final double peak;
   final double hold;
+  final Color off;
 
   @override
   Widget build(BuildContext context) {
-    final off = context.theme.colors.muted;
-    final holdIdx = holdSegment(hold);
-    // Top → bottom visually: high indices first so fromBottom 0 sits at bottom.
-    // DecoratedBox with no child sizes to constraints.smallest (width 0) — expand.
     return SizedBox(
       width: 6,
-      child: Column(
-        children: [
-          for (
-            var fromTop = kLevelMeterSegments - 1;
-            fromTop >= 0;
-            fromTop--
-          ) ...[
-            if (fromTop < kLevelMeterSegments - 1) const SizedBox(height: 1),
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _segmentColor(
-                    off,
-                    fromTop,
-                    lit: segmentOn(peak, fromTop) || holdIdx == fromTop,
-                  ),
-                  borderRadius: BorderRadius.circular(1),
-                ),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ],
-        ],
+      child: CustomPaint(
+        painter: _LadderPainter(peak: peak, hold: hold, off: off),
+        child: const SizedBox.expand(),
       ),
     );
   }
+}
+
+class _LadderPainter extends CustomPainter {
+  _LadderPainter({required this.peak, required this.hold, required this.off});
+
+  final double peak;
+  final double hold;
+  final Color off;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const gap = 1.0;
+    final holdIdx = holdSegment(hold);
+    final segH =
+        (size.height - gap * (kLevelMeterSegments - 1)) / kLevelMeterSegments;
+    if (segH <= 0 || size.width <= 0) {
+      return;
+    }
+    final paint = Paint()..isAntiAlias = false;
+    final radius = Radius.circular(1);
+    for (var fromTop = 0; fromTop < kLevelMeterSegments; fromTop++) {
+      final fromBottom = kLevelMeterSegments - 1 - fromTop;
+      final top = fromTop * (segH + gap);
+      paint.color = _segmentColor(
+        off,
+        fromBottom,
+        lit: segmentOn(peak, fromBottom) || holdIdx == fromBottom,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, top, size.width, segH),
+          radius,
+        ),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LadderPainter oldDelegate) =>
+      peak != oldDelegate.peak ||
+      hold != oldDelegate.hold ||
+      off != oldDelegate.off;
 }

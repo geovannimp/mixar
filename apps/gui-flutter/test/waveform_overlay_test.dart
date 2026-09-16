@@ -8,25 +8,30 @@ import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 void main() {
-  test('msToX maps mid-track to half width', () {
+  test('msToX maps relative to origin/span', () {
     expect(
-      msToX(ms: 30_000, durationMs: 60_000, width: 200),
+      msToX(ms: 30_000, originMs: 0, spanMs: 60_000, width: 200),
+      closeTo(100, 1e-6),
+    );
+    expect(
+      msToX(ms: 40_000, originMs: 30_000, spanMs: 20_000, width: 200),
       closeTo(100, 1e-6),
     );
   });
 
-  test('msToX clamps and rejects invalid duration', () {
-    expect(msToX(ms: -10, durationMs: 1000, width: 100), 0);
-    expect(msToX(ms: 2000, durationMs: 1000, width: 100), 100);
-    expect(msToX(ms: 500, durationMs: 0, width: 100), 0);
+  test('msToX clamps and rejects invalid span', () {
+    expect(msToX(ms: -10, originMs: 0, spanMs: 1000, width: 100), 0);
+    expect(msToX(ms: 2000, originMs: 0, spanMs: 1000, width: 100), 100);
+    expect(msToX(ms: 500, originMs: 0, spanMs: 0, width: 100), 0);
   });
 
-  test('loopRegionRect is null when out <= in or duration invalid', () {
+  test('loopRegionRect is null when out <= in or span invalid', () {
     expect(
       loopRegionRect(
         inMs: 10,
         outMs: 10,
-        durationMs: 1000,
+        originMs: 0,
+        spanMs: 1000,
         width: 100,
         height: 40,
       ),
@@ -36,7 +41,8 @@ void main() {
       loopRegionRect(
         inMs: 0,
         outMs: 100,
-        durationMs: 0,
+        originMs: 0,
+        spanMs: 0,
         width: 100,
         height: 40,
       ),
@@ -48,7 +54,8 @@ void main() {
     final r = loopRegionRect(
       inMs: 25_000,
       outMs: 50_000,
-      durationMs: 100_000,
+      originMs: 0,
+      spanMs: 100_000,
       width: 200,
       height: 40,
     )!;
@@ -62,7 +69,8 @@ void main() {
     expect(
       recordActiveLoopPicture(
         loop: null,
-        durationMs: 10_000,
+        originMs: 0,
+        spanMs: 10_000,
         size: const Size(100, 40),
       ),
       isNull,
@@ -70,7 +78,8 @@ void main() {
     expect(
       recordActiveLoopPicture(
         loop: const ActiveLoopInfo(inMs: 0, outMs: 1000, active: false),
-        durationMs: 10_000,
+        originMs: 0,
+        spanMs: 10_000,
         size: const Size(100, 40),
       ),
       isNull,
@@ -80,7 +89,8 @@ void main() {
   test('recordActiveLoopPicture returns a picture when active', () {
     final picture = recordActiveLoopPicture(
       loop: const ActiveLoopInfo(inMs: 1000, outMs: 3000, active: true),
-      durationMs: 10_000,
+      originMs: 0,
+      spanMs: 10_000,
       size: const Size(100, 40),
     );
     expect(picture, isNotNull);
@@ -91,7 +101,8 @@ void main() {
     expect(
       recordPendingLoopInPicture(
         pendingInMs: null,
-        durationMs: 10_000,
+        originMs: 0,
+        spanMs: 10_000,
         size: const Size(100, 40),
       ),
       isNull,
@@ -101,7 +112,8 @@ void main() {
   test('recordPendingLoopInPicture returns a picture when pending', () {
     final picture = recordPendingLoopInPicture(
       pendingInMs: 2500,
-      durationMs: 10_000,
+      originMs: 0,
+      spanMs: 10_000,
       size: const Size(100, 40),
     );
     expect(picture, isNotNull);
@@ -114,12 +126,14 @@ void main() {
         DeckHotCue(slot: 0, positionMs: 1000),
         DeckHotCue(slot: 3, positionMs: 5000),
       ],
-      durationMs: 10_000,
+      originMs: 0,
+      spanMs: 10_000,
       size: const Size(200, 40),
     );
     final loops = recordLoopPicture(
       loops: const [SavedLoopInfo(slot: 0, inMs: 2000, outMs: 4000)],
-      durationMs: 10_000,
+      originMs: 0,
+      spanMs: 10_000,
       size: const Size(200, 40),
     );
     cues.dispose();

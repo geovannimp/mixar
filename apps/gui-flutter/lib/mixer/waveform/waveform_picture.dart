@@ -30,7 +30,11 @@ class WaveformBarPainter extends CustomPainter {
     if (fillBackground) {
       canvas.drawRect(Offset.zero & size, Paint()..color = kWaveformBg);
     }
-    if (overview.isEmpty || durationMs <= 0 || spanMs <= 0 || size.width <= 0) {
+    final hasDetail = detail != null && detail!.peaks.length > 1;
+    if ((!hasDetail && overview.isEmpty) ||
+        durationMs <= 0 ||
+        spanMs <= 0 ||
+        size.width <= 0) {
       return;
     }
     final midY = size.height / 2;
@@ -102,5 +106,25 @@ Picture recordWaveformPicture({
     fillBackground: fillBackground,
     mode: mode,
   ).paint(canvas, size);
+  return recorder.endRecording();
+}
+
+/// Side-by-side composite of chunk pictures (each [chunkPx] wide).
+Picture recordCompositePicture({
+  required List<Picture> chunks,
+  required int chunkPx,
+  required double height,
+}) {
+  final n = chunks.length;
+  final width = (chunkPx * n).toDouble();
+  final size = Size(width, height);
+  final recorder = PictureRecorder();
+  final canvas = Canvas(recorder, Offset.zero & size);
+  for (var i = 0; i < n; i++) {
+    canvas.save();
+    canvas.translate(chunkPx * i.toDouble(), 0);
+    canvas.drawPicture(chunks[i]);
+    canvas.restore();
+  }
   return recorder.endRecording();
 }

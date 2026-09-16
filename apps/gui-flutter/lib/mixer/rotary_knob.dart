@@ -142,83 +142,83 @@ class _RotaryKnobState extends State<RotaryKnob> {
     );
     final labelColor = widget.accentColor ?? theme.colors.mutedForeground;
     final ringColor = widget.ringColor ?? theme.colors.primary;
-    final opacity = widget.disabled ? 0.45 : 1.0;
+    final fade = widget.disabled ? 0.45 : 1.0;
+    Color tint(Color c) => fade >= 1.0 ? c : c.withValues(alpha: c.a * fade);
 
-    return Opacity(
-      opacity: opacity,
-      child: Column(
-        mainAxisSize: .min,
-        children: [
-          Text(
-            widget.label.toUpperCase(),
-            style: theme.typography.body.xs.copyWith(
-              fontWeight: .w600,
-              letterSpacing: 0.6,
-              fontSize: widget.size == RotaryKnobSize.sm ? 7 : 8,
-              color: labelColor,
-              height: 1,
-            ),
+    return Column(
+      mainAxisSize: .min,
+      children: [
+        Text(
+          widget.label.toUpperCase(),
+          style: theme.typography.body.xs.copyWith(
+            fontWeight: .w600,
+            letterSpacing: 0.6,
+            fontSize: widget.size == RotaryKnobSize.sm ? 7 : 8,
+            color: tint(labelColor),
+            height: 1,
           ),
-          const SizedBox(height: 2),
-          Listener(
-            behavior: .opaque,
-            onPointerDown: widget.disabled
-                ? null
-                : (event) {
-                    _startY = event.position.dy;
-                    _startValue = widget.value;
-                  },
-            onPointerMove: widget.disabled
-                ? null
-                : (event) {
-                    final startY = _startY;
-                    final startValue = _startValue;
-                    if (startY == null || startValue == null) {
-                      return;
-                    }
-                    widget.onValueChange(
-                      valueFromVerticalDrag(
-                        startValue: startValue,
-                        startY: startY,
-                        clientY: event.position.dy,
-                        min: widget.min,
-                        max: widget.max,
-                        step: widget.step,
-                      ),
-                    );
-                  },
-            onPointerUp: (_) {
-              _startY = null;
-              _startValue = null;
-            },
-            onPointerCancel: (_) {
-              _startY = null;
-              _startValue = null;
-            },
-            child: SizedBox(
-              width: _dialExtent,
-              height: _dialExtent,
-              child: CustomPaint(
-                painter: _RotaryKnobPainter(
-                  fillFromDeg: fill.from,
-                  fillToDeg: fill.to,
-                  angleDeg: angle,
-                  strokeWidth: _strokeWidth,
-                  trackColor: theme.colors.secondary,
-                  fillColor: ringColor,
-                  faceColor: Color.lerp(
+        ),
+        const SizedBox(height: 2),
+        Listener(
+          behavior: .opaque,
+          onPointerDown: widget.disabled
+              ? null
+              : (event) {
+                  _startY = event.position.dy;
+                  _startValue = widget.value;
+                },
+          onPointerMove: widget.disabled
+              ? null
+              : (event) {
+                  final startY = _startY;
+                  final startValue = _startValue;
+                  if (startY == null || startValue == null) {
+                    return;
+                  }
+                  widget.onValueChange(
+                    valueFromVerticalDrag(
+                      startValue: startValue,
+                      startY: startY,
+                      clientY: event.position.dy,
+                      min: widget.min,
+                      max: widget.max,
+                      step: widget.step,
+                    ),
+                  );
+                },
+          onPointerUp: (_) {
+            _startY = null;
+            _startValue = null;
+          },
+          onPointerCancel: (_) {
+            _startY = null;
+            _startValue = null;
+          },
+          child: SizedBox(
+            width: _dialExtent,
+            height: _dialExtent,
+            child: CustomPaint(
+              painter: _RotaryKnobPainter(
+                fillFromDeg: fill.from,
+                fillToDeg: fill.to,
+                angleDeg: angle,
+                strokeWidth: _strokeWidth,
+                trackColor: tint(theme.colors.secondary),
+                fillColor: tint(ringColor),
+                faceColor: tint(
+                  Color.lerp(
                     theme.colors.secondary,
                     theme.colors.primary,
                     0.28,
                   )!,
-                  tickColor: theme.colors.foreground,
-                  size: widget.size,
                 ),
+                tickColor: tint(theme.colors.foreground),
+                size: widget.size,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
