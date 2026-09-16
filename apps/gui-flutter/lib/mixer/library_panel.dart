@@ -72,78 +72,88 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
               ),
             ),
           Expanded(
-            child: MultiPane(
-              direction: Axis.horizontal,
-              controller: _controller,
-              paneBuilder: (context, id, _) => switch (id) {
-                'sidebar' => FCard(
-                  clipBehavior: Clip.antiAlias,
-                  child: FTabs(
-                    expands: true,
-                    style: .delta(
-                      spacing: 4,
-                      indicatorSize: .tab,
-                      minHeight: 28,
-                      decoration: DecorationDelta.boxDelta(
-                        borderRadius: BorderRadius.zero,
+            // Invisible chrome; keep a grab hit-area (was FResizable divider:none).
+            child: PaneTheme(
+              data: const PaneThemeData(
+                resizerColor: Color(0x00000000),
+                resizerHoverColor: Color(0x00000000),
+                resizerFocusedColor: Color(0x00000000),
+                resizerThickness: 0,
+                resizerHitTestThickness: 8,
+              ),
+              child: MultiPane(
+                direction: Axis.horizontal,
+                controller: _controller,
+                paneBuilder: (context, id, _) => switch (id) {
+                  'sidebar' => FCard(
+                    clipBehavior: Clip.antiAlias,
+                    child: FTabs(
+                      expands: true,
+                      style: .delta(
+                        spacing: 4,
+                        indicatorSize: .tab,
+                        minHeight: 28,
+                        decoration: DecorationDelta.boxDelta(
+                          borderRadius: BorderRadius.zero,
+                        ),
                       ),
+                      control: .lifted(
+                        index: switch (tab) {
+                          LibrarySourceTab.collections => 0,
+                          LibrarySourceTab.drive => 1,
+                          LibrarySourceTab.history => 2,
+                        },
+                        onChange: (index) {
+                          ref.read(librarySourceTabProvider.notifier).set(
+                            switch (index) {
+                              1 => LibrarySourceTab.drive,
+                              2 => LibrarySourceTab.history,
+                              _ => LibrarySourceTab.collections,
+                            },
+                          );
+                        },
+                      ),
+                      children: [
+                        FTabEntry(
+                          label: AppTooltip(
+                            tip: 'Collections',
+                            child: Semantics(
+                              label: 'Collections',
+                              child: Icon(LucideIcons.library, size: 16),
+                            ),
+                          ),
+                          child: const CollectionsPane(),
+                        ),
+                        FTabEntry(
+                          label: AppTooltip(
+                            tip: 'Drive',
+                            child: Semantics(
+                              label: 'Drive',
+                              child: Icon(LucideIcons.hardDrive, size: 16),
+                            ),
+                          ),
+                          child: const DrivePane(),
+                        ),
+                        FTabEntry(
+                          label: AppTooltip(
+                            tip: 'History',
+                            child: Semantics(
+                              label: 'History',
+                              child: Icon(LucideIcons.history, size: 16),
+                            ),
+                          ),
+                          child: const HistoryPane(),
+                        ),
+                      ],
                     ),
-                    control: .lifted(
-                      index: switch (tab) {
-                        LibrarySourceTab.collections => 0,
-                        LibrarySourceTab.drive => 1,
-                        LibrarySourceTab.history => 2,
-                      },
-                      onChange: (index) {
-                        ref.read(librarySourceTabProvider.notifier).set(
-                          switch (index) {
-                            1 => LibrarySourceTab.drive,
-                            2 => LibrarySourceTab.history,
-                            _ => LibrarySourceTab.collections,
-                          },
-                        );
-                      },
-                    ),
-                    children: [
-                      FTabEntry(
-                        label: AppTooltip(
-                          tip: 'Collections',
-                          child: Semantics(
-                            label: 'Collections',
-                            child: Icon(LucideIcons.library, size: 16),
-                          ),
-                        ),
-                        child: const CollectionsPane(),
-                      ),
-                      FTabEntry(
-                        label: AppTooltip(
-                          tip: 'Drive',
-                          child: Semantics(
-                            label: 'Drive',
-                            child: Icon(LucideIcons.hardDrive, size: 16),
-                          ),
-                        ),
-                        child: const DrivePane(),
-                      ),
-                      FTabEntry(
-                        label: AppTooltip(
-                          tip: 'History',
-                          child: Semantics(
-                            label: 'History',
-                            child: Icon(LucideIcons.history, size: 16),
-                          ),
-                        ),
-                        child: const HistoryPane(),
-                      ),
-                    ],
                   ),
-                ),
-                'content' =>
-                  tab == LibrarySourceTab.history
-                      ? const HistoryDetailPane()
-                      : const TrackTablePane(),
-                _ => const SizedBox.shrink(),
-              },
+                  'content' =>
+                    tab == LibrarySourceTab.history
+                        ? const HistoryDetailPane()
+                        : const TrackTablePane(),
+                  _ => const SizedBox.shrink(),
+                },
+              ),
             ),
           ),
         ],

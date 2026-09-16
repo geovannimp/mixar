@@ -47,27 +47,37 @@ class _MixerPageState extends State<MixerPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MultiPane(
-      direction: Axis.vertical,
-      controller: _controller,
-      paneBuilder: (context, id, _) => switch (id) {
-        'waveforms' => const WaveformSection(),
-        'decks_library' => ColoredBox(
-          color: context.theme.colors.card,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SizedBox(
-                height: MixerPage._deckRowHeight,
-                child: const ClipRect(child: DeckGrid()),
-              ),
-              FDivider(style: .delta(padding: .value(.all(0)))),
-              const Expanded(child: LibraryPanel()),
-            ],
+    // Invisible chrome; keep a grab hit-area (matches former library divider:none).
+    return PaneTheme(
+      data: const PaneThemeData(
+        resizerColor: Color(0x00000000),
+        resizerHoverColor: Color(0x00000000),
+        resizerFocusedColor: Color(0x00000000),
+        resizerThickness: 0,
+        resizerHitTestThickness: 8,
+      ),
+      child: MultiPane(
+        direction: Axis.vertical,
+        controller: _controller,
+        paneBuilder: (context, id, _) => switch (id) {
+          'waveforms' => const WaveformSection(),
+          'decks_library' => ColoredBox(
+            color: context.theme.colors.card,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  height: MixerPage._deckRowHeight,
+                  child: const ClipRect(child: DeckGrid()),
+                ),
+                FDivider(style: .delta(padding: .value(.all(0)))),
+                const Expanded(child: LibraryPanel()),
+              ],
+            ),
           ),
-        ),
-        _ => const SizedBox.shrink(),
-      },
+          _ => const SizedBox.shrink(),
+        },
+      ),
     );
   }
 }
