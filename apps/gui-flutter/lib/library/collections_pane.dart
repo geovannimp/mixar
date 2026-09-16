@@ -5,6 +5,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
@@ -56,11 +57,10 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
           child: Row(
             children: [
               const Expanded(child: LibraryPaneLabel('Collections')),
-              FTappable(
+              MTappable(
                 onPress: _adding ? null : _addCollection,
                 semanticsLabel: 'Create collection',
-                builder: (context, variants, _) {
-                  final hovered = variants.contains(FTappableVariant.hovered);
+                builder: (context, state) {
                   return Container(
                     width: 24,
                     height: 24,
@@ -71,7 +71,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                         color: colors.primary.withValues(alpha: 0.35),
                       ),
                       color: colors.primary.withValues(
-                        alpha: hovered ? 0.20 : 0.12,
+                        alpha: state.hovered ? 0.20 : 0.12,
                       ),
                     ),
                     child: _adding
@@ -125,7 +125,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                           .read(selectedCollectionIdProvider.notifier)
                           .set(c.id),
                       trailing: c.kind == 'folder' && c.path != null
-                          ? FTappable(
+                          ? MTappable.child(
                               semanticsLabel: 'Browse ${c.name} in Drive',
                               onPress: () => _browseInDrive(c.path!),
                               child: Padding(

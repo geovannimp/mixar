@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -36,11 +37,10 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
           child: Row(
             children: [
               const Expanded(child: LibraryPaneLabel('History')),
-              FTappable(
+              MTappable(
                 onPress: _creating ? null : () => unawaited(_newSession()),
                 semanticsLabel: 'New session',
-                builder: (context, variants, _) {
-                  final hovered = variants.contains(FTappableVariant.hovered);
+                builder: (context, state) {
                   return Container(
                     width: 24,
                     height: 24,
@@ -51,7 +51,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                         color: colors.primary.withValues(alpha: 0.35),
                       ),
                       color: colors.primary.withValues(
-                        alpha: hovered ? 0.20 : 0.12,
+                        alpha: state.hovered ? 0.20 : 0.12,
                       ),
                     ),
                     child: _creating
@@ -112,7 +112,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                         .read(selectedHistorySessionIdProvider.notifier)
                         .set(row.id),
                     trailing: row.id == resumeSessionId
-                        ? FTappable(
+                        ? MTappable.child(
                             semanticsLabel: 'Resume ${row.title}',
                             onPress: () => unawaited(_resumeSession()),
                             child: Padding(

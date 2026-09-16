@@ -35,6 +35,17 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('MTappable.child invokes onPress', (tester) async {
+    var taps = 0;
+    await pumpApp(
+      tester,
+      MTappable.child(onPress: () => taps++, child: const Text('Child')),
+    );
+    await tester.tap(find.text('Child'));
+    await tester.pump();
+    expect(taps, 1);
+  });
+
   testWidgets('MTappable disabled ignores presses', (tester) async {
     var taps = 0;
     await pumpApp(
