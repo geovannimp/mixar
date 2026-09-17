@@ -16,6 +16,7 @@ import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
@@ -324,7 +325,11 @@ Future<void> _engineCmd(
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }
 

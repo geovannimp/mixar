@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -10,6 +9,7 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart'
     show ActiveLoopInfo, EngineTransport;
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Watches engine/library loop state and publishes loop cmds.
 class DeckLoopHost extends ConsumerStatefulWidget {
@@ -77,7 +77,11 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     if (!mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 
   void _syncBeatsFromRegion(ActiveLoopInfo? region, double? bpm) {

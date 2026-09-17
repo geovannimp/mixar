@@ -92,10 +92,7 @@ class Application extends StatelessWidget {
                 final base = touch ? platforms.touch : platforms.desktop;
                 final data = mixarThemeData(base, touch: touch);
                 return DesktopChrome(
-                  child: FTheme(
-                    data: data,
-                    child: FToaster(child: child!),
-                  ),
+                  child: FTheme(data: data, child: child!),
                 );
               },
             ),

@@ -11,6 +11,7 @@ import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
   const ScrollingLane({required this.deckId, required this.label, super.key});
@@ -404,7 +405,11 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
       if (!mounted) {
         return;
       }
-      showFToast(context: context, variant: .destructive, title: Text('$e'));
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: Text('$e'),
+      );
     }
   }
 }

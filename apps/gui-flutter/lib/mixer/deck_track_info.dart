@@ -19,6 +19,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerWidget {
@@ -155,7 +156,11 @@ Future<void> _setKeyLock(
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }
 

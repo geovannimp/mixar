@@ -14,6 +14,7 @@ import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 const _waveformSkeletonEffect = ShimmerEffect(
   baseColor: kWaveformBg,
@@ -260,6 +261,10 @@ Future<void> _seek(
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }
