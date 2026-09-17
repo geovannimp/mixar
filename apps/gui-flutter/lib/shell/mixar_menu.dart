@@ -4,6 +4,9 @@ import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 
 /// Shared panel chrome for Mixar menus and content popovers.
+///
+/// Fixed [minWidth] — Anchor overlays get viewport-max constraints, so a
+/// min-only [ConstrainedBox] + [Expanded] chips expands to full screen.
 class MixarMenuPanel extends StatelessWidget {
   const MixarMenuPanel({required this.child, this.minWidth = 180, super.key});
 
@@ -13,8 +16,8 @@ class MixarMenuPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return ConstrainedBox(
-      constraints: BoxConstraints(minWidth: minWidth),
+    return SizedBox(
+      width: minWidth,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colors.card,

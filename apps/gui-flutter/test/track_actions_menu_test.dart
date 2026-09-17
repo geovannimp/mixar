@@ -79,6 +79,7 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Analyze'), findsOneWidget);
+    expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
   });
 
   testWidgets('Load to A/B is disabled when the engine is stopped', (
