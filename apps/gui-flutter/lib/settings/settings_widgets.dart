@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/m_card.dart';
 
 class SettingsToggle extends StatelessWidget {
   const SettingsToggle({
@@ -49,7 +50,7 @@ class SettingsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FCard(
+    return MCard(
       child: Padding(padding: const .fromLTRB(16, 16, 16, 16), child: child),
     );
   }
