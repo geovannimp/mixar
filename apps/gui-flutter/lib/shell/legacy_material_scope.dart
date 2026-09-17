@@ -21,7 +21,13 @@ class LegacyMaterialScope extends StatelessWidget {
       data: _mapToLegacy(modernTheme),
       child: legacy.Localizations.override(
         context: context,
-        delegates: modern.GlobalMaterialLocalizations.delegates,
+        delegates: [
+          ...modern.GlobalMaterialLocalizations.delegates,
+          // material_ui's MaterialLocalizations is a different type than
+          // package:flutter/material's. Wolt (and other flutter/material
+          // consumers) need the SDK delegate.
+          legacy.DefaultMaterialLocalizations.delegate,
+        ],
         child: child,
       ),
     );

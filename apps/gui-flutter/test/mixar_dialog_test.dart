@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
@@ -18,6 +19,49 @@ void main() {
       ),
     );
   }
+
+  testWidgets('LegacyMaterialScope exposes flutter MaterialLocalizations', (
+    tester,
+  ) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) {
+          final label = flutter_material.MaterialLocalizations.of(
+            context,
+          ).dialogLabel;
+          return Text(label);
+        },
+      ),
+    );
+    expect(find.text('Dialog'), findsOneWidget);
+  });
+
+  testWidgets('showMixarDialog builds content without localization crash', (
+    tester,
+  ) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarDialog<String?>(
+              context: context,
+              builder: (context) => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('Export format'),
+              ),
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('Export format'), findsOneWidget);
+  });
 
   testWidgets('showMixarConfirm returns chosen action value', (tester) async {
     String? result;
