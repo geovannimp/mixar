@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_restore_bridge.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -27,27 +26,24 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     ref.watch(engineEventsBootstrapProvider);
     ref.watch(libraryEventsBootstrapProvider);
-    return FScaffold(
-      childPad: false,
-      header: AppHeader(
-        appTitle: widget.appTitle,
-        tab: _tab,
-        onTabChanged: (tab) => setState(() => _tab = tab),
-      ),
-      child: Column(
-        children: [
-          const ControllerOfferBridge(),
-          const HistoryRestoreBridge(),
-          Expanded(
-            child: switch (_tab) {
-              ShellTab.mixer => const MixerPage(),
-              ShellTab.settings => SettingsPage(
-                onClose: () => setState(() => _tab = ShellTab.mixer),
-              ),
-            },
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        AppHeader(
+          appTitle: widget.appTitle,
+          tab: _tab,
+          onTabChanged: (tab) => setState(() => _tab = tab),
+        ),
+        const ControllerOfferBridge(),
+        const HistoryRestoreBridge(),
+        Expanded(
+          child: switch (_tab) {
+            ShellTab.mixer => const MixerPage(),
+            ShellTab.settings => SettingsPage(
+              onClose: () => setState(() => _tab = ShellTab.mixer),
+            ),
+          },
+        ),
+      ],
     );
   }
 }
