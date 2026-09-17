@@ -6,6 +6,7 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 
@@ -147,7 +148,7 @@ class DeckGridPanel extends StatelessWidget {
               ],
             ),
           ),
-          const FDivider(),
+          const MDivider(),
           Text(
             'Downbeat',
             textAlign: TextAlign.center,

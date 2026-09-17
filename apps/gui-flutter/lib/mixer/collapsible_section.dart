@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 
 /// Header `--- Label ---` that shows or hides [child].
 ///
@@ -41,7 +42,7 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
           mainAxisSize: widget.expandHeader ? .max : .min,
           spacing: 4,
           children: [
-            if (widget.expandHeader) const Expanded(child: FDivider()),
+            if (widget.expandHeader) const Expanded(child: MDivider()),
             MixerButton(
               key: ValueKey('${widget.label.toLowerCase()}-panel-toggle'),
               variant: .ghost,
@@ -60,7 +61,7 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
                 ),
               ),
             ),
-            if (widget.expandHeader) const Expanded(child: FDivider()),
+            if (widget.expandHeader) const Expanded(child: MDivider()),
           ],
         ),
         if (_open)

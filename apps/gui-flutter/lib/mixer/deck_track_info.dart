@@ -14,6 +14,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -90,10 +91,7 @@ class DeckTrackInfo extends ConsumerWidget {
                   aspectRatio: 1,
                   child: _ArtworkThumb(bytes: artwork, hasTrack: hasTrack),
                 ),
-                FDivider(
-                  axis: .vertical,
-                  style: .delta(padding: .value(.all(0))),
-                ),
+                const MDivider(axis: .vertical, padding: .zero),
                 Expanded(
                   child: Padding(
                     padding: const .symmetric(horizontal: 8, vertical: 4),
@@ -137,7 +135,7 @@ class DeckTrackInfo extends ConsumerWidget {
               ],
             ),
           ),
-          FDivider(style: .delta(padding: .value(.all(0)))),
+          const MDivider(padding: .zero),
           OverviewStrip(deckId: deckId, height: 36),
         ],
       ),
