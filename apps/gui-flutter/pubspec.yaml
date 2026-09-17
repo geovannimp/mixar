@@ -50,6 +50,7 @@ dependencies:
   panes: ^1.3.0
   wolt_modal_sheet: ^0.11.0
   context_show: ^0.3.3
+  anchor_ui: ^0.0.9
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -16,6 +16,9 @@ import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
+import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
+import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Session detail: entry table + session actions.
@@ -334,103 +337,97 @@ class _HistorySessionActionsMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = context.theme;
-    return FPopoverMenu(
-      faded: null,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      menuBuilder: (_, controller, _) => [
-        .group(
-          children: [
-            .item(
-              title: const Text('Rename'),
-              enabled: session != null,
-              onPress: session == null
-                  ? null
-                  : () {
-                      unawaited(
-                        _afterHistoryMenu(context, controller, () {
-                          return HistoryDetailPane._renameSession(
-                            context,
-                            ref,
-                            session!,
-                          );
-                        }),
-                      );
-                    },
-            ),
-            .item(
-              title: const Text('Export'),
-              onPress: () {
-                unawaited(
-                  _afterHistoryMenu(context, controller, () {
-                    return HistoryDetailPane._exportSession(
-                      context,
-                      ref,
-                      sessionId,
-                      sessionTitle: session?.title,
-                    );
-                  }),
-                );
-              },
-            ),
-            .item(
-              title: const Text('Create collection'),
-              onPress: () {
-                unawaited(
-                  _afterHistoryMenu(context, controller, () {
-                    return HistoryDetailPane._createCollectionFromHistory(
-                      context,
-                      ref,
-                      sessionId,
-                      session?.title,
-                    );
-                  }),
-                );
-              },
-            ),
-          ],
-        ),
-        .group(
-          children: [
-            .item(
-              title: Text(
-                'Delete',
-                style: theme.typography.body.sm.copyWith(
-                  color: theme.colors.destructive,
-                ),
+    return MixarMenuAnchor(
+      menuBuilder: (context, controller) => MixarMenuBody(
+        groups: [
+          MixarMenuGroup(
+            children: [
+              MixarMenuItem(
+                title: const Text('Rename'),
+                enabled: session != null,
+                onPress: session == null
+                    ? null
+                    : () {
+                        unawaited(
+                          _afterHistoryMenu(context, controller, () {
+                            return HistoryDetailPane._renameSession(
+                              context,
+                              ref,
+                              session!,
+                            );
+                          }),
+                        );
+                      },
               ),
-              onPress: () {
-                unawaited(
-                  _afterHistoryMenu(context, controller, () {
-                    return HistoryDetailPane._deleteSession(
-                      context,
-                      ref,
-                      sessionId,
-                    );
-                  }),
-                );
-              },
-            ),
-          ],
-        ),
-      ],
-      builder: (context, controller, child) => AppButton.icon(
+              MixarMenuItem(
+                title: const Text('Export'),
+                onPress: () {
+                  unawaited(
+                    _afterHistoryMenu(context, controller, () {
+                      return HistoryDetailPane._exportSession(
+                        context,
+                        ref,
+                        sessionId,
+                        sessionTitle: session?.title,
+                      );
+                    }),
+                  );
+                },
+              ),
+              MixarMenuItem(
+                title: const Text('Create collection'),
+                onPress: () {
+                  unawaited(
+                    _afterHistoryMenu(context, controller, () {
+                      return HistoryDetailPane._createCollectionFromHistory(
+                        context,
+                        ref,
+                        sessionId,
+                        session?.title,
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
+          MixarMenuGroup(
+            children: [
+              MixarMenuItem(
+                title: const Text('Delete'),
+                destructive: true,
+                onPress: () {
+                  unawaited(
+                    _afterHistoryMenu(context, controller, () {
+                      return HistoryDetailPane._deleteSession(
+                        context,
+                        ref,
+                        sessionId,
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+      childBuilder: (context, controller) => AppButton.icon(
         variant: .ghost,
         semanticsLabel: 'Session actions',
         onPress: controller.toggle,
-        child: child!,
+        child: const Icon(LucideIcons.ellipsisVertical),
       ),
-      child: const Icon(LucideIcons.ellipsisVertical),
     );
   }
 }
 
 Future<void> _afterHistoryMenu(
   BuildContext context,
-  FPopoverController controller,
+  MixarOverlayController controller,
   Future<void> Function() action,
 ) async {
-  await controller.hide();
+  controller.hide();
   if (!context.mounted) {
     return;
   }

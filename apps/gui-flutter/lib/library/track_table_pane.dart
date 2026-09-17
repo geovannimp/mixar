@@ -20,6 +20,9 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
+import 'package:gui_flutter/shell/mixar_context_menu.dart';
+import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Row selection fill. Forui neutral dark uses the same hex for `muted` and
@@ -807,13 +810,12 @@ class TrackActionsMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final engineRunning = ref.watch(engineRunningProvider);
-    return FPopoverMenu(
-      faded: null,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      menuBuilder: (context, controller, _) => _trackActionGroups(
+    return MixarMenuAnchor(
+      enabled: !analyzing,
+      menuBuilder: (context, controller) => _trackActionsMenuBody(
         context: context,
         ref: ref,
-        controller: controller,
+        dismiss: controller.hide,
         trackId: trackId,
         path: path,
         title: title,
@@ -821,7 +823,7 @@ class TrackActionsMenu extends ConsumerWidget {
         analyzing: analyzing,
         engineRunning: engineRunning,
       ),
-      builder: (context, controller, child) => AppButton.icon(
+      childBuilder: (context, controller) => AppButton.icon(
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
@@ -829,11 +831,10 @@ class TrackActionsMenu extends ConsumerWidget {
         onSecondaryPress: analyzing || !enableSecondaryPress
             ? null
             : controller.toggle,
-        child: child!,
+        child: analyzing
+            ? const MLoader()
+            : const Icon(LucideIcons.ellipsisVertical),
       ),
-      child: analyzing
-          ? const MLoader()
-          : const Icon(LucideIcons.ellipsisVertical),
     );
   }
 }
@@ -858,14 +859,12 @@ class _TrackActionsContextMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final engineRunning = ref.watch(engineRunningProvider);
-    return FContextMenu(
-      faded: null,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      secondaryPress: !analyzing,
-      menuBuilder: (context, controller, _) => _trackActionGroups(
+    return MixarContextMenu(
+      enabled: !analyzing,
+      menuBuilder: (context, handle) => _trackActionsMenuBody(
         context: context,
         ref: ref,
-        controller: controller,
+        dismiss: handle.hide,
         trackId: trackId,
         path: path,
         title: title,
@@ -873,15 +872,23 @@ class _TrackActionsContextMenu extends ConsumerWidget {
         analyzing: analyzing,
         engineRunning: engineRunning,
       ),
-      child: child,
+      childBuilder: (context, handle) => GestureDetector(
+        onSecondaryTapDown: analyzing
+            ? null
+            : (details) => handle.showAt(details.globalPosition),
+        onLongPressStart: analyzing
+            ? null
+            : (details) => handle.showAt(details.globalPosition),
+        child: child,
+      ),
     );
   }
 }
 
-List<FItemGroupMixin> _trackActionGroups({
+Widget _trackActionsMenuBody({
   required BuildContext context,
   required WidgetRef ref,
-  required FPopoverController controller,
+  required VoidCallback dismiss,
   required String trackId,
   required String path,
   required String title,
@@ -904,83 +911,85 @@ List<FItemGroupMixin> _trackActionGroups({
     );
   }
 
-  return [
-    .group(
-      children: [
-        .raw(
-          style: .delta(
-            rawContentStyle: .delta(padding: .value(.fromLTRB(8, 8, 8, 2))),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 4,
-            children: [
-              const Text('Load to deck'),
-              Row(
+  return MixarMenuBody(
+    groups: [
+      MixarMenuGroup(
+        children: [
+          MixarMenuItem(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 spacing: 4,
                 children: [
-                  _LoadDeckChip(
-                    letter: 'A',
-                    color: FaderColors.a.grip,
-                    enabled: engineRunning,
-                    onPress: () {
-                      unawaited(controller.hide());
-                      unawaited(load(0));
-                    },
-                  ),
-                  _LoadDeckChip(
-                    letter: 'B',
-                    color: FaderColors.b.grip,
-                    enabled: engineRunning,
-                    onPress: () {
-                      unawaited(controller.hide());
-                      unawaited(load(1));
-                    },
+                  const Text('Load to deck'),
+                  Row(
+                    spacing: 4,
+                    children: [
+                      _LoadDeckChip(
+                        letter: 'A',
+                        color: FaderColors.a.grip,
+                        enabled: engineRunning,
+                        onPress: () {
+                          dismiss();
+                          unawaited(load(0));
+                        },
+                      ),
+                      _LoadDeckChip(
+                        letter: 'B',
+                        color: FaderColors.b.grip,
+                        enabled: engineRunning,
+                        onPress: () {
+                          dismiss();
+                          unawaited(load(1));
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ],
-    ),
-    .group(
-      children: [
-        .item(
-          title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
-          enabled: inLibrary && !analyzing,
-          onPress: !inLibrary || analyzing
-              ? null
-              : () {
-                  unawaited(controller.hide());
-                  unawaited(analyzeTrackAction(ref, trackId));
-                },
-        ),
-        .item(
-          title: const Text('Refresh'),
-          enabled: inLibrary,
-          onPress: inLibrary
-              ? () {
-                  unawaited(controller.hide());
-                  unawaited(refreshTrackAction(ref, trackId));
-                }
-              : null,
-        ),
-        .item(
-          title: const Text('Track details…'),
-          enabled: inLibrary,
-          onPress: inLibrary
-              ? () {
-                  unawaited(controller.hide());
-                  unawaited(
-                    showTrackDetailDialog(context, ref, trackId: trackId),
-                  );
-                }
-              : null,
-        ),
-      ],
-    ),
-  ];
+        ],
+      ),
+      MixarMenuGroup(
+        children: [
+          MixarMenuItem(
+            title: Text(analyzing ? 'Analyzing…' : 'Analyze'),
+            enabled: inLibrary && !analyzing,
+            onPress: !inLibrary || analyzing
+                ? null
+                : () {
+                    dismiss();
+                    unawaited(analyzeTrackAction(ref, trackId));
+                  },
+          ),
+          MixarMenuItem(
+            title: const Text('Refresh'),
+            enabled: inLibrary,
+            onPress: inLibrary
+                ? () {
+                    dismiss();
+                    unawaited(refreshTrackAction(ref, trackId));
+                  }
+                : null,
+          ),
+          MixarMenuItem(
+            title: const Text('Track details…'),
+            enabled: inLibrary,
+            onPress: inLibrary
+                ? () {
+                    dismiss();
+                    unawaited(
+                      showTrackDetailDialog(context, ref, trackId: trackId),
+                    );
+                  }
+                : null,
+          ),
+        ],
+      ),
+    ],
+  );
 }
 
 class _LoadDeckChip extends StatelessWidget {
