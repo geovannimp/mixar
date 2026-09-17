@@ -16,6 +16,7 @@ import 'package:gui_flutter/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -208,59 +209,23 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       widget.onClose?.call();
       return;
     }
-    final choice = await showFDialog<_CloseChoice>(
+    final choice = await showMixarConfirm<_CloseChoice>(
       context: context,
-      builder: (context, _, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, _) {
-            final theme = context.theme;
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: .min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Unsaved settings',
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('Save changes before closing?'),
-                  const SizedBox(height: 16),
-                  Row(
-                    spacing: 8,
-                    children: [
-                      AppButton(
-                        variant: .outline,
-                        size: .sm,
-                        onPress: () =>
-                            Navigator.of(context).pop(_CloseChoice.cancel),
-                        child: const Text('Cancel'),
-                      ),
-                      AppButton(
-                        variant: .ghost,
-                        size: .sm,
-                        onPress: () =>
-                            Navigator.of(context).pop(_CloseChoice.discard),
-                        child: const Text('Discard'),
-                      ),
-                      AppButton(
-                        size: .sm,
-                        onPress: () =>
-                            Navigator.of(context).pop(_CloseChoice.save),
-                        child: const Text('Save'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      title: 'Unsaved settings',
+      body: 'Save changes before closing?',
+      actions: const [
+        MixarDialogAction(
+          label: 'Cancel',
+          value: _CloseChoice.cancel,
+          variant: MixarButtonVariant.outline,
+        ),
+        MixarDialogAction(
+          label: 'Discard',
+          value: _CloseChoice.discard,
+          variant: MixarButtonVariant.ghost,
+        ),
+        MixarDialogAction(label: 'Save', value: _CloseChoice.save),
+      ],
     );
     if (!mounted) {
       return;

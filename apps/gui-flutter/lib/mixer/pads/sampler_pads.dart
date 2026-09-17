@@ -8,6 +8,7 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 
 class SamplerSlot {
   const SamplerSlot({this.label, this.durationMs, this.path});
@@ -246,78 +247,73 @@ class SamplerPads extends StatelessWidget {
   Future<void> _openBankConfig(BuildContext context, SamplerBank bank) async {
     var name = bank.name;
     var modeValue = bank.playMode ?? 'default';
-    final result = await showFDialog<(String, String?)?>(
+    final result = await showMixarDialog<(String, String?)?>(
       context: context,
-      builder: (context, style, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, style) {
-            return StatefulBuilder(
-              builder: (context, setLocal) {
-                final theme = context.theme;
-                return Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: .min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocal) {
+            final theme = context.theme;
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: .min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Bank settings',
+                    style: theme.typography.body.md.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FTextField(
+                    label: const Text('Name'),
+                    control: .managed(
+                      initial: TextEditingValue(text: name),
+                      onChange: (v) => name = v.text,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Play mode', style: theme.typography.body.sm),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      Text(
-                        'Bank settings',
-                        style: theme.typography.body.md.copyWith(
-                          fontWeight: FontWeight.w700,
+                      for (final opt in kSamplerPlayModeOptions)
+                        MixerButton(
+                          variant: modeValue == opt ? .primary : .secondary,
+                          onPress: () => setLocal(() => modeValue = opt),
+                          child: Text(opt),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: MixerButton(
+                          variant: .secondary,
+                          onPress: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      FTextField(
-                        label: const Text('Name'),
-                        control: .managed(
-                          initial: TextEditingValue(text: name),
-                          onChange: (v) => name = v.text,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: MixerButton(
+                          onPress: () {
+                            final playMode = modeValue == 'default'
+                                ? null
+                                : modeValue;
+                            Navigator.of(context).pop((name, playMode));
+                          },
+                          child: const Text('Save'),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text('Play mode', style: theme.typography.body.sm),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          for (final opt in kSamplerPlayModeOptions)
-                            MixerButton(
-                              variant: modeValue == opt ? .primary : .secondary,
-                              onPress: () => setLocal(() => modeValue = opt),
-                              child: Text(opt),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: MixerButton(
-                              variant: .secondary,
-                              onPress: () => Navigator.of(context).pop(),
-                              child: const Text('Cancel'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: MixerButton(
-                              onPress: () {
-                                final playMode = modeValue == 'default'
-                                    ? null
-                                    : modeValue;
-                                Navigator.of(context).pop((name, playMode));
-                              },
-                              child: const Text('Save'),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
-                );
-              },
+                ],
+              ),
             );
           },
         );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' as legacy;
 import 'package:flutter/widgets.dart';
 import 'package:material_ui/material_ui.dart' as modern;
+import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 /// Maps [modern.ThemeData] into a legacy `package:flutter/material` theme for
 /// dependencies (e.g. trina_grid) that still read `Theme.of` from material.dart.
@@ -91,6 +92,14 @@ class LegacyMaterialScope extends StatelessWidget {
         labelSmall: textTheme.labelSmall,
       ),
       scaffoldBackgroundColor: modernTheme.scaffoldBackgroundColor,
+      extensions: <legacy.ThemeExtension<dynamic>>[
+        WoltModalSheetThemeData(
+          backgroundColor: scheme.surface,
+          modalBarrierColor: legacy.Colors.black54,
+          sabGradientColor: scheme.surface,
+          hasSabGradient: false,
+        ),
+      ],
     );
   }
 }

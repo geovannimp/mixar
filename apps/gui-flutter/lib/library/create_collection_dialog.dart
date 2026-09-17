@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 
 enum CreateCollectionType { folder, playlist }
 
@@ -50,16 +51,9 @@ Future<CreateCollectionResult?> showCreateCollectionDialog(
   BuildContext context, {
   CreateCollectionInput input = const CreateCollectionInput(),
 }) {
-  return showFDialog<CreateCollectionResult?>(
+  return showMixarDialog<CreateCollectionResult?>(
     context: context,
-    builder: (context, _, animation) {
-      return FDialog(
-        animation: animation,
-        builder: (context, _) {
-          return _CreateCollectionDialogBody(input: input);
-        },
-      );
-    },
+    builder: (context) => _CreateCollectionDialogBody(input: input),
   );
 }
 
