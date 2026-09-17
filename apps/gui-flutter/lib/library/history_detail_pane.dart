@@ -567,9 +567,10 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
 }
 
 List<TrinaRow<dynamic>> _historyRows(List<HistoryEntryInfo> entries) {
-  return [
+  final rows = <TrinaRow<HistoryEntryInfo>>[
     for (var i = 0; i < entries.length; i++)
-      TrinaRow(
+      TrinaRow<HistoryEntryInfo>(
+        data: entries[i],
         cells: {
           'position': TrinaCell(value: '${i + 1}'),
           'deck': TrinaCell(value: entries[i].deck),
@@ -593,6 +594,7 @@ List<TrinaRow<dynamic>> _historyRows(List<HistoryEntryInfo> entries) {
         },
       ),
   ];
+  return List<TrinaRow<dynamic>>.from(rows);
 }
 
 TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
