@@ -194,6 +194,7 @@ class _TabHeader extends StatelessWidget {
         return DecoratedBox(
           decoration: BoxDecoration(
             color: selected || active ? theme.colors.background : null,
+            borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 28, minWidth: 28),
