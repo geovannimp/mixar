@@ -3,15 +3,42 @@ import 'package:flutter/widgets.dart';
 import 'package:material_ui/material_ui.dart' as modern;
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
+/// Loads SDK [legacy.MaterialLocalizations] for any locale.
+///
+/// [legacy.DefaultMaterialLocalizations.delegate] only supports `en`, so under
+/// `pt_BR` (etc.) Wolt/`package:flutter/material` consumers get no resources.
+/// English copy is fine for a11y labels until we wire `flutter_localizations`.
+class _FlutterMaterialLocalizationsDelegate
+    extends LocalizationsDelegate<legacy.MaterialLocalizations> {
+  const _FlutterMaterialLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<legacy.MaterialLocalizations> load(Locale locale) {
+    return legacy.DefaultMaterialLocalizations.load(locale);
+  }
+
+  @override
+  bool shouldReload(_FlutterMaterialLocalizationsDelegate old) => false;
+}
+
 /// Maps [modern.ThemeData] into a legacy `package:flutter/material` theme for
 /// dependencies (e.g. trina_grid) that still read `Theme.of` from material.dart.
 ///
 /// ponytail: local copy of material_ui's deprecated bridge until a supported
 /// replacement ships; delete when trina_grid migrates to package:material_ui.
+/// ponytail: English-only flutter MaterialLocalizations for any locale — swap
+/// for package:flutter_localizations GlobalMaterialLocalizations when needed.
 class LegacyMaterialScope extends StatelessWidget {
   const LegacyMaterialScope({required this.child, super.key});
 
   final Widget child;
+
+  static const LocalizationsDelegate<legacy.MaterialLocalizations>
+  flutterMaterialLocalizationsDelegate =
+      _FlutterMaterialLocalizationsDelegate();
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +52,8 @@ class LegacyMaterialScope extends StatelessWidget {
           ...modern.GlobalMaterialLocalizations.delegates,
           // material_ui's MaterialLocalizations is a different type than
           // package:flutter/material's. Wolt (and other flutter/material
-          // consumers) need the SDK delegate.
-          legacy.DefaultMaterialLocalizations.delegate,
+          // consumers) need the SDK type, for every app locale.
+          flutterMaterialLocalizationsDelegate,
         ],
         child: child,
       ),

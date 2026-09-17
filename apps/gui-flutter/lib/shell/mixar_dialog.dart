@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' as material;
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 /// Wolt medium breakpoint — dialog above, bottom sheet below.
@@ -32,7 +33,7 @@ Future<T?> _showMixarModal<T>({
   pageListBuilder,
 }) {
   // wolt_modal_sheet reads package:flutter/material MaterialLocalizations;
-  // the app root uses material_ui delegates, so supply Flutter's for the modal.
+  // belt-and-suspenders with LegacyMaterialScope for the modal subtree.
   return WoltModalSheet.show<T>(
     context: context,
     modalTypeBuilder: mixarModalTypeBuilder,
@@ -41,8 +42,7 @@ Future<T?> _showMixarModal<T>({
       return material.Localizations.override(
         context: context,
         delegates: const [
-          material.DefaultMaterialLocalizations.delegate,
-          material.DefaultWidgetsLocalizations.delegate,
+          LegacyMaterialScope.flutterMaterialLocalizationsDelegate,
         ],
         child: child,
       );
