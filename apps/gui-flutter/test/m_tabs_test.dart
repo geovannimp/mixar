@@ -117,4 +117,27 @@ void main() {
       isTrue,
     );
   });
+
+  testWidgets('expands slides selected chip between tabs', (tester) async {
+    await pumpTabs(
+      tester,
+      children: const [
+        MTabEntry(label: Text('A'), child: Text('pane-a')),
+        MTabEntry(label: Text('B'), child: Text('pane-b')),
+      ],
+    );
+
+    final indicator = find.byKey(const ValueKey('m-tabs-indicator'));
+    expect(indicator, findsOneWidget);
+    final startX = tester.getCenter(indicator).dx;
+
+    await tester.tap(find.text('B'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
+    final midX = tester.getCenter(indicator).dx;
+    expect(midX, greaterThan(startX));
+
+    await tester.pumpAndSettle();
+    expect(tester.getCenter(indicator).dx, greaterThan(midX));
+  });
 }

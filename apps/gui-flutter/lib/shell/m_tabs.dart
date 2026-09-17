@@ -11,10 +11,13 @@ class MTabEntry {
   final Widget child;
 }
 
-/// Segmented tabs (Forui-adjacent): muted bar, selected background chip, [IndexedStack] panes.
+/// Segmented tabs (Forui-adjacent): muted bar, sliding selected chip, [IndexedStack] panes.
 ///
 /// [direction] lays out the tab bar: [Axis.horizontal] on top, [Axis.vertical] on the start edge.
 /// Pass [index] to control selection; omit it for internal state.
+///
+/// When [expands] is true, the selected chip slides between equal slots (Material [TabBar]
+/// parity). When false, the chip snaps onto the selected label without a slide.
 class MTabs extends StatefulWidget {
   const MTabs({
     required this.children,
@@ -132,23 +135,61 @@ class _TabBar extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final FThemeData theme;
 
+  static const _slideDuration = Duration(milliseconds: 300);
+
   @override
   Widget build(BuildContext context) {
-    final tabs = <Widget>[
+    final horizontal = direction == Axis.horizontal;
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : _slideDuration;
+
+    final headers = <Widget>[
       for (var i = 0; i < children.length; i++)
         _TabHeader(
           selected: i == current,
           expands: expands,
-          direction: direction,
           onPress: () => onSelect(i),
           theme: theme,
+          // Sliding chip paints selection when expands; otherwise paint on the header.
+          paintSelected: !expands,
           child: children[i].label,
         ),
     ];
 
-    final strip = direction == Axis.horizontal
-        ? Row(children: tabs)
-        : Column(children: tabs);
+    final labels = horizontal
+        ? Row(children: headers)
+        : Column(children: headers);
+
+    final strip = expands
+        ? Stack(
+            children: [
+              Positioned.fill(
+                child: AnimatedAlign(
+                  duration: duration,
+                  curve: Curves.easeInOut,
+                  alignment: _slotAlignment(
+                    current,
+                    children.length,
+                    horizontal,
+                  ),
+                  child: FractionallySizedBox(
+                    widthFactor: horizontal ? 1 / children.length : 1,
+                    heightFactor: horizontal ? 1 : 1 / children.length,
+                    child: DecoratedBox(
+                      key: const ValueKey('m-tabs-indicator'),
+                      decoration: BoxDecoration(
+                        color: theme.colors.background,
+                        borderRadius: theme.style.borderRadius.md,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              labels,
+            ],
+          )
+        : labels;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -161,24 +202,33 @@ class _TabBar extends StatelessWidget {
       child: Padding(padding: const EdgeInsets.all(4), child: strip),
     );
   }
+
+  /// Slot centers for equal-sized tabs: [Alignment] x/y in \[-1, 1\].
+  static Alignment _slotAlignment(int index, int count, bool horizontal) {
+    if (count <= 1) {
+      return Alignment.center;
+    }
+    final t = -1.0 + (2.0 * index) / (count - 1);
+    return horizontal ? Alignment(t, 0) : Alignment(0, t);
+  }
 }
 
 class _TabHeader extends StatelessWidget {
   const _TabHeader({
     required this.selected,
     required this.expands,
-    required this.direction,
     required this.onPress,
     required this.child,
     required this.theme,
+    required this.paintSelected,
   });
 
   final bool selected;
   final bool expands;
-  final Axis direction;
   final VoidCallback onPress;
   final Widget child;
   final FThemeData theme;
+  final bool paintSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -190,10 +240,9 @@ class _TabHeader extends StatelessWidget {
       selected: selected,
       onPress: onPress,
       builder: (context, state) {
-        final active = state.active;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: selected || active ? theme.colors.background : null,
+            color: paintSelected && selected ? theme.colors.background : null,
             borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(
