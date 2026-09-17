@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 
-/// Bordered panel chrome (Forui card visual parity).
+/// Bordered panel chrome (Forui card colors; Mixar button-style rounded rect).
 class MCard extends StatelessWidget {
   const MCard({required this.child, this.clipBehavior = Clip.none, super.key});
 
@@ -14,21 +14,19 @@ class MCard extends StatelessWidget {
     final radius = theme.style.borderRadius.lg;
     final content = clipBehavior == Clip.none
         ? child
-        : ClipRSuperellipse(
+        : ClipRRect(
             borderRadius: radius,
             clipBehavior: clipBehavior,
             child: child,
           );
     return DecoratedBox(
-      decoration: ShapeDecoration(
+      decoration: BoxDecoration(
         color: theme.colors.card,
-        shape: RoundedSuperellipseBorder(
-          side: BorderSide(
-            color: theme.colors.border,
-            width: theme.style.borderWidth,
-          ),
-          borderRadius: radius,
+        border: Border.all(
+          color: theme.colors.border,
+          width: theme.style.borderWidth,
         ),
+        borderRadius: radius,
       ),
       child: content,
     );

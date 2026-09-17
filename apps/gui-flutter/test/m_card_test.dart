@@ -8,7 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import 'support/forui_material_app.dart';
 
 void main() {
-  testWidgets('MCard paints card fill + border superellipse', (tester) async {
+  testWidgets('MCard paints card fill + rounded border', (tester) async {
     final base = FTheme.neutral.dark.desktop;
     final theme = mixarThemeData(base, touch: false);
     await tester.pumpWidget(
@@ -27,18 +27,17 @@ void main() {
         matching: find.byType(DecoratedBox),
       ),
     );
-    final decoration = decorated.decoration as ShapeDecoration;
+    final decoration = decorated.decoration as BoxDecoration;
     expect(decoration.color, theme.colors.card);
-    final shape = decoration.shape as RoundedSuperellipseBorder;
-    expect(shape.side.color, theme.colors.border);
-    expect(shape.side.width, theme.style.borderWidth);
-    expect(shape.borderRadius, theme.style.borderRadius.lg);
-    expect(find.byType(ClipRSuperellipse), findsNothing);
+    expect(decoration.borderRadius, theme.style.borderRadius.lg);
+    expect(
+      decoration.border,
+      Border.all(color: theme.colors.border, width: theme.style.borderWidth),
+    );
+    expect(find.byType(ClipRRect), findsNothing);
   });
 
-  testWidgets('MCard clips with ClipRSuperellipse when requested', (
-    tester,
-  ) async {
+  testWidgets('MCard clips with ClipRRect when requested', (tester) async {
     final base = FTheme.neutral.dark.desktop;
     await tester.pumpWidget(
       MaterialApp(
@@ -53,6 +52,6 @@ void main() {
       ),
     );
 
-    expect(find.byType(ClipRSuperellipse), findsOneWidget);
+    expect(find.byType(ClipRRect), findsOneWidget);
   });
 }
