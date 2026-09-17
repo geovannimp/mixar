@@ -14,6 +14,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -78,7 +79,7 @@ class HistoryDetailPane extends ConsumerWidget {
           Expanded(
             child: entries.when(
               skipLoadingOnReload: true,
-              loading: () => const Center(child: FCircularProgress()),
+              loading: () => const Center(child: MLoader()),
               error: (e, _) => Center(child: Text('$e')),
               data: (rows) {
                 if (allEntries != null && allEntries.isEmpty) {

@@ -5,6 +5,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -98,7 +99,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
             children: [
               currentPath == null
                   ? volumes.when(
-                      loading: () => const Center(child: FCircularProgress()),
+                      loading: () => const Center(child: MLoader()),
                       error: (e, _) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
@@ -116,7 +117,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
                       ),
                     )
                   : listing.when(
-                      loading: () => const Center(child: FCircularProgress()),
+                      loading: () => const Center(child: MLoader()),
                       error: (e, _) => Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Text(
