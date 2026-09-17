@@ -1,22 +1,21 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
-import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 
 void main() {
   testWidgets(
     'MDivider hairline uses secondary + borderWidth + default padding',
     (tester) async {
-      final base = FTheme.neutral.dark.desktop;
-      final theme = mixarThemeData(base, touch: false);
+      final base = MixarThemeData.dark();
+      final theme = base;
       await tester.pumpWidget(
         MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(base),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(base),
           home: const Scaffold(
             body: SizedBox(width: 200, child: Column(children: [MDivider()])),
           ),
@@ -39,12 +38,12 @@ void main() {
   );
 
   testWidgets('MDivider respects zero padding', (tester) async {
-    final base = FTheme.neutral.dark.desktop;
-    final theme = mixarThemeData(base, touch: false);
+    final base = MixarThemeData.dark();
+    final theme = base;
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(base),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(base),
         home: const Scaffold(
           body: SizedBox(
             width: 200,

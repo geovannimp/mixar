@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Indeterminate loader sizes (Forui circular-progress body font Size parity).
 enum MLoaderSize { xs, sm, md, lg, xl }
@@ -40,7 +40,7 @@ class _MLoaderState extends State<MLoader> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  double _iconSize(FThemeData theme) {
+  double _iconSize(MixarThemeData theme) {
     final body = theme.typography.body;
     return switch (widget.size) {
       MLoaderSize.xs => body.xs.fontSize ?? 12,

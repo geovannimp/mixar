@@ -1,7 +1,7 @@
 import 'dart:math' as math;
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 
 /// Matches Tauri `CONTROL_NORM_*` / EQ step mapping (`0.1 / 48`).
 const kControlNormMin = 0.0;

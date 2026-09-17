@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/controller_mapping_row.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
@@ -9,6 +8,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
   const SettingsControllersPanel({

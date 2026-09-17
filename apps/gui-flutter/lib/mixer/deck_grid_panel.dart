@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
@@ -10,6 +9,7 @@ import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Beat-grid edit panel for the performance surface.
 ///

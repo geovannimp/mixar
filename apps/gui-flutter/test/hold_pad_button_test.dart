@@ -1,9 +1,9 @@
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 void main() {
   Future<void> pumpHold(
@@ -12,11 +12,11 @@ void main() {
     required VoidCallback onBegin,
     required VoidCallback onEnd,
   }) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
           body: SizedBox(
             width: 80,
@@ -69,7 +69,7 @@ void main() {
   testWidgets('HoldPadButton ends once on dispose while held', (tester) async {
     var begins = 0;
     var ends = 0;
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
 
     await pumpHold(
       tester,
@@ -84,8 +84,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: const Scaffold(body: SizedBox.shrink()),
       ),
     );

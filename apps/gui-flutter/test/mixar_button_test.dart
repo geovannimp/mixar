@@ -1,24 +1,24 @@
 import 'dart:ui' show Tristate;
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester, Widget child) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(body: Center(child: child)),
       ),
     );

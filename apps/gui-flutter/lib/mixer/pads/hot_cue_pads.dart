@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class DeckHotCue {
   const DeckHotCue({required this.slot, required this.positionMs, this.label});
@@ -35,7 +35,7 @@ class HotCuePads extends StatelessWidget {
     );
   }
 
-  Widget _pad(FThemeData theme, int slot) {
+  Widget _pad(MixarThemeData theme, int slot) {
     DeckHotCue? cue;
     for (final entry in hotCues) {
       if (entry.slot == slot) {

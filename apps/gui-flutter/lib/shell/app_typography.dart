@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:forui/forui.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 
 /// Vendored font families (see `pubspec.yaml` / `fonts/`).
 abstract final class MixarFonts {
@@ -26,82 +26,114 @@ final _displayFeatures = [
 
 final _monoFeatures = [FontFeature.tabularFigures(), FontFeature.slashedZero()];
 
-FTypeface _remapTypeface(
-  FTypeface base,
-  String fontFamily, {
-  List<FontFeature>? fontFeatures,
-}) {
-  TextStyle remap(TextStyle style) => style.copyWith(
-    fontFamily: fontFamily,
-    // Keep Forui's fallbacks so missing glyphs don't tofu to boxes.
-    fontFamilyFallback: style.fontFamilyFallback,
-    fontFeatures: fontFeatures ?? style.fontFeatures,
-  );
+/// Size scale for one face (Forui desktop non-touch sizes).
+@immutable
+class MixarTypeface {
+  const MixarTypeface({
+    required this.fontFamily,
+    required this.xs3,
+    required this.xs2,
+    required this.xs,
+    required this.sm,
+    required this.md,
+    required this.lg,
+    required this.xl,
+    required this.xl2,
+    required this.xl3,
+    required this.xl4,
+    required this.xl5,
+    required this.xl6,
+    required this.xl7,
+    required this.xl8,
+    this.fontFamilyFallback = const [],
+  });
 
-  return FTypeface(
-    fontFamily: fontFamily,
-    xs3: remap(base.xs3),
-    xs2: remap(base.xs2),
-    xs: remap(base.xs),
-    sm: remap(base.sm),
-    md: remap(base.md),
-    lg: remap(base.lg),
-    xl: remap(base.xl),
-    xl2: remap(base.xl2),
-    xl3: remap(base.xl3),
-    xl4: remap(base.xl4),
-    xl5: remap(base.xl5),
-    xl6: remap(base.xl6),
-    xl7: remap(base.xl7),
-    xl8: remap(base.xl8),
-  );
+  factory MixarTypeface.desktop({
+    required Color color,
+    required String fontFamily,
+    List<String> fontFamilyFallback = const [],
+    List<FontFeature>? fontFeatures,
+  }) {
+    TextStyle style(double size, double height) => TextStyle(
+      color: color,
+      fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
+      fontSize: size,
+      height: height,
+      leadingDistribution: TextLeadingDistribution.even,
+      fontFeatures: fontFeatures,
+      // Avoid inheriting MaterialApp's debug error underline when no
+      // DefaultTextStyle/Material ancestor is present.
+      decoration: TextDecoration.none,
+    );
+    return MixarTypeface(
+      fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
+      xs3: style(8, 1),
+      xs2: style(10, 1),
+      xs: style(12, 1),
+      sm: style(14, 1.25),
+      md: style(16, 1.5),
+      lg: style(18, 1.75),
+      xl: style(20, 1.75),
+      xl2: style(22, 2),
+      xl3: style(30, 2.25),
+      xl4: style(36, 2.5),
+      xl5: style(48, 1),
+      xl6: style(60, 1),
+      xl7: style(72, 1),
+      xl8: style(96, 1),
+    );
+  }
+
+  final String fontFamily;
+  final List<String> fontFamilyFallback;
+  final TextStyle xs3;
+  final TextStyle xs2;
+  final TextStyle xs;
+  final TextStyle sm;
+  final TextStyle md;
+  final TextStyle lg;
+  final TextStyle xl;
+  final TextStyle xl2;
+  final TextStyle xl3;
+  final TextStyle xl4;
+  final TextStyle xl5;
+  final TextStyle xl6;
+  final TextStyle xl7;
+  final TextStyle xl8;
 }
 
-/// Outfit body, Space Grotesk display, Noto Sans Mono extension — Tauri-era stack.
-FTypography mixarTypography(FTypography base) {
-  final mono = _remapTypeface(
-    base.body,
-    MixarFonts.notoSansMono,
-    fontFeatures: _monoFeatures,
-  );
-  return base.copyWith(
-    display: _remapTypeface(
-      base.display,
-      MixarFonts.spaceGrotesk,
-      fontFeatures: _displayFeatures,
-    ),
-    body: _remapTypeface(
-      base.body,
-      MixarFonts.outfit,
-      fontFeatures: _numericCaseFeatures,
-    ),
-    // Keep any existing scalable extensions; replace a prior mono FTypeface.
-    extensions: [
-      for (final ext in base.extensions)
-        if (ext is FScalableExtension<dynamic> && ext is! FTypeface) ext,
-      mono,
-    ],
-  );
-}
+/// Outfit body, Space Grotesk display, Noto Sans Mono — Tauri-era stack.
+@immutable
+class MixarTypography {
+  const MixarTypography({
+    required this.display,
+    required this.body,
+    required this.mono,
+  });
 
-/// Forui theme with Mixar typography; rebuilds widget styles so buttons/labels
-/// pick up the remapped faces (plain [FThemeData.copyWith] would leave stale
-/// styles baked with the old typefaces).
-FThemeData mixarThemeData(FThemeData base, {required bool touch}) {
-  return FThemeData(
-    colors: base.colors,
-    touch: touch,
-    debugLabel: base.debugLabel,
-    breakpoints: base.breakpoints,
-    typography: mixarTypography(base.typography),
-    icons: base.icons,
-    style: base.style,
-    hapticFeedback: base.hapticFeedback,
-    extensions: base.extensions,
-  );
-}
+  factory MixarTypography.mixar(Color foreground) {
+    return MixarTypography(
+      display: MixarTypeface.desktop(
+        color: foreground,
+        fontFamily: MixarFonts.spaceGrotesk,
+        fontFeatures: _displayFeatures,
+      ),
+      body: MixarTypeface.desktop(
+        color: foreground,
+        fontFamily: MixarFonts.outfit,
+        fontFeatures: _numericCaseFeatures,
+      ),
+      mono: MixarTypeface.desktop(
+        color: foreground,
+        fontFamily: MixarFonts.notoSansMono,
+        fontFeatures: _monoFeatures,
+      ),
+    );
+  }
 
-extension MixarTypography on FTypography {
-  /// Mono numerics (BPM, timers, pad slot numbers).
-  FTypeface get mono => extension<FTypeface>();
+  final MixarTypeface display;
+  final MixarTypeface body;
+  final MixarTypeface mono;
 }

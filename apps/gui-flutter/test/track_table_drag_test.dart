@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -13,7 +12,8 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -44,7 +44,7 @@ void main() {
       debugOverrideDesktopWindow = false;
       addTearDown(() => debugOverrideDesktopWindow = null);
 
-      final theme = FTheme.neutral.light.desktop;
+      final theme = MixarThemeData.light();
       tester.view.physicalSize = const Size(800, 600);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -61,8 +61,8 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: materialUiThemeFromForui(theme),
-            builder: foruiMaterialAppBuilder(theme),
+            theme: materialUiThemeFromMixar(theme),
+            builder: mixarMaterialAppBuilder(theme),
             home: const Scaffold(
               body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
             ),
@@ -94,7 +94,7 @@ void main() {
       title: 'Other Track',
       path: '/tmp/samples/other.wav',
     );
-    final theme = FTheme.neutral.light.desktop;
+    final theme = MixarThemeData.light();
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -109,8 +109,8 @@ void main() {
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
           ),
@@ -149,7 +149,7 @@ void main() {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
 
-    final theme = FTheme.neutral.light.desktop;
+    final theme = MixarThemeData.light();
     tester.view.physicalSize = const Size(800, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -164,8 +164,8 @@ void main() {
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(width: 800, height: 600, child: TrackTablePane()),
           ),

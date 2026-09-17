@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart' as flutter_material;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 
 void main() {
   Future<void> pumpHome(
@@ -14,12 +14,12 @@ void main() {
     Widget home, {
     Locale locale = const Locale('en', 'US'),
   }) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
         locale: locale,
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(body: home),
       ),
     );

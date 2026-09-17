@@ -1,53 +1,49 @@
-import 'package:flutter/material.dart' as flutter_material;
-import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Forui's [FThemeData.toApproximateMaterialTheme] still returns SDK
-/// `package:flutter/material` [ThemeData]. Rebuild as `material_ui` [ThemeData].
-ThemeData materialUiThemeFromForui(
-  FThemeData theme, {
+/// Build `material_ui` [ThemeData] from Mixar tokens.
+ThemeData materialUiThemeFromMixar(
+  MixarThemeData theme, {
   Color? scaffoldBackgroundColor,
 }) {
-  final flutter_material.ThemeData legacy = theme.toApproximateMaterialTheme();
-  final flutter_material.ColorScheme c = legacy.colorScheme;
-  final flutter_material.TextTheme t = legacy.textTheme;
+  final c = theme.colors;
+  final body = theme.typography.body;
+  final display = theme.typography.display;
 
   final textTheme = TextTheme(
-    displayLarge: t.displayLarge,
-    displayMedium: t.displayMedium,
-    displaySmall: t.displaySmall,
-    headlineLarge: t.headlineLarge,
-    headlineMedium: t.headlineMedium,
-    headlineSmall: t.headlineSmall,
-    titleLarge: t.titleLarge,
-    titleMedium: t.titleMedium,
-    titleSmall: t.titleSmall,
-    bodyLarge: t.bodyLarge,
-    bodyMedium: t.bodyMedium,
-    bodySmall: t.bodySmall,
-    labelLarge: t.labelLarge,
-    labelMedium: t.labelMedium,
-    labelSmall: t.labelSmall,
+    displayLarge: display.xl5,
+    displayMedium: display.xl4,
+    displaySmall: display.xl3,
+    headlineLarge: display.xl2,
+    headlineMedium: display.xl,
+    headlineSmall: display.lg,
+    titleLarge: body.lg,
+    titleMedium: body.md,
+    titleSmall: body.sm,
+    bodyLarge: body.md,
+    bodyMedium: body.sm,
+    bodySmall: body.xs,
+    labelLarge: body.sm,
+    labelMedium: body.xs,
+    labelSmall: body.xs2,
   );
 
   return ThemeData(
     colorScheme: ColorScheme(
       brightness: c.brightness,
       primary: c.primary,
-      onPrimary: c.onPrimary,
+      onPrimary: c.primaryForeground,
       secondary: c.secondary,
-      onSecondary: c.onSecondary,
-      error: c.error,
-      onError: c.onError,
-      surface: c.surface,
-      onSurface: c.onSurface,
-      secondaryContainer: c.secondaryContainer,
-      onSecondaryContainer: c.onSecondaryContainer,
+      onSecondary: c.secondaryForeground,
+      error: c.destructive,
+      onError: c.destructiveForeground,
+      surface: c.background,
+      onSurface: c.foreground,
+      secondaryContainer: c.muted,
+      onSecondaryContainer: c.mutedForeground,
     ),
-    fontFamily: t.bodyMedium?.fontFamily ?? theme.typography.body.fontFamily,
-    fontFamilyFallback:
-        t.bodyMedium?.fontFamilyFallback ??
-        theme.typography.body.fontFamilyFallback,
+    fontFamily: body.fontFamily,
+    fontFamilyFallback: body.fontFamilyFallback,
     textTheme: textTheme,
     splashFactory: NoSplash.splashFactory,
     useMaterial3: true,

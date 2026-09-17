@@ -5,7 +5,7 @@
 - Use `dasp` for internal sample/frame types and conversions; use `dasp_graph` for the mixer graph.
 - Use `rubato` for resampling.
 - Read real device capabilities from CPAL (channels, sample-rate ranges); avoid hardcoded defaults like fixed channel counts or sample rates in device listing.
-- In the Flutter GUI, prefer Forui components and existing host patterns over one-off chrome; keep error feedback concise (`showMixarToast` / context_show), including async engine start failures.
+- In the Flutter GUI, prefer Mixar shell widgets and `context.theme` Mixar tokens (Shad-bridged) over one-off chrome; keep error feedback concise (`showMixarToast` / context_show), including async engine start failures.
 - Custom in-app title bar on Flutter desktop (`window_manager`, decorations off), matching app chrome, with min/max/close controls.
 - Prefer minimal, focused changes when refining UI; user may narrow scope mid-task.
 - Use cpal with low-latency/realtime features as the default audio backend.

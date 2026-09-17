@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Header `--- Label ---` that shows or hides [child].
 ///

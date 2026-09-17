@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
   const SettingsLibraryPanel({

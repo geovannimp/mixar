@@ -1,15 +1,14 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
-import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SamplerSlot {
   const SamplerSlot({this.label, this.durationMs, this.path});
@@ -174,7 +173,7 @@ class SamplerPads extends StatelessWidget {
     );
   }
 
-  Widget _slotPad(FThemeData theme, int slot) {
+  Widget _slotPad(MixarThemeData theme, int slot) {
     final sample = slot < slots.length ? slots[slot] : const SamplerSlot();
     final filled = sample.filled;
     final label = sample.label?.trim();

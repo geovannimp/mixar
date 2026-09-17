@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
@@ -9,7 +8,8 @@ import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:material_ui/material_ui.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class _SeededEngineUi extends EngineUi {
   @override
@@ -36,7 +36,7 @@ void main() {
   testWidgets(
     'overview dims left of playhead and has no viewport window tint',
     (tester) async {
-      final theme = FTheme.neutral.dark.desktop;
+      final theme = MixarThemeData.dark();
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -51,8 +51,8 @@ void main() {
             beatGridFetchProvider.overrideWith((ref, id) async => null),
           ],
           child: MaterialApp(
-            theme: materialUiThemeFromForui(theme),
-            builder: foruiMaterialAppBuilder(theme),
+            theme: materialUiThemeFromMixar(theme),
+            builder: mixarMaterialAppBuilder(theme),
             home: const Scaffold(
               body: SizedBox(
                 width: 200,

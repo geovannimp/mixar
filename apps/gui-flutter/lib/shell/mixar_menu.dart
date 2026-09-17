@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Shared panel chrome for Mixar menus and content popovers.
 ///

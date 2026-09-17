@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Bordered panel chrome (Forui card colors; Mixar button-style rounded rect).
 class MCard extends StatelessWidget {

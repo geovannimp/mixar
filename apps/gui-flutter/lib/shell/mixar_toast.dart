@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:context_show/context_show.dart';
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 
 enum MixarToastVariant { primary, destructive }
 

@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Dual scrolling lanes. Overview strips live on each deck panel.
 class WaveformSection extends ConsumerWidget {

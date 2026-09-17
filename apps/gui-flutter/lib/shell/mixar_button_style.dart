@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:gui_flutter/shell/m_tappable.dart';
 
@@ -44,9 +44,9 @@ class MixarButtonLook {
   final BorderRadius borderRadius;
 }
 
-/// Forui-desktop-parity button look from [FTheme], without Forui widgets.
+/// Desktop-parity button look from [MixarThemeData].
 MixarButtonLook resolveMixarButtonLook({
-  required FThemeData theme,
+  required MixarThemeData theme,
   required MixarButtonVariant variant,
   required MixarButtonSize size,
   required MixarButtonDensity density,
@@ -182,7 +182,7 @@ Color _fill(Color idle, Color active, Color disabled, MTappableState state) {
   double contentSpacing,
 })
 _metrics({
-  required FThemeData theme,
+  required MixarThemeData theme,
   required MixarButtonSize size,
   required MixarButtonDensity density,
 }) {

@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsSidebar extends StatelessWidget {
   const SettingsSidebar({

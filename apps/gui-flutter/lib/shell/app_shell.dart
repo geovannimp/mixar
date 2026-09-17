@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_restore_bridge.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -9,6 +8,7 @@ import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/controller_offer_bridge.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Top-level shell: header + Mixer / Settings body.
 class AppShell extends ConsumerStatefulWidget {

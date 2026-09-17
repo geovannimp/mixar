@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {

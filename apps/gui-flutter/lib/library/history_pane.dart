@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -187,7 +187,7 @@ class _LiveBadge extends StatelessWidget {
 
   static const _liveGreen = Color(0xFF22C55E);
 
-  final FThemeData theme;
+  final MixarThemeData theme;
 
   @override
   Widget build(BuildContext context) {

@@ -1,9 +1,11 @@
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-/// Map Mixar [FThemeData] tokens into [ShadThemeData] so shadcn widgets match chrome.
-ShadThemeData shadThemeFromForui(FThemeData theme) {
+/// Map Mixar tokens into [ShadThemeData] so shadcn widgets match chrome.
+///
+/// Uses Mixar's Forui-parity palette (not stock [ShadNeutralColorScheme]).
+ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
   final c = theme.colors;
   return ShadThemeData(
     brightness: c.brightness,

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
@@ -12,8 +11,9 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +38,7 @@ void main() {
   ];
 
   Future<void> pumpSized(WidgetTester tester, {required Widget child}) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -48,8 +48,8 @@ void main() {
       ProviderScope(
         overrides: overrides(),
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(body: child),
         ),
       ),
