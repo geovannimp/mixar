@@ -7,6 +7,7 @@ import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'support/forui_material_app.dart';
@@ -134,7 +135,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(FSwitch).first);
+    await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
     expect(changed?.trustedControllerDeviceIds, ['pioneer.ddj-400']);
   }, semanticsEnabled: false);

@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 
@@ -130,10 +130,10 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
             children: [
               const Text('Do you want to use this controller?'),
               const SizedBox(height: 8),
-              FCheckbox(
+              MixarCheckbox(
                 value: alwaysAllow,
                 label: const Text('Always allow this device'),
-                onChange: (v) => setLocal(() => alwaysAllow = v),
+                onChanged: (v) => setLocal(() => alwaysAllow = v),
               ),
             ],
           );

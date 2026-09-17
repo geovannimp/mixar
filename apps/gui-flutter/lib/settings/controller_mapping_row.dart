@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 
 class ControllerMappingRow extends StatelessWidget {
@@ -84,11 +85,11 @@ class ControllerMappingRow extends StatelessWidget {
                   SizedBox(
                     height: 23,
                     child: FittedBox(
-                      child: FSwitch(
+                      child: MixarSwitch(
                         value: trusted,
                         enabled: !trustBusy,
                         semanticsLabel: 'Trust device $name',
-                        onChange: trustBusy ? null : onToggleTrust,
+                        onChanged: trustBusy ? null : onToggleTrust,
                       ),
                     ),
                   ),
@@ -103,11 +104,11 @@ class ControllerMappingRow extends StatelessWidget {
                   SizedBox(
                     height: 23,
                     child: FittedBox(
-                      child: FSwitch(
+                      child: MixarSwitch(
                         value: attached,
                         enabled: !attachBusy,
                         semanticsLabel: 'Enable $name',
-                        onChange: attachBusy ? null : onToggleAttach,
+                        onChanged: attachBusy ? null : onToggleAttach,
                       ),
                     ),
                   ),

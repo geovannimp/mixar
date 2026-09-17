@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_performance_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'support/forui_material_app.dart';
 
 void main() {
   Future<void> pumpPanel(WidgetTester tester) async {
@@ -16,8 +19,8 @@ void main() {
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
         ],
         child: MaterialApp(
-          theme: theme.toApproximateMaterialTheme(),
-          builder: (context, child) => FTheme(data: theme, child: child!),
+          theme: materialUiThemeFromForui(theme),
+          builder: foruiMaterialAppBuilder(theme),
           home: Scaffold(
             body: const SizedBox(
               width: 360,

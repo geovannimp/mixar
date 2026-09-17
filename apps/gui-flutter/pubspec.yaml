@@ -51,6 +51,7 @@ dependencies:
   wolt_modal_sheet: ^0.11.0
   context_show: ^0.3.3
   anchor_ui: ^0.0.9
+  shadcn_ui: ^0.57.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -118,3 +119,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+dependency_overrides:
+  # trina_grid ^2.3 pins shadcn_ui ^0.55; keep Mixar on latest.
+  shadcn_ui: ^0.57.0

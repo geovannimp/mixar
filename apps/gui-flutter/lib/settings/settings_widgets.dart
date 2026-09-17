@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_card.dart';
+import 'package:gui_flutter/shell/mixar_select.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 
 class SettingsToggle extends StatelessWidget {
   const SettingsToggle({
@@ -35,7 +37,7 @@ class SettingsToggle extends StatelessWidget {
         SizedBox(
           height: 23,
           child: FittedBox(
-            child: FSwitch(value: value, onChange: onChanged),
+            child: MixarSwitch(value: value, onChanged: onChanged),
           ),
         ),
       ],
@@ -76,28 +78,13 @@ class SettingsSelect<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FSelect<T>.rich(
-      control: .lifted(
-        value: value,
-        onChange: (next) {
-          if (next != null) {
-            onChanged(next);
-          }
-        },
-      ),
+    return MixarSelect<T>(
+      value: value,
+      options: options,
+      labelBuilder: labelBuilder,
+      subtitleBuilder: subtitleBuilder,
+      onChanged: onChanged,
       enabled: enabled,
-      format: labelBuilder,
-      contentOverlayLocation: OverlayChildLocation.rootOverlay,
-      children: [
-        for (final option in options)
-          FSelectItem.item(
-            title: Text(labelBuilder(option)),
-            subtitle: subtitleBuilder == null
-                ? null
-                : Text(subtitleBuilder!(option)),
-            value: option,
-          ),
-      ],
     );
   }
 }

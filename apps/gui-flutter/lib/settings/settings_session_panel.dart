@@ -3,6 +3,8 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
+import 'package:gui_flutter/shell/mixar_slider.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsSessionPanel extends StatelessWidget {
@@ -51,24 +53,20 @@ class SettingsSessionPanel extends StatelessWidget {
                       label: 'Session idle timeout',
                       hint:
                           'Close after this long with no qualifying deck output.',
-                      child: FTextField(
-                        suffixBuilder: _suffixLabel('minutes'),
-                        control: .managed(
-                          initial: TextEditingValue(
-                            text: '${draft.historySessionIdleMinutes}',
-                          ),
-                          onChange: (value) {
-                            final parsed = int.tryParse(value.text.trim());
-                            if (parsed != null && parsed > 0) {
-                              onChanged(
-                                copyAppSettings(
-                                  draft,
-                                  historySessionIdleMinutes: parsed,
-                                ),
-                              );
-                            }
-                          },
-                        ),
+                      child: MixarInput(
+                        initialValue: '${draft.historySessionIdleMinutes}',
+                        trailing: _suffixLabel(context, 'minutes'),
+                        onChanged: (text) {
+                          final parsed = int.tryParse(text.trim());
+                          if (parsed != null && parsed > 0) {
+                            onChanged(
+                              copyAppSettings(
+                                draft,
+                                historySessionIdleMinutes: parsed,
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ),
                   ),
@@ -77,24 +75,20 @@ class SettingsSessionPanel extends StatelessWidget {
                       label: 'Minimum play duration',
                       hint:
                           'Commit entries after this much qualifying playback.',
-                      child: FTextField(
-                        suffixBuilder: _suffixLabel('seconds'),
-                        control: .managed(
-                          initial: TextEditingValue(
-                            text: '${draft.historyMinPlaySeconds}',
-                          ),
-                          onChange: (value) {
-                            final parsed = int.tryParse(value.text.trim());
-                            if (parsed != null && parsed > 0) {
-                              onChanged(
-                                copyAppSettings(
-                                  draft,
-                                  historyMinPlaySeconds: parsed,
-                                ),
-                              );
-                            }
-                          },
-                        ),
+                      child: MixarInput(
+                        initialValue: '${draft.historyMinPlaySeconds}',
+                        trailing: _suffixLabel(context, 'seconds'),
+                        onChanged: (text) {
+                          final parsed = int.tryParse(text.trim());
+                          if (parsed != null && parsed > 0) {
+                            onChanged(
+                              copyAppSettings(
+                                draft,
+                                historyMinPlaySeconds: parsed,
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ),
                   ),
@@ -117,19 +111,17 @@ class SettingsSessionPanel extends StatelessWidget {
   }
 }
 
-FFieldIconBuilder<FTextFieldStyle> _suffixLabel(String text) {
-  return (context, style, _) {
-    final theme = context.theme;
-    return Padding(
-      padding: const EdgeInsets.only(right: 12),
-      child: Text(
-        text,
-        style: theme.typography.body.sm.copyWith(
-          color: theme.colors.mutedForeground,
-        ),
+Widget _suffixLabel(BuildContext context, String text) {
+  final theme = context.theme;
+  return Padding(
+    padding: const EdgeInsets.only(right: 12),
+    child: Text(
+      text,
+      style: theme.typography.body.sm.copyWith(
+        color: theme.colors.mutedForeground,
       ),
-    );
-  };
+    ),
+  );
 }
 
 class _MinDeckVolumeSlider extends StatelessWidget {
@@ -137,14 +129,6 @@ class _MinDeckVolumeSlider extends StatelessWidget {
 
   final double value;
   final ValueChanged<double> onChanged;
-
-  static const _marks = [
-    FSliderMark.mark(value: 0, label: Text('0%')),
-    FSliderMark.mark(value: 0.25, tick: false),
-    FSliderMark.mark(value: 0.5),
-    FSliderMark.mark(value: 0.75, tick: false),
-    FSliderMark.mark(value: 1, label: Text('100%')),
-  ];
 
   static double _snap(double volume) {
     return (volume.clamp(0.0, 1.0) * 100).round() / 100.0;
@@ -170,15 +154,11 @@ class _MinDeckVolumeSlider extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        FSlider(
-          control: .liftedContinuous(
-            value: FSliderValue(max: snapped),
-            onChange: (v) => onChanged(_snap(v.max)),
-          ),
-          marks: _marks,
-          tooltipBuilder: (_, norm) => Text('${(norm * 100).round()}%'),
-          semanticValueFormatterCallback: (norm) =>
-              '${(norm * 100).round()} percent',
+        MixarSlider(
+          value: snapped,
+          divisions: 100,
+          onChanged: (v) => onChanged(_snap(v)),
+          semanticFormatterCallback: (v) => '${(v * 100).round()} percent',
         ),
       ],
     );

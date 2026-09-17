@@ -21,6 +21,7 @@ import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_context_menu.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -187,12 +188,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FTextField(
+          MixarInput(
             hint: 'Filter tracks…',
-            control: FTextFieldManagedControl(
-              onChange: (value) =>
-                  ref.read(trackFilterProvider.notifier).set(value.text),
-            ),
+            onChanged: (value) =>
+                ref.read(trackFilterProvider.notifier).set(value),
           ),
           const SizedBox(height: 8),
           Expanded(

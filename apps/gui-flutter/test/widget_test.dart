@@ -25,6 +25,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
@@ -337,7 +338,7 @@ void main() {
 
     await tester.tap(find.text('Audio'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(FSwitch).first);
+    await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
     expect(find.text('Save'), findsOneWidget);
 

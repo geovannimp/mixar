@@ -16,6 +16,7 @@ import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
@@ -63,13 +64,11 @@ class HistoryDetailPane extends ConsumerWidget {
               spacing: 4,
               children: [
                 Expanded(
-                  child: FTextField(
+                  child: MixarInput(
                     hint: 'Filter entries…',
-                    control: FTextFieldManagedControl(
-                      onChange: (value) => ref
-                          .read(historyEntryFilterProvider.notifier)
-                          .set(value.text),
-                    ),
+                    onChanged: (value) => ref
+                        .read(historyEntryFilterProvider.notifier)
+                        .set(value),
                   ),
                 ),
                 _HistorySessionActionsMenu(
@@ -162,12 +161,7 @@ class HistoryDetailPane extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              FTextField(
-                control: .managed(
-                  initial: TextEditingValue(text: title),
-                  onChange: (v) => title = v.text,
-                ),
-              ),
+              MixarInput(initialValue: title, onChanged: (v) => title = v),
               const SizedBox(height: 16),
               Row(
                 spacing: 8,

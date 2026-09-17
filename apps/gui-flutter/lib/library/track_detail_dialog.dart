@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 
 Future<void> showTrackDetailDialog(
   BuildContext context,
@@ -45,13 +46,11 @@ Future<void> showTrackDetailDialog(
               ),
             ],
             const SizedBox(height: 16),
-            FTextField(
+            MixarInput(
               label: const Text('ISRC'),
               hint: 'International Standard Recording Code',
-              control: .managed(
-                initial: TextEditingValue(text: isrc),
-                onChange: (v) => isrc = v.text,
-              ),
+              initialValue: isrc,
+              onChanged: (v) => isrc = v,
             ),
             const SizedBox(height: 16),
             Row(
