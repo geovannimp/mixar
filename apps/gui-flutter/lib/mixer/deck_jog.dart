@@ -1,17 +1,17 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
-  const DeckJogHost({
+  const new({
     required this.deckId,
     required this.hasTrack,
     required this.accent,
@@ -65,7 +65,7 @@ Future<void> _engineCmd(
 }
 
 class JogPlatter extends StatefulWidget {
-  const JogPlatter({
+  const new({
     required this.accent,
     required this.playing,
     required this.hasTrack,
@@ -257,7 +257,7 @@ class _JogPlatterState extends State<JogPlatter> {
 }
 
 class _JogPainter extends CustomPainter {
-  _JogPainter({
+  new({
     required this.border,
     required this.fill,
     required this.accent,

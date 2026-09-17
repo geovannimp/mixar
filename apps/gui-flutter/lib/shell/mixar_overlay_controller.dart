@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 
 /// Thin wrap of [AnchorController] for Mixar popovers / button menus.
 class MixarOverlayController extends ChangeNotifier {
-  MixarOverlayController() : _inner = AnchorController() {
+  new() : _inner = AnchorController() {
     _inner.addListener(notifyListeners);
   }
 

@@ -6,13 +6,13 @@ import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Drive sidebar: volume list, then browse select + folder tree (Tauri drive pane).
 class DrivePane extends ConsumerStatefulWidget {
-  const DrivePane({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<DrivePane> createState() => _DrivePaneState();
@@ -50,10 +50,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
   Future<void> _createCollection(String folderPath) async {
     final result = await showCreateCollectionDialog(
       context,
-      input: CreateCollectionInput(
-        initialType: CreateCollectionType.folder,
-        initialFolderPath: folderPath,
-      ),
+      input: CreateCollectionInput(initialFolderPath: folderPath),
     );
     if (result == null || !mounted) {
       return;
@@ -97,91 +94,84 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
         Expanded(
           child: Stack(
             children: [
-              currentPath == null
-                  ? volumes.when(
-                      loading: () => const Center(child: MLoader()),
-                      error: (e, _) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          'Volumes error: $e',
-                          style: theme.typography.body.sm.copyWith(
-                            color: colors.destructive,
+              if (currentPath == null)
+                volumes.when(
+                  loading: () => const Center(child: MLoader()),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'Volumes error: $e',
+                      style: theme.typography.body.sm.copyWith(
+                        color: colors.destructive,
+                      ),
+                    ),
+                  ),
+                  data: (items) => _VolumeList(
+                    volumes: items,
+                    onSelect: _openPath,
+                    emptyColor: colors.mutedForeground,
+                    style: theme.typography.body.sm,
+                  ),
+                )
+              else
+                listing.when(
+                  loading: () => const Center(child: MLoader()),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                      'Browse error: $e',
+                      style: theme.typography.body.sm.copyWith(
+                        color: colors.destructive,
+                      ),
+                    ),
+                  ),
+                  data: (dir) {
+                    if (dir == null) {
+                      return const SizedBox.shrink();
+                    }
+                    final currentName = selectedVolume?.path == dir.path
+                        ? (selectedVolume?.name ?? dir.path)
+                        : dir.path.split(RegExp(r'[/\\]')).last;
+                    return ListView(
+                      children: [
+                        LibraryNavRow(
+                          title: currentName,
+                          icon: LucideIcons.folder,
+                          selected: true,
+                          onPress:
+                              dir.parent != null &&
+                                  _parentInVolume(dir.parent!, selectedVolume)
+                              ? () => _openParent(dir, selectedVolume)
+                              : null,
+                          trailing: _CreateCollectionButton(
+                            onPress: () => _createCollection(dir.path),
                           ),
                         ),
-                      ),
-                      data: (items) => _VolumeList(
-                        volumes: items,
-                        onSelect: _openPath,
-                        emptyColor: colors.mutedForeground,
-                        style: theme.typography.body.sm,
-                      ),
-                    )
-                  : listing.when(
-                      loading: () => const Center(child: MLoader()),
-                      error: (e, _) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          'Browse error: $e',
-                          style: theme.typography.body.sm.copyWith(
-                            color: colors.destructive,
-                          ),
-                        ),
-                      ),
-                      data: (dir) {
-                        if (dir == null) {
-                          return const SizedBox.shrink();
-                        }
-                        final currentName = selectedVolume?.path == dir.path
-                            ? (selectedVolume?.name ?? dir.path)
-                            : dir.path.split(RegExp(r'[/\\]')).last;
-                        return ListView(
-                          children: [
-                            LibraryNavRow(
-                              title: currentName,
-                              icon: LucideIcons.folder,
-                              selected: true,
-                              onPress:
-                                  dir.parent != null &&
-                                      _parentInVolume(
-                                        dir.parent!,
-                                        selectedVolume,
-                                      )
-                                  ? () => _openParent(dir, selectedVolume)
-                                  : null,
-                              trailing: _CreateCollectionButton(
-                                onPress: () => _createCollection(dir.path),
+                        if (dir.directories.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 8, 10, 8),
+                            child: Text(
+                              'No subfolders here.',
+                              style: theme.typography.body.sm.copyWith(
+                                color: colors.mutedForeground,
                               ),
                             ),
-                            if (dir.directories.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  24,
-                                  8,
-                                  10,
-                                  8,
-                                ),
-                                child: Text(
-                                  'No subfolders here.',
-                                  style: theme.typography.body.sm.copyWith(
-                                    color: colors.mutedForeground,
-                                  ),
-                                ),
-                              )
-                            else
-                              for (final d in dir.directories)
-                                LibraryNavRow(
-                                  title: d.name,
-                                  icon: LucideIcons.folder,
-                                  indented: true,
-                                  onPress: () => _openPath(d.path),
-                                  trailing: _CreateCollectionButton(
-                                    onPress: () => _createCollection(d.path),
-                                  ),
-                                ),
-                          ],
-                        );
-                      },
-                    ),
+                          )
+                        else
+                          for (final d in dir.directories)
+                            LibraryNavRow(
+                              title: d.name,
+                              icon: LucideIcons.folder,
+                              indented: true,
+                              onPress: () => _openPath(d.path),
+                              trailing: _CreateCollectionButton(
+                                onPress: () => _createCollection(d.path),
+                              ),
+                            ),
+                      ],
+                    );
+                  },
+                ),
               if (_pickerOpen && currentPath != null)
                 volumes.when(
                   loading: () => const SizedBox.shrink(),
@@ -203,11 +193,7 @@ class _DrivePaneState extends ConsumerState<DrivePane> {
 
 /// In-tree dropdown (no Overlay/FPortal — those freeze GTK on Linux).
 class _VolumeSelectButton extends StatelessWidget {
-  const _VolumeSelectButton({
-    required this.volume,
-    required this.open,
-    required this.onToggle,
-  });
+  const new({required this.volume, required this.open, required this.onToggle});
 
   final FsVolumeInfo? volume;
   final bool open;
@@ -267,7 +253,7 @@ class _VolumeSelectButton extends StatelessWidget {
 }
 
 class _VolumeDropdown extends StatelessWidget {
-  const _VolumeDropdown({
+  const new({
     required this.volumes,
     required this.selectedPath,
     required this.onSelect,
@@ -324,7 +310,7 @@ class _VolumeDropdown extends StatelessWidget {
 }
 
 class _VolumeList extends StatelessWidget {
-  const _VolumeList({
+  const new({
     required this.volumes,
     required this.onSelect,
     required this.emptyColor,
@@ -362,7 +348,7 @@ class _VolumeList extends StatelessWidget {
 }
 
 class _CreateCollectionButton extends StatelessWidget {
-  const _CreateCollectionButton({required this.onPress});
+  const new({required this.onPress});
 
   final VoidCallback onPress;
 

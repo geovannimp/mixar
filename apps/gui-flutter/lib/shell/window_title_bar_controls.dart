@@ -3,7 +3,7 @@ import 'package:window_manager/window_manager.dart';
 
 /// Min / maximize / close — mirrors Tauri [WindowTitleBarControls].
 class WindowTitleBarControls extends StatefulWidget {
-  const WindowTitleBarControls({super.key});
+  const new({super.key});
 
   @override
   State<WindowTitleBarControls> createState() => _WindowTitleBarControlsState();

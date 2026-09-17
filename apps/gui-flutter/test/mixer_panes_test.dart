@@ -7,11 +7,12 @@ import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:riverpod/src/framework.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -26,8 +27,7 @@ void main() {
     trackCount: 0,
   );
 
-  // ignore: strict_top_level_inference
-  overrides() => [
+  List<Override> overrides() => [
     collectionsProvider.overrideWith((ref) async => [collection]),
     collectionTracksProvider.overrideWith((ref) async => const []),
     historySessionsProvider.overrideWith((ref) async => const []),

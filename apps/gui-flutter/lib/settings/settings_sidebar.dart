@@ -1,15 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsSidebar extends StatelessWidget {
-  const SettingsSidebar({
-    super.key,
-    required this.active,
-    required this.onSelect,
-  });
+  const new({required this.active, required this.onSelect, super.key});
 
   final SettingsSection active;
   final ValueChanged<SettingsSection> onSelect;
@@ -41,7 +37,7 @@ class SettingsSidebar extends StatelessWidget {
 }
 
 class _SettingsNavItem extends StatelessWidget {
-  const _SettingsNavItem({
+  const new({
     required this.label,
     required this.icon,
     required this.selected,

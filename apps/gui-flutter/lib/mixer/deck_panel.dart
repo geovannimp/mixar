@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,18 +8,19 @@ import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/deck_track_info.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drop_zone.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Deck chrome (track info, performance tabs, transport) + tempo column.
 class DeckPanel extends ConsumerWidget {
-  const DeckPanel({
+  const new({
     required this.deckId,
     required this.label,
     required this.accent,
@@ -96,7 +96,6 @@ class DeckPanel extends ConsumerWidget {
       child: AppTooltip(
         tip: playLabel,
         child: MixerButton(
-          variant: .primary,
           onPress: transportDisabled
               ? null
               : () {
@@ -201,7 +200,7 @@ class DeckPanel extends ConsumerWidget {
 }
 
 class _EjectLoadButton extends StatelessWidget {
-  const _EjectLoadButton({
+  const new({
     required this.onPress,
     required this.hasTrack,
     this.disabled = false,
@@ -230,7 +229,7 @@ class _EjectLoadButton extends StatelessWidget {
 }
 
 class _QuantizeButton extends StatelessWidget {
-  const _QuantizeButton({
+  const new({
     required this.onPress,
     required this.quantize,
     this.disabled = false,
@@ -273,11 +272,7 @@ class _QuantizeButton extends StatelessWidget {
 }
 
 class _SlipButton extends StatelessWidget {
-  const _SlipButton({
-    required this.onPress,
-    required this.slip,
-    this.disabled = false,
-  });
+  const new({required this.onPress, required this.slip, this.disabled = false});
 
   final VoidCallback onPress;
   final bool slip;
@@ -292,8 +287,7 @@ class _SlipButton extends StatelessWidget {
     final tip = slip ? 'Slip on' : 'Slip off';
     return AppTooltip(
       tip: tip,
-      description:
-          'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
+      description: 'Shadow playhead keeps moving during loops and scratch; catch up on exit.',
       child: MixerButton(
         variant: .outline,
         size: .xs,

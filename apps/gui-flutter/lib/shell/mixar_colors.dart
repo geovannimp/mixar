@@ -6,7 +6,7 @@ import 'package:flutter/painting.dart';
 /// Mixar color tokens (Forui-neutral visual parity).
 @immutable
 class MixarColors {
-  const MixarColors({
+  const new({
     required this.brightness,
     required this.background,
     required this.foreground,

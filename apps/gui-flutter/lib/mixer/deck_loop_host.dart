@@ -6,14 +6,14 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_loop_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart'
     show ActiveLoopInfo, EngineTransport;
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Watches engine/library loop state and publishes loop cmds.
 class DeckLoopHost extends ConsumerStatefulWidget {
-  const DeckLoopHost({
+  const new({
     required this.deckId,
     this.hasTrack = false,
     this.disabled = false,

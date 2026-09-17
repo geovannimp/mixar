@@ -4,7 +4,7 @@ import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 
 class MixerChannelUi {
-  const MixerChannelUi({
+  const new({
     this.volume = 1.0,
     this.eqLow = 0.5,
     this.eqMid = 0.5,
@@ -52,7 +52,7 @@ class MixerChannelUi {
 }
 
 class EngineUiSnapshot {
-  const EngineUiSnapshot({
+  const new({
     required this.running,
     required this.trackPaths,
     this.playing = const {},

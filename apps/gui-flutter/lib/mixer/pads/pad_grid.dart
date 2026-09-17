@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Reserved height below the pad cluster (sampler bank bar / empty spacer).
 ///
@@ -16,7 +16,7 @@ const _kPadGap = 8.0;
 /// centered. The bottom bar is empty on most modes and holds sampler bank
 /// chrome on Sample.
 class PadGrid extends StatelessWidget {
-  PadGrid({required this.children, this.bottomChrome, super.key}) {
+  new({required this.children, this.bottomChrome, super.key}) {
     if (children.length != 8) {
       throw ArgumentError.value(
         children.length,

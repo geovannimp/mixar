@@ -107,7 +107,7 @@ void main() {
 
   group('track drag plain text', () {
     test('round-trips JSON for GTK / OS clipboard formats', () {
-      final original = TrackDragPayload(
+      const original = TrackDragPayload(
         source: TrackDragSource.library,
         trackId: 't1',
         path: '/lib/a.wav',

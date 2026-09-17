@@ -5,11 +5,11 @@ import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsToggle extends StatelessWidget {
-  const SettingsToggle({
-    super.key,
+  const new({
     required this.label,
     required this.value,
     required this.onChanged,
+    super.key,
     this.labelStyle,
   });
 
@@ -46,7 +46,7 @@ class SettingsToggle extends StatelessWidget {
 }
 
 class SettingsPanel extends StatelessWidget {
-  const SettingsPanel({super.key, required this.child});
+  const new({required this.child, super.key});
 
   final Widget child;
 
@@ -59,12 +59,12 @@ class SettingsPanel extends StatelessWidget {
 }
 
 class SettingsSelect<T> extends StatelessWidget {
-  const SettingsSelect({
-    super.key,
+  const new({
     required this.value,
     required this.options,
     required this.labelBuilder,
     required this.onChanged,
+    super.key,
     this.subtitleBuilder,
     this.enabled = true,
   });

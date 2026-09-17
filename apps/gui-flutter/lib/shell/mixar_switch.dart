@@ -3,9 +3,9 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Mixar switch over [ShadSwitch].
 class MixarSwitch extends StatelessWidget {
-  const MixarSwitch({
-    super.key,
+  const new({
     required this.value,
+    super.key,
     this.onChanged,
     this.enabled = true,
     this.label,

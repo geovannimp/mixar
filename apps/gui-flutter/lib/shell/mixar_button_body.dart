@@ -1,12 +1,13 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
-
+import 'package:gui_flutter/mixer/mixer_button.dart' show MixerButton;
+import 'package:gui_flutter/shell/app_button.dart' show AppButton;
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Shared paint/layout for [MixerButton] / [AppButton].
 class MixarButtonBody extends StatelessWidget {
-  const MixarButtonBody({
+  const new({
     required this.density,
     required this.variant,
     required this.size,
@@ -54,7 +55,7 @@ class MixarButtonBody extends StatelessWidget {
           padding: padding,
           backgroundColor: backgroundColor,
         );
-        Widget content = IconTheme.merge(
+        var content = IconTheme.merge(
           data: IconThemeData(color: look.foreground, size: look.iconSize),
           child: DefaultTextStyle.merge(style: look.textStyle, child: child),
         );

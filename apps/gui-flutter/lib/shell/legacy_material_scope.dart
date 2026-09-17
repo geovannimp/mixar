@@ -10,7 +10,7 @@ import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 /// English copy is fine for a11y labels until we wire `flutter_localizations`.
 class _FlutterMaterialLocalizationsDelegate
     extends LocalizationsDelegate<legacy.MaterialLocalizations> {
-  const _FlutterMaterialLocalizationsDelegate();
+  const new();
 
   @override
   bool isSupported(Locale locale) => true;
@@ -32,7 +32,7 @@ class _FlutterMaterialLocalizationsDelegate
 /// ponytail: English-only flutter MaterialLocalizations for any locale — swap
 /// for package:flutter_localizations GlobalMaterialLocalizations when needed.
 class LegacyMaterialScope extends StatelessWidget {
-  const LegacyMaterialScope({required this.child, super.key});
+  const new({required this.child, super.key});
 
   final Widget child;
 
@@ -42,13 +42,13 @@ class LegacyMaterialScope extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modern.ThemeData modernTheme = modern.Theme.of(context);
+    final modernTheme = modern.Theme.of(context);
 
     return legacy.Theme(
       data: _mapToLegacy(modernTheme),
       child: legacy.Localizations.override(
         context: context,
-        delegates: [
+        delegates: const [
           ...modern.GlobalMaterialLocalizations.delegates,
           // material_ui's MaterialLocalizations is a different type than
           // package:flutter/material's. Wolt (and other flutter/material
@@ -61,8 +61,8 @@ class LegacyMaterialScope extends StatelessWidget {
   }
 
   legacy.ThemeData _mapToLegacy(modern.ThemeData modernTheme) {
-    final modern.ColorScheme scheme = modernTheme.colorScheme;
-    final modern.TextTheme textTheme = modernTheme.textTheme;
+    final scheme = modernTheme.colorScheme;
+    final textTheme = modernTheme.textTheme;
 
     return legacy.ThemeData(
       platform: modernTheme.platform,

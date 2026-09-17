@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,10 +10,11 @@ import 'package:gui_flutter/mixer/waveform/overlay_providers.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_strip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
 class ScrollingLane extends ConsumerStatefulWidget {
-  const ScrollingLane({required this.deckId, required this.label, super.key});
+  const new({required this.deckId, required this.label, super.key});
 
   final int deckId;
   final String label;
@@ -335,7 +335,6 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
                     ),
                   ),
                 Align(
-                  alignment: Alignment.center,
                   child: ColoredBox(
                     color: theme.colors.foreground.withValues(alpha: 0.9),
                     child: const SizedBox(width: 1, height: double.infinity),
@@ -415,7 +414,7 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
 }
 
 class _StripLayer extends StatelessWidget {
-  const _StripLayer({
+  const new({
     required this.strip,
     required this.height,
     required this.beatGrid,
@@ -454,7 +453,7 @@ class _StripLayer extends StatelessWidget {
 }
 
 class _StripPainter extends CustomPainter {
-  _StripPainter({
+  new({
     required this.strip,
     required this.beatGrid,
     required this.loops,

@@ -4,7 +4,7 @@ import 'package:gui_flutter/shell/mixar_menu.dart';
 
 /// Handle for showing/hiding a [MixarContextMenu] from its builders.
 class MixarContextMenuHandle {
-  MixarContextMenuHandle._(this._controller);
+  new _(this._controller);
 
   final AnchorContextMenuController _controller;
 
@@ -17,7 +17,7 @@ class MixarContextMenuHandle {
 
 /// Right-click / long-press menu at a cursor position.
 class MixarContextMenu extends StatelessWidget {
-  const MixarContextMenu({
+  const new({
     required this.childBuilder,
     required this.menuBuilder,
     this.enabled = true,

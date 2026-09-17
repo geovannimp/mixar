@@ -30,7 +30,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Pad-sized button matching Tauri `DeckButton` size=`pad`.
 class PadButton extends StatelessWidget {
-  const PadButton({
+  const new({
     required this.child,
     this.onPress,
     this.onPointerDown,
@@ -118,7 +118,7 @@ class PadButton extends StatelessWidget {
 
 /// Press-hold pad that calls [onEnd] at most once per [onBegin] (up / cancel / exit).
 class HoldPadButton extends StatefulWidget {
-  const HoldPadButton({
+  const new({
     required this.child,
     required this.onBegin,
     required this.onEnd,

@@ -12,7 +12,7 @@ import 'package:gui_flutter/src/rust/api/controller.dart';
 
 /// Listens for MIDI mapping offers and prompts to enable (Tauri toast flow).
 class ControllerOfferBridge extends ConsumerStatefulWidget {
-  const ControllerOfferBridge({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<ControllerOfferBridge> createState() =>

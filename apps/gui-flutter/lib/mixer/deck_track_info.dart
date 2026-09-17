@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/key_format.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
@@ -17,15 +17,15 @@ import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerWidget {
-  const DeckTrackInfo({
+  const new({
     required this.deckId,
     required this.hasTrack,
     required this.title,
@@ -100,7 +100,6 @@ class DeckTrackInfo extends ConsumerWidget {
                     padding: const .symmetric(horizontal: 8, vertical: 4),
                     child: Column(
                       crossAxisAlignment: .stretch,
-                      mainAxisAlignment: .start,
                       children: [
                         Row(
                           spacing: 8,
@@ -168,7 +167,7 @@ Future<void> _setKeyLock(
 
 /// Ghost track-key control: musical/Camelot label + lock / lock-open icon.
 class DeckKeyLockButton extends StatelessWidget {
-  const DeckKeyLockButton({
+  const new({
     required this.keyLabel,
     required this.keyLock,
     required this.onToggle,
@@ -226,7 +225,7 @@ class DeckKeyLockButton extends StatelessWidget {
 }
 
 class _DeckTitleArtist extends StatelessWidget {
-  const _DeckTitleArtist({
+  const new({
     required this.hasTrack,
     required this.skeleton,
     this.title,
@@ -244,7 +243,6 @@ class _DeckTitleArtist extends StatelessWidget {
     final artistName = artist;
     return Column(
       crossAxisAlignment: .start,
-      mainAxisAlignment: .start,
       mainAxisSize: .min,
       children: [
         Skeletonizer(
@@ -277,7 +275,7 @@ class _DeckTitleArtist extends StatelessWidget {
 }
 
 class _DeckTimeRow extends StatelessWidget {
-  const _DeckTimeRow({
+  const new({
     required this.hasTrack,
     required this.positionMs,
     required this.durationMs,
@@ -318,7 +316,7 @@ class _DeckTimeRow extends StatelessWidget {
 }
 
 class _ArtworkThumb extends StatelessWidget {
-  const _ArtworkThumb({required this.bytes, required this.hasTrack});
+  const new({required this.bytes, required this.hasTrack});
 
   final Uint8List? bytes;
   final bool hasTrack;
@@ -327,9 +325,9 @@ class _ArtworkThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final borderRadius = theme.style.borderRadius.md.copyWith(
-      topRight: Radius.circular(0),
-      bottomRight: Radius.circular(0),
-      bottomLeft: Radius.circular(0),
+      topRight: const Radius.circular(0),
+      bottomRight: const Radius.circular(0),
+      bottomLeft: const Radius.circular(0),
     );
     final disc = Icon(
       LucideIcons.disc3,
@@ -357,11 +355,7 @@ class _ArtworkThumb extends StatelessWidget {
 
 /// LUFS / ReplayGain / auto / trim popover (Tauri `DeckInfoPopover`).
 class DeckGainPopover extends ConsumerWidget {
-  const DeckGainPopover({
-    required this.deckId,
-    required this.hasTrack,
-    super.key,
-  });
+  const new({required this.deckId, required this.hasTrack, super.key});
 
   final int deckId;
   final bool hasTrack;
@@ -436,7 +430,7 @@ class DeckGainPopover extends ConsumerWidget {
 }
 
 class _GainRow extends StatelessWidget {
-  const _GainRow({required this.label, required this.value});
+  const new({required this.label, required this.value});
 
   final String label;
   final String value;

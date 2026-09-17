@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +7,13 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
 import 'package:gui_flutter/mixer/master_strip.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/src/rust/api/engine.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Matches Forui `MixerButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
@@ -26,7 +26,7 @@ const _mixerInnerWidth = 212.0;
 
 /// Center mixer: Tauri `DeckMixer` layout wired to [EngineTransport].
 class MixerStrip extends StatefulWidget {
-  const MixerStrip({super.key});
+  const new({super.key});
 
   @override
   State<MixerStrip> createState() => _MixerStripState();
@@ -75,7 +75,7 @@ class _MixerStripState extends State<MixerStrip> {
 }
 
 class _MixerChannels extends ConsumerStatefulWidget {
-  const _MixerChannels();
+  const new();
 
   @override
   ConsumerState<_MixerChannels> createState() => _MixerChannelsState();
@@ -106,7 +106,7 @@ class _MixerChannelsState extends ConsumerState<_MixerChannels> {
 }
 
 class _CrossfaderStrip extends ConsumerWidget {
-  const _CrossfaderStrip();
+  const new();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -130,8 +130,6 @@ class _CrossfaderStrip extends ConsumerWidget {
             child: FaderSlider(
               orientation: .horizontal,
               value: crossfader,
-              min: 0,
-              max: 100,
               step: 0.05,
               showIndicator: false,
               showMarkers: true,
@@ -175,7 +173,7 @@ Future<void> _mixerCmd(BuildContext context, Future<void> Function() fn) async {
 }
 
 class _EqColumn extends ConsumerWidget {
-  const _EqColumn({
+  const new({
     required this.deckId,
     required this.accent,
     required this.enabled,
@@ -198,11 +196,7 @@ class _EqColumn extends ConsumerWidget {
       return RotaryKnob(
         label: label,
         value: value,
-        min: kControlNormMin,
-        max: kControlNormMax,
-        step: kControlNormStep,
         center: kControlNormCenter,
-        size: .md,
         accentColor: accentColor,
         disabled: !enabled,
         onValueChange: (next) {
@@ -243,7 +237,7 @@ class _EqColumn extends ConsumerWidget {
 }
 
 class _VolumeColumn extends ConsumerWidget {
-  const _VolumeColumn({
+  const new({
     required this.deckId,
     required this.accent,
     required this.enabled,
@@ -277,12 +271,8 @@ class _VolumeColumn extends ConsumerWidget {
               child: SizedBox(
                 width: _faderMinHitWidth,
                 child: FaderSlider(
-                  orientation: .vertical,
                   accent: accent,
                   value: ch.volume * 100,
-                  min: 0,
-                  max: 100,
-                  showIndicator: true,
                   showMarkers: true,
                   disabled: !enabled,
                   onValueChange: (next) {
@@ -317,7 +307,7 @@ class _VolumeColumn extends ConsumerWidget {
 
 /// Shared GAIN block so meters and volume columns stay vertically aligned.
 class _MixerGainHeader extends StatelessWidget {
-  const _MixerGainHeader({
+  const new({
     required this.gain,
     required this.accentColor,
     required this.onGain,
@@ -334,11 +324,7 @@ class _MixerGainHeader extends StatelessWidget {
     return RotaryKnob(
       label: 'GAIN',
       value: gain,
-      min: kControlNormMin,
-      max: kControlNormMax,
-      step: kControlNormStep,
       center: kControlNormCenter,
-      size: .md,
       accentColor: accentColor,
       disabled: disabled,
       onValueChange: onGain,
@@ -347,7 +333,7 @@ class _MixerGainHeader extends StatelessWidget {
 }
 
 class _MixerCueFooter extends StatelessWidget {
-  const _MixerCueFooter({
+  const new({
     required this.cue,
     required this.onCue,
     this.disabled = false,
@@ -392,7 +378,7 @@ class _MixerCueFooter extends StatelessWidget {
 
 /// VU ladders between faders — M/S toggle sits in the GAIN-aligned header.
 class _LevelMetersColumn extends ConsumerWidget {
-  const _LevelMetersColumn({required this.mono, required this.onMonoChanged});
+  const new({required this.mono, required this.onMonoChanged});
 
   final bool mono;
   final ValueChanged<bool> onMonoChanged;
@@ -418,11 +404,7 @@ class _LevelMetersColumn extends ConsumerWidget {
                   child: RotaryKnob(
                     label: 'GAIN',
                     value: kControlNormCenter,
-                    min: kControlNormMin,
-                    max: kControlNormMax,
-                    step: kControlNormStep,
                     center: kControlNormCenter,
-                    size: .md,
                     onValueChange: _noopGain,
                   ),
                 ),

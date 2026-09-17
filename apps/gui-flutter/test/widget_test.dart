@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -16,24 +14,28 @@ import 'package:gui_flutter/mixer/master_strip.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/mixer_strip.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
-import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/mixer/waveform/overview_strip.dart';
 import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:skeletonizer/skeletonizer.dart';
-import 'package:gui_flutter/shell/app_shell.dart';
-import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/controller_providers.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
-import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_page.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/app_header.dart';
+import 'package:gui_flutter/shell/app_shell.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_switch.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'support/mixar_material_app.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+
+import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
   @override
@@ -64,7 +66,9 @@ class _LoadingDeckA extends DeckLoadInFlight {
   Map<int, int> build() => const {0: 1};
 }
 
-final _skeletonizerFinder = find.byWidgetPredicate((w) => w is Skeletonizer);
+final Finder _skeletonizerFinder = find.byWidgetPredicate(
+  (w) => w is Skeletonizer,
+);
 
 bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
   return tester
@@ -74,8 +78,7 @@ bool _enabledSkeletonsUnder(WidgetTester tester, Finder of) {
       .any((s) => s.enabled);
 }
 
-// ignore: strict_top_level_inference
-_settingsOverrides([AppSettings? settings]) => [
+List<Override> _settingsOverrides([AppSettings? settings]) => [
   appSettingsProvider.overrideWith(
     (ref) async => settings ?? defaultAppSettings(),
   ),
@@ -116,8 +119,6 @@ void main() {
     displayName: 'Demo Track',
     artist: 'Artist',
     title: 'Demo Track',
-    album: null,
-    genre: null,
     bpm: 128,
     key: '8A',
     durationMs: 180000,
@@ -126,7 +127,7 @@ void main() {
 
   Future<void> pumpShell(
     WidgetTester tester, {
-    List extraOverrides = const [],
+    List<Override> extraOverrides = const [],
     bool settle = true,
     AppSettings? settings,
   }) async {

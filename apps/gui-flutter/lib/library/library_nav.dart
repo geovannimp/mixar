@@ -4,7 +4,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Uppercase sidebar section label (Tauri `LibraryPaneHeader`).
 class LibraryPaneLabel extends StatelessWidget {
-  const LibraryPaneLabel(this.text, {super.key});
+  const new(this.text, {super.key});
 
   final String text;
 
@@ -24,9 +24,9 @@ class LibraryPaneLabel extends StatelessWidget {
 
 /// Full-width sidebar row: left accent, hover/selected fill from the Forui palette.
 class LibraryNavRow extends StatelessWidget {
-  const LibraryNavRow({
-    super.key,
+  const new({
     required this.title,
+    super.key,
     this.subtitle,
     this.icon,
     this.trailing,

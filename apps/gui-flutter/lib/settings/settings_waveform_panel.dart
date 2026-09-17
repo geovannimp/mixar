@@ -5,11 +5,7 @@ import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsWaveformPanel extends StatelessWidget {
-  const SettingsWaveformPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
@@ -21,8 +17,7 @@ class SettingsWaveformPanel extends StatelessWidget {
       children: [
         const SettingsSectionHeader(
           title: 'Waveform',
-          description:
-              'RGB mixes low/mid/high into one color. Filtered stacks the three bands.',
+          description: 'RGB mixes low/mid/high into one color. Filtered stacks the three bands.',
         ),
         const SizedBox(height: 20),
         SettingsField(

@@ -3,24 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/settings/settings_audio_panel.dart';
 import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_deck_panel.dart';
-import 'package:gui_flutter/settings/settings_library_panel.dart';
-import 'package:gui_flutter/settings/settings_session_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/settings/settings_mixer_panel.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
+import 'package:gui_flutter/settings/settings_session_panel.dart';
 import 'package:gui_flutter/settings/settings_sidebar.dart';
 import 'package:gui_flutter/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/settings/settings_waveform_panel.dart';
-import 'package:gui_flutter/shell/controller_providers.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
-  const SettingsPage({this.onClose, super.key});
+  const new({this.onClose, super.key});
 
   final VoidCallback? onClose;
 
@@ -29,7 +29,7 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  var _section = SettingsSection.audio;
+  SettingsSection _section = SettingsSection.audio;
   AppSettings? _draft;
   AppSettings? _baseline;
   var _busy = false;
@@ -101,7 +101,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Saving restarts the engine automatically if it\'s running.',
+                            "Saving restarts the engine automatically if it's running.",
                             style: theme.typography.body.sm.copyWith(
                               color: theme.colors.mutedForeground,
                             ),
@@ -253,7 +253,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 enum _CloseChoice { save, discard, cancel }
 
 class _SettingsSectionPanel extends StatelessWidget {
-  const _SettingsSectionPanel({
+  const new({
     required this.section,
     required this.draft,
     required this.onChanged,

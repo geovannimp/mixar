@@ -8,6 +8,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:riverpod/src/providers/future_provider.dart';
 
 final settingsTransportProvider = FutureProvider<SettingsTransport>((
   ref,
@@ -20,13 +21,11 @@ final audioBackendNamesProvider = Provider<List<String>>(
   (_) => AudioBackendTransport.listNames(),
 );
 
-final audioDevicesProvider = FutureProvider.family<List<OutputDevice>, String>((
-  ref,
-  backend,
-) async {
-  final transport = await AudioBackendTransport.open(name: backend);
-  return transport.listOutputDevices();
-});
+final FutureProviderFamily<List<OutputDevice>, String> audioDevicesProvider =
+    FutureProvider.family<List<OutputDevice>, String>((ref, backend) async {
+      final transport = await AudioBackendTransport.open(name: backend);
+      return transport.listOutputDevices();
+    });
 
 final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   final settings = await ref.watch(settingsTransportProvider.future);
@@ -58,7 +57,7 @@ LibraryAnalysisDurationSetting _libraryAnalysisDuration(
 }
 
 class SaveAppSettingsResult {
-  const SaveAppSettingsResult({
+  const new({
     required this.saved,
     this.applyError,
     this.trustedControllersChanged = false,

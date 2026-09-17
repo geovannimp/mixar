@@ -3,9 +3,9 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Mixar checkbox over [ShadCheckbox].
 class MixarCheckbox extends StatelessWidget {
-  const MixarCheckbox({
-    super.key,
+  const new({
     required this.value,
+    super.key,
     this.onChanged,
     this.enabled = true,
     this.label,

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 const kJogIntervalsPerRev = 720;
 
 /// Must match engine-dsp `JOG_RPM` (33⅓).
-const kJogRpm = 100.0 / 3.0;
+const double kJogRpm = 100.0 / 3.0;
 
 /// Default DJ time signature: 4/4.
 const kDefaultBeatsPerBar = 4;

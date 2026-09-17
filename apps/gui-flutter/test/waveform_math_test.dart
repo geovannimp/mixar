@@ -231,14 +231,14 @@ void main() {
   });
 
   test('grid edit helpers clamp bpm and shift phase', () {
-    expect(nudgeFirstBeatSecs(1.0, 10), closeTo(1.01, 1e-9));
-    expect(stepGridBpm(128.0, 0.01), 128.01);
-    expect(stepGridBpm(20.0, -1.0), 20.01);
-    expect(stepGridBpm(399.0, 1.0), 399.99);
+    expect(nudgeFirstBeatSecs(1, 10), closeTo(1.01, 1e-9));
+    expect(stepGridBpm(128, 0.01), 128.01);
+    expect(stepGridBpm(20, -1), 20.01);
+    expect(stepGridBpm(399, 1), 399.99);
     expect(parseGridBpm('128.5'), 128.5);
     expect(parseGridBpm(''), isNull);
     expect(parseGridBpm('10'), isNull);
-    expect(stepGridBpm(128.0, kGridBpmCoarseStep), 129.0);
+    expect(stepGridBpm(128, kGridBpmCoarseStep), 129.0);
   });
 
   test(

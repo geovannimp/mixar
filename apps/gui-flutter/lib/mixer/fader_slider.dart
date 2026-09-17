@@ -11,7 +11,7 @@ enum FaderAccent { a, b, neutral }
 enum _TickSize { major, minor }
 
 class _FaderTick {
-  const _FaderTick(this.pos, this.size);
+  const new(this.pos, this.size);
   final double pos;
   final _TickSize size;
 }
@@ -31,15 +31,14 @@ const _faderTicks = <_FaderTick>[
   _FaderTick(100, _TickSize.major),
 ];
 
-const _tickLength = {_TickSize.major: 10.0, _TickSize.minor: 6.0};
+const Map<_TickSize, double> _tickLength = {
+  _TickSize.major: 10.0,
+  _TickSize.minor: 6.0,
+};
 
 /// Deck A/B / neutral tokens matching Tauri `DECK_ACCENTS` / `NEUTRAL_FADER_TRACK`.
 class FaderColors {
-  const FaderColors({
-    required this.track,
-    required this.indicator,
-    required this.grip,
-  });
+  const new({required this.track, required this.indicator, required this.grip});
 
   final Color track;
   final Color indicator;
@@ -132,7 +131,7 @@ double _finishFaderValue(
   required double step,
   required bool centerNotch,
 }) {
-  var next = snapFaderToStep(raw, step, origin: min).clamp(min, max).toDouble();
+  var next = snapFaderToStep(raw, step, origin: min).clamp(min, max);
   if (centerNotch) {
     next = snapTowardCenter(next, min, max);
   }
@@ -282,7 +281,7 @@ double valueFromFaderRelativeDrag({
 
 /// DJ-style fader: markers, optional center notch, deck accent grip (Tauri `Slider` fader).
 class FaderSlider extends StatefulWidget {
-  FaderSlider({
+  new({
     required this.value,
     required this.onValueChange,
     this.min = 0,
@@ -320,7 +319,7 @@ class FaderSlider extends StatefulWidget {
 }
 
 class _FaderAdjustIntent extends Intent {
-  const _FaderAdjustIntent(this.delta);
+  const new(this.delta);
   final double delta;
 }
 
@@ -385,7 +384,7 @@ class _FaderSliderState extends State<FaderSlider> {
     }
     widget.onValueChange(
       _finishFaderValue(
-        (widget.value + delta).clamp(widget.min, widget.max).toDouble(),
+        (widget.value + delta).clamp(widget.min, widget.max),
         min: widget.min,
         max: widget.max,
         step: widget.step,
@@ -513,7 +512,7 @@ class _FaderSliderState extends State<FaderSlider> {
 }
 
 class _FaderPainter extends CustomPainter {
-  _FaderPainter({
+  new({
     required this.t,
     required this.orientation,
     required this.colors,
@@ -608,7 +607,6 @@ class _FaderPainter extends CustomPainter {
           topLeft: vertical ? Radius.zero : const Radius.circular(999),
           bottomLeft: const Radius.circular(999),
           bottomRight: vertical ? const Radius.circular(999) : Radius.zero,
-          topRight: Radius.zero,
         ),
         Paint()..color = colors.indicator,
       );
@@ -635,10 +633,10 @@ class _FaderPainter extends CustomPainter {
     canvas.drawRRect(
       thumbRRect,
       Paint()
-        ..shader = LinearGradient(
+        ..shader = const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: const [_thumbTop, _thumbBottom],
+          colors: [_thumbTop, _thumbBottom],
         ).createShader(thumbRect),
     );
     canvas.drawRRect(

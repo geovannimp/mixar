@@ -6,12 +6,12 @@ import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Collections sidebar: header + full-width rows (Tauri collection list).
 class CollectionsPane extends ConsumerStatefulWidget {
-  const CollectionsPane({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<CollectionsPane> createState() => _CollectionsPaneState();

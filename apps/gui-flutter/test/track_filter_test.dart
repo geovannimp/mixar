@@ -14,10 +14,6 @@ LibraryTrackSummary _track({
     displayName: displayName,
     artist: artist,
     title: title,
-    album: null,
-    genre: null,
-    bpm: null,
-    key: null,
     durationMs: 1000,
     path: '/tmp/$id.wav',
   );

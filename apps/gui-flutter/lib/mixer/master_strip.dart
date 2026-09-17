@@ -1,12 +1,12 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
 const _cueOn = Color(0xFFFCD34D); // amber-300
@@ -14,7 +14,7 @@ const _cueRing = Color(0x66F59E0B); // amber-500/40
 
 /// Master bus: Cue/Mst mix and master cue.
 class MasterStrip extends ConsumerWidget {
-  const MasterStrip({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,7 +26,7 @@ class MasterStrip extends ConsumerWidget {
     final masterCue = ref.watch(masterCueProvider);
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(0, 0, 0, 4),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 4),
       child: Row(
         mainAxisAlignment: .center,
         spacing: 8,
@@ -34,8 +34,6 @@ class MasterStrip extends ConsumerWidget {
           RotaryKnob(
             label: 'Cue/Mst',
             value: cueMix,
-            min: 0,
-            max: 1,
             step: 0.01,
             disabled: !previewEnabled,
             accentColor: theme.colors.mutedForeground,

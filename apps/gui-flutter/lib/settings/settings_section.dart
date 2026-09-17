@@ -22,4 +22,4 @@ extension SettingsSectionLabel on SettingsSection {
   };
 }
 
-const kSettingsSections = SettingsSection.values;
+const List<SettingsSection> kSettingsSections = SettingsSection.values;

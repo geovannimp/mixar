@@ -3,10 +3,10 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Mixar slider over [ShadSlider].
 class MixarSlider extends StatelessWidget {
-  const MixarSlider({
-    super.key,
+  const new({
     required this.value,
     required this.onChanged,
+    super.key,
     this.min = 0,
     this.max = 1,
     this.divisions,

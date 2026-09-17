@@ -9,13 +9,13 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Watches engine/library providers and publishes named pad press/release cmds.
 class DeckPadsHost extends ConsumerStatefulWidget {
-  const DeckPadsHost({
+  const new({
     required this.deckId,
     this.hasTrack = false,
     this.disabled = false,

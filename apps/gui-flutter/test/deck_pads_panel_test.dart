@@ -1,5 +1,3 @@
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
@@ -8,8 +6,11 @@ import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'support/mixar_material_app.dart';
 
 void main() {
   Future<void> pumpPanel(
@@ -30,7 +31,7 @@ void main() {
     void Function(int slot, bool shift)? onHotCuePress,
   }) async {
     var mode = padMode;
-    var cues = List<DeckHotCue>.from(hotCues);
+    final cues = List<DeckHotCue>.from(hotCues);
     var bankId = activeBankId;
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -113,7 +114,7 @@ void main() {
   });
 
   testWidgets('hot cue press on empty slot reports the pad', (tester) async {
-    var pressed = <(int, bool)>[];
+    final pressed = <(int, bool)>[];
     await pumpPanel(
       tester,
       hasTrack: true,

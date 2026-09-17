@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:context_show/context_show.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 enum MixarToastVariant { primary, destructive }
 
@@ -48,7 +48,6 @@ void showMixarToast({
           id: id,
           duration: showFor,
           alignment: Alignment.bottomRight,
-          dismissible: false,
           safeArea: false,
           // Default background is a full-screen hit target; keep UI clickable.
           background: (_) => const SizedBox.shrink(),
@@ -58,7 +57,7 @@ void showMixarToast({
 }
 
 class _MixarToastChrome extends StatelessWidget {
-  const _MixarToastChrome({
+  const new({
     required this.variant,
     required this.title,
     this.description,
@@ -90,7 +89,6 @@ class _MixarToastChrome extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
-            mainAxisSize: MainAxisSize.max,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Flexible(

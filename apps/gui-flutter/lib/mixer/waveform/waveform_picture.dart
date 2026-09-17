@@ -5,7 +5,7 @@ import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 
 class WaveformBarPainter extends CustomPainter {
-  WaveformBarPainter({
+  new({
     required this.overview,
     required this.detail,
     required this.durationMs,
@@ -81,11 +81,11 @@ class WaveformBarPainter extends CustomPainter {
 
 Picture recordWaveformPicture({
   required List<SpectralPeak> overview,
-  DetailWindow? detail,
   required int durationMs,
   required double originMs,
   required double spanMs,
   required Size size,
+  DetailWindow? detail,
   bool fallbackToOverview = true,
   bool fillBackground = true,
   WaveformDisplayMode mode = WaveformDisplayMode.rgb,

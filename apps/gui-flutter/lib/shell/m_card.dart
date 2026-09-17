@@ -3,7 +3,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Bordered panel chrome (Forui card colors; Mixar button-style rounded rect).
 class MCard extends StatelessWidget {
-  const MCard({required this.child, this.clipBehavior = Clip.none, super.key});
+  const new({required this.child, this.clipBehavior = Clip.none, super.key});
 
   final Widget child;
   final Clip clipBehavior;

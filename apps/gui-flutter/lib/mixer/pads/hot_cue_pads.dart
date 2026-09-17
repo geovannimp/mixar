@@ -6,7 +6,7 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class DeckHotCue {
-  const DeckHotCue({required this.slot, required this.positionMs, this.label});
+  const new({required this.slot, required this.positionMs, this.label});
 
   final int slot;
   final int positionMs;
@@ -14,7 +14,7 @@ class DeckHotCue {
 }
 
 class HotCuePads extends StatelessWidget {
-  const HotCuePads({
+  const new({
     required this.hotCues,
     required this.onPress,
     required this.onRelease,

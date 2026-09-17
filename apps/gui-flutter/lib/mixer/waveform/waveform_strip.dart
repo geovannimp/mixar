@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
@@ -10,16 +9,17 @@ import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:riverpod/src/providers/notifier.dart';
 
 class WaveformTile {
-  const WaveformTile({required this.startPx, required this.picture});
+  const new({required this.startPx, required this.picture});
 
   final double startPx;
   final Picture picture;
 }
 
 class WaveformStrip {
-  WaveformStrip({
+  new({
     required this.durationMs,
     required this.widthPx,
     required this.heightPx,
@@ -57,7 +57,7 @@ class WaveformStrip {
 }
 
 class WaveformStripNotifier extends Notifier<WaveformStrip?> {
-  WaveformStripNotifier(this.arg);
+  new(this.arg);
 
   final (String, int) arg;
   var _gen = 0;
@@ -160,7 +160,6 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
           spanMs: (endMs - startMs).toDouble(),
           size: Size(w.toDouble(), kWaveformStripHeight),
           fallbackToOverview: false,
-          fillBackground: true,
           mode: mode,
         );
         final cur = _owned;
@@ -201,7 +200,12 @@ class WaveformStripNotifier extends Notifier<WaveformStrip?> {
   }
 }
 
-final waveformStripProvider =
+final NotifierProviderFamily<
+  WaveformStripNotifier,
+  WaveformStrip?,
+  (String, int)
+>
+waveformStripProvider =
     NotifierProvider.family<
       WaveformStripNotifier,
       WaveformStrip?,

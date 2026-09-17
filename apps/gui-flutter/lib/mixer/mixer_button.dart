@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/m_tappable.dart' show MTappable;
 
 import 'package:gui_flutter/shell/mixar_button_body.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
@@ -8,7 +9,7 @@ export 'package:gui_flutter/shell/mixar_button_style.dart'
 
 /// Dense deck / mixer button (Forui visual parity, [MTappable]).
 class MixerButton extends StatelessWidget {
-  const MixerButton({
+  const new({
     required this.child,
     this.onPress,
     this.onSecondaryPress,
@@ -22,7 +23,7 @@ class MixerButton extends StatelessWidget {
     super.key,
   }) : _icon = false;
 
-  const MixerButton.icon({
+  const new icon({
     required this.child,
     this.onPress,
     this.onSecondaryPress,

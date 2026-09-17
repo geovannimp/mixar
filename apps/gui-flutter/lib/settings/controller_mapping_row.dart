@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
-import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/controller.dart';
 
 class ControllerMappingRow extends StatelessWidget {
-  const ControllerMappingRow({
+  const new({
     required this.mapping,
     required this.attached,
     required this.trusted,
@@ -39,7 +39,6 @@ class ControllerMappingRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         spacing: 12,
         children: [
           Expanded(

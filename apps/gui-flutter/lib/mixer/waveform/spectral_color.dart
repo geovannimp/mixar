@@ -15,7 +15,7 @@ const kWaveformBg = Color.fromARGB(255, 5, 5, 8);
 enum WaveformDisplayMode { rgb, filtered }
 
 class FilteredBar {
-  const FilteredBar({required this.height, required this.color});
+  const new({required this.height, required this.color});
 
   final double height;
   final Color color;

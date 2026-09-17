@@ -9,7 +9,7 @@ import 'package:gui_flutter/shell/mixar_dialog.dart';
 
 /// Prompt to restore the previous session on launch (inside idle window).
 class HistoryRestoreBridge extends ConsumerStatefulWidget {
-  const HistoryRestoreBridge({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<HistoryRestoreBridge> createState() =>

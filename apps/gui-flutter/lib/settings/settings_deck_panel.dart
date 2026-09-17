@@ -9,16 +9,12 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsDeckPanel extends ConsumerWidget {
-  const SettingsDeckPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
-  static const _jogModes = JogModeSetting.values;
+  static const List<JogModeSetting> _jogModes = JogModeSetting.values;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,8 +36,7 @@ class SettingsDeckPanel extends ConsumerWidget {
             children: [
               const SettingsSectionHeader(
                 title: 'Jog wheel',
-                description:
-                    'Defaults for top (touch) and outer (freewheel) platter policy.',
+                description: 'Defaults for top (touch) and outer (freewheel) platter policy.',
               ),
               const SizedBox(height: 0),
               Row(
@@ -104,8 +99,7 @@ class SettingsDeckPanel extends ConsumerWidget {
               ),
               SettingsField(
                 label: 'Default key lock',
-                hint:
-                    'Tempo-only pitch when on (time-stretch). Off = vinyl tempo.',
+                hint: 'Tempo-only pitch when on (time-stretch). Off = vinyl tempo.',
                 child: SettingsToggle(
                   label: 'Key lock',
                   value: draft.defaultKeyLock,
@@ -124,8 +118,7 @@ class SettingsDeckPanel extends ConsumerWidget {
             children: [
               const SettingsSectionHeader(
                 title: 'Sampler',
-                description:
-                    'Default play mode for inherit banks and default bank per deck.',
+                description: 'Default play mode for inherit banks and default bank per deck.',
               ),
               const SizedBox(height: 0),
               SettingsField(

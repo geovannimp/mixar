@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
@@ -7,24 +6,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_providers.dart';
-import 'package:gui_flutter/library/track_detail_dialog.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/library/track_detail_dialog.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
-import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_context_menu.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:trina_grid/trina_grid.dart';
 
 /// Row selection fill. Forui neutral dark uses the same hex for `muted` and
 /// `secondary`, so `theme.colors.muted` is invisible on the table surface.
@@ -38,7 +38,7 @@ const kSessionPlayedRowOpacity = 0.3;
 
 /// Filter + [trina_grid](https://github.com/doonfrs/trina_grid) track table.
 class TrackTablePane extends ConsumerStatefulWidget {
-  const TrackTablePane({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<TrackTablePane> createState() => _TrackTablePaneState();
@@ -128,7 +128,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     ref.watch(sessionPlayedKeysProvider);
     final settings = ref
         .watch(appSettingsProvider)
-        .maybeWhen(data: (s) => s, orElse: () => defaultAppSettings());
+        .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
     final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
@@ -375,7 +375,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           width: 280,
           minWidth: 120,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('artist'))
         TrinaColumn(
@@ -385,7 +384,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           width: 180,
           minWidth: 96,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('album'))
         TrinaColumn(
@@ -395,7 +393,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           width: 180,
           minWidth: 96,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('genre'))
         TrinaColumn(
@@ -403,9 +400,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           field: 'genre',
           type: TrinaColumnType.text(),
           width: 120,
-          minWidth: 80,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('bpm'))
         TrinaColumn(
@@ -417,7 +412,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           textAlign: TrinaColumnTextAlign.right,
           titleTextAlign: TrinaColumnTextAlign.right,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('key'))
         TrinaColumn(
@@ -429,7 +423,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           textAlign: TrinaColumnTextAlign.center,
           titleTextAlign: TrinaColumnTextAlign.center,
           enableContextMenu: false,
-          enableDropToResize: true,
           renderer: (ctx) {
             final raw = ctx.row.cells['key']?.value as String? ?? '';
             final label = raw.isEmpty ? '' : formatDeckKey(raw, keyDisplayMode);
@@ -462,7 +455,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           textAlign: TrinaColumnTextAlign.right,
           titleTextAlign: TrinaColumnTextAlign.right,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       if (visible.contains('path'))
         TrinaColumn(
@@ -472,7 +464,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           width: 240,
           minWidth: 120,
           enableContextMenu: false,
-          enableDropToResize: true,
         ),
       TrinaColumn(
         title: '',
@@ -555,10 +546,8 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         resizeMode: TrinaResizeMode.pushAndPull,
       ),
       style: TrinaGridStyleConfig(
-        enableGridBorderShadow: false,
         enableColumnBorderVertical: false,
         enableCellBorderVertical: false,
-        enableCellBorderHorizontal: true,
         gridBackgroundColor: surface,
         rowColor: surface,
         oddRowColor: surface,
@@ -586,7 +575,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  List<TrinaRow> _rowsFor(
+  List<TrinaRow<dynamic>> _rowsFor(
     List<LibraryTrackSummary> tracks,
     Set<String> analyzingIds,
   ) {
@@ -631,7 +620,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   Widget _rowWrapper(
     BuildContext context,
     Widget rowWidget,
-    TrinaRow rowData,
+    TrinaRow<dynamic> rowData,
     TrinaGridStateManager stateManager,
   ) {
     final engineRunning = ref.read(engineRunningProvider);
@@ -672,7 +661,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  void _selectVisualRow(TrinaGridStateManager manager, TrinaRow rowData) {
+  void _selectVisualRow(
+    TrinaGridStateManager manager,
+    TrinaRow<dynamic> rowData,
+  ) {
     final visualIndex = manager.refRows.indexOf(rowData);
     if (visualIndex < 0) {
       return;
@@ -705,7 +697,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   Widget _dragRowWrapper(
     BuildContext context,
     Widget rowWidget,
-    TrinaRow rowData,
+    TrinaRow<dynamic> rowData,
     TrinaGridStateManager stateManager,
   ) {
     final path = rowData.cells['path']?.value as String?;
@@ -789,7 +781,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 }
 
 class TrackActionsMenu extends ConsumerWidget {
-  const TrackActionsMenu({
+  const new({
     required this.trackId,
     required this.path,
     required this.title,
@@ -839,7 +831,7 @@ class TrackActionsMenu extends ConsumerWidget {
 }
 
 class _TrackActionsContextMenu extends ConsumerWidget {
-  const _TrackActionsContextMenu({
+  const new({
     required this.trackId,
     required this.path,
     required this.title,
@@ -992,7 +984,7 @@ Widget _trackActionsMenuBody({
 }
 
 class _LoadDeckChip extends StatelessWidget {
-  const _LoadDeckChip({
+  const new({
     required this.letter,
     required this.color,
     required this.enabled,
@@ -1026,7 +1018,7 @@ class _LoadDeckChip extends StatelessWidget {
 }
 
 class _TrackDragCard extends StatelessWidget {
-  const _TrackDragCard({required this.title});
+  const new({required this.title});
 
   final String title;
 

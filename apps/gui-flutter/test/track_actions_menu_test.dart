@@ -1,17 +1,18 @@
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
-import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
-import 'support/mixar_material_app.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'support/mixar_material_app.dart';
 
 class _RunningEngineUi extends EngineUi {
   @override
@@ -137,7 +138,7 @@ void main() {
   });
 
   test('collection tracks stay in-library when id equals path', () {
-    final track = LibraryTrackSummary(
+    const track = LibraryTrackSummary(
       id: '/music/a.wav',
       displayName: 'a.wav',
       path: '/music/a.wav',

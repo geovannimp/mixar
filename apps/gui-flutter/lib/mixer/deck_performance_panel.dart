@@ -11,12 +11,12 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Pads / Loop / Grid / Jog via vertical [MTabs].
 class DeckPerformancePanel extends StatelessWidget {
-  const DeckPerformancePanel({
+  const new({
     this.deckId,
     this.hasTrack = false,
     this.disabled = false,
@@ -145,7 +145,6 @@ class DeckPerformancePanel extends StatelessWidget {
                               accent: accent,
                               playing: false,
                               hasTrack: hasTrack,
-                              enabled: false,
                             ),
                           ),
                 },

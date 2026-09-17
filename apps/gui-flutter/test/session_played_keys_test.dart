@@ -19,7 +19,6 @@ void main() {
       ),
       const HistoryEntryInfo(
         id: 'e2',
-        trackId: null,
         location: '/music/drive-only.mp3',
         deck: 1,
         startedAt: '2026-01-01T00:01:00Z',

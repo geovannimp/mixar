@@ -14,6 +14,8 @@ import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 import 'package:gui_flutter/src/rust/api/library.dart'
     show LibraryTrackSummary, SavedLoopInfo;
+import 'package:riverpod/src/providers/future_provider.dart';
+import 'package:riverpod/src/providers/provider.dart';
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
@@ -131,60 +133,68 @@ class DeckSlipShadows extends Notifier<Map<int, int>> {
 final deckSlipShadowsProvider =
     NotifierProvider<DeckSlipShadows, Map<int, int>>(DeckSlipShadows.new);
 
-final deckPositionMsProvider = Provider.family<int, int>(
-  (ref, deckId) => ref.watch(deckPlayheadsProvider)[deckId] ?? 0,
-);
+final ProviderFamily<int, int> deckPositionMsProvider =
+    Provider.family<int, int>(
+      (ref, deckId) => ref.watch(deckPlayheadsProvider)[deckId] ?? 0,
+    );
 
-final deckTrackIdProvider = Provider.family<String?, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.trackIdFor(deckId))),
-);
+final ProviderFamily<String?, int> deckTrackIdProvider =
+    Provider.family<String?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.trackIdFor(deckId))),
+    );
 
-final deckDurationMsProvider = Provider.family<int?, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.durationMsFor(deckId))),
-);
+final ProviderFamily<int?, int> deckDurationMsProvider =
+    Provider.family<int?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.durationMsFor(deckId))),
+    );
 
-final deckSpeedRatioProvider = Provider.family<double, int>((ref, deckId) {
-  final speed = ref.watch(engineUiProvider.select((s) => s.speedFor(deckId)));
-  final range = ref.watch(
-    engineUiProvider.select((s) => s.tempoRangeFor(deckId)),
-  );
-  return normToSpeedRatio(speed, range);
-});
+final ProviderFamily<double, int> deckSpeedRatioProvider =
+    Provider.family<double, int>((ref, deckId) {
+      final speed = ref.watch(
+        engineUiProvider.select((s) => s.speedFor(deckId)),
+      );
+      final range = ref.watch(
+        engineUiProvider.select((s) => s.tempoRangeFor(deckId)),
+      );
+      return normToSpeedRatio(speed, range);
+    });
 
 final engineRunningProvider = Provider<bool>(
   (ref) => ref.watch(engineUiProvider).running,
 );
 
-final deckTrackTitleProvider = Provider.family<String?, int>((ref, deckId) {
-  final lib = ref.watch(deckLibraryTrackProvider(deckId));
-  final libTitle = lib?.title?.trim();
-  if (libTitle != null && libTitle.isNotEmpty) {
-    return libTitle;
-  }
-  if (lib != null) {
-    final fromLibPath = fileStemFromPath(lib.path);
-    if (fromLibPath.isNotEmpty) {
-      return fromLibPath;
-    }
-  }
-  final path = ref.watch(
-    engineUiProvider.select((s) => s.trackPathFor(deckId)),
-  );
-  if (path == null || path.isEmpty) {
-    return null;
-  }
-  final stem = fileStemFromPath(path);
-  return stem.isEmpty ? null : stem;
-});
+final ProviderFamily<String?, int> deckTrackTitleProvider =
+    Provider.family<String?, int>((ref, deckId) {
+      final lib = ref.watch(deckLibraryTrackProvider(deckId));
+      final libTitle = lib?.title?.trim();
+      if (libTitle != null && libTitle.isNotEmpty) {
+        return libTitle;
+      }
+      if (lib != null) {
+        final fromLibPath = fileStemFromPath(lib.path);
+        if (fromLibPath.isNotEmpty) {
+          return fromLibPath;
+        }
+      }
+      final path = ref.watch(
+        engineUiProvider.select((s) => s.trackPathFor(deckId)),
+      );
+      if (path == null || path.isEmpty) {
+        return null;
+      }
+      final stem = fileStemFromPath(path);
+      return stem.isEmpty ? null : stem;
+    });
 
-final deckHasTrackProvider = Provider.family<bool, int>((ref, deckId) {
-  final ui = ref.watch(engineUiProvider);
-  return ui.durationMsFor(deckId) != null ||
-      ui.trackIdFor(deckId) != null ||
-      ui.trackPathFor(deckId) != null;
-});
+final ProviderFamily<bool, int> deckHasTrackProvider =
+    Provider.family<bool, int>((ref, deckId) {
+      final ui = ref.watch(engineUiProvider);
+      return ui.durationMsFor(deckId) != null ||
+          ui.trackIdFor(deckId) != null ||
+          ui.trackPathFor(deckId) != null;
+    });
 
 /// Decks whose engine load is still in flight (drop/load started, not finished).
 class DeckLoadInFlight extends Notifier<Map<int, int>> {
@@ -211,128 +221,147 @@ class DeckLoadInFlight extends Notifier<Map<int, int>> {
 final deckLoadInFlightProvider =
     NotifierProvider<DeckLoadInFlight, Map<int, int>>(DeckLoadInFlight.new);
 
-final deckLoadingProvider = Provider.family<bool, int>(
-  (ref, deckId) => (ref.watch(deckLoadInFlightProvider)[deckId] ?? 0) > 0,
-);
+final ProviderFamily<bool, int> deckLoadingProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) => (ref.watch(deckLoadInFlightProvider)[deckId] ?? 0) > 0,
+    );
 
 /// True while the engine is loading this deck, or its overview / beat grid
 /// is still fetching after the track id lands.
-final deckSkeletonProvider = Provider.family<bool, int>((ref, deckId) {
-  if (ref.watch(deckLoadingProvider(deckId))) {
-    return true;
-  }
-  final trackId = ref.watch(deckTrackIdProvider(deckId));
-  if (trackId == null) {
-    return false;
-  }
-  return ref.watch(waveformOverviewProvider(trackId)).isLoading ||
-      ref.watch(beatGridLoadingProvider(trackId));
-});
+final ProviderFamily<bool, int> deckSkeletonProvider =
+    Provider.family<bool, int>((ref, deckId) {
+      if (ref.watch(deckLoadingProvider(deckId))) {
+        return true;
+      }
+      final trackId = ref.watch(deckTrackIdProvider(deckId));
+      if (trackId == null) {
+        return false;
+      }
+      return ref.watch(waveformOverviewProvider(trackId)).isLoading ||
+          ref.watch(beatGridLoadingProvider(trackId));
+    });
 
-final deckBpmProvider = Provider.family<double?, int>((ref, deckId) {
-  final trackId = ref.watch(deckTrackIdProvider(deckId));
-  if (trackId == null) {
-    return null;
-  }
-  return ref.watch(beatGridProvider(trackId))?.bpm;
-});
+final ProviderFamily<double?, int> deckBpmProvider =
+    Provider.family<double?, int>((ref, deckId) {
+      final trackId = ref.watch(deckTrackIdProvider(deckId));
+      if (trackId == null) {
+        return null;
+      }
+      return ref.watch(beatGridProvider(trackId))?.bpm;
+    });
 
-final deckPlayingProvider = Provider.family<bool, int>(
-  (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
-);
+final ProviderFamily<bool, int> deckPlayingProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) => ref.watch(engineUiProvider).isPlaying(deckId),
+    );
 
-final deckPadModeProvider = Provider.family<PadMode, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
-);
+final ProviderFamily<PadMode, int> deckPadModeProvider =
+    Provider.family<PadMode, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
+    );
 
-final deckActiveSamplerBankIdProvider = Provider.family<String?, int>(
-  (ref, deckId) => ref.watch(
-    engineUiProvider.select((s) => s.activeSamplerBankIdFor(deckId)),
-  ),
-);
+final ProviderFamily<String?, int> deckActiveSamplerBankIdProvider =
+    Provider.family<String?, int>(
+      (ref, deckId) => ref.watch(
+        engineUiProvider.select((s) => s.activeSamplerBankIdFor(deckId)),
+      ),
+    );
 
-final deckSamplerSlotsProvider = Provider.family<List<SamplerSlotChrome>, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.samplerSlotsFor(deckId))),
-);
+final ProviderFamily<List<SamplerSlotChrome>, int> deckSamplerSlotsProvider =
+    Provider.family<List<SamplerSlotChrome>, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.samplerSlotsFor(deckId))),
+    );
 
-final deckSpeedProvider = Provider.family<double, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.speedFor(deckId))),
-);
+final ProviderFamily<double, int> deckSpeedProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.speedFor(deckId))),
+    );
 
-final deckTempoRangeProvider = Provider.family<double, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.tempoRangeFor(deckId))),
-);
+final ProviderFamily<double, int> deckTempoRangeProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.tempoRangeFor(deckId))),
+    );
 
-final deckKeyLockProvider = Provider.family<bool, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.keyLockFor(deckId))),
-);
+final ProviderFamily<bool, int> deckKeyLockProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyLockFor(deckId))),
+    );
 
-final deckSyncModeProvider = Provider.family<SyncMode, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.syncModeFor(deckId))),
-);
+final ProviderFamily<SyncMode, int> deckSyncModeProvider =
+    Provider.family<SyncMode, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.syncModeFor(deckId))),
+    );
 
-final deckIsMasterProvider = Provider.family<bool, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.isMaster(deckId))),
-);
+final ProviderFamily<bool, int> deckIsMasterProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.isMaster(deckId))),
+    );
 
-final deckQuantizeProvider = Provider.family<bool, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.quantizeFor(deckId))),
-);
+final ProviderFamily<bool, int> deckQuantizeProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.quantizeFor(deckId))),
+    );
 
-final deckSlipEnabledProvider = Provider.family<bool, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.slipEnabledFor(deckId))),
-);
+final ProviderFamily<bool, int> deckSlipEnabledProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.slipEnabledFor(deckId))),
+    );
 
-final deckSlipShadowMsProvider = Provider.family<int?, int>(
-  (ref, deckId) => ref.watch(deckSlipShadowsProvider)[deckId],
-);
+final ProviderFamily<int?, int> deckSlipShadowMsProvider =
+    Provider.family<int?, int>(
+      (ref, deckId) => ref.watch(deckSlipShadowsProvider)[deckId],
+    );
 
-final deckJogTouchingProvider = Provider.family<bool, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.jogTouchingFor(deckId))),
-);
+final ProviderFamily<bool, int> deckJogTouchingProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.jogTouchingFor(deckId))),
+    );
 
-final deckLoudnessLufsProvider = Provider.family<double?, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.loudnessLufsFor(deckId))),
-);
+final ProviderFamily<double?, int> deckLoudnessLufsProvider =
+    Provider.family<double?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.loudnessLufsFor(deckId))),
+    );
 
-final deckAutoGainDbProvider = Provider.family<double, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.autoGainDbFor(deckId))),
-);
+final ProviderFamily<double, int> deckAutoGainDbProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.autoGainDbFor(deckId))),
+    );
 
-final deckLibraryTrackProvider = Provider.family<LibraryTrackSummary?, int>((
-  ref,
-  deckId,
-) {
-  final id = ref.watch(deckTrackIdProvider(deckId));
-  if (id == null) {
-    return null;
-  }
-  // Prefer the visible table, then other in-memory lists, then a tab-stable
-  // getTrack fetch — libraryTableTracksProvider is empty on History and may
-  // omit the loaded track on Drive.
-  return libraryTrackById(
-        ref.watch(libraryTableTracksProvider).asData?.value,
-        id,
-      ) ??
-      libraryTrackById(ref.watch(collectionTracksProvider).asData?.value, id) ??
-      libraryTrackById(
-        ref.watch(driveResolvedByPathProvider).asData?.value.values,
-        id,
-      ) ??
-      ref.watch(libraryTrackByIdProvider(id)).asData?.value;
-});
+final ProviderFamily<LibraryTrackSummary?, int> deckLibraryTrackProvider =
+    Provider.family<LibraryTrackSummary?, int>((ref, deckId) {
+      final id = ref.watch(deckTrackIdProvider(deckId));
+      if (id == null) {
+        return null;
+      }
+      // Prefer the visible table, then other in-memory lists, then a tab-stable
+      // getTrack fetch — libraryTableTracksProvider is empty on History and may
+      // omit the loaded track on Drive.
+      return libraryTrackById(
+            ref.watch(libraryTableTracksProvider).asData?.value,
+            id,
+          ) ??
+          libraryTrackById(
+            ref.watch(collectionTracksProvider).asData?.value,
+            id,
+          ) ??
+          libraryTrackById(
+            ref.watch(driveResolvedByPathProvider).asData?.value.values,
+            id,
+          ) ??
+          ref.watch(libraryTrackByIdProvider(id)).asData?.value;
+    });
 
 /// Playing-deck key used for harmonic library coloring (master deck, then any playing deck).
 final harmonicReferenceKeyProvider = Provider<String?>((ref) {
@@ -355,11 +384,14 @@ final harmonicReferenceKeyProvider = Provider<String?>((ref) {
 });
 
 /// Tab-stable library row for a track id (survives History / Drive switches).
-final libraryTrackByIdProvider =
-    FutureProvider.family<LibraryTrackSummary?, String>((ref, trackId) async {
-      final transport = await ref.watch(libraryTransportProvider.future);
-      return transport.getTrack(trackId: trackId);
-    });
+final FutureProviderFamily<LibraryTrackSummary?, String>
+libraryTrackByIdProvider = FutureProvider.family<LibraryTrackSummary?, String>((
+  ref,
+  trackId,
+) async {
+  final transport = await ref.watch(libraryTransportProvider.future);
+  return transport.getTrack(trackId: trackId);
+});
 
 /// Find [id] in [tracks]; used by [deckLibraryTrackProvider] and tests.
 LibraryTrackSummary? libraryTrackById(
@@ -377,54 +409,59 @@ LibraryTrackSummary? libraryTrackById(
   return null;
 }
 
-final deckHotCuesProvider = Provider.family<List<DeckHotCue>, int>((
-  ref,
-  deckId,
-) {
-  final trackId = ref.watch(deckTrackIdProvider(deckId));
-  if (trackId == null) {
-    return const [];
-  }
-  final rows = ref.watch(trackHotCuesProvider)[trackId];
-  if (rows == null) {
-    return const [];
-  }
-  return [
-    for (final row in rows)
-      DeckHotCue(slot: row.slot, positionMs: row.positionMs, label: row.label),
-  ];
-});
+final ProviderFamily<List<DeckHotCue>, int> deckHotCuesProvider =
+    Provider.family<List<DeckHotCue>, int>((ref, deckId) {
+      final trackId = ref.watch(deckTrackIdProvider(deckId));
+      if (trackId == null) {
+        return const [];
+      }
+      final rows = ref.watch(trackHotCuesProvider)[trackId];
+      if (rows == null) {
+        return const [];
+      }
+      return [
+        for (final row in rows)
+          DeckHotCue(
+            slot: row.slot,
+            positionMs: row.positionMs,
+            label: row.label,
+          ),
+      ];
+    });
 
-final deckActiveLoopProvider = Provider.family<ActiveLoopInfo?, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.activeLoopFor(deckId))),
-);
+final ProviderFamily<ActiveLoopInfo?, int> deckActiveLoopProvider =
+    Provider.family<ActiveLoopInfo?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.activeLoopFor(deckId))),
+    );
 
-final deckPendingLoopInMsProvider = Provider.family<int?, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.pendingLoopInMsFor(deckId))),
-);
+final ProviderFamily<int?, int> deckPendingLoopInMsProvider =
+    Provider.family<int?, int>(
+      (ref, deckId) => ref.watch(
+        engineUiProvider.select((s) => s.pendingLoopInMsFor(deckId)),
+      ),
+    );
 
-final deckSavedLoopsProvider = Provider.family<List<SavedLoopInfo>, int>((
-  ref,
-  deckId,
-) {
-  final trackId = ref.watch(deckTrackIdProvider(deckId));
-  if (trackId == null) {
-    return const [];
-  }
-  return ref.watch(trackSavedLoopsProvider)[trackId] ?? const [];
-});
+final ProviderFamily<List<SavedLoopInfo>, int> deckSavedLoopsProvider =
+    Provider.family<List<SavedLoopInfo>, int>((ref, deckId) {
+      final trackId = ref.watch(deckTrackIdProvider(deckId));
+      if (trackId == null) {
+        return const [];
+      }
+      return ref.watch(trackSavedLoopsProvider)[trackId] ?? const [];
+    });
 
-final deckMixerChannelProvider = Provider.family<MixerChannelUi, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.channelFor(deckId))),
-);
+final ProviderFamily<MixerChannelUi, int> deckMixerChannelProvider =
+    Provider.family<MixerChannelUi, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.channelFor(deckId))),
+    );
 
-final deckLevelsProvider = Provider.family<DeckLevels, int>(
-  (ref, deckId) =>
-      ref.watch(engineUiProvider.select((s) => s.levelsFor(deckId))),
-);
+final ProviderFamily<DeckLevels, int> deckLevelsProvider =
+    Provider.family<DeckLevels, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.levelsFor(deckId))),
+    );
 
 final crossfaderProvider = Provider<double>(
   (ref) => ref.watch(engineUiProvider.select((s) => s.crossfader)),
@@ -455,7 +492,7 @@ final engineTransportProvider = FutureProvider<EngineTransport?>((ref) async {
     return engine;
   } catch (e, st) {
     FlutterError.reportError(FlutterErrorDetails(exception: e, stack: st));
-    fatalExit(1);
+    fatalExit();
     rethrow;
   }
 });

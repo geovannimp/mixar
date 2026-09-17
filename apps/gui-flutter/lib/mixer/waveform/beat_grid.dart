@@ -28,7 +28,7 @@ double? parseGridBpm(String raw) {
 }
 
 class BeatMark {
-  const BeatMark({required this.x, required this.isBar});
+  const new({required this.x, required this.isBar});
 
   final double x;
   final bool isBar;

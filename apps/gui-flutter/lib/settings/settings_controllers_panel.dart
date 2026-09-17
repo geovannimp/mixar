@@ -1,21 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/settings/controller_mapping_row.dart';
-import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
-import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
-  const SettingsControllersPanel({
-    required this.draft,
-    required this.onChanged,
-    super.key,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
@@ -74,8 +70,7 @@ class _SettingsControllersPanelState
       children: [
         const SettingsSectionHeader(
           title: 'Controllers',
-          description:
-              'MIDI mappings live in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle. Trust device auto-enables on connect after Save.',
+          description: 'MIDI mappings live in app data. Seed copies shipped maps when missing; Update overwrites from the app bundle. Trust device auto-enables on connect after Save.',
         ),
         const SizedBox(height: 16),
         SettingsField(

@@ -1,13 +1,13 @@
 import 'dart:math' as math;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Matches Tauri `CONTROL_NORM_*` / EQ step mapping (`0.1 / 48`).
 const kControlNormMin = 0.0;
 const kControlNormMax = 1.0;
 const kControlNormCenter = 0.5;
-const kControlNormStep = 0.1 / 48.0;
+const double kControlNormStep = 0.1 / 48.0;
 
 /// Strip fader/trim `0..1` → ±24 dB (Tauri `normToStripDb`).
 const kEqMinDb = -24.0;
@@ -21,7 +21,7 @@ double normToStripDb(double norm) {
 /// Travel arc matches typical DJ pots: -135° … +135° (270° total).
 const _angleMinDeg = -135.0;
 const _angleSpanDeg = 270.0;
-const _angleMaxDeg = _angleMinDeg + _angleSpanDeg;
+const double _angleMaxDeg = _angleMinDeg + _angleSpanDeg;
 
 /// Pixels of vertical drag that span the full value range (Tauri parity).
 const _dragPixelsPerRange = 72.0;
@@ -83,12 +83,12 @@ double valueFromVerticalDrag({
   final deltaY = startY - clientY;
   final raw = startValue + (deltaY / _dragPixelsPerRange) * range;
   final snapped = snapToStep(raw, step, origin: min);
-  return snapped.clamp(min, max).toDouble();
+  return snapped.clamp(min, max);
 }
 
 /// DJ-style rotary control: 270° travel arc, vertical drag, center detent fill.
 class RotaryKnob extends StatefulWidget {
-  RotaryKnob({
+  new({
     required this.label,
     required this.value,
     required this.onValueChange,
@@ -224,7 +224,7 @@ class _RotaryKnobState extends State<RotaryKnob> {
 }
 
 class _RotaryKnobPainter extends CustomPainter {
-  _RotaryKnobPainter({
+  new({
     required this.fillFromDeg,
     required this.fillToDeg,
     required this.angleDeg,
@@ -346,10 +346,5 @@ Path? _clockwiseArcPath(double fromDeg, double toDeg, double radius) {
   final largeArc = span > 180;
   return Path()
     ..moveTo(start.dx, start.dy)
-    ..arcToPoint(
-      end,
-      radius: Radius.circular(radius),
-      largeArc: largeArc,
-      clockwise: true,
-    );
+    ..arcToPoint(end, radius: Radius.circular(radius), largeArc: largeArc);
 }

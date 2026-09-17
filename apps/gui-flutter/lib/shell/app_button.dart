@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/m_tappable.dart' show MTappable;
 
 import 'package:gui_flutter/shell/mixar_button_body.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
@@ -8,7 +9,7 @@ export 'package:gui_flutter/shell/mixar_button_style.dart'
 
 /// Settings / library / shell / dialog button (Forui visual parity, [MTappable]).
 class AppButton extends StatelessWidget {
-  const AppButton({
+  const new({
     required this.child,
     this.onPress,
     this.onSecondaryPress,
@@ -22,7 +23,7 @@ class AppButton extends StatelessWidget {
     super.key,
   }) : _icon = false;
 
-  const AppButton.icon({
+  const new icon({
     required this.child,
     this.onPress,
     this.onSecondaryPress,

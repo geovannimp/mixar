@@ -8,10 +8,10 @@ void main() {
   });
 
   test('range endpoints match ±tempoRange', () {
-    expect(normToSpeedRatio(0, 0.06), closeTo(1.06, 1e-12));
-    expect(normToSpeedRatio(1, 0.06), closeTo(0.94, 1e-12));
-    expect(formatPitchPercent(0, 0.06), '+6.00%');
-    expect(formatPitchPercent(1, 0.06), '-6.00%');
+    expect(normToSpeedRatio(0), closeTo(1.06, 1e-12));
+    expect(normToSpeedRatio(1), closeTo(0.94, 1e-12));
+    expect(formatPitchPercent(0), '+6.00%');
+    expect(formatPitchPercent(1), '-6.00%');
   });
 
   test('nextTempoRange cycles steps', () {
@@ -31,7 +31,7 @@ void main() {
   test('effectiveBpm scales with pitch; null when unloaded', () {
     expect(effectiveBpm(null, 0.5), isNull);
     expect(effectiveBpm(128, 0.5), 128);
-    expect(effectiveBpm(100, 0, 0.06), closeTo(106, 1e-12));
+    expect(effectiveBpm(100, 0), closeTo(106, 1e-12));
   });
 
   test('formatBpm handles unloaded and non-finite input', () {

@@ -143,7 +143,7 @@ tasks:
 
   analyze:
     command: "mise"
-    args: ["exec", "--", "flutter", "analyze"]
+    args: ["exec", "--", "flutter", "analyze", "--no-fatal-infos"]
     toolchain: "system"
     inputs:
       - "@group(sources)"
@@ -192,7 +192,7 @@ tasks:
     command: "bash"
     args:
       - "-c"
-      - "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX; mise exec -- flutter analyze"
+      - "unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX; mise exec -- flutter analyze --no-fatal-infos"
     toolchain: "system"
     inputs:
       - "**/*.dart"

@@ -5,11 +5,7 @@ import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsUiPanel extends StatelessWidget {
-  const SettingsUiPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;

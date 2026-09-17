@@ -4,13 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/deck_tempo_panel.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart'
     show defaultAppSettings;
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:material_ui/material_ui.dart';
+
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -99,7 +100,7 @@ void main() {
     tester,
   ) async {
     final ranges = <double>[];
-    await pumpPanel(tester, tempoRange: 0.06, onTempoRangeChange: ranges.add);
+    await pumpPanel(tester, onTempoRangeChange: ranges.add);
 
     await tester.tap(find.text('±6%'));
     await tester.pumpAndSettle();
