@@ -16,11 +16,12 @@ import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
+import 'package:gui_flutter/shell/mixar_popover.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
-import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerWidget {
@@ -375,39 +376,37 @@ class DeckGainPopover extends ConsumerWidget {
     );
     final total = autoGain + trimDb;
 
-    return FPopover(
-      popoverAnchor: Alignment.topLeft,
-      childAnchor: Alignment.bottomLeft,
-      popoverBuilder: (context, _) {
-        return ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 180),
-          child: Padding(
-            padding: const .all(12),
-            child: Column(
-              crossAxisAlignment: .stretch,
-              mainAxisSize: .min,
-              children: [
-                Text(
-                  'Gain',
-                  style: theme.typography.body.sm.copyWith(fontWeight: .w600),
+    return MixarPopover(
+      enabled: hasTrack,
+      overlayBuilder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Gain',
+                style: theme.typography.body.sm.copyWith(
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 8),
-                _GainRow(label: 'Loudness', value: _formatLufs(loudness)),
-                _GainRow(
-                  label: 'ReplayGain',
-                  value: loudness == null || !loudness.isFinite
-                      ? '—'
-                      : _formatGainDb(-18 - loudness),
-                ),
-                _GainRow(label: 'Auto gain', value: _formatGainDb(autoGain)),
-                _GainRow(label: 'Gain trim', value: _formatGainDb(trimDb)),
-                _GainRow(label: 'Total gain', value: _formatGainDb(total)),
-              ],
-            ),
+              ),
+              const SizedBox(height: 8),
+              _GainRow(label: 'Loudness', value: _formatLufs(loudness)),
+              _GainRow(
+                label: 'ReplayGain',
+                value: loudness == null || !loudness.isFinite
+                    ? '—'
+                    : _formatGainDb(-18 - loudness),
+              ),
+              _GainRow(label: 'Auto gain', value: _formatGainDb(autoGain)),
+              _GainRow(label: 'Gain trim', value: _formatGainDb(trimDb)),
+              _GainRow(label: 'Total gain', value: _formatGainDb(total)),
+            ],
           ),
         );
       },
-      builder: (context, controller, _) {
+      childBuilder: (context, controller) {
         final theme = context.theme;
         const tip = 'Deck gain details';
         return AppTooltip(
@@ -419,7 +418,7 @@ class DeckGainPopover extends ConsumerWidget {
               enabled: hasTrack,
               label: tip,
               child: Padding(
-                padding: const .all(4),
+                padding: const EdgeInsets.all(4),
                 child: Icon(
                   LucideIcons.info,
                   size: 14,
