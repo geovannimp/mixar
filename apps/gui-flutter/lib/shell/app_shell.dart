@@ -4,15 +4,15 @@ import 'package:gui_flutter/library/history_restore_bridge.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
+import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/controller_offer_bridge.dart';
-import 'package:gui_flutter/settings/settings_page.dart';
-import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/shell/shell_tab.dart';
 
 /// Top-level shell: header + Mixer / Settings body.
 class AppShell extends ConsumerStatefulWidget {
-  const AppShell({required this.appTitle, super.key});
+  const new({required this.appTitle, super.key});
 
   final String appTitle;
 
@@ -21,7 +21,7 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  var _tab = ShellTab.mixer;
+  ShellTab _tab = ShellTab.mixer;
 
   @override
   Widget build(BuildContext context) {

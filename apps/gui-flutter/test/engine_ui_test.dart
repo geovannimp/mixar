@@ -60,7 +60,7 @@ void main() {
     });
 
     test('updated playing flag is stored per deck', () {
-      var snap = applyEngineEvt(
+      final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(kind: EngineEvtKind.updated, deckId: 0, playing: true),
       );

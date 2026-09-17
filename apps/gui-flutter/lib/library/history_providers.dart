@@ -10,7 +10,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 export 'package:gui_flutter/library/history_refresh.dart'
-    show historyRefreshTickProvider, HistoryRefreshTick;
+    show HistoryRefreshTick, historyRefreshTickProvider;
 
 final historySessionsProvider = FutureProvider<List<HistorySessionSummary>>((
   ref,
@@ -78,7 +78,7 @@ final openHistorySessionIdProvider = Provider<String?>((ref) {
 
 /// Track ids / filesystem paths committed in the open history session.
 class SessionPlayedKeys {
-  const SessionPlayedKeys({required this.trackIds, required this.paths});
+  const new({required this.trackIds, required this.paths});
 
   final Set<String> trackIds;
   final Set<String> paths;

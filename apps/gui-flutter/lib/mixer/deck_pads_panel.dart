@@ -9,7 +9,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Presentational deck pads panel (mode tabs + per-mode grids).
 class DeckPadsPanel extends StatelessWidget {
-  const DeckPadsPanel({
+  const new({
     required this.padMode,
     required this.onPadMode,
     required this.hotCues,
@@ -149,7 +149,7 @@ class DeckPadsPanel extends StatelessWidget {
 }
 
 class _PadModeTab extends StatelessWidget {
-  const _PadModeTab({
+  const new({
     required this.label,
     required this.active,
     required this.onPress,

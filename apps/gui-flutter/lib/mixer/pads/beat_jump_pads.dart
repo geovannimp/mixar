@@ -5,7 +5,7 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class BeatJumpPads extends StatelessWidget {
-  const BeatJumpPads({
+  const new({
     required this.onPress,
     required this.onRelease,
     this.disabled = false,

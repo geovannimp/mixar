@@ -4,15 +4,11 @@ import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsSessionPanel extends StatelessWidget {
-  const SettingsSessionPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
@@ -34,8 +30,7 @@ class SettingsSessionPanel extends StatelessWidget {
             children: [
               const SettingsSectionHeader(
                 title: 'Performance history',
-                description:
-                    'Log deck playback to XSPF session files under app support.',
+                description: 'Log deck playback to XSPF session files under app support.',
               ),
               SettingsToggle(
                 label: 'Record performance history',
@@ -51,8 +46,7 @@ class SettingsSessionPanel extends StatelessWidget {
                   Expanded(
                     child: SettingsField(
                       label: 'Session idle timeout',
-                      hint:
-                          'Close after this long with no qualifying deck output.',
+                      hint: 'Close after this long with no qualifying deck output.',
                       child: MixarInput(
                         initialValue: '${draft.historySessionIdleMinutes}',
                         trailing: _suffixLabel(context, 'minutes'),
@@ -125,7 +119,7 @@ Widget _suffixLabel(BuildContext context, String text) {
 }
 
 class _MinDeckVolumeSlider extends StatelessWidget {
-  const _MinDeckVolumeSlider({required this.value, required this.onChanged});
+  const new({required this.value, required this.onChanged});
 
   final double value;
   final ValueChanged<double> onChanged;

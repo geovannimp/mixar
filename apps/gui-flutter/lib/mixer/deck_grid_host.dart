@@ -7,12 +7,12 @@ import 'package:gui_flutter/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Watches deck/library beat grid state and publishes grid edits.
 class DeckGridHost extends ConsumerStatefulWidget {
-  const DeckGridHost({
+  const new({
     required this.deckId,
     this.hasTrack = false,
     this.disabled = false,

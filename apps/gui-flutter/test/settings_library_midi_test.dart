@@ -1,16 +1,17 @@
-import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:material_ui/material_ui.dart';
+
 import 'support/mixar_material_app.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 void main() {
   testWidgets('library settings shows analysis quality', (tester) async {
@@ -109,7 +110,6 @@ void main() {
       deviceId: 'pioneer.ddj-400',
       vendorName: 'Pioneer',
       productName: 'DDJ-400',
-      description: null,
       midiNameContains: ['DDJ-400'],
       attached: false,
     );

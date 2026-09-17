@@ -8,7 +8,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 ///
 /// Uses [Anchor] with manual trigger so the child owns press handling.
 class MixarPopover extends StatefulWidget {
-  const MixarPopover({
+  const new({
     required this.childBuilder,
     required this.overlayBuilder,
     this.controller,
@@ -95,7 +95,7 @@ class _MixarPopoverState extends State<MixarPopover> {
 
 /// Button-anchored action menu (⋯ menus).
 class MixarMenuAnchor extends StatefulWidget {
-  const MixarMenuAnchor({
+  const new({
     required this.childBuilder,
     required this.menuBuilder,
     this.controller,
@@ -175,7 +175,7 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
 
 /// Primary-button outside tap dismisses (manual [Anchor] has no TapRegion dismiss).
 class _MixarOverlayDismissBackdrop extends StatelessWidget {
-  const _MixarOverlayDismissBackdrop({required this.onDismiss});
+  const new({required this.onDismiss});
 
   final VoidCallback onDismiss;
 

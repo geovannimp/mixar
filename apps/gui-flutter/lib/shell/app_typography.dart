@@ -12,24 +12,27 @@ abstract final class MixarFonts {
 /// swaps the default horizontal-`e` glyphs for angled Kabel-style alternates
 /// (what Google Fonts shows without stylistic sets).
 final _numericCaseFeatures = [
-  FontFeature.enable('case'),
-  FontFeature.tabularFigures(),
-  FontFeature.slashedZero(),
+  const FontFeature.enable('case'),
+  const FontFeature.tabularFigures(),
+  const FontFeature.slashedZero(),
 ];
 
 /// Space Grotesk display: keep ss01/ss04 from the marketing stack.
-final _displayFeatures = [
+final List<FontFeature> _displayFeatures = [
   FontFeature.stylisticSet(1), // ss01
   FontFeature.stylisticSet(4), // ss04
   ..._numericCaseFeatures,
 ];
 
-final _monoFeatures = [FontFeature.tabularFigures(), FontFeature.slashedZero()];
+final _monoFeatures = [
+  const FontFeature.tabularFigures(),
+  const FontFeature.slashedZero(),
+];
 
 /// Size scale for one face (Forui desktop non-touch sizes).
 @immutable
 class MixarTypeface {
-  const MixarTypeface({
+  const new({
     required this.fontFamily,
     required this.xs3,
     required this.xs2,
@@ -48,7 +51,7 @@ class MixarTypeface {
     this.fontFamilyFallback = const [],
   });
 
-  factory MixarTypeface.desktop({
+  factory desktop({
     required Color color,
     required String fontFamily,
     List<String> fontFamilyFallback = const [],
@@ -107,13 +110,9 @@ class MixarTypeface {
 /// Outfit body, Space Grotesk display, Noto Sans Mono — Tauri-era stack.
 @immutable
 class MixarTypography {
-  const MixarTypography({
-    required this.display,
-    required this.body,
-    required this.mono,
-  });
+  const new({required this.display, required this.body, required this.mono});
 
-  factory MixarTypography.mixar(Color foreground) {
+  factory mixar(Color foreground) {
     return MixarTypography(
       display: MixarTypeface.desktop(
         color: foreground,

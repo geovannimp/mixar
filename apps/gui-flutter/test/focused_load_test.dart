@@ -25,7 +25,7 @@ void main() {
     final tracks = [_track('t1'), _track('t2')];
     expect(
       focusedLoadPayload(tracks, 1, inLibrary: (_) => true),
-      TrackDragPayload(
+      const TrackDragPayload(
         source: TrackDragSource.library,
         trackId: 't2',
         path: '/tmp/t2.wav',
@@ -36,7 +36,7 @@ void main() {
 
   test('focusedLoadPayload uses path for filesystem rows', () {
     final tracks = [
-      LibraryTrackSummary(
+      const LibraryTrackSummary(
         id: '/tmp/a.wav',
         displayName: 'a.wav',
         path: '/tmp/a.wav',
@@ -44,7 +44,7 @@ void main() {
     ];
     expect(
       focusedLoadPayload(tracks, 0, inLibrary: (_) => false),
-      TrackDragPayload(
+      const TrackDragPayload(
         source: TrackDragSource.filesystem,
         path: '/tmp/a.wav',
         title: 'a.wav',

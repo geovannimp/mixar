@@ -8,7 +8,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// Fixed [minWidth] — Anchor overlays get viewport-max constraints, so a
 /// min-only [ConstrainedBox] + [Expanded] chips expands to full screen.
 class MixarMenuPanel extends StatelessWidget {
-  const MixarMenuPanel({required this.child, this.minWidth = 180, super.key});
+  const new({required this.child, this.minWidth = 180, super.key});
 
   final Widget child;
   final double minWidth;
@@ -43,7 +43,7 @@ class MixarMenuPanel extends StatelessWidget {
 
 /// Column of [MixarMenuGroup]s with hairline separators between groups.
 class MixarMenuBody extends StatelessWidget {
-  const MixarMenuBody({required this.groups, super.key});
+  const new({required this.groups, super.key});
 
   final List<Widget> groups;
 
@@ -66,7 +66,7 @@ class MixarMenuBody extends StatelessWidget {
 }
 
 class MixarMenuGroup extends StatelessWidget {
-  const MixarMenuGroup({required this.children, super.key});
+  const new({required this.children, super.key});
 
   final List<Widget> children;
 
@@ -83,7 +83,7 @@ class MixarMenuGroup extends StatelessWidget {
 /// Tappable menu row. Prefer [title] for text actions; [child] for custom
 /// blocks (e.g. load-to-deck chips).
 class MixarMenuItem extends StatelessWidget {
-  const MixarMenuItem({
+  const new({
     this.title,
     this.child,
     this.enabled = true,

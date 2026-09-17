@@ -10,9 +10,9 @@ import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:panes/panes.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Library panel: left [MTabs] (Collections / Drive / History); right pane
 /// follows the selected tab.
@@ -20,7 +20,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// Horizontal split sizes are session-local (no [PaneController.save] /
 /// [PaneController.load]).
 class LibraryPanel extends ConsumerStatefulWidget {
-  const LibraryPanel({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<LibraryPanel> createState() => _LibraryPanelState();
@@ -39,7 +39,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
           initialSize: PaneSize.pixel(240),
           minSize: PaneSize.pixel(240),
         ),
-        PaneEntry(id: 'content', initialSize: PaneSize.fraction(1.0)),
+        PaneEntry(id: 'content', initialSize: PaneSize.fraction(1)),
       ],
     );
   }
@@ -112,7 +112,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                             tip: 'Collections',
                             child: Semantics(
                               label: 'Collections',
-                              child: Icon(LucideIcons.library, size: 16),
+                              child: const Icon(LucideIcons.library, size: 16),
                             ),
                           ),
                           child: const CollectionsPane(),
@@ -122,7 +122,10 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                             tip: 'Drive',
                             child: Semantics(
                               label: 'Drive',
-                              child: Icon(LucideIcons.hardDrive, size: 16),
+                              child: const Icon(
+                                LucideIcons.hardDrive,
+                                size: 16,
+                              ),
                             ),
                           ),
                           child: const DrivePane(),
@@ -132,7 +135,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                             tip: 'History',
                             child: Semantics(
                               label: 'History',
-                              child: Icon(LucideIcons.history, size: 16),
+                              child: const Icon(LucideIcons.history, size: 16),
                             ),
                           ),
                           child: const HistoryPane(),

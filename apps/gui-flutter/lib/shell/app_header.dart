@@ -1,18 +1,18 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/desktop.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/shell_tab.dart';
 import 'package:gui_flutter/shell/window_title_bar_controls.dart';
-import 'package:window_manager/window_manager.dart';
-import 'package:gui_flutter/shell/app_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:window_manager/window_manager.dart';
 
 /// Brand | drag region | status | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {
-  const AppHeader({
+  const new({
     required this.appTitle,
     required this.tab,
     required this.onTabChanged,
@@ -54,7 +54,6 @@ class AppHeader extends ConsumerWidget {
                     child: Image.asset(
                       'assets/mixar-logo.png',
                       height: 12,
-                      filterQuality: FilterQuality.medium,
                       semanticLabel: appTitle,
                     ),
                   ),

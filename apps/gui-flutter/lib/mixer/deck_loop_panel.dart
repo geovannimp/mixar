@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/shell/app_tooltip.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Tauri `AUTO_LOOP_BEATS`.
 const kAutoLoopBeats = [1, 2, 4, 8, 16, 32];
@@ -15,9 +15,10 @@ int autoLoopBeatIndex(int beats) {
 
 /// Step [beats] by [delta] slots within [kAutoLoopBeats], clamped.
 int stepAutoLoopBeats(int beats, int delta) {
-  final next = (autoLoopBeatIndex(beats) + delta)
-      .clamp(0, kAutoLoopBeats.length - 1)
-      .toInt();
+  final next = (autoLoopBeatIndex(beats) + delta).clamp(
+    0,
+    kAutoLoopBeats.length - 1,
+  );
   return kAutoLoopBeats[next];
 }
 
@@ -75,7 +76,7 @@ int beatsFromLoopMs({
 /// IN  OUT
 /// ```
 class DeckLoopPanel extends StatelessWidget {
-  const DeckLoopPanel({
+  const new({
     required this.loopActive,
     required this.loopBeats,
     required this.onToggleLoop,

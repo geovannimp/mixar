@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +7,13 @@ import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Sidebar list of performance history sessions.
 class HistoryPane extends ConsumerStatefulWidget {
-  const HistoryPane({super.key});
+  const new({super.key});
 
   @override
   ConsumerState<HistoryPane> createState() => _HistoryPaneState();
@@ -183,7 +183,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
 }
 
 class _LiveBadge extends StatelessWidget {
-  const _LiveBadge({required this.theme});
+  const new({required this.theme});
 
   static const _liveGreen = Color(0xFF22C55E);
 

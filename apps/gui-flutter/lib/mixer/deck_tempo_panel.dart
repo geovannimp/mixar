@@ -1,17 +1,17 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
 class DeckTempoPanel extends StatelessWidget {
-  const DeckTempoPanel({
+  const new({
     required this.accent,
     required this.speed,
     required this.tempoRange,
@@ -113,24 +113,20 @@ class DeckTempoPanel extends StatelessWidget {
                     final (:tip, :description) = isMaster
                         ? (
                             tip: 'Sync master',
-                            description:
-                                'This deck is the tempo reference for synced decks.',
+                            description: 'This deck is the tempo reference for synced decks.',
                           )
                         : switch (syncMode) {
                             SyncMode.off => (
                               tip: 'Sync',
-                              description:
-                                  'Match this deck\'s tempo to the master. Shift+click for beat sync.',
+                              description: "Match this deck's tempo to the master. Shift+click for beat sync.",
                             ),
                             SyncMode.tempo => (
                               tip: 'Tempo sync',
-                              description:
-                                  'Tempo follows the master. Click again to turn sync off.',
+                              description: 'Tempo follows the master. Click again to turn sync off.',
                             ),
                             SyncMode.beat => (
                               tip: 'Beat sync',
-                              description:
-                                  'Tempo and phase follow the master. Click again to turn sync off.',
+                              description: 'Tempo and phase follow the master. Click again to turn sync off.',
                             ),
                           };
                     return AppTooltip(
@@ -199,11 +195,8 @@ class DeckTempoPanel extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   child: FaderSlider(
-                    orientation: .vertical,
                     accent: this.accent,
                     value: sliderValue,
-                    min: 0,
-                    max: 100,
                     step: 0.05,
                     showIndicator: false,
                     showMarkers: true,

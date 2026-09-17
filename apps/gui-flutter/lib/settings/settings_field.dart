@@ -2,11 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsSectionHeader extends StatelessWidget {
-  const SettingsSectionHeader({
-    super.key,
-    required this.title,
-    required this.description,
-  });
+  const new({required this.title, required this.description, super.key});
 
   final String title;
   final String description;
@@ -34,12 +30,12 @@ class SettingsSectionHeader extends StatelessWidget {
 }
 
 class SettingsField extends StatelessWidget {
-  const SettingsField({
-    super.key,
+  const new({
     required this.label,
+    required this.child,
+    super.key,
     this.hint,
     this.trailing,
-    required this.child,
   });
 
   final String label;

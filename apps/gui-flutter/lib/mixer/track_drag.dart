@@ -22,7 +22,7 @@ enum TrackDragSource { library, filesystem }
 enum TrackLoadKind { library, path }
 
 class TrackDragPayload {
-  const TrackDragPayload({
+  const new({
     required this.source,
     required this.path,
     required this.title,
@@ -66,7 +66,7 @@ TrackLoadKind trackLoadKind(TrackDragPayload payload) {
 }
 
 String fileNameFromPath(String path) {
-  final base = path.replaceAll('\\', '/').split('/').last;
+  final base = path.replaceAll(r'\', '/').split('/').last;
   return base.isEmpty ? path : base;
 }
 

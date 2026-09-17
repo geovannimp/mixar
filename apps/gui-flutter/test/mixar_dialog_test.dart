@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_button_style.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -32,9 +32,8 @@ void main() {
       tester,
       Builder(
         builder: (context) {
-          final label = flutter_material.MaterialLocalizations.of(
-            context,
-          ).dialogLabel;
+          final label = flutter_material.MaterialLocalizations.of(context)
+              .dialogLabel;
           return Text(label);
         },
       ),
@@ -75,9 +74,8 @@ void main() {
       tester,
       Builder(
         builder: (context) {
-          final label = flutter_material.MaterialLocalizations.of(
-            context,
-          ).dialogLabel;
+          final label = flutter_material.MaterialLocalizations.of(context)
+              .dialogLabel;
           return Text(label);
         },
       ),

@@ -1,15 +1,15 @@
 import 'package:flutter/widgets.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Mixar select / dropdown over [ShadSelect].
 class MixarSelect<T> extends StatelessWidget {
-  const MixarSelect({
-    super.key,
+  const new({
     required this.value,
     required this.options,
     required this.labelBuilder,
     required this.onChanged,
+    super.key,
     this.subtitleBuilder,
     this.enabled = true,
     this.placeholder,

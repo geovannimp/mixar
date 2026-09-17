@@ -2,16 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsMixerPanel extends StatelessWidget {
-  const SettingsMixerPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
@@ -65,7 +61,7 @@ class SettingsMixerPanel extends StatelessWidget {
 }
 
 class _NumericStepper extends StatelessWidget {
-  const _NumericStepper({
+  const new({
     required this.value,
     required this.min,
     required this.max,

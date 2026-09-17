@@ -6,7 +6,7 @@ import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class LoopRollPads extends StatelessWidget {
-  const LoopRollPads({
+  const new({
     required this.onPress,
     required this.onRelease,
     this.disabled = false,

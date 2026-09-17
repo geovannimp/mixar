@@ -1,9 +1,5 @@
 class SpectralPeak {
-  const SpectralPeak({
-    required this.low,
-    required this.mid,
-    required this.high,
-  });
+  const new({required this.low, required this.mid, required this.high});
 
   final double low;
   final double mid;
@@ -11,11 +7,7 @@ class SpectralPeak {
 }
 
 class DetailWindow {
-  const DetailWindow({
-    required this.peaks,
-    required this.startMs,
-    required this.endMs,
-  });
+  const new({required this.peaks, required this.startMs, required this.endMs});
 
   final List<SpectralPeak> peaks;
   final int startMs;

@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:hint_kit/hint_kit.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:hint_kit/hint_kit.dart';
 
 /// Tip gated by Settings → UI → Show tooltips (default on).
 ///
@@ -11,7 +11,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 ///
 /// Uses [hint_kit](https://pub.dev/packages/hint_kit) instead of Forui tooltips.
 class AppTooltip extends ConsumerWidget {
-  const AppTooltip({
+  const new({
     required this.tip,
     required this.child,
     this.description,
@@ -22,7 +22,7 @@ class AppTooltip extends ConsumerWidget {
   final String? description;
   final Widget child;
 
-  static const _triggers = {HintTrigger.hover};
+  static const Set<HintTrigger> _triggers = {HintTrigger.hover};
   static const _wait = Duration(milliseconds: 400);
   static const _theme = HintThemeData(
     preset: HintPreset.minimal,

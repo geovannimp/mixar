@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 /// Pointer / focus state for [MTappable] builders.
 @immutable
 class MTappableState {
-  const MTappableState({
+  const new({
     required this.hovered,
     required this.pressed,
     required this.focused,
@@ -22,12 +22,14 @@ class MTappableState {
   bool get active => !disabled && (hovered || pressed || selected);
 }
 
-typedef MTappableBuilder =
-    Widget Function(BuildContext context, MTappableState state);
+typedef MTappableBuilder = Widget Function(
+  BuildContext context,
+  MTappableState state,
+);
 
 /// Lightweight tappable: [MouseRegion] + [GestureDetector], instant state, no bounce.
 class MTappable extends StatefulWidget {
-  const MTappable({
+  const new({
     required this.builder,
     this.onPress,
     this.onSecondaryPress,
@@ -39,7 +41,7 @@ class MTappable extends StatefulWidget {
   });
 
   /// Static child that ignores hover/press paint (icon chips, dismiss overlays).
-  MTappable.child({
+  new child({
     required Widget child,
     this.onPress,
     this.onSecondaryPress,

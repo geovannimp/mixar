@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -12,9 +11,10 @@ import 'package:gui_flutter/mixer/waveform/peaks.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_picture.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:gui_flutter/shell/mixar_toast.dart';
 
 const _waveformSkeletonEffect = ShimmerEffect(
   baseColor: kWaveformBg,
@@ -22,7 +22,7 @@ const _waveformSkeletonEffect = ShimmerEffect(
 );
 
 class OverviewStrip extends ConsumerWidget {
-  const OverviewStrip({required this.deckId, this.height = 28, super.key});
+  const new({required this.deckId, this.height = 28, super.key});
 
   final int deckId;
   final double height;
@@ -87,8 +87,8 @@ class OverviewStrip extends ConsumerWidget {
                         width: playheadX,
                         top: 0,
                         bottom: 0,
-                        child: ColoredBox(
-                          color: const Color.fromRGBO(0, 0, 0, 0.6),
+                        child: const ColoredBox(
+                          color: Color.fromRGBO(0, 0, 0, 0.6),
                         ),
                       ),
                     if (durationMs > 0 && width > 0)
@@ -126,7 +126,7 @@ class OverviewStrip extends ConsumerWidget {
 
 /// Cached Loop + Cue pictures for the overview (no beat grid / active loop).
 class _OverviewOverlayLayer extends StatefulWidget {
-  const _OverviewOverlayLayer({
+  const new({
     required this.durationMs,
     required this.width,
     required this.height,
@@ -228,7 +228,7 @@ class _OverviewOverlayLayerState extends State<_OverviewOverlayLayer> {
 }
 
 class _OverviewOverlayPainter extends CustomPainter {
-  _OverviewOverlayPainter({required this.loops, required this.cues});
+  new({required this.loops, required this.cues});
 
   final ui.Picture? loops;
   final ui.Picture? cues;

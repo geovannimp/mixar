@@ -7,7 +7,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Dual scrolling lanes. Overview strips live on each deck panel.
 class WaveformSection extends ConsumerWidget {
-  const WaveformSection({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,11 +19,11 @@ class WaveformSection extends ConsumerWidget {
       color: theme.colors.background,
       child: Stack(
         children: [
-          Column(
+          const Column(
             children: [
-              const Expanded(child: ScrollingLane(deckId: 0, label: 'A')),
-              const MDivider(padding: .zero),
-              const Expanded(child: ScrollingLane(deckId: 1, label: 'B')),
+              Expanded(child: ScrollingLane(deckId: 0, label: 'A')),
+              MDivider(padding: .zero),
+              Expanded(child: ScrollingLane(deckId: 1, label: 'B')),
             ],
           ),
           if (!hasA && !hasB)

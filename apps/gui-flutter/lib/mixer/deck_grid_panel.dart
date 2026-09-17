@@ -1,15 +1,15 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Beat-grid edit panel for the performance surface.
 ///
@@ -21,7 +21,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// ⇤  Beat 1  ⇥
 /// ```
 class DeckGridPanel extends StatelessWidget {
-  const DeckGridPanel({
+  const new({
     required this.bpm,
     required this.onSetDownbeat,
     required this.onNudgeBack,
@@ -201,11 +201,7 @@ class DeckGridPanel extends StatelessWidget {
 }
 
 class _BpmField extends StatefulWidget {
-  const _BpmField({
-    required this.bpm,
-    required this.enabled,
-    required this.onSubmit,
-  });
+  const new({required this.bpm, required this.enabled, required this.onSubmit});
 
   final double? bpm;
   final bool enabled;
@@ -294,7 +290,7 @@ class _BpmFieldState extends State<_BpmField> {
         textAlign: TextAlign.center,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.done,
-        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+        inputFormatters: [FilteringTextInputFormatter.allow(RegExp('[0-9.]'))],
         style: bpmTextStyle,
         controller: _controller,
         focusNode: _focus,

@@ -1,11 +1,11 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Mixar text field over [ShadInput].
 class MixarInput extends StatelessWidget {
-  const MixarInput({
+  const new({
     super.key,
     this.controller,
     this.initialValue,

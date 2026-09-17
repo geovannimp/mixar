@@ -1,3 +1,9 @@
+import 'package:flutter/animation.dart' show AnimationController;
+import 'package:flutter/cupertino.dart' show AnimationController;
+import 'package:flutter/material.dart' show AnimationController;
+import 'package:flutter/widgets.dart' show AnimationController;
+import 'package:material_ui/material_ui.dart' show AnimationController;
+
 const kWaveformVisibleMs = 24000;
 const kWaveformBufferRatio = 1.0;
 const kWaveformRefreshMargin = 0.35;
@@ -146,11 +152,11 @@ int l1EndMs({required int positionMs, required int visibleMs}) =>
   final start = l1StartMs(
     positionMs: positionMs,
     visibleMs: visibleMs,
-  ).clamp(0, durationMs).toInt();
+  ).clamp(0, durationMs);
   final end = l1EndMs(
     positionMs: positionMs,
     visibleMs: visibleMs,
-  ).clamp(start, durationMs).toInt();
+  ).clamp(start, durationMs);
   return (startMs: start, endMs: end);
 }
 

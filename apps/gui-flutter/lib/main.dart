@@ -50,7 +50,7 @@ Future<void> main() async {
 
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
 class Application extends StatelessWidget {
-  const Application({required this.appTitle, super.key});
+  const new({required this.appTitle, super.key});
 
   final String appTitle;
 
@@ -71,7 +71,6 @@ class Application extends StatelessWidget {
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: light,
       darkTheme: dark,

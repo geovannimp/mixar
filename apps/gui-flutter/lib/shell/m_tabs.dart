@@ -5,7 +5,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// One tab label + pane for [MTabs].
 @immutable
 class MTabEntry {
-  const MTabEntry({required this.label, required this.child});
+  const new({required this.label, required this.child});
 
   final Widget label;
   final Widget child;
@@ -19,7 +19,7 @@ class MTabEntry {
 /// When [expands] is true, the selected chip slides between equal slots (Material [TabBar]
 /// parity). When false, the chip snaps onto the selected label without a slide.
 class MTabs extends StatefulWidget {
-  const MTabs({
+  const new({
     required this.children,
     this.direction = Axis.horizontal,
     this.index,
@@ -119,7 +119,7 @@ class _MTabsState extends State<MTabs> {
 }
 
 class _TabBar extends StatelessWidget {
-  const _TabBar({
+  const new({
     required this.direction,
     required this.expands,
     required this.current,
@@ -214,7 +214,7 @@ class _TabBar extends StatelessWidget {
 }
 
 class _TabHeader extends StatelessWidget {
-  const _TabHeader({
+  const new({
     required this.selected,
     required this.expands,
     required this.onPress,

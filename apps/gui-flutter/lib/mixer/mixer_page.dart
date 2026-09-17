@@ -3,8 +3,8 @@ import 'package:gui_flutter/mixer/deck_grid.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/waveform_section.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
-import 'package:panes/panes.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:panes/panes.dart';
 
 /// Mixer page with resizable regions ([MultiPane]).
 ///
@@ -12,7 +12,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// region — only the waveform/library split moves. Sizes are session-local
 /// (no [PaneController.save] / [PaneController.load]).
 class MixerPage extends StatefulWidget {
-  const MixerPage({super.key});
+  const new({super.key});
 
   static const _waveformDefault = 160.0;
   static const _waveformMin = 110.0;
@@ -35,7 +35,7 @@ class _MixerPageState extends State<MixerPage> {
           initialSize: PaneSize.pixel(MixerPage._waveformDefault),
           minSize: PaneSize.pixel(MixerPage._waveformMin),
         ),
-        PaneEntry(id: 'decks_library', initialSize: PaneSize.fraction(1.0)),
+        PaneEntry(id: 'decks_library', initialSize: PaneSize.fraction(1)),
       ],
     );
   }
@@ -64,15 +64,15 @@ class _MixerPageState extends State<MixerPage> {
           'waveforms' => const WaveformSection(),
           'decks_library' => ColoredBox(
             color: context.theme.colors.card,
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
                   height: MixerPage._deckRowHeight,
-                  child: const ClipRect(child: DeckGrid()),
+                  child: ClipRect(child: DeckGrid()),
                 ),
-                const MDivider(padding: .zero),
-                const Expanded(child: LibraryPanel()),
+                MDivider(padding: .zero),
+                Expanded(child: LibraryPanel()),
               ],
             ),
           ),

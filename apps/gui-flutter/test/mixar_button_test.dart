@@ -1,16 +1,16 @@
 import 'dart:ui' show Tristate;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester, Widget child) async {
@@ -47,13 +47,10 @@ void main() {
   });
 
   testWidgets('MTappable disabled ignores presses', (tester) async {
-    var taps = 0;
+    const taps = 0;
     await pumpApp(
       tester,
-      MTappable(
-        onPress: null,
-        builder: (_, state) => Text(state.disabled ? 'Off' : 'On'),
-      ),
+      MTappable(builder: (_, state) => Text(state.disabled ? 'Off' : 'On')),
     );
     expect(find.text('Off'), findsOneWidget);
     await tester.tap(find.text('Off'));
@@ -126,7 +123,6 @@ void main() {
     await pumpApp(
       tester,
       MTappable(
-        onPress: null,
         onSecondaryPress: () => secondary++,
         builder: (_, _) => const Text('Chip'),
       ),

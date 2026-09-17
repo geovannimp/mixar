@@ -48,7 +48,7 @@ const kDefaultPreviewBus = BusRouteSettings(
   mode: BusChannelMode.stereo,
 );
 
-const kLibraryColumnDefs = [
+const List<({String id, String label, bool required})> kLibraryColumnDefs = [
   (id: 'title', label: 'Title', required: true),
   (id: 'artist', label: 'Artist', required: false),
   (id: 'album', label: 'Album', required: false),

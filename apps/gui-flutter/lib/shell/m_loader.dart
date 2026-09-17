@@ -1,13 +1,13 @@
 import 'package:flutter/widgets.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Indeterminate loader sizes (Forui circular-progress body font Size parity).
 enum MLoaderSize { xs, sm, md, lg, xl }
 
 /// Spinning Lucide [LucideIcons.loaderCircle] indeterminate loader.
 class MLoader extends StatefulWidget {
-  const MLoader({
+  const new({
     this.size = MLoaderSize.md,
     this.color,
     this.semanticsLabel,

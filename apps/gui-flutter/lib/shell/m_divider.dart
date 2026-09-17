@@ -3,7 +3,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Hairline separator (Forui divider visual parity).
 class MDivider extends StatelessWidget {
-  const MDivider({
+  const new({
     this.axis = Axis.horizontal,
     this.padding,
     this.color,

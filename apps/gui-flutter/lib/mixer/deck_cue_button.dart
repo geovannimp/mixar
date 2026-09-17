@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Cue amber — same tokens as master PFL (`master_strip.dart` / DESIGN.md).
 const _cueOn = Color(0xFFFCD34D); // amber-300
@@ -10,7 +10,7 @@ const _cueFill = Color(0x28F59E0B); // amber-500/16
 
 /// Hold to audition cue; tap (under [_holdThreshold]) sets the cue point.
 class DeckCueButton extends StatefulWidget {
-  const DeckCueButton({
+  const new({
     required this.disabled,
     required this.onBeginHold,
     required this.onEndHold,

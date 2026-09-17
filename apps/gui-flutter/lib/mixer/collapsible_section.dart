@@ -8,7 +8,7 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 /// Set [fillRemaining] when this is a direct [Column] child that should take
 /// leftover height while open (inner [child] is then wrapped in [Expanded]).
 class CollapsibleSection extends StatefulWidget {
-  const CollapsibleSection({
+  const new({
     required this.label,
     required this.child,
     this.initiallyOpen = true,
@@ -30,7 +30,7 @@ class CollapsibleSection extends StatefulWidget {
 }
 
 class _CollapsibleSectionState extends State<CollapsibleSection> {
-  late var _open = widget.initiallyOpen;
+  late bool _open = widget.initiallyOpen;
 
   @override
   Widget build(BuildContext context) {

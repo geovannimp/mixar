@@ -1,12 +1,12 @@
 import 'dart:math' as math;
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 enum LevelMeterMode { mono, stereo }
 
 class DeckLevels {
-  const DeckLevels({
+  const new({
     required this.peakL,
     required this.peakR,
     required this.peakHoldL,
@@ -57,11 +57,12 @@ int? holdSegment(double hold) {
 }
 
 // Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on MCard).
-final _green = const Color(
-  0xff10b981,
-).withValues(alpha: 0.45); // emerald-500/45
-final _amber = const Color(0xfffbbf24).withValues(alpha: 0.45); // amber-400/45
-final _red = const Color(0xffef4444).withValues(alpha: 0.50); // red-500/50
+final Color _green = const Color(0xff10b981)
+    .withValues(alpha: 0.45); // emerald-500/45
+final Color _amber = const Color(0xfffbbf24)
+    .withValues(alpha: 0.45); // amber-400/45
+final Color _red = const Color(0xffef4444)
+    .withValues(alpha: 0.50); // red-500/50
 
 Color _segmentColor(Color off, int fromBottom, {required bool lit}) {
   if (!lit) return off;
@@ -72,7 +73,7 @@ Color _segmentColor(Color off, int fromBottom, {required bool lit}) {
 
 /// Vertical LED ladder matching Tauri `LevelMeter` / `Ladder`.
 class LevelMeter extends StatelessWidget {
-  const LevelMeter({required this.levels, required this.mode, super.key});
+  const new({required this.levels, required this.mode, super.key});
 
   final DeckLevels levels;
   final LevelMeterMode mode;
@@ -98,7 +99,7 @@ class LevelMeter extends StatelessWidget {
 }
 
 class _Ladder extends StatelessWidget {
-  const _Ladder({required this.peak, required this.hold});
+  const new({required this.peak, required this.hold});
 
   final double peak;
   final double hold;

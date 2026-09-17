@@ -6,43 +6,48 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:riverpod/src/providers/future_provider.dart';
+import 'package:riverpod/src/providers/provider.dart';
 
-final waveformOverviewProvider =
-    FutureProvider.family<List<SpectralPeak>, String>((ref, trackId) async {
-      ref.watch(libraryAnalysisEpochProvider);
-      final lib = await ref.watch(libraryTransportProvider.future);
-      final packed = await lib.getWaveformOverview(trackId: trackId);
-      if (packed == null) {
-        return const [];
-      }
-      return decodeRgbPeaks(packed.rgb);
-    });
-
-final beatGridFetchProvider = FutureProvider.family<BeatGridData?, String>((
+final FutureProviderFamily<List<SpectralPeak>, String>
+waveformOverviewProvider = FutureProvider.family<List<SpectralPeak>, String>((
   ref,
   trackId,
 ) async {
   ref.watch(libraryAnalysisEpochProvider);
   final lib = await ref.watch(libraryTransportProvider.future);
-  return lib.getBeatGrid(trackId: trackId);
+  final packed = await lib.getWaveformOverview(trackId: trackId);
+  if (packed == null) {
+    return const [];
+  }
+  return decodeRgbPeaks(packed.rgb);
 });
+
+final FutureProviderFamily<BeatGridData?, String> beatGridFetchProvider =
+    FutureProvider.family<BeatGridData?, String>((ref, trackId) async {
+      ref.watch(libraryAnalysisEpochProvider);
+      final lib = await ref.watch(libraryTransportProvider.future);
+      return lib.getBeatGrid(trackId: trackId);
+    });
 
 /// Beat grid for a track: event cache first, otherwise the initial library fetch.
-final beatGridProvider = Provider.family<BeatGridData?, String>((ref, trackId) {
-  final cache = ref.watch(trackBeatGridsProvider);
-  if (cache.containsKey(trackId)) {
-    return cache[trackId];
-  }
-  return ref.watch(beatGridFetchProvider(trackId)).value;
-});
+final ProviderFamily<BeatGridData?, String> beatGridProvider =
+    Provider.family<BeatGridData?, String>((ref, trackId) {
+      final cache = ref.watch(trackBeatGridsProvider);
+      if (cache.containsKey(trackId)) {
+        return cache[trackId];
+      }
+      return ref.watch(beatGridFetchProvider(trackId)).value;
+    });
 
 /// True only while the first fetch is in flight (not after grid edits).
-final beatGridLoadingProvider = Provider.family<bool, String>((ref, trackId) {
-  if (ref.watch(trackBeatGridsProvider).containsKey(trackId)) {
-    return false;
-  }
-  return ref.watch(beatGridFetchProvider(trackId)).isLoading;
-});
+final ProviderFamily<bool, String> beatGridLoadingProvider =
+    Provider.family<bool, String>((ref, trackId) {
+      if (ref.watch(trackBeatGridsProvider).containsKey(trackId)) {
+        return false;
+      }
+      return ref.watch(beatGridFetchProvider(trackId)).isLoading;
+    });
 
 final waveformDisplayModeProvider = Provider<WaveformDisplayMode>((ref) {
   return waveformModeFromSettings(

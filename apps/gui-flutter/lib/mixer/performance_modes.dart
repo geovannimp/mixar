@@ -1,3 +1,6 @@
+import 'package:gui_flutter/mixer/pad_modes.dart' show PadMode;
+import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
+
 /// Top-level deck performance surface modes (vertical Pads / Loop / Grid / Jog tabs).
 ///
 /// Distinct from [PadMode] (Hot Cue / Roll / … inside the Pads surface).

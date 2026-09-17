@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
-
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 enum MixarButtonVariant { primary, secondary, outline, ghost, destructive }
 
@@ -17,7 +16,7 @@ enum MixarButtonDensity {
 
 @immutable
 class MixarButtonLook {
-  const MixarButtonLook({
+  const new({
     required this.decoration,
     required this.foreground,
     required this.textStyle,

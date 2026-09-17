@@ -2,17 +2,18 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/mixar_colors.dart';
 import 'package:gui_flutter/shell/mixar_style.dart';
+import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme;
 
 /// Mixar-owned theme tokens. Seeds [ShadTheme] at the app root.
 @immutable
 class MixarThemeData {
-  const MixarThemeData({
+  const new({
     required this.colors,
     required this.typography,
     required this.style,
   });
 
-  factory MixarThemeData.light() {
+  factory light() {
     const colors = MixarColors.light;
     return MixarThemeData(
       colors: colors,
@@ -21,7 +22,7 @@ class MixarThemeData {
     );
   }
 
-  factory MixarThemeData.dark() {
+  factory dark() {
     const colors = MixarColors.dark;
     return MixarThemeData(
       colors: colors,
@@ -30,8 +31,7 @@ class MixarThemeData {
     );
   }
 
-  factory MixarThemeData.forBrightness(Brightness brightness) =>
-      brightness == Brightness.dark
+  factory forBrightness(Brightness brightness) => brightness == Brightness.dark
       ? MixarThemeData.dark()
       : MixarThemeData.light();
 
@@ -45,7 +45,7 @@ class MixarThemeData {
 /// Without [DefaultTextStyle], [Text] inherits MaterialApp's debug error style
 /// (yellow underline) wherever the tree skips [Material]/[Scaffold].
 class MixarTheme extends StatelessWidget {
-  const MixarTheme({required this.data, required this.child, super.key});
+  const new({required this.data, required this.child, super.key});
 
   final MixarThemeData data;
   final Widget child;
@@ -79,7 +79,7 @@ class MixarTheme extends StatelessWidget {
 }
 
 class _InheritedMixarTheme extends InheritedWidget {
-  const _InheritedMixarTheme({required this.data, required super.child});
+  const new({required this.data, required super.child});
 
   final MixarThemeData data;
 

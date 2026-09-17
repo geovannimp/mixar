@@ -11,7 +11,7 @@ const double kDesktopWindowRadius = 12;
 /// RGBA workaround for https://github.com/leanflutter/window_manager/issues/179
 /// and [WindowOptions.backgroundColor]). Radius drops to 0 when maximized.
 class DesktopChrome extends StatefulWidget {
-  const DesktopChrome({required this.child, super.key});
+  const new({required this.child, super.key});
 
   final Widget child;
 

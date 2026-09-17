@@ -499,7 +499,7 @@ final driveTableTracksProvider =
       final filter = ref.watch(trackFilterProvider).trim().toLowerCase();
       return listing.when(
         loading: () => const AsyncLoading(),
-        error: (e, st) => AsyncError(e, st),
+        error: AsyncError.new,
         data: (dir) {
           if (dir == null) {
             return const AsyncData([]);

@@ -1,17 +1,17 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:super_drag_and_drop/super_drag_and_drop.dart';
-import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class SamplerSlot {
-  const SamplerSlot({this.label, this.durationMs, this.path});
+  const new({this.label, this.durationMs, this.path});
 
   final String? label;
   final int? durationMs;
@@ -23,7 +23,7 @@ class SamplerSlot {
 }
 
 class SamplerBank {
-  const SamplerBank({required this.id, required this.name, this.playMode});
+  const new({required this.id, required this.name, this.playMode});
 
   final String id;
   final String name;
@@ -46,7 +46,7 @@ int cycleSamplerBankIndex({
 }
 
 class SamplerPads extends StatelessWidget {
-  const SamplerPads({
+  const new({
     required this.slots,
     required this.banks,
     required this.activeBankId,
@@ -375,7 +375,7 @@ void _performSamplerAssignDrop(
 }
 
 class _BankChromeButton extends StatelessWidget {
-  const _BankChromeButton({
+  const new({
     required this.glyph,
     required this.semanticLabel,
     required this.onPress,

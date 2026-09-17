@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
@@ -11,8 +10,6 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
@@ -20,11 +17,14 @@ import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:trina_grid/trina_grid.dart';
 
 /// Session detail: entry table + session actions.
 class HistoryDetailPane extends ConsumerWidget {
-  const HistoryDetailPane({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -267,7 +267,6 @@ class HistoryDetailPane extends ConsumerWidget {
       input: CreateCollectionInput(
         initialName: sessionTitle ?? 'History session',
         initialType: CreateCollectionType.playlist,
-        initialSortable: true,
         historySessionId: sessionId,
       ),
     );
@@ -321,10 +320,7 @@ class HistoryDetailPane extends ConsumerWidget {
 }
 
 class _HistorySessionActionsMenu extends ConsumerWidget {
-  const _HistorySessionActionsMenu({
-    required this.sessionId,
-    required this.session,
-  });
+  const new({required this.sessionId, required this.session});
 
   final String sessionId;
   final HistorySessionSummary? session;
@@ -467,7 +463,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 72,
       minWidth: 56,
       enableContextMenu: false,
-      enableDropToResize: true,
       textAlign: TrinaColumnTextAlign.center,
       renderer: (ctx) {
         final deckId = ctx.cell.value as int? ?? 0;
@@ -493,7 +488,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 240,
       minWidth: 120,
       enableContextMenu: false,
-      enableDropToResize: true,
     ),
     TrinaColumn(
       title: 'Artist',
@@ -502,16 +496,13 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 160,
       minWidth: 96,
       enableContextMenu: false,
-      enableDropToResize: true,
     ),
     TrinaColumn(
       title: 'File',
       field: 'file',
       type: TrinaColumnType.text(),
-      width: 200,
       minWidth: 120,
       enableContextMenu: false,
-      enableDropToResize: true,
     ),
     TrinaColumn(
       title: 'Start',
@@ -520,7 +511,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 140,
       minWidth: 112,
       enableContextMenu: false,
-      enableDropToResize: true,
     ),
     TrinaColumn(
       title: 'End',
@@ -529,7 +519,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 140,
       minWidth: 112,
       enableContextMenu: false,
-      enableDropToResize: true,
     ),
     TrinaColumn(
       title: 'Length',
@@ -538,7 +527,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 72,
       minWidth: 56,
       enableContextMenu: false,
-      enableDropToResize: true,
       textAlign: TrinaColumnTextAlign.right,
     ),
     TrinaColumn(
@@ -548,7 +536,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 56,
       minWidth: 48,
       enableContextMenu: false,
-      enableDropToResize: true,
       textAlign: TrinaColumnTextAlign.right,
     ),
     TrinaColumn(
@@ -558,7 +545,6 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       width: 48,
       minWidth: 40,
       enableContextMenu: false,
-      enableDropToResize: true,
       textAlign: TrinaColumnTextAlign.right,
     ),
     TrinaColumn(
@@ -566,9 +552,7 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
       field: 'isrc',
       type: TrinaColumnType.text(),
       width: 112,
-      minWidth: 80,
       enableContextMenu: false,
-      enableDropToResize: true,
       textAlign: TrinaColumnTextAlign.right,
     ),
   ];
@@ -582,7 +566,7 @@ List<TrinaColumn> _historyColumns(MixarThemeData theme) {
   return columns;
 }
 
-List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
+List<TrinaRow<dynamic>> _historyRows(List<HistoryEntryInfo> entries) {
   return [
     for (var i = 0; i < entries.length; i++)
       TrinaRow(
@@ -601,7 +585,7 @@ List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
                 : formatHistoryTimestamp(entries[i].endedAt!),
           ),
           'length': TrinaCell(
-            value: formatPlayedDurationMs(entries[i].playedDurationMs?.toInt()),
+            value: formatPlayedDurationMs(entries[i].playedDurationMs),
           ),
           'bpm': TrinaCell(value: entries[i].bpm?.toStringAsFixed(0) ?? '—'),
           'key': TrinaCell(value: entries[i].key ?? '—'),
@@ -626,7 +610,6 @@ TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
     rowWrapperIsConstantHeight: true,
     selectingMode: TrinaGridSelectingMode.none,
     scrollbar: const TrinaGridScrollbarConfig(
-      isAlwaysShown: false,
       columnShowScrollWidth: false,
       showHorizontal: false,
     ),
@@ -635,10 +618,8 @@ TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
       resizeMode: TrinaResizeMode.pushAndPull,
     ),
     style: TrinaGridStyleConfig(
-      enableGridBorderShadow: false,
       enableColumnBorderVertical: false,
       enableCellBorderVertical: false,
-      enableCellBorderHorizontal: true,
       gridBackgroundColor: surface,
       rowColor: surface,
       oddRowColor: surface,

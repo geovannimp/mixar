@@ -5,7 +5,7 @@ import 'package:gui_flutter/mixer/mixer_strip.dart';
 
 /// Deck A | Mixer (togglable sections) | Deck B in one card.
 class DeckGrid extends StatelessWidget {
-  const DeckGrid({super.key});
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) {

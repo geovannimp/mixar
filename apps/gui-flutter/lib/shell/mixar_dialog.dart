@@ -9,7 +9,7 @@ import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 const mixarDialogBreakpoint = 768.0;
 
 class MixarDialogAction<T> {
-  const MixarDialogAction({
+  const new({
     required this.label,
     required this.value,
     this.variant = MixarButtonVariant.primary,
@@ -55,8 +55,8 @@ Future<T?> _showMixarModal<T>({
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
   required String title,
-  String? body,
   required List<MixarDialogAction<T>> actions,
+  String? body,
 }) {
   assert(actions.isNotEmpty, 'showMixarConfirm requires at least one action');
   return _showMixarModal<T>(

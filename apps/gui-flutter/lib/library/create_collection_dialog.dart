@@ -14,7 +14,7 @@ const _typeFolder = 'folder';
 const _typePlaylist = 'playlist';
 
 class CreateCollectionInput {
-  const CreateCollectionInput({
+  const new({
     this.initialName = '',
     this.initialType = CreateCollectionType.folder,
     this.initialFolderPath,
@@ -34,7 +34,7 @@ class CreateCollectionInput {
 }
 
 class CreateCollectionResult {
-  const CreateCollectionResult({
+  const new({
     required this.name,
     required this.type,
     required this.folderPath,
@@ -60,7 +60,7 @@ Future<CreateCollectionResult?> showCreateCollectionDialog(
 }
 
 class _CreateCollectionDialogBody extends StatefulWidget {
-  const _CreateCollectionDialogBody({required this.input});
+  const new({required this.input});
 
   final CreateCollectionInput input;
 
@@ -73,11 +73,11 @@ class _CreateCollectionDialogBodyState
     extends State<_CreateCollectionDialogBody> {
   late final TextEditingController _nameController;
   late final TextEditingController _folderPathController;
-  late var _typeKey = widget.input.historySessionId == null
+  late String _typeKey = widget.input.historySessionId == null
       ? _typeFor(widget.input.initialType)
       : _typePlaylist;
-  late var _scanSubfolders = widget.input.initialScanSubfolders;
-  late var _sortable = widget.input.initialSortable;
+  late bool _scanSubfolders = widget.input.initialScanSubfolders;
+  late bool _sortable = widget.input.initialSortable;
 
   @override
   void initState() {
@@ -125,7 +125,7 @@ class _CreateCollectionDialogBodyState
     if (trimmed.isEmpty) {
       return null;
     }
-    final normalized = trimmed.replaceAll('\\', '/');
+    final normalized = trimmed.replaceAll(r'\', '/');
     final slash = normalized.lastIndexOf('/');
     final name = slash >= 0 ? normalized.substring(slash + 1) : normalized;
     return name.isEmpty ? null : name;

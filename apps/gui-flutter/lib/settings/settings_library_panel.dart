@@ -1,53 +1,51 @@
 import 'package:flutter/widgets.dart';
-import 'package:gui_flutter/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart';
+import 'package:gui_flutter/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
-  const SettingsLibraryPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
 
-  static const _analysisModes = [
-    (
-      AnalysisDurationSetting.fast,
-      'Fast',
-      'Analyze a short preview for quick library scans.',
-    ),
-    (
-      AnalysisDurationSetting.precise,
-      'Precise',
-      'Balanced analysis for most libraries.',
-    ),
-    (
-      AnalysisDurationSetting.complete,
-      'Complete',
-      'Analyze the full track (slowest, most accurate).',
-    ),
-  ];
+  static const List<(AnalysisDurationSetting, String, String)> _analysisModes =
+      [
+        (
+          AnalysisDurationSetting.fast,
+          'Fast',
+          'Analyze a short preview for quick library scans.',
+        ),
+        (
+          AnalysisDurationSetting.precise,
+          'Precise',
+          'Balanced analysis for most libraries.',
+        ),
+        (
+          AnalysisDurationSetting.complete,
+          'Complete',
+          'Analyze the full track (slowest, most accurate).',
+        ),
+      ];
 
-  static const _keyDisplayModes = [
-    (
-      KeyDisplayModeSetting.musical,
-      'Musical',
-      'Note names in deck chip and library key column — e.g. C, Am, F#m.',
-    ),
-    (
-      KeyDisplayModeSetting.camelot,
-      'Camelot',
-      'Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B.',
-    ),
-  ];
+  static const List<(KeyDisplayModeSetting, String, String)> _keyDisplayModes =
+      [
+        (
+          KeyDisplayModeSetting.musical,
+          'Musical',
+          'Note names in deck chip and library key column — e.g. C, Am, F#m.',
+        ),
+        (
+          KeyDisplayModeSetting.camelot,
+          'Camelot',
+          'Mixed In Key codes — e.g. 8B (C major), 8A (A minor), 11B.',
+        ),
+      ];
 
-  static const _keyColorModes = [
+  static const List<(KeyColorModeSetting, String, String)> _keyColorModes = [
     (
       KeyColorModeSetting.off,
       'Off',
@@ -108,8 +106,7 @@ class SettingsLibraryPanel extends StatelessWidget {
             children: [
               const SettingsSectionHeader(
                 title: 'Musical key',
-                description:
-                    'How keys are labeled and color-coded in deck chrome and the library table.',
+                description: 'How keys are labeled and color-coded in deck chrome and the library table.',
               ),
               SettingsField(
                 label: 'Key display mode',

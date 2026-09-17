@@ -12,7 +12,7 @@ void main() {
     debugOverrideDesktopWindow = false;
     await RustLib.init();
   });
-  testWidgets('shows shared app title from Rust', (WidgetTester tester) async {
+  testWidgets('shows shared app title from Rust', (tester) async {
     final title = appDisplayName();
     await tester.pumpWidget(ProviderScope(child: Application(appTitle: title)));
     expect(find.text(title), findsWidgets);

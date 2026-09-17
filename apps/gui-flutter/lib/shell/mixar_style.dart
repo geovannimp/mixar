@@ -4,7 +4,7 @@ import 'package:flutter/painting.dart';
 /// Border radius scale (Forui desktop defaults).
 @immutable
 class MixarBorderRadius {
-  const MixarBorderRadius({
+  const new({
     this.xs2 = const BorderRadius.all(Radius.circular(4)),
     this.xs = const BorderRadius.all(Radius.circular(6)),
     this.sm = const BorderRadius.all(Radius.circular(8)),
@@ -30,7 +30,7 @@ class MixarBorderRadius {
 /// Chrome tokens that aren't colors or type.
 @immutable
 class MixarStyle {
-  const MixarStyle({
+  const new({
     this.borderRadius = const MixarBorderRadius(),
     this.borderWidth = 1,
   });

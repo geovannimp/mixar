@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,15 +8,12 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_slider.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsAudioPanel extends ConsumerWidget {
-  const SettingsAudioPanel({
-    super.key,
-    required this.draft,
-    required this.onChanged,
-  });
+  const new({required this.draft, required this.onChanged, super.key});
 
   final AppSettings draft;
   final ValueChanged<AppSettings> onChanged;
@@ -199,12 +195,12 @@ List<int> _masterBusSampleRates({
 }
 
 class _BufferSizeSlider extends StatelessWidget {
-  const _BufferSizeSlider({required this.value, required this.onChanged});
+  const new({required this.value, required this.onChanged});
 
   static const _min = 64;
   static const _max = 2048;
   static const _step = 64;
-  static const _indexMax = (_max - _min) ~/ _step;
+  static const int _indexMax = (_max - _min) ~/ _step;
 
   final int value;
   final ValueChanged<int> onChanged;
@@ -255,7 +251,7 @@ class _BufferSizeSlider extends StatelessWidget {
 }
 
 class _BusRouteFields extends StatelessWidget {
-  const _BusRouteFields({
+  const new({
     required this.route,
     required this.devices,
     required this.devicesLoading,
@@ -391,8 +387,8 @@ int _maxChannelsFor(List<OutputDevice> devices, String deviceId) {
 
 BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
   final max = maxChannels < 1 ? 1 : maxChannels;
-  var left = route.leftChannel.clamp(1, max).toInt();
-  var right = route.rightChannel.clamp(1, max).toInt();
+  final left = route.leftChannel.clamp(1, max);
+  var right = route.rightChannel.clamp(1, max);
   var mode = route.mode;
   if (mode == BusChannelMode.stereo && left == right) {
     if (max >= 2) {
@@ -410,7 +406,7 @@ BusRouteSettings _clampRoute(BusRouteSettings route, int maxChannels) {
 }
 
 class _ChannelStepper extends StatelessWidget {
-  const _ChannelStepper({
+  const new({
     required this.value,
     required this.onChanged,
     required this.maxChannels,
