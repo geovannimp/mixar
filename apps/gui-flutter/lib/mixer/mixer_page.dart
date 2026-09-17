@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_grid.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/waveform_section.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:panes/panes.dart';
 
 /// Mixer page with resizable regions ([MultiPane]).
@@ -70,7 +71,7 @@ class _MixerPageState extends State<MixerPage> {
                   height: MixerPage._deckRowHeight,
                   child: const ClipRect(child: DeckGrid()),
                 ),
-                FDivider(style: .delta(padding: .value(.all(0)))),
+                const MDivider(padding: .zero),
                 const Expanded(child: LibraryPanel()),
               ],
             ),

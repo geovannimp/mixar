@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/waveform/scrolling_lane.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 
 /// Dual scrolling lanes. Overview strips live on each deck panel.
 class WaveformSection extends ConsumerWidget {
@@ -21,7 +22,7 @@ class WaveformSection extends ConsumerWidget {
           Column(
             children: [
               const Expanded(child: ScrollingLane(deckId: 0, label: 'A')),
-              const FDivider(style: .delta(padding: .value(.zero))),
+              const MDivider(padding: .zero),
               const Expanded(child: ScrollingLane(deckId: 1, label: 'B')),
             ],
           ),
