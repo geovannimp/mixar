@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 
 Future<void> showTrackDetailDialog(
   BuildContext context,
@@ -17,79 +18,72 @@ Future<void> showTrackDetailDialog(
     return;
   }
   var isrc = track.isrc ?? '';
-  await showFDialog<void>(
+  await showMixarDialog<void>(
     context: context,
-    builder: (context, _, animation) {
-      return FDialog(
-        animation: animation,
-        builder: (context, _) {
-          final theme = context.theme;
-          final title = track.title ?? track.displayName;
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    builder: (context) {
+      final theme = context.theme;
+      final title = track.title ?? track.displayName;
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: theme.typography.body.md.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            if (track.artist != null && track.artist!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                track.artist!,
+                style: theme.typography.body.sm.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            FTextField(
+              label: const Text('ISRC'),
+              hint: 'International Standard Recording Code',
+              control: .managed(
+                initial: TextEditingValue(text: isrc),
+                onChange: (v) => isrc = v.text,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              spacing: 8,
               children: [
-                Text(
-                  title,
-                  style: theme.typography.body.md.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                AppButton(
+                  variant: .outline,
+                  onPress: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
                 ),
-                if (track.artist != null && track.artist!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    track.artist!,
-                    style: theme.typography.body.sm.copyWith(
-                      color: theme.colors.mutedForeground,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                FTextField(
-                  label: const Text('ISRC'),
-                  hint: 'International Standard Recording Code',
-                  control: .managed(
-                    initial: TextEditingValue(text: isrc),
-                    onChange: (v) => isrc = v.text,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  spacing: 8,
-                  children: [
-                    AppButton(
-                      variant: .outline,
-                      onPress: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    AppButton(
-                      onPress: () async {
-                        try {
-                          await transport.updateTrackIsrc(
-                            trackId: trackId,
-                            isrc: isrc.trim().isEmpty ? null : isrc.trim(),
-                          );
-                          ref.invalidate(collectionTracksProvider);
-                          ref.invalidate(driveResolvedByPathProvider);
-                          if (context.mounted) {
-                            Navigator.of(context).pop();
-                          }
-                        } catch (e) {
-                          ref
-                              .read(libraryMessageProvider.notifier)
-                              .setError('$e');
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
+                AppButton(
+                  onPress: () async {
+                    try {
+                      await transport.updateTrackIsrc(
+                        trackId: trackId,
+                        isrc: isrc.trim().isEmpty ? null : isrc.trim(),
+                      );
+                      ref.invalidate(collectionTracksProvider);
+                      ref.invalidate(driveResolvedByPathProvider);
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                      }
+                    } catch (e) {
+                      ref.read(libraryMessageProvider.notifier).setError('$e');
+                    }
+                  },
+                  child: const Text('Save'),
                 ),
               ],
             ),
-          );
-        },
+          ],
+        ),
       );
     },
   );

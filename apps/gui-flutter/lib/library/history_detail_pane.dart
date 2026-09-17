@@ -14,6 +14,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Session detail: entry table + session actions.
@@ -140,51 +141,46 @@ class HistoryDetailPane extends ConsumerWidget {
     HistorySessionSummary session,
   ) async {
     var title = session.title;
-    final next = await showFDialog<String?>(
+    final next = await showMixarDialog<String?>(
       context: context,
-      builder: (context, _, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, _) {
-            final theme = context.theme;
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (context) {
+        final theme = context.theme;
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Rename session',
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              FTextField(
+                control: .managed(
+                  initial: TextEditingValue(text: title),
+                  onChange: (v) => title = v.text,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                spacing: 8,
                 children: [
-                  Text(
-                    'Rename session',
-                    style: theme.typography.body.md.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                  AppButton(
+                    variant: .outline,
+                    onPress: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
                   ),
-                  const SizedBox(height: 12),
-                  FTextField(
-                    control: .managed(
-                      initial: TextEditingValue(text: title),
-                      onChange: (v) => title = v.text,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    spacing: 8,
-                    children: [
-                      AppButton(
-                        variant: .outline,
-                        onPress: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      AppButton(
-                        onPress: () => Navigator.of(context).pop(title.trim()),
-                        child: const Text('Save'),
-                      ),
-                    ],
+                  AppButton(
+                    onPress: () => Navigator.of(context).pop(title.trim()),
+                    child: const Text('Save'),
                   ),
                 ],
               ),
-            );
-          },
+            ],
+          ),
         );
       },
     );
@@ -206,37 +202,32 @@ class HistoryDetailPane extends ConsumerWidget {
     String sessionId, {
     String? sessionTitle,
   }) async {
-    final format = await showFDialog<HistoryExportFormatSetting?>(
+    final format = await showMixarDialog<HistoryExportFormatSetting?>(
       context: context,
-      builder: (context, _, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, _) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Export format'),
-                  const SizedBox(height: 12),
-                  for (final (label, value) in [
-                    ('CSV', HistoryExportFormatSetting.csv),
-                    ('M3U8', HistoryExportFormatSetting.m3U8),
-                    ('Plain text', HistoryExportFormatSetting.txt),
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: AppButton(
-                        variant: .outline,
-                        onPress: () => Navigator.of(context).pop(value),
-                        child: Text(label),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          },
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Export format'),
+              const SizedBox(height: 12),
+              for (final (label, value) in [
+                ('CSV', HistoryExportFormatSetting.csv),
+                ('M3U8', HistoryExportFormatSetting.m3U8),
+                ('Plain text', HistoryExportFormatSetting.txt),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: AppButton(
+                    variant: .outline,
+                    onPress: () => Navigator.of(context).pop(value),
+                    child: Text(label),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -300,43 +291,22 @@ class HistoryDetailPane extends ConsumerWidget {
     WidgetRef ref,
     String sessionId,
   ) async {
-    final confirmed = await showFDialog<bool>(
+    final confirmed = await showMixarConfirm<bool>(
       context: context,
-      builder: (context, _, animation) {
-        return FDialog(
-          animation: animation,
-          builder: (context, _) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Delete this session?'),
-                  const SizedBox(height: 8),
-                  const Text('Removes the XSPF file and index row.'),
-                  const SizedBox(height: 16),
-                  Row(
-                    spacing: 8,
-                    children: [
-                      AppButton(
-                        variant: .outline,
-                        onPress: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      AppButton(
-                        variant: .destructive,
-                        onPress: () => Navigator.of(context).pop(true),
-                        child: const Text('Delete'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      title: 'Delete this session?',
+      body: 'Removes the XSPF file and index row.',
+      actions: const [
+        MixarDialogAction(
+          label: 'Cancel',
+          value: false,
+          variant: MixarButtonVariant.outline,
+        ),
+        MixarDialogAction(
+          label: 'Delete',
+          value: true,
+          variant: MixarButtonVariant.destructive,
+        ),
+      ],
     );
     if (confirmed != true || !context.mounted) {
       return;
