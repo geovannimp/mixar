@@ -59,7 +59,7 @@ class SettingsField extends StatelessWidget {
       ),
     );
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (trailing == null)
           labelText
