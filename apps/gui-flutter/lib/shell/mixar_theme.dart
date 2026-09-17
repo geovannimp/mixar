@@ -40,24 +40,52 @@ class MixarThemeData {
   final MixarStyle style;
 }
 
-/// Provides [MixarThemeData] to descendants. Prefer [context.theme].
-class MixarTheme extends InheritedWidget {
-  const MixarTheme({required this.data, required super.child, super.key});
+/// Provides [MixarThemeData] and a body [DefaultTextStyle] (Forui `FTheme` parity).
+///
+/// Without [DefaultTextStyle], [Text] inherits MaterialApp's debug error style
+/// (yellow underline) wherever the tree skips [Material]/[Scaffold].
+class MixarTheme extends StatelessWidget {
+  const MixarTheme({required this.data, required this.child, super.key});
 
   final MixarThemeData data;
+  final Widget child;
 
   static MixarThemeData of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<MixarTheme>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<_InheritedMixarTheme>();
     assert(scope != null, 'No MixarTheme found in context');
     return scope!.data;
   }
 
   static MixarThemeData? maybeOf(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<MixarTheme>()?.data;
+    return context
+        .dependOnInheritedWidgetOfExactType<_InheritedMixarTheme>()
+        ?.data;
   }
 
   @override
-  bool updateShouldNotify(MixarTheme oldWidget) => data != oldWidget.data;
+  Widget build(BuildContext context) {
+    return _InheritedMixarTheme(
+      data: data,
+      child: DefaultTextStyle(
+        style: data.typography.body.sm.copyWith(
+          color: data.colors.foreground,
+          decoration: TextDecoration.none,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+class _InheritedMixarTheme extends InheritedWidget {
+  const _InheritedMixarTheme({required this.data, required super.child});
+
+  final MixarThemeData data;
+
+  @override
+  bool updateShouldNotify(_InheritedMixarTheme oldWidget) =>
+      data != oldWidget.data;
 }
 
 extension MixarThemeContext on BuildContext {

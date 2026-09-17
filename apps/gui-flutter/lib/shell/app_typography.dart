@@ -62,6 +62,9 @@ class MixarTypeface {
       height: height,
       leadingDistribution: TextLeadingDistribution.even,
       fontFeatures: fontFeatures,
+      // Avoid inheriting MaterialApp's debug error underline when no
+      // DefaultTextStyle/Material ancestor is present.
+      decoration: TextDecoration.none,
     );
     return MixarTypeface(
       fontFamily: fontFamily,
