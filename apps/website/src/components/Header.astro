@@ -1,6 +1,6 @@
 ---
 import { GITHUB_REPO } from "../consts";
-import { Moon, Sun } from "@lucide/astro";
+import { PhMoon, PhSun } from "phosphor-icons-astro";
 
 interface Props {
   currentPage?: "home" | "developers";
@@ -11,7 +11,7 @@ const { currentPage = "home" } = Astro.props;
 const navLink =
   "text-[0.9375rem] text-muted transition hover:text-fg aria-[current=page]:font-semibold aria-[current=page]:text-fg";
 
-const iconProps = { size: 18, "stroke-width": 2 };
+const iconProps = { size: 18, weight: "regular" as const };
 ---
 
 <header
@@ -58,8 +58,8 @@ const iconProps = { size: 18, "stroke-width": 2 };
         class="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-border bg-bg-card text-muted transition hover:border-border-hover hover:text-fg"
         aria-label="Toggle light and dark theme"
       >
-        <Sun class="dark:hidden" {...iconProps} />
-        <Moon class="hidden dark:block" {...iconProps} />
+        <PhSun class="dark:hidden" {...iconProps} />
+        <PhMoon class="hidden dark:block" {...iconProps} />
       </button>
     </div>
   </nav>

@@ -1,11 +1,11 @@
 ---
 import { TECH_SPEC_URL } from "../consts";
-import { ExternalLink, GitBranch } from "@lucide/astro";
+import { PhArrowSquareOut, PhGitBranch } from "phosphor-icons-astro";
 import MermaidDiagram from "./MermaidDiagram.astro";
 import Button from "./ui/Button.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
-const iconProps = { size: 18, "stroke-width": 2 };
+const iconProps = { size: 18, weight: "regular" as const };
 
 const chart = `graph LR
   ui["Flutter UI
@@ -58,10 +58,10 @@ library-api"]
       title="Architecture"
       description="The Flutter UI, controller layer, and engine stay in sync over omnibus cmd/evt buses. Transports exchange MessagePack in both directions on a shared bus layer (engine-api and library-api); each domain maps to focused Rust crates behind it."
     >
-      <GitBranch
+      <PhGitBranch
         slot="icon"
         class="size-20 shrink-0 text-accent"
-        stroke-width={1.75}
+        weight="regular"
         aria-hidden="true"
       />
     </SectionHeader>
@@ -70,7 +70,7 @@ library-api"]
     </div>
     <div class="mt-8 text-center">
       <Button href={TECH_SPEC_URL} external variant="secondary" class="px-7 py-3.5 text-base">
-        <ExternalLink {...iconProps} aria-hidden="true" />
+        <PhArrowSquareOut {...iconProps} aria-hidden="true" />
         Read the full tech spec
       </Button>
     </div>

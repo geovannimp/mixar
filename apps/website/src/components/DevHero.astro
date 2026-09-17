@@ -1,11 +1,11 @@
 ---
 import { GITHUB_REPO, QUICK_START_URL } from "../consts";
-import { Code, Star, Terminal } from "@lucide/astro";
+import { PhCode, PhStar, PhTerminal } from "phosphor-icons-astro";
 import Badge from "./ui/Badge.astro";
 import Button from "./ui/Button.astro";
 
-const iconProps = { size: 18, "stroke-width": 2 };
-const badgeIconProps = { size: 14, "stroke-width": 2 };
+const iconProps = { size: 18, weight: "regular" as const };
+const badgeIconProps = { size: 14, weight: "regular" as const };
 ---
 
 <section class="relative px-section py-24 lg:py-28">
@@ -16,7 +16,7 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
   </div>
   <div class="mx-auto max-w-content text-center">
     <Badge>
-      <Code {...badgeIconProps} aria-hidden="true" />
+      <PhCode {...badgeIconProps} aria-hidden="true" />
       Open source
     </Badge>
     <h1
@@ -30,11 +30,11 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
     </p>
     <div class="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
       <Button href={GITHUB_REPO} external class="px-7 py-3.5 text-base">
-        <Star {...iconProps} aria-hidden="true" />
+        <PhStar {...iconProps} aria-hidden="true" />
         Star on GitHub
       </Button>
       <Button href={QUICK_START_URL} external variant="secondary" class="px-7 py-3.5 text-base">
-        <Terminal {...iconProps} aria-hidden="true" />
+        <PhTerminal {...iconProps} aria-hidden="true" />
         Build on Linux
       </Button>
     </div>

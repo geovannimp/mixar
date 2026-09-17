@@ -1,5 +1,5 @@
 ---
-import { MonitorSmartphone } from "@lucide/astro";
+import { PhDevices } from "phosphor-icons-astro";
 import { QUICK_START_URL } from "../consts";
 import SectionHeader from "./ui/SectionHeader.astro";
 
@@ -11,7 +11,7 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
     title="Built for every platform"
     description="Built for desktop and mobile from the start. One product for every screen you mix on, not a desktop app awkwardly ported elsewhere."
   >
-    <MonitorSmartphone slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
+    <PhDevices slot="icon" class="size-20 shrink-0 text-accent" weight="regular" aria-hidden="true" />
   </SectionHeader>
   <div class="mx-auto mt-10 grid max-w-content gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:gap-6" data-reveal-group>
     <article
