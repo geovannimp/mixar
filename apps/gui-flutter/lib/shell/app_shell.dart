@@ -27,15 +27,16 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     ref.watch(engineEventsBootstrapProvider);
     ref.watch(libraryEventsBootstrapProvider);
-    return FScaffold(
-      childPad: false,
-      header: AppHeader(
-        appTitle: widget.appTitle,
-        tab: _tab,
-        onTabChanged: (tab) => setState(() => _tab = tab),
-      ),
+    // Opaque fill: native window is transparent for rounded desktop chrome.
+    return ColoredBox(
+      color: context.theme.colors.background,
       child: Column(
         children: [
+          AppHeader(
+            appTitle: widget.appTitle,
+            tab: _tab,
+            onTabChanged: (tab) => setState(() => _tab = tab),
+          ),
           const ControllerOfferBridge(),
           const HistoryRestoreBridge(),
           Expanded(
