@@ -14,6 +14,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
+import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -79,7 +80,7 @@ class DeckTrackInfo extends ConsumerWidget {
     final engineRunning = ref.watch(engineRunningProvider);
     final keyLockEnabled = hasTrack && engineRunning;
 
-    return FCard(
+    return MCard(
       clipBehavior: .antiAlias,
       child: Column(
         mainAxisSize: .min,

@@ -56,7 +56,7 @@ int? holdSegment(double hold) {
   );
 }
 
-// Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on FCard).
+// Lit bands match Tauri emerald/amber/red; idle uses Forui muted (readable on MCard).
 final _green = const Color(
   0xff10b981,
 ).withValues(alpha: 0.45); // emerald-500/45

@@ -9,6 +9,7 @@ import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/m_card.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:panes/panes.dart';
 
@@ -85,7 +86,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                 direction: Axis.horizontal,
                 controller: _controller,
                 paneBuilder: (context, id, _) => switch (id) {
-                  'sidebar' => FCard(
+                  'sidebar' => MCard(
                     clipBehavior: Clip.antiAlias,
                     child: FTabs(
                       expands: true,
