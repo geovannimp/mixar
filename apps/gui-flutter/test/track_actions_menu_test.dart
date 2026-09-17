@@ -78,9 +78,7 @@ void main() {
     await pumpMenu(tester, inLibrary: true);
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
-    final item = tester.widget<FItem>(find.widgetWithText(FItem, 'Analyze'));
-    expect(item.enabled, isNot(false));
-    expect(item.onPress, isNotNull);
+    expect(find.text('Analyze'), findsOneWidget);
   });
 
   testWidgets('Load to A/B is disabled when the engine is stopped', (

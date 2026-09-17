@@ -1,12 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/settings/controller_mapping_row.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
-import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
@@ -98,30 +99,34 @@ class _SettingsControllersPanelState
                   ),
                 );
               }
-              return FItemGroup(
-                divider: .indented,
-                physics: const NeverScrollableScrollPhysics(),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final mapping in rows)
-                    _mappingItem(
-                      mapping: mapping,
-                      attached: attachedIds.contains(mapping.id),
+                  for (var i = 0; i < rows.length; i++) ...[
+                    if (i > 0)
+                      const MDivider(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                      ),
+                    ControllerMappingRow(
+                      mapping: rows[i],
+                      attached: attachedIds.contains(rows[i].id),
                       trusted: widget.draft.trustedControllerDeviceIds.contains(
-                        mapping.deviceId,
+                        rows[i].deviceId,
                       ),
                       attachBusy: _busy || transport == null,
                       trustBusy: _busy,
                       onToggleAttach: (enabled) => _run(
                         () => enabled
-                            ? transport!.enableMapping(mappingId: mapping.id)
-                            : transport!.disableMapping(mappingId: mapping.id),
+                            ? transport!.enableMapping(mappingId: rows[i].id)
+                            : transport!.disableMapping(mappingId: rows[i].id),
                       ),
                       onToggleTrust: (trusted) =>
-                          _setTrusted(mapping.deviceId, trusted),
+                          _setTrusted(rows[i].deviceId, trusted),
                       onUpdate: () => _run(
-                        () => transport!.updateMapping(mappingId: mapping.id),
+                        () => transport!.updateMapping(mappingId: rows[i].id),
                       ),
                     ),
+                  ],
                 ],
               );
             },
@@ -192,82 +197,4 @@ class _SettingsControllersPanelState
       ],
     );
   }
-}
-
-FItem _mappingItem({
-  required ControllerMappingInfo mapping,
-  required bool attached,
-  required bool trusted,
-  required bool attachBusy,
-  required bool trustBusy,
-  required ValueChanged<bool> onToggleAttach,
-  required ValueChanged<bool> onToggleTrust,
-  required VoidCallback onUpdate,
-}) {
-  final name = [
-    mapping.vendorName,
-    mapping.productName,
-  ].where((s) => s.isNotEmpty).join(' ');
-  return FItem(
-    title: Text(name),
-    subtitle: Text(
-      '${mapping.id} · ${mapping.deviceId}${attached ? ' · attached' : ''}',
-    ),
-    suffix: Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 8,
-      children: [
-        AppButton(
-          variant: .outline,
-          size: .sm,
-          mainAxisSize: .min,
-          onPress: attachBusy ? null : onUpdate,
-          child: const Text('Update'),
-        ),
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6,
-              children: [
-                Text('Trust', style: TextStyle(fontSize: 11)),
-                SizedBox(
-                  height: 23,
-                  child: FittedBox(
-                    child: FSwitch(
-                      value: trusted,
-                      enabled: !trustBusy,
-                      semanticsLabel: 'Trust device $name',
-                      onChange: trustBusy ? null : onToggleTrust,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6,
-              children: [
-                Text('Attach', style: TextStyle(fontSize: 11)),
-                SizedBox(
-                  height: 23,
-                  child: FittedBox(
-                    child: FSwitch(
-                      value: attached,
-                      enabled: !attachBusy,
-                      semanticsLabel: 'Enable $name',
-                      onChange: attachBusy ? null : onToggleAttach,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
 }
