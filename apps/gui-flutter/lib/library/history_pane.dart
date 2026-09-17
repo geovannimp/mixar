@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -55,7 +56,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
                       ),
                     ),
                     child: _creating
-                        ? const FCircularProgress(size: .sm)
+                        ? const MLoader(size: MLoaderSize.sm)
                         : Text(
                             '+',
                             style: theme.typography.body.sm.copyWith(
@@ -72,7 +73,7 @@ class _HistoryPaneState extends ConsumerState<HistoryPane> {
         Expanded(
           child: sessions.when(
             skipLoadingOnReload: true,
-            loading: () => const Center(child: FCircularProgress()),
+            loading: () => const Center(child: MLoader()),
             error: (e, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(12),

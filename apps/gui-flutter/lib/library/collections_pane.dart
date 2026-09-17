@@ -5,6 +5,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/library_nav.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -75,7 +76,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
                       ),
                     ),
                     child: _adding
-                        ? const FCircularProgress(size: .sm)
+                        ? const MLoader(size: MLoaderSize.sm)
                         : Text(
                             '+',
                             style: theme.typography.body.sm.copyWith(
@@ -91,7 +92,7 @@ class _CollectionsPaneState extends ConsumerState<CollectionsPane> {
         ),
         Expanded(
           child: collections.when(
-            loading: () => const Center(child: FCircularProgress()),
+            loading: () => const Center(child: MLoader()),
             error: (e, _) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Text(

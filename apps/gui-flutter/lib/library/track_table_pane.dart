@@ -19,6 +19,7 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:trina_grid/trina_grid.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Row selection fill. Forui neutral dark uses the same hex for `muted` and
@@ -211,7 +212,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                     ),
                   )
                 : tracksAsync.when(
-                    loading: () => const Center(child: FCircularProgress()),
+                    loading: () => const Center(child: MLoader()),
                     error: (e, _) => Text(
                       'Tracks error: $e',
                       style: theme.typography.body.sm.copyWith(
@@ -831,7 +832,7 @@ class TrackActionsMenu extends ConsumerWidget {
         child: child!,
       ),
       child: analyzing
-          ? const FCircularProgress()
+          ? const MLoader()
           : const Icon(LucideIcons.ellipsisVertical),
     );
   }
