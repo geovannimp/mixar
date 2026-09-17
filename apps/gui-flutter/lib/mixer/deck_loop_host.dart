@@ -77,7 +77,11 @@ class _DeckLoopHostState extends ConsumerState<DeckLoopHost> {
     if (!mounted) {
       return;
     }
-    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 
   void _syncBeatsFromRegion(ActiveLoopInfo? region, double? bpm) {

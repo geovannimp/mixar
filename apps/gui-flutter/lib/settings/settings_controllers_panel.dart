@@ -35,6 +35,7 @@ class _SettingsControllersPanelState
     } catch (e) {
       if (mounted) {
         showMixarToast(
+          context: context,
           variant: MixarToastVariant.destructive,
           title: Text('$e'),
         );

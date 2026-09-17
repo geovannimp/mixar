@@ -1,4 +1,3 @@
-import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
@@ -13,18 +12,11 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: materialUiThemeFromForui(theme),
-        navigatorObservers: [FlutterSmartDialog.observer],
-        builder: FlutterSmartDialog.init(
-          builder: foruiMaterialAppBuilder(theme),
-        ),
+        builder: foruiMaterialAppBuilder(theme),
         home: Scaffold(body: home),
       ),
     );
   }
-
-  tearDown(() async {
-    await SmartDialog.dismiss(status: SmartStatus.allDialog, force: true);
-  });
 
   testWidgets('showMixarToast displays title', (tester) async {
     await pumpHome(
@@ -32,6 +24,7 @@ void main() {
       Builder(
         builder: (context) => GestureDetector(
           onTap: () => showMixarToast(
+            context: context,
             title: const Text('Engine failed'),
             duration: const Duration(milliseconds: 200),
           ),
@@ -42,9 +35,10 @@ void main() {
 
     await tester.tap(find.text('Show'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 50));
     expect(find.text('Engine failed'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('showMixarToast suffix dismisses persistent toast', (
@@ -55,6 +49,7 @@ void main() {
       Builder(
         builder: (context) => GestureDetector(
           onTap: () => showMixarToast(
+            context: context,
             duration: null,
             title: const Text('Controller connected'),
             suffixBuilder: (context, dismiss) =>
@@ -67,13 +62,11 @@ void main() {
 
     await tester.tap(find.text('Show'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pumpAndSettle();
     expect(find.text('Controller connected'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Enable'));
     await tester.tap(find.text('Enable'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
     expect(find.text('Controller connected'), findsNothing);
   });
 }

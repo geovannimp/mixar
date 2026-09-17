@@ -56,7 +56,11 @@ Future<void> _engineCmd(
     if (!context.mounted) {
       return;
     }
-    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }
 

@@ -53,6 +53,7 @@ class _DeckGridHostState extends ConsumerState<DeckGridHost> {
       return;
     }
     showMixarToast(
+      context: context,
       variant: MixarToastVariant.destructive,
       title: Text('$message'),
     );

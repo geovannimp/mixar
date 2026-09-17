@@ -118,6 +118,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     _shownPorts.add(port);
     var alwaysAllow = false;
     showMixarToast(
+      context: context,
       duration: null,
       onDismiss: () => _shownPorts.remove(port),
       title: Text('${evt.deviceName ?? mappingId} connected'),
@@ -190,7 +191,11 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       if (!mounted) {
         return;
       }
-      showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: Text('$e'),
+      );
     }
   }
 

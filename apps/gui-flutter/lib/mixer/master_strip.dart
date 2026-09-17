@@ -80,6 +80,10 @@ Future<void> _cueCmd(BuildContext context, Future<void> Function() fn) async {
     if (!context.mounted) {
       return;
     }
-    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }

@@ -1,13 +1,16 @@
+import 'dart:async';
+
+import 'package:context_show/context_show.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:forui/forui.dart';
 
 enum MixarToastVariant { primary, destructive }
 
 var _mixarToastSeq = 0;
 
-/// Mixar toast over [SmartDialog] (Forui-free chrome; theme tokens OK).
+/// Mixar toast over [context_show] (Forui-free chrome; theme tokens OK).
 void showMixarToast({
+  required BuildContext context,
   required Widget title,
   MixarToastVariant variant = MixarToastVariant.primary,
   Widget? description,
@@ -15,51 +18,42 @@ void showMixarToast({
   Duration? duration = const Duration(seconds: 5),
   VoidCallback? onDismiss,
 }) {
-  final tag = 'mixar-toast-${_mixarToastSeq++}';
+  final id = 'mixar-toast-${_mixarToastSeq++}';
+  // Duration.zero = persistent (controller offer). Null maps the same way.
+  final showFor = duration ?? Duration.zero;
 
-  void dismiss() {
-    if (duration == null) {
-      SmartDialog.dismiss(tag: tag);
-    } else {
-      SmartDialog.dismiss(status: SmartStatus.custom);
-    }
-  }
+  unawaited(
+    context
+        .show(
+          (overlay) {
+            void dismiss() {
+              unawaited(overlay.close());
+            }
 
-  Widget builder(BuildContext context) {
-    return Padding(
-      // Match Forui desktop toaster: bottom-end with edge inset.
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: _MixarToastChrome(
-        variant: variant,
-        title: title,
-        description: description,
-        suffix: suffixBuilder?.call(context, dismiss),
-      ),
-    );
-  }
-
-  if (duration == null) {
-    SmartDialog.show(
-      tag: tag,
-      alignment: Alignment.bottomRight,
-      usePenetrate: true,
-      clickMaskDismiss: false,
-      maskColor: const Color(0x00000000),
-      onDismiss: onDismiss,
-      builder: builder,
-    );
-    return;
-  }
-
-  // displayTime disables [tag]; dismiss closes the top custom dialog.
-  SmartDialog.show(
-    alignment: Alignment.bottomRight,
-    usePenetrate: true,
-    clickMaskDismiss: false,
-    maskColor: const Color(0x00000000),
-    displayTime: duration,
-    onDismiss: onDismiss,
-    builder: builder,
+            return Builder(
+              builder: (overlayContext) {
+                return Padding(
+                  // Match Forui desktop toaster: bottom-end with edge inset.
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: _MixarToastChrome(
+                    variant: variant,
+                    title: title,
+                    description: description,
+                    suffix: suffixBuilder?.call(overlayContext, dismiss),
+                  ),
+                );
+              },
+            );
+          },
+          id: id,
+          duration: showFor,
+          alignment: Alignment.bottomRight,
+          dismissible: false,
+          safeArea: false,
+          // Default background is a full-screen hit target; keep UI clickable.
+          background: (_) => const SizedBox.shrink(),
+        )
+        .whenComplete(() => onDismiss?.call()),
   );
 }
 
@@ -96,7 +90,7 @@ class _MixarToastChrome extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Flexible(

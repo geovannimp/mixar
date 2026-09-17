@@ -145,6 +145,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
           }
           if (remaining == 0 && !loaded && mounted) {
             showMixarToast(
+              context: context,
               title: const Text('No supported audio files in drop'),
             );
           }
@@ -153,6 +154,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
           remaining--;
           if (remaining == 0 && !loaded && mounted) {
             showMixarToast(
+              context: context,
               title: const Text('No supported audio files in drop'),
             );
           }
@@ -168,7 +170,11 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
       if (!mounted) {
         return;
       }
-      showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+      showMixarToast(
+        context: context,
+        variant: MixarToastVariant.destructive,
+        title: Text('$e'),
+      );
     }
   }
 }

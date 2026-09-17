@@ -261,6 +261,10 @@ Future<void> _seek(
     if (!context.mounted) {
       return;
     }
-    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 }

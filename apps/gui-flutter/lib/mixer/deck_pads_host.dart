@@ -65,7 +65,11 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     if (!mounted) {
       return;
     }
-    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
+    showMixarToast(
+      context: context,
+      variant: MixarToastVariant.destructive,
+      title: Text('$e'),
+    );
   }
 
   List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {
