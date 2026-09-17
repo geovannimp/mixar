@@ -36,6 +36,11 @@ Color libraryTableSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
 /// Opacity applied to rows already committed in the open history session.
 const kSessionPlayedRowOpacity = 0.3;
 
+LibraryTrackSummary? _trackData(TrinaRow<dynamic> row) {
+  final data = row.data;
+  return data is LibraryTrackSummary ? data : null;
+}
+
 /// Filter + [trina_grid](https://github.com/doonfrs/trina_grid) track table.
 class TrackTablePane extends ConsumerStatefulWidget {
   const new({super.key});
@@ -329,7 +334,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         enableDropToResize: false,
         enableSorting: false,
         renderer: (ctx) {
-          final trackId = ctx.row.cells['trackId']?.value as String?;
+          final trackId = _trackData(ctx.row)?.id;
           if (trackId == null) {
             return const SizedBox.shrink();
           }
@@ -477,23 +482,19 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         enableDropToResize: false,
         enableSorting: false,
         renderer: (ctx) {
-          final trackId = ctx.row.cells['trackId']?.value as String?;
-          final path = ctx.row.cells['path']?.value as String?;
-          if (trackId == null || path == null) {
+          final track = _trackData(ctx.row);
+          if (track == null) {
             return const SizedBox.shrink();
           }
           final analyzing = ref
               .read(analyzingTrackIdsProvider)
-              .contains(trackId);
+              .contains(track.id);
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
-          final title =
-              ctx.row.cells['dragTitle']?.value as String? ??
-              ctx.row.cells['title']?.value as String? ??
-              '';
+          final title = trackTitleLabel(track);
           return Center(
             child: TrackActionsMenu(
-              trackId: trackId,
-              path: path,
+              trackId: track.id,
+              path: track.path,
               title: title,
               inLibrary: inLibrary,
               analyzing: analyzing,
@@ -582,11 +583,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final tab = ref.read(librarySourceTabProvider);
     final resolved =
         ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
-    return [
+    final rows = <TrinaRow<LibraryTrackSummary>>[
       for (final t in tracks)
-        TrinaRow(
+        TrinaRow<LibraryTrackSummary>(
+          data: t,
           cells: {
-            'trackId': TrinaCell(value: t.id),
             'inLibrary': TrinaCell(
               value: trackIsInLibrary(
                 t,
@@ -594,8 +595,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                 driveResolvedByPath: resolved,
               ),
             ),
-            'path': TrinaCell(value: t.path),
-            'dragTitle': TrinaCell(value: trackTitleLabel(t)),
             'artwork': TrinaCell(value: t.id),
             'title': TrinaCell(
               value: analyzingIds.contains(t.id)
@@ -615,6 +614,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           },
         ),
     ];
+    return List<TrinaRow<dynamic>>.from(rows);
   }
 
   Widget _rowWrapper(
@@ -627,32 +627,28 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final inner = engineRunning
         ? _dragRowWrapper(context, rowWidget, rowData, stateManager)
         : rowWidget;
-    final path = rowData.cells['path']?.value as String?;
-    final trackId = rowData.cells['trackId']?.value as String?;
-    if (path == null || trackId == null) {
+    final track = _trackData(rowData);
+    if (track == null) {
       return inner;
     }
     final played =
         ref.read(sessionPlayedKeysProvider).asData?.value ??
         SessionPlayedKeys.empty;
-    final dimmed = played.matches(trackId: trackId, path: path);
+    final dimmed = played.matches(trackId: track.id, path: track.path);
     final row = dimmed
         ? Opacity(opacity: kSessionPlayedRowOpacity, child: inner)
         : inner;
     final inLibrary = rowData.cells['inLibrary']?.value == true;
-    final title =
-        rowData.cells['dragTitle']?.value as String? ??
-        rowData.cells['title']?.value as String? ??
-        '';
-    final analyzing = ref.read(analyzingTrackIdsProvider).contains(trackId);
+    final title = trackTitleLabel(track);
+    final analyzing = ref.read(analyzingTrackIdsProvider).contains(track.id);
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so Trina's onTapUp never selects the row.
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _selectVisualRow(stateManager, rowData),
       child: _TrackActionsContextMenu(
-        trackId: trackId,
-        path: path,
+        trackId: track.id,
+        path: track.path,
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
@@ -682,8 +678,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         visualIndex >= manager.refRows.length) {
       return;
     }
-    final trackId =
-        manager.refRows[visualIndex].cells['trackId']?.value as String?;
+    final trackId = _trackData(manager.refRows[visualIndex])?.id;
     if (trackId == null) {
       return;
     }
@@ -700,21 +695,17 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     TrinaRow<dynamic> rowData,
     TrinaGridStateManager stateManager,
   ) {
-    final path = rowData.cells['path']?.value as String?;
-    final trackId = rowData.cells['trackId']?.value as String?;
-    final inLibrary = rowData.cells['inLibrary']?.value == true;
-    final title =
-        rowData.cells['dragTitle']?.value as String? ??
-        rowData.cells['title']?.value as String? ??
-        '';
-    if (path == null) {
+    final track = _trackData(rowData);
+    if (track == null) {
       return rowWidget;
     }
+    final inLibrary = rowData.cells['inLibrary']?.value == true;
+    final title = trackTitleLabel(track);
     final payload = TrackDragPayload(
       source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
-      trackId: inLibrary ? trackId : null,
-      path: path,
-      title: trackDisplayTitle(title: title, path: path),
+      trackId: inLibrary ? track.id : null,
+      path: track.path,
+      title: trackDisplayTitle(title: title, path: track.path),
     );
     return DragItemWidget(
       dragItemProvider: (_) async {
@@ -736,10 +727,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
 
   void _applyMidiFocus(TrinaGridStateManager manager, int index) {
     final visualIndex = visualRowIndexForFocusedTrack(
-      [
-        for (final row in manager.refRows)
-          row.cells['trackId']?.value as String?,
-      ],
+      [for (final row in manager.refRows) _trackData(row)?.id],
       [for (final track in _tracks) track.id],
       index,
     );
