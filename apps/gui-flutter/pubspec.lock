@@ -788,13 +788,13 @@ packages:
     source: hosted
     version: "0.5.2"
   shadcn_ui:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: shadcn_ui
-      sha256: "239401dc887151e359f4f7705204d46c91c49bf83f220c7de5187f0383652cfc"
+      sha256: cf53820ffdc41313ab4e6107e798aa29c2b001d6c738bcafea5fcabe26c2a49d
       url: "https://pub.dev"
     source: hosted
-    version: "0.55.1"
+    version: "0.57.0"
   skeletonizer:
     dependency: "direct main"
     description:

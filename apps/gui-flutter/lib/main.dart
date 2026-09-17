@@ -8,9 +8,11 @@ import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
 import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/shad_theme.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:window_manager/window_manager.dart';
 
 Future<void> main() async {
@@ -92,7 +94,13 @@ class Application extends StatelessWidget {
                 final base = touch ? platforms.touch : platforms.desktop;
                 final data = mixarThemeData(base, touch: touch);
                 return DesktopChrome(
-                  child: FTheme(data: data, child: child!),
+                  child: FTheme(
+                    data: data,
+                    child: ShadTheme(
+                      data: shadThemeFromForui(data),
+                      child: child!,
+                    ),
+                  ),
                 );
               },
             ),

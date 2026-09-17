@@ -5,6 +5,8 @@ import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
+import 'package:gui_flutter/shell/mixar_select.dart';
 
 enum CreateCollectionType { folder, playlist }
 
@@ -168,47 +170,27 @@ class _CreateCollectionDialogBodyState
           const SizedBox(height: 16),
           SettingsField(
             label: 'Name',
-            child: FTextField(
-              control: FTextFieldManagedControl(
-                controller: _nameController,
-                onChange: (_) => setState(() {}),
-              ),
+            child: MixarInput(
+              controller: _nameController,
+              onChanged: (_) => setState(() {}),
             ),
           ),
           if (!_fromHistory) ...[
             const SizedBox(height: 12),
             SettingsField(
               label: 'Type',
-              child: FSelect<String>.rich(
-                control: .lifted(
-                  value: _typeKey,
-                  onChange: (value) {
-                    if (value != null) {
-                      setState(() => _typeKey = value);
-                    }
-                  },
-                ),
-                format: (value) => switch (value) {
+              child: MixarSelect<String>(
+                value: _typeKey,
+                options: const [_typeFolder, _typePlaylist],
+                labelBuilder: (value) => switch (value) {
                   _typeFolder => 'Folder',
                   _ => 'Playlist',
                 },
-                contentOverlayLocation: OverlayChildLocation.rootOverlay,
-                children: const [
-                  FSelectItem.item(
-                    value: _typeFolder,
-                    title: Text('Folder'),
-                    subtitle: Text(
-                      'Import audio files from a directory on disk.',
-                    ),
-                  ),
-                  FSelectItem.item(
-                    value: _typePlaylist,
-                    title: Text('Playlist'),
-                    subtitle: Text(
-                      'A manual track list in your library collections.',
-                    ),
-                  ),
-                ],
+                subtitleBuilder: (value) => switch (value) {
+                  _typeFolder => 'Import audio files from a directory on disk.',
+                  _ => 'A manual track list in your library collections.',
+                },
+                onChanged: (value) => setState(() => _typeKey = value),
               ),
             ),
           ],
@@ -232,12 +214,10 @@ class _CreateCollectionDialogBodyState
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              child: FTextField(
+                              child: MixarInput(
                                 hint: 'Choose a folder on disk',
-                                control: FTextFieldManagedControl(
-                                  controller: _folderPathController,
-                                  onChange: (_) => setState(() {}),
-                                ),
+                                controller: _folderPathController,
+                                onChanged: (_) => setState(() {}),
                               ),
                             ),
                             AppButton(

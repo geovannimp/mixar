@@ -7,6 +7,7 @@ import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 
@@ -287,21 +288,17 @@ class _BpmFieldState extends State<_BpmField> {
           _onScroll(signal);
         }
       },
-      child: FTextField(
+      child: MixarInput(
         enabled: widget.enabled,
         hint: 'BPM',
         textAlign: TextAlign.center,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         textInputAction: TextInputAction.done,
         inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-        style: .delta(
-          contentTextStyle: FVariantsDelta.delta([
-            FVariantOperation.all(TextStyleDelta.value(bpmTextStyle)),
-          ]),
-        ),
-        control: .managed(controller: _controller),
+        style: bpmTextStyle,
+        controller: _controller,
         focusNode: _focus,
-        onSubmit: (_) => _commit(),
+        onSubmitted: (_) => _commit(),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/mixar_checkbox.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -159,11 +160,11 @@ class SettingsLibraryPanel extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         children: [
-                          FCheckbox(
+                          MixarCheckbox(
                             value:
                                 col.required ||
                                 draft.libraryTableColumns.contains(col.id),
-                            onChange: col.required
+                            onChanged: col.required
                                 ? null
                                 : (checked) {
                                     final next = List<String>.from(

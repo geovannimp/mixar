@@ -7,9 +7,10 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
+import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_slider.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'package:gui_flutter/shell/app_button.dart';
 
 class SettingsAudioPanel extends ConsumerWidget {
   const SettingsAudioPanel({
@@ -205,10 +206,6 @@ class _BufferSizeSlider extends StatelessWidget {
   static const _step = 64;
   static const _indexMax = (_max - _min) ~/ _step;
 
-  static final _marks = [
-    for (var i = 0; i <= _indexMax; i++) FSliderMark(value: i / _indexMax),
-  ];
-
   final int value;
   final ValueChanged<int> onChanged;
 
@@ -246,14 +243,11 @@ class _BufferSizeSlider extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        FSlider(
-          control: .liftedDiscrete(
-            value: FSliderValue(max: _toNorm(snapped)),
-            onChange: (v) => onChanged(_fromNorm(v.max)),
-          ),
-          marks: _marks,
-          tooltipBuilder: (_, norm) => Text('${_fromNorm(norm)}'),
-          semanticValueFormatterCallback: (norm) => '${_fromNorm(norm)} frames',
+        MixarSlider(
+          value: _toNorm(snapped),
+          divisions: _indexMax,
+          onChanged: (norm) => onChanged(_fromNorm(norm)),
+          semanticFormatterCallback: (norm) => '${_fromNorm(norm)} frames',
         ),
       ],
     );

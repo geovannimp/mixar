@@ -9,6 +9,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 
 class SamplerSlot {
   const SamplerSlot({this.label, this.durationMs, this.path});
@@ -266,12 +267,10 @@ class SamplerPads extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  FTextField(
+                  MixarInput(
                     label: const Text('Name'),
-                    control: .managed(
-                      initial: TextEditingValue(text: name),
-                      onChange: (v) => name = v.text,
-                    ),
+                    initialValue: name,
+                    onChanged: (v) => name = v,
                   ),
                   const SizedBox(height: 12),
                   Text('Play mode', style: theme.typography.body.sm),
