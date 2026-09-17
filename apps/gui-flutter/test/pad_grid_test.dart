@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   test('PadGrid rejects wrong child counts', () {
@@ -17,12 +18,12 @@ void main() {
   });
 
   Future<List<Rect>> pumpPads(WidgetTester tester, {required Size size}) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     final keys = List<Key>.generate(8, (i) => Key('pad-$i'));
     await tester.pumpWidget(
       MaterialApp(
-        theme: theme.toApproximateMaterialTheme(),
-        builder: (context, child) => FTheme(data: theme, child: child!),
+        theme: materialUiThemeFromMixar(theme),
+        builder: (context, child) => MixarTheme(data: theme, child: child!),
         home: Scaffold(
           body: SizedBox(
             width: size.width,

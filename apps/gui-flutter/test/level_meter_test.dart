@@ -1,9 +1,9 @@
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/level_meter.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 void main() {
   test('segmentOn lights from bottom by threshold', () {
@@ -21,12 +21,12 @@ void main() {
   });
 
   testWidgets('mono one ladder; stereo two; zeros use muted', (tester) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: const Scaffold(
           body: SizedBox(
             height: 200,

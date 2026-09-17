@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/history_providers.dart';
@@ -435,7 +435,7 @@ String _historyExportFileName(String? sessionTitle, String ext) {
   return '$safe.$ext';
 }
 
-List<TrinaColumn> _historyColumns(FThemeData theme) {
+List<TrinaColumn> _historyColumns(MixarThemeData theme) {
   final columns = [
     TrinaColumn(
       title: '#',
@@ -611,7 +611,7 @@ List<TrinaRow> _historyRows(List<HistoryEntryInfo> entries) {
   ];
 }
 
-TrinaGridConfiguration _historyGridConfig(FThemeData theme) {
+TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
   final surface = theme.colors.secondary;
   final selected = libraryTableSelectedRowColor(theme);
   final text = theme.typography.body.sm.copyWith(

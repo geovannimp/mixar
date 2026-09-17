@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:hint_kit/hint_kit.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Tip gated by Settings → UI → Show tooltips (default on).
 ///

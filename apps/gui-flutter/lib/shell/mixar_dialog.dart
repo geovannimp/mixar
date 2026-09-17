@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/legacy_material_scope.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:wolt_modal_sheet/wolt_modal_sheet.dart';
 
 /// Wolt medium breakpoint — dialog above, bottom sheet below.

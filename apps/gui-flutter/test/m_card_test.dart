@@ -1,20 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
-import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 
 void main() {
   testWidgets('MCard paints card fill + rounded border', (tester) async {
-    final base = FTheme.neutral.dark.desktop;
-    final theme = mixarThemeData(base, touch: false);
+    final base = MixarThemeData.dark();
+    final theme = base;
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(base),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(base),
         home: const Scaffold(
           body: MCard(child: SizedBox(width: 40, height: 40)),
         ),
@@ -38,11 +37,11 @@ void main() {
   });
 
   testWidgets('MCard clips with ClipRRect when requested', (tester) async {
-    final base = FTheme.neutral.dark.desktop;
+    final base = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(mixarThemeData(base, touch: false)),
-        builder: foruiMaterialAppBuilder(base),
+        theme: materialUiThemeFromMixar(base),
+        builder: mixarMaterialAppBuilder(base),
         home: const Scaffold(
           body: MCard(
             clipBehavior: Clip.antiAlias,

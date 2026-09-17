@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/desktop.dart';
@@ -9,6 +8,7 @@ import 'package:gui_flutter/shell/window_title_bar_controls.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Brand | drag region | status | settings | window controls (desktop).
 class AppHeader extends ConsumerWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Tauri `HOT_CUE_ACCENTS` slot colors (border / fill / text).
 ({Color border, Color fill, Color text}) hotCueAccent(int slot) {

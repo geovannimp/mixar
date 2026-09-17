@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:hint_kit/hint_kit.dart';
 import 'package:material_ui/material_ui.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,7 @@ void main() {
     required bool showTooltips,
     String? description,
   }) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     final settings = copyAppSettings(
       defaultAppSettings(),
       showTooltips: showTooltips,
@@ -26,8 +26,8 @@ void main() {
       ProviderScope(
         overrides: [appSettingsProvider.overrideWith((ref) async => settings)],
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
             body: AppTooltip(
               tip: 'Play',

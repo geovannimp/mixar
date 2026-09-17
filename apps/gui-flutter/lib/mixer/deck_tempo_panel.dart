@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
@@ -8,6 +7,7 @@ import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' show SyncMode;
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Tauri-shaped tempo column: BPM / pitch / sync + pitch fader from engine state.
 class DeckTempoPanel extends StatelessWidget {

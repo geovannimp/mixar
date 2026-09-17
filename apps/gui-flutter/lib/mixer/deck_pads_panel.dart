@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Presentational deck pads panel (mode tabs + per-mode grids).
 class DeckPadsPanel extends StatelessWidget {

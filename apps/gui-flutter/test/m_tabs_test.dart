@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 
 void main() {
   Future<void> pumpTabs(
@@ -14,11 +14,11 @@ void main() {
     int? index,
     ValueChanged<int>? onChange,
   }) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
           body: SizedBox(
             width: 240,
@@ -60,11 +60,11 @@ void main() {
     var index = 0;
     late void Function(void Function()) setParent;
 
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       MaterialApp(
-        theme: materialUiThemeFromForui(theme),
-        builder: foruiMaterialAppBuilder(theme),
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
           body: StatefulBuilder(
             builder: (context, setState) {

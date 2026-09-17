@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_panel.dart';
@@ -32,7 +32,7 @@ import 'package:gui_flutter/settings/settings_page.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -133,7 +133,7 @@ void main() {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
 
-    final theme = FTheme.neutral.light.desktop;
+    final theme = MixarThemeData.light();
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -153,8 +153,8 @@ void main() {
           ...extraOverrides,
         ],
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
@@ -313,7 +313,7 @@ void main() {
   testWidgets('settings page lists waveform and controllers', (tester) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
-    final theme = FTheme.neutral.light.desktop;
+    final theme = MixarThemeData.light();
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -323,8 +323,8 @@ void main() {
       ProviderScope(
         overrides: _settingsOverrides(),
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),
         ),
       ),

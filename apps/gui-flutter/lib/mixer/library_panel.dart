@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/collections_pane.dart';
 import 'package:gui_flutter/library/drive_pane.dart';
 import 'package:gui_flutter/library/history_detail_pane.dart';
@@ -13,6 +12,7 @@ import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:panes/panes.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Library panel: left [MTabs] (Collections / Drive / History); right pane
 /// follows the selected tab.

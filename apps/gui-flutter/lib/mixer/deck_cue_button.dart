@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 
 /// Cue amber — same tokens as master PFL (`master_strip.dart` / DESIGN.md).
 const _cueOn = Color(0xFFFCD34D); // amber-300

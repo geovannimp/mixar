@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_providers.dart';
@@ -28,7 +28,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Row selection fill. Forui neutral dark uses the same hex for `muted` and
 /// `secondary`, so `theme.colors.muted` is invisible on the table surface.
-Color libraryTableSelectedRowColor(FThemeData theme) => Color.alphaBlend(
+Color libraryTableSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
   theme.colors.primary.withValues(alpha: 0.14),
   theme.colors.secondary,
 );
@@ -304,7 +304,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   }
 
   List<TrinaColumn> _columns(
-    FThemeData theme,
+    MixarThemeData theme,
     List<String> activeColumns, {
     required KeyDisplayMode keyDisplayMode,
     required KeyColorMode keyColorMode,
@@ -522,7 +522,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     return columns;
   }
 
-  TrinaGridConfiguration _gridConfig(FThemeData theme) {
+  TrinaGridConfiguration _gridConfig(MixarThemeData theme) {
     final surface = theme.colors.secondary;
     final selected = libraryTableSelectedRowColor(theme);
     final text = theme.typography.body.sm.copyWith(

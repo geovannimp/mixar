@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class SettingsToggle extends StatelessWidget {
   const SettingsToggle({

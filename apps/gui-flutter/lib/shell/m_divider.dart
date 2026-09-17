@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Hairline separator (Forui divider visual parity).
 class MDivider extends StatelessWidget {

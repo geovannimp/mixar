@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// One tab label + pane for [MTabs].
 @immutable
@@ -133,7 +133,7 @@ class _TabBar extends StatelessWidget {
   final int current;
   final List<MTabEntry> children;
   final ValueChanged<int> onSelect;
-  final FThemeData theme;
+  final MixarThemeData theme;
 
   static const _slideDuration = Duration(milliseconds: 300);
 
@@ -227,7 +227,7 @@ class _TabHeader extends StatelessWidget {
   final bool expands;
   final VoidCallback onPress;
   final Widget child;
-  final FThemeData theme;
+  final MixarThemeData theme;
   final bool paintSelected;
 
   @override

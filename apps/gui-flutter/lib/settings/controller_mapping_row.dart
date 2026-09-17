@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class ControllerMappingRow extends StatelessWidget {
   const ControllerMappingRow({

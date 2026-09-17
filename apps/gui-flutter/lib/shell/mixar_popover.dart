@@ -1,8 +1,8 @@
 import 'package:anchor_ui/anchor_ui.dart';
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Anchored content popover (e.g. deck gain details).
 ///

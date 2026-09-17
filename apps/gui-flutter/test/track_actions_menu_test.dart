@@ -3,15 +3,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'support/forui_material_app.dart';
+import 'support/mixar_material_app.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 class _RunningEngineUi extends EngineUi {
   @override
@@ -34,12 +34,12 @@ void main() {
     required bool inLibrary,
     double width = 200,
   }) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: Scaffold(
             body: SizedBox(
               width: width,
@@ -106,13 +106,13 @@ void main() {
   testWidgets('Load to A/B is enabled when the engine is running', (
     tester,
   ) async {
-    final theme = FTheme.neutral.dark.desktop;
+    final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       ProviderScope(
         overrides: [engineUiProvider.overrideWith(_RunningEngineUi.new)],
         child: MaterialApp(
-          theme: materialUiThemeFromForui(theme),
-          builder: foruiMaterialAppBuilder(theme),
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
           home: const Scaffold(
             body: SizedBox(
               width: 200,

@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
-import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/shell/desktop_chrome.dart';
 import 'package:gui_flutter/shell/legacy_material_scope.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/shad_theme.dart';
 import 'package:gui_flutter/src/rust/api/meta.dart';
 import 'package:gui_flutter/src/rust/frb_generated.dart';
@@ -49,7 +48,7 @@ Future<void> main() async {
   runApp(ProviderScope(child: Application(appTitle: appTitle)));
 }
 
-/// Root app: [Forui](https://forui.dev/) light/dark themes + mixer shell.
+/// Root app: Mixar theme tokens + Shad bridge + mixer shell.
 class Application extends StatelessWidget {
   const Application({required this.appTitle, super.key});
 
@@ -57,13 +56,15 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lightTokens = MixarThemeData.light();
+    final darkTokens = MixarThemeData.dark();
     // Transparent Material canvas so desktop rounded corners aren't filled square.
-    final light = materialUiThemeFromForui(
-      mixarThemeData(FTheme.neutral.light.desktop, touch: false),
+    final light = materialUiThemeFromMixar(
+      lightTokens,
       scaffoldBackgroundColor: Colors.transparent,
     );
-    final dark = materialUiThemeFromForui(
-      mixarThemeData(FTheme.neutral.dark.desktop, touch: false),
+    final dark = materialUiThemeFromMixar(
+      darkTokens,
       scaffoldBackgroundColor: Colors.transparent,
     );
 
@@ -71,38 +72,16 @@ class Application extends StatelessWidget {
       title: appTitle,
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
-      supportedLocales: FLocalizations.supportedLocales,
-      // Forui ships SDK flutter_localizations delegates; material_ui needs its own.
-      localizationsDelegates: [
-        FLocalizations.delegate,
-        ...GlobalMaterialLocalizations.delegates,
-      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: light,
       darkTheme: dark,
       builder: (context, child) {
-        final platforms = Theme.brightnessOf(context) == Brightness.dark
-            ? FTheme.neutral.dark
-            : FTheme.neutral.light;
-        // Resolve touch vs desktop via Forui's platformVariant:
-        // https://forui.dev/docs/concepts/responsive
-        // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
+        final data = MixarThemeData.forBrightness(Theme.brightnessOf(context));
         return LegacyMaterialScope(
-          child: FAdaptiveScope(
-            child: Builder(
-              builder: (context) {
-                final touch = context.platformVariant.touch;
-                final base = touch ? platforms.touch : platforms.desktop;
-                final data = mixarThemeData(base, touch: touch);
-                return DesktopChrome(
-                  child: FTheme(
-                    data: data,
-                    child: ShadTheme(
-                      data: shadThemeFromForui(data),
-                      child: child!,
-                    ),
-                  ),
-                );
-              },
+          child: DesktopChrome(
+            child: MixarTheme(
+              data: data,
+              child: ShadTheme(data: shadThemeFromMixar(data), child: child!),
             ),
           ),
         );

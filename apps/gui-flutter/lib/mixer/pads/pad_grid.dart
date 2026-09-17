@@ -1,7 +1,7 @@
 import 'dart:math' as math;
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 
 /// Reserved height below the pad cluster (sampler bank bar / empty spacer).
 ///

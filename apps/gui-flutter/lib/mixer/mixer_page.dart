@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_grid.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/waveform_section.dart';
 import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:panes/panes.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Mixer page with resizable regions ([MultiPane]).
 ///

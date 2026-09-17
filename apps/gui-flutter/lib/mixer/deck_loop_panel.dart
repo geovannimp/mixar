@@ -1,8 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Tauri `AUTO_LOOP_BEATS`.
 const kAutoLoopBeats = [1, 2, 4, 8, 16, 32];

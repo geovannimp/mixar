@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';

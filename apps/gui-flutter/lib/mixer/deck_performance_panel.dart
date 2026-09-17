@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/deck_grid_host.dart';
 import 'package:gui_flutter/mixer/deck_grid_panel.dart';
 import 'package:gui_flutter/mixer/deck_jog.dart';
@@ -13,6 +12,7 @@ import 'package:gui_flutter/mixer/performance_modes.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Pads / Loop / Grid / Jog via vertical [MTabs].
 class DeckPerformancePanel extends StatelessWidget {
