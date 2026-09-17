@@ -73,6 +73,10 @@ class _MixarPopoverState extends State<MixarPopover> {
       triggerMode: const AnchorTriggerMode.manual(),
       placement: widget.placement,
       enabled: widget.enabled,
+      // Manual mode skips Anchor's TapRegion outside-dismiss; match
+      // AnchorContextMenu with a translucent full-screen backdrop.
+      backdropBuilder: (context) =>
+          _MixarOverlayDismissBackdrop(onDismiss: _controller.hide),
       overlayBuilder: (context) {
         return MixarMenuPanel(
           minWidth: widget.minWidth,
@@ -156,6 +160,8 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
       triggerMode: const AnchorTriggerMode.manual(),
       placement: widget.placement,
       enabled: widget.enabled,
+      backdropBuilder: (context) =>
+          _MixarOverlayDismissBackdrop(onDismiss: _controller.hide),
       overlayBuilder: (context) {
         return MixarMenuPanel(
           minWidth: widget.minWidth,
@@ -163,6 +169,26 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
         );
       },
       child: widget.childBuilder(context, _controller),
+    );
+  }
+}
+
+/// Primary-button outside tap dismisses (manual [Anchor] has no TapRegion dismiss).
+class _MixarOverlayDismissBackdrop extends StatelessWidget {
+  const _MixarOverlayDismissBackdrop({required this.onDismiss});
+
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerDown: (event) {
+        if (event.buttons == 1) {
+          onDismiss();
+        }
+      },
+      behavior: HitTestBehavior.opaque,
+      child: const SizedBox.expand(),
     );
   }
 }

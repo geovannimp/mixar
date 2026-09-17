@@ -31,7 +31,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Gain panel'), findsOneWidget);
 
-    await tester.tap(find.text('Open'));
+    await tester.tapAt(const Offset(300, 300));
     await tester.pumpAndSettle();
     expect(find.text('Gain panel'), findsNothing);
   });
@@ -56,5 +56,47 @@ void main() {
     );
     expect(panel, findsOneWidget);
     expect(tester.getSize(panel).width, 200);
+  });
+
+  testWidgets('MixarMenuAnchor dismisses on outside tap', (tester) async {
+    final theme = FTheme.neutral.dark.desktop;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromForui(theme),
+        builder: foruiMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            height: 400,
+            child: Stack(
+              children: [
+                const Positioned.fill(
+                  child: ColoredBox(color: Color(0xFF111111)),
+                ),
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: MixarMenuAnchor(
+                    menuBuilder: (context, controller) =>
+                        const Text('Menu body'),
+                    childBuilder: (context, controller) => GestureDetector(
+                      onTap: controller.toggle,
+                      child: const Text('Open menu'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Menu body'), findsOneWidget);
+
+    await tester.tapAt(const Offset(350, 350));
+    await tester.pumpAndSettle();
+    expect(find.text('Menu body'), findsNothing);
   });
 }
