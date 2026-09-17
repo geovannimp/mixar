@@ -11,12 +11,10 @@ import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/performance_modes.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// [FTabs](https://forui.dev/docs/widgets/navigation/tabs) Pads / Loop / Grid / Jog content.
-///
-/// Forui tabs are horizontal-only; [RotatedBox] stands the tab bar on the left
-/// and un-rotates each pane.
+/// Pads / Loop / Grid / Jog via vertical [MTabs].
 class DeckPerformancePanel extends StatelessWidget {
   const DeckPerformancePanel({
     this.deckId,
@@ -43,139 +41,116 @@ class DeckPerformancePanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: theme.style.borderRadius.md,
-        child: RotatedBox(
-          quarterTurns: 3,
-          child: Directionality(
-            // RTL puts tab start on the unrotated right → visual top after the 90° turn.
-            textDirection: TextDirection.rtl,
-            child: FTabs(
-              expands: true,
-              contentPhysics: const NeverScrollableScrollPhysics(),
-              style: .delta(
-                spacing: 0,
-                indicatorSize: .tab,
-                minHeight: 24,
-                padding: .value(const .all(4)),
-                decoration: .boxDelta(borderRadius: BorderRadius.zero),
-              ),
-              children: [
-                for (final mode in kDeckPerformanceModes)
-                  FTabEntry(
-                    label: RotatedBox(
-                      quarterTurns: 1,
-                      child: AppTooltip(
-                        tip: deckPerformanceModeLabel(mode),
-                        child: Icon(
-                          switch (mode) {
-                            DeckPerformanceMode.pads => LucideIcons.layoutGrid,
-                            DeckPerformanceMode.loop => LucideIcons.repeat2,
-                            DeckPerformanceMode.grid => LucideIcons.audioLines,
-                            DeckPerformanceMode.jog => LucideIcons.disc3,
-                          },
-                          size: 16,
-                          semanticLabel: deckPerformanceModeLabel(mode),
-                        ),
-                      ),
-                    ),
-                    child: RotatedBox(
-                      quarterTurns: 1,
-                      child: Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: switch (mode) {
-                          DeckPerformanceMode.pads =>
-                            deckId != null
-                                ? DeckPadsHost(
-                                    deckId: deckId!,
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  )
-                                : DeckPadsPanel(
-                                    padMode: PadMode.hotCue,
-                                    onPadMode: (_) {},
-                                    hotCues: const [],
-                                    onHotCuePress: (_, _) {},
-                                    onHotCueRelease: (_) {},
-                                    onLoopRollPress: (_) {},
-                                    onLoopRollRelease: (_) {},
-                                    onBeatJumpPress: (_) {},
-                                    onBeatJumpRelease: (_) {},
-                                    samplerSlots: const [],
-                                    samplerBanks: const [],
-                                    onSamplerPress: (_, _) {},
-                                    onSamplerRelease: (_) {},
-                                    onSelectBank: (_) {},
-                                    onSaveBank: (_, _, _) {},
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  ),
-                          DeckPerformanceMode.loop =>
-                            deckId != null
-                                ? DeckLoopHost(
-                                    deckId: deckId!,
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  )
-                                : DeckLoopPanel(
-                                    loopActive: false,
-                                    loopBeats: 4,
-                                    onToggleLoop: () {},
-                                    onHalveBeats: () {},
-                                    onDoubleBeats: () {},
-                                    onLoopIn: () {},
-                                    onLoopOut: () {},
-                                    onBeatsChipPress: () {},
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  ),
-                          DeckPerformanceMode.grid =>
-                            deckId != null
-                                ? DeckGridHost(
-                                    deckId: deckId!,
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  )
-                                : DeckGridPanel(
-                                    bpm: null,
-                                    onSetDownbeat: () {},
-                                    onNudgeBack: () {},
-                                    onNudgeForward: () {},
-                                    onBpmDown: () {},
-                                    onBpmUp: () {},
-                                    onBpmSubmit: (_) {},
-                                    hasTrack: hasTrack,
-                                    disabled: disabled,
-                                    bordered: false,
-                                  ),
-                          DeckPerformanceMode.jog =>
-                            deckId != null
-                                ? Center(
-                                    child: DeckJogHost(
-                                      deckId: deckId!,
-                                      hasTrack: hasTrack,
-                                      accent: accent,
-                                      disabled: disabled,
-                                    ),
-                                  )
-                                : Center(
-                                    child: JogPlatter(
-                                      accent: accent,
-                                      playing: false,
-                                      hasTrack: hasTrack,
-                                      enabled: false,
-                                    ),
-                                  ),
-                        },
-                      ),
-                    ),
+        child: MTabs(
+          direction: Axis.vertical,
+          expands: true,
+          children: [
+            for (final mode in kDeckPerformanceModes)
+              MTabEntry(
+                label: AppTooltip(
+                  tip: deckPerformanceModeLabel(mode),
+                  child: Icon(
+                    switch (mode) {
+                      DeckPerformanceMode.pads => LucideIcons.layoutGrid,
+                      DeckPerformanceMode.loop => LucideIcons.repeat2,
+                      DeckPerformanceMode.grid => LucideIcons.audioLines,
+                      DeckPerformanceMode.jog => LucideIcons.disc3,
+                    },
+                    size: 16,
+                    semanticLabel: deckPerformanceModeLabel(mode),
                   ),
-              ],
-            ),
-          ),
+                ),
+                child: switch (mode) {
+                  DeckPerformanceMode.pads =>
+                    deckId != null
+                        ? DeckPadsHost(
+                            deckId: deckId!,
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          )
+                        : DeckPadsPanel(
+                            padMode: PadMode.hotCue,
+                            onPadMode: (_) {},
+                            hotCues: const [],
+                            onHotCuePress: (_, _) {},
+                            onHotCueRelease: (_) {},
+                            onLoopRollPress: (_) {},
+                            onLoopRollRelease: (_) {},
+                            onBeatJumpPress: (_) {},
+                            onBeatJumpRelease: (_) {},
+                            samplerSlots: const [],
+                            samplerBanks: const [],
+                            onSamplerPress: (_, _) {},
+                            onSamplerRelease: (_) {},
+                            onSelectBank: (_) {},
+                            onSaveBank: (_, _, _) {},
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          ),
+                  DeckPerformanceMode.loop =>
+                    deckId != null
+                        ? DeckLoopHost(
+                            deckId: deckId!,
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          )
+                        : DeckLoopPanel(
+                            loopActive: false,
+                            loopBeats: 4,
+                            onToggleLoop: () {},
+                            onHalveBeats: () {},
+                            onDoubleBeats: () {},
+                            onLoopIn: () {},
+                            onLoopOut: () {},
+                            onBeatsChipPress: () {},
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          ),
+                  DeckPerformanceMode.grid =>
+                    deckId != null
+                        ? DeckGridHost(
+                            deckId: deckId!,
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          )
+                        : DeckGridPanel(
+                            bpm: null,
+                            onSetDownbeat: () {},
+                            onNudgeBack: () {},
+                            onNudgeForward: () {},
+                            onBpmDown: () {},
+                            onBpmUp: () {},
+                            onBpmSubmit: (_) {},
+                            hasTrack: hasTrack,
+                            disabled: disabled,
+                            bordered: false,
+                          ),
+                  DeckPerformanceMode.jog =>
+                    deckId != null
+                        ? Center(
+                            child: DeckJogHost(
+                              deckId: deckId!,
+                              hasTrack: hasTrack,
+                              accent: accent,
+                              disabled: disabled,
+                            ),
+                          )
+                        : Center(
+                            child: JogPlatter(
+                              accent: accent,
+                              playing: false,
+                              hasTrack: hasTrack,
+                              enabled: false,
+                            ),
+                          ),
+                },
+              ),
+          ],
         ),
       ),
     );

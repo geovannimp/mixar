@@ -10,11 +10,12 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_card.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:panes/panes.dart';
 
-/// Library panel: left [FTabs](https://forui.dev/docs/widgets/navigation/tabs)
-/// (Collections / Drive / History); right pane follows the selected tab.
+/// Library panel: left [MTabs] (Collections / Drive / History); right pane
+/// follows the selected tab.
 ///
 /// Horizontal split sizes are session-local (no [PaneController.save] /
 /// [PaneController.load]).
@@ -88,34 +89,25 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                 paneBuilder: (context, id, _) => switch (id) {
                   'sidebar' => MCard(
                     clipBehavior: Clip.antiAlias,
-                    child: FTabs(
+                    child: MTabs(
                       expands: true,
-                      style: .delta(
-                        spacing: 4,
-                        indicatorSize: .tab,
-                        minHeight: 28,
-                        decoration: DecorationDelta.boxDelta(
-                          borderRadius: BorderRadius.zero,
-                        ),
-                      ),
-                      control: .lifted(
-                        index: switch (tab) {
-                          LibrarySourceTab.collections => 0,
-                          LibrarySourceTab.drive => 1,
-                          LibrarySourceTab.history => 2,
-                        },
-                        onChange: (index) {
-                          ref.read(librarySourceTabProvider.notifier).set(
-                            switch (index) {
-                              1 => LibrarySourceTab.drive,
-                              2 => LibrarySourceTab.history,
-                              _ => LibrarySourceTab.collections,
-                            },
-                          );
-                        },
-                      ),
+                      spacing: 4,
+                      index: switch (tab) {
+                        LibrarySourceTab.collections => 0,
+                        LibrarySourceTab.drive => 1,
+                        LibrarySourceTab.history => 2,
+                      },
+                      onChange: (index) {
+                        ref.read(librarySourceTabProvider.notifier).set(
+                          switch (index) {
+                            1 => LibrarySourceTab.drive,
+                            2 => LibrarySourceTab.history,
+                            _ => LibrarySourceTab.collections,
+                          },
+                        );
+                      },
                       children: [
-                        FTabEntry(
+                        MTabEntry(
                           label: AppTooltip(
                             tip: 'Collections',
                             child: Semantics(
@@ -125,7 +117,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                           ),
                           child: const CollectionsPane(),
                         ),
-                        FTabEntry(
+                        MTabEntry(
                           label: AppTooltip(
                             tip: 'Drive',
                             child: Semantics(
@@ -135,7 +127,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                           ),
                           child: const DrivePane(),
                         ),
-                        FTabEntry(
+                        MTabEntry(
                           label: AppTooltip(
                             tip: 'History',
                             child: Semantics(
