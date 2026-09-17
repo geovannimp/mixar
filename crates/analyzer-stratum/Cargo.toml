@@ -2,7 +2,6 @@
 name = "analyzer-stratum"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "stratum-dsp backend for Mixar audio analysis"

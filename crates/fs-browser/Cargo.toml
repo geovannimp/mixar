@@ -2,7 +2,6 @@
 name = "fs-browser"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Filesystem volume listing and directory browsing for audio file pickers"

@@ -2,7 +2,6 @@
 name = "analyzer-core"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Audio analysis traits and types for Mixar"

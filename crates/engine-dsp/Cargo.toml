@@ -2,7 +2,6 @@
 name = "engine-dsp"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Pure DSP components for Mixar"

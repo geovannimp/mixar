@@ -2,7 +2,6 @@
 name = "controller"
 version.workspace = true
 edition.workspace = true
-authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "MIDI controller mapping bundles (device/map/Rhai) for the engine bus"
