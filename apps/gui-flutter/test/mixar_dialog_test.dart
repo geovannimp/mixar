@@ -143,7 +143,7 @@ void main() {
 
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    expect(find.text('Delete?'), findsWidgets);
+    expect(find.text('Delete?'), findsOneWidget);
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     expect(result, 'delete');

@@ -73,17 +73,8 @@ Future<T?> showMixarConfirm<T>({
               fontWeight: FontWeight.w700,
             ),
           ),
-          pageTitle: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Text(
-              title,
-              style: theme.typography.body.md.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             child: body == null
                 ? const SizedBox.shrink()
                 : Text(body, style: theme.typography.body.sm),
@@ -91,16 +82,15 @@ Future<T?> showMixarConfirm<T>({
           stickyActionBar: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               spacing: 8,
               children: [
                 for (final action in actions)
-                  Flexible(
-                    child: AppButton(
-                      variant: action.variant,
-                      onPress: () =>
-                          Navigator.of(modalContext).pop(action.value),
-                      child: Text(action.label),
-                    ),
+                  AppButton(
+                    mainAxisSize: MainAxisSize.min,
+                    variant: action.variant,
+                    onPress: () => Navigator.of(modalContext).pop(action.value),
+                    child: Text(action.label),
                   ),
               ],
             ),
