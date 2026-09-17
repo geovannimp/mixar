@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Deck drop target: in-app [TrackDragPayload] plus OS `fileUri` audio files.
 class TrackDropZone extends ConsumerStatefulWidget {
@@ -143,8 +144,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
             }
           }
           if (remaining == 0 && !loaded && mounted) {
-            showFToast(
-              context: context,
+            showMixarToast(
               title: const Text('No supported audio files in drop'),
             );
           }
@@ -152,8 +152,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
         onError: (_) {
           remaining--;
           if (remaining == 0 && !loaded && mounted) {
-            showFToast(
-              context: context,
+            showMixarToast(
               title: const Text('No supported audio files in drop'),
             );
           }
@@ -169,7 +168,7 @@ class _TrackDropZoneState extends ConsumerState<TrackDropZone> {
       if (!mounted) {
         return;
       }
-      showFToast(context: context, variant: .destructive, title: Text('$e'));
+      showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
     }
   }
 }

@@ -5,9 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/controller_providers.dart';
-import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/controller_providers.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
+import 'package:gui_flutter/src/rust/api/controller.dart';
 
 /// Listens for MIDI mapping offers and prompts to enable (Tauri toast flow).
 class ControllerOfferBridge extends ConsumerStatefulWidget {
@@ -116,8 +117,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
     }
     _shownPorts.add(port);
     var alwaysAllow = false;
-    showFToast(
-      context: context,
+    showMixarToast(
       duration: null,
       onDismiss: () => _shownPorts.remove(port),
       title: Text('${evt.deviceName ?? mappingId} connected'),
@@ -138,11 +138,11 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
           );
         },
       ),
-      suffixBuilder: (context, entry) => AppButton(
+      suffixBuilder: (context, dismiss) => AppButton(
         size: .sm,
         mainAxisSize: .min,
         onPress: () {
-          entry.dismiss();
+          dismiss();
           unawaited(
             _enable(
               transport: transport,
@@ -190,7 +190,7 @@ class _ControllerOfferBridgeState extends ConsumerState<ControllerOfferBridge> {
       if (!mounted) {
         return;
       }
-      showFToast(context: context, variant: .destructive, title: Text('$e'));
+      showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
     }
   }
 

@@ -18,7 +18,7 @@ Reference: `docs/deck-spec.md`, `docs/tech-spec.md`. App root: `apps/gui-flutter
 ## UI
 
 - Follow `docs/deck-spec.md` for deck layout and phased features.
-- Prefer **Forui** components and existing host patterns; use Forui toast / snackbar (`showFToast`) for errors and async engine start failures — avoid verbose inline status text.
+- Prefer **Forui** components and existing host patterns; use Mixar toast (`showMixarToast` / `flutter_smart_dialog`) for errors and async engine start failures — avoid verbose inline status text.
 - Prefer minimal, focused UI diffs; match existing deck visual language.
 - Pad mode grids: mode widgets live under `lib/mixer/pads/` (e.g. `hot_cue_pads.dart`).
 - Custom title bar via `window_manager` (decorations off) with in-app min/max/close.

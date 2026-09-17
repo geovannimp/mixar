@@ -7,6 +7,7 @@ import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/rotary_knob.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 const _cueOn = Color(0xFFFCD34D); // amber-300
 const _cueRing = Color(0x66F59E0B); // amber-500/40
@@ -79,6 +80,6 @@ Future<void> _cueCmd(BuildContext context, Future<void> Function() fn) async {
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
   }
 }

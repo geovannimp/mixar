@@ -7,6 +7,7 @@ import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 class SettingsControllersPanel extends ConsumerStatefulWidget {
   const SettingsControllersPanel({
@@ -33,7 +34,10 @@ class _SettingsControllersPanelState
       await action();
     } catch (e) {
       if (mounted) {
-        showFToast(context: context, variant: .destructive, title: Text('$e'));
+        showMixarToast(
+          variant: MixarToastVariant.destructive,
+          title: Text('$e'),
+        );
       }
     } finally {
       if (mounted) {

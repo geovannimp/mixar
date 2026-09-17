@@ -7,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Interactive jog platter — `jog_touch` / `jog_turn` (Tauri `JogPlatter`).
 class DeckJogHost extends ConsumerWidget {
@@ -55,7 +56,7 @@ Future<void> _engineCmd(
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
   }
 }
 

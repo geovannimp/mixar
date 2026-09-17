@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:forui/forui.dart';
 import 'package:gui_flutter/shell/app_typography.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
@@ -77,31 +78,32 @@ class Application extends StatelessWidget {
       ],
       theme: light,
       darkTheme: dark,
-      builder: (context, child) {
-        final platforms = Theme.brightnessOf(context) == Brightness.dark
-            ? FTheme.neutral.dark
-            : FTheme.neutral.light;
-        // Resolve touch vs desktop via Forui's platformVariant:
-        // https://forui.dev/docs/concepts/responsive
-        // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
-        return LegacyMaterialScope(
-          child: FAdaptiveScope(
-            child: Builder(
-              builder: (context) {
-                final touch = context.platformVariant.touch;
-                final base = touch ? platforms.touch : platforms.desktop;
-                final data = mixarThemeData(base, touch: touch);
-                return DesktopChrome(
-                  child: FTheme(
-                    data: data,
-                    child: FToaster(child: child!),
-                  ),
-                );
-              },
+      navigatorObservers: [FlutterSmartDialog.observer],
+      builder: FlutterSmartDialog.init(
+        builder: (context, child) {
+          final platforms = Theme.brightnessOf(context) == Brightness.dark
+              ? FTheme.neutral.dark
+              : FTheme.neutral.light;
+          // Resolve touch vs desktop via Forui's platformVariant:
+          // https://forui.dev/docs/concepts/responsive
+          // Bridge legacy flutter/material Theme for Forui / trina_grid / etc.
+          // child is already wrapped in FlutterSmartDialog by init().
+          return LegacyMaterialScope(
+            child: FAdaptiveScope(
+              child: Builder(
+                builder: (context) {
+                  final touch = context.platformVariant.touch;
+                  final base = touch ? platforms.touch : platforms.desktop;
+                  final data = mixarThemeData(base, touch: touch);
+                  return DesktopChrome(
+                    child: FTheme(data: data, child: child!),
+                  );
+                },
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
       home: AppShell(appTitle: appTitle),
     );
   }

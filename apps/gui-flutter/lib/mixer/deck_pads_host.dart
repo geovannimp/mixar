@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:forui/forui.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -12,6 +11,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Watches engine/library providers and publishes named pad press/release cmds.
 class DeckPadsHost extends ConsumerStatefulWidget {
@@ -65,7 +65,7 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     if (!mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
   }
 
   List<SamplerSlot> _slotsFromChrome(List<rust.SamplerSlotChrome> chrome) {

@@ -13,6 +13,7 @@ import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 
 /// Matches Forui `MixerButton(size: .sm)` desktop height used for cue / meter spacer.
 const _columnFooterHeight = 32.0;
@@ -165,7 +166,7 @@ Future<void> _mixerCmd(BuildContext context, Future<void> Function() fn) async {
     if (!context.mounted) {
       return;
     }
-    showFToast(context: context, variant: .destructive, title: Text('$e'));
+    showMixarToast(variant: MixarToastVariant.destructive, title: Text('$e'));
   }
 }
 
