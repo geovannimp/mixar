@@ -161,9 +161,10 @@ final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((
 
 /// Sync view of [sessionPlayedKeysProvider]. Equal key sets do not notify
 /// (FutureProvider still flaps through loading on every history tick).
+/// Prefer [AsyncValue.value] over [AsyncValue.asData] so a refresh keeps the
+/// previous key set while loading (avoids undim/redim flicker).
 final sessionPlayedKeysValueProvider = Provider<SessionPlayedKeys>((ref) {
-  return ref.watch(sessionPlayedKeysProvider).asData?.value ??
-      SessionPlayedKeys.empty;
+  return ref.watch(sessionPlayedKeysProvider).value ?? SessionPlayedKeys.empty;
 });
 
 /// Per-row dim flag. Notifies only when this row's dim bool flips — pause /
