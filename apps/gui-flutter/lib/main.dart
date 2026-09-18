@@ -48,6 +48,19 @@ Future<void> main() async {
   runApp(ProviderScope(child: Application(appTitle: appTitle)));
 }
 
+/// Cached Material / Shad themes so [Application.build] and
+/// MaterialApp.builder do not rebuild style graphs every frame.
+final ThemeData _materialLight = materialUiThemeFromMixar(
+  MixarThemeData.light(),
+  scaffoldBackgroundColor: Colors.transparent,
+);
+final ThemeData _materialDark = materialUiThemeFromMixar(
+  MixarThemeData.dark(),
+  scaffoldBackgroundColor: Colors.transparent,
+);
+final ShadThemeData _shadLight = shadThemeFromMixar(MixarThemeData.light());
+final ShadThemeData _shadDark = shadThemeFromMixar(MixarThemeData.dark());
+
 /// Root app: Mixar theme tokens + Shad bridge + mixer shell.
 class Application extends StatelessWidget {
   const new({required this.appTitle, super.key});
@@ -56,31 +69,23 @@ class Application extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lightTokens = MixarThemeData.light();
-    final darkTokens = MixarThemeData.dark();
-    // Transparent Material canvas so desktop rounded corners aren't filled square.
-    final light = materialUiThemeFromMixar(
-      lightTokens,
-      scaffoldBackgroundColor: Colors.transparent,
-    );
-    final dark = materialUiThemeFromMixar(
-      darkTokens,
-      scaffoldBackgroundColor: Colors.transparent,
-    );
-
     return MaterialApp(
       title: appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: light,
-      darkTheme: dark,
+      theme: _materialLight,
+      darkTheme: _materialDark,
       builder: (context, child) {
-        final data = MixarThemeData.forBrightness(Theme.brightnessOf(context));
+        final dark = Theme.brightnessOf(context) == Brightness.dark;
+        final data = dark ? MixarThemeData.dark() : MixarThemeData.light();
         return LegacyMaterialScope(
           child: DesktopChrome(
             child: MixarTheme(
               data: data,
-              child: ShadTheme(data: shadThemeFromMixar(data), child: child!),
+              child: ShadTheme(
+                data: dark ? _shadDark : _shadLight,
+                child: child!,
+              ),
             ),
           ),
         );

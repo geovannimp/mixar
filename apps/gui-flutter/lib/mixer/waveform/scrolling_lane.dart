@@ -289,97 +289,99 @@ class _ScrollingLaneState extends ConsumerState<ScrollingLane>
               );
             }
           },
-          child: ClipRect(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const ColoredBox(color: kWaveformBg),
-                if (strip != null)
-                  AnimatedBuilder(
-                    animation: _playhead,
-                    builder: (context, child) {
-                      final positionMs = _displayMs(durationMs);
-                      final displayWidth = strip.widthPx / speedScale;
-                      return Positioned(
-                        left: snapPx(
-                          stripTranslateX(
-                            positionMs: positionMs,
-                            viewportWidth: width,
-                            pxPerMs: pxPerMs,
+          child: ExcludeSemantics(
+            child: ClipRect(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: kWaveformBg),
+                  if (strip != null)
+                    AnimatedBuilder(
+                      animation: _playhead,
+                      builder: (context, child) {
+                        final positionMs = _displayMs(durationMs);
+                        final displayWidth = strip.widthPx / speedScale;
+                        return Positioned(
+                          left: snapPx(
+                            stripTranslateX(
+                              positionMs: positionMs,
+                              viewportWidth: width,
+                              pxPerMs: pxPerMs,
+                            ),
+                            dpr,
                           ),
-                          dpr,
-                        ),
-                        top: 0,
-                        bottom: 0,
-                        width: displayWidth,
-                        child: FittedBox(
-                          fit: BoxFit.fill,
-                          child: SizedBox(
-                            width: strip.widthPx.toDouble(),
-                            height: height,
-                            child: child ?? const SizedBox.shrink(),
+                          top: 0,
+                          bottom: 0,
+                          width: displayWidth,
+                          child: FittedBox(
+                            fit: BoxFit.fill,
+                            child: SizedBox(
+                              width: strip.widthPx.toDouble(),
+                              height: height,
+                              child: child ?? const SizedBox.shrink(),
+                            ),
                           ),
+                        );
+                      },
+                      child: RepaintBoundary(
+                        child: _StripLayer(
+                          strip: strip,
+                          height: height,
+                          beatGrid: beatGrid,
+                          loops: loops,
+                          activeLoop: activeLoop,
+                          pendingLoopIn: pendingLoopIn,
+                          cues: cues,
                         ),
-                      );
-                    },
-                    child: RepaintBoundary(
-                      child: _StripLayer(
-                        strip: strip,
-                        height: height,
-                        beatGrid: beatGrid,
-                        loops: loops,
-                        activeLoop: activeLoop,
-                        pendingLoopIn: pendingLoopIn,
-                        cues: cues,
+                      ),
+                    ),
+                  Align(
+                    child: ColoredBox(
+                      color: theme.colors.foreground.withValues(alpha: 0.9),
+                      child: const SizedBox(width: 1, height: double.infinity),
+                    ),
+                  ),
+                  if (slipOn && slipShadowMs != null && strip != null)
+                    AnimatedBuilder(
+                      animation: _playhead,
+                      builder: (context, _) {
+                        final audibleMs = _displayMs(durationMs);
+                        final delta = slipShadowMs - audibleMs;
+                        if (delta.abs() < 3) {
+                          return const SizedBox.shrink();
+                        }
+                        return Positioned(
+                          left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
+                          top: 0,
+                          bottom: 0,
+                          width: 1,
+                          child: ColoredBox(
+                            color: theme.colors.primary.withValues(alpha: 0.65),
+                          ),
+                        );
+                      },
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        widget.label.toUpperCase(),
+                        style: theme.typography.display.xs.copyWith(
+                          fontFamily: MixarFonts.spaceGrotesk,
+                          color: FaderColors.forAccent(
+                            faderAccentForDeck(widget.deckId) ??
+                                FaderAccent.neutral,
+                          ).grip.withValues(alpha: 0.55),
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ),
-                Align(
-                  child: ColoredBox(
-                    color: theme.colors.foreground.withValues(alpha: 0.9),
-                    child: const SizedBox(width: 1, height: double.infinity),
-                  ),
-                ),
-                if (slipOn && slipShadowMs != null && strip != null)
-                  AnimatedBuilder(
-                    animation: _playhead,
-                    builder: (context, _) {
-                      final audibleMs = _displayMs(durationMs);
-                      final delta = slipShadowMs - audibleMs;
-                      if (delta.abs() < 3) {
-                        return const SizedBox.shrink();
-                      }
-                      return Positioned(
-                        left: snapPx(width / 2 + delta * pxPerMs - 0.5, dpr),
-                        top: 0,
-                        bottom: 0,
-                        width: 1,
-                        child: ColoredBox(
-                          color: theme.colors.primary.withValues(alpha: 0.65),
-                        ),
-                      );
-                    },
-                  ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(
-                      widget.label.toUpperCase(),
-                      style: theme.typography.display.xs.copyWith(
-                        fontFamily: MixarFonts.spaceGrotesk,
-                        color: FaderColors.forAccent(
-                          faderAccentForDeck(widget.deckId) ??
-                              FaderAccent.neutral,
-                        ).grip.withValues(alpha: 0.55),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.6,
-                        height: 1,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
