@@ -237,7 +237,7 @@ class HistoryDetailPane extends ConsumerWidget {
       HistoryExportFormatSetting.m3U8 => 'm3u8',
       HistoryExportFormatSetting.txt => 'txt',
     };
-    final dest = await FilePicker.platform.saveFile(
+    final dest = await FilePicker.saveFile(
       dialogTitle: 'Export history session',
       fileName: _historyExportFileName(sessionTitle, ext),
     );
