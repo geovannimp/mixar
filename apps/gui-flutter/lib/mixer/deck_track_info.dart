@@ -46,7 +46,7 @@ class DeckTrackInfo extends ConsumerWidget {
     }
     final artwork = trackId == null
         ? null
-        : ref.watch(artworkCacheProvider)[trackId];
+        : ref.watch(artworkCacheProvider.select((m) => m[trackId]));
     final lib = ref.watch(deckLibraryTrackProvider(deckId));
     final artist = lib?.artist;
     final keyMode = keyModeFromSettings(
@@ -65,21 +65,7 @@ class DeckTrackInfo extends ConsumerWidget {
             orElse: () => KeyColorModeSetting.off,
           ),
     );
-    final harmonicReference = ref.watch(harmonicReferenceKeyProvider);
-    final key = formatDeckKey(lib?.key, keyMode);
-    final keyColor = hasTrack
-        ? colorForKey(
-            lib?.key,
-            keyColorMode,
-            harmonicReferenceKey: harmonicReference,
-          )
-        : null;
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
-    final durationMs = ref.watch(deckDurationMsProvider(deckId));
-    final positionMs = ref.watch(deckPositionMsProvider(deckId));
-    final keyLock = ref.watch(deckKeyLockProvider(deckId));
-    final engineRunning = ref.watch(engineRunningProvider);
-    final keyLockEnabled = hasTrack && engineRunning;
 
     return MCard(
       clipBehavior: .antiAlias,
@@ -112,23 +98,23 @@ class DeckTrackInfo extends ConsumerWidget {
                                 skeleton: skeleton,
                               ),
                             ),
-                            DeckKeyLockButton(
-                              keyLabel: hasTrack ? key : '—',
-                              keyColor: keyColor,
-                              keyLock: keyLock,
-                              enabled: keyLockEnabled,
-                              onToggle: () {
-                                unawaited(
-                                  _setKeyLock(context, ref, deckId, !keyLock),
-                                );
-                              },
+                            // Harmonic ref flips on play/pause — keep it off the
+                            // parent so artwork / title do not rebuild.
+                            _DeckKeyLockControl(
+                              deckId: deckId,
+                              hasTrack: hasTrack,
+                              rawKey: lib?.key,
+                              keyMode: keyMode,
+                              keyColorMode: keyColorMode,
                             ),
                           ],
                         ),
-                        _DeckTimeRow(
-                          hasTrack: hasTrack,
-                          positionMs: positionMs,
-                          durationMs: durationMs,
+                        // Playhead ticks must not rebuild artwork / title / key.
+                        RepaintBoundary(
+                          child: _DeckTimeRow(
+                            deckId: deckId,
+                            hasTrack: hasTrack,
+                          ),
                         ),
                       ],
                     ),
@@ -138,7 +124,7 @@ class DeckTrackInfo extends ConsumerWidget {
             ),
           ),
           const MDivider(padding: .zero),
-          OverviewStrip(deckId: deckId, height: 36),
+          RepaintBoundary(child: OverviewStrip(deckId: deckId, height: 36)),
         ],
       ),
     );
@@ -161,6 +147,46 @@ Future<void> _setKeyLock(
       context: context,
       variant: MixarToastVariant.destructive,
       title: Text('$e'),
+    );
+  }
+}
+
+class _DeckKeyLockControl extends ConsumerWidget {
+  const new({
+    required this.deckId,
+    required this.hasTrack,
+    required this.rawKey,
+    required this.keyMode,
+    required this.keyColorMode,
+  });
+
+  final int deckId;
+  final bool hasTrack;
+  final String? rawKey;
+  final KeyDisplayMode keyMode;
+  final KeyColorMode keyColorMode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final keyLock = ref.watch(deckKeyLockProvider(deckId));
+    final engineRunning = ref.watch(engineRunningProvider);
+    final harmonicReference = ref.watch(harmonicReferenceKeyProvider);
+    final key = formatDeckKey(rawKey, keyMode);
+    final keyColor = hasTrack
+        ? colorForKey(
+            rawKey,
+            keyColorMode,
+            harmonicReferenceKey: harmonicReference,
+          )
+        : null;
+    return DeckKeyLockButton(
+      keyLabel: hasTrack ? key : '—',
+      keyColor: keyColor,
+      keyLock: keyLock,
+      enabled: hasTrack && engineRunning,
+      onToggle: () {
+        unawaited(_setKeyLock(context, ref, deckId, !keyLock));
+      },
     );
   }
 }
@@ -274,20 +300,17 @@ class _DeckTitleArtist extends StatelessWidget {
   }
 }
 
-class _DeckTimeRow extends StatelessWidget {
-  const new({
-    required this.hasTrack,
-    required this.positionMs,
-    required this.durationMs,
-  });
+class _DeckTimeRow extends ConsumerWidget {
+  const new({required this.deckId, required this.hasTrack});
 
+  final int deckId;
   final bool hasTrack;
-  final int positionMs;
-  final int? durationMs;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
+    final positionMs = ref.watch(deckPositionMsProvider(deckId));
+    final durationMs = ref.watch(deckDurationMsProvider(deckId));
     return Row(
       children: [
         Text(

@@ -33,9 +33,13 @@ final FutureProviderFamily<BeatGridData?, String> beatGridFetchProvider =
 /// Beat grid for a track: event cache first, otherwise the initial library fetch.
 final ProviderFamily<BeatGridData?, String> beatGridProvider =
     Provider.family<BeatGridData?, String>((ref, trackId) {
-      final cache = ref.watch(trackBeatGridsProvider);
-      if (cache.containsKey(trackId)) {
-        return cache[trackId];
+      final entry = ref.watch(
+        trackBeatGridsProvider.select(
+          (cache) => (cache.containsKey(trackId), cache[trackId]),
+        ),
+      );
+      if (entry.$1) {
+        return entry.$2;
       }
       return ref.watch(beatGridFetchProvider(trackId)).value;
     });
@@ -43,7 +47,9 @@ final ProviderFamily<BeatGridData?, String> beatGridProvider =
 /// True only while the first fetch is in flight (not after grid edits).
 final ProviderFamily<bool, String> beatGridLoadingProvider =
     Provider.family<bool, String>((ref, trackId) {
-      if (ref.watch(trackBeatGridsProvider).containsKey(trackId)) {
+      if (ref.watch(
+        trackBeatGridsProvider.select((cache) => cache.containsKey(trackId)),
+      )) {
         return false;
       }
       return ref.watch(beatGridFetchProvider(trackId)).isLoading;

@@ -39,7 +39,6 @@ class DeckPanel extends ConsumerWidget {
     final accentColor = FaderColors.forAccent(accent).grip;
     final loadedTitle = ref.watch(deckTrackTitleProvider(deckId));
     final hasTrack = ref.watch(deckHasTrackProvider(deckId));
-    final playing = ref.watch(deckPlayingProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final engineRunning = ref.watch(engineRunningProvider);
     final loading = ref.watch(deckLoadingProvider(deckId));
@@ -91,20 +90,9 @@ class DeckPanel extends ConsumerWidget {
         unawaited(_engineCmd(context, () => setDeckCuePoint(ref, deckId)));
       },
     );
-    final playLabel = playing ? 'Pause' : 'Play';
+    // Play/pause must not rebuild DeckTrackInfo / pads (artwork blink).
     final play = Expanded(
-      child: AppTooltip(
-        tip: playLabel,
-        child: MixerButton(
-          onPress: transportDisabled
-              ? null
-              : () {
-                  unawaited(_togglePlay(context, ref, deckId));
-                },
-          semanticsLabel: playLabel,
-          child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
-        ),
-      ),
+      child: _DeckPlayButton(deckId: deckId, disabled: transportDisabled),
     );
     final cueWrap = Expanded(child: cue);
 
@@ -194,6 +182,31 @@ class DeckPanel extends ConsumerWidget {
             if (_tempoOnRight) ...[const SizedBox(width: 8), tempo],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DeckPlayButton extends ConsumerWidget {
+  const new({required this.deckId, required this.disabled});
+
+  final int deckId;
+  final bool disabled;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final playing = ref.watch(deckPlayingProvider(deckId));
+    final playLabel = playing ? 'Pause' : 'Play';
+    return AppTooltip(
+      tip: playLabel,
+      child: MixerButton(
+        onPress: disabled
+            ? null
+            : () {
+                unawaited(_togglePlay(context, ref, deckId));
+              },
+        semanticsLabel: playLabel,
+        child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
       ),
     );
   }

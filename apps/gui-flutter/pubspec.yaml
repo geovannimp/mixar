@@ -52,6 +52,7 @@ dependencies:
   anchor_ui: ^0.0.9
   shadcn_ui: ^0.57.0
   riverpod: ^3.4.3
+  equatable: ^3.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

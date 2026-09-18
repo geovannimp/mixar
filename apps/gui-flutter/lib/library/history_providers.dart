@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/history_refresh.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -77,7 +78,7 @@ final openHistorySessionIdProvider = Provider<String?>((ref) {
 });
 
 /// Track ids / filesystem paths committed in the open history session.
-class SessionPlayedKeys {
+class SessionPlayedKeys extends Equatable {
   const new({required this.trackIds, required this.paths});
 
   final Set<String> trackIds;
@@ -94,7 +95,19 @@ class SessionPlayedKeys {
     }
     return false;
   }
+
+  @override
+  List<Object?> get props => [trackIds, paths];
 }
+
+/// Whether library-table dimming needs a repaint for [next] vs [previous].
+///
+/// History often re-emits the same track set (e.g. pause writes `ended_at`);
+/// that must not tear down the track table.
+bool sessionPlayedDimSetChanged(
+  SessionPlayedKeys? previous,
+  SessionPlayedKeys? next,
+) => previous != next;
 
 /// Convert history XSPF `location` (often `file://…`) to a filesystem path.
 String normalizeHistoryLocation(String location) {
@@ -144,6 +157,26 @@ final sessionPlayedKeysProvider = FutureProvider<SessionPlayedKeys>((
   final transport = await ref.watch(libraryTransportProvider.future);
   final entries = await transport.historySessionEntries(sessionId: sessionId);
   return sessionPlayedKeysFromEntries(entries);
+});
+
+/// Sync view of [sessionPlayedKeysProvider]. Equal key sets do not notify
+/// (FutureProvider still flaps through loading on every history tick).
+/// Prefer [AsyncValue.value] over [AsyncValue.asData] so a refresh keeps the
+/// previous key set while loading (avoids undim/redim flicker).
+final sessionPlayedKeysValueProvider = Provider<SessionPlayedKeys>((ref) {
+  return ref.watch(sessionPlayedKeysProvider).value ?? SessionPlayedKeys.empty;
+});
+
+/// Per-row dim flag. Notifies only when this row's dim bool flips — pause /
+/// ended_at history writes must not rebuild Opacity for already-dimmed rows.
+final sessionTrackDimmedProvider = Provider.family<bool, (String, String)>((
+  ref,
+  trackKey,
+) {
+  final (trackId, path) = trackKey;
+  return ref
+      .watch(sessionPlayedKeysValueProvider)
+      .matches(trackId: trackId, path: path);
 });
 
 class HistoryEntryFilter extends Notifier<String> {

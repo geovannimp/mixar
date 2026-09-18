@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -35,5 +38,96 @@ void main() {
 
   test('empty keys never match', () {
     expect(SessionPlayedKeys.empty.matches(trackId: 't1', path: '/x'), isFalse);
+  });
+
+  test('equal key sets compare equal even when rebuilt', () {
+    SessionPlayedKeys from(List<HistoryEntryInfo> entries) =>
+        sessionPlayedKeysFromEntries(entries);
+
+    final first = from([
+      const HistoryEntryInfo(
+        id: 'e1',
+        trackId: 't1',
+        location: 'file:///music/a.flac',
+        deck: 0,
+        startedAt: '2026-01-01T00:00:00Z',
+      ),
+    ]);
+    // Pause updates ended_at / duration on the same track — dim set unchanged.
+    final afterPause = from([
+      const HistoryEntryInfo(
+        id: 'e1',
+        trackId: 't1',
+        location: 'file:///music/a.flac',
+        deck: 0,
+        startedAt: '2026-01-01T00:00:00Z',
+        endedAt: '2026-01-01T00:00:30Z',
+      ),
+    ]);
+    expect(first, equals(afterPause));
+    expect(sessionPlayedDimSetChanged(first, afterPause), isFalse);
+  });
+
+  test('new track in session changes dim set', () {
+    final before = sessionPlayedKeysFromEntries([
+      const HistoryEntryInfo(
+        id: 'e1',
+        trackId: 't1',
+        location: '/a.flac',
+        deck: 0,
+        startedAt: '2026-01-01T00:00:00Z',
+      ),
+    ]);
+    final after = sessionPlayedKeysFromEntries([
+      const HistoryEntryInfo(
+        id: 'e1',
+        trackId: 't1',
+        location: '/a.flac',
+        deck: 0,
+        startedAt: '2026-01-01T00:00:00Z',
+      ),
+      const HistoryEntryInfo(
+        id: 'e2',
+        trackId: 't2',
+        location: '/b.flac',
+        deck: 1,
+        startedAt: '2026-01-01T00:01:00Z',
+      ),
+    ]);
+    expect(sessionPlayedDimSetChanged(before, after), isTrue);
+    expect(before.matches(trackId: 't1', path: '/a.flac'), isTrue);
+    expect(after.matches(trackId: 't1', path: '/a.flac'), isTrue);
+    expect(before.matches(trackId: 't2', path: '/b.flac'), isFalse);
+    expect(after.matches(trackId: 't2', path: '/b.flac'), isTrue);
+  });
+
+  test('sessionPlayedKeysValueProvider keeps keys while FutureProvider reloads', () async {
+    final keys = sessionPlayedKeysFromEntries([
+      const HistoryEntryInfo(
+        id: 'e1',
+        trackId: 't1',
+        location: '/a.flac',
+        deck: 0,
+        startedAt: '2026-01-01T00:00:00Z',
+      ),
+    ]);
+    var gate = Completer<SessionPlayedKeys>();
+    final container = ProviderContainer(
+      overrides: [sessionPlayedKeysProvider.overrideWith((ref) => gate.future)],
+    );
+    addTearDown(container.dispose);
+
+    gate.complete(keys);
+    await container.read(sessionPlayedKeysProvider.future);
+    expect(container.read(sessionPlayedKeysValueProvider), keys);
+
+    gate = Completer<SessionPlayedKeys>();
+    container.invalidate(sessionPlayedKeysProvider);
+    await Future<void>.value();
+    final asyncKeys = container.read(sessionPlayedKeysProvider);
+    expect(asyncKeys.isLoading, isTrue);
+    // Prefer .value (not only asData) so reload / error-with-previous keep dim.
+    expect(asyncKeys.value, keys);
+    expect(container.read(sessionPlayedKeysValueProvider), keys);
   });
 }

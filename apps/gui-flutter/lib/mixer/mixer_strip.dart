@@ -387,8 +387,6 @@ class _LevelMetersColumn extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = context.theme;
     final mode = mono ? LevelMeterMode.mono : LevelMeterMode.stereo;
-    final levelsA = ref.watch(deckLevelsProvider(0));
-    final levelsB = ref.watch(deckLevelsProvider(1));
 
     return Column(
       children: [
@@ -442,9 +440,9 @@ class _LevelMetersColumn extends ConsumerWidget {
               mainAxisAlignment: .center,
               crossAxisAlignment: .stretch,
               children: [
-                LevelMeter(levels: levelsA, mode: mode),
+                RepaintBoundary(child: _LiveLevelMeter(deckId: 0, mode: mode)),
                 const SizedBox(width: 2),
-                LevelMeter(levels: levelsB, mode: mode),
+                RepaintBoundary(child: _LiveLevelMeter(deckId: 1, mode: mode)),
               ],
             ),
           ),
@@ -452,6 +450,19 @@ class _LevelMetersColumn extends ConsumerWidget {
         _MixerCueFooter(cue: false, onCue: () {}, spacer: true),
       ],
     );
+  }
+}
+
+class _LiveLevelMeter extends ConsumerWidget {
+  const new({required this.deckId, required this.mode});
+
+  final int deckId;
+  final LevelMeterMode mode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final levels = ref.watch(deckLevelsProvider(deckId));
+    return LevelMeter(levels: levels, mode: mode);
   }
 }
 
