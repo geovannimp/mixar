@@ -108,9 +108,21 @@ class PadButton extends StatelessWidget {
 
     if (tooltip != null && tooltip!.isNotEmpty) {
       // One Semantics node; ExcludeSemantics keeps the tooltip chrome quiet.
+      // onTap restores activation after ExcludeSemantics hides GestureDetector.
+      final onActivate = disabled
+          ? null
+          : (onPress == null && onPointerDown == null)
+          ? null
+          : () {
+              onPointerDown?.call();
+              onPress?.call();
+              onPointerUp?.call();
+            };
       pad = Semantics(
         label: tooltip,
         button: true,
+        enabled: !disabled,
+        onTap: onActivate,
         child: AppTooltip(
           tip: tooltip!,
           child: ExcludeSemantics(child: pad),
