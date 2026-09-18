@@ -17,6 +17,26 @@ void main() {
     expect(typography.body.sm.decoration, TextDecoration.none);
   });
 
+  test('MixarThemeData.light/dark/forBrightness return stable instances', () {
+    expect(identical(MixarThemeData.light(), MixarThemeData.light()), isTrue);
+    expect(identical(MixarThemeData.dark(), MixarThemeData.dark()), isTrue);
+    expect(
+      identical(
+        MixarThemeData.forBrightness(Brightness.light),
+        MixarThemeData.light(),
+      ),
+      isTrue,
+    );
+    expect(
+      identical(
+        MixarThemeData.forBrightness(Brightness.dark),
+        MixarThemeData.dark(),
+      ),
+      isTrue,
+    );
+    expect(identical(MixarThemeData.light(), MixarThemeData.dark()), isFalse);
+  });
+
   testWidgets('MixarTheme installs DefaultTextStyle without underline', (
     tester,
   ) async {
