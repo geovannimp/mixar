@@ -16,14 +16,26 @@ class DeckGrid extends StatelessWidget {
         Expanded(
           child: Padding(
             padding: EdgeInsets.all(10),
-            child: DeckPanel(deckId: 0, label: 'Deck A', accent: FaderAccent.a),
+            child: RepaintBoundary(
+              child: DeckPanel(
+                deckId: 0,
+                label: 'Deck A',
+                accent: FaderAccent.a,
+              ),
+            ),
           ),
         ),
-        MixerStrip(),
+        RepaintBoundary(child: MixerStrip()),
         Expanded(
           child: Padding(
             padding: EdgeInsets.all(10),
-            child: DeckPanel(deckId: 1, label: 'Deck B', accent: FaderAccent.b),
+            child: RepaintBoundary(
+              child: DeckPanel(
+                deckId: 1,
+                label: 'Deck B',
+                accent: FaderAccent.b,
+              ),
+            ),
           ),
         ),
       ],

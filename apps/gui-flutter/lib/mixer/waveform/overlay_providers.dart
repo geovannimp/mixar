@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
@@ -8,7 +9,6 @@ import 'package:gui_flutter/mixer/waveform/beat_grid.dart';
 import 'package:gui_flutter/mixer/waveform/layout.dart';
 import 'package:gui_flutter/mixer/waveform/overlay_pictures.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
-import 'package:riverpod/src/providers/notifier.dart';
 
 void _dropPictureAfterFrame(Picture? picture) {
   if (picture == null) {
@@ -74,7 +74,9 @@ class StripLoopPictureNotifier extends Notifier<Picture?> {
       _owned = null;
       return null;
     }
-    final loops = ref.watch(trackSavedLoopsProvider)[trackId] ?? const [];
+    final loops =
+        ref.watch(trackSavedLoopsProvider.select((m) => m[trackId])) ??
+        const [];
     if (loops.isEmpty) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
@@ -169,7 +171,7 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
       _owned = null;
       return null;
     }
-    final rows = ref.watch(trackHotCuesProvider)[trackId];
+    final rows = ref.watch(trackHotCuesProvider.select((m) => m[trackId]));
     if (rows == null || rows.isEmpty) {
       _dropPictureAfterFrame(_owned);
       _owned = null;
@@ -194,44 +196,27 @@ class StripCuePictureNotifier extends Notifier<Picture?> {
   }
 }
 
-final NotifierProviderFamily<
-  StripBeatGridPictureNotifier,
-  Picture?,
-  (String, int)
->
-stripBeatGridPictureProvider = NotifierProvider.autoDispose
+final stripBeatGridPictureProvider = NotifierProvider.autoDispose
     .family<StripBeatGridPictureNotifier, Picture?, (String, int)>(
       StripBeatGridPictureNotifier.new,
     );
 
-final NotifierProviderFamily<StripLoopPictureNotifier, Picture?, (String, int)>
-stripLoopPictureProvider = NotifierProvider.autoDispose
+final stripLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripLoopPictureNotifier, Picture?, (String, int)>(
       StripLoopPictureNotifier.new,
     );
 
-final NotifierProviderFamily<
-  StripActiveLoopPictureNotifier,
-  Picture?,
-  (int, int)
->
-stripActiveLoopPictureProvider = NotifierProvider.autoDispose
+final stripActiveLoopPictureProvider = NotifierProvider.autoDispose
     .family<StripActiveLoopPictureNotifier, Picture?, (int, int)>(
       StripActiveLoopPictureNotifier.new,
     );
 
-final NotifierProviderFamily<
-  StripPendingLoopInPictureNotifier,
-  Picture?,
-  (int, int)
->
-stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
+final stripPendingLoopInPictureProvider = NotifierProvider.autoDispose
     .family<StripPendingLoopInPictureNotifier, Picture?, (int, int)>(
       StripPendingLoopInPictureNotifier.new,
     );
 
-final NotifierProviderFamily<StripCuePictureNotifier, Picture?, (String, int)>
-stripCuePictureProvider = NotifierProvider.autoDispose
+final stripCuePictureProvider = NotifierProvider.autoDispose
     .family<StripCuePictureNotifier, Picture?, (String, int)>(
       StripCuePictureNotifier.new,
     );

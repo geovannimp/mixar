@@ -21,9 +21,17 @@ class WaveformSection extends ConsumerWidget {
         children: [
           const Column(
             children: [
-              Expanded(child: ScrollingLane(deckId: 0, label: 'A')),
+              Expanded(
+                child: RepaintBoundary(
+                  child: ScrollingLane(deckId: 0, label: 'A'),
+                ),
+              ),
               MDivider(padding: .zero),
-              Expanded(child: ScrollingLane(deckId: 1, label: 'B')),
+              Expanded(
+                child: RepaintBoundary(
+                  child: ScrollingLane(deckId: 1, label: 'B'),
+                ),
+              ),
             ],
           ),
           if (!hasA && !hasB)

@@ -36,6 +36,15 @@ Color libraryTableSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
 /// Opacity applied to rows already committed in the open history session.
 const kSessionPlayedRowOpacity = 0.3;
 
+/// Identity for [TrinaGrid] remounts. Keep play/harmonic state out — those
+/// change often and remounting the grid is what blinks the library table.
+Object libraryTableRemountKey({
+  required Object? sourceId,
+  required List<String> tableColumns,
+  required KeyColorMode keyColorMode,
+  required KeyDisplayMode keyDisplayMode,
+}) => (sourceId, tableColumns.join(','), keyColorMode, keyDisplayMode);
+
 LibraryTrackSummary? _trackData(TrinaRow<dynamic> row) {
   final data = row.data;
   return data is LibraryTrackSummary ? data : null;
@@ -128,15 +137,12 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingIds = ref.watch(analyzingTrackIdsProvider);
-    final engineRunning = ref.watch(engineRunningProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
-    ref.watch(sessionPlayedKeysProvider);
     final settings = ref
         .watch(appSettingsProvider)
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
-    final harmonicReferenceKey = ref.watch(harmonicReferenceKeyProvider);
     final config = _gridConfig(theme);
 
     ref.listen(analyzingTrackIdsProvider, (_, next) {
@@ -148,17 +154,8 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
       manager.appendRows(_rowsFor(_tracks, next));
       _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
-    ref.listen(sessionPlayedKeysProvider, (_, _) {
-      final manager = _manager;
-      if (manager == null || _tracks.isEmpty) {
-        return;
-      }
-      manager.removeAllRows();
-      manager.appendRows(
-        _rowsFor(_tracks, ref.read(analyzingTrackIdsProvider)),
-      );
-      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
-    });
+    // Session dim: each row Consumer watches sessionPlayedKeysProvider — do not
+    // notifyListeners the grid when history commits (min play seconds).
     ref.listen(artworkCacheProvider, (_, _) {
       _manager?.notifyListeners();
     });
@@ -248,54 +245,61 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                         ),
                         child: ClipRRect(
                           borderRadius: theme.style.borderRadius.md,
-                          child: SizedBox.expand(
-                            child: TrinaGrid(
-                              // TrinaGrid only reads rowWrapper at construct.
-                              key: ValueKey((
-                                drive ? drivePath : selectedId,
-                                engineRunning,
-                                tableColumns.join(','),
-                                keyColorMode,
-                                keyDisplayMode,
-                                harmonicReferenceKey,
-                              )),
-                              columns: _columns(
-                                theme,
-                                tableColumns,
-                                keyDisplayMode: keyDisplayMode,
-                                keyColorMode: keyColorMode,
-                                harmonicReferenceKey: harmonicReferenceKey,
+                          // Isolate table paint from overlay tooltips / meters.
+                          child: RepaintBoundary(
+                            child: SizedBox.expand(
+                              child: TrinaGrid(
+                                // Remount only when columns/source identity change.
+                                // rowWrapper/renderers ref.read live engine state.
+                                key: ValueKey(
+                                  libraryTableRemountKey(
+                                    sourceId: drive ? drivePath : selectedId,
+                                    tableColumns: tableColumns,
+                                    keyColorMode: keyColorMode,
+                                    keyDisplayMode: keyDisplayMode,
+                                  ),
+                                ),
+                                columns: _columns(
+                                  theme,
+                                  tableColumns,
+                                  keyDisplayMode: keyDisplayMode,
+                                  keyColorMode: keyColorMode,
+                                ),
+                                rows: _rowsFor(tracks, analyzingIds),
+                                mode: TrinaGridMode.readOnly,
+                                rowWrapper: _rowWrapper,
+                                onLoaded: (e) {
+                                  _manager = e.stateManager;
+                                  e.stateManager.setShowColumnFilter(false);
+                                  _attachScrollListener(e.stateManager);
+                                  _requestVisibleArtwork(e.stateManager);
+                                  ref
+                                      .read(
+                                        focusedTrackRowIndexProvider.notifier,
+                                      )
+                                      .setCount(_tracks.length);
+                                  _applyMidiFocus(
+                                    e.stateManager,
+                                    ref.read(focusedTrackRowIndexProvider),
+                                  );
+                                },
+                                onActiveCellChanged: (event) {
+                                  if (event.idx < 0) {
+                                    return;
+                                  }
+                                  _syncFocusedIndexFromVisual(event.idx);
+                                },
+                                rowColorCallback: (ctx) {
+                                  final current =
+                                      ctx.stateManager.currentRowIdx;
+                                  if (current != null &&
+                                      current == ctx.rowIdx) {
+                                    return libraryTableSelectedRowColor(theme);
+                                  }
+                                  return theme.colors.secondary;
+                                },
+                                configuration: config,
                               ),
-                              rows: _rowsFor(tracks, analyzingIds),
-                              mode: TrinaGridMode.readOnly,
-                              rowWrapper: _rowWrapper,
-                              onLoaded: (e) {
-                                _manager = e.stateManager;
-                                e.stateManager.setShowColumnFilter(false);
-                                _attachScrollListener(e.stateManager);
-                                _requestVisibleArtwork(e.stateManager);
-                                ref
-                                    .read(focusedTrackRowIndexProvider.notifier)
-                                    .setCount(_tracks.length);
-                                _applyMidiFocus(
-                                  e.stateManager,
-                                  ref.read(focusedTrackRowIndexProvider),
-                                );
-                              },
-                              onActiveCellChanged: (event) {
-                                if (event.idx < 0) {
-                                  return;
-                                }
-                                _syncFocusedIndexFromVisual(event.idx);
-                              },
-                              rowColorCallback: (ctx) {
-                                final current = ctx.stateManager.currentRowIdx;
-                                if (current != null && current == ctx.rowIdx) {
-                                  return libraryTableSelectedRowColor(theme);
-                                }
-                                return theme.colors.secondary;
-                              },
-                              configuration: config,
                             ),
                           ),
                         ),
@@ -313,7 +317,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     List<String> activeColumns, {
     required KeyDisplayMode keyDisplayMode,
     required KeyColorMode keyColorMode,
-    required String? harmonicReferenceKey,
   }) {
     final visible = {
       for (final col in kLibraryColumnDefs)
@@ -431,22 +434,28 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           renderer: (ctx) {
             final raw = ctx.row.cells['key']?.value as String? ?? '';
             final label = raw.isEmpty ? '' : formatDeckKey(raw, keyDisplayMode);
-            final color = colorForKey(
-              raw,
-              keyColorMode,
-              harmonicReferenceKey: harmonicReferenceKey,
-            );
-            final textStyle = ctx.stateManager.configuration.style.cellTextStyle
-                .copyWith(
-                  color: color ?? theme.colors.foreground,
-                  fontWeight: color != null ? FontWeight.w600 : null,
+            final baseStyle =
+                ctx.stateManager.configuration.style.cellTextStyle;
+            // Consumer watches harmonic ref so play/pause does not notifyListeners
+            // the whole grid (that rebuilt Opacity and blinked played rows).
+            return Consumer(
+              builder: (context, ref, _) {
+                final color = colorForKey(
+                  raw,
+                  keyColorMode,
+                  harmonicReferenceKey: ref.watch(harmonicReferenceKeyProvider),
                 );
-            return Center(
-              child: Text(
-                label,
-                style: textStyle,
-                overflow: TextOverflow.ellipsis,
-              ),
+                return Center(
+                  child: Text(
+                    label,
+                    style: baseStyle.copyWith(
+                      color: color ?? theme.colors.foreground,
+                      fontWeight: color != null ? FontWeight.w600 : null,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              },
             );
           },
         ),
@@ -631,13 +640,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     if (track == null) {
       return inner;
     }
-    final played =
-        ref.read(sessionPlayedKeysProvider).asData?.value ??
-        SessionPlayedKeys.empty;
-    final dimmed = played.matches(trackId: track.id, path: track.path);
-    final row = dimmed
-        ? Opacity(opacity: kSessionPlayedRowOpacity, child: inner)
-        : inner;
     final inLibrary = rowData.cells['inLibrary']?.value == true;
     final title = trackTitleLabel(track);
     final analyzing = ref.read(analyzingTrackIdsProvider).contains(track.id);
@@ -652,7 +654,22 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
-        child: row,
+        // Watch per-row dim bool (not the FutureProvider) so history refresh
+        // with the same key set does not recreate Opacity.
+        child: Consumer(
+          builder: (context, ref, child) {
+            final dimmed = ref.watch(
+              sessionTrackDimmedProvider((track.id, track.path)),
+            );
+            final content = child ?? const SizedBox.shrink();
+            return AnimatedOpacity(
+              opacity: dimmed ? kSessionPlayedRowOpacity : 1,
+              duration: const Duration(milliseconds: 120),
+              child: content,
+            );
+          },
+          child: inner,
+        ),
       ),
     );
   }

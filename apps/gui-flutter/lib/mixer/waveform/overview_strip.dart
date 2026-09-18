@@ -32,7 +32,6 @@ class OverviewStrip extends ConsumerWidget {
     final theme = context.theme;
     final trackId = ref.watch(deckTrackIdProvider(deckId));
     final durationMs = ref.watch(deckDurationMsProvider(deckId)) ?? 0;
-    final positionMs = ref.watch(deckPositionMsProvider(deckId));
     final skeleton = ref.watch(deckSkeletonProvider(deckId));
     final peaks = trackId == null
         ? const <SpectralPeak>[]
@@ -55,9 +54,6 @@ class OverviewStrip extends ConsumerWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
-              final playheadX = durationMs > 0
-                  ? (positionMs / durationMs).clamp(0.0, 1.0) * width
-                  : 0.0;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapDown: durationMs <= 0
@@ -82,16 +78,6 @@ class OverviewStrip extends ConsumerWidget {
                           mode: mode,
                         ),
                       ),
-                      if (durationMs > 0)
-                        Positioned(
-                          left: 0,
-                          width: playheadX,
-                          top: 0,
-                          bottom: 0,
-                          child: const ColoredBox(
-                            color: Color.fromRGBO(0, 0, 0, 0.6),
-                          ),
-                        ),
                       if (durationMs > 0 && width > 0)
                         IgnorePointer(
                           child: _OverviewOverlayLayer(
@@ -103,15 +89,14 @@ class OverviewStrip extends ConsumerWidget {
                           ),
                         ),
                       if (durationMs > 0)
-                        Positioned(
-                          left: playheadX,
-                          top: 0,
-                          bottom: 0,
-                          child: ColoredBox(
-                            color: theme.colors.foreground.withValues(
+                        RepaintBoundary(
+                          child: _OverviewPlayhead(
+                            deckId: deckId,
+                            durationMs: durationMs,
+                            width: width,
+                            lineColor: theme.colors.foreground.withValues(
                               alpha: 0.85,
                             ),
-                            child: const SizedBox(width: 1),
                           ),
                         ),
                     ],
@@ -122,6 +107,47 @@ class OverviewStrip extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Playhead shade + needle — watches position without rebuilding the waveform.
+class _OverviewPlayhead extends ConsumerWidget {
+  const new({
+    required this.deckId,
+    required this.durationMs,
+    required this.width,
+    required this.lineColor,
+  });
+
+  final int deckId;
+  final int durationMs;
+  final double width;
+  final Color lineColor;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final positionMs = ref.watch(deckPositionMsProvider(deckId));
+    final playheadX = durationMs > 0
+        ? (positionMs / durationMs).clamp(0.0, 1.0) * width
+        : 0.0;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          left: 0,
+          width: playheadX,
+          top: 0,
+          bottom: 0,
+          child: const ColoredBox(color: Color.fromRGBO(0, 0, 0, 0.6)),
+        ),
+        Positioned(
+          left: playheadX,
+          top: 0,
+          bottom: 0,
+          child: ColoredBox(color: lineColor, child: const SizedBox(width: 1)),
+        ),
+      ],
     );
   }
 }
