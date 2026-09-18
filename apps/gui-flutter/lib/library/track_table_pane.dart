@@ -250,7 +250,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                             child: SizedBox.expand(
                               child: TrinaGrid(
                                 // Remount only when columns/source identity change.
-                                // rowWrapper/renderers ref.read live engine state.
+                                // Engine/drag/dim live in row Consumers — not this key.
                                 key: ValueKey(
                                   libraryTableRemountKey(
                                     sourceId: drive ? drivePath : selectedId,
@@ -632,13 +632,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     TrinaRow<dynamic> rowData,
     TrinaGridStateManager stateManager,
   ) {
-    final engineRunning = ref.read(engineRunningProvider);
-    final inner = engineRunning
-        ? _dragRowWrapper(context, rowWidget, rowData, stateManager)
-        : rowWidget;
     final track = _trackData(rowData);
     if (track == null) {
-      return inner;
+      return rowWidget;
     }
     final inLibrary = rowData.cells['inLibrary']?.value == true;
     final title = trackTitleLabel(track);
@@ -654,21 +650,24 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
-        // Watch per-row dim bool (not the FutureProvider) so history refresh
-        // with the same key set does not recreate Opacity.
+        // Watch engine + dim here so drag attaches after start without
+        // remounting TrinaGrid (ValueKey no longer includes engineRunning).
         child: Consumer(
           builder: (context, ref, child) {
             final dimmed = ref.watch(
               sessionTrackDimmedProvider((track.id, track.path)),
             );
-            final content = child ?? const SizedBox.shrink();
+            final row = child ?? const SizedBox.shrink();
+            final content = ref.watch(engineRunningProvider)
+                ? _dragRowWrapper(context, row, rowData, stateManager)
+                : row;
             return AnimatedOpacity(
               opacity: dimmed ? kSessionPlayedRowOpacity : 1,
               duration: const Duration(milliseconds: 120),
               child: content,
             );
           },
-          child: inner,
+          child: rowWidget,
         ),
       ),
     );
