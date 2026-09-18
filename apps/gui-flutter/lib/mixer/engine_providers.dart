@@ -708,7 +708,7 @@ Future<void> unloadDeck(WidgetRef ref, int deckId) async {
 }
 
 Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
-  final result = await FilePicker.platform.pickFiles(
+  final result = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: supportedAudioExtensions,
   );

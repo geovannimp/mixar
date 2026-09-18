@@ -145,7 +145,7 @@ class _CreateCollectionDialogBodyState
   }
 
   Future<void> _browseFolder() async {
-    final path = await FilePicker.platform.getDirectoryPath();
+    final path = await FilePicker.getDirectoryPath();
     if (path == null || !mounted) {
       return;
     }
