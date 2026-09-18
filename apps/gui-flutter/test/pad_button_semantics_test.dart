@@ -1,4 +1,6 @@
-import 'package:flutter/rendering.dart';
+import 'dart:ui' show Tristate;
+
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
@@ -44,10 +46,14 @@ void main() {
         ),
       );
 
-      final node = find.semantics.byLabel('Hot cue 1').evaluate().single;
-      expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
-      expect(node.hasFlag(SemanticsFlag.isEnabled), isTrue);
-      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      final data = find.semantics
+          .byLabel('Hot cue 1')
+          .evaluate()
+          .single
+          .getSemanticsData();
+      expect(data.flagsCollection.isButton, isTrue);
+      expect(data.flagsCollection.isEnabled, Tristate.isTrue);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
 
       tester.semantics.tap(find.semantics.byLabel('Hot cue 1'));
       expect(presses, 1);
@@ -95,9 +101,13 @@ void main() {
         ),
       );
 
-      final node = find.semantics.byLabel('Muted').evaluate().single;
-      expect(node.hasFlag(SemanticsFlag.isEnabled), isFalse);
-      expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+      final data = find.semantics
+          .byLabel('Muted')
+          .evaluate()
+          .single
+          .getSemanticsData();
+      expect(data.flagsCollection.isEnabled, Tristate.isFalse);
+      expect(data.hasAction(SemanticsAction.tap), isFalse);
       expect(presses, 0);
     } finally {
       semantics.dispose();
