@@ -9,17 +9,20 @@ void main() {
       PadMode.loopRoll,
       PadMode.beatJump,
       PadMode.sampler,
+      PadMode.stems,
     ]);
     expect(padModeShortLabel(PadMode.hotCue), 'Cue');
     expect(padModeShortLabel(PadMode.loopRoll), 'Roll');
     expect(padModeShortLabel(PadMode.beatJump), 'Jump');
     expect(padModeShortLabel(PadMode.sampler), 'Sample');
+    expect(padModeShortLabel(PadMode.stems), 'Stems');
   });
 
   test('cyclePadMode wraps', () {
     expect(cyclePadMode(PadMode.hotCue, 1), PadMode.loopRoll);
-    expect(cyclePadMode(PadMode.sampler, 1), PadMode.hotCue);
-    expect(cyclePadMode(PadMode.hotCue, -1), PadMode.sampler);
+    expect(cyclePadMode(PadMode.sampler, 1), PadMode.stems);
+    expect(cyclePadMode(PadMode.stems, 1), PadMode.hotCue);
+    expect(cyclePadMode(PadMode.hotCue, -1), PadMode.stems);
   });
 
   test('beat tables match Tauri', () {
