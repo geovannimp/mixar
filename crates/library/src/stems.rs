@@ -212,6 +212,154 @@ fn publish_stem_dir(tmp_dir: &Path, final_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Like [`ensure_track_stems`], but for exclusive `&mut LibraryManager` callers
+/// (e.g. [`WritableLibrary::analyze_track`](library_core::WritableLibrary::analyze_track)).
+pub(crate) fn ensure_track_stems_on(
+    library: &mut LibraryManager,
+    id: &TrackId,
+    stems_root: &Path,
+) -> Result<()> {
+    let backend = expected_backend();
+    let path = {
+        let source = library
+            .get_track(id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+        source
+            .file()
+            .ok_or(LibraryError::Unsupported("stream tracks have no stems"))?
+            .path()
+            .to_path_buf()
+    };
+
+    let cached = {
+        let cache = LibraryManager::lock_decode_cache(&library.decode_cache)?;
+        cache.get(id).cloned()
+    };
+
+    let audio = if let Some(cached) = cached {
+        cached
+    } else {
+        let source = library
+            .get_track(id)?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+        if source.file().is_none() {
+            return Err(LibraryError::Unsupported("stream tracks have no stems"));
+        }
+        let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("failed to decode track for stems: {e}"),
+        })?);
+        let mut cache = LibraryManager::lock_decode_cache(&library.decode_cache)?;
+        if let Some(existing) = cache.get(id) {
+            Arc::clone(existing)
+        } else {
+            cache.insert(id.clone(), Arc::clone(&loaded));
+            loaded
+        }
+    };
+
+    if audio.channels != 2 {
+        return Err(LibraryError::Backend {
+            backend: "stems",
+            message: format!(
+                "stem separation requires interleaved stereo (got {} channels)",
+                audio.channels
+            ),
+        });
+    }
+
+    let fingerprint = source_fingerprint(&path, &audio);
+    if has_valid_track_stems(&library.db, id, &fingerprint, backend)? {
+        return Ok(());
+    }
+
+    let info = generate_stem_files(id, stems_root, &audio, &fingerprint)?;
+    if has_valid_track_stems(&library.db, id, &fingerprint, backend)? {
+        return Ok(());
+    }
+    upsert_track_stems(&library.db, id, &info)
+}
+
+fn generate_stem_files(
+    id: &TrackId,
+    stems_root: &Path,
+    audio: &LoadedAudio,
+    fingerprint: &str,
+) -> Result<TrackStemsInfo> {
+    #[cfg(feature = "analysis")]
+    {
+        let key = stem_cache_key(id);
+        let final_dir = stem_output_dir(stems_root, id);
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp_dir = stems_root.join(format!(".{key}.tmp-{stamp}"));
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        std::fs::create_dir_all(&tmp_dir).map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("create temp stems dir: {e}"),
+        })?;
+
+        let split_result =
+            analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
+                interleaved_stereo: &audio.samples,
+                sample_rate: audio.sample_rate,
+                output_dir: &tmp_dir,
+                model_name: analyzer_stems::DEFAULT_MODEL,
+            })
+            .map_err(|e| LibraryError::Backend {
+                backend: "stems",
+                message: e.to_string(),
+            });
+
+        let result = match split_result {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&tmp_dir);
+                return Err(e);
+            }
+        };
+
+        if let Err(e) = publish_stem_dir(&tmp_dir, &final_dir) {
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            return Err(e);
+        }
+
+        let vocals_path = final_dir.join("vocals.wav");
+        let drums_path = final_dir.join("drums.wav");
+        let bass_path = final_dir.join("bass.wav");
+        let other_path = final_dir.join("other.wav");
+        for p in [&vocals_path, &drums_path, &bass_path, &other_path] {
+            if !p.is_file() {
+                return Err(LibraryError::Backend {
+                    backend: "stems",
+                    message: format!("missing published stem {}", p.display()),
+                });
+            }
+        }
+
+        Ok(TrackStemsInfo {
+            backend: result.backend,
+            source_fingerprint: fingerprint.to_string(),
+            sample_rate: result.sample_rate as i32,
+            vocals_path,
+            drums_path,
+            bass_path,
+            other_path,
+            generated_at: now_iso(),
+        })
+    }
+
+    #[cfg(not(feature = "analysis"))]
+    {
+        let _ = (id, stems_root, audio, fingerprint);
+        Err(LibraryError::Unsupported(
+            "stem separation requires the analysis feature",
+        ))
+    }
+}
+
 /// Generate and persist stems when missing or stale. No-op when `enabled` is false.
 ///
 /// Takes `&Mutex<LibraryManager>` so decode / Demucs work does not hold the library lock.
@@ -287,86 +435,12 @@ pub fn ensure_track_stems(
         }
     }
 
-    #[cfg(feature = "analysis")]
-    {
-        let key = stem_cache_key(id);
-        let final_dir = stem_output_dir(stems_root, id);
-        let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let tmp_dir = stems_root.join(format!(".{key}.tmp-{stamp}"));
-        let _ = std::fs::remove_dir_all(&tmp_dir);
-        std::fs::create_dir_all(&tmp_dir).map_err(|e| LibraryError::Backend {
-            backend: "stems",
-            message: format!("create temp stems dir: {e}"),
-        })?;
-
-        let split_result =
-            analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
-                interleaved_stereo: &audio.samples,
-                sample_rate: audio.sample_rate,
-                output_dir: &tmp_dir,
-                model_name: analyzer_stems::DEFAULT_MODEL,
-            })
-            .map_err(|e| LibraryError::Backend {
-                backend: "stems",
-                message: e.to_string(),
-            });
-
-        let result = match split_result {
-            Ok(r) => r,
-            Err(e) => {
-                let _ = std::fs::remove_dir_all(&tmp_dir);
-                return Err(e);
-            }
-        };
-
-        if let Err(e) = publish_stem_dir(&tmp_dir, &final_dir) {
-            let _ = std::fs::remove_dir_all(&tmp_dir);
-            return Err(e);
-        }
-
-        let vocals_path = final_dir.join("vocals.wav");
-        let drums_path = final_dir.join("drums.wav");
-        let bass_path = final_dir.join("bass.wav");
-        let other_path = final_dir.join("other.wav");
-        for p in [&vocals_path, &drums_path, &bass_path, &other_path] {
-            if !p.is_file() {
-                return Err(LibraryError::Backend {
-                    backend: "stems",
-                    message: format!("missing published stem {}", p.display()),
-                });
-            }
-        }
-
-        let lib = LibraryManager::lock_library(library)?;
-        if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
-            return Ok(());
-        }
-        upsert_track_stems(
-            &lib.db,
-            id,
-            &TrackStemsInfo {
-                backend: result.backend,
-                source_fingerprint: fingerprint,
-                sample_rate: result.sample_rate as i32,
-                vocals_path,
-                drums_path,
-                bass_path,
-                other_path,
-                generated_at: now_iso(),
-            },
-        )
+    let info = generate_stem_files(id, stems_root, &audio, &fingerprint)?;
+    let lib = LibraryManager::lock_library(library)?;
+    if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
+        return Ok(());
     }
-
-    #[cfg(not(feature = "analysis"))]
-    {
-        let _ = (audio, stems_root, fingerprint, backend);
-        Err(LibraryError::Unsupported(
-            "stem separation requires the analysis feature",
-        ))
-    }
+    upsert_track_stems(&lib.db, id, &info)
 }
 
 #[cfg(test)]
@@ -393,5 +467,20 @@ mod tests {
         assert_eq!(stem_cache_key(&a).len(), 16);
         assert_ne!(stem_cache_key(&a), stem_cache_key(&b));
         assert_eq!(stem_cache_key(&a), stem_cache_key(&a));
+    }
+}
+
+#[cfg(test)]
+mod options_tests {
+    use library_core::AnalyzeTrackOptions;
+
+    #[test]
+    fn validate_stems_rejects_enabled_without_root() {
+        let opts = AnalyzeTrackOptions {
+            stems_enabled: true,
+            stems_root: None,
+            ..Default::default()
+        };
+        assert!(opts.validate_stems().is_err());
     }
 }

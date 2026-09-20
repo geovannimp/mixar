@@ -16,10 +16,10 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Feature gate | `AppSettings.stems_enabled` (default **false**) |
 | Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
 | Pads | Enabled only when stems ready for the loaded track |
-| Pad map | Slots 1–4 toggle mute; 5–8 isolate that stem |
+| Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
 | Inference | **stem-splitter-core** HTDemucs ONNX (`htdemucs_ort_v1`) via public `ensure_model` / `preload` / `run_window_demucs` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
-| Stem files | WAV under `{app_support}/stems/{track_id}/` |
+| Stem files | WAV under `{app_support}/stems/{fnv64(track_id)}/` |
 | Model weights | stem-splitter-core cache (ProjectDirs) for v1; Mixar owns **stem audio** paths in DB |
 | Realtime | Document only (see below) |
 | charon-audio | **Not a product dependency** (see findings) |
@@ -75,19 +75,19 @@ analyzer-stems
 
 **Filesystem**
 
-- `{app_support}/stems/{track_id}/vocals.wav` (and drums/bass/other)
+- `{app_support}/stems/{fnv64(track_id)}/vocals.wav` (and drums/bass/other)
 - Model weights: stem-splitter-core default cache until a follow-up relocates them under app support
 
 **Table `track_stem`** (one row per track when complete)
 
 - `track_id` PK
-- `backend` (e.g. `htdemucs_ort_v1`)
-- `model_version` / content hash string
+- `backend` (model id, e.g. `htdemucs_ort_v1`) — compared to current `DEFAULT_MODEL` before cache reuse
+- `source_fingerprint` (path mtime/size + PCM shape) — stale when source changes
 - `sample_rate`
 - `generated_at`
-- relative or absolute paths for the four stems (or directory + fixed names)
+- absolute paths for the four stems
 
-Stale if model/backend changes or files missing.
+Stale if model/backend changes, fingerprint mismatches, or files missing.
 
 ### Playback
 
@@ -100,10 +100,12 @@ Stale if model/backend changes or files missing.
 
 Extend `PadMode` with `Stems`.
 
-| Slot | Action |
-|------|--------|
-| 0–3 | Toggle mute vocals / drums / bass / other |
-| 4–7 | Set isolate to that stem (press again / same slot clears isolate) |
+User-facing pad labels are **1–8**; the engine and controller use **zero-based slots 0–7**.
+
+| Engine slot | UI pad | Action |
+|-------------|--------|--------|
+| 0–3 | 1–4 | Toggle mute vocals / drums / bass / other |
+| 4–7 | 5–8 | Set isolate to that stem (press again / same slot clears isolate) |
 
 Controller MIDI: extend pad_mode mapping like Sampler.
 

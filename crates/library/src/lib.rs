@@ -579,6 +579,7 @@ impl LibraryManager {
         id: &TrackId,
         options: AnalyzeTrackOptions,
     ) -> Result<AudioSource> {
+        options.validate_stems()?;
         let path = {
             let lib = Self::lock_library(library)?;
             let source = lib
@@ -603,9 +604,11 @@ impl LibraryManager {
                 lib.persist_file_analysis(&path, &computed, true)?
             };
             if options.stems_enabled {
-                if let Some(ref stems_root) = options.stems_root {
-                    stems::ensure_track_stems(library, id, stems_root, true)?;
-                }
+                let stems_root = options
+                    .stems_root
+                    .as_ref()
+                    .expect("validate_stems requires stems_root when enabled");
+                stems::ensure_track_stems(library, id, stems_root, true)?;
             }
             Ok(source)
         }
@@ -1467,15 +1470,26 @@ impl Library for LibraryManager {
 
 impl WritableLibrary for LibraryManager {
     fn analyze_track(&mut self, id: &TrackId, options: AnalyzeTrackOptions) -> Result<AudioSource> {
+        options.validate_stems()?;
         let source = self
             .get_track(id)?
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
-        match source {
-            AudioSource::File(file) => self.analyze_file_source(file.path(), options),
-            AudioSource::Stream(_) => Err(LibraryError::Unsupported(
-                "stream track analysis not implemented",
-            )),
+        let analyzed = match source {
+            AudioSource::File(file) => self.analyze_file_source(file.path(), options.clone())?,
+            AudioSource::Stream(_) => {
+                return Err(LibraryError::Unsupported(
+                    "stream track analysis not implemented",
+                ));
+            }
+        };
+        if options.stems_enabled {
+            let stems_root = options
+                .stems_root
+                .as_ref()
+                .expect("validate_stems requires stems_root when enabled");
+            stems::ensure_track_stems_on(self, id, stems_root)?;
         }
+        Ok(analyzed)
     }
 
     fn add_collection(&mut self, collection: &NewCollection) -> Result<Collection> {

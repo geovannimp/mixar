@@ -347,7 +347,7 @@ pub struct AnalyzeTrackOptions {
     /// When true, ensure offline stem WAVs after analysis (requires [`Self::stems_root`]).
     #[serde(default)]
     pub stems_enabled: bool,
-    /// Root directory for stem caches (`{stems_root}/{sanitized_track_id}/`).
+    /// Root directory for stem caches (`{stems_root}/{fnv64(track_id)}/`).
     #[serde(default)]
     pub stems_root: Option<PathBuf>,
 }
@@ -360,6 +360,17 @@ impl AnalyzeTrackOptions {
             analysis_duration: AnalysisDurationMode::Complete,
             ..Default::default()
         }
+    }
+
+    /// Reject `stems_enabled` without a configured [`Self::stems_root`].
+    pub fn validate_stems(&self) -> crate::Result<()> {
+        if self.stems_enabled && self.stems_root.is_none() {
+            return Err(crate::LibraryError::Backend {
+                backend: "stems",
+                message: "stems_enabled requires stems_root".into(),
+            });
+        }
+        Ok(())
     }
 }
 

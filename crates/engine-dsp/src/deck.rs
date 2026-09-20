@@ -92,6 +92,8 @@ pub struct Deck {
     stem_mute: [bool; 4],
     /// When set, only this stem index is audible.
     stem_isolate: Option<u8>,
+    /// Smoothed gains applied in the mix (ramps toward mute/isolate targets).
+    stem_gain_current: [f32; 4],
     /// Resampler quality preset (`low`, `medium`, or `high`).
     resampler_quality: String,
     /// Resampler for converting between sample rates (created on load when needed)
@@ -168,6 +170,7 @@ impl Deck {
             stems: None,
             stem_mute: [false; 4],
             stem_isolate: None,
+            stem_gain_current: [1.0; 4],
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
             key_lock: false,
@@ -823,6 +826,7 @@ impl Deck {
         self.stems = Some(stems);
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_gain_current = [1.0; 4];
     }
 
     /// Clear attached stems (keeps the main buffer).
@@ -830,6 +834,7 @@ impl Deck {
         self.stems = None;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        self.stem_gain_current = [1.0; 4];
     }
 
     pub fn stems_ready(&self) -> bool {
@@ -867,7 +872,8 @@ impl Deck {
         };
     }
 
-    fn stem_gain(&self, index: usize) -> f32 {
+    /// Steady-state gain for a stem from mute/isolate (before smoothing).
+    fn stem_target_gain(&self, index: usize) -> f32 {
         if let Some(iso) = self.stem_isolate {
             return if usize::from(iso) == index { 1.0 } else { 0.0 };
         }
@@ -875,6 +881,23 @@ impl Deck {
             0.0
         } else {
             1.0
+        }
+    }
+
+    /// Advance smoothed stem gains one output sample toward their targets (~5 ms).
+    fn ramp_stem_gains_one_sample(&mut self) {
+        const RAMP_SECS: f64 = 0.005;
+        let step = (1.0 / (RAMP_SECS * f64::from(self.sample_rate.max(1)))) as f32;
+        for i in 0..4 {
+            let target = self.stem_target_gain(i);
+            let cur = self.stem_gain_current[i];
+            if (cur - target).abs() <= step {
+                self.stem_gain_current[i] = target;
+            } else if cur < target {
+                self.stem_gain_current[i] = cur + step;
+            } else {
+                self.stem_gain_current[i] = cur - step;
+            }
         }
     }
 
@@ -891,7 +914,7 @@ impl Deck {
         let mut left = 0.0;
         let mut right = 0.0;
         for (i, stem) in stems.iter().enumerate() {
-            let g = self.stem_gain(i);
+            let g = self.stem_gain_current[i];
             if g == 0.0 {
                 continue;
             }
@@ -1020,6 +1043,9 @@ impl Deck {
             if self.position_frac < 0.0 {
                 self.buffer[out * 2] = 0.0;
                 self.buffer[out * 2 + 1] = 0.0;
+                if self.stems.is_some() {
+                    self.ramp_stem_gains_one_sample();
+                }
                 self.position_frac += step;
                 continue;
             }
@@ -1027,9 +1053,15 @@ impl Deck {
             if self.position_frac >= total_source_frames as f64 {
                 self.buffer[out * 2] = 0.0;
                 self.buffer[out * 2 + 1] = 0.0;
+                if self.stems.is_some() {
+                    self.ramp_stem_gains_one_sample();
+                }
                 continue;
             }
 
+            if self.stems.is_some() {
+                self.ramp_stem_gains_one_sample();
+            }
             let (left, right) =
                 self.mix_at_position(self.position_frac, audio_samples, source_rate);
             self.buffer[out * 2] = left;
@@ -1838,5 +1870,32 @@ mod tests {
         let (l, _) = deck.mix_at_position(2.0, &[], 48_000);
         // Four stems * 0.75 at stem frame 1.
         assert!((l - 3.0).abs() < 1e-5, "scaled stem sample={l}");
+    }
+
+    #[test]
+    fn stem_mute_ramps_gain_instead_of_stepping() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![1.0f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![1.0f32; CHUNK * 2 * 8_000],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.set_stem_mute(0, true);
+        assert_eq!(deck.stem_target_gain(0), 0.0);
+        assert_eq!(deck.stem_gain_current[0], 1.0);
+        deck.ramp_stem_gains_one_sample();
+        assert!(
+            deck.stem_gain_current[0] < 1.0 && deck.stem_gain_current[0] > 0.0,
+            "gain should be mid-ramp, got {}",
+            deck.stem_gain_current[0]
+        );
     }
 }

@@ -128,7 +128,7 @@ Common expectations across all products:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | No → [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Partial → `PadMode::Stems` + four-stem mix; settings/attach UI → [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 
