@@ -379,5 +379,43 @@ void main() {
       expect(snap.activeSamplerBankIdFor(0), 'bank-1');
       expect(snap.samplerSlotsFor(0).single.label, 'kick');
     });
+
+    test('Updated forwards stemsReady mute and isolate', () {
+      var snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          stemsReady: true,
+          stemMute: [true, false, false, false],
+          stemIsolate: 2,
+        ),
+      );
+      expect(snap.stemsReadyFor(1), isTrue);
+      expect(snap.stemMuteFor(1), [true, false, false, false]);
+      expect(snap.stemIsolateFor(1), 2);
+
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          stemsReady: true,
+          stemMute: [false, false, false, false],
+        ),
+      );
+      expect(snap.stemIsolateFor(1), isNull);
+
+      snap = applyEngineEvt(
+        snap,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 1,
+          durationKnown: true,
+        ),
+      );
+      expect(snap.stemsReadyFor(1), isFalse);
+      expect(snap.stemMuteFor(1), [false, false, false, false]);
+    });
   });
 }

@@ -270,6 +270,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int dco_decode_box_autoadd_u_32(dynamic raw);
 
   @protected
+  int dco_decode_box_autoadd_u_8(dynamic raw);
+
+  @protected
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw);
 
   @protected
@@ -371,6 +374,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> dco_decode_list_String(dynamic raw);
+
+  @protected
+  List<bool> dco_decode_list_bool(dynamic raw);
 
   @protected
   List<ControllerDeviceInfo> dco_decode_list_controller_device_info(
@@ -488,7 +494,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
+
+  @protected
   WaveformPeaks? dco_decode_opt_box_autoadd_waveform_peaks(dynamic raw);
+
+  @protected
+  List<bool>? dco_decode_opt_list_bool(dynamic raw);
 
   @protected
   List<HotCueInfo>? dco_decode_opt_list_hot_cue_info(dynamic raw);
@@ -787,6 +799,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
   WaveformPeaks sse_decode_box_autoadd_waveform_peaks(
     SseDeserializer deserializer,
   );
@@ -914,6 +929,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
+
+  @protected
+  List<bool> sse_decode_list_bool(SseDeserializer deserializer);
 
   @protected
   List<ControllerDeviceInfo> sse_decode_list_controller_device_info(
@@ -1055,9 +1073,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
   WaveformPeaks? sse_decode_opt_box_autoadd_waveform_peaks(
     SseDeserializer deserializer,
   );
+
+  @protected
+  List<bool>? sse_decode_opt_list_bool(SseDeserializer deserializer);
 
   @protected
   List<HotCueInfo>? sse_decode_opt_list_hot_cue_info(
@@ -1415,6 +1439,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
 
   @protected
+  void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
+
+  @protected
   void sse_encode_box_autoadd_waveform_peaks(
     WaveformPeaks self,
     SseSerializer serializer,
@@ -1572,6 +1599,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_bool(List<bool> self, SseSerializer serializer);
 
   @protected
   void sse_encode_list_controller_device_info(
@@ -1751,10 +1781,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_waveform_peaks(
     WaveformPeaks? self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_opt_list_bool(List<bool>? self, SseSerializer serializer);
 
   @protected
   void sse_encode_opt_list_hot_cue_info(

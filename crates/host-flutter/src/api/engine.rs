@@ -12,8 +12,10 @@ use engine_core::{
     deck_snapshot_to_evt, spawn_engine_worker, AudioBackend, AudioBackendTrait, Engine,
     EngineBuses, EngineConfig, EngineWorker, Evt,
 };
-use library::{LibraryManager, PreparedTrackPlayback, SamplerSlotRecord};
-use library_core::{AudioSource, TrackId};
+use library::{
+    LibraryBuses, LibraryManager, PreparedTrackPlayback, SamplerSlotRecord, TrackStemsInfo,
+};
+use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId};
 
 use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
@@ -141,6 +143,7 @@ pub enum PadMode {
     LoopRoll,
     BeatJump,
     Sampler,
+    Stems,
 }
 
 impl From<PadMode> for engine_api::PadMode {
@@ -150,6 +153,7 @@ impl From<PadMode> for engine_api::PadMode {
             PadMode::LoopRoll => Self::LoopRoll,
             PadMode::BeatJump => Self::BeatJump,
             PadMode::Sampler => Self::Sampler,
+            PadMode::Stems => Self::Stems,
         }
     }
 }
@@ -161,6 +165,7 @@ impl From<engine_api::PadMode> for PadMode {
             engine_api::PadMode::LoopRoll => Self::LoopRoll,
             engine_api::PadMode::BeatJump => Self::BeatJump,
             engine_api::PadMode::Sampler => Self::Sampler,
+            engine_api::PadMode::Stems => Self::Stems,
         }
     }
 }
@@ -236,6 +241,25 @@ fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
         path: source_path(&prepared.source),
         duration_ms: prepared.source.metadata().duration_ms,
     }
+}
+
+fn load_stem_buffers(info: &TrackStemsInfo) -> Result<[Arc<audio_core::LoadedAudio>; 4], String> {
+    let paths = [
+        info.vocals_path.as_path(),
+        info.drums_path.as_path(),
+        info.bass_path.as_path(),
+        info.other_path.as_path(),
+    ];
+    let mut loaded = Vec::with_capacity(4);
+    for path in paths {
+        let audio = FileAudioSource::from_path(path)
+            .load()
+            .map_err(|e| format!("decode {}: {e}", path.display()))?;
+        loaded.push(Arc::new(audio));
+    }
+    loaded
+        .try_into()
+        .map_err(|_| "expected four stem buffers".to_string())
 }
 
 fn chrome_from_bank_slot(
@@ -342,6 +366,12 @@ pub struct EngineEvt {
     /// True when [`Self::sampler_slots`] was authored on this Updated evt.
     #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub sampler_slots_known: bool,
+    /// True when four stem layers are attached for playback.
+    pub stems_ready: Option<bool>,
+    /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[vocals, drums, bass, other]`).
+    pub stem_mute: Option<Vec<bool>>,
+    /// Isolated stem index when set; `None` clears isolate when stems are authored.
+    pub stem_isolate: Option<u8>,
 }
 
 impl EngineEvt {
@@ -391,6 +421,9 @@ impl EngineEvt {
             active_sampler_bank_id_known: false,
             sampler_slots: None,
             sampler_slots_known: false,
+            stems_ready: None,
+            stem_mute: None,
+            stem_isolate: None,
         }
     }
 }
@@ -438,6 +471,7 @@ pub struct EngineTransport {
     engine: Arc<Mutex<Option<Engine>>>,
     buses: EngineBuses,
     library: Arc<Mutex<LibraryManager>>,
+    library_buses: LibraryBuses,
     library_cmd_bus: library::LibraryBus,
     /// Ephemeral pad chrome (Tauri `AppState.sampler_slots`).
     sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
@@ -498,6 +532,7 @@ impl EngineTransport {
             engine,
             buses: buses.clone(),
             library: library_arc.clone(),
+            library_buses: library_transport.library_buses(),
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
@@ -869,6 +904,23 @@ impl EngineTransport {
         )
     }
 
+    /// Stems / generic pad press (engine dispatches by current `pad_mode`).
+    pub fn pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::PadPress,
+            &CmdBody::PadPress { slot, shift },
+        )
+    }
+
+    pub fn pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::PadRelease,
+            &CmdBody::PadRelease { slot },
+        )
+    }
+
     pub fn hot_cue_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
@@ -1106,6 +1158,7 @@ impl EngineTransport {
     }
 
     fn load_prepared(&self, deck_id: u16, prepared: PreparedTrackPlayback) -> Result<(), String> {
+        let track_id = prepared.track_id.as_str().to_string();
         let snap = {
             let mut guard = self
                 .engine
@@ -1121,7 +1174,99 @@ impl EngineTransport {
                 .deck_snapshot(deck_id as usize)
                 .ok_or_else(|| "deck snapshot unavailable".to_string())?
         };
-        self.publish_deck_updated(deck_id, snap)
+        self.publish_deck_updated(deck_id, snap)?;
+        self.spawn_stems_ensure_attach(deck_id, track_id);
+        Ok(())
+    }
+
+    /// Ensure stems off the host lock, then attach if this deck still holds `track_id`.
+    fn spawn_stems_ensure_attach(&self, deck_id: u16, track_id: String) {
+        if !self.library_buses.stems_enabled() {
+            return;
+        }
+        let stems_root = self.library_buses.stems_root();
+        let library = Arc::clone(&self.library);
+        let engine = Arc::clone(&self.engine);
+        let buses = self.buses.clone();
+        let _ = std::thread::Builder::new()
+            .name(format!("deck-{deck_id}-stems"))
+            .spawn(move || {
+                let id = TrackId::new(track_id.clone());
+                if let Err(err) =
+                    LibraryManager::ensure_track_stems(&library, &id, &stems_root, true)
+                {
+                    tracing::warn!(
+                        deck_id,
+                        track_id = %track_id,
+                        error = %err,
+                        "stem ensure failed"
+                    );
+                    return;
+                }
+                let info = {
+                    let lib = match library.lock() {
+                        Ok(g) => g,
+                        Err(e) => e.into_inner(),
+                    };
+                    match lib.get_track_stems(&id) {
+                        Ok(Some(info)) => info,
+                        Ok(None) => return,
+                        Err(err) => {
+                            tracing::warn!(
+                                deck_id,
+                                track_id = %track_id,
+                                error = %err,
+                                "stem metadata missing after ensure"
+                            );
+                            return;
+                        }
+                    }
+                };
+                let stems = match load_stem_buffers(&info) {
+                    Ok(stems) => stems,
+                    Err(err) => {
+                        tracing::warn!(
+                            deck_id,
+                            track_id = %track_id,
+                            error = %err,
+                            "stem decode failed"
+                        );
+                        return;
+                    }
+                };
+                let snap = {
+                    let mut guard = match engine.lock() {
+                        Ok(g) => g,
+                        Err(e) => e.into_inner(),
+                    };
+                    let Some(eng) = guard.as_mut() else {
+                        return;
+                    };
+                    let Some(current) = eng.deck_snapshot(usize::from(deck_id)) else {
+                        return;
+                    };
+                    if current.track_id.as_deref() != Some(track_id.as_str()) {
+                        return;
+                    }
+                    if let Err(err) = eng.attach_deck_stems(usize::from(deck_id), stems) {
+                        tracing::warn!(
+                            deck_id,
+                            track_id = %track_id,
+                            error = %err,
+                            "stem attach failed"
+                        );
+                        return;
+                    }
+                    eng.deck_snapshot(usize::from(deck_id))
+                };
+                if let Some(snap) = snap {
+                    let _ = buses.publish_evt(
+                        Origin::Deck(deck_id),
+                        Kind::Updated,
+                        deck_snapshot_to_evt(snap),
+                    );
+                }
+            });
     }
 
     fn assign_prepared(
@@ -1303,6 +1448,9 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.auto_gain_db = Some(snap.auto_gain_db);
     evt.active_sampler_bank_id = snap.active_sampler_bank_id.clone();
     evt.active_sampler_bank_id_known = true;
+    evt.stems_ready = Some(snap.stems_ready);
+    evt.stem_mute = Some(snap.stem_mute.to_vec());
+    evt.stem_isolate = snap.stem_isolate;
     evt
 }
 
@@ -1350,6 +1498,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             loudness_lufs,
             auto_gain_db,
             active_sampler_bank_id,
+            stems_ready,
+            stem_mute,
+            stem_isolate,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1384,6 +1535,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.auto_gain_db = Some(auto_gain_db);
             evt.active_sampler_bank_id = active_sampler_bank_id;
             evt.active_sampler_bank_id_known = true;
+            evt.stems_ready = Some(stems_ready);
+            evt.stem_mute = Some(stem_mute.to_vec());
+            evt.stem_isolate = stem_isolate;
             vec![evt]
         }
         EvtBody::Position {
@@ -1477,6 +1631,9 @@ mod tests {
             slip_enabled: false,
             slip_shadow_position_ms: None,
             pad_mode: PadMode::HotCue,
+            stems_ready: false,
+            stem_mute: [false; 4],
+            stem_isolate: None,
             position_ms: None,
             duration_ms: None,
             hot_cues: Vec::new(),
@@ -1523,6 +1680,22 @@ mod tests {
         assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
         assert_eq!(mapped[1].track_path.as_deref(), Some("/music/Palawan.opus"));
         assert_eq!(mapped[1].track_id.as_deref(), Some("lib-1"));
+    }
+
+    #[test]
+    fn map_updated_forwards_stem_state() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.stems_ready = true;
+        deck.stem_mute = [true, false, true, false];
+        deck.stem_isolate = Some(1);
+        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
+        assert_eq!(mapped.len(), 1);
+        assert_eq!(mapped[0].stems_ready, Some(true));
+        assert_eq!(
+            mapped[0].stem_mute.as_deref(),
+            Some([true, false, true, false].as_slice())
+        );
+        assert_eq!(mapped[0].stem_isolate, Some(1));
     }
 
     #[test]

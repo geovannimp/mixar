@@ -336,7 +336,7 @@ impl UpdateCollection {
 }
 
 /// Options for [`WritableLibrary::analyze_track`].
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AnalyzeTrackOptions {
     /// When true, DSP analysis results replace BPM/key from file tags.
     /// When false, existing tag values are kept when present; analysis fills
@@ -344,6 +344,12 @@ pub struct AnalyzeTrackOptions {
     pub force: bool,
     /// How much of the track to analyze.
     pub analysis_duration: AnalysisDurationMode,
+    /// When true, ensure offline stem WAVs after analysis (requires [`Self::stems_root`]).
+    #[serde(default)]
+    pub stems_enabled: bool,
+    /// Root directory for stem caches (`{stems_root}/{fnv64(track_id)}/`).
+    #[serde(default)]
+    pub stems_root: Option<PathBuf>,
 }
 
 impl AnalyzeTrackOptions {
@@ -352,7 +358,19 @@ impl AnalyzeTrackOptions {
         Self {
             force: true,
             analysis_duration: AnalysisDurationMode::Complete,
+            ..Default::default()
         }
+    }
+
+    /// Reject `stems_enabled` without a configured [`Self::stems_root`].
+    pub fn validate_stems(&self) -> crate::Result<()> {
+        if self.stems_enabled && self.stems_root.is_none() {
+            return Err(crate::LibraryError::Backend {
+                backend: "stems",
+                message: "stems_enabled requires stems_root".into(),
+            });
+        }
+        Ok(())
     }
 }
 

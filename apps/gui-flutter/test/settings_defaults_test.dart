@@ -59,4 +59,13 @@ void main() {
       isTrue,
     );
   });
+
+  test('stemsEnabled defaults false and dirty when toggled', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.stemsEnabled, isFalse);
+    expect(
+      appSettingsDirty(copyAppSettings(baseline, stemsEnabled: true), baseline),
+      isTrue,
+    );
+  });
 }

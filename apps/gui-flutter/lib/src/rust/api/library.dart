@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
-// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `subscribe_evt_all`
+// These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
 abstract class LibraryBusHandle implements RustOpaqueInterface {}
@@ -41,9 +41,10 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required double minDeckVolume,
   });
 
-  /// Apply library analysis duration from app settings.
+  /// Apply library analysis duration and stems gate from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
+    required bool stemsEnabled,
   });
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

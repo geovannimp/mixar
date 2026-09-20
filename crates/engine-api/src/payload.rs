@@ -44,6 +44,7 @@ pub enum PadMode {
     LoopRoll,
     BeatJump,
     Sampler,
+    Stems,
 }
 
 /// Jog platter policy for top (touched) or outer (untouched) turns.
@@ -154,6 +155,15 @@ pub struct DeckSnapshot {
     #[serde(default)]
     pub slip_shadow_position_ms: Option<i32>,
     pub pad_mode: PadMode,
+    /// True when four stem layers are attached for playback.
+    #[serde(default)]
+    pub stems_ready: bool,
+    /// Per-stem mute flags (vocals, drums, bass, other).
+    #[serde(default)]
+    pub stem_mute: [bool; 4],
+    /// When set, only this stem index is audible (isolate).
+    #[serde(default)]
+    pub stem_isolate: Option<u8>,
     pub position_ms: Option<i32>,
     pub duration_ms: Option<i32>,
     pub hot_cues: Vec<DeckHotCue>,
@@ -414,6 +424,12 @@ pub enum EvtBody {
         #[serde(default)]
         slip_shadow_position_ms: Option<i32>,
         pad_mode: PadMode,
+        #[serde(default)]
+        stems_ready: bool,
+        #[serde(default)]
+        stem_mute: [bool; 4],
+        #[serde(default)]
+        stem_isolate: Option<u8>,
         position_ms: Option<i32>,
         duration_ms: Option<i32>,
         hot_cues: Vec<DeckHotCue>,

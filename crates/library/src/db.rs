@@ -128,8 +128,10 @@ mod tests {
             "collection_entries",
             "track_analysis",
             "track_waveform",
+            "track_stem",
             "track_hot_cue",
             "track_loop",
+            "track_stem",
             "sampler_bank",
             "sampler_slot",
         ] {

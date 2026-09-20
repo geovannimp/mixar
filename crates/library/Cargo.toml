@@ -25,12 +25,13 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core", optional = true }
+analyzer-stems = { path = "../analyzer-stems", optional = true }
 xspf = "0.4.2"
 xml = "0.8"
 
 [features]
 default = ["analysis"]
-analysis = ["dep:analyzer", "dep:analyzer-core"]
+analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems"]
 
 [dev-dependencies]
 tempfile = "3.0"

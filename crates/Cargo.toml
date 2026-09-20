@@ -18,6 +18,7 @@ members = [
     "analyzer-core",
     "analyzer-stratum",
     "analyzer",
+    "analyzer-stems",
     "controller",
     "host-flutter",
 ]

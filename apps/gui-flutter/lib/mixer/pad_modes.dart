@@ -10,6 +10,7 @@ const kPadModes = <PadMode>[
   PadMode.loopRoll,
   PadMode.beatJump,
   PadMode.sampler,
+  PadMode.stems,
 ];
 
 const kLoopRollBeats = <num>[1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4];
@@ -32,11 +33,23 @@ const kSamplerPlayModeOptions = <String>[
   kSamplerPlayModeLoop,
 ];
 
+const kStemPadLabels = <String>[
+  'Vocal',
+  'Drums',
+  'Bass',
+  'Other',
+  'Iso V',
+  'Iso D',
+  'Iso B',
+  'Iso O',
+];
+
 String padModeShortLabel(PadMode mode) => switch (mode) {
   PadMode.hotCue => 'Cue',
   PadMode.loopRoll => 'Roll',
   PadMode.beatJump => 'Jump',
   PadMode.sampler => 'Sample',
+  PadMode.stems => 'Stems',
 };
 
 PadMode cyclePadMode(PadMode mode, int direction) {

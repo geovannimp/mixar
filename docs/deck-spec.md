@@ -107,7 +107,7 @@ Common expectations across all products:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Not implemented | [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems pad mode | In progress | [#46](https://github.com/geovannimp/mixar/issues/46) — see `docs/stems-pad-mode-design.md` |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -128,7 +128,7 @@ Common expectations across all products:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | No → [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Partial → `PadMode::Stems` + four-stem mix; settings/attach UI → [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 

@@ -1458,6 +1458,7 @@ impl Engine {
             PadMode::LoopRoll => self.loop_roll_pad_press(deck_id, slot),
             PadMode::BeatJump => self.beat_jump_pad_press(deck_id, slot),
             PadMode::Sampler => self.sampler_pad_press(deck_id, slot, shift),
+            PadMode::Stems => self.stems_pad_press(deck_id, slot),
         }
     }
 
@@ -1467,6 +1468,7 @@ impl Engine {
             PadMode::LoopRoll => self.loop_roll_pad_release(deck_id, slot),
             PadMode::BeatJump => self.beat_jump_pad_release(deck_id, slot),
             PadMode::Sampler => self.sampler_pad_release(deck_id, slot),
+            PadMode::Stems => Ok(()),
         }
     }
 
@@ -1587,6 +1589,50 @@ impl Engine {
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
         control.pad_mode = mode;
+        Ok(())
+    }
+
+    /// Attach four stem buffers to a deck (vocals, drums, bass, other).
+    pub fn attach_deck_stems(
+        &mut self,
+        deck_id: usize,
+        stems: [Arc<audio_core::LoadedAudio>; 4],
+    ) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        if !deck.has_audio_loaded() {
+            return Err(anyhow::anyhow!("Load a track before attaching stems."));
+        }
+        deck.attach_stems(stems);
+        Ok(())
+    }
+
+    /// Stems pad: slots 0–3 toggle mute; 4–7 toggle isolate for that stem.
+    pub fn stems_pad_press(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let dsp_engine = self
+            .dsp_engine
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Engine is not running"))?;
+        let mut dsp = dsp_engine.lock().unwrap();
+        let deck = dsp
+            .deck_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        if !deck.stems_ready() {
+            return Ok(());
+        }
+        match slot {
+            0..=3 => deck.toggle_stem_mute(usize::from(slot)),
+            4..=7 => deck.toggle_stem_isolate(slot - 4),
+            _ => {
+                return Err(anyhow::anyhow!("Stem pad slot must be 0..=7."));
+            }
+        }
         Ok(())
     }
 
@@ -2110,6 +2156,9 @@ fn deck_snapshot_from_dsp(
         slip_enabled: deck.slip_enabled(),
         slip_shadow_position_ms: deck.shadow_position_ms(),
         pad_mode: control.pad_mode,
+        stems_ready: deck.stems_ready(),
+        stem_mute: deck.stem_mute(),
+        stem_isolate: deck.stem_isolate(),
         position_ms,
         duration_ms,
         hot_cues: control_hot_cues(control),

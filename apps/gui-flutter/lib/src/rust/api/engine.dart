@@ -10,7 +10,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 import 'settings.dart';
 
-// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `to_engine_config`, `updated_from_snapshot`
+// These functions are ignored because they are not marked as `pub`: `assign_prepared`, `attach_sampler_chrome`, `bare`, `build_started_engine`, `buses`, `chrome_from_bank_slot`, `chrome_from_prepared`, `deck_id_of`, `empty_all_sampler_chrome`, `empty_deck_sampler_chrome`, `is_coalescible`, `load_prepared`, `load_stem_buffers`, `map_engine_evts`, `publish_body`, `publish_current_status`, `publish_deck_updated`, `publish_empty`, `source_label`, `source_path`, `spawn_stems_ensure_attach`, `to_engine_config`, `updated_from_snapshot`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EngineEvtForwarder`, `EngineHistoryWorker`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `apply_host_settings`, `from_buses`, `restart`, `subscribe_evt_all`
@@ -89,6 +89,15 @@ abstract class EngineTransport implements RustOpaqueInterface {
   Future<void> loopRollPadPress({required int deckId, required int slot});
 
   Future<void> loopRollPadRelease({required int deckId, required int slot});
+
+  /// Stems / generic pad press (engine dispatches by current `pad_mode`).
+  Future<void> padPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> padRelease({required int deckId, required int slot});
 
   /// Pause a deck (cmd bus).
   Future<void> pause({required int deckId});
@@ -297,6 +306,15 @@ class EngineEvt {
   /// True when [`Self::sampler_slots`] was authored on this Updated evt.
   final bool samplerSlotsKnown;
 
+  /// True when four stem layers are attached for playback.
+  final bool? stemsReady;
+
+  /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[vocals, drums, bass, other]`).
+  final List<bool>? stemMute;
+
+  /// Isolated stem index when set; `None` clears isolate when stems are authored.
+  final int? stemIsolate;
+
   const EngineEvt({
     required this.kind,
     this.deckId,
@@ -342,6 +360,9 @@ class EngineEvt {
     this.activeSamplerBankIdKnown = false,
     this.samplerSlots,
     this.samplerSlotsKnown = false,
+    this.stemsReady,
+    this.stemMute,
+    this.stemIsolate,
   });
 
   @override
@@ -389,7 +410,10 @@ class EngineEvt {
       activeSamplerBankId.hashCode ^
       activeSamplerBankIdKnown.hashCode ^
       samplerSlots.hashCode ^
-      samplerSlotsKnown.hashCode;
+      samplerSlotsKnown.hashCode ^
+      stemsReady.hashCode ^
+      stemMute.hashCode ^
+      stemIsolate.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -439,7 +463,10 @@ class EngineEvt {
           activeSamplerBankId == other.activeSamplerBankId &&
           activeSamplerBankIdKnown == other.activeSamplerBankIdKnown &&
           samplerSlots == other.samplerSlots &&
-          samplerSlotsKnown == other.samplerSlotsKnown;
+          samplerSlotsKnown == other.samplerSlotsKnown &&
+          stemsReady == other.stemsReady &&
+          stemMute == other.stemMute &&
+          stemIsolate == other.stemIsolate;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).
@@ -511,7 +538,7 @@ class OutputDevice {
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-enum PadMode { hotCue, loopRoll, beatJump, sampler }
+enum PadMode { hotCue, loopRoll, beatJump, sampler, stems }
 
 /// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
 class SamplerSlotChrome {

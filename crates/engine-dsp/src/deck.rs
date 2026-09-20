@@ -86,6 +86,14 @@ pub struct Deck {
     processing: bool,
     /// Shared decoded audio (cache and multiple decks can reference the same buffer).
     loaded: Option<Arc<LoadedAudio>>,
+    /// Optional four stem layers (vocals, drums, bass, other), same playhead as `loaded`.
+    stems: Option<[Arc<LoadedAudio>; 4]>,
+    /// Per-stem mute (true = silent).
+    stem_mute: [bool; 4],
+    /// When set, only this stem index is audible.
+    stem_isolate: Option<u8>,
+    /// Smoothed gains applied in the mix (ramps toward mute/isolate targets).
+    stem_gain_current: [f32; 4],
     /// Resampler quality preset (`low`, `medium`, or `high`).
     resampler_quality: String,
     /// Resampler for converting between sample rates (created on load when needed)
@@ -159,6 +167,10 @@ impl Deck {
             buffer: Vec::new(),
             processing: false,
             loaded: None,
+            stems: None,
+            stem_mute: [false; 4],
+            stem_isolate: None,
+            stem_gain_current: [1.0; 4],
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
             key_lock: false,
@@ -627,6 +639,9 @@ impl Deck {
         self.position_frames = 0;
         self.position_frac = 0.0;
         self.loaded = None;
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
@@ -781,6 +796,9 @@ impl Deck {
         self.cue_point_ms = Some(0);
         self.cue_hold_return = None;
         self.loaded = Some(audio);
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
         self.create_resampler()?;
         if self.key_lock {
             self.ensure_stretcher()?;
@@ -801,6 +819,116 @@ impl Deck {
         }
 
         Ok(())
+    }
+
+    /// Attach four stem buffers (vocals, drums, bass, other). Cleared on next [`Self::load`].
+    pub fn attach_stems(&mut self, stems: [Arc<LoadedAudio>; 4]) {
+        self.stems = Some(stems);
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
+        self.stem_gain_current = [1.0; 4];
+    }
+
+    /// Clear attached stems (keeps the main buffer).
+    pub fn clear_stems(&mut self) {
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
+        self.stem_gain_current = [1.0; 4];
+    }
+
+    pub fn stems_ready(&self) -> bool {
+        self.stems.is_some()
+    }
+
+    pub fn stem_mute(&self) -> [bool; 4] {
+        self.stem_mute
+    }
+
+    pub fn stem_isolate(&self) -> Option<u8> {
+        self.stem_isolate
+    }
+
+    pub fn set_stem_mute(&mut self, index: usize, muted: bool) {
+        if index < 4 {
+            self.stem_mute[index] = muted;
+        }
+    }
+
+    pub fn toggle_stem_mute(&mut self, index: usize) {
+        if index < 4 {
+            self.stem_mute[index] = !self.stem_mute[index];
+        }
+    }
+
+    /// Isolate one stem, or clear isolate when the same index is pressed again.
+    pub fn toggle_stem_isolate(&mut self, index: u8) {
+        if usize::from(index) >= 4 {
+            return;
+        }
+        self.stem_isolate = match self.stem_isolate {
+            Some(current) if current == index => None,
+            _ => Some(index),
+        };
+    }
+
+    /// Steady-state gain for a stem from mute/isolate (before smoothing).
+    fn stem_target_gain(&self, index: usize) -> f32 {
+        if let Some(iso) = self.stem_isolate {
+            return if usize::from(iso) == index { 1.0 } else { 0.0 };
+        }
+        if self.stem_mute.get(index).copied().unwrap_or(false) {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    /// Advance smoothed stem gains one output sample toward their targets (~5 ms).
+    fn ramp_stem_gains_one_sample(&mut self) {
+        const RAMP_SECS: f64 = 0.005;
+        let step = (1.0 / (RAMP_SECS * f64::from(self.sample_rate.max(1)))) as f32;
+        for i in 0..4 {
+            let target = self.stem_target_gain(i);
+            let cur = self.stem_gain_current[i];
+            if (cur - target).abs() <= step {
+                self.stem_gain_current[i] = target;
+            } else if cur < target {
+                self.stem_gain_current[i] = cur + step;
+            } else {
+                self.stem_gain_current[i] = cur - step;
+            }
+        }
+    }
+
+    /// Mix stems (or main buffer) at a playhead expressed in **main-track** frames.
+    fn mix_at_position(
+        &self,
+        pos: f64,
+        fallback: &[Sample],
+        main_sample_rate: u32,
+    ) -> (Sample, Sample) {
+        let Some(stems) = self.stems.as_ref() else {
+            return interpolate_stereo(fallback, pos);
+        };
+        let mut left = 0.0;
+        let mut right = 0.0;
+        for (i, stem) in stems.iter().enumerate() {
+            let g = self.stem_gain_current[i];
+            if g == 0.0 {
+                continue;
+            }
+            // Stem WAVs may be 44.1 kHz while the deck main buffer is engine-rate.
+            let stem_pos = if main_sample_rate == 0 || stem.sample_rate == main_sample_rate {
+                pos
+            } else {
+                pos * f64::from(stem.sample_rate) / f64::from(main_sample_rate)
+            };
+            let (sl, sr) = interpolate_stereo(&stem.samples, stem_pos);
+            left += sl * g;
+            right += sr * g;
+        }
+        (left, right)
     }
 
     /// Borrow the loaded audio reference, if any.
@@ -848,7 +976,8 @@ impl Deck {
         // Play loaded audio samples if available, otherwise generate test audio
         if let Some(loaded) = self.loaded.clone() {
             let source_rate = loaded.sample_rate;
-            let want_stretch = self.wants_key_lock_stretch();
+            // Stems bypass key-lock stretch; keep stretch_active in sync with the path we take.
+            let want_stretch = self.wants_key_lock_stretch() && self.stems.is_none();
             if self.stretch_active && !want_stretch {
                 self.reset_stretcher_state();
             }
@@ -866,8 +995,10 @@ impl Deck {
                     self.play_stretched(frames, &loaded.samples, source_rate);
                 }
             } else {
+                // ponytail: stem mix uses interpolated path (key-lock stretch skipped while stems attached).
                 let eff = self.effective_speed();
-                let use_interp = (eff - 1.0).abs() > f32::EPSILON
+                let use_interp = self.stems.is_some()
+                    || (eff - 1.0).abs() > f32::EPSILON
                     || self.loop_region.is_some()
                     || self.position_frac < 0.0
                     || !transport_playing;
@@ -912,6 +1043,9 @@ impl Deck {
             if self.position_frac < 0.0 {
                 self.buffer[out * 2] = 0.0;
                 self.buffer[out * 2 + 1] = 0.0;
+                if self.stems.is_some() {
+                    self.ramp_stem_gains_one_sample();
+                }
                 self.position_frac += step;
                 continue;
             }
@@ -919,10 +1053,17 @@ impl Deck {
             if self.position_frac >= total_source_frames as f64 {
                 self.buffer[out * 2] = 0.0;
                 self.buffer[out * 2 + 1] = 0.0;
+                if self.stems.is_some() {
+                    self.ramp_stem_gains_one_sample();
+                }
                 continue;
             }
 
-            let (left, right) = interpolate_stereo(audio_samples, self.position_frac);
+            if self.stems.is_some() {
+                self.ramp_stem_gains_one_sample();
+            }
+            let (left, right) =
+                self.mix_at_position(self.position_frac, audio_samples, source_rate);
             self.buffer[out * 2] = left;
             self.buffer[out * 2 + 1] = right;
             self.position_frac += step;
@@ -1667,6 +1808,94 @@ mod tests {
         assert!(
             (after - shadow).abs() <= 10,
             "scratch release should catch up: after={after} shadow={shadow}"
+        );
+    }
+
+    #[test]
+    fn stems_clear_stretch_active_when_key_lock_on() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.3f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_lock(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..4 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(deck.stretch_active);
+
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![0.5f32; CHUNK * 2 * 8_000],
+            sample_rate: 44_100,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.process(CHUNK).unwrap();
+        assert!(
+            !deck.stretch_active,
+            "stems must clear stretch_active even with key lock"
+        );
+    }
+
+    #[test]
+    fn mix_at_position_scales_stem_rate_to_main() {
+        let mut deck = new_deck(CHUNK);
+        // Main track: 2 frames at 48 kHz → silence elsewhere.
+        let main = vec![1.0f32, 1.0, 0.0, 0.0];
+        load_test_samples(&mut deck, main, 48_000);
+
+        // Stem at 24 kHz: impulse at frame 0 only. At main pos=2.0, stem pos should be 1.0.
+        let mut stem_samples = vec![0.0f32; 8];
+        stem_samples[0] = 0.25;
+        stem_samples[1] = 0.25;
+        stem_samples[2] = 0.75;
+        stem_samples[3] = 0.75;
+        let stem = Arc::new(LoadedAudio {
+            samples: stem_samples,
+            sample_rate: 24_000,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+
+        let (l, _) = deck.mix_at_position(2.0, &[], 48_000);
+        // Four stems * 0.75 at stem frame 1.
+        assert!((l - 3.0).abs() < 1e-5, "scaled stem sample={l}");
+    }
+
+    #[test]
+    fn stem_mute_ramps_gain_instead_of_stepping() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![1.0f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![1.0f32; CHUNK * 2 * 8_000],
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.set_stem_mute(0, true);
+        assert_eq!(deck.stem_target_gain(0), 0.0);
+        assert_eq!(deck.stem_gain_current[0], 1.0);
+        deck.ramp_stem_gains_one_sample();
+        assert!(
+            deck.stem_gain_current[0] < 1.0 && deck.stem_gain_current[0] > 0.0,
+            "gain should be mid-ramp, got {}",
+            deck.stem_gain_current[0]
         );
     }
 }
