@@ -2,7 +2,9 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use audio_core::LoadedAudio;
 use library_core::{Library, LibraryError, LoadableAudio, Result, TrackId};
 use sea_orm::sea_query::OnConflict;
 use sea_orm::{EntityTrait, Set};
@@ -14,6 +16,7 @@ use crate::LibraryManager;
 #[derive(Debug, Clone)]
 pub struct TrackStemsInfo {
     pub backend: String,
+    pub source_fingerprint: String,
     pub sample_rate: i32,
     pub vocals_path: PathBuf,
     pub drums_path: PathBuf,
@@ -26,6 +29,7 @@ impl TrackStemsInfo {
     fn from_row(row: &track_stem::Model) -> Self {
         Self {
             backend: row.backend.clone(),
+            source_fingerprint: row.source_fingerprint.clone(),
             sample_rate: row.sample_rate,
             vocals_path: PathBuf::from(&row.vocals_path),
             drums_path: PathBuf::from(&row.drums_path),
@@ -47,10 +51,13 @@ impl TrackStemsInfo {
     fn all_files_exist(&self) -> bool {
         self.paths().iter().all(|p| p.is_file())
     }
+
+    fn matches(&self, fingerprint: &str, backend: &str) -> bool {
+        self.all_files_exist() && self.source_fingerprint == fingerprint && self.backend == backend
+    }
 }
 
 fn now_iso() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -58,24 +65,68 @@ fn now_iso() -> String {
     format!("{secs}")
 }
 
-/// Keep stem dirs under `stems_root` even when `track_id` looks like an absolute path.
+/// Stable FNV-1a 64-bit (local cache keys; not a crypto hash).
+fn fnv1a64(data: &[u8]) -> u64 {
+    let mut hash = 0xcbf29ce484222325u64;
+    for &b in data {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+/// Bounded collision-resistant directory name under `stems_root`.
+fn stem_cache_key(track_id: &TrackId) -> String {
+    format!("{:016x}", fnv1a64(track_id.as_str().as_bytes()))
+}
+
 fn stem_output_dir(stems_root: &Path, track_id: &TrackId) -> PathBuf {
-    let safe: String = track_id
-        .as_str()
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    stems_root.join(safe)
+    stems_root.join(stem_cache_key(track_id))
+}
+
+/// Fingerprint of the decoded source used to build stems (path mtime/size + PCM shape).
+fn source_fingerprint(path: &Path, audio: &LoadedAudio) -> String {
+    let meta = std::fs::metadata(path).ok();
+    let mtime = meta
+        .as_ref()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let size = meta.map(|m| m.len()).unwrap_or(0);
+    format!(
+        "v1:{}:{}:{}:{}:{}:{}",
+        path.display(),
+        mtime,
+        size,
+        audio.sample_rate,
+        audio.channels,
+        audio.samples.len()
+    )
+}
+
+fn expected_backend() -> &'static str {
+    #[cfg(feature = "analysis")]
+    {
+        analyzer_stems::DEFAULT_MODEL
+    }
+    #[cfg(not(feature = "analysis"))]
+    {
+        ""
+    }
 }
 
 pub(crate) fn has_track_stems(db: &Db, track_id: &TrackId) -> Result<bool> {
     Ok(get_track_stems(db, track_id)?.is_some_and(|info| info.all_files_exist()))
+}
+
+fn has_valid_track_stems(
+    db: &Db,
+    track_id: &TrackId,
+    fingerprint: &str,
+    backend: &str,
+) -> Result<bool> {
+    Ok(get_track_stems(db, track_id)?.is_some_and(|info| info.matches(fingerprint, backend)))
 }
 
 pub(crate) fn get_track_stems(db: &Db, track_id: &TrackId) -> Result<Option<TrackStemsInfo>> {
@@ -89,6 +140,7 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
     let active = track_stem::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
         backend: Set(info.backend.clone()),
+        source_fingerprint: Set(info.source_fingerprint.clone()),
         sample_rate: Set(info.sample_rate),
         vocals_path: Set(info.vocals_path.to_string_lossy().into_owned()),
         drums_path: Set(info.drums_path.to_string_lossy().into_owned()),
@@ -102,6 +154,7 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
             OnConflict::column(track_stem::Column::TrackId)
                 .update_columns([
                     track_stem::Column::Backend,
+                    track_stem::Column::SourceFingerprint,
                     track_stem::Column::SampleRate,
                     track_stem::Column::VocalsPath,
                     track_stem::Column::DrumsPath,
@@ -116,7 +169,50 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
     Ok(())
 }
 
-/// Generate and persist stems when missing. No-op when `enabled` is false.
+/// Write stems into a temp dir, then atomically publish to the track cache dir.
+fn publish_stem_dir(tmp_dir: &Path, final_dir: &Path) -> Result<()> {
+    if let Some(parent) = final_dir.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("create stems root: {e}"),
+        })?;
+    }
+
+    if !final_dir.exists() {
+        std::fs::rename(tmp_dir, final_dir).map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("publish stems dir: {e}"),
+        })?;
+        return Ok(());
+    }
+
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let old_dir = final_dir.with_file_name(format!(
+        ".{}.old-{stamp}",
+        final_dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("stems")
+    ));
+    std::fs::rename(final_dir, &old_dir).map_err(|e| LibraryError::Backend {
+        backend: "stems",
+        message: format!("park old stems dir: {e}"),
+    })?;
+    if let Err(e) = std::fs::rename(tmp_dir, final_dir) {
+        let _ = std::fs::rename(&old_dir, final_dir);
+        return Err(LibraryError::Backend {
+            backend: "stems",
+            message: format!("publish stems dir: {e}"),
+        });
+    }
+    let _ = std::fs::remove_dir_all(&old_dir);
+    Ok(())
+}
+
+/// Generate and persist stems when missing or stale. No-op when `enabled` is false.
 ///
 /// Takes `&Mutex<LibraryManager>` so decode / Demucs work does not hold the library lock.
 pub fn ensure_track_stems(
@@ -129,17 +225,18 @@ pub fn ensure_track_stems(
         return Ok(());
     }
 
-    {
+    let backend = expected_backend();
+    let path = {
         let lib = LibraryManager::lock_library(library)?;
-        if has_track_stems(&lib.db, id)? {
-            return Ok(());
-        }
-        let _ = lib
+        let source = lib
             .get_track(id)?
-            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?
+            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
+        source
             .file()
-            .ok_or(LibraryError::Unsupported("stream tracks have no stems"))?;
-    }
+            .ok_or(LibraryError::Unsupported("stream tracks have no stems"))?
+            .path()
+            .to_path_buf()
+    };
 
     let cached = {
         let lib = LibraryManager::lock_library(library)?;
@@ -182,29 +279,69 @@ pub fn ensure_track_stems(
         });
     }
 
+    let fingerprint = source_fingerprint(&path, &audio);
     {
         let lib = LibraryManager::lock_library(library)?;
-        if has_track_stems(&lib.db, id)? {
+        if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
             return Ok(());
         }
     }
 
     #[cfg(feature = "analysis")]
     {
-        let output_dir = stem_output_dir(stems_root, id);
-        let result = analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
-            interleaved_stereo: &audio.samples,
-            sample_rate: audio.sample_rate,
-            output_dir: &output_dir,
-            model_name: analyzer_stems::DEFAULT_MODEL,
-        })
-        .map_err(|e| LibraryError::Backend {
+        let key = stem_cache_key(id);
+        let final_dir = stem_output_dir(stems_root, id);
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let tmp_dir = stems_root.join(format!(".{key}.tmp-{stamp}"));
+        let _ = std::fs::remove_dir_all(&tmp_dir);
+        std::fs::create_dir_all(&tmp_dir).map_err(|e| LibraryError::Backend {
             backend: "stems",
-            message: e.to_string(),
+            message: format!("create temp stems dir: {e}"),
         })?;
 
+        let split_result =
+            analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
+                interleaved_stereo: &audio.samples,
+                sample_rate: audio.sample_rate,
+                output_dir: &tmp_dir,
+                model_name: analyzer_stems::DEFAULT_MODEL,
+            })
+            .map_err(|e| LibraryError::Backend {
+                backend: "stems",
+                message: e.to_string(),
+            });
+
+        let result = match split_result {
+            Ok(r) => r,
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&tmp_dir);
+                return Err(e);
+            }
+        };
+
+        if let Err(e) = publish_stem_dir(&tmp_dir, &final_dir) {
+            let _ = std::fs::remove_dir_all(&tmp_dir);
+            return Err(e);
+        }
+
+        let vocals_path = final_dir.join("vocals.wav");
+        let drums_path = final_dir.join("drums.wav");
+        let bass_path = final_dir.join("bass.wav");
+        let other_path = final_dir.join("other.wav");
+        for p in [&vocals_path, &drums_path, &bass_path, &other_path] {
+            if !p.is_file() {
+                return Err(LibraryError::Backend {
+                    backend: "stems",
+                    message: format!("missing published stem {}", p.display()),
+                });
+            }
+        }
+
         let lib = LibraryManager::lock_library(library)?;
-        if has_track_stems(&lib.db, id)? {
+        if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
             return Ok(());
         }
         upsert_track_stems(
@@ -212,11 +349,12 @@ pub fn ensure_track_stems(
             id,
             &TrackStemsInfo {
                 backend: result.backend,
+                source_fingerprint: fingerprint,
                 sample_rate: result.sample_rate as i32,
-                vocals_path: result.paths[0].clone(),
-                drums_path: result.paths[1].clone(),
-                bass_path: result.paths[2].clone(),
-                other_path: result.paths[3].clone(),
+                vocals_path,
+                drums_path,
+                bass_path,
+                other_path,
                 generated_at: now_iso(),
             },
         )
@@ -224,7 +362,7 @@ pub fn ensure_track_stems(
 
     #[cfg(not(feature = "analysis"))]
     {
-        let _ = (audio, stems_root);
+        let _ = (audio, stems_root, fingerprint, backend);
         Err(LibraryError::Unsupported(
             "stem separation requires the analysis feature",
         ))
@@ -246,5 +384,14 @@ mod tests {
         ensure_track_stems(&library, &id, dir.path(), false).unwrap();
         let lib = library.lock().unwrap();
         assert!(!has_track_stems(&lib.db, &id).unwrap());
+    }
+
+    #[test]
+    fn stem_cache_key_is_bounded_and_stable() {
+        let a = TrackId::new("/music/foo bar/track.wav");
+        let b = TrackId::new("/music/foo_bar/track.wav");
+        assert_eq!(stem_cache_key(&a).len(), 16);
+        assert_ne!(stem_cache_key(&a), stem_cache_key(&b));
+        assert_eq!(stem_cache_key(&a), stem_cache_key(&a));
     }
 }

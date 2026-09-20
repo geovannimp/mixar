@@ -878,7 +878,13 @@ impl Deck {
         }
     }
 
-    fn mix_at_position(&self, pos: f64, fallback: &[Sample]) -> (Sample, Sample) {
+    /// Mix stems (or main buffer) at a playhead expressed in **main-track** frames.
+    fn mix_at_position(
+        &self,
+        pos: f64,
+        fallback: &[Sample],
+        main_sample_rate: u32,
+    ) -> (Sample, Sample) {
         let Some(stems) = self.stems.as_ref() else {
             return interpolate_stereo(fallback, pos);
         };
@@ -889,7 +895,13 @@ impl Deck {
             if g == 0.0 {
                 continue;
             }
-            let (sl, sr) = interpolate_stereo(&stem.samples, pos);
+            // Stem WAVs may be 44.1 kHz while the deck main buffer is engine-rate.
+            let stem_pos = if main_sample_rate == 0 || stem.sample_rate == main_sample_rate {
+                pos
+            } else {
+                pos * f64::from(stem.sample_rate) / f64::from(main_sample_rate)
+            };
+            let (sl, sr) = interpolate_stereo(&stem.samples, stem_pos);
             left += sl * g;
             right += sr * g;
         }
@@ -941,13 +953,14 @@ impl Deck {
         // Play loaded audio samples if available, otherwise generate test audio
         if let Some(loaded) = self.loaded.clone() {
             let source_rate = loaded.sample_rate;
-            let want_stretch = self.wants_key_lock_stretch();
+            // Stems bypass key-lock stretch; keep stretch_active in sync with the path we take.
+            let want_stretch = self.wants_key_lock_stretch() && self.stems.is_none();
             if self.stretch_active && !want_stretch {
                 self.reset_stretcher_state();
             }
             self.stretch_active = want_stretch;
 
-            if want_stretch && self.stems.is_none() {
+            if want_stretch {
                 if let Err(err) = self.ensure_stretcher() {
                     tracing::error!(
                         "Deck {}: stretcher unavailable ({err}); falling back to vinyl",
@@ -1017,7 +1030,8 @@ impl Deck {
                 continue;
             }
 
-            let (left, right) = self.mix_at_position(self.position_frac, audio_samples);
+            let (left, right) =
+                self.mix_at_position(self.position_frac, audio_samples, source_rate);
             self.buffer[out * 2] = left;
             self.buffer[out * 2 + 1] = right;
             self.position_frac += step;
@@ -1763,5 +1777,66 @@ mod tests {
             (after - shadow).abs() <= 10,
             "scratch release should catch up: after={after} shadow={shadow}"
         );
+    }
+
+    #[test]
+    fn stems_clear_stretch_active_when_key_lock_on() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.3f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_lock(true).unwrap();
+        deck.play().unwrap();
+        for _ in 0..4 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(deck.stretch_active);
+
+        let stem = Arc::new(LoadedAudio {
+            samples: vec![0.5f32; CHUNK * 2 * 8_000],
+            sample_rate: 44_100,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.process(CHUNK).unwrap();
+        assert!(
+            !deck.stretch_active,
+            "stems must clear stretch_active even with key lock"
+        );
+    }
+
+    #[test]
+    fn mix_at_position_scales_stem_rate_to_main() {
+        let mut deck = new_deck(CHUNK);
+        // Main track: 2 frames at 48 kHz → silence elsewhere.
+        let main = vec![1.0f32, 1.0, 0.0, 0.0];
+        load_test_samples(&mut deck, main, 48_000);
+
+        // Stem at 24 kHz: impulse at frame 0 only. At main pos=2.0, stem pos should be 1.0.
+        let mut stem_samples = vec![0.0f32; 8];
+        stem_samples[0] = 0.25;
+        stem_samples[1] = 0.25;
+        stem_samples[2] = 0.75;
+        stem_samples[3] = 0.75;
+        let stem = Arc::new(LoadedAudio {
+            samples: stem_samples,
+            sample_rate: 24_000,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+
+        let (l, _) = deck.mix_at_position(2.0, &[], 48_000);
+        // Four stems * 0.75 at stem frame 1.
+        assert!((l - 3.0).abs() < 1e-5, "scaled stem sample={l}");
     }
 }

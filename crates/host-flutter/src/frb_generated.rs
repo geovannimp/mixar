@@ -6419,6 +6419,9 @@ impl SseDecode for crate::api::engine::EngineEvt {
         let mut var_samplerSlots =
             <Option<Vec<crate::api::engine::SamplerSlotChrome>>>::sse_decode(deserializer);
         let mut var_samplerSlotsKnown = <bool>::sse_decode(deserializer);
+        let mut var_stemsReady = <Option<bool>>::sse_decode(deserializer);
+        let mut var_stemMute = <Option<Vec<bool>>>::sse_decode(deserializer);
+        let mut var_stemIsolate = <Option<u8>>::sse_decode(deserializer);
         return crate::api::engine::EngineEvt {
             kind: var_kind,
             deck_id: var_deckId,
@@ -6464,6 +6467,9 @@ impl SseDecode for crate::api::engine::EngineEvt {
             active_sampler_bank_id_known: var_activeSamplerBankIdKnown,
             sampler_slots: var_samplerSlots,
             sampler_slots_known: var_samplerSlotsKnown,
+            stems_ready: var_stemsReady,
+            stem_mute: var_stemMute,
+            stem_isolate: var_stemIsolate,
         };
     }
 }
@@ -6841,6 +6847,18 @@ impl SseDecode for Vec<String> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<String>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<bool>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -7273,6 +7291,17 @@ impl SseDecode for Option<u32> {
     }
 }
 
+impl SseDecode for Option<u8> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<u8>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::api::library::WaveformPeaks> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -7280,6 +7309,17 @@ impl SseDecode for Option<crate::api::library::WaveformPeaks> {
             return Some(<crate::api::library::WaveformPeaks>::sse_decode(
                 deserializer,
             ));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<Vec<bool>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<Vec<bool>>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -8676,6 +8716,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::EngineEvt {
                 .into_dart(),
             self.sampler_slots.into_into_dart().into_dart(),
             self.sampler_slots_known.into_into_dart().into_dart(),
+            self.stems_ready.into_into_dart().into_dart(),
+            self.stem_mute.into_into_dart().into_dart(),
+            self.stem_isolate.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -9832,6 +9875,9 @@ impl SseEncode for crate::api::engine::EngineEvt {
             serializer,
         );
         <bool>::sse_encode(self.sampler_slots_known, serializer);
+        <Option<bool>>::sse_encode(self.stems_ready, serializer);
+        <Option<Vec<bool>>>::sse_encode(self.stem_mute, serializer);
+        <Option<u8>>::sse_encode(self.stem_isolate, serializer);
     }
 }
 
@@ -10145,6 +10191,16 @@ impl SseEncode for Vec<String> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <String>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<bool> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <bool>::sse_encode(item, serializer);
         }
     }
 }
@@ -10489,12 +10545,32 @@ impl SseEncode for Option<u32> {
     }
 }
 
+impl SseEncode for Option<u8> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <u8>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::api::library::WaveformPeaks> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::api::library::WaveformPeaks>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<Vec<bool>> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <Vec<bool>>::sse_encode(value, serializer);
         }
     }
 }

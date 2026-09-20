@@ -345,6 +345,12 @@ pub struct EngineEvt {
     /// True when [`Self::sampler_slots`] was authored on this Updated evt.
     #[cfg_attr(frb_expand, flutter_rust_bridge::frb(default = false))]
     pub sampler_slots_known: bool,
+    /// True when four stem layers are attached for playback.
+    pub stems_ready: Option<bool>,
+    /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[vocals, drums, bass, other]`).
+    pub stem_mute: Option<Vec<bool>>,
+    /// Isolated stem index when set; `None` clears isolate when stems are authored.
+    pub stem_isolate: Option<u8>,
 }
 
 impl EngineEvt {
@@ -394,6 +400,9 @@ impl EngineEvt {
             active_sampler_bank_id_known: false,
             sampler_slots: None,
             sampler_slots_known: false,
+            stems_ready: None,
+            stem_mute: None,
+            stem_isolate: None,
         }
     }
 }
@@ -1323,6 +1332,9 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.auto_gain_db = Some(snap.auto_gain_db);
     evt.active_sampler_bank_id = snap.active_sampler_bank_id.clone();
     evt.active_sampler_bank_id_known = true;
+    evt.stems_ready = Some(snap.stems_ready);
+    evt.stem_mute = Some(snap.stem_mute.to_vec());
+    evt.stem_isolate = snap.stem_isolate;
     evt
 }
 
@@ -1370,6 +1382,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             loudness_lufs,
             auto_gain_db,
             active_sampler_bank_id,
+            stems_ready,
+            stem_mute,
+            stem_isolate,
             ..
         } => {
             let mut evt = EngineEvt::bare(EngineEvtKind::Updated);
@@ -1404,6 +1419,9 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.auto_gain_db = Some(auto_gain_db);
             evt.active_sampler_bank_id = active_sampler_bank_id;
             evt.active_sampler_bank_id_known = true;
+            evt.stems_ready = Some(stems_ready);
+            evt.stem_mute = Some(stem_mute.to_vec());
+            evt.stem_isolate = stem_isolate;
             vec![evt]
         }
         EvtBody::Position {
@@ -1546,6 +1564,22 @@ mod tests {
         assert_eq!(mapped[1].kind, EngineEvtKind::Updated);
         assert_eq!(mapped[1].track_path.as_deref(), Some("/music/Palawan.opus"));
         assert_eq!(mapped[1].track_id.as_deref(), Some("lib-1"));
+    }
+
+    #[test]
+    fn map_updated_forwards_stem_state() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.stems_ready = true;
+        deck.stem_mute = [true, false, true, false];
+        deck.stem_isolate = Some(1);
+        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
+        assert_eq!(mapped.len(), 1);
+        assert_eq!(mapped[0].stems_ready, Some(true));
+        assert_eq!(
+            mapped[0].stem_mute.as_deref(),
+            Some([true, false, true, false].as_slice())
+        );
+        assert_eq!(mapped[0].stem_isolate, Some(1));
     }
 
     #[test]

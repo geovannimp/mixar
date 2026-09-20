@@ -306,6 +306,15 @@ class EngineEvt {
   /// True when [`Self::sampler_slots`] was authored on this Updated evt.
   final bool samplerSlotsKnown;
 
+  /// True when four stem layers are attached for playback.
+  final bool? stemsReady;
+
+  /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[vocals, drums, bass, other]`).
+  final List<bool>? stemMute;
+
+  /// Isolated stem index when set; `None` clears isolate when stems are authored.
+  final int? stemIsolate;
+
   const EngineEvt({
     required this.kind,
     this.deckId,
@@ -351,6 +360,9 @@ class EngineEvt {
     this.activeSamplerBankIdKnown = false,
     this.samplerSlots,
     this.samplerSlotsKnown = false,
+    this.stemsReady,
+    this.stemMute,
+    this.stemIsolate,
   });
 
   @override
@@ -398,7 +410,10 @@ class EngineEvt {
       activeSamplerBankId.hashCode ^
       activeSamplerBankIdKnown.hashCode ^
       samplerSlots.hashCode ^
-      samplerSlotsKnown.hashCode;
+      samplerSlotsKnown.hashCode ^
+      stemsReady.hashCode ^
+      stemMute.hashCode ^
+      stemIsolate.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -448,7 +463,10 @@ class EngineEvt {
           activeSamplerBankId == other.activeSamplerBankId &&
           activeSamplerBankIdKnown == other.activeSamplerBankIdKnown &&
           samplerSlots == other.samplerSlots &&
-          samplerSlotsKnown == other.samplerSlotsKnown;
+          samplerSlotsKnown == other.samplerSlotsKnown &&
+          stemsReady == other.stemsReady &&
+          stemMute == other.stemMute &&
+          stemIsolate == other.stemIsolate;
 }
 
 /// Discriminator for thin engine egress (unit enum — no freezed on Dart).

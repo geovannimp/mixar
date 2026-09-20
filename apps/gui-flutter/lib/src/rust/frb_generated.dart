@@ -5622,6 +5622,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int dco_decode_box_autoadd_u_8(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw as int;
+  }
+
+  @protected
   WaveformPeaks dco_decode_box_autoadd_waveform_peaks(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_waveform_peaks(raw);
@@ -5710,8 +5716,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   EngineEvt dco_decode_engine_evt(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 44)
-      throw Exception('unexpected arr length: expect 44 but see ${arr.length}');
+    if (arr.length != 47)
+      throw Exception('unexpected arr length: expect 47 but see ${arr.length}');
     return EngineEvt(
       kind: dco_decode_engine_evt_kind(arr[0]),
       deckId: dco_decode_opt_box_autoadd_u_16(arr[1]),
@@ -5757,6 +5763,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activeSamplerBankIdKnown: dco_decode_bool(arr[41]),
       samplerSlots: dco_decode_opt_list_sampler_slot_chrome(arr[42]),
       samplerSlotsKnown: dco_decode_bool(arr[43]),
+      stemsReady: dco_decode_opt_box_autoadd_bool(arr[44]),
+      stemMute: dco_decode_opt_list_bool(arr[45]),
+      stemIsolate: dco_decode_opt_box_autoadd_u_8(arr[46]),
     );
   }
 
@@ -6018,6 +6027,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  List<bool> dco_decode_list_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_bool).toList();
+  }
+
+  @protected
   List<ControllerDeviceInfo> dco_decode_list_controller_device_info(
     dynamic raw,
   ) {
@@ -6251,9 +6266,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_8(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_u_8(raw);
+  }
+
+  @protected
   WaveformPeaks? dco_decode_opt_box_autoadd_waveform_peaks(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_waveform_peaks(raw);
+  }
+
+  @protected
+  List<bool>? dco_decode_opt_list_bool(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_list_bool(raw);
   }
 
   @protected
@@ -6967,6 +6994,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int sse_decode_box_autoadd_u_8(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_u_8(deserializer));
+  }
+
+  @protected
   WaveformPeaks sse_decode_box_autoadd_waveform_peaks(
     SseDeserializer deserializer,
   ) {
@@ -7122,6 +7155,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       deserializer,
     );
     var var_samplerSlotsKnown = sse_decode_bool(deserializer);
+    var var_stemsReady = sse_decode_opt_box_autoadd_bool(deserializer);
+    var var_stemMute = sse_decode_opt_list_bool(deserializer);
+    var var_stemIsolate = sse_decode_opt_box_autoadd_u_8(deserializer);
     return EngineEvt(
       kind: var_kind,
       deckId: var_deckId,
@@ -7167,6 +7203,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       activeSamplerBankIdKnown: var_activeSamplerBankIdKnown,
       samplerSlots: var_samplerSlots,
       samplerSlotsKnown: var_samplerSlotsKnown,
+      stemsReady: var_stemsReady,
+      stemMute: var_stemMute,
+      stemIsolate: var_stemIsolate,
     );
   }
 
@@ -7484,6 +7523,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<bool> sse_decode_list_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <bool>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_bool(deserializer));
     }
     return ans_;
   }
@@ -7904,6 +7955,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_u_8(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   WaveformPeaks? sse_decode_opt_box_autoadd_waveform_peaks(
     SseDeserializer deserializer,
   ) {
@@ -7911,6 +7973,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_waveform_peaks(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  List<bool>? sse_decode_opt_list_bool(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_list_bool(deserializer));
     } else {
       return null;
     }
@@ -8685,6 +8758,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_8(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_waveform_peaks(
     WaveformPeaks self,
     SseSerializer serializer,
@@ -8815,6 +8894,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.activeSamplerBankIdKnown, serializer);
     sse_encode_opt_list_sampler_slot_chrome(self.samplerSlots, serializer);
     sse_encode_bool(self.samplerSlotsKnown, serializer);
+    sse_encode_opt_box_autoadd_bool(self.stemsReady, serializer);
+    sse_encode_opt_list_bool(self.stemMute, serializer);
+    sse_encode_opt_box_autoadd_u_8(self.stemIsolate, serializer);
   }
 
   @protected
@@ -9057,6 +9139,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_String(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_bool(List<bool> self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_bool(item, serializer);
     }
   }
 
@@ -9454,6 +9545,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_u_8(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_waveform_peaks(
     WaveformPeaks? self,
     SseSerializer serializer,
@@ -9463,6 +9564,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_waveform_peaks(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_list_bool(List<bool>? self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_list_bool(self, serializer);
     }
   }
 

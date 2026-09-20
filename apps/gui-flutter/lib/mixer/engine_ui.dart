@@ -358,6 +358,26 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
           evt.samplerSlots ?? const [],
         );
       }
+      final nextStemsReady = Map<int, bool>.from(prev.stemsReady);
+      final nextStemMute = Map<int, List<bool>>.from(prev.stemMute);
+      final nextStemIsolate = Map<int, int>.from(prev.stemIsolate);
+      if (unloaded) {
+        nextStemsReady.remove(id);
+        nextStemMute.remove(id);
+        nextStemIsolate.remove(id);
+      } else if (evt.stemsReady != null) {
+        nextStemsReady[id] = evt.stemsReady!;
+        final mute = evt.stemMute;
+        nextStemMute[id] = mute != null && mute.length == 4
+            ? List<bool>.from(mute)
+            : const [false, false, false, false];
+        final iso = evt.stemIsolate;
+        if (iso != null) {
+          nextStemIsolate[id] = iso;
+        } else {
+          nextStemIsolate.remove(id);
+        }
+      }
       return prev.copyWith(
         trackPaths: nextPaths,
         playing: nextPlaying,
@@ -378,6 +398,9 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         autoGainDb: nextAutoGain,
         activeSamplerBankIds: nextSamplerBanks,
         samplerSlots: nextSamplerSlots,
+        stemsReady: nextStemsReady,
+        stemMute: nextStemMute,
+        stemIsolate: nextStemIsolate,
       );
     case EngineEvtKind.levels:
       final id = evt.deckId;
