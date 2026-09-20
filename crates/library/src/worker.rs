@@ -265,6 +265,7 @@ fn handle_analyze(
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
+        ..Default::default()
     };
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);

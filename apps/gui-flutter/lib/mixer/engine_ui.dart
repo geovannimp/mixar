@@ -65,6 +65,9 @@ class EngineUiSnapshot {
     this.tempoRanges = const {},
     this.keyLocks = const {},
     this.padModes = const {},
+    this.stemsReady = const {},
+    this.stemMute = const {},
+    this.stemIsolate = const {},
     this.syncModes = const {},
     this.activeLoops = const {},
     this.pendingLoopInMs = const {},
@@ -96,6 +99,9 @@ class EngineUiSnapshot {
   final Map<int, double> tempoRanges;
   final Map<int, bool> keyLocks;
   final Map<int, PadMode> padModes;
+  final Map<int, bool> stemsReady;
+  final Map<int, List<bool>> stemMute;
+  final Map<int, int> stemIsolate;
   final Map<int, SyncMode> syncModes;
   final Map<int, ActiveLoopInfo> activeLoops;
   final Map<int, int> pendingLoopInMs;
@@ -123,6 +129,13 @@ class EngineUiSnapshot {
   bool keyLockFor(int deckId) => keyLocks[deckId] ?? false;
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
+
+  bool stemsReadyFor(int deckId) => stemsReady[deckId] ?? false;
+
+  List<bool> stemMuteFor(int deckId) =>
+      stemMute[deckId] ?? const [false, false, false, false];
+
+  int? stemIsolateFor(int deckId) => stemIsolate[deckId];
 
   SyncMode syncModeFor(int deckId) => syncModes[deckId] ?? SyncMode.off;
 
@@ -165,6 +178,9 @@ class EngineUiSnapshot {
     Map<int, double>? tempoRanges,
     Map<int, bool>? keyLocks,
     Map<int, PadMode>? padModes,
+    Map<int, bool>? stemsReady,
+    Map<int, List<bool>>? stemMute,
+    Map<int, int>? stemIsolate,
     Map<int, SyncMode>? syncModes,
     Map<int, ActiveLoopInfo>? activeLoops,
     Map<int, int>? pendingLoopInMs,
@@ -191,6 +207,9 @@ class EngineUiSnapshot {
     tempoRanges: tempoRanges ?? this.tempoRanges,
     keyLocks: keyLocks ?? this.keyLocks,
     padModes: padModes ?? this.padModes,
+    stemsReady: stemsReady ?? this.stemsReady,
+    stemMute: stemMute ?? this.stemMute,
+    stemIsolate: stemIsolate ?? this.stemIsolate,
     syncModes: syncModes ?? this.syncModes,
     activeLoops: activeLoops ?? this.activeLoops,
     pendingLoopInMs: pendingLoopInMs ?? this.pendingLoopInMs,

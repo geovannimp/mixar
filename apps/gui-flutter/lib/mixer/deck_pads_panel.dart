@@ -4,6 +4,7 @@ import 'package:gui_flutter/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
+import 'package:gui_flutter/mixer/pads/stems_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
@@ -27,6 +28,10 @@ class DeckPadsPanel extends StatelessWidget {
     required this.onSaveBank,
     this.activeBankId,
     this.onSamplerAssign,
+    this.stemMute = const [false, false, false, false],
+    this.stemIsolate,
+    this.stemsReady = false,
+    this.onStemsPress,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
@@ -50,6 +55,10 @@ class DeckPadsPanel extends StatelessWidget {
   final ValueChanged<String> onSelectBank;
   final void Function(String bankId, String name, String? playMode) onSaveBank;
   final void Function(int slot, TrackDragPayload payload)? onSamplerAssign;
+  final List<bool> stemMute;
+  final int? stemIsolate;
+  final bool stemsReady;
+  final ValueChanged<int>? onStemsPress;
   final bool hasTrack;
   final bool disabled;
   final bool bordered;
@@ -143,6 +152,13 @@ class DeckPadsPanel extends StatelessWidget {
         onSelectBank: onSelectBank,
         onSaveBank: onSaveBank,
         onAssign: onSamplerAssign,
+      ),
+      PadMode.stems => StemsPads(
+        stemMute: stemMute,
+        stemIsolate: stemIsolate,
+        stemsReady: stemsReady,
+        disabled: _controlsDisabled,
+        onPress: onStemsPress ?? (_) {},
       ),
     };
   }

@@ -26,6 +26,7 @@ mod history;
 mod model;
 mod sampler_data;
 mod session;
+mod stems;
 mod store;
 mod tags;
 mod waveform;
@@ -67,6 +68,7 @@ pub use sampler_data::{
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
 pub use session::LibrarySession;
+pub use stems::{ensure_track_stems, TrackStemsInfo};
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 pub use worker::{spawn_library_worker, LibraryWorker};
@@ -455,6 +457,33 @@ impl LibraryManager {
         waveform::get_track_waveform_row(&self.db, id)
     }
 
+    /// Load stored stem file paths for a track, if present and all four files exist.
+    pub fn get_track_stems(&self, id: &TrackId) -> Result<Option<stems::TrackStemsInfo>> {
+        Ok(stems::get_track_stems(&self.db, id)?.filter(|info| {
+            info.vocals_path.is_file()
+                && info.drums_path.is_file()
+                && info.bass_path.is_file()
+                && info.other_path.is_file()
+        }))
+    }
+
+    /// True when a complete stem row exists and all four WAV files are on disk.
+    pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
+        stems::has_track_stems(&self.db, id)
+    }
+
+    /// Generate and persist stem WAVs when missing. No-op when `enabled` is false.
+    ///
+    /// Takes `&Mutex<Self>` so decode / Demucs work does not hold the library lock.
+    pub fn ensure_track_stems(
+        library: &Mutex<Self>,
+        id: &TrackId,
+        stems_root: &Path,
+        enabled: bool,
+    ) -> Result<()> {
+        stems::ensure_track_stems(library, id, stems_root, enabled)
+    }
+
     /// Generate and persist the overview when missing (e.g. first waveform fetch).
     ///
     /// Takes `&Mutex<Self>` so overview generation does not hold the library lock.
@@ -526,6 +555,7 @@ impl LibraryManager {
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: AnalysisDurationMode::Fast,
+            ..Default::default()
         };
         let computed = compute_file_analysis(&path, options)?;
 
@@ -566,13 +596,22 @@ impl LibraryManager {
 
         #[cfg(feature = "analysis")]
         {
-            let computed = compute_file_analysis(&path, options)?;
-            let lib = Self::lock_library(library)?;
-            lib.ensure_track_still_at_path(id, &path)?;
-            lib.persist_file_analysis(&path, &computed, true)
+            let computed = compute_file_analysis(&path, options.clone())?;
+            let source = {
+                let lib = Self::lock_library(library)?;
+                lib.ensure_track_still_at_path(id, &path)?;
+                lib.persist_file_analysis(&path, &computed, true)?
+            };
+            if options.stems_enabled {
+                if let Some(ref stems_root) = options.stems_root {
+                    stems::ensure_track_stems(library, id, stems_root, true)?;
+                }
+            }
+            Ok(source)
         }
         #[cfg(not(feature = "analysis"))]
         {
+            let _ = options;
             let lib = Self::lock_library(library)?;
             lib.ensure_track_still_at_path(id, &path)?;
             lib.refresh_file_source(&path)
@@ -1966,6 +2005,7 @@ mod tests {
         let options = AnalyzeTrackOptions {
             force: true,
             analysis_duration: AnalysisDurationMode::Fast,
+            ..Default::default()
         };
         let _computed = compute_file_analysis(&path, options).unwrap();
 

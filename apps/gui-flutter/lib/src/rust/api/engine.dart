@@ -90,6 +90,15 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> loopRollPadRelease({required int deckId, required int slot});
 
+  /// Stems / generic pad press (engine dispatches by current `pad_mode`).
+  Future<void> padPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> padRelease({required int deckId, required int slot});
+
   /// Pause a deck (cmd bus).
   Future<void> pause({required int deckId});
 
@@ -511,7 +520,7 @@ class OutputDevice {
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-enum PadMode { hotCue, loopRoll, beatJump, sampler }
+enum PadMode { hotCue, loopRoll, beatJump, sampler, stems }
 
 /// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
 class SamplerSlotChrome {

@@ -1,0 +1,15 @@
+[package]
+name = "analyzer-stems"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Offline stem separation for Mixar (HTDemucs via stem-splitter-core)"
+
+[dependencies]
+anyhow.workspace = true
+hound = "3.5"
+stem-splitter-core = "1.2"
+
+[dev-dependencies]
+tempfile = "3.0"

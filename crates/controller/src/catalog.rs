@@ -99,6 +99,7 @@ const DECK_ALIASES: &[&str] = &[
     "pad_mode_loop_roll",
     "pad_mode_beat_jump",
     "pad_mode_sampler",
+    "pad_mode_stems",
 ];
 
 const MASTER_ALIASES: &[&str] = &[
@@ -192,7 +193,7 @@ const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
 const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_prev", "load_to_deck"];
 
-const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler"];
+const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler", "stems"];
 
 /// Validate leaf-specific named args (after parse).
 pub fn validate_leaf_args(

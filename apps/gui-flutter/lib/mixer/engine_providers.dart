@@ -269,6 +269,24 @@ final ProviderFamily<PadMode, int> deckPadModeProvider =
           ref.watch(engineUiProvider.select((s) => s.padModeFor(deckId))),
     );
 
+final ProviderFamily<bool, int> deckStemsReadyProvider =
+    Provider.family<bool, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemsReadyFor(deckId))),
+    );
+
+final ProviderFamily<List<bool>, int> deckStemMuteProvider =
+    Provider.family<List<bool>, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemMuteFor(deckId))),
+    );
+
+final ProviderFamily<int?, int> deckStemIsolateProvider =
+    Provider.family<int?, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.stemIsolateFor(deckId))),
+    );
+
 final ProviderFamily<String?, int> deckActiveSamplerBankIdProvider =
     Provider.family<String?, int>(
       (ref, deckId) => ref.watch(

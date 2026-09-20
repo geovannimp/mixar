@@ -43,6 +43,7 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     PadMode.loopRoll => rust.PadMode.loopRoll,
     PadMode.beatJump => rust.PadMode.beatJump,
     PadMode.sampler => rust.PadMode.sampler,
+    PadMode.stems => rust.PadMode.stems,
   };
 
   Future<bool> _run(
@@ -238,6 +239,20 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       },
       onSamplerAssign: (slot, payload) {
         unawaited(_assignSampler(slot, payload));
+      },
+      stemMute: ref.watch(deckStemMuteProvider(widget.deckId)),
+      stemIsolate: ref.watch(deckStemIsolateProvider(widget.deckId)),
+      stemsReady: ref.watch(deckStemsReadyProvider(widget.deckId)),
+      onStemsPress: (slot) {
+        unawaited(
+          _run(
+            (engine) => engine.padPress(
+              deckId: widget.deckId,
+              slot: slot,
+              shift: false,
+            ),
+          ),
+        );
       },
       hasTrack: widget.hasTrack,
       disabled: widget.disabled,

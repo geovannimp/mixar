@@ -86,6 +86,12 @@ pub struct Deck {
     processing: bool,
     /// Shared decoded audio (cache and multiple decks can reference the same buffer).
     loaded: Option<Arc<LoadedAudio>>,
+    /// Optional four stem layers (vocals, drums, bass, other), same playhead as `loaded`.
+    stems: Option<[Arc<LoadedAudio>; 4]>,
+    /// Per-stem mute (true = silent).
+    stem_mute: [bool; 4],
+    /// When set, only this stem index is audible.
+    stem_isolate: Option<u8>,
     /// Resampler quality preset (`low`, `medium`, or `high`).
     resampler_quality: String,
     /// Resampler for converting between sample rates (created on load when needed)
@@ -159,6 +165,9 @@ impl Deck {
             buffer: Vec::new(),
             processing: false,
             loaded: None,
+            stems: None,
+            stem_mute: [false; 4],
+            stem_isolate: None,
             resampler_quality: resampler_quality.to_string(),
             resampler: None,
             key_lock: false,
@@ -627,6 +636,9 @@ impl Deck {
         self.position_frames = 0;
         self.position_frac = 0.0;
         self.loaded = None;
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
         self.resampler = None;
         self.loop_region = None;
         self.slip_enabled = false;
@@ -781,6 +793,9 @@ impl Deck {
         self.cue_point_ms = Some(0);
         self.cue_hold_return = None;
         self.loaded = Some(audio);
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
         self.create_resampler()?;
         if self.key_lock {
             self.ensure_stretcher()?;
@@ -801,6 +816,84 @@ impl Deck {
         }
 
         Ok(())
+    }
+
+    /// Attach four stem buffers (vocals, drums, bass, other). Cleared on next [`Self::load`].
+    pub fn attach_stems(&mut self, stems: [Arc<LoadedAudio>; 4]) {
+        self.stems = Some(stems);
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
+    }
+
+    /// Clear attached stems (keeps the main buffer).
+    pub fn clear_stems(&mut self) {
+        self.stems = None;
+        self.stem_mute = [false; 4];
+        self.stem_isolate = None;
+    }
+
+    pub fn stems_ready(&self) -> bool {
+        self.stems.is_some()
+    }
+
+    pub fn stem_mute(&self) -> [bool; 4] {
+        self.stem_mute
+    }
+
+    pub fn stem_isolate(&self) -> Option<u8> {
+        self.stem_isolate
+    }
+
+    pub fn set_stem_mute(&mut self, index: usize, muted: bool) {
+        if index < 4 {
+            self.stem_mute[index] = muted;
+        }
+    }
+
+    pub fn toggle_stem_mute(&mut self, index: usize) {
+        if index < 4 {
+            self.stem_mute[index] = !self.stem_mute[index];
+        }
+    }
+
+    /// Isolate one stem, or clear isolate when the same index is pressed again.
+    pub fn toggle_stem_isolate(&mut self, index: u8) {
+        if usize::from(index) >= 4 {
+            return;
+        }
+        self.stem_isolate = match self.stem_isolate {
+            Some(current) if current == index => None,
+            _ => Some(index),
+        };
+    }
+
+    fn stem_gain(&self, index: usize) -> f32 {
+        if let Some(iso) = self.stem_isolate {
+            return if usize::from(iso) == index { 1.0 } else { 0.0 };
+        }
+        if self.stem_mute.get(index).copied().unwrap_or(false) {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    fn mix_at_position(&self, pos: f64, fallback: &[Sample]) -> (Sample, Sample) {
+        let Some(stems) = self.stems.as_ref() else {
+            return interpolate_stereo(fallback, pos);
+        };
+        let mut left = 0.0;
+        let mut right = 0.0;
+        for (i, stem) in stems.iter().enumerate() {
+            let g = self.stem_gain(i);
+            if g == 0.0 {
+                continue;
+            }
+            let (sl, sr) = interpolate_stereo(&stem.samples, pos);
+            left += sl * g;
+            right += sr * g;
+        }
+        (left, right)
     }
 
     /// Borrow the loaded audio reference, if any.
@@ -854,7 +947,7 @@ impl Deck {
             }
             self.stretch_active = want_stretch;
 
-            if want_stretch {
+            if want_stretch && self.stems.is_none() {
                 if let Err(err) = self.ensure_stretcher() {
                     tracing::error!(
                         "Deck {}: stretcher unavailable ({err}); falling back to vinyl",
@@ -866,8 +959,10 @@ impl Deck {
                     self.play_stretched(frames, &loaded.samples, source_rate);
                 }
             } else {
+                // ponytail: stem mix uses interpolated path (key-lock stretch skipped while stems attached).
                 let eff = self.effective_speed();
-                let use_interp = (eff - 1.0).abs() > f32::EPSILON
+                let use_interp = self.stems.is_some()
+                    || (eff - 1.0).abs() > f32::EPSILON
                     || self.loop_region.is_some()
                     || self.position_frac < 0.0
                     || !transport_playing;
@@ -922,7 +1017,7 @@ impl Deck {
                 continue;
             }
 
-            let (left, right) = interpolate_stereo(audio_samples, self.position_frac);
+            let (left, right) = self.mix_at_position(self.position_frac, audio_samples);
             self.buffer[out * 2] = left;
             self.buffer[out * 2 + 1] = right;
             self.position_frac += step;

@@ -86,6 +86,7 @@ impl ControlSnapshot {
                             1 => PadMode::LoopRoll,
                             2 => PadMode::BeatJump,
                             3 => PadMode::Sampler,
+                            4 => PadMode::Stems,
                             _ => PadMode::HotCue,
                         };
                     }
@@ -481,6 +482,7 @@ pub fn resolve_action(
                 "loop_roll" => PadMode::LoopRoll,
                 "beat_jump" => PadMode::BeatJump,
                 "sampler" => PadMode::Sampler,
+                "stems" => PadMode::Stems,
                 _ => return None,
             };
             Some(engine_cmd(
@@ -599,6 +601,21 @@ fn resolve_pad_slot(origin: Origin, slot: u8, active: bool, mode: PadMode) -> Op
                     origin,
                     Kind::SamplerPadRelease,
                     CmdBody::SamplerPadRelease { slot },
+                ))
+            }
+        }
+        PadMode::Stems => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::PadPress,
+                    CmdBody::PadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::PadRelease,
+                    CmdBody::PadRelease { slot },
                 ))
             }
         }

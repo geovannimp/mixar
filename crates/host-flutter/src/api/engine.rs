@@ -141,6 +141,7 @@ pub enum PadMode {
     LoopRoll,
     BeatJump,
     Sampler,
+    Stems,
 }
 
 impl From<PadMode> for engine_api::PadMode {
@@ -150,6 +151,7 @@ impl From<PadMode> for engine_api::PadMode {
             PadMode::LoopRoll => Self::LoopRoll,
             PadMode::BeatJump => Self::BeatJump,
             PadMode::Sampler => Self::Sampler,
+            PadMode::Stems => Self::Stems,
         }
     }
 }
@@ -161,6 +163,7 @@ impl From<engine_api::PadMode> for PadMode {
             engine_api::PadMode::LoopRoll => Self::LoopRoll,
             engine_api::PadMode::BeatJump => Self::BeatJump,
             engine_api::PadMode::Sampler => Self::Sampler,
+            engine_api::PadMode::Stems => Self::Stems,
         }
     }
 }
@@ -869,6 +872,23 @@ impl EngineTransport {
         )
     }
 
+    /// Stems / generic pad press (engine dispatches by current `pad_mode`).
+    pub fn pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::PadPress,
+            &CmdBody::PadPress { slot, shift },
+        )
+    }
+
+    pub fn pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::PadRelease,
+            &CmdBody::PadRelease { slot },
+        )
+    }
+
     pub fn hot_cue_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
@@ -1477,6 +1497,9 @@ mod tests {
             slip_enabled: false,
             slip_shadow_position_ms: None,
             pad_mode: PadMode::HotCue,
+            stems_ready: false,
+            stem_mute: [false; 4],
+            stem_isolate: None,
             position_ms: None,
             duration_ms: None,
             hot_cues: Vec::new(),
