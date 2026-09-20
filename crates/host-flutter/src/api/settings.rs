@@ -273,6 +273,9 @@ pub struct AppSettings {
     pub show_tooltips: bool,
     #[serde(default = "default_dim_played_tracks")]
     pub dim_played_tracks: bool,
+    /// Offline HTDemucs stem separation for Stems pad mode (default off).
+    #[serde(default)]
+    pub stems_enabled: bool,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -299,6 +302,7 @@ struct SettingsHost {
     history_min_deck_volume: f32,
     show_tooltips: bool,
     dim_played_tracks: bool,
+    stems_enabled: bool,
 }
 
 impl Default for SettingsHost {
@@ -325,6 +329,7 @@ impl Default for SettingsHost {
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
             dim_played_tracks: default_dim_played_tracks(),
+            stems_enabled: false,
         }
     }
 }
@@ -593,6 +598,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
         dim_played_tracks: host.dim_played_tracks,
+        stems_enabled: host.stems_enabled,
     }
 }
 
@@ -632,6 +638,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
     host.dim_played_tracks = settings.dim_played_tracks;
+    host.stems_enabled = settings.stems_enabled;
     host.configured = true;
     Ok(())
 }
@@ -741,6 +748,33 @@ mod tests {
         assert_eq!(parsed.key_color_mode, KeyColorModeSetting::Off);
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
+        assert!(!parsed.stems_enabled);
+    }
+
+    #[test]
+    fn missing_stems_enabled_defaults_false() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("stems_enabled");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert!(!settings_from_host(&host).stems_enabled);
+    }
+
+    #[test]
+    fn stems_enabled_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.stems_enabled = true;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        assert!(settings_from_host(&host).stems_enabled);
     }
 
     #[test]

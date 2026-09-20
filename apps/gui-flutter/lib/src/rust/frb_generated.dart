@@ -487,6 +487,7 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
+    required bool stemsEnabled,
   });
 
   Future<LibraryBusHandle> crateApiLibraryLibraryTransportBuses({
@@ -3558,6 +3559,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Future<void> crateApiLibraryLibraryTransportApplyLibrarySettings({
     required LibraryTransport that,
     required LibraryAnalysisDurationSetting analysisDuration,
+    required bool stemsEnabled,
   }) {
     return handler.executeNormal(
       NormalTask(
@@ -3571,6 +3573,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             analysisDuration,
             serializer,
           );
+          sse_encode_bool(stemsEnabled, serializer);
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
@@ -3584,7 +3587,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         ),
         constMeta:
             kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta,
-        argValues: [that, analysisDuration],
+        argValues: [that, analysisDuration, stemsEnabled],
         apiImpl: this,
       ),
     );
@@ -3594,7 +3597,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiLibraryLibraryTransportApplyLibrarySettingsConstMeta =>
       const TaskConstMeta(
         debugName: "LibraryTransport_apply_library_settings",
-        argNames: ["that", "analysisDuration"],
+        argNames: ["that", "analysisDuration", "stemsEnabled"],
       );
 
   @override
@@ -5466,8 +5469,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 30)
-      throw Exception('unexpected arr length: expect 30 but see ${arr.length}');
+    if (arr.length != 31)
+      throw Exception('unexpected arr length: expect 31 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -5499,6 +5502,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinDeckVolume: dco_decode_f_32(arr[27]),
       showTooltips: dco_decode_bool(arr[28]),
       dimPlayedTracks: dco_decode_bool(arr[29]),
+      stemsEnabled: dco_decode_bool(arr[30]),
     );
   }
 
@@ -6830,6 +6834,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
     var var_showTooltips = sse_decode_bool(deserializer);
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
+    var var_stemsEnabled = sse_decode_bool(deserializer);
     return AppSettings(
       backend: var_backend,
       sampleRate: var_sampleRate,
@@ -6861,6 +6866,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinDeckVolume: var_historyMinDeckVolume,
       showTooltips: var_showTooltips,
       dimPlayedTracks: var_dimPlayedTracks,
+      stemsEnabled: var_stemsEnabled,
     );
   }
 
@@ -8618,6 +8624,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_32(self.historyMinDeckVolume, serializer);
     sse_encode_bool(self.showTooltips, serializer);
     sse_encode_bool(self.dimPlayedTracks, serializer);
+    sse_encode_bool(self.stemsEnabled, serializer);
   }
 
   @protected
@@ -10382,13 +10389,15 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
         minDeckVolume: minDeckVolume,
       );
 
-  /// Apply library analysis duration from app settings.
+  /// Apply library analysis duration and stems gate from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
+    required bool stemsEnabled,
   }) =>
       RustLib.instance.api.crateApiLibraryLibraryTransportApplyLibrarySettings(
         that: this,
         analysisDuration: analysisDuration,
+        stemsEnabled: stemsEnabled,
       );
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].

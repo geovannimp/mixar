@@ -293,8 +293,12 @@ impl LibraryTransport {
     /// Open (or create) a SQLite library at `db_path`.
     pub fn open(db_path: String) -> Result<Self, String> {
         let manager =
-            LibraryManager::open(db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
-        Self::from_manager(manager)
+            LibraryManager::open(&db_path, LibraryConfig::default()).map_err(|e| e.to_string())?;
+        let transport = Self::from_manager(manager)?;
+        if let Some(parent) = Path::new(&db_path).parent() {
+            transport.buses.set_stems_root(parent.join("stems"));
+        }
+        Ok(transport)
     }
 
     /// In-memory library for tests.
@@ -690,12 +694,20 @@ impl LibraryTransport {
         LibraryBusHandle::from_buses(self.buses.clone())
     }
 
-    /// Apply library analysis duration from app settings.
+    /// Library cmd/evt buses (engine stem ensure reads stems_enabled / stems_root).
+    #[flutter_rust_bridge::frb(ignore)]
+    pub fn library_buses(&self) -> LibraryBuses {
+        self.buses.clone()
+    }
+
+    /// Apply library analysis duration and stems gate from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
+        stems_enabled: bool,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
+        self.buses.set_stems_enabled(stems_enabled);
         Ok(())
     }
 

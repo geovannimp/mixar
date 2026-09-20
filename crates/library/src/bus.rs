@@ -26,12 +26,15 @@ pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 /// (Tauri `library://bus`) with a monotonic library-state counter.
 /// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
 /// does not override duration (shared with engine/settings at session start).
+/// `stems_enabled` / `stems_root` gate offline stem ensure on analyze and deck load.
 #[derive(Clone)]
 pub struct LibraryBuses {
     cmd: LibraryBus,
     evt: LibraryBus,
     revision: Arc<AtomicU64>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
+    stems_enabled: Arc<Mutex<bool>>,
+    stems_root: Arc<Mutex<std::path::PathBuf>>,
 }
 
 impl LibraryBuses {
@@ -43,6 +46,8 @@ impl LibraryBuses {
             evt,
             revision: Arc::new(AtomicU64::new(0)),
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
+            stems_enabled: Arc::new(Mutex::new(false)),
+            stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
         }
     }
 
@@ -87,6 +92,29 @@ impl LibraryBuses {
             .unwrap_or_else(|e| e.into_inner()) = duration;
     }
 
+    /// Enable or disable offline stem generation for analyze / deck load.
+    pub fn set_stems_enabled(&self, enabled: bool) {
+        *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
+    }
+
+    /// Root directory for stem WAV caches (`{root}/{fnv64(track_id)}/`).
+    pub fn set_stems_root(&self, root: std::path::PathBuf) {
+        *self.stems_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
+    }
+
+    /// Current stems feature gate.
+    pub fn stems_enabled(&self) -> bool {
+        *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Clone of the configured stems root.
+    pub fn stems_root(&self) -> std::path::PathBuf {
+        self.stems_root
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
     /// Monotonic revision bumped when discrete library state changes.
     pub fn revision(&self) -> u64 {
         self.revision.load(Ordering::Relaxed)
@@ -108,6 +136,14 @@ impl LibraryBuses {
 
     pub(crate) fn analysis_duration_arc(&self) -> Arc<Mutex<AnalysisDurationMode>> {
         Arc::clone(&self.analysis_duration)
+    }
+
+    pub(crate) fn stems_enabled_arc(&self) -> Arc<Mutex<bool>> {
+        Arc::clone(&self.stems_enabled)
+    }
+
+    pub(crate) fn stems_root_arc(&self) -> Arc<Mutex<std::path::PathBuf>> {
+        Arc::clone(&self.stems_root)
     }
 }
 

@@ -1,6 +1,6 @@
 //! Library worker thread: drains cmd bus and publishes evt.
 
-use crate::bus::LibraryBus;
+use crate::bus::{LibraryBus, LibraryBuses};
 use crate::{HotCueRecord, LibraryError, LibraryManager, LoopRecord};
 use library_api::{
     decode_cmd_body, encode_evt_body, BeatGrid, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
@@ -45,23 +45,11 @@ pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Resul
     };
 
     let shutdown = Arc::new(AtomicBool::new(false));
-    let cmd = buses.cmd_bus();
-    let evt = buses.evt_bus();
-    let duration_handle = buses.analysis_duration_arc();
-    let revision_handle = buses.revision_arc();
     let library_handle = Arc::clone(&library);
     let shutdown_flag = Arc::clone(&shutdown);
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<std::result::Result<(), String>>();
     let handle = thread::spawn(move || {
-        worker_thread_loop(
-            cmd,
-            evt,
-            library_handle,
-            duration_handle,
-            revision_handle,
-            shutdown_flag,
-            ready_tx,
-        );
+        worker_thread_loop(buses, library_handle, shutdown_flag, ready_tx);
     });
     ready_rx
         .recv()
@@ -75,14 +63,17 @@ pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Resul
 }
 
 pub(crate) fn worker_thread_loop(
-    cmd_bus: LibraryBus,
-    evt_bus: LibraryBus,
+    buses: LibraryBuses,
     library: Arc<Mutex<LibraryManager>>,
-    analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
-    revision: Arc<AtomicU64>,
     shutdown: Arc<AtomicBool>,
     ready: std::sync::mpsc::Sender<Result<(), String>>,
 ) {
+    let cmd_bus = buses.cmd_bus();
+    let evt_bus = buses.evt_bus();
+    let analysis_duration = buses.analysis_duration_arc();
+    let stems_enabled = buses.stems_enabled_arc();
+    let stems_root = buses.stems_root_arc();
+    let revision = buses.revision_arc();
     let rx = match cmd_bus.subscribe(omnibus::Filter::Any, omnibus::Filter::Any) {
         Ok(rx) => rx,
         Err(e) => {
@@ -94,9 +85,15 @@ pub(crate) fn worker_thread_loop(
 
     while !shutdown.load(Ordering::Relaxed) {
         match rx.recv_timeout(RECV_TIMEOUT) {
-            Ok(Some(event)) => {
-                handle_cmd(&event, &library, &analysis_duration, &evt_bus, &revision)
-            }
+            Ok(Some(event)) => handle_cmd(
+                &event,
+                &library,
+                &analysis_duration,
+                &stems_enabled,
+                &stems_root,
+                &evt_bus,
+                &revision,
+            ),
             Ok(None) => continue,
             Err(_) => break,
         }
@@ -107,11 +104,21 @@ fn handle_cmd(
     event: &Event<Origin, Kind, Arc<[u8]>>,
     library: &Arc<Mutex<LibraryManager>>,
     analysis_duration: &Arc<Mutex<AnalysisDurationMode>>,
+    stems_enabled: &Arc<Mutex<bool>>,
+    stems_root: &Arc<Mutex<std::path::PathBuf>>,
     evt_bus: &LibraryBus,
     revision: &Arc<AtomicU64>,
 ) {
     match event.kind() {
-        Kind::AnalyzeTrack => handle_analyze(event, library, analysis_duration, evt_bus, revision),
+        Kind::AnalyzeTrack => handle_analyze(
+            event,
+            library,
+            analysis_duration,
+            stems_enabled,
+            stems_root,
+            evt_bus,
+            revision,
+        ),
         Kind::RefreshTrack => handle_refresh_track(event, library, evt_bus, revision),
         Kind::SaveHotCue => handle_save_hot_cue(event, library, evt_bus, revision),
         Kind::DeleteHotCue => handle_delete_hot_cue(event, library, evt_bus, revision),
@@ -240,6 +247,8 @@ fn handle_analyze(
     event: &Event<Origin, Kind, Arc<[u8]>>,
     library: &Arc<Mutex<LibraryManager>>,
     analysis_duration: &Arc<Mutex<AnalysisDurationMode>>,
+    stems_enabled: &Arc<Mutex<bool>>,
+    stems_root: &Arc<Mutex<std::path::PathBuf>>,
     evt_bus: &LibraryBus,
     revision: &Arc<AtomicU64>,
 ) {
@@ -262,10 +271,13 @@ fn handle_analyze(
     };
     let (track_id, force) = body;
     let duration = *analysis_duration.lock().unwrap_or_else(|e| e.into_inner());
+    let stems_on = *stems_enabled.lock().unwrap_or_else(|e| e.into_inner());
+    let stems_root = stems_root.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
-        ..Default::default()
+        stems_enabled: stems_on,
+        stems_root: stems_on.then_some(stems_root),
     };
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);

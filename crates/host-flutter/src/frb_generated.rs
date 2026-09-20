@@ -3865,6 +3865,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                 <crate::api::library::LibraryAnalysisDurationSetting>::sse_decode(
                     &mut deserializer,
                 );
+            let api_stems_enabled = <bool>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, String>((move || {
@@ -3885,6 +3886,7 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                     let output_ok = crate::api::library::LibraryTransport::apply_library_settings(
                         &*api_that_guard,
                         api_analysis_duration,
+                        api_stems_enabled,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -6206,6 +6208,7 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
         let mut var_showTooltips = <bool>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
+        let mut var_stemsEnabled = <bool>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
             sample_rate: var_sampleRate,
@@ -6237,6 +6240,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_min_deck_volume: var_historyMinDeckVolume,
             show_tooltips: var_showTooltips,
             dim_played_tracks: var_dimPlayedTracks,
+            stems_enabled: var_stemsEnabled,
         };
     }
 }
@@ -8470,6 +8474,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.history_min_deck_volume.into_into_dart().into_dart(),
             self.show_tooltips.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
+            self.stems_enabled.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -9714,6 +9719,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
         <bool>::sse_encode(self.show_tooltips, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
+        <bool>::sse_encode(self.stems_enabled, serializer);
     }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -56,6 +58,23 @@ LibraryAnalysisDurationSetting _libraryAnalysisDuration(
   };
 }
 
+/// Push analysis duration + stems gate once settings and library are ready.
+final librarySettingsBootstrapProvider = Provider<void>((ref) {
+  final settings = ref.watch(appSettingsProvider);
+  final library = ref.watch(libraryTransportProvider);
+  if (settings is AsyncData<AppSettings> &&
+      library is AsyncData<LibraryTransport>) {
+    unawaited(
+      library.value.applyLibrarySettings(
+        analysisDuration: _libraryAnalysisDuration(
+          settings.value.analysisDuration,
+        ),
+        stemsEnabled: settings.value.stemsEnabled,
+      ),
+    );
+  }
+});
+
 class SaveAppSettingsResult {
   const new({
     required this.saved,
@@ -87,6 +106,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
   try {
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
+      stemsEnabled: normalized.stemsEnabled,
     );
     await library.applyHistorySettings(
       enabled: normalized.historyEnabled,

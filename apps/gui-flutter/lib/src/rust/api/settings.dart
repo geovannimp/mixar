@@ -65,6 +65,9 @@ class AppSettings {
   final bool showTooltips;
   final bool dimPlayedTracks;
 
+  /// Offline HTDemucs stem separation for Stems pad mode (default off).
+  final bool stemsEnabled;
+
   const AppSettings({
     required this.backend,
     required this.sampleRate,
@@ -96,6 +99,7 @@ class AppSettings {
     required this.historyMinDeckVolume,
     required this.showTooltips,
     required this.dimPlayedTracks,
+    required this.stemsEnabled,
   });
 
   @override
@@ -129,7 +133,8 @@ class AppSettings {
       historyMinPlaySeconds.hashCode ^
       historyMinDeckVolume.hashCode ^
       showTooltips.hashCode ^
-      dimPlayedTracks.hashCode;
+      dimPlayedTracks.hashCode ^
+      stemsEnabled.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -165,7 +170,8 @@ class AppSettings {
           historyMinPlaySeconds == other.historyMinPlaySeconds &&
           historyMinDeckVolume == other.historyMinDeckVolume &&
           showTooltips == other.showTooltips &&
-          dimPlayedTracks == other.dimPlayedTracks;
+          dimPlayedTracks == other.dimPlayedTracks &&
+          stemsEnabled == other.stemsEnabled;
 }
 
 /// Bus channel routing mode.

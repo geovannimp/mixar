@@ -7,6 +7,7 @@ import 'package:gui_flutter/library/history_pane.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
@@ -54,6 +55,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
   Widget build(BuildContext context) {
     ref.watch(libraryEventsBootstrapProvider);
     ref.watch(historySettingsBootstrapProvider);
+    ref.watch(librarySettingsBootstrapProvider);
     final theme = context.theme;
     final message = ref.watch(libraryMessageProvider);
     final tab = ref.watch(librarySourceTabProvider);
