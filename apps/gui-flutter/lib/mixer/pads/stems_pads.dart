@@ -4,7 +4,7 @@ import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Stems pad mode: top row mute, bottom row isolate.
+/// Stems pad mode: top row mute, bottom row solo (isolate).
 class StemsPads extends StatelessWidget {
   const new({
     required this.stemMute,
@@ -44,22 +44,30 @@ class StemsPads extends StatelessWidget {
           child: PadGrid(
             children: List.generate(8, (slot) {
               final stem = slot % 4;
-              final isIsolatePad = slot >= 4;
+              final isSoloPad = slot >= 4;
               final muted = stem < stemMute.length && stemMute[stem];
               final isolated = stemIsolate == stem;
-              final lit = stemsReady && (isIsolatePad ? isolated : muted);
+              final lit = stemsReady && (isSoloPad ? isolated : muted);
               return PadButton(
                 disabled: inert,
                 accentSlot: lit ? stem : null,
                 onPress: inert ? null : () => onPress(slot),
-                child: Text(
-                  kStemPadLabels[slot],
-                  style: theme.typography.body.xs.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: inert
-                        ? theme.colors.mutedForeground
-                        : theme.colors.foreground,
-                  ),
+                child: Column(
+                  mainAxisSize: .min,
+                  children: [
+                    Text(
+                      isSoloPad ? 'solo' : 'mute',
+                      style: theme.typography.body.sm.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      kStemNames[stem],
+                      style: theme.typography.body.xs.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               );
             }),

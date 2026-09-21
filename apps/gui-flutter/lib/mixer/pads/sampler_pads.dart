@@ -195,11 +195,9 @@ class SamplerPads extends StatelessWidget {
           Text(
             filled && label != null && label.isNotEmpty ? label : '${slot + 1}',
             overflow: TextOverflow.ellipsis,
-            style:
-                (filled && label != null && label.isNotEmpty
-                        ? theme.typography.body.xs
-                        : theme.typography.mono.xs)
-                    .copyWith(fontWeight: FontWeight.w700),
+            style: theme.typography.body.sm.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           Text(
             filled && sample.durationMs != null
@@ -207,8 +205,12 @@ class SamplerPads extends StatelessWidget {
                 : 'sample',
             overflow: TextOverflow.ellipsis,
             style: filled && sample.durationMs != null
-                ? theme.typography.mono.xs
-                : theme.typography.body.xs,
+                ? theme.typography.body.xs.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  )
+                : theme.typography.body.xs.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
           ),
         ],
       ),
