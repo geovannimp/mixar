@@ -78,7 +78,7 @@ pub fn ensure_from_manifest(models_root: &Path, manifest: &ModelManifest) -> Res
     std::fs::create_dir_all(models_root)
         .with_context(|| format!("create models root {}", models_root.display()))?;
 
-    let local_path = artifact_path(models_root, manifest, &artifact.file, &artifact.sha256);
+    let local_path = artifact_path(models_root, manifest, &artifact.file, &artifact.sha256)?;
 
     let need_download = !matches!(verify_sha256(&local_path, &artifact.sha256), Ok(true));
     if need_download {
@@ -114,19 +114,67 @@ fn artifact_path(
     manifest: &ModelManifest,
     file: &str,
     sha256: &str,
-) -> PathBuf {
-    let ext = file
-        .rsplit('.')
-        .next()
-        .map(|s| format!(".{s}"))
-        .unwrap_or_default();
-    let short = if sha256.len() >= 8 {
-        &sha256[..8]
-    } else {
-        sha256
-    };
-    let file_name = format!("{}-{}{}", manifest.name, short, ext);
-    models_root.join(file_name)
+) -> Result<PathBuf> {
+    let name = safe_path_component(&manifest.name).context("unsafe model manifest name")?;
+    let ext = safe_artifact_ext(file)?;
+    let short = safe_sha_prefix(sha256)?;
+    let file_name = format!("{name}-{short}{ext}");
+    let path = models_root.join(&file_name);
+    // Defense in depth: keep the resolved path under models_root.
+    if path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .is_none_or(|s| s != file_name)
+        || path.parent() != Some(models_root)
+    {
+        return Err(anyhow!(
+            "stem model path escapes models_root: {}",
+            path.display()
+        ));
+    }
+    Ok(path)
+}
+
+/// Reject absolute / traversal / multi-component names from untrusted manifests.
+fn safe_path_component(s: &str) -> Result<&str> {
+    if s.is_empty() || s == "." || s == ".." {
+        return Err(anyhow!("empty or reserved path component"));
+    }
+    if s.contains(['/', '\\', '\0']) {
+        return Err(anyhow!("path separators not allowed"));
+    }
+    let mut comps = Path::new(s).components();
+    match (comps.next(), comps.next()) {
+        (Some(std::path::Component::Normal(os)), None) if os == s => Ok(s),
+        _ => Err(anyhow!("unsafe path component '{s}'")),
+    }
+}
+
+fn safe_artifact_ext(file: &str) -> Result<String> {
+    if file.is_empty() {
+        return Err(anyhow!("empty artifact file name"));
+    }
+    for c in Path::new(file).components() {
+        if !matches!(c, std::path::Component::Normal(_)) {
+            return Err(anyhow!("unsafe artifact file path '{file}'"));
+        }
+    }
+    let base = Path::new(file)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| anyhow!("unsafe artifact file name"))?;
+    let base = safe_path_component(base)?;
+    match base.rsplit_once('.') {
+        Some((_, ext)) if !ext.is_empty() && !ext.contains(['/', '\\']) => Ok(format!(".{ext}")),
+        _ => Ok(String::new()),
+    }
+}
+
+fn safe_sha_prefix(sha256: &str) -> Result<&str> {
+    if sha256.len() < 8 || !sha256.bytes().take(8).all(|b| b.is_ascii_hexdigit()) {
+        return Err(anyhow!("invalid artifact sha256 prefix"));
+    }
+    Ok(&sha256[..8])
 }
 
 /// Separate interleaved stereo PCM into four stem WAV files under `output_dir`.
@@ -333,7 +381,7 @@ mod tests {
             content.len()
         ));
 
-        let expected = artifact_path(root.path(), &manifest, "m.onnx", sha);
+        let expected = artifact_path(root.path(), &manifest, "m.onnx", sha).expect("path");
         std::fs::write(&expected, content).expect("write fixture");
 
         let handle = ensure_from_manifest(root.path(), &manifest).expect("reuse");
@@ -353,10 +401,65 @@ mod tests {
               "hop": 1
             }"#,
         );
-        let path = artifact_path(root, &manifest, "model.onnx", "abcdefghijklmnop");
+        let path = artifact_path(root, &manifest, "model.onnx", "abcdef0123456789").unwrap();
         assert_eq!(
             path,
-            PathBuf::from("/tmp/mixar-models/htdemucs_ort_v1-abcdefgh.onnx")
+            PathBuf::from("/tmp/mixar-models/htdemucs_ort_v1-abcdef01.onnx")
         );
+    }
+
+    #[test]
+    fn artifact_path_rejects_traversal_and_absolute_names() {
+        let root = Path::new("/tmp/mixar-models");
+        let traversal = manifest_from_json(
+            r#"{
+              "name": "../escape",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1
+            }"#,
+        );
+        assert!(artifact_path(root, &traversal, "m.onnx", "abcdef01").is_err());
+
+        let absolute = manifest_from_json(
+            r#"{
+              "name": "/etc/passwd",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1
+            }"#,
+        );
+        assert!(artifact_path(root, &absolute, "m.onnx", "abcdef01").is_err());
+
+        let safe = manifest_from_json(
+            r#"{
+              "name": "ok",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1
+            }"#,
+        );
+        assert!(artifact_path(root, &safe, "../../evil.onnx", "abcdef01").is_err());
+    }
+
+    #[test]
+    fn ensure_from_manifest_rejects_traversal_before_download() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let manifest = manifest_from_json(
+            r#"{
+              "name": "../escape",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1,
+              "artifacts": [{
+                "file": "m.onnx",
+                "sha256": "4777239d151b012185acba78386c96c57c777c1998d5cda9ea917c1a19153cde",
+                "size_bytes": 1,
+                "url": "http://127.0.0.1:9/unreachable.onnx"
+              }]
+            }"#,
+        );
+        assert!(ensure_from_manifest(root.path(), &manifest).is_err());
+        assert_eq!(root.path().read_dir().unwrap().count(), 0);
     }
 }

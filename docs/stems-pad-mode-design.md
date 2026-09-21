@@ -76,7 +76,7 @@ analyzer-stems
 **Filesystem**
 
 - `{app_support}/stems/{fnv64(track_id)}/vocals.wav` (and drums/bass/other)
-- Model weights: stem-splitter-core default cache until a follow-up relocates them under app support
+- Model weights: Mixar owns the cache under the supplied `models_root` in app support (`{app_support}/models/`); do not use `stem-splitter-core` `ProjectDirs`
 
 **Table `track_stem`** (one row per track when complete)
 
