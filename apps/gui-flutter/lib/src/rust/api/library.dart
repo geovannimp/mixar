@@ -56,6 +56,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Delete all track stem rows and wipe the stems cache directory.
   Future<void> clearStemCache();
 
+  /// Delete cached waveform overview rows (regenerated on next fetch).
+  Future<void> clearWaveformCache();
+
   Future<void> deleteHistorySession({required String sessionId});
 
   /// Delete a saved loop slot (worker emits [`LibraryEvtKind::LoopsChanged`]).
@@ -160,7 +163,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required int outMs,
   });
 
-  /// Stem WAV + ONNX model cache sizes under the library app-support roots.
+  /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
   Future<StorageUsage> storageUsage();
 
   /// Forward thin typed library events to Dart via FRB `StreamSink`.
@@ -648,15 +651,28 @@ class SavedLoopInfo {
           label == other.label;
 }
 
-/// Disk usage for stem WAV cache and ONNX model cache.
+/// Disk usage for Mixar-managed caches under app support / library.db.
 class StorageUsage {
   final BigInt stemsBytes;
   final BigInt modelsBytes;
+  final BigInt waveformBytes;
 
-  const StorageUsage({required this.stemsBytes, required this.modelsBytes});
+  /// Library catalog / tags / analysis in `library.db` (excludes waveform blob bytes).
+  final BigInt metadataBytes;
+
+  const StorageUsage({
+    required this.stemsBytes,
+    required this.modelsBytes,
+    required this.waveformBytes,
+    required this.metadataBytes,
+  });
 
   @override
-  int get hashCode => stemsBytes.hashCode ^ modelsBytes.hashCode;
+  int get hashCode =>
+      stemsBytes.hashCode ^
+      modelsBytes.hashCode ^
+      waveformBytes.hashCode ^
+      metadataBytes.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -664,7 +680,9 @@ class StorageUsage {
       other is StorageUsage &&
           runtimeType == other.runtimeType &&
           stemsBytes == other.stemsBytes &&
-          modelsBytes == other.modelsBytes;
+          modelsBytes == other.modelsBytes &&
+          waveformBytes == other.waveformBytes &&
+          metadataBytes == other.metadataBytes;
 }
 
 /// Packed mono RGB peaks (`count × 3` uint8 bytes).

@@ -174,6 +174,35 @@ pub(crate) fn has_track_waveform(db: &Db, track_id: &TrackId) -> Result<bool> {
     Ok(row.is_some_and(|r| r.version == WAVEFORM_SCHEMA_VERSION as i32))
 }
 
+/// Total compressed overview blob bytes stored in `track_waveform`.
+pub fn waveform_cache_bytes(db: &Db) -> Result<u64> {
+    use sea_orm::{ConnectionTrait, Statement};
+
+    let total = db
+        .conn()?
+        .as_connection()
+        .query_one_raw(Statement::from_string(
+            sea_orm::DatabaseBackend::Sqlite,
+            "SELECT COALESCE(SUM(LENGTH(overview_bytes)), 0) AS total FROM track_waveform"
+                .to_string(),
+        ))
+        .map_err(db::db_err)?
+        .and_then(|row| row.try_get::<i64>("", "total").ok())
+        .unwrap_or(0);
+    Ok(total.max(0) as u64)
+}
+
+/// Delete all waveform overview rows (regenerated on next fetch).
+pub fn clear_all_track_waveforms(db: &Db) -> Result<()> {
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+    TrackWaveformEntity::delete_many()
+        .filter(track_waveform::Column::TrackId.is_not_null())
+        .exec(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    Ok(())
+}
+
 #[derive(Debug, Clone)]
 pub struct BeatGridSnapshot {
     pub beats: Vec<f32>,

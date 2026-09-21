@@ -1215,7 +1215,14 @@ impl EngineTransport {
                     };
                     match lib.get_track_stems(&id) {
                         Ok(Some(info)) => info,
-                        Ok(None) => return,
+                        Ok(None) => {
+                            tracing::warn!(
+                                deck_id,
+                                track_id = %track_id,
+                                "stem metadata missing after ensure"
+                            );
+                            return;
+                        }
                         Err(err) => {
                             tracing::warn!(
                                 deck_id,

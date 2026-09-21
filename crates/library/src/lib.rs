@@ -69,10 +69,13 @@ pub use sampler_data::{
 };
 pub use session::LibrarySession;
 pub use stems::{
-    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems, TrackStemsInfo,
+    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems, sqlite_db_bytes,
+    TrackStemsInfo,
 };
 pub use tags::read_artwork;
-pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
+pub use waveform::{
+    clear_all_track_waveforms, waveform_cache_bytes, BeatGridSnapshot, TrackWaveformOverview,
+};
 pub use worker::{spawn_library_worker, LibraryWorker};
 
 /// Library-owned playback handoff for engine/sampler consumers.
@@ -490,6 +493,16 @@ impl LibraryManager {
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
     pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
         stems::clear_all_track_stems(&self.db, stems_root)
+    }
+
+    /// Delete all cached waveform overview rows.
+    pub fn clear_waveform_cache(&self) -> Result<()> {
+        waveform::clear_all_track_waveforms(&self.db)
+    }
+
+    /// Compressed waveform overview bytes stored in the library DB.
+    pub fn waveform_cache_bytes(&self) -> Result<u64> {
+        waveform::waveform_cache_bytes(&self.db)
     }
 
     /// Generate and persist the overview when missing (e.g. first waveform fetch).

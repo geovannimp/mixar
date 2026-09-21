@@ -8,4 +8,10 @@ void main() {
     expect(formatStorageBytes(BigInt.from(2048)), '2.0 KB');
     expect(formatStorageBytes(BigInt.from(3 * 1024 * 1024)), '3.0 MB');
   });
+
+  test('storageShare is proportional', () {
+    expect(storageShare(BigInt.zero, BigInt.zero), 0);
+    expect(storageShare(BigInt.from(25), BigInt.from(100)), 0.25);
+    expect(storageShare(BigInt.from(75), BigInt.from(100)), 0.75);
+  });
 }

@@ -1,7 +1,7 @@
 //! Persist and ensure offline stem separations for library tracks.
 
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use audio_core::LoadedAudio;
@@ -114,6 +114,13 @@ fn expected_backend() -> &'static str {
     {
         ""
     }
+}
+
+/// stem-splitter-core keeps a process-global ONNX session; serialize Demucs so
+/// analyze + deck-load cannot run two splits for the same (or any) track at once.
+fn demucs_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
 }
 
 pub(crate) fn has_track_stems(db: &Db, track_id: &TrackId) -> Result<bool> {
@@ -270,6 +277,11 @@ pub(crate) fn ensure_track_stems_on(
     }
 
     let fingerprint = source_fingerprint(&path, &audio);
+    if has_valid_track_stems(&library.db, id, &fingerprint, backend)? {
+        return Ok(());
+    }
+
+    let _demucs = demucs_lock().lock().unwrap_or_else(|e| e.into_inner());
     if has_valid_track_stems(&library.db, id, &fingerprint, backend)? {
         return Ok(());
     }
@@ -439,6 +451,14 @@ pub fn ensure_track_stems(
         }
     }
 
+    let _demucs = demucs_lock().lock().unwrap_or_else(|e| e.into_inner());
+    {
+        let lib = LibraryManager::lock_library(library)?;
+        if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
+            return Ok(());
+        }
+    }
+
     let info = generate_stem_files(id, stems_root, models_root, &audio, &fingerprint)?;
     let lib = LibraryManager::lock_library(library)?;
     if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
@@ -461,6 +481,14 @@ pub fn dir_size(root: &Path) -> u64 {
             if meta.is_file() {
                 *acc = acc.saturating_add(meta.len());
             } else if meta.is_dir() {
+                // Skip ephemeral publish dirs (`.{key}.tmp-*`, `.{key}.old-*`).
+                if path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .is_some_and(|n| n.starts_with('.'))
+                {
+                    continue;
+                }
                 walk(&path, acc);
             }
         }
@@ -468,6 +496,23 @@ pub fn dir_size(root: &Path) -> u64 {
     let mut total = 0u64;
     if root.is_dir() {
         walk(root, &mut total);
+    }
+    total
+}
+
+/// Size of a SQLite DB file plus WAL/SHM sidecars (missing → 0).
+pub fn sqlite_db_bytes(db_path: &Path) -> u64 {
+    let mut total = 0u64;
+    for path in [
+        db_path.to_path_buf(),
+        PathBuf::from(format!("{}-wal", db_path.display())),
+        PathBuf::from(format!("{}-shm", db_path.display())),
+    ] {
+        if let Ok(meta) = std::fs::metadata(&path) {
+            if meta.is_file() {
+                total = total.saturating_add(meta.len());
+            }
+        }
     }
     total
 }
@@ -540,6 +585,18 @@ mod tests {
         std::fs::write(dir.path().join("a/b/two.bin"), [0u8; 5]).unwrap();
         assert_eq!(dir_size(dir.path()), 15);
         assert_eq!(dir_size(&dir.path().join("missing")), 0);
+    }
+
+    #[test]
+    fn dir_size_skips_dot_ephemeral_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        let published = dir.path().join("abcd1234efgh5678");
+        let tmp = dir.path().join(".abcd1234efgh5678.tmp-1");
+        std::fs::create_dir_all(&published).unwrap();
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(published.join("vocals.wav"), [0u8; 20]).unwrap();
+        std::fs::write(tmp.join("vocals.wav"), [0u8; 100]).unwrap();
+        assert_eq!(dir_size(dir.path()), 20);
     }
 
     #[test]

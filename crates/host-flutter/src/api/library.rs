@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    dir_size, read_artwork, spawn_library_worker, Evt, HistoryExportFormat, HistorySettings,
-    LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection, SamplerBankRecord,
-    TrackId, WritableLibrary,
+    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
+    HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection,
+    SamplerBankRecord, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -72,11 +72,14 @@ impl From<SamplerBankRecord> for SamplerBankInfo {
     }
 }
 
-/// Disk usage for stem WAV cache and ONNX model cache.
+/// Disk usage for Mixar-managed caches under app support / library.db.
 #[derive(Clone, Debug)]
 pub struct StorageUsage {
     pub stems_bytes: u64,
     pub models_bytes: u64,
+    pub waveform_bytes: u64,
+    /// Library catalog / tags / analysis in `library.db` (excludes waveform blob bytes).
+    pub metadata_bytes: u64,
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -719,11 +722,26 @@ impl LibraryTransport {
         Ok(())
     }
 
-    /// Stem WAV + ONNX model cache sizes under the library app-support roots.
+    /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
     pub fn storage_usage(&self) -> Result<StorageUsage, String> {
+        let stems_root = self.buses.stems_root();
+        let waveform_bytes = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.waveform_cache_bytes().map_err(|e| e.to_string())?
+        };
+        let db_path = stems_root
+            .parent()
+            .map(|p| p.join("library.db"))
+            .unwrap_or_else(|| PathBuf::from("library.db"));
+        let db_bytes = sqlite_db_bytes(&db_path);
         Ok(StorageUsage {
-            stems_bytes: dir_size(&self.buses.stems_root()),
+            stems_bytes: dir_size(&stems_root),
             models_bytes: dir_size(&self.buses.models_root()),
+            waveform_bytes,
+            metadata_bytes: db_bytes.saturating_sub(waveform_bytes),
         })
     }
 
@@ -740,6 +758,15 @@ impl LibraryTransport {
     /// Wipe the Mixar-owned ONNX model cache directory.
     pub fn clear_model_cache(&self) -> Result<(), String> {
         library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())
+    }
+
+    /// Delete cached waveform overview rows (regenerated on next fetch).
+    pub fn clear_waveform_cache(&self) -> Result<(), String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.clear_waveform_cache().map_err(|e| e.to_string())
     }
 
     /// Apply performance history settings from app settings.
@@ -1427,12 +1454,16 @@ mod tests {
         let usage = transport.storage_usage().unwrap();
         assert!(usage.stems_bytes >= 3);
         assert!(usage.models_bytes >= 4);
+        assert_eq!(usage.waveform_bytes, 0);
+        assert!(usage.metadata_bytes > 0);
 
         transport.clear_stem_cache().unwrap();
         transport.clear_model_cache().unwrap();
+        transport.clear_waveform_cache().unwrap();
         let usage = transport.storage_usage().unwrap();
         assert_eq!(usage.stems_bytes, 0);
         assert_eq!(usage.models_bytes, 0);
+        assert_eq!(usage.waveform_bytes, 0);
         assert!(stems.is_dir());
         assert!(models.is_dir());
     }
