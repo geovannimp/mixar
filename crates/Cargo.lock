@@ -118,6 +118,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "hound",
+ "serde_json",
  "stem-splitter-core",
  "tempfile",
 ]

@@ -542,6 +542,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SavedLoopInfo dco_decode_saved_loop_info(dynamic raw);
 
   @protected
+  StorageUsage dco_decode_storage_usage(dynamic raw);
+
+  @protected
   SyncMode dco_decode_sync_mode(dynamic raw);
 
   @protected
@@ -549,6 +552,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_u_32(dynamic raw);
+
+  @protected
+  BigInt dco_decode_u_64(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -1135,6 +1141,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer);
 
   @protected
+  StorageUsage sse_decode_storage_usage(SseDeserializer deserializer);
+
+  @protected
   SyncMode sse_decode_sync_mode(SseDeserializer deserializer);
 
   @protected
@@ -1142,6 +1151,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_u_32(SseDeserializer deserializer);
+
+  @protected
+  BigInt sse_decode_u_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -1860,6 +1872,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_saved_loop_info(SavedLoopInfo self, SseSerializer serializer);
 
   @protected
+  void sse_encode_storage_usage(StorageUsage self, SseSerializer serializer);
+
+  @protected
   void sse_encode_sync_mode(SyncMode self, SseSerializer serializer);
 
   @protected
@@ -1867,6 +1882,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_u_64(BigInt self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_8(int self, SseSerializer serializer);

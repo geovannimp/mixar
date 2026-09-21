@@ -21,13 +21,24 @@ fn split_short_synthetic_pcm() {
     }
 
     let dir = tempfile::tempdir().expect("tempdir");
+    let models = tempfile::tempdir().expect("models");
     let result = split_interleaved_stereo(StemSplitRequest {
         interleaved_stereo: &pcm,
         sample_rate,
         output_dir: dir.path(),
+        models_root: models.path(),
         model_name: DEFAULT_MODEL,
     })
     .expect("split");
+    assert!(
+        models
+            .path()
+            .read_dir()
+            .expect("models dir")
+            .next()
+            .is_some(),
+        "model artifact should land under Mixar models_root"
+    );
 
     assert_eq!(result.sample_rate, 44_100);
     assert_eq!(result.backend, DEFAULT_MODEL);

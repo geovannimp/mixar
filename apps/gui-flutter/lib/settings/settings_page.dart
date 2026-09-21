@@ -10,6 +10,7 @@ import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/settings/settings_section.dart';
 import 'package:gui_flutter/settings/settings_session_panel.dart';
 import 'package:gui_flutter/settings/settings_sidebar.dart';
+import 'package:gui_flutter/settings/settings_storage_panel.dart';
 import 'package:gui_flutter/settings/settings_ui_panel.dart';
 import 'package:gui_flutter/settings/settings_waveform_panel.dart';
 import 'package:gui_flutter/shell/app_button.dart';
@@ -287,6 +288,7 @@ class _SettingsSectionPanel extends StatelessWidget {
         draft: draft,
         onChanged: onChanged,
       ),
+      SettingsSection.storage => const SettingsStoragePanel(),
       SettingsSection.session => SettingsSessionPanel(
         draft: draft,
         onChanged: onChanged,

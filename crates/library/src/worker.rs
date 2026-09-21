@@ -6,7 +6,7 @@ use library_api::{
     decode_cmd_body, encode_evt_body, BeatGrid, CmdBody, EvtBody, HotCue, Kind, Origin, SavedLoop,
     TrackSummary,
 };
-use library_core::{AnalysisDurationMode, AnalyzeTrackOptions, AudioSource, Library, TrackId};
+use library_core::{AnalyzeTrackOptions, AudioSource, Library, TrackId};
 use omnibus::Event;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -69,11 +69,6 @@ pub(crate) fn worker_thread_loop(
     ready: std::sync::mpsc::Sender<Result<(), String>>,
 ) {
     let cmd_bus = buses.cmd_bus();
-    let evt_bus = buses.evt_bus();
-    let analysis_duration = buses.analysis_duration_arc();
-    let stems_enabled = buses.stems_enabled_arc();
-    let stems_root = buses.stems_root_arc();
-    let revision = buses.revision_arc();
     let rx = match cmd_bus.subscribe(omnibus::Filter::Any, omnibus::Filter::Any) {
         Ok(rx) => rx,
         Err(e) => {
@@ -85,15 +80,7 @@ pub(crate) fn worker_thread_loop(
 
     while !shutdown.load(Ordering::Relaxed) {
         match rx.recv_timeout(RECV_TIMEOUT) {
-            Ok(Some(event)) => handle_cmd(
-                &event,
-                &library,
-                &analysis_duration,
-                &stems_enabled,
-                &stems_root,
-                &evt_bus,
-                &revision,
-            ),
+            Ok(Some(event)) => handle_cmd(&event, &library, &buses),
             Ok(None) => continue,
             Err(_) => break,
         }
@@ -103,28 +90,18 @@ pub(crate) fn worker_thread_loop(
 fn handle_cmd(
     event: &Event<Origin, Kind, Arc<[u8]>>,
     library: &Arc<Mutex<LibraryManager>>,
-    analysis_duration: &Arc<Mutex<AnalysisDurationMode>>,
-    stems_enabled: &Arc<Mutex<bool>>,
-    stems_root: &Arc<Mutex<std::path::PathBuf>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
+    let evt_bus = buses.evt_bus();
+    let revision = buses.revision_arc();
     match event.kind() {
-        Kind::AnalyzeTrack => handle_analyze(
-            event,
-            library,
-            analysis_duration,
-            stems_enabled,
-            stems_root,
-            evt_bus,
-            revision,
-        ),
-        Kind::RefreshTrack => handle_refresh_track(event, library, evt_bus, revision),
-        Kind::SaveHotCue => handle_save_hot_cue(event, library, evt_bus, revision),
-        Kind::DeleteHotCue => handle_delete_hot_cue(event, library, evt_bus, revision),
-        Kind::SaveLoop => handle_save_loop(event, library, evt_bus, revision),
-        Kind::DeleteLoop => handle_delete_loop(event, library, evt_bus, revision),
-        Kind::SaveBeatGrid => handle_save_beat_grid(event, library, evt_bus, revision),
+        Kind::AnalyzeTrack => handle_analyze(event, library, buses),
+        Kind::RefreshTrack => handle_refresh_track(event, library, &evt_bus, &revision),
+        Kind::SaveHotCue => handle_save_hot_cue(event, library, &evt_bus, &revision),
+        Kind::DeleteHotCue => handle_delete_hot_cue(event, library, &evt_bus, &revision),
+        Kind::SaveLoop => handle_save_loop(event, library, &evt_bus, &revision),
+        Kind::DeleteLoop => handle_delete_loop(event, library, &evt_bus, &revision),
+        Kind::SaveBeatGrid => handle_save_beat_grid(event, library, &evt_bus, &revision),
         Kind::TrackAnalyzed
         | Kind::TrackUpdated
         | Kind::HotCuesChanged
@@ -246,18 +223,16 @@ fn handle_refresh_track(
 fn handle_analyze(
     event: &Event<Origin, Kind, Arc<[u8]>>,
     library: &Arc<Mutex<LibraryManager>>,
-    analysis_duration: &Arc<Mutex<AnalysisDurationMode>>,
-    stems_enabled: &Arc<Mutex<bool>>,
-    stems_root: &Arc<Mutex<std::path::PathBuf>>,
-    evt_bus: &LibraryBus,
-    revision: &Arc<AtomicU64>,
+    buses: &LibraryBuses,
 ) {
+    let evt_bus = buses.evt_bus();
+    let revision = buses.revision_arc();
     let body = match decode_cmd_body(event.payload()) {
         Ok(CmdBody::AnalyzeTrack { track_id, force }) => (track_id, force),
         Ok(_) => {
             publish_error(
-                evt_bus,
-                revision,
+                &evt_bus,
+                &revision,
                 Origin::Library,
                 "analyze_track body mismatch".into(),
                 None,
@@ -265,19 +240,22 @@ fn handle_analyze(
             return;
         }
         Err(err) => {
-            publish_error(evt_bus, revision, Origin::Library, err.to_string(), None);
+            publish_error(&evt_bus, &revision, Origin::Library, err.to_string(), None);
             return;
         }
     };
     let (track_id, force) = body;
-    let duration = *analysis_duration.lock().unwrap_or_else(|e| e.into_inner());
-    let stems_on = *stems_enabled.lock().unwrap_or_else(|e| e.into_inner());
-    let stems_root = stems_root.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let duration = *buses
+        .analysis_duration_arc()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let stems_on = buses.stems_enabled();
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
         stems_enabled: stems_on,
-        stems_root: stems_on.then_some(stems_root),
+        stems_root: stems_on.then(|| buses.stems_root()),
+        models_root: stems_on.then(|| buses.models_root()),
     };
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);
@@ -286,24 +264,24 @@ fn handle_analyze(
         Ok(source) => match track_summary(&source) {
             Some(track) => {
                 let _ = publish_evt(
-                    evt_bus,
-                    revision,
+                    &evt_bus,
+                    &revision,
                     Origin::Track(track.id.clone()),
                     Kind::TrackAnalyzed,
                     EvtBody::TrackAnalyzed { track },
                 );
             }
             None => publish_error(
-                evt_bus,
-                revision,
+                &evt_bus,
+                &revision,
                 Origin::Track(track_id.clone()),
                 "Only file tracks can be analyzed.".into(),
                 Some(track_id),
             ),
         },
         Err(err) => publish_error(
-            evt_bus,
-            revision,
+            &evt_bus,
+            &revision,
             Origin::Track(track_id.clone()),
             err.to_string(),
             Some(track_id),

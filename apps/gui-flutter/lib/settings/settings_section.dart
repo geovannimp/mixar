@@ -5,6 +5,7 @@ enum SettingsSection {
   deck,
   ui,
   library,
+  storage,
   session,
   controllers,
 }
@@ -17,6 +18,7 @@ extension SettingsSectionLabel on SettingsSection {
     SettingsSection.deck => 'Deck',
     SettingsSection.ui => 'UI',
     SettingsSection.library => 'Library',
+    SettingsSection.storage => 'Storage',
     SettingsSection.session => 'Session',
     SettingsSection.controllers => 'Controllers',
   };

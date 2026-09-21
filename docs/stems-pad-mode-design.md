@@ -6,7 +6,7 @@
 
 ## Goal (this pass)
 
-Settings-gated offline stem separation → cache under app support → non-blocking deck load → **Stems** pad mode (mute / isolate). No Stem EQ, no Storage UI, no realtime separation in product code.
+Settings-gated offline stem separation → cache under app support → non-blocking deck load → **Stems** pad mode (mute / isolate). Model weights live under Mixar `{app_support}/models/` (see `docs/stems-storage-models-design.md`). No Stem EQ, no realtime separation in product code.
 
 ## Decisions
 
@@ -17,10 +17,10 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
 | Pads | Enabled only when stems ready for the loaded track |
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
-| Inference | **stem-splitter-core** HTDemucs ONNX (`htdemucs_ort_v1`) via public `ensure_model` / `preload` / `run_window_demucs` |
+| Inference | **stem-splitter-core** HTDemucs ONNX (`htdemucs_ort_v1`) via Mixar `ensure_model(models_root)` + `preload` / `run_window_demucs` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
 | Stem files | WAV under `{app_support}/stems/{fnv64(track_id)}/` |
-| Model weights | stem-splitter-core cache (ProjectDirs) for v1; Mixar owns **stem audio** paths in DB |
+| Model weights | `{app_support}/models/` (Mixar download/verify; ignore SSC ProjectDirs) — see `docs/stems-storage-models-design.md` |
 | Realtime | Document only (see below) |
 | charon-audio | **Not a product dependency** (see findings) |
 
@@ -134,11 +134,10 @@ Controller MIDI: extend pad_mode mapping like Sampler.
 ## Out of scope
 
 - Stem EQ (VirtualDJ HI/MID/LOW)
-- Settings → Storage stem cleanup UI
 - Stems FX pad mode
 - 5-stem Kick/HiHat split
 - Browser/mobile Burn backend
-- Relocating ONNX weights into app support (follow-up)
+- Per-track Storage cleanup / auto-eviction (manual clear-all shipped in storage follow-up)
 
 ## Testing
 

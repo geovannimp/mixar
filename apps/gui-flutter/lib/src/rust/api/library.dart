@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -49,6 +49,12 @@ abstract class LibraryTransport implements RustOpaqueInterface {
 
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses();
+
+  /// Wipe the Mixar-owned ONNX model cache directory.
+  Future<void> clearModelCache();
+
+  /// Delete all track stem rows and wipe the stems cache directory.
+  Future<void> clearStemCache();
 
   Future<void> deleteHistorySession({required String sessionId});
 
@@ -153,6 +159,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required int inMs,
     required int outMs,
   });
+
+  /// Stem WAV + ONNX model cache sizes under the library app-support roots.
+  Future<StorageUsage> storageUsage();
 
   /// Forward thin typed library events to Dart via FRB `StreamSink`.
   ///
@@ -637,6 +646,25 @@ class SavedLoopInfo {
           inMs == other.inMs &&
           outMs == other.outMs &&
           label == other.label;
+}
+
+/// Disk usage for stem WAV cache and ONNX model cache.
+class StorageUsage {
+  final BigInt stemsBytes;
+  final BigInt modelsBytes;
+
+  const StorageUsage({required this.stemsBytes, required this.modelsBytes});
+
+  @override
+  int get hashCode => stemsBytes.hashCode ^ modelsBytes.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StorageUsage &&
+          runtimeType == other.runtimeType &&
+          stemsBytes == other.stemsBytes &&
+          modelsBytes == other.modelsBytes;
 }
 
 /// Packed mono RGB peaks (`count × 3` uint8 bytes).

@@ -1185,6 +1185,7 @@ impl EngineTransport {
             return;
         }
         let stems_root = self.library_buses.stems_root();
+        let models_root = self.library_buses.models_root();
         let library = Arc::clone(&self.library);
         let engine = Arc::clone(&self.engine);
         let buses = self.buses.clone();
@@ -1192,9 +1193,13 @@ impl EngineTransport {
             .name(format!("deck-{deck_id}-stems"))
             .spawn(move || {
                 let id = TrackId::new(track_id.clone());
-                if let Err(err) =
-                    LibraryManager::ensure_track_stems(&library, &id, &stems_root, true)
-                {
+                if let Err(err) = LibraryManager::ensure_track_stems(
+                    &library,
+                    &id,
+                    &stems_root,
+                    &models_root,
+                    true,
+                ) {
                     tracing::warn!(
                         deck_id,
                         track_id = %track_id,

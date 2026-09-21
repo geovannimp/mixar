@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    read_artwork, spawn_library_worker, Evt, HistoryExportFormat, HistorySettings, LibraryBuses,
-    LibraryConfig, LibraryManager, LibraryWorker, NewCollection, SamplerBankRecord, TrackId,
-    WritableLibrary,
+    dir_size, read_artwork, spawn_library_worker, Evt, HistoryExportFormat, HistorySettings,
+    LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection, SamplerBankRecord,
+    TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -70,6 +70,13 @@ impl From<SamplerBankRecord> for SamplerBankInfo {
             sort_index: bank.sort_index,
         }
     }
+}
+
+/// Disk usage for stem WAV cache and ONNX model cache.
+#[derive(Clone, Debug)]
+pub struct StorageUsage {
+    pub stems_bytes: u64,
+    pub models_bytes: u64,
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -297,6 +304,7 @@ impl LibraryTransport {
         let transport = Self::from_manager(manager)?;
         if let Some(parent) = Path::new(&db_path).parent() {
             transport.buses.set_stems_root(parent.join("stems"));
+            transport.buses.set_models_root(parent.join("models"));
         }
         Ok(transport)
     }
@@ -709,6 +717,29 @@ impl LibraryTransport {
         self.buses.set_analysis_duration(analysis_duration.into());
         self.buses.set_stems_enabled(stems_enabled);
         Ok(())
+    }
+
+    /// Stem WAV + ONNX model cache sizes under the library app-support roots.
+    pub fn storage_usage(&self) -> Result<StorageUsage, String> {
+        Ok(StorageUsage {
+            stems_bytes: dir_size(&self.buses.stems_root()),
+            models_bytes: dir_size(&self.buses.models_root()),
+        })
+    }
+
+    /// Delete all track stem rows and wipe the stems cache directory.
+    pub fn clear_stem_cache(&self) -> Result<(), String> {
+        let stems_root = self.buses.stems_root();
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.clear_stem_cache(&stems_root).map_err(|e| e.to_string())
+    }
+
+    /// Wipe the Mixar-owned ONNX model cache directory.
+    pub fn clear_model_cache(&self) -> Result<(), String> {
+        library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())
     }
 
     /// Apply performance history settings from app settings.
@@ -1376,5 +1407,33 @@ mod tests {
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
         let mapped = map_library_evt(ev.as_ref()).expect("HistorySessionUpdated maps");
         assert_eq!(mapped.kind, LibraryEvtKind::HistorySessionUpdated);
+    }
+
+    #[test]
+    fn open_sets_stems_and_models_roots_and_clear_empties() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("library.db");
+        let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(transport.buses.stems_root(), dir.path().join("stems"));
+        assert_eq!(transport.buses.models_root(), dir.path().join("models"));
+
+        let stems = dir.path().join("stems");
+        let models = dir.path().join("models");
+        std::fs::create_dir_all(stems.join("abcd")).unwrap();
+        std::fs::write(stems.join("abcd/v.wav"), b"wav").unwrap();
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(models.join("m.onnx"), b"onnx").unwrap();
+
+        let usage = transport.storage_usage().unwrap();
+        assert!(usage.stems_bytes >= 3);
+        assert!(usage.models_bytes >= 4);
+
+        transport.clear_stem_cache().unwrap();
+        transport.clear_model_cache().unwrap();
+        let usage = transport.storage_usage().unwrap();
+        assert_eq!(usage.stems_bytes, 0);
+        assert_eq!(usage.models_bytes, 0);
+        assert!(stems.is_dir());
+        assert!(models.is_dir());
     }
 }

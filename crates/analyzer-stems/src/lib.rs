@@ -7,8 +7,8 @@ mod split;
 mod window;
 
 pub use split::{
-    ensure_model, split_interleaved_stereo, StemSplitRequest, StemSplitResult, DEFAULT_MODEL,
-    STEM_NAMES,
+    ensure_from_manifest, ensure_model, resolve_model, split_interleaved_stereo, StemSplitRequest,
+    StemSplitResult, DEFAULT_MODEL, STEM_NAMES,
 };
 
 pub use window::{audio_frame_count, fill_stereo_window};

@@ -68,7 +68,9 @@ pub use sampler_data::{
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
 pub use session::LibrarySession;
-pub use stems::{ensure_track_stems, TrackStemsInfo};
+pub use stems::{
+    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems, TrackStemsInfo,
+};
 pub use tags::read_artwork;
 pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
 pub use worker::{spawn_library_worker, LibraryWorker};
@@ -479,9 +481,15 @@ impl LibraryManager {
         library: &Mutex<Self>,
         id: &TrackId,
         stems_root: &Path,
+        models_root: &Path,
         enabled: bool,
     ) -> Result<()> {
-        stems::ensure_track_stems(library, id, stems_root, enabled)
+        stems::ensure_track_stems(library, id, stems_root, models_root, enabled)
+    }
+
+    /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
+    pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
+        stems::clear_all_track_stems(&self.db, stems_root)
     }
 
     /// Generate and persist the overview when missing (e.g. first waveform fetch).
@@ -608,7 +616,11 @@ impl LibraryManager {
                     .stems_root
                     .as_ref()
                     .expect("validate_stems requires stems_root when enabled");
-                stems::ensure_track_stems(library, id, stems_root, true)?;
+                let models_root = options
+                    .models_root
+                    .as_ref()
+                    .expect("validate_stems requires models_root when enabled");
+                stems::ensure_track_stems(library, id, stems_root, models_root, true)?;
             }
             Ok(source)
         }
@@ -1487,7 +1499,11 @@ impl WritableLibrary for LibraryManager {
                 .stems_root
                 .as_ref()
                 .expect("validate_stems requires stems_root when enabled");
-            stems::ensure_track_stems_on(self, id, stems_root)?;
+            let models_root = options
+                .models_root
+                .as_ref()
+                .expect("validate_stems requires models_root when enabled");
+            stems::ensure_track_stems_on(self, id, stems_root, models_root)?;
         }
         Ok(analyzed)
     }

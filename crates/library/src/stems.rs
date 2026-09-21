@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use audio_core::LoadedAudio;
 use library_core::{Library, LibraryError, LoadableAudio, Result, TrackId};
 use sea_orm::sea_query::OnConflict;
-use sea_orm::{EntityTrait, Set};
+use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, Set};
 
 use crate::db::{self, Db};
 use crate::entity::{track_stem, TrackStemEntity};
@@ -218,6 +218,7 @@ pub(crate) fn ensure_track_stems_on(
     library: &mut LibraryManager,
     id: &TrackId,
     stems_root: &Path,
+    models_root: &Path,
 ) -> Result<()> {
     let backend = expected_backend();
     let path = {
@@ -273,7 +274,7 @@ pub(crate) fn ensure_track_stems_on(
         return Ok(());
     }
 
-    let info = generate_stem_files(id, stems_root, &audio, &fingerprint)?;
+    let info = generate_stem_files(id, stems_root, models_root, &audio, &fingerprint)?;
     if has_valid_track_stems(&library.db, id, &fingerprint, backend)? {
         return Ok(());
     }
@@ -283,6 +284,7 @@ pub(crate) fn ensure_track_stems_on(
 fn generate_stem_files(
     id: &TrackId,
     stems_root: &Path,
+    models_root: &Path,
     audio: &LoadedAudio,
     fingerprint: &str,
 ) -> Result<TrackStemsInfo> {
@@ -306,6 +308,7 @@ fn generate_stem_files(
                 interleaved_stereo: &audio.samples,
                 sample_rate: audio.sample_rate,
                 output_dir: &tmp_dir,
+                models_root,
                 model_name: analyzer_stems::DEFAULT_MODEL,
             })
             .map_err(|e| LibraryError::Backend {
@@ -353,7 +356,7 @@ fn generate_stem_files(
 
     #[cfg(not(feature = "analysis"))]
     {
-        let _ = (id, stems_root, audio, fingerprint);
+        let _ = (id, stems_root, models_root, audio, fingerprint);
         Err(LibraryError::Unsupported(
             "stem separation requires the analysis feature",
         ))
@@ -367,6 +370,7 @@ pub fn ensure_track_stems(
     library: &Mutex<LibraryManager>,
     id: &TrackId,
     stems_root: &Path,
+    models_root: &Path,
     enabled: bool,
 ) -> Result<()> {
     if !enabled {
@@ -435,12 +439,71 @@ pub fn ensure_track_stems(
         }
     }
 
-    let info = generate_stem_files(id, stems_root, &audio, &fingerprint)?;
+    let info = generate_stem_files(id, stems_root, models_root, &audio, &fingerprint)?;
     let lib = LibraryManager::lock_library(library)?;
     if has_valid_track_stems(&lib.db, id, &fingerprint, backend)? {
         return Ok(());
     }
     upsert_track_stems(&lib.db, id, &info)
+}
+
+/// Recursive byte sum of files under `root`. Missing root → 0.
+pub fn dir_size(root: &Path) -> u64 {
+    fn walk(path: &Path, acc: &mut u64) {
+        let Ok(entries) = std::fs::read_dir(path) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(meta) = entry.metadata() else {
+                continue;
+            };
+            if meta.is_file() {
+                *acc = acc.saturating_add(meta.len());
+            } else if meta.is_dir() {
+                walk(&path, acc);
+            }
+        }
+    }
+    let mut total = 0u64;
+    if root.is_dir() {
+        walk(root, &mut total);
+    }
+    total
+}
+
+/// Delete all `track_stem` rows and wipe `stems_root` (recreate empty). Never touches library audio.
+pub fn clear_all_track_stems(db: &Db, stems_root: &Path) -> Result<()> {
+    TrackStemEntity::delete_many()
+        .filter(track_stem::Column::TrackId.is_not_null())
+        .exec(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    if stems_root.exists() {
+        std::fs::remove_dir_all(stems_root).map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("clear stems cache: {e}"),
+        })?;
+    }
+    std::fs::create_dir_all(stems_root).map_err(|e| LibraryError::Backend {
+        backend: "stems",
+        message: format!("recreate stems root: {e}"),
+    })?;
+    Ok(())
+}
+
+/// Wipe `models_root` and recreate empty.
+pub fn clear_model_cache(models_root: &Path) -> Result<()> {
+    if models_root.exists() {
+        std::fs::remove_dir_all(models_root).map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("clear model cache: {e}"),
+        })?;
+    }
+    std::fs::create_dir_all(models_root).map_err(|e| LibraryError::Backend {
+        backend: "stems",
+        message: format!("recreate models root: {e}"),
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -455,7 +518,7 @@ mod tests {
         let db_path = dir.path().join("library.db");
         let library = Mutex::new(LibraryManager::open(&db_path, LibraryConfig::default()).unwrap());
         let id = TrackId::new("/missing/track.wav");
-        ensure_track_stems(&library, &id, dir.path(), false).unwrap();
+        ensure_track_stems(&library, &id, dir.path(), dir.path(), false).unwrap();
         let lib = library.lock().unwrap();
         assert!(!has_track_stems(&lib.db, &id).unwrap());
     }
@@ -468,6 +531,44 @@ mod tests {
         assert_ne!(stem_cache_key(&a), stem_cache_key(&b));
         assert_eq!(stem_cache_key(&a), stem_cache_key(&a));
     }
+
+    #[test]
+    fn dir_size_sums_nested_files() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("a/b")).unwrap();
+        std::fs::write(dir.path().join("a/one.bin"), [0u8; 10]).unwrap();
+        std::fs::write(dir.path().join("a/b/two.bin"), [0u8; 5]).unwrap();
+        assert_eq!(dir_size(dir.path()), 15);
+        assert_eq!(dir_size(&dir.path().join("missing")), 0);
+    }
+
+    #[test]
+    fn clear_all_track_stems_wipes_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let stems = dir.path().join("stems");
+        std::fs::create_dir_all(stems.join("abcd")).unwrap();
+        std::fs::write(stems.join("abcd/vocals.wav"), b"wav").unwrap();
+        let db_path = dir.path().join("library.db");
+        let library = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
+
+        clear_all_track_stems(&library.db, &stems).unwrap();
+        assert!(get_track_stems(&library.db, &TrackId::new("/music/t.wav"))
+            .unwrap()
+            .is_none());
+        assert!(stems.is_dir());
+        assert!(stems.read_dir().unwrap().next().is_none());
+    }
+
+    #[test]
+    fn clear_model_cache_empties_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let models = dir.path().join("models");
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(models.join("x.onnx"), b"onnx").unwrap();
+        clear_model_cache(&models).unwrap();
+        assert!(models.is_dir());
+        assert!(models.read_dir().unwrap().next().is_none());
+    }
 }
 
 #[cfg(test)]
@@ -479,6 +580,18 @@ mod options_tests {
         let opts = AnalyzeTrackOptions {
             stems_enabled: true,
             stems_root: None,
+            models_root: Some(std::path::PathBuf::from("models")),
+            ..Default::default()
+        };
+        assert!(opts.validate_stems().is_err());
+    }
+
+    #[test]
+    fn validate_stems_rejects_enabled_without_models_root() {
+        let opts = AnalyzeTrackOptions {
+            stems_enabled: true,
+            stems_root: Some(std::path::PathBuf::from("stems")),
+            models_root: None,
             ..Default::default()
         };
         assert!(opts.validate_stems().is_err());

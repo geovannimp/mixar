@@ -8,7 +8,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use hound::{SampleFormat, WavSpec, WavWriter};
 use stem_splitter_core::core::engine;
-use stem_splitter_core::{ensure_model as ssc_ensure_model, ModelHandle};
+use stem_splitter_core::io::crypto::verify_sha256;
+use stem_splitter_core::io::net::{download_with_progress, http_client};
+use stem_splitter_core::model::registry::resolve_manifest_url;
+use stem_splitter_core::{ModelHandle, ModelManifest};
 
 use crate::window::{audio_frame_count, fill_stereo_window};
 
@@ -23,6 +26,8 @@ pub struct StemSplitRequest<'a> {
     pub interleaved_stereo: &'a [f32],
     pub sample_rate: u32,
     pub output_dir: &'a Path,
+    /// Mixar-owned ONNX cache root (`{app_support}/models`).
+    pub models_root: &'a Path,
     pub model_name: &'a str,
 }
 
@@ -33,11 +38,95 @@ pub struct StemSplitResult {
     pub backend: String,
 }
 
-/// Download / verify model weights into stem-splitter-core's cache and preload the session.
-pub fn ensure_model(model_name: &str) -> Result<()> {
-    let handle = ssc_ensure_model(model_name, None).map_err(ssc_err)?;
+/// Download / verify model weights into `models_root` and preload the session.
+pub fn ensure_model(models_root: &Path, model_name: &str) -> Result<()> {
+    let handle = resolve_model(models_root, model_name, None)?;
     engine::preload(&handle).map_err(ssc_err)?;
     Ok(())
+}
+
+/// Resolve (download if needed) a model into `models_root` without preloading.
+pub fn resolve_model(
+    models_root: &Path,
+    model_name: &str,
+    manifest_url_override: Option<&str>,
+) -> Result<ModelHandle> {
+    let manifest_url = match manifest_url_override {
+        Some(url) => url.to_string(),
+        None => resolve_manifest_url(model_name).map_err(ssc_err)?,
+    };
+
+    let client = http_client();
+    let manifest: ModelManifest = client
+        .get(&manifest_url)
+        .send()
+        .map_err(ssc_err)?
+        .error_for_status()
+        .map_err(ssc_err)?
+        .json()
+        .map_err(ssc_err)?;
+
+    ensure_from_manifest(models_root, &manifest)
+}
+
+/// Place / reuse the primary artifact under `models_root` from an already-fetched manifest.
+pub fn ensure_from_manifest(models_root: &Path, manifest: &ModelManifest) -> Result<ModelHandle> {
+    let artifact = manifest
+        .resolve_primary_artifact()
+        .map_err(|msg| anyhow!("stem model manifest: {msg}"))?;
+
+    std::fs::create_dir_all(models_root)
+        .with_context(|| format!("create models root {}", models_root.display()))?;
+
+    let local_path = artifact_path(models_root, manifest, &artifact.file, &artifact.sha256);
+
+    let need_download = !matches!(verify_sha256(&local_path, &artifact.sha256), Ok(true));
+    if need_download {
+        let client = http_client();
+        download_with_progress(&client, &artifact.url, &local_path).map_err(ssc_err)?;
+        if !verify_sha256(&local_path, &artifact.sha256).map_err(ssc_err)? {
+            return Err(anyhow!(
+                "checksum mismatch for stem model {}",
+                local_path.display()
+            ));
+        }
+        if artifact.size_bytes > 0 {
+            let size = std::fs::metadata(&local_path).map(|m| m.len()).unwrap_or(0);
+            if size != artifact.size_bytes {
+                eprintln!(
+                    "stem model size mismatch for {}, expected {} bytes, got {}",
+                    local_path.display(),
+                    artifact.size_bytes,
+                    size
+                );
+            }
+        }
+    }
+
+    Ok(ModelHandle {
+        manifest: manifest.clone(),
+        local_path,
+    })
+}
+
+fn artifact_path(
+    models_root: &Path,
+    manifest: &ModelManifest,
+    file: &str,
+    sha256: &str,
+) -> PathBuf {
+    let ext = file
+        .rsplit('.')
+        .next()
+        .map(|s| format!(".{s}"))
+        .unwrap_or_default();
+    let short = if sha256.len() >= 8 {
+        &sha256[..8]
+    } else {
+        sha256
+    };
+    let file_name = format!("{}-{}{}", manifest.name, short, ext);
+    models_root.join(file_name)
 }
 
 /// Separate interleaved stereo PCM into four stem WAV files under `output_dir`.
@@ -48,7 +137,7 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
         req.model_name
     };
 
-    let handle: ModelHandle = ssc_ensure_model(model_name, None).map_err(ssc_err)?;
+    let handle = resolve_model(req.models_root, model_name, None)?;
     engine::preload(&handle).map_err(ssc_err)?;
     let mf = engine::manifest();
 
@@ -210,11 +299,64 @@ fn resample_interleaved_linear(input: &[f32], from_hz: u32, to_hz: u32) -> Vec<f
 mod tests {
     use super::*;
 
+    fn manifest_from_json(json: &str) -> ModelManifest {
+        serde_json::from_str(json).expect("manifest json")
+    }
+
     #[test]
     fn linear_resample_48000_to_44100_changes_frame_count() {
         let frames = 4800usize;
         let input = vec![0.25f32; frames * 2];
         let out = resample_interleaved_linear(&input, 48_000, 44_100);
         assert_eq!(out.len() / 2, 4410);
+    }
+
+    #[test]
+    fn ensure_reuses_existing_artifact_under_models_root() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let content = b"mixar-test-model";
+        // sha256("mixar-test-model")
+        let sha = "4777239d151b012185acba78386c96c57c777c1998d5cda9ea917c1a19153cde";
+        let manifest = manifest_from_json(&format!(
+            r#"{{
+              "name": "mixar_test",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1,
+              "artifacts": [{{
+                "file": "m.onnx",
+                "sha256": "{sha}",
+                "size_bytes": {},
+                "url": "http://127.0.0.1:9/unreachable.onnx"
+              }}]
+            }}"#,
+            content.len()
+        ));
+
+        let expected = artifact_path(root.path(), &manifest, "m.onnx", sha);
+        std::fs::write(&expected, content).expect("write fixture");
+
+        let handle = ensure_from_manifest(root.path(), &manifest).expect("reuse");
+        assert_eq!(handle.local_path, expected);
+        assert!(handle.local_path.starts_with(root.path()));
+        assert_eq!(std::fs::read(&handle.local_path).unwrap(), content);
+    }
+
+    #[test]
+    fn artifact_path_uses_models_root_only() {
+        let root = Path::new("/tmp/mixar-models");
+        let manifest = manifest_from_json(
+            r#"{
+              "name": "htdemucs_ort_v1",
+              "sample_rate": 44100,
+              "window": 1,
+              "hop": 1
+            }"#,
+        );
+        let path = artifact_path(root, &manifest, "model.onnx", "abcdefghijklmnop");
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/mixar-models/htdemucs_ort_v1-abcdefgh.onnx")
+        );
     }
 }
