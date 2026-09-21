@@ -481,14 +481,6 @@ pub fn dir_size(root: &Path) -> u64 {
             if meta.is_file() {
                 *acc = acc.saturating_add(meta.len());
             } else if meta.is_dir() {
-                // Skip ephemeral publish dirs (`.{key}.tmp-*`, `.{key}.old-*`).
-                if path
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|n| n.starts_with('.'))
-                {
-                    continue;
-                }
                 walk(&path, acc);
             }
         }
@@ -588,7 +580,7 @@ mod tests {
     }
 
     #[test]
-    fn dir_size_skips_dot_ephemeral_dirs() {
+    fn dir_size_includes_dot_ephemeral_dirs() {
         let dir = tempfile::tempdir().unwrap();
         let published = dir.path().join("abcd1234efgh5678");
         let tmp = dir.path().join(".abcd1234efgh5678.tmp-1");
@@ -596,7 +588,7 @@ mod tests {
         std::fs::create_dir_all(&tmp).unwrap();
         std::fs::write(published.join("vocals.wav"), [0u8; 20]).unwrap();
         std::fs::write(tmp.join("vocals.wav"), [0u8; 100]).unwrap();
-        assert_eq!(dir_size(dir.path()), 20);
+        assert_eq!(dir_size(dir.path()), 120);
     }
 
     #[test]
