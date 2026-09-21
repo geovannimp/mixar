@@ -147,6 +147,47 @@ void main() {
     expect(result, 'delete');
   });
 
+  testWidgets('showMixarConfirm actions sit below body text', (tester) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => GestureDetector(
+          onTap: () async {
+            await showMixarConfirm<bool>(
+              context: context,
+              title: 'Clear stem cache?',
+              body: 'Deletes generated stem files for all tracks. Original library audio is not touched.',
+              actions: const [
+                MixarDialogAction(
+                  label: 'Cancel',
+                  value: false,
+                  variant: MixarButtonVariant.outline,
+                ),
+                MixarDialogAction(
+                  label: 'Clear',
+                  value: true,
+                  variant: MixarButtonVariant.destructive,
+                ),
+              ],
+            );
+          },
+          child: const Text('Open'),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final bodyRect = tester.getRect(
+      find.text(
+        'Deletes generated stem files for all tracks. Original library audio is not touched.',
+      ),
+    );
+    final cancelRect = tester.getRect(find.text('Cancel'));
+    expect(cancelRect.top, greaterThanOrEqualTo(bodyRect.bottom));
+  });
+
   testWidgets('showMixarConfirm barrier dismiss returns null', (tester) async {
     String? result = 'unset';
     await pumpHome(

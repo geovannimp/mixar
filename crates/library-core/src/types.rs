@@ -336,7 +336,7 @@ impl UpdateCollection {
 }
 
 /// Options for [`WritableLibrary::analyze_track`].
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AnalyzeTrackOptions {
     /// When true, DSP analysis results replace BPM/key from file tags.
     /// When false, existing tag values are kept when present; analysis fills
@@ -344,7 +344,7 @@ pub struct AnalyzeTrackOptions {
     pub force: bool,
     /// How much of the track to analyze.
     pub analysis_duration: AnalysisDurationMode,
-    /// When true, ensure offline stem WAVs after analysis (requires [`Self::stems_root`]
+    /// When true, ensure offline stems after analysis (requires [`Self::stems_root`]
     /// and [`Self::models_root`]).
     #[serde(default)]
     pub stems_enabled: bool,
@@ -354,6 +354,26 @@ pub struct AnalyzeTrackOptions {
     /// Root directory for HTDemucs ONNX weights (`{app_support}/models`).
     #[serde(default)]
     pub models_root: Option<PathBuf>,
+    /// Stem cache codec: `opus` (default) or `flac`.
+    #[serde(default = "default_stems_format")]
+    pub stems_format: String,
+}
+
+fn default_stems_format() -> String {
+    "opus".into()
+}
+
+impl Default for AnalyzeTrackOptions {
+    fn default() -> Self {
+        Self {
+            force: false,
+            analysis_duration: AnalysisDurationMode::default(),
+            stems_enabled: false,
+            stems_root: None,
+            models_root: None,
+            stems_format: default_stems_format(),
+        }
+    }
 }
 
 impl AnalyzeTrackOptions {

@@ -69,7 +69,8 @@ pub use sampler_data::{
 };
 pub use session::LibrarySession;
 pub use stems::{
-    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems, sqlite_db_bytes,
+    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems,
+    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, StemProgressFn,
     TrackStemsInfo,
 };
 pub use tags::read_artwork;
@@ -472,12 +473,12 @@ impl LibraryManager {
         }))
     }
 
-    /// True when a complete stem row exists and all four WAV files are on disk.
+    /// True when a complete stem row exists and all four stem files are on disk.
     pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
         stems::has_track_stems(&self.db, id)
     }
 
-    /// Generate and persist stem WAVs when missing. No-op when `enabled` is false.
+    /// Generate and persist stem files when missing. No-op when `enabled` is false.
     ///
     /// Takes `&Mutex<Self>` so decode / Demucs work does not hold the library lock.
     pub fn ensure_track_stems(
@@ -486,8 +487,9 @@ impl LibraryManager {
         stems_root: &Path,
         models_root: &Path,
         enabled: bool,
+        format: &str,
     ) -> Result<()> {
-        stems::ensure_track_stems(library, id, stems_root, models_root, enabled)
+        stems::ensure_track_stems(library, id, stems_root, models_root, enabled, format)
     }
 
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
@@ -633,7 +635,14 @@ impl LibraryManager {
                     .models_root
                     .as_ref()
                     .expect("validate_stems requires models_root when enabled");
-                stems::ensure_track_stems(library, id, stems_root, models_root, true)?;
+                stems::ensure_track_stems(
+                    library,
+                    id,
+                    stems_root,
+                    models_root,
+                    true,
+                    &options.stems_format,
+                )?;
             }
             Ok(source)
         }
@@ -1516,7 +1525,7 @@ impl WritableLibrary for LibraryManager {
                 .models_root
                 .as_ref()
                 .expect("validate_stems requires models_root when enabled");
-            stems::ensure_track_stems_on(self, id, stems_root, models_root)?;
+            stems::ensure_track_stems_on(self, id, stems_root, models_root, &options.stems_format)?;
         }
         Ok(analyzed)
     }

@@ -123,7 +123,8 @@ class AnalyzingTrackIds extends Notifier<Set<String>> {
     _stuckClears.remove(id)?.cancel();
     state = {...state, id};
     // ponytail: clear stuck spinner if evt never arrives. Upgrade: correlate cmd/evt ids.
-    _stuckClears[id] = Timer(const Duration(seconds: 60), () {
+    // Stems + Demucs can exceed a minute; keep the loader until stems_ready when enabled.
+    _stuckClears[id] = Timer(const Duration(minutes: 30), () {
       clearIf(id);
     });
   }
@@ -148,6 +149,92 @@ class AnalyzingTrackIds extends Notifier<Set<String>> {
 
 final analyzingTrackIdsProvider =
     NotifierProvider<AnalyzingTrackIds, Set<String>>(AnalyzingTrackIds.new);
+
+/// Coarse analyze/stems phase label + optional fraction per track.
+class TrackProgressInfo {
+  const TrackProgressInfo({required this.phase, this.fraction});
+
+  final String phase;
+  final double? fraction;
+
+  String get label {
+    final pct = fraction == null
+        ? null
+        : '${(fraction!.clamp(0.0, 1.0) * 100).round()}%';
+    final base = switch (phase) {
+      'decode' => 'Decoding',
+      'analyze' => 'Analyzing',
+      'bpm' => 'Detecting BPM',
+      'key' => 'Detecting key',
+      'loudness' => 'Measuring loudness',
+      'waveform' => 'Waveform',
+      'stems_queued' => 'Queuing stems',
+      'stems_model' => 'Loading stem model',
+      'stems_separate' => 'Separating stems',
+      'stems_encode' => 'Encoding stems',
+      'stems_ready' => 'Stems ready',
+      'stems_failed' => 'Stems failed',
+      _ => phase,
+    };
+    return pct == null ? base : '$base $pct';
+  }
+}
+
+class TrackProgressMap extends Notifier<Map<String, TrackProgressInfo>> {
+  @override
+  Map<String, TrackProgressInfo> build() => const {};
+
+  void set(String trackId, String phase, double? fraction) {
+    if (phase == 'stems_ready' || phase == 'stems_failed') {
+      final next = {...state}..remove(trackId);
+      state = next;
+      return;
+    }
+    final existing = state[trackId];
+    // Analyze runs in parallel with stems; keep stems_* label visible.
+    if (existing != null &&
+        _isStemProgressPhase(existing.phase) &&
+        !_isStemProgressPhase(phase)) {
+      return;
+    }
+    state = {
+      ...state,
+      trackId: TrackProgressInfo(phase: phase, fraction: fraction),
+    };
+  }
+
+  void clearIf(String? trackId) {
+    if (trackId == null || !state.containsKey(trackId)) return;
+    final next = {...state}..remove(trackId);
+    state = next;
+  }
+}
+
+final trackProgressProvider =
+    NotifierProvider<TrackProgressMap, Map<String, TrackProgressInfo>>(
+      TrackProgressMap.new,
+    );
+
+/// Track IDs with an in-flight stem job (for pad banner).
+class StemGeneratingTrackIds extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void setGenerating(String trackId, bool generating) {
+    if (generating) {
+      if (state.contains(trackId)) return;
+      state = {...state, trackId};
+    } else {
+      if (!state.contains(trackId)) return;
+      state = {...state}..remove(trackId);
+    }
+  }
+}
+
+final stemGeneratingTrackIdsProvider =
+    NotifierProvider<StemGeneratingTrackIds, Set<String>>(
+      StemGeneratingTrackIds.new,
+    );
 
 class LibraryMessage extends Notifier<String?> {
   @override
@@ -261,6 +348,17 @@ class FocusedTrackRowIndex extends Notifier<int> {
 final focusedTrackRowIndexProvider =
     NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
 
+bool _isStemProgressPhase(String phase) =>
+    phase == 'decode' || phase.startsWith('stems_');
+
+bool _stemsStillRunning(Ref ref, String trackId) {
+  if (ref.read(stemGeneratingTrackIdsProvider).contains(trackId)) {
+    return true;
+  }
+  final progress = ref.read(trackProgressProvider)[trackId];
+  return progress != null && _isStemProgressPhase(progress.phase);
+}
+
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
@@ -268,14 +366,48 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
       ref.invalidate(collectionTracksProvider);
       ref.invalidate(collectionsProvider);
       if (evt.kind == LibraryEvtKind.trackAnalyzed) {
-        ref
-            .read(analyzingTrackIdsProvider.notifier)
-            .clearIf(evt.trackId ?? evt.track?.id);
         final trackId = evt.trackId ?? evt.track?.id;
+        final stemsWaiting =
+            trackId != null && _stemsStillRunning(ref, trackId);
+        if (!stemsWaiting) {
+          ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
+        }
         if (trackId != null) {
           ref.read(trackBeatGridsProvider.notifier).remove(trackId);
+          final progress = ref.read(trackProgressProvider)[trackId];
+          if (progress != null &&
+              !progress.phase.startsWith('stems_') &&
+              progress.phase != 'decode') {
+            ref.read(trackProgressProvider.notifier).clearIf(trackId);
+          }
         }
         ref.read(libraryAnalysisEpochProvider.notifier).bump();
+      }
+    case LibraryEvtKind.trackProgress:
+      final trackId = evt.trackId;
+      final phase = evt.phase;
+      if (trackId == null || phase == null) {
+        break;
+      }
+      ref
+          .read(trackProgressProvider.notifier)
+          .set(trackId, phase, evt.fraction);
+      final generating =
+          phase == 'stems_queued' ||
+          phase == 'decode' ||
+          phase == 'stems_model' ||
+          phase == 'stems_separate' ||
+          phase == 'stems_encode';
+      final done = phase == 'stems_ready' || phase == 'stems_failed';
+      if (generating) {
+        ref
+            .read(stemGeneratingTrackIdsProvider.notifier)
+            .setGenerating(trackId, true);
+      } else if (done) {
+        ref
+            .read(stemGeneratingTrackIdsProvider.notifier)
+            .setGenerating(trackId, false);
+        ref.read(analyzingTrackIdsProvider.notifier).clearIf(trackId);
       }
     case LibraryEvtKind.error:
       ref
@@ -283,6 +415,10 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
           .setError(evt.message ?? 'Error');
       if (evt.trackId != null) {
         ref.read(analyzingTrackIdsProvider.notifier).clearIf(evt.trackId);
+        ref
+            .read(stemGeneratingTrackIdsProvider.notifier)
+            .setGenerating(evt.trackId!, false);
+        ref.read(trackProgressProvider.notifier).clearIf(evt.trackId);
       } else {
         ref.read(analyzingTrackIdsProvider.notifier).clear();
       }

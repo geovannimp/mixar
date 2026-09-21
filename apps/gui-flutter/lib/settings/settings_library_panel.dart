@@ -141,6 +141,18 @@ class SettingsLibraryPanel extends StatelessWidget {
           onChanged: (enabled) =>
               onChanged(copyAppSettings(draft, stemsEnabled: enabled)),
         ),
+        if (draft.stemsEnabled)
+          SettingsField(
+            label: 'Stem format',
+            child: SettingsSelect<String>(
+              value: draft.stemsFormat == 'flac' ? 'flac' : 'opus',
+              options: const ['opus', 'flac'],
+              labelBuilder: (v) =>
+                  v == 'opus' ? 'Opus (160 kbps)' : 'FLAC (lossless)',
+              onChanged: (v) =>
+                  onChanged(copyAppSettings(draft, stemsFormat: v)),
+            ),
+          ),
         SettingsToggle(
           label: 'Dim played tracks',
           value: draft.dimPlayedTracks,

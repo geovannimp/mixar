@@ -10,6 +10,7 @@ class StemsPads extends StatelessWidget {
     required this.stemMute,
     required this.stemIsolate,
     required this.stemsReady,
+    required this.stemsGenerating,
     required this.onPress,
     this.disabled = false,
     super.key,
@@ -18,6 +19,7 @@ class StemsPads extends StatelessWidget {
   final List<bool> stemMute;
   final int? stemIsolate;
   final bool stemsReady;
+  final bool stemsGenerating;
   final void Function(int slot) onPress;
   final bool disabled;
 
@@ -28,7 +30,7 @@ class StemsPads extends StatelessWidget {
 
     return Column(
       children: [
-        if (!stemsReady)
+        if (stemsGenerating)
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(

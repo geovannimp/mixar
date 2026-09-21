@@ -275,6 +275,15 @@ final ProviderFamily<bool, int> deckStemsReadyProvider =
           ref.watch(engineUiProvider.select((s) => s.stemsReadyFor(deckId))),
     );
 
+final ProviderFamily<bool, int> deckStemsGeneratingProvider =
+    Provider.family<bool, int>((ref, deckId) {
+      final ready = ref.watch(deckStemsReadyProvider(deckId));
+      if (ready) return false;
+      final trackId = ref.watch(deckTrackIdProvider(deckId));
+      if (trackId == null || trackId.isEmpty) return false;
+      return ref.watch(stemGeneratingTrackIdsProvider).contains(trackId);
+    });
+
 final ProviderFamily<List<bool>, int> deckStemMuteProvider =
     Provider.family<List<bool>, int>(
       (ref, deckId) =>

@@ -21,4 +21,6 @@ pub enum Kind {
     Load,
     Error,
     Notice,
+    /// Coarse per-track job progress (analysis / stems phases).
+    TrackProgress,
 }

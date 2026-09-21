@@ -111,7 +111,8 @@ fn handle_cmd(
         | Kind::Navigate
         | Kind::Load
         | Kind::Error
-        | Kind::Notice => {
+        | Kind::Notice
+        | Kind::TrackProgress => {
             // Ignore evt kinds published onto cmd by mistake.
         }
     }
@@ -250,13 +251,44 @@ fn handle_analyze(
         .lock()
         .unwrap_or_else(|e| e.into_inner());
     let stems_on = buses.stems_enabled();
+
+    // Analysis completes independently of stems (B). Spawn stems in parallel when enabled.
+    if stems_on {
+        let _ = publish_evt(
+            &evt_bus,
+            &revision,
+            Origin::Track(track_id.clone()),
+            Kind::TrackProgress,
+            EvtBody::TrackProgress {
+                track_id: track_id.clone(),
+                phase: "stems_queued".into(),
+                fraction: None,
+            },
+        );
+        spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track_id.clone());
+    }
+
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
-        stems_enabled: stems_on,
-        stems_root: stems_on.then(|| buses.stems_root()),
-        models_root: stems_on.then(|| buses.models_root()),
+        stems_enabled: false,
+        stems_root: None,
+        models_root: None,
+        stems_format: buses.stems_format(),
     };
+
+    let _ = publish_evt(
+        &evt_bus,
+        &revision,
+        Origin::Track(track_id.clone()),
+        Kind::TrackProgress,
+        EvtBody::TrackProgress {
+            track_id: track_id.clone(),
+            phase: "analyze".into(),
+            fraction: None,
+        },
+    );
+
     let result =
         LibraryManager::analyze_track_off_mutex(library, &TrackId::new(track_id.clone()), options);
 
@@ -287,6 +319,83 @@ fn handle_analyze(
             Some(track_id),
         ),
     }
+}
+
+fn spawn_stem_ensure_job(
+    library: Arc<Mutex<LibraryManager>>,
+    buses: LibraryBuses,
+    track_id: String,
+) {
+    let stems_root = buses.stems_root();
+    let models_root = buses.models_root();
+    let format = buses.stems_format();
+    let evt_bus = buses.evt_bus();
+    let revision = buses.revision_arc();
+    let _ = thread::Builder::new()
+        .name(format!("stems-ensure-{track_id}"))
+        .spawn(move || {
+            let track_id_for_cb = track_id.clone();
+            let evt_bus_cb = evt_bus.clone();
+            let revision_cb = Arc::clone(&revision);
+            let progress: crate::StemProgressFn = Arc::new(move |phase, fraction| {
+                let _ = publish_evt(
+                    &evt_bus_cb,
+                    &revision_cb,
+                    Origin::Track(track_id_for_cb.clone()),
+                    Kind::TrackProgress,
+                    EvtBody::TrackProgress {
+                        track_id: track_id_for_cb.clone(),
+                        phase: phase.to_string(),
+                        fraction,
+                    },
+                );
+            });
+            let result = crate::ensure_track_stems_with_progress(
+                &library,
+                &TrackId::new(track_id.clone()),
+                &stems_root,
+                &models_root,
+                true,
+                &format,
+                Some(progress),
+            );
+            match result {
+                Ok(()) => {
+                    let _ = publish_evt(
+                        &evt_bus,
+                        &revision,
+                        Origin::Track(track_id.clone()),
+                        Kind::TrackProgress,
+                        EvtBody::TrackProgress {
+                            track_id: track_id.clone(),
+                            phase: "stems_ready".into(),
+                            fraction: Some(1.0),
+                        },
+                    );
+                }
+                Err(err) => {
+                    let message = err.to_string();
+                    let _ = publish_evt(
+                        &evt_bus,
+                        &revision,
+                        Origin::Track(track_id.clone()),
+                        Kind::TrackProgress,
+                        EvtBody::TrackProgress {
+                            track_id: track_id.clone(),
+                            phase: "stems_failed".into(),
+                            fraction: None,
+                        },
+                    );
+                    publish_error(
+                        &evt_bus,
+                        &revision,
+                        Origin::Track(track_id.clone()),
+                        message,
+                        Some(track_id),
+                    );
+                }
+            }
+        });
 }
 
 fn handle_save_hot_cue(

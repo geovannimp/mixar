@@ -276,6 +276,9 @@ pub struct AppSettings {
     /// Offline HTDemucs stem separation for Stems pad mode (default off).
     #[serde(default)]
     pub stems_enabled: bool,
+    /// Stem cache codec: `opus` (default) or `flac`.
+    #[serde(default = "default_stems_format")]
+    pub stems_format: String,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -303,6 +306,7 @@ struct SettingsHost {
     show_tooltips: bool,
     dim_played_tracks: bool,
     stems_enabled: bool,
+    stems_format: String,
 }
 
 impl Default for SettingsHost {
@@ -330,6 +334,7 @@ impl Default for SettingsHost {
             show_tooltips: default_show_tooltips(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_enabled: false,
+            stems_format: default_stems_format(),
         }
     }
 }
@@ -356,6 +361,17 @@ fn default_show_tooltips() -> bool {
 
 fn default_dim_played_tracks() -> bool {
     true
+}
+
+fn default_stems_format() -> String {
+    "opus".into()
+}
+
+fn normalize_stems_format(format: &str) -> String {
+    match format.trim() {
+        "flac" => "flac".into(),
+        _ => "opus".into(),
+    }
 }
 
 fn default_library_table_columns() -> Vec<String> {
@@ -484,6 +500,8 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         errors.push("history_min_deck_volume must be between 0 and 1".into());
     }
 
+    settings.stems_format = normalize_stems_format(&settings.stems_format);
+
     if errors.is_empty() {
         Ok(settings)
     } else {
@@ -599,6 +617,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         show_tooltips: host.show_tooltips,
         dim_played_tracks: host.dim_played_tracks,
         stems_enabled: host.stems_enabled,
+        stems_format: host.stems_format.clone(),
     }
 }
 
@@ -639,6 +658,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.show_tooltips = settings.show_tooltips;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_enabled = settings.stems_enabled;
+    host.stems_format = settings.stems_format;
     host.configured = true;
     Ok(())
 }
@@ -749,6 +769,27 @@ mod tests {
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
         assert!(!parsed.stems_enabled);
+        assert_eq!(parsed.stems_format, "opus");
+    }
+
+    #[test]
+    fn missing_stems_format_defaults_opus() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("stems_format");
+        std::fs::write(&path, serde_json::to_string_pretty(&value).unwrap()).unwrap();
+        let host = SettingsHost {
+            persist_path: Some(path),
+            ..Default::default()
+        };
+        // Load via serde of AppSettings missing field
+        let raw = std::fs::read_to_string(host.persist_path.as_ref().unwrap()).unwrap();
+        let settings: AppSettings = serde_json::from_str(&raw).unwrap();
+        assert_eq!(settings.stems_format, "opus");
     }
 
     #[test]

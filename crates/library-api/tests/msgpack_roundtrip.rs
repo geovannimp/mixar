@@ -69,6 +69,16 @@ fn cmd_and_evt_bodies_roundtrip() {
         err
     );
 
+    let progress = EvtBody::TrackProgress {
+        track_id: "t1".into(),
+        phase: "stems_separate".into(),
+        fraction: Some(0.42),
+    };
+    assert_eq!(
+        decode_evt_body(&encode_evt_body(&progress).unwrap()).unwrap(),
+        progress
+    );
+
     let save = CmdBody::SaveHotCue {
         track_id: "t1".into(),
         slot: 2,

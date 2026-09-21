@@ -1,18 +1,16 @@
 //! HTDemucs split of interleaved stereo PCM via stem-splitter-core.
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
-use hound::{SampleFormat, WavSpec, WavWriter};
 use stem_splitter_core::core::engine;
 use stem_splitter_core::io::crypto::verify_sha256;
 use stem_splitter_core::io::net::{download_with_progress, http_client};
 use stem_splitter_core::model::registry::resolve_manifest_url;
 use stem_splitter_core::{ModelHandle, ModelManifest};
 
+use crate::format::{encode_stem_file, StemAudioFormat};
 use crate::window::{audio_frame_count, fill_stereo_window};
 
 /// Default ONNX model id (stem-splitter-core registry).
@@ -29,9 +27,12 @@ pub struct StemSplitRequest<'a> {
     /// Mixar-owned ONNX cache root (`{app_support}/models`).
     pub models_root: &'a Path,
     pub model_name: &'a str,
+    pub format: StemAudioFormat,
+    /// Called with `(windows_done, windows_total)` during Demucs.
+    pub on_window_progress: Option<Box<dyn Fn(usize, usize) + Send + Sync + 'a>>,
 }
 
-/// Paths to written stem WAVs (same order as [`STEM_NAMES`]).
+/// Paths to written stem files (same order as [`STEM_NAMES`]).
 pub struct StemSplitResult {
     pub paths: [PathBuf; 4],
     pub sample_rate: u32,
@@ -40,6 +41,7 @@ pub struct StemSplitResult {
 
 /// Download / verify model weights into `models_root` and preload the session.
 pub fn ensure_model(models_root: &Path, model_name: &str) -> Result<()> {
+    crate::ort_ep::prepare_ort_execution_providers();
     let handle = resolve_model(models_root, model_name, None)?;
     engine::preload(&handle).map_err(ssc_err)?;
     Ok(())
@@ -177,7 +179,7 @@ fn safe_sha_prefix(sha256: &str) -> Result<&str> {
     Ok(&sha256[..8])
 }
 
-/// Separate interleaved stereo PCM into four stem WAV files under `output_dir`.
+/// Separate interleaved stereo PCM into four stem files under `output_dir`.
 pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitResult> {
     let model_name = if req.model_name.is_empty() {
         DEFAULT_MODEL
@@ -186,6 +188,7 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
     };
 
     let handle = resolve_model(req.models_root, model_name, None)?;
+    crate::ort_ep::prepare_ort_execution_providers();
     engine::preload(&handle).map_err(ssc_err)?;
     let mf = engine::manifest();
 
@@ -223,18 +226,28 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
     std::fs::create_dir_all(req.output_dir)
         .with_context(|| format!("create stem output dir {}", req.output_dir.display()))?;
 
+    let ext = req.format.extension();
     let paths = [
-        req.output_dir.join("vocals.wav"),
-        req.output_dir.join("drums.wav"),
-        req.output_dir.join("bass.wav"),
-        req.output_dir.join("other.wav"),
+        req.output_dir.join(format!("vocals.{ext}")),
+        req.output_dir.join(format!("drums.{ext}")),
+        req.output_dir.join(format!("bass.{ext}")),
+        req.output_dir.join(format!("other.{ext}")),
     ];
 
-    let mut writers = open_stem_writers(&names, mf.sample_rate, &paths)?;
+    let stem_indices = resolve_stem_indices(&names);
+    // ponytail: full-stem f32 buffers in RAM; streaming encode if cache size hurts.
+    let mut buffers: [Vec<f32>; 4] = [
+        Vec::with_capacity(n * 2),
+        Vec::with_capacity(n * 2),
+        Vec::with_capacity(n * 2),
+        Vec::with_capacity(n * 2),
+    ];
 
     let mut left_raw = vec![0f32; win];
     let mut right_raw = vec![0f32; win];
     let mut pos = 0usize;
+    let windows_total = if hop == 0 { 0 } else { n.div_ceil(hop) };
+    let mut windows_done = 0usize;
 
     while pos < n {
         fill_stereo_window(&samples, 2, pos, &mut left_raw, &mut right_raw);
@@ -242,18 +255,17 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
         let (stems_count, _ch, t_out) = (out.shape()[0], out.shape()[1], out.shape()[2]);
         let copy_len = hop.min(t_out).min(n - pos);
 
-        for writer in &mut writers {
-            let idx = writer.stem_idx.min(stems_count.saturating_sub(1));
+        for (slot, &stem_idx) in stem_indices.iter().enumerate() {
+            let idx = stem_idx.min(stems_count.saturating_sub(1));
             for i in 0..copy_len {
-                writer
-                    .wav
-                    .write_sample(sample_to_i16(out[(idx, 0, i)]))
-                    .context("write stem sample")?;
-                writer
-                    .wav
-                    .write_sample(sample_to_i16(out[(idx, 1, i)]))
-                    .context("write stem sample")?;
+                buffers[slot].push(out[(idx, 0, i)]);
+                buffers[slot].push(out[(idx, 1, i)]);
             }
+        }
+
+        windows_done += 1;
+        if let Some(cb) = req.on_window_progress.as_ref() {
+            cb(windows_done, windows_total.max(1));
         }
 
         if pos + hop >= n {
@@ -262,58 +274,33 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
         pos += hop;
     }
 
-    for writer in writers {
-        writer.wav.finalize().context("finalize stem wav")?;
+    let mut file_rate = mf.sample_rate;
+    for (i, buf) in buffers.iter().enumerate() {
+        let rate = encode_stem_file(&paths[i], req.format, buf, mf.sample_rate)
+            .with_context(|| format!("encode {}", paths[i].display()))?;
+        file_rate = rate;
     }
 
     Ok(StemSplitResult {
         paths,
-        sample_rate: mf.sample_rate,
+        sample_rate: file_rate,
         backend: model_name.to_string(),
     })
 }
 
-struct StemWriter {
-    stem_idx: usize,
-    wav: WavWriter<BufWriter<File>>,
-}
-
-fn open_stem_writers(
-    names: &[String],
-    sample_rate: u32,
-    paths: &[PathBuf; 4],
-) -> Result<Vec<StemWriter>> {
+fn resolve_stem_indices(names: &[String]) -> [usize; 4] {
     let mut name_idx: HashMap<String, usize> = HashMap::new();
     for (i, name) in names.iter().enumerate() {
         name_idx.insert(name.to_lowercase(), i);
     }
     let get_idx =
         |key: &str, fallback: usize| -> usize { name_idx.get(key).copied().unwrap_or(fallback) };
-
-    let spec = WavSpec {
-        channels: 2,
-        sample_rate,
-        bits_per_sample: 16,
-        sample_format: SampleFormat::Int,
-    };
-
-    let order = [("vocals", 0usize), ("drums", 1), ("bass", 2), ("other", 3)];
-
-    let mut out = Vec::with_capacity(4);
-    for (i, (key, fallback)) in order.iter().enumerate() {
-        let file =
-            File::create(&paths[i]).with_context(|| format!("create {}", paths[i].display()))?;
-        let wav = WavWriter::new(BufWriter::new(file), spec)?;
-        out.push(StemWriter {
-            stem_idx: get_idx(key, *fallback),
-            wav,
-        });
-    }
-    Ok(out)
-}
-
-fn sample_to_i16(sample: f32) -> i16 {
-    (sample * f32::from(i16::MAX)).clamp(f32::from(i16::MIN), f32::from(i16::MAX)) as i16
+    [
+        get_idx("vocals", 0),
+        get_idx("drums", 1),
+        get_idx("bass", 2),
+        get_idx("other", 3),
+    ]
 }
 
 fn ssc_err(err: impl std::fmt::Display) -> anyhow::Error {

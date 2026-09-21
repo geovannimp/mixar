@@ -216,6 +216,7 @@ pub enum LibraryEvtKind {
     LoopsChanged,
     BeatGridChanged,
     HistorySessionUpdated,
+    TrackProgress,
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -249,6 +250,10 @@ pub struct LibraryEvt {
     pub deck: Option<u16>,
     pub loops: Option<Vec<SavedLoopInfo>>,
     pub beat_grid: Option<BeatGridData>,
+    /// Progress phase token when [`LibraryEvtKind::TrackProgress`].
+    pub phase: Option<String>,
+    /// Optional `0.0..=1.0` progress fraction.
+    pub fraction: Option<f32>,
 }
 
 struct EvtForwarder {
@@ -711,14 +716,16 @@ impl LibraryTransport {
         self.buses.clone()
     }
 
-    /// Apply library analysis duration and stems gate from app settings.
+    /// Apply library analysis duration, stems gate, and stem format from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
         stems_enabled: bool,
+        stems_format: String,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
         self.buses.set_stems_enabled(stems_enabled);
+        self.buses.set_stems_format(stems_format);
         Ok(())
     }
 
@@ -993,55 +1000,48 @@ impl LibraryTransport {
 /// Map omnibus library egress to the thin Dart-facing evt.
 pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
     let body = decode_evt_body(ev.payload()).ok()?;
+    let bare = |kind: LibraryEvtKind| LibraryEvt {
+        kind,
+        track: None,
+        message: None,
+        track_id: None,
+        hot_cues: None,
+        delta: None,
+        deck: None,
+        loops: None,
+        beat_grid: None,
+        phase: None,
+        fraction: None,
+    };
     match body {
         EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
-            kind: LibraryEvtKind::TrackAnalyzed,
             track: Some(api_track_summary(track)),
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::TrackAnalyzed)
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
-            kind: LibraryEvtKind::TrackUpdated,
             track: Some(api_track_summary(track)),
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::TrackUpdated)
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Error,
-            track: None,
             message: Some(message),
             track_id,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Error)
         }),
         EvtBody::Notice { message } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Notice,
-            track: None,
             message: Some(message),
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Notice)
+        }),
+        EvtBody::TrackProgress {
+            track_id,
+            phase,
+            fraction,
+        } => Some(LibraryEvt {
+            track_id: Some(track_id),
+            phase: Some(phase),
+            fraction,
+            ..bare(LibraryEvtKind::TrackProgress)
         }),
         EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
-            kind: LibraryEvtKind::HotCuesChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
             hot_cues: Some(
                 hot_cues
@@ -1053,19 +1053,10 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::HotCuesChanged)
         }),
         EvtBody::LoopsChanged { track_id, loops } => Some(LibraryEvt {
-            kind: LibraryEvtKind::LoopsChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
-            hot_cues: None,
-            delta: None,
-            deck: None,
             loops: Some(
                 loops
                     .into_iter()
@@ -1077,59 +1068,31 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
-            beat_grid: None,
+            ..bare(LibraryEvtKind::LoopsChanged)
         }),
         EvtBody::BeatGridChanged {
             track_id,
             beat_grid,
         } => Some(LibraryEvt {
-            kind: LibraryEvtKind::BeatGridChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
             beat_grid: Some(BeatGridData {
                 beats: beat_grid.beats,
                 downbeats: beat_grid.downbeats,
                 bpm: Some(beat_grid.bpm),
             }),
+            ..bare(LibraryEvtKind::BeatGridChanged)
         }),
         EvtBody::Navigate { delta } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Navigate,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
             delta: Some(delta),
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Navigate)
         }),
         EvtBody::Load { deck } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Load,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
             deck: Some(deck),
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Load)
         }),
-        EvtBody::HistorySessionUpdated { session_id: _ } => Some(LibraryEvt {
-            kind: LibraryEvtKind::HistorySessionUpdated,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
-        }),
+        EvtBody::HistorySessionUpdated { session_id: _ } => {
+            Some(bare(LibraryEvtKind::HistorySessionUpdated))
+        }
         EvtBody::Empty => None,
     }
 }

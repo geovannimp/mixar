@@ -27,7 +27,7 @@
 {app_support}/
   library.db
   settings.json
-  stems/{fnv64(track_id)}/*.wav
+  stems/{fnv64(track_id)}/*.{opus,flac}
   models/{name}-{sha8}.onnx          ← NEW
 
 analyzer-stems::ensure_model(models_root, name)

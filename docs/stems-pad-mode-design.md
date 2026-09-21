@@ -13,13 +13,14 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Topic | Choice |
 |-------|--------|
 | Stem set | 4: `vocals`, `drums`, `bass`, `other` (Demucs / issue comment) |
-| Feature gate | `AppSettings.stems_enabled` (default **false**) |
-| Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
-| Pads | Enabled only when stems ready for the loaded track |
+| Feature gate | `AppSettings.stems_enabled` (default **false**); format via `stems_format` (`opus` \| `flac`, default **opus**) |
+| Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure in parallel with analysis; Analyzing… finishes on BPM/key persist (`TrackAnalyzed`); stems progress via `TrackProgress`; never block playback |
+| Pads | Enabled only when stems ready; **STEMS GENERATING…** only while a stem job is in flight |
+| Progress | Library `TrackProgress` phases: `analyze`, `stems_model`, `stems_separate` (+fraction), `stems_encode`, `stems_ready` / `stems_failed`; disk-full → clear error toast |
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
 | Inference | **stem-splitter-core** HTDemucs ONNX (`htdemucs_ort_v1`) via Mixar `ensure_model(models_root)` + `preload` / `run_window_demucs` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
-| Stem files | WAV under `{app_support}/stems/{fnv64(track_id)}/` |
+| Stem files | Opus (160 kbps, default) or FLAC under `{app_support}/stems/{fnv64(track_id)}/` — `AppSettings.stems_format` |
 | Model weights | `{app_support}/models/` (Mixar download/verify; ignore SSC ProjectDirs) — see `docs/stems-storage-models-design.md` |
 | Realtime | Document only (see below) |
 | charon-audio | **Not a product dependency** (see findings) |
@@ -64,7 +65,7 @@ analyzer-stems
 
 | Crate | Responsibility |
 |-------|----------------|
-| `analyzer-stems` (new) | PCM → 4 stems; model ensure; write WAV; progress callbacks |
+| `analyzer-stems` (new) | PCM → 4 stems; model ensure; write Opus/FLAC; progress callbacks |
 | `library` | `track_stem` metadata; `ensure_track_stems`; worker enqueue; events |
 | `engine-api` / `engine-core` / `engine-dsp` | `PadMode::Stems`; stem attach; per-stem gains; pad handlers |
 | `host-flutter` + Flutter | Settings toggle; Stems pad UI; FRB |
@@ -75,7 +76,7 @@ analyzer-stems
 
 **Filesystem**
 
-- `{app_support}/stems/{fnv64(track_id)}/vocals.wav` (and drums/bass/other)
+- `{app_support}/stems/{fnv64(track_id)}/vocals.opus` (or `.flac`; and drums/bass/other)
 - Model weights: Mixar owns the cache under the supplied `models_root` in app support (`{app_support}/models/`); do not use `stem-splitter-core` `ProjectDirs`
 
 **Table `track_stem`** (one row per track when complete)
@@ -111,7 +112,7 @@ Controller MIDI: extend pad_mode mapping like Sampler.
 
 ### Settings / analyze / load
 
-- `stems_enabled: bool` on `AppSettings` (default false), Settings → Library (or Analysis) panel.
+- `stems_enabled: bool` on `AppSettings` (default false), Settings → Library panel; when enabled, `stems_format` select (Opus 160 kbps / FLAC).
 - Analyze path: after BPM/waveform (or parallel worker job), if enabled → `ensure_track_stems`.
 - Deck prepare/load: start playback with prepared original; if enabled and stems missing, spawn ensure **without** holding host session lock; on completion emit library/engine event so UI enables pads and engine can `attach_stems`.
 

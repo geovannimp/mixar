@@ -34,6 +34,7 @@ pub struct LibraryBuses {
     revision: Arc<AtomicU64>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
     stems_enabled: Arc<Mutex<bool>>,
+    stems_format: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
     models_root: Arc<Mutex<std::path::PathBuf>>,
 }
@@ -48,6 +49,7 @@ impl LibraryBuses {
             revision: Arc::new(AtomicU64::new(0)),
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
             stems_enabled: Arc::new(Mutex::new(false)),
+            stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
             models_root: Arc::new(Mutex::new(std::path::PathBuf::from("models"))),
         }
@@ -99,7 +101,17 @@ impl LibraryBuses {
         *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
     }
 
-    /// Root directory for stem WAV caches (`{root}/{fnv64(track_id)}/`).
+    /// Stem cache codec (`opus` | `flac`).
+    pub fn set_stems_format(&self, format: impl Into<String>) {
+        let format = format.into();
+        let normalized = match format.as_str() {
+            "flac" => "flac".to_string(),
+            _ => "opus".to_string(),
+        };
+        *self.stems_format.lock().unwrap_or_else(|e| e.into_inner()) = normalized;
+    }
+
+    /// Root directory for stem caches (`{root}/{fnv64(track_id)}/`).
     pub fn set_stems_root(&self, root: std::path::PathBuf) {
         *self.stems_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
     }
@@ -112,6 +124,14 @@ impl LibraryBuses {
     /// Current stems feature gate.
     pub fn stems_enabled(&self) -> bool {
         *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Current stem cache codec (`opus` | `flac`).
+    pub fn stems_format(&self) -> String {
+        self.stems_format
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Clone of the configured stems root.

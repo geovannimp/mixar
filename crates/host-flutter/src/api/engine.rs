@@ -279,18 +279,56 @@ fn spawn_stems_ensure_attach_task(
     }
     let stems_root = library_buses.stems_root();
     let models_root = library_buses.models_root();
+    let stems_format = library_buses.stems_format();
+    let library_buses_for_progress = library_buses.clone();
     let _ = std::thread::Builder::new()
         .name(format!("deck-{deck_id}-stems"))
         .spawn(move || {
+            let track_id_for_cb = track_id.clone();
+            let buses_cb = library_buses_for_progress.clone();
+            let progress: library::StemProgressFn = Arc::new(move |phase, fraction| {
+                let _ = buses_cb.publish_evt(
+                    library_api::Origin::Track(track_id_for_cb.clone()),
+                    library_api::Kind::TrackProgress,
+                    library_api::EvtBody::TrackProgress {
+                        track_id: track_id_for_cb.clone(),
+                        phase: phase.to_string(),
+                        fraction,
+                    },
+                );
+            });
             let id = TrackId::new(track_id.clone());
-            if let Err(err) =
-                LibraryManager::ensure_track_stems(&library, &id, &stems_root, &models_root, true)
-            {
+            if let Err(err) = library::ensure_track_stems_with_progress(
+                &library,
+                &id,
+                &stems_root,
+                &models_root,
+                true,
+                &stems_format,
+                Some(progress),
+            ) {
                 tracing::warn!(
                     deck_id,
                     track_id = %track_id,
                     error = %err,
                     "stem ensure failed"
+                );
+                let _ = library_buses_for_progress.publish_evt(
+                    library_api::Origin::Track(track_id.clone()),
+                    library_api::Kind::TrackProgress,
+                    library_api::EvtBody::TrackProgress {
+                        track_id: track_id.clone(),
+                        phase: "stems_failed".into(),
+                        fraction: None,
+                    },
+                );
+                let _ = library_buses_for_progress.publish_evt(
+                    library_api::Origin::Track(track_id.clone()),
+                    library_api::Kind::Error,
+                    library_api::EvtBody::Error {
+                        message: err.to_string(),
+                        track_id: Some(track_id.clone()),
+                    },
                 );
                 return;
             }
