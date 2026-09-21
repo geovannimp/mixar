@@ -252,22 +252,6 @@ fn handle_analyze(
         .unwrap_or_else(|e| e.into_inner());
     let stems_on = buses.stems_enabled();
 
-    // Analysis completes independently of stems (B). Spawn stems in parallel when enabled.
-    if stems_on {
-        let _ = publish_evt(
-            &evt_bus,
-            &revision,
-            Origin::Track(track_id.clone()),
-            Kind::TrackProgress,
-            EvtBody::TrackProgress {
-                track_id: track_id.clone(),
-                phase: "stems_queued".into(),
-                fraction: None,
-            },
-        );
-        spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track_id.clone());
-    }
-
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
@@ -295,6 +279,22 @@ fn handle_analyze(
     match result {
         Ok(source) => match track_summary(&source) {
             Some(track) => {
+                // Spawn stems after analyze succeeds so missing tracks don't queue work.
+                // Publish stems_queued before TrackAnalyzed so the UI keeps the loader.
+                if stems_on {
+                    let _ = publish_evt(
+                        &evt_bus,
+                        &revision,
+                        Origin::Track(track.id.clone()),
+                        Kind::TrackProgress,
+                        EvtBody::TrackProgress {
+                            track_id: track.id.clone(),
+                            phase: "stems_queued".into(),
+                            fraction: None,
+                        },
+                    );
+                    spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track.id.clone());
+                }
                 let _ = publish_evt(
                     &evt_bus,
                     &revision,
