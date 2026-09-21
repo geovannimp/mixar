@@ -114,17 +114,17 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
 - Regenerate FRB: `moon run gui-flutter:generate` (or project script)
 - Tests: Dart pad_modes + settings default
 
-- [ ] Wire non-blocking ensure after load when setting on.
-- [ ] Pads disabled until snapshot says ready.
-- [ ] Commit.
+- [x] Wire non-blocking ensure after load when setting on.
+- [x] Pads disabled until snapshot says ready.
+- [x] Commit.
 
 ---
 
 ### Task 5: Docs + PR
 
-- [ ] Touch `docs/deck-spec.md` §5.10 status line if needed (minimal).
-- [ ] Push branch and open PR referencing #46 and design doc.
-- [ ] Note charon findings + realtime follow-up in PR body.
+- [x] Touch `docs/deck-spec.md` §5.10 status line if needed (minimal).
+- [x] Push branch and open PR referencing #46 and design doc.
+- [x] Note charon findings + realtime follow-up in PR body.
 
 ## Spec coverage
 

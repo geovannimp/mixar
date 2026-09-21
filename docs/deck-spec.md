@@ -107,7 +107,7 @@ Common expectations across all products:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | In progress | [#46](https://github.com/geovannimp/mixar/issues/46) — see `docs/stems-pad-mode-design.md` |
+| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open — `docs/stems-pad-mode-design.md` |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -128,7 +128,7 @@ Common expectations across all products:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Partial → `PadMode::Stems` + four-stem mix; settings/attach UI → [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Yes → `PadMode::Stems` + four-stem mix + settings gate + non-blocking attach; Stem EQ / Storage → [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 
@@ -179,7 +179,7 @@ UI layout zones (match competitor ergonomics):
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
-| **H — Extended pad modes** | P2 | Sampler + Beat Jump shipped; Stems / Slicer still open (reuse same 8 pads) |
+| **H — Extended pad modes** | P2 | Sampler + Beat Jump + Stems mute/isolate shipped; Slicer still open (reuse same 8 pads) |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
 
 ---
@@ -397,9 +397,9 @@ Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section de
 | S5 | **Loop roll pad mode** | Beat-quantized temporary loop per pad | P2 |
 | S6 | **Beat jump pad mode** | ±N beats per pad | P2 |
 
-**Dependency:** Offline or real-time stem separation (Rekordbox Stems, Serato Stems, Virtual DJ stems). Requires separate analysis pipeline or third-party model — **not** in current analyzer MVP.
+**Dependency:** Offline HTDemucs separation ships via `analyzer-stems` (settings-gated cache under app support). Realtime fallback and Stem EQ remain open — see `docs/stems-pad-mode-design.md`.
 
-**Tracking:** Stems [#46](https://github.com/geovannimp/mixar/issues/46); Slicer [#60](https://github.com/geovannimp/mixar/issues/60). Sampler / Loop Roll / Beat Jump pad modes are shipped.
+**Tracking:** Stems [#46](https://github.com/geovannimp/mixar/issues/46); Slicer [#60](https://github.com/geovannimp/mixar/issues/60). Sampler / Loop Roll / Beat Jump / Stems pad modes are shipped (Stems mute/isolate; EQ later).
 
 **Removed from this section:** pad mode selector and grid layout — defined in §5.5 (controller pads are the primary abstraction).
 
