@@ -10638,7 +10638,7 @@ class LibraryTransportImpl extends RustOpaque implements LibraryTransport {
   Future<LibraryBusHandle> buses() =>
       RustLib.instance.api.crateApiLibraryLibraryTransportBuses(that: this);
 
-  /// Wipe the Mixar-owned ONNX model cache directory.
+  /// Wipe the Mixar-owned HTDemucs model cache directory.
   Future<void> clearModelCache() => RustLib.instance.api
       .crateApiLibraryLibraryTransportClearModelCache(that: this);
 

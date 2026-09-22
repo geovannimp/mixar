@@ -358,11 +358,11 @@ git commit -m "feat(stems): enable Burn wgpu HTDemucs with CPU fallback"
 - Grep workspace for `stem-splitter`, `ort_ep`, `STEMMER_`, `htdemucs_ort`
 - Modify: `crates/analyzer-stems/tests/split_pcm_smoke.rs` for Burn + `#[ignore]`
 
-- [ ] **Step 1: Remove dead references; update smoke test**
+- [x] **Step 1: Remove dead references; update smoke test**
 
-- [ ] **Step 2: `cargo tree -p host_flutter | rg 'stem-splitter|onnxruntime|ort '` must be empty**
+- [x] **Step 2: `cargo tree -p host_flutter | rg 'stem-splitter|onnxruntime|ort '` must be empty**
 
-- [ ] **Step 3: Commit + open PR against main**
+- [x] **Step 3: Commit + open PR against main**
 
 ```bash
 git commit -m "chore(stems): finish Burn migration cleanup"

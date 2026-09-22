@@ -762,7 +762,7 @@ impl LibraryTransport {
         lib.clear_stem_cache(&stems_root).map_err(|e| e.to_string())
     }
 
-    /// Wipe the Mixar-owned ONNX model cache directory.
+    /// Wipe the Mixar-owned HTDemucs model cache directory.
     pub fn clear_model_cache(&self) -> Result<(), String> {
         library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())
     }
@@ -1412,7 +1412,7 @@ mod tests {
         std::fs::create_dir_all(stems.join("abcd")).unwrap();
         std::fs::write(stems.join("abcd/v.wav"), b"wav").unwrap();
         std::fs::create_dir_all(&models).unwrap();
-        std::fs::write(models.join("m.onnx"), b"onnx").unwrap();
+        std::fs::write(models.join("m.safetensors"), b"weights").unwrap();
 
         let usage = transport.storage_usage().unwrap();
         assert!(usage.stems_bytes >= 3);

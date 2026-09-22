@@ -149,8 +149,8 @@ fn expected_backend() -> &'static str {
     }
 }
 
-/// stem-splitter-core keeps a process-global ONNX session; serialize Demucs so
-/// analyze + deck-load cannot run two splits for the same (or any) track at once.
+/// Serialize HTDemucs so analyze + deck-load cannot run two Burn splits at once
+/// (GPU memory / CPU load; one heavy forward at a time is enough).
 fn demucs_lock() -> &'static Mutex<()> {
     static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| Mutex::new(()))
@@ -759,7 +759,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let models = dir.path().join("models");
         std::fs::create_dir_all(&models).unwrap();
-        std::fs::write(models.join("x.onnx"), b"onnx").unwrap();
+        std::fs::write(models.join("x.safetensors"), b"weights").unwrap();
         clear_model_cache(&models).unwrap();
         assert!(models.is_dir());
         assert!(models.read_dir().unwrap().next().is_none());

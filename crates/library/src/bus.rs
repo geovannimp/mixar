@@ -116,7 +116,7 @@ impl LibraryBuses {
         *self.stems_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
     }
 
-    /// Root directory for HTDemucs ONNX weights.
+    /// Root directory for HTDemucs Burn safetensors weights.
     pub fn set_models_root(&self, root: std::path::PathBuf) {
         *self.models_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
     }

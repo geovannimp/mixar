@@ -351,7 +351,7 @@ pub struct AnalyzeTrackOptions {
     /// Root directory for stem caches (`{stems_root}/{fnv64(track_id)}/`).
     #[serde(default)]
     pub stems_root: Option<PathBuf>,
-    /// Root directory for HTDemucs ONNX weights (`{app_support}/models`).
+    /// Root directory for HTDemucs Burn safetensors weights (`{app_support}/models`).
     #[serde(default)]
     pub models_root: Option<PathBuf>,
     /// Stem cache codec: `opus` (default) or `flac`.

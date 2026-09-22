@@ -51,7 +51,7 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   /// Clone of the library cmd/evt buses for [`crate::api::controller::ControllerTransport`].
   Future<LibraryBusHandle> buses();
 
-  /// Wipe the Mixar-owned ONNX model cache directory.
+  /// Wipe the Mixar-owned HTDemucs model cache directory.
   Future<void> clearModelCache();
 
   /// Delete all track stem rows and wipe the stems cache directory.
