@@ -68,4 +68,16 @@ void main() {
       isTrue,
     );
   });
+
+  test('stemsFormat defaults opus and dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.stemsFormat, 'opus');
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, stemsFormat: 'flac'),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
 }

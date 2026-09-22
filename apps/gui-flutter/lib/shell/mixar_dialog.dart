@@ -51,7 +51,7 @@ Future<T?> _showMixarModal<T>({
   );
 }
 
-/// Confirmation with Wolt page title + sticky action bar.
+/// Confirmation with Wolt page title + in-flow actions (not stickyActionBar).
 Future<T?> showMixarConfirm<T>({
   required BuildContext context,
   required String title,
@@ -74,24 +74,27 @@ Future<T?> showMixarConfirm<T>({
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-            child: body == null
-                ? const SizedBox.shrink()
-                : Text(body, style: theme.typography.body.sm),
-          ),
-          stickyActionBar: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              spacing: 8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
               children: [
-                for (final action in actions)
-                  AppButton(
-                    mainAxisSize: MainAxisSize.min,
-                    variant: action.variant,
-                    onPress: () => Navigator.of(modalContext).pop(action.value),
-                    child: Text(action.label),
-                  ),
+                if (body != null) Text(body, style: theme.typography.body.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  spacing: 8,
+                  children: [
+                    for (final action in actions)
+                      AppButton(
+                        mainAxisSize: MainAxisSize.min,
+                        variant: action.variant,
+                        onPress: () =>
+                            Navigator.of(modalContext).pop(action.value),
+                        child: Text(action.label),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

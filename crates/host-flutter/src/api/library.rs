@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use audio_core::{peaks_to_rgb_bytes, WaveformChannelMode};
 use library::{
-    read_artwork, spawn_library_worker, Evt, HistoryExportFormat, HistorySettings, LibraryBuses,
-    LibraryConfig, LibraryManager, LibraryWorker, NewCollection, SamplerBankRecord, TrackId,
-    WritableLibrary,
+    dir_size, read_artwork, spawn_library_worker, sqlite_db_bytes, Evt, HistoryExportFormat,
+    HistorySettings, LibraryBuses, LibraryConfig, LibraryManager, LibraryWorker, NewCollection,
+    SamplerBankRecord, TrackId, WritableLibrary,
 };
 use library_api::{
     decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin,
@@ -70,6 +70,16 @@ impl From<SamplerBankRecord> for SamplerBankInfo {
             sort_index: bank.sort_index,
         }
     }
+}
+
+/// Disk usage for Mixar-managed caches under app support / library.db.
+#[derive(Clone, Debug)]
+pub struct StorageUsage {
+    pub stems_bytes: u64,
+    pub models_bytes: u64,
+    pub waveform_bytes: u64,
+    /// Library catalog / tags / analysis in `library.db` (excludes waveform blob bytes).
+    pub metadata_bytes: u64,
 }
 
 /// Collection row for the Flutter collections pane (mirrors Tauri `CollectionSummary`).
@@ -206,6 +216,7 @@ pub enum LibraryEvtKind {
     LoopsChanged,
     BeatGridChanged,
     HistorySessionUpdated,
+    TrackProgress,
 }
 
 /// Persisted hot cue row for Dart (`library_api::HotCue`).
@@ -239,6 +250,10 @@ pub struct LibraryEvt {
     pub deck: Option<u16>,
     pub loops: Option<Vec<SavedLoopInfo>>,
     pub beat_grid: Option<BeatGridData>,
+    /// Progress phase token when [`LibraryEvtKind::TrackProgress`].
+    pub phase: Option<String>,
+    /// Optional `0.0..=1.0` progress fraction.
+    pub fraction: Option<f32>,
 }
 
 struct EvtForwarder {
@@ -297,6 +312,7 @@ impl LibraryTransport {
         let transport = Self::from_manager(manager)?;
         if let Some(parent) = Path::new(&db_path).parent() {
             transport.buses.set_stems_root(parent.join("stems"));
+            transport.buses.set_models_root(parent.join("models"));
         }
         Ok(transport)
     }
@@ -700,15 +716,64 @@ impl LibraryTransport {
         self.buses.clone()
     }
 
-    /// Apply library analysis duration and stems gate from app settings.
+    /// Apply library analysis duration, stems gate, and stem format from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
         stems_enabled: bool,
+        stems_format: String,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
         self.buses.set_stems_enabled(stems_enabled);
+        self.buses.set_stems_format(stems_format);
         Ok(())
+    }
+
+    /// Mixar-managed cache sizes (stems/models dirs + waveform/metadata in library.db).
+    pub fn storage_usage(&self) -> Result<StorageUsage, String> {
+        let stems_root = self.buses.stems_root();
+        let waveform_bytes = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            lib.waveform_cache_bytes().map_err(|e| e.to_string())?
+        };
+        let db_path = stems_root
+            .parent()
+            .map(|p| p.join("library.db"))
+            .unwrap_or_else(|| PathBuf::from("library.db"));
+        let db_bytes = sqlite_db_bytes(&db_path);
+        Ok(StorageUsage {
+            stems_bytes: dir_size(&stems_root),
+            models_bytes: dir_size(&self.buses.models_root()),
+            waveform_bytes,
+            metadata_bytes: db_bytes.saturating_sub(waveform_bytes),
+        })
+    }
+
+    /// Delete all track stem rows and wipe the stems cache directory.
+    pub fn clear_stem_cache(&self) -> Result<(), String> {
+        let stems_root = self.buses.stems_root();
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.clear_stem_cache(&stems_root).map_err(|e| e.to_string())
+    }
+
+    /// Wipe the Mixar-owned ONNX model cache directory.
+    pub fn clear_model_cache(&self) -> Result<(), String> {
+        library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())
+    }
+
+    /// Delete cached waveform overview rows (regenerated on next fetch).
+    pub fn clear_waveform_cache(&self) -> Result<(), String> {
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.clear_waveform_cache().map_err(|e| e.to_string())
     }
 
     /// Apply performance history settings from app settings.
@@ -935,55 +1000,48 @@ impl LibraryTransport {
 /// Map omnibus library egress to the thin Dart-facing evt.
 pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
     let body = decode_evt_body(ev.payload()).ok()?;
+    let bare = |kind: LibraryEvtKind| LibraryEvt {
+        kind,
+        track: None,
+        message: None,
+        track_id: None,
+        hot_cues: None,
+        delta: None,
+        deck: None,
+        loops: None,
+        beat_grid: None,
+        phase: None,
+        fraction: None,
+    };
     match body {
         EvtBody::TrackAnalyzed { track } => Some(LibraryEvt {
-            kind: LibraryEvtKind::TrackAnalyzed,
             track: Some(api_track_summary(track)),
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::TrackAnalyzed)
         }),
         EvtBody::TrackUpdated { track } => Some(LibraryEvt {
-            kind: LibraryEvtKind::TrackUpdated,
             track: Some(api_track_summary(track)),
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::TrackUpdated)
         }),
         EvtBody::Error { message, track_id } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Error,
-            track: None,
             message: Some(message),
             track_id,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Error)
         }),
         EvtBody::Notice { message } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Notice,
-            track: None,
             message: Some(message),
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Notice)
+        }),
+        EvtBody::TrackProgress {
+            track_id,
+            phase,
+            fraction,
+        } => Some(LibraryEvt {
+            track_id: Some(track_id),
+            phase: Some(phase),
+            fraction,
+            ..bare(LibraryEvtKind::TrackProgress)
         }),
         EvtBody::HotCuesChanged { track_id, hot_cues } => Some(LibraryEvt {
-            kind: LibraryEvtKind::HotCuesChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
             hot_cues: Some(
                 hot_cues
@@ -995,19 +1053,10 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::HotCuesChanged)
         }),
         EvtBody::LoopsChanged { track_id, loops } => Some(LibraryEvt {
-            kind: LibraryEvtKind::LoopsChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
-            hot_cues: None,
-            delta: None,
-            deck: None,
             loops: Some(
                 loops
                     .into_iter()
@@ -1019,59 +1068,31 @@ pub(crate) fn map_library_evt(ev: &Evt) -> Option<LibraryEvt> {
                     })
                     .collect(),
             ),
-            beat_grid: None,
+            ..bare(LibraryEvtKind::LoopsChanged)
         }),
         EvtBody::BeatGridChanged {
             track_id,
             beat_grid,
         } => Some(LibraryEvt {
-            kind: LibraryEvtKind::BeatGridChanged,
-            track: None,
-            message: None,
             track_id: Some(track_id),
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
             beat_grid: Some(BeatGridData {
                 beats: beat_grid.beats,
                 downbeats: beat_grid.downbeats,
                 bpm: Some(beat_grid.bpm),
             }),
+            ..bare(LibraryEvtKind::BeatGridChanged)
         }),
         EvtBody::Navigate { delta } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Navigate,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
             delta: Some(delta),
-            deck: None,
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Navigate)
         }),
         EvtBody::Load { deck } => Some(LibraryEvt {
-            kind: LibraryEvtKind::Load,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
             deck: Some(deck),
-            loops: None,
-            beat_grid: None,
+            ..bare(LibraryEvtKind::Load)
         }),
-        EvtBody::HistorySessionUpdated { session_id: _ } => Some(LibraryEvt {
-            kind: LibraryEvtKind::HistorySessionUpdated,
-            track: None,
-            message: None,
-            track_id: None,
-            hot_cues: None,
-            delta: None,
-            deck: None,
-            loops: None,
-            beat_grid: None,
-        }),
+        EvtBody::HistorySessionUpdated { session_id: _ } => {
+            Some(bare(LibraryEvtKind::HistorySessionUpdated))
+        }
         EvtBody::Empty => None,
     }
 }
@@ -1376,5 +1397,37 @@ mod tests {
         let ev = rx.recv_timeout(Duration::from_secs(1)).unwrap().unwrap();
         let mapped = map_library_evt(ev.as_ref()).expect("HistorySessionUpdated maps");
         assert_eq!(mapped.kind, LibraryEvtKind::HistorySessionUpdated);
+    }
+
+    #[test]
+    fn open_sets_stems_and_models_roots_and_clear_empties() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join("library.db");
+        let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(transport.buses.stems_root(), dir.path().join("stems"));
+        assert_eq!(transport.buses.models_root(), dir.path().join("models"));
+
+        let stems = dir.path().join("stems");
+        let models = dir.path().join("models");
+        std::fs::create_dir_all(stems.join("abcd")).unwrap();
+        std::fs::write(stems.join("abcd/v.wav"), b"wav").unwrap();
+        std::fs::create_dir_all(&models).unwrap();
+        std::fs::write(models.join("m.onnx"), b"onnx").unwrap();
+
+        let usage = transport.storage_usage().unwrap();
+        assert!(usage.stems_bytes >= 3);
+        assert!(usage.models_bytes >= 4);
+        assert_eq!(usage.waveform_bytes, 0);
+        assert!(usage.metadata_bytes > 0);
+
+        transport.clear_stem_cache().unwrap();
+        transport.clear_model_cache().unwrap();
+        transport.clear_waveform_cache().unwrap();
+        let usage = transport.storage_usage().unwrap();
+        assert_eq!(usage.stems_bytes, 0);
+        assert_eq!(usage.models_bytes, 0);
+        assert_eq!(usage.waveform_bytes, 0);
+        assert!(stems.is_dir());
+        assert!(models.is_dir());
     }
 }

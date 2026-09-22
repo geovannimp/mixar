@@ -21,7 +21,7 @@
 
 | Path | Role |
 |------|------|
-| `crates/analyzer-stems/` | PCM split + write WAVs |
+| `crates/analyzer-stems/` | PCM split + write Opus/FLAC |
 | `crates/library/src/entity/track_stem.rs` | Schema |
 | `crates/library/src/stems.rs` | ensure / get / has |
 | `crates/engine-api` PadMode + cmds/evts | Stems mode + stem state |

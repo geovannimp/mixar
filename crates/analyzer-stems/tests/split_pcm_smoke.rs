@@ -4,7 +4,9 @@
 //! cargo test -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke -- --ignored --nocapture
 //! ```
 
-use analyzer_stems::{split_interleaved_stereo, StemSplitRequest, DEFAULT_MODEL, STEM_NAMES};
+use analyzer_stems::{
+    split_interleaved_stereo, StemAudioFormat, StemSplitRequest, DEFAULT_MODEL, STEM_NAMES,
+};
 use std::f32::consts::TAU;
 
 #[test]
@@ -21,21 +23,34 @@ fn split_short_synthetic_pcm() {
     }
 
     let dir = tempfile::tempdir().expect("tempdir");
+    let models = tempfile::tempdir().expect("models");
     let result = split_interleaved_stereo(StemSplitRequest {
         interleaved_stereo: &pcm,
         sample_rate,
         output_dir: dir.path(),
+        models_root: models.path(),
         model_name: DEFAULT_MODEL,
+        format: StemAudioFormat::Opus,
+        on_window_progress: None,
     })
     .expect("split");
+    assert!(
+        models
+            .path()
+            .read_dir()
+            .expect("models dir")
+            .next()
+            .is_some(),
+        "model artifact should land under Mixar models_root"
+    );
 
-    assert_eq!(result.sample_rate, 44_100);
+    assert_eq!(result.sample_rate, 48_000);
     assert_eq!(result.backend, DEFAULT_MODEL);
     for (i, name) in STEM_NAMES.iter().enumerate() {
         let path = &result.paths[i];
         assert!(
-            path.ends_with(format!("{name}.wav")),
-            "path {} should be {name}.wav",
+            path.ends_with(format!("{name}.opus")),
+            "path {} should be {name}.opus",
             path.display()
         );
         let meta = std::fs::metadata(path).unwrap_or_else(|e| {

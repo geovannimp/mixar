@@ -243,6 +243,7 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       stemMute: ref.watch(deckStemMuteProvider(widget.deckId)),
       stemIsolate: ref.watch(deckStemIsolateProvider(widget.deckId)),
       stemsReady: ref.watch(deckStemsReadyProvider(widget.deckId)),
+      stemsGenerating: ref.watch(deckStemsGeneratingProvider(widget.deckId)),
       onStemsPress: (slot) {
         unawaited(
           _run(

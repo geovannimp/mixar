@@ -68,11 +68,23 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
         .publish_cmd(Origin::Library, Kind::AnalyzeTrack, body)
         .unwrap();
 
-    let event = rx
-        .recv_timeout(Duration::from_secs(30))
-        .expect("evt bus alive")
-        .expect("TrackAnalyzed evt");
-    assert_eq!(event.kind(), &Kind::TrackAnalyzed);
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let event = loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let event = rx
+            .recv_timeout(remaining)
+            .expect("evt bus alive")
+            .expect("TrackAnalyzed evt");
+        if event.kind() == &Kind::TrackAnalyzed {
+            break event;
+        }
+        assert_eq!(
+            event.kind(),
+            &Kind::TrackProgress,
+            "unexpected evt before TrackAnalyzed: {:?}",
+            event.kind()
+        );
+    };
     assert_eq!(event.origin(), &Origin::Track(track_id.clone()));
     match decode_evt_body(event.payload()).unwrap() {
         EvtBody::TrackAnalyzed { track } => {

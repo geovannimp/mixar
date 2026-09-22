@@ -70,6 +70,7 @@ final librarySettingsBootstrapProvider = Provider<void>((ref) {
           settings.value.analysisDuration,
         ),
         stemsEnabled: settings.value.stemsEnabled,
+        stemsFormat: settings.value.stemsFormat,
       ),
     );
   }
@@ -107,6 +108,7 @@ Future<SaveAppSettingsResult> saveAppSettings(
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
       stemsEnabled: normalized.stemsEnabled,
+      stemsFormat: normalized.stemsFormat,
     );
     await library.applyHistorySettings(
       enabled: normalized.historyEnabled,

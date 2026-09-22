@@ -26,7 +26,7 @@ pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 /// (Tauri `library://bus`) with a monotonic library-state counter.
 /// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
 /// does not override duration (shared with engine/settings at session start).
-/// `stems_enabled` / `stems_root` gate offline stem ensure on analyze and deck load.
+/// `stems_enabled` / `stems_root` / `models_root` gate offline stem ensure on analyze and deck load.
 #[derive(Clone)]
 pub struct LibraryBuses {
     cmd: LibraryBus,
@@ -34,7 +34,9 @@ pub struct LibraryBuses {
     revision: Arc<AtomicU64>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
     stems_enabled: Arc<Mutex<bool>>,
+    stems_format: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
+    models_root: Arc<Mutex<std::path::PathBuf>>,
 }
 
 impl LibraryBuses {
@@ -47,7 +49,9 @@ impl LibraryBuses {
             revision: Arc::new(AtomicU64::new(0)),
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
             stems_enabled: Arc::new(Mutex::new(false)),
+            stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
+            models_root: Arc::new(Mutex::new(std::path::PathBuf::from("models"))),
         }
     }
 
@@ -97,9 +101,24 @@ impl LibraryBuses {
         *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
     }
 
-    /// Root directory for stem WAV caches (`{root}/{fnv64(track_id)}/`).
+    /// Stem cache codec (`opus` | `flac`).
+    pub fn set_stems_format(&self, format: impl Into<String>) {
+        let format = format.into();
+        let normalized = match format.as_str() {
+            "flac" => "flac".to_string(),
+            _ => "opus".to_string(),
+        };
+        *self.stems_format.lock().unwrap_or_else(|e| e.into_inner()) = normalized;
+    }
+
+    /// Root directory for stem caches (`{root}/{fnv64(track_id)}/`).
     pub fn set_stems_root(&self, root: std::path::PathBuf) {
         *self.stems_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
+    }
+
+    /// Root directory for HTDemucs ONNX weights.
+    pub fn set_models_root(&self, root: std::path::PathBuf) {
+        *self.models_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
     }
 
     /// Current stems feature gate.
@@ -107,9 +126,25 @@ impl LibraryBuses {
         *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// Current stem cache codec (`opus` | `flac`).
+    pub fn stems_format(&self) -> String {
+        self.stems_format
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
     /// Clone of the configured stems root.
     pub fn stems_root(&self) -> std::path::PathBuf {
         self.stems_root
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// Clone of the configured models root.
+    pub fn models_root(&self) -> std::path::PathBuf {
+        self.models_root
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
@@ -136,14 +171,6 @@ impl LibraryBuses {
 
     pub(crate) fn analysis_duration_arc(&self) -> Arc<Mutex<AnalysisDurationMode>> {
         Arc::clone(&self.analysis_duration)
-    }
-
-    pub(crate) fn stems_enabled_arc(&self) -> Arc<Mutex<bool>> {
-        Arc::clone(&self.stems_enabled)
-    }
-
-    pub(crate) fn stems_root_arc(&self) -> Arc<Mutex<std::path::PathBuf>> {
-        Arc::clone(&self.stems_root)
     }
 }
 

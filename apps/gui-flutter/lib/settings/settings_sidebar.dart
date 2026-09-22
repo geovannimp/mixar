@@ -108,6 +108,7 @@ IconData _iconFor(SettingsSection section) {
     SettingsSection.deck => LucideIcons.disc3,
     SettingsSection.ui => LucideIcons.panelTop,
     SettingsSection.library => LucideIcons.library,
+    SettingsSection.storage => LucideIcons.hardDrive,
     SettingsSection.session => LucideIcons.history,
     SettingsSection.controllers => LucideIcons.gamepad2,
   };

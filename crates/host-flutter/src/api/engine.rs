@@ -15,6 +15,9 @@ use engine_core::{
 use library::{
     LibraryBuses, LibraryManager, PreparedTrackPlayback, SamplerSlotRecord, TrackStemsInfo,
 };
+use library_api::{
+    decode_evt_body as decode_library_evt_body, EvtBody as LibraryEvtBody, Kind as LibraryKind,
+};
 use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId};
 
 use crate::api::history_worker::HistoryWorker;
@@ -262,6 +265,147 @@ fn load_stem_buffers(info: &TrackStemsInfo) -> Result<[Arc<audio_core::LoadedAud
         .map_err(|_| "expected four stem buffers".to_string())
 }
 
+/// Background ensure + attach for one deck/track (load path and post-analyze).
+fn spawn_stems_ensure_attach_task(
+    library_buses: &LibraryBuses,
+    library: Arc<Mutex<LibraryManager>>,
+    engine: Arc<Mutex<Option<Engine>>>,
+    buses: EngineBuses,
+    deck_id: u16,
+    track_id: String,
+) {
+    if !library_buses.stems_enabled() {
+        return;
+    }
+    let stems_root = library_buses.stems_root();
+    let models_root = library_buses.models_root();
+    let stems_format = library_buses.stems_format();
+    let library_buses_for_progress = library_buses.clone();
+    let _ = std::thread::Builder::new()
+        .name(format!("deck-{deck_id}-stems"))
+        .spawn(move || {
+            let track_id_for_cb = track_id.clone();
+            let buses_cb = library_buses_for_progress.clone();
+            let progress: library::StemProgressFn = Arc::new(move |phase, fraction| {
+                let _ = buses_cb.publish_evt(
+                    library_api::Origin::Track(track_id_for_cb.clone()),
+                    library_api::Kind::TrackProgress,
+                    library_api::EvtBody::TrackProgress {
+                        track_id: track_id_for_cb.clone(),
+                        phase: phase.to_string(),
+                        fraction,
+                    },
+                );
+            });
+            let id = TrackId::new(track_id.clone());
+            if let Err(err) = library::ensure_track_stems_with_progress(
+                &library,
+                &id,
+                &stems_root,
+                &models_root,
+                true,
+                &stems_format,
+                Some(progress),
+            ) {
+                tracing::warn!(
+                    deck_id,
+                    track_id = %track_id,
+                    error = %err,
+                    "stem ensure failed"
+                );
+                let _ = library_buses_for_progress.publish_evt(
+                    library_api::Origin::Track(track_id.clone()),
+                    library_api::Kind::TrackProgress,
+                    library_api::EvtBody::TrackProgress {
+                        track_id: track_id.clone(),
+                        phase: "stems_failed".into(),
+                        fraction: None,
+                    },
+                );
+                let _ = library_buses_for_progress.publish_evt(
+                    library_api::Origin::Track(track_id.clone()),
+                    library_api::Kind::Error,
+                    library_api::EvtBody::Error {
+                        message: err.to_string(),
+                        track_id: Some(track_id.clone()),
+                    },
+                );
+                return;
+            }
+            let info = {
+                let lib = match library.lock() {
+                    Ok(g) => g,
+                    Err(e) => e.into_inner(),
+                };
+                match lib.get_track_stems(&id) {
+                    Ok(Some(info)) => info,
+                    Ok(None) => {
+                        tracing::warn!(
+                            deck_id,
+                            track_id = %track_id,
+                            "stem metadata missing after ensure"
+                        );
+                        return;
+                    }
+                    Err(err) => {
+                        tracing::warn!(
+                            deck_id,
+                            track_id = %track_id,
+                            error = %err,
+                            "stem metadata missing after ensure"
+                        );
+                        return;
+                    }
+                }
+            };
+            let stems = match load_stem_buffers(&info) {
+                Ok(stems) => stems,
+                Err(err) => {
+                    tracing::warn!(
+                        deck_id,
+                        track_id = %track_id,
+                        error = %err,
+                        "stem decode failed"
+                    );
+                    return;
+                }
+            };
+            let snap = {
+                let mut guard = match engine.lock() {
+                    Ok(g) => g,
+                    Err(e) => e.into_inner(),
+                };
+                let Some(eng) = guard.as_mut() else {
+                    return;
+                };
+                let Some(current) = eng.deck_snapshot(usize::from(deck_id)) else {
+                    return;
+                };
+                if current.track_id.as_deref() != Some(track_id.as_str()) {
+                    return;
+                }
+                if let Err(err) = eng.attach_deck_stems(usize::from(deck_id), stems) {
+                    tracing::warn!(
+                        deck_id,
+                        track_id = %track_id,
+                        error = %err,
+                        "stem attach failed"
+                    );
+                    return;
+                }
+                tracing::info!(deck_id, track_id = %track_id, "stems attached to deck");
+                eng.deck_snapshot(usize::from(deck_id))
+            };
+            if let Some(snap) = snap {
+                let _ = buses.publish_evt(
+                    Origin::Deck(deck_id),
+                    Kind::Updated,
+                    deck_snapshot_to_evt(snap),
+                );
+            }
+        });
+}
+
 fn chrome_from_bank_slot(
     record: &SamplerSlotRecord,
     prepared: &PreparedTrackPlayback,
@@ -433,6 +577,11 @@ struct EngineEvtForwarder {
     handle: JoinHandle<()>,
 }
 
+struct StemsAttachWatcher {
+    shutdown: Arc<AtomicBool>,
+    handle: JoinHandle<()>,
+}
+
 #[allow(dead_code)]
 struct EngineHistoryWorker(HistoryWorker);
 
@@ -476,6 +625,7 @@ pub struct EngineTransport {
     /// Ephemeral pad chrome (Tauri `AppState.sampler_slots`).
     sampler_slots: Arc<Mutex<Vec<Vec<SamplerSlotChrome>>>>,
     evt_forwarder: Mutex<Option<EngineEvtForwarder>>,
+    stems_attach_watcher: Mutex<Option<StemsAttachWatcher>>,
     history_worker: Mutex<Option<EngineHistoryWorker>>,
 }
 
@@ -486,6 +636,14 @@ impl Drop for EngineTransport {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         history.take();
+        let mut stems = self
+            .stems_attach_watcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(fwd) = stems.take() {
+            fwd.shutdown.store(true, Ordering::Relaxed);
+            let _ = fwd.handle.join();
+        }
         let mut slot = self.evt_forwarder.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(fwd) = slot.take() {
             fwd.shutdown.store(true, Ordering::Relaxed);
@@ -536,6 +694,7 @@ impl EngineTransport {
             library_cmd_bus: library_transport.cmd_bus(),
             sampler_slots: Arc::new(Mutex::new(empty_all_sampler_chrome())),
             evt_forwarder: Mutex::new(None),
+            stems_attach_watcher: Mutex::new(None),
             history_worker: Mutex::new(match HistoryWorker::start(&buses, library_arc) {
                 Ok(worker) => Some(EngineHistoryWorker(worker)),
                 Err(e) => {
@@ -544,6 +703,7 @@ impl EngineTransport {
                 }
             }),
         };
+        transport.start_stems_attach_watcher();
         if let Ok((target, top, outer)) = settings_host_runtime() {
             let _ = transport.apply_host_settings(target, top, outer);
         }
@@ -1179,94 +1339,88 @@ impl EngineTransport {
         Ok(())
     }
 
-    /// Ensure stems off the host lock, then attach if this deck still holds `track_id`.
-    fn spawn_stems_ensure_attach(&self, deck_id: u16, track_id: String) {
-        if !self.library_buses.stems_enabled() {
+    /// After library analyze finishes (stems included), attach to decks still holding that track.
+    fn start_stems_attach_watcher(&self) {
+        let Ok(rx) = self.library_buses.subscribe_evt_all() else {
             return;
-        }
-        let stems_root = self.library_buses.stems_root();
+        };
+        let library_buses = self.library_buses.clone();
         let library = Arc::clone(&self.library);
         let engine = Arc::clone(&self.engine);
         let buses = self.buses.clone();
-        let _ = std::thread::Builder::new()
-            .name(format!("deck-{deck_id}-stems"))
+        let shutdown = Arc::new(AtomicBool::new(false));
+        let shutdown_flag = Arc::clone(&shutdown);
+        let Ok(handle) = std::thread::Builder::new()
+            .name("stems-attach-watch".into())
             .spawn(move || {
-                let id = TrackId::new(track_id.clone());
-                if let Err(err) =
-                    LibraryManager::ensure_track_stems(&library, &id, &stems_root, true)
-                {
-                    tracing::warn!(
-                        deck_id,
-                        track_id = %track_id,
-                        error = %err,
-                        "stem ensure failed"
-                    );
-                    return;
-                }
-                let info = {
-                    let lib = match library.lock() {
-                        Ok(g) => g,
-                        Err(e) => e.into_inner(),
+                while !shutdown_flag.load(Ordering::Relaxed) {
+                    let ev = match rx.recv_timeout(Duration::from_millis(200)) {
+                        Ok(Some(ev)) => ev,
+                        Ok(None) => continue,
+                        Err(_) => break,
                     };
-                    match lib.get_track_stems(&id) {
-                        Ok(Some(info)) => info,
-                        Ok(None) => return,
-                        Err(err) => {
-                            tracing::warn!(
-                                deck_id,
-                                track_id = %track_id,
-                                error = %err,
-                                "stem metadata missing after ensure"
-                            );
-                            return;
-                        }
+                    if ev.kind() != &LibraryKind::TrackAnalyzed {
+                        continue;
                     }
-                };
-                let stems = match load_stem_buffers(&info) {
-                    Ok(stems) => stems,
-                    Err(err) => {
-                        tracing::warn!(
+                    let Ok(LibraryEvtBody::TrackAnalyzed { track }) =
+                        decode_library_evt_body(ev.payload())
+                    else {
+                        continue;
+                    };
+                    let track_id = track.id;
+                    let deck_ids = {
+                        let guard = match engine.lock() {
+                            Ok(g) => g,
+                            Err(e) => e.into_inner(),
+                        };
+                        let Some(eng) = guard.as_ref() else {
+                            continue;
+                        };
+                        (0..NUM_DECKS as u16)
+                            .filter(|&deck_id| {
+                                eng.deck_snapshot(usize::from(deck_id))
+                                    .and_then(|s| s.track_id)
+                                    .as_deref()
+                                    == Some(track_id.as_str())
+                            })
+                            .collect::<Vec<_>>()
+                    };
+                    for deck_id in deck_ids {
+                        spawn_stems_ensure_attach_task(
+                            &library_buses,
+                            Arc::clone(&library),
+                            Arc::clone(&engine),
+                            buses.clone(),
                             deck_id,
-                            track_id = %track_id,
-                            error = %err,
-                            "stem decode failed"
+                            track_id.clone(),
                         );
-                        return;
                     }
-                };
-                let snap = {
-                    let mut guard = match engine.lock() {
-                        Ok(g) => g,
-                        Err(e) => e.into_inner(),
-                    };
-                    let Some(eng) = guard.as_mut() else {
-                        return;
-                    };
-                    let Some(current) = eng.deck_snapshot(usize::from(deck_id)) else {
-                        return;
-                    };
-                    if current.track_id.as_deref() != Some(track_id.as_str()) {
-                        return;
-                    }
-                    if let Err(err) = eng.attach_deck_stems(usize::from(deck_id), stems) {
-                        tracing::warn!(
-                            deck_id,
-                            track_id = %track_id,
-                            error = %err,
-                            "stem attach failed"
-                        );
-                        return;
-                    }
-                    eng.deck_snapshot(usize::from(deck_id))
-                };
-                if let Some(snap) = snap {
-                    let _ = buses.publish_evt(
-                        Origin::Deck(deck_id),
-                        Kind::Updated,
-                        deck_snapshot_to_evt(snap),
-                    );
                 }
-            });
+            })
+        else {
+            return;
+        };
+        let mut slot = self
+            .stems_attach_watcher
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        if let Some(prev) = slot.take() {
+            prev.shutdown.store(true, Ordering::Relaxed);
+            let _ = prev.handle.join();
+        }
+        *slot = Some(StemsAttachWatcher { shutdown, handle });
+    }
+
+    /// Ensure stems off the host lock, then attach if this deck still holds `track_id`.
+    fn spawn_stems_ensure_attach(&self, deck_id: u16, track_id: String) {
+        spawn_stems_ensure_attach_task(
+            &self.library_buses,
+            Arc::clone(&self.library),
+            Arc::clone(&self.engine),
+            self.buses.clone(),
+            deck_id,
+            track_id,
+        );
     }
 
     fn assign_prepared(

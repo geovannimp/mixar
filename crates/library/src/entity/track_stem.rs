@@ -10,6 +10,9 @@ pub struct Model {
     /// Fingerprint of the source PCM used to produce these stems.
     #[sea_orm(default_value = "")]
     pub source_fingerprint: String,
+    /// On-disk codec: `opus` | `flac`.
+    #[sea_orm(default_value = "opus")]
+    pub format: String,
     pub sample_rate: i32,
     pub vocals_path: String,
     pub drums_path: String,

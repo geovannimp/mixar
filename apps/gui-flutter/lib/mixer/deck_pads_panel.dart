@@ -31,6 +31,7 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemMute = const [false, false, false, false],
     this.stemIsolate,
     this.stemsReady = false,
+    this.stemsGenerating = false,
     this.onStemsPress,
     this.hasTrack = false,
     this.disabled = false,
@@ -58,6 +59,7 @@ class DeckPadsPanel extends StatelessWidget {
   final List<bool> stemMute;
   final int? stemIsolate;
   final bool stemsReady;
+  final bool stemsGenerating;
   final ValueChanged<int>? onStemsPress;
   final bool hasTrack;
   final bool disabled;
@@ -157,6 +159,7 @@ class DeckPadsPanel extends StatelessWidget {
         stemMute: stemMute,
         stemIsolate: stemIsolate,
         stemsReady: stemsReady,
+        stemsGenerating: stemsGenerating,
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
       ),

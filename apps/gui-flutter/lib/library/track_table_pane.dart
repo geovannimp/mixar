@@ -137,6 +137,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final analyzingIds = ref.watch(analyzingTrackIdsProvider);
+    final progressById = ref.watch(trackProgressProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
     final settings = ref
         .watch(appSettingsProvider)
@@ -151,7 +152,20 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         return;
       }
       manager.removeAllRows();
-      manager.appendRows(_rowsFor(_tracks, next));
+      manager.appendRows(
+        _rowsFor(_tracks, next, ref.read(trackProgressProvider)),
+      );
+      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
+    });
+    ref.listen(trackProgressProvider, (_, next) {
+      final manager = _manager;
+      if (manager == null || _tracks.isEmpty) {
+        return;
+      }
+      manager.removeAllRows();
+      manager.appendRows(
+        _rowsFor(_tracks, ref.read(analyzingTrackIdsProvider), next),
+      );
       _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
     });
     // Session dim: each row Consumer watches sessionPlayedKeysProvider — do not
@@ -178,7 +192,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         _tracks = tracks;
         manager.removeAllRows();
         if (tracks.isNotEmpty) {
-          manager.appendRows(_rowsFor(tracks, analyzingIds));
+          manager.appendRows(_rowsFor(tracks, analyzingIds, progressById));
         }
         _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
         _requestVisibleArtwork(manager);
@@ -265,7 +279,11 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                                   keyDisplayMode: keyDisplayMode,
                                   keyColorMode: keyColorMode,
                                 ),
-                                rows: _rowsFor(tracks, analyzingIds),
+                                rows: _rowsFor(
+                                  tracks,
+                                  analyzingIds,
+                                  progressById,
+                                ),
                                 mode: TrinaGridMode.readOnly,
                                 rowWrapper: _rowWrapper,
                                 onLoaded: (e) {
@@ -588,6 +606,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   List<TrinaRow<dynamic>> _rowsFor(
     List<LibraryTrackSummary> tracks,
     Set<String> analyzingIds,
+    Map<String, TrackProgressInfo> progressById,
   ) {
     final tab = ref.read(librarySourceTabProvider);
     final resolved =
@@ -606,9 +625,16 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
             ),
             'artwork': TrinaCell(value: t.id),
             'title': TrinaCell(
-              value: analyzingIds.contains(t.id)
-                  ? '${trackTitleLabel(t)} …'
-                  : trackTitleLabel(t),
+              value: () {
+                final progress = progressById[t.id];
+                if (progress != null) {
+                  return '${trackTitleLabel(t)} — ${progress.label}';
+                }
+                if (analyzingIds.contains(t.id)) {
+                  return '${trackTitleLabel(t)} …';
+                }
+                return trackTitleLabel(t);
+              }(),
             ),
             'artist': TrinaCell(value: t.artist ?? ''),
             'album': TrinaCell(value: t.album ?? ''),

@@ -68,9 +68,15 @@ pub use sampler_data::{
     SamplerSlotRecord, BANK_SIZE as SAMPLER_BANK_SIZE,
 };
 pub use session::LibrarySession;
-pub use stems::{ensure_track_stems, TrackStemsInfo};
+pub use stems::{
+    clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems,
+    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, StemProgressFn,
+    TrackStemsInfo,
+};
 pub use tags::read_artwork;
-pub use waveform::{BeatGridSnapshot, TrackWaveformOverview};
+pub use waveform::{
+    clear_all_track_waveforms, waveform_cache_bytes, BeatGridSnapshot, TrackWaveformOverview,
+};
 pub use worker::{spawn_library_worker, LibraryWorker};
 
 /// Library-owned playback handoff for engine/sampler consumers.
@@ -467,21 +473,38 @@ impl LibraryManager {
         }))
     }
 
-    /// True when a complete stem row exists and all four WAV files are on disk.
+    /// True when a complete stem row exists and all four stem files are on disk.
     pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
         stems::has_track_stems(&self.db, id)
     }
 
-    /// Generate and persist stem WAVs when missing. No-op when `enabled` is false.
+    /// Generate and persist stem files when missing. No-op when `enabled` is false.
     ///
     /// Takes `&Mutex<Self>` so decode / Demucs work does not hold the library lock.
     pub fn ensure_track_stems(
         library: &Mutex<Self>,
         id: &TrackId,
         stems_root: &Path,
+        models_root: &Path,
         enabled: bool,
+        format: &str,
     ) -> Result<()> {
-        stems::ensure_track_stems(library, id, stems_root, enabled)
+        stems::ensure_track_stems(library, id, stems_root, models_root, enabled, format)
+    }
+
+    /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
+    pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
+        stems::clear_all_track_stems(&self.db, stems_root)
+    }
+
+    /// Delete all cached waveform overview rows.
+    pub fn clear_waveform_cache(&self) -> Result<()> {
+        waveform::clear_all_track_waveforms(&self.db)
+    }
+
+    /// Compressed waveform overview bytes stored in the library DB.
+    pub fn waveform_cache_bytes(&self) -> Result<u64> {
+        waveform::waveform_cache_bytes(&self.db)
     }
 
     /// Generate and persist the overview when missing (e.g. first waveform fetch).
@@ -608,7 +631,18 @@ impl LibraryManager {
                     .stems_root
                     .as_ref()
                     .expect("validate_stems requires stems_root when enabled");
-                stems::ensure_track_stems(library, id, stems_root, true)?;
+                let models_root = options
+                    .models_root
+                    .as_ref()
+                    .expect("validate_stems requires models_root when enabled");
+                stems::ensure_track_stems(
+                    library,
+                    id,
+                    stems_root,
+                    models_root,
+                    true,
+                    &options.stems_format,
+                )?;
             }
             Ok(source)
         }
@@ -1487,7 +1521,11 @@ impl WritableLibrary for LibraryManager {
                 .stems_root
                 .as_ref()
                 .expect("validate_stems requires stems_root when enabled");
-            stems::ensure_track_stems_on(self, id, stems_root)?;
+            let models_root = options
+                .models_root
+                .as_ref()
+                .expect("validate_stems requires models_root when enabled");
+            stems::ensure_track_stems_on(self, id, stems_root, models_root, &options.stems_format)?;
         }
         Ok(analyzed)
     }

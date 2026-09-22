@@ -154,11 +154,24 @@ fn analyze_missing_track_publishes_error_evt() {
         .analyze_track("missing-track-id".into(), false)
         .unwrap();
 
-    let event = rx
-        .recv_timeout(Duration::from_secs(2))
-        .expect("evt bus alive")
-        .expect("Error evt");
-    assert_eq!(event.kind(), &Kind::Error);
+    let deadline = std::time::Instant::now() + Duration::from_secs(2);
+    let event = loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let event = rx
+            .recv_timeout(remaining)
+            .expect("evt bus alive")
+            .expect("Error evt");
+        // Analyze publishes TrackProgress before failure; wait for the Error.
+        if event.kind() == &Kind::Error {
+            break event;
+        }
+        assert_eq!(
+            event.kind(),
+            &Kind::TrackProgress,
+            "unexpected evt before Error: {:?}",
+            event.kind()
+        );
+    };
     match decode_evt_body(event.payload()).unwrap() {
         EvtBody::Error { message, track_id } => {
             assert!(!message.is_empty());

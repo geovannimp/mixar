@@ -128,6 +128,13 @@ pub enum EvtBody {
     Notice {
         message: String,
     },
+    /// Coarse progress for analysis / stem jobs (`phase` is a stable snake_case token).
+    TrackProgress {
+        track_id: String,
+        phase: String,
+        #[serde(default)]
+        fraction: Option<f32>,
+    },
     /// UI-only: move library table focus by `delta` (signed row steps).
     Navigate {
         delta: i32,
