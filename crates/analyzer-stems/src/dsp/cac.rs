@@ -1,15 +1,14 @@
 use num_complex::Complex32;
 
-/// Pack mono STFT specs into HTDemucs CaC planar `[4, F, T]`.
+/// Pack mono STFT specs of `bins` frequency rows into HTDemucs CaC planar `[4, F, T]`.
 ///
 /// Channel order: left real, left imag, right real, right imag.
 pub fn stft_to_cac_planar(
     left_spec: &[Complex32],
     right_spec: &[Complex32],
-    n_fft: usize,
+    bins: usize,
 ) -> Vec<f32> {
     debug_assert_eq!(left_spec.len(), right_spec.len());
-    let bins = n_fft / 2 + 1;
     let frames = left_spec.len() / bins;
     let plane = bins * frames;
     let mut out = vec![0.0f32; 4 * plane];
@@ -48,7 +47,6 @@ mod tests {
     fn cac_pack_unpack_shape_and_invertibility() {
         let bins = 8;
         let frames = 4;
-        let n_fft = (bins - 1) * 2;
         let left: Vec<Complex32> = (0..bins * frames)
             .map(|i| Complex32::new(i as f32 * 0.1, -(i as f32) * 0.05))
             .collect();
@@ -56,7 +54,7 @@ mod tests {
             .map(|i| Complex32::new(i as f32 * 0.2, i as f32 * 0.03))
             .collect();
 
-        let packed = stft_to_cac_planar(&left, &right, n_fft);
+        let packed = stft_to_cac_planar(&left, &right, bins);
         assert_eq!(packed.len(), 4 * bins * frames);
 
         let back_left = cac_planar_to_complex(&packed, bins, frames);

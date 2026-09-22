@@ -9,7 +9,7 @@ description = "Offline stem separation for Mixar (HTDemucs via Burn)"
 [features]
 default = ["burn-ndarray", "burn-wgpu"]
 burn-ndarray = ["burn/ndarray", "burn/simd"]
-burn-wgpu = ["burn/wgpu"]
+burn-wgpu = ["burn/wgpu", "dep:pollster", "dep:wgpu"]
 
 [dependencies]
 anyhow.workspace = true
@@ -26,6 +26,11 @@ serde_json = "1"
 sha2 = "0.10"
 realfft = "3.5"
 num-complex = "0.4"
+tracing.workspace = true
+# burn-wgpu: async tensor readback + adapter probe (release builds abort on panic).
+pollster = { version = "0.4", optional = true }
+# Same major as Burn's wgpu; keep default backends (Vulkan/Metal/DX12) for the probe.
+wgpu = { version = "26", optional = true }
 
 [dev-dependencies]
 tempfile = "3.0"

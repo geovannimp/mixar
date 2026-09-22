@@ -1,4 +1,4 @@
-//! Optional end-to-end smoke: downloads ~200MB HTDemucs ONNX and runs a short split.
+//! Optional end-to-end smoke: downloads the ~84 MB HTDemucs checkpoint and runs a short split.
 //!
 //! ```text
 //! cargo test -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke -- --ignored --nocapture
@@ -10,7 +10,7 @@ use analyzer_stems::{
 use std::f32::consts::TAU;
 
 #[test]
-#[ignore = "downloads HTDemucs ONNX (~200MB) and runs inference"]
+#[ignore = "downloads the ~84 MB HTDemucs checkpoint and runs inference"]
 fn split_short_synthetic_pcm() {
     let sample_rate = 44_100u32;
     let frames = sample_rate as usize; // 1 s
@@ -45,7 +45,12 @@ fn split_short_synthetic_pcm() {
     );
 
     assert_eq!(result.sample_rate, 48_000);
-    assert_eq!(result.backend, DEFAULT_MODEL);
+    assert!(
+        result.backend == format!("{DEFAULT_MODEL}/ndarray")
+            || result.backend == format!("{DEFAULT_MODEL}/wgpu"),
+        "unexpected backend {}",
+        result.backend
+    );
     for (i, name) in STEM_NAMES.iter().enumerate() {
         let path = &result.paths[i];
         assert!(

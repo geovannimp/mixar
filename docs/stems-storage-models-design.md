@@ -7,7 +7,7 @@
 
 ## Goal
 
-1. Own HTDemucs ONNX weights under Mixar app-support (not stem-splitter-core ProjectDirs).
+1. Own HTDemucs Burn safetensors weights under Mixar app-support.
 2. Minimal Settings → Storage UI: stem-cache size, model size, clear-all for each.
 
 ## Decisions
@@ -15,8 +15,7 @@
 | Topic | Choice |
 |-------|--------|
 | Storage UI depth | Minimal: sizes + Clear all stems / Clear model |
-| Model location | `{app_support}/models/` — Mixar download + verify + `ModelHandle` |
-| SSC ProjectDirs | Ignore (no migrate; may re-download once for early testers) |
+| Model location | `{app_support}/models/` — Mixar download + verify + `ModelHandle` (safetensors) |
 | Clear stems | Delete `{stems_root}/**` and all `track_stem` rows; never touch original audio |
 | Clear model | Delete `{models_root}/**` |
 | Eviction | Manual only |
@@ -28,11 +27,11 @@
   library.db
   settings.json
   stems/{fnv64(track_id)}/*.{opus,flac}
-  models/{name}-{sha8}.onnx          ← NEW
+  models/{name}-{sha8}.safetensors   ← Burn HTDemucs weights
 
 analyzer-stems::ensure_model(models_root, name)
   → registry manifest + download/verify into models_root
-  → ModelHandle { manifest, local_path } → engine::preload
+  → ModelHandle { manifest, local_path } → Burn infer (wgpu / ndarray)
 
 LibraryBuses: stems_root + models_root
 LibraryTransport: storageUsage / clearStemCache / clearModelCache
@@ -46,7 +45,7 @@ Settings → Storage
 
 | Piece | Change |
 |-------|--------|
-| `analyzer-stems` | `ensure_model(models_root, …)`; split takes `models_root`; no SSC `ensure_model` default cache |
+| `analyzer-stems` | `ensure_model(models_root, …)`; split takes `models_root`; Burn HTDemucs infer |
 | `library` | `models_root` on buses; `clear_all_track_stems` (files + rows); dir size helpers |
 | `host-flutter` | Set `models_root` next to `stems` on open; FRB storage usage/clear |
 | Flutter | `SettingsSection.storage` + panel; confirm dialogs; refresh sizes |
@@ -62,7 +61,7 @@ Settings → Storage
 - Per-track / playlist cleanup
 - Automatic eviction
 - Stem EQ / realtime
-- Deleting leftover SSC ProjectDirs caches
+- Automatic migration of leftover third-party model caches
 
 ## Testing
 

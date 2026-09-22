@@ -8,3 +8,5 @@ mod stft;
 
 pub use cac::{cac_planar_to_complex, stft_to_cac_planar};
 pub use stft::{Stft, HOP_LENGTH, N_FFT};
+
+pub(crate) use stft::reflect_pad;

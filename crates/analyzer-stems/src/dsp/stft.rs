@@ -37,7 +37,7 @@ impl Stft {
 
     /// Forward STFT; output layout `[F, T]` row-major (`index = f * num_frames + t`).
     pub fn forward(&mut self, wave: &[f32]) -> Result<Vec<Complex32>> {
-        let padded = reflect_pad(wave, self.n_fft / 2);
+        let padded = reflect_pad(wave, self.n_fft / 2, self.n_fft / 2);
         let num_frames = 1 + padded.len().saturating_sub(self.n_fft) / self.hop_length;
         let bins = self.n_fft / 2 + 1;
         let mut spec = vec![Complex32::default(); bins * num_frames];
@@ -112,17 +112,18 @@ fn hann_window(n_fft: usize) -> Vec<f32> {
     raw.into_iter().map(|w| w / norm).collect()
 }
 
-fn reflect_pad(wave: &[f32], pad: usize) -> Vec<f32> {
+/// `torch.nn.functional.pad(..., mode="reflect")` on a 1-D signal.
+pub(crate) fn reflect_pad(wave: &[f32], left: usize, right: usize) -> Vec<f32> {
     if wave.is_empty() {
-        return vec![0.0; 2 * pad];
+        return vec![0.0; left + right];
     }
-    let mut out = Vec::with_capacity(wave.len() + 2 * pad);
-    for i in (0..pad).rev() {
+    let mut out = Vec::with_capacity(wave.len() + left + right);
+    for i in (0..left).rev() {
         let idx = (i + 1).min(wave.len() - 1);
         out.push(wave[idx]);
     }
     out.extend_from_slice(wave);
-    for i in 0..pad {
+    for i in 0..right {
         let idx = wave.len().saturating_sub(2).saturating_sub(i);
         out.push(wave[idx]);
     }
