@@ -6,10 +6,26 @@ license.workspace = true
 repository.workspace = true
 description = "Offline stem separation for Mixar (HTDemucs via stem-splitter-core)"
 
+[features]
+default = []
+# EP preference stubs — enable to offer that EP in the cascade (Task 1).
+# Wire `ort/<ep>` here when shipping accelerated binaries; empty keeps CI on CPU ORT.
+# Do not enable `cuda` and `webgpu` together when linking ort EP features (no joint binary).
+cuda = []
+webgpu = []
+coreml = []
+directml = []
+tensorrt = []
+nvrtx = []
+openvino = []
+
 [dependencies]
 anyhow.workspace = true
 flacenc = "0.5"
+hound = "3.5"
 libloading = "0.8"
+# Pinned to stem-splitter-core's ort until Task 3 drops that crate.
+ort = "=2.0.0-rc.11"
 resampler = { path = "../resampler" }
 ruopus = "0.1"
 serde_json = "1"

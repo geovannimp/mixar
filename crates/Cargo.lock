@@ -118,7 +118,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "flacenc",
+ "hound",
  "libloading 0.8.9",
+ "ort",
  "resampler",
  "ruopus",
  "serde_json",
