@@ -25,15 +25,23 @@ pub fn force_ep_from_env() -> Option<&'static str> {
 
 /// EP builders in preference order for the current platform / force env.
 pub fn preferred_execution_providers() -> Vec<ExecutionProviderDispatch> {
-    preference_cascade().into_iter().map(|(_, ep)| ep).collect()
+    preferred_ep_cascade()
+        .into_iter()
+        .map(|(_, ep)| ep)
+        .collect()
 }
 
 /// Short labels in the same order as [`preferred_execution_providers`].
 pub fn preferred_ep_labels() -> Vec<&'static str> {
-    preference_cascade()
+    preferred_ep_cascade()
         .into_iter()
         .map(|(label, _)| label)
         .collect()
+}
+
+/// `(label, EP)` pairs in preference order (for sequential session tries).
+pub(crate) fn preferred_ep_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
+    preference_cascade()
 }
 
 fn normalize_ep_key(name: &str) -> String {

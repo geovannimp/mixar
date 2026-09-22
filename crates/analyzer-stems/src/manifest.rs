@@ -1,4 +1,3 @@
-#![allow(dead_code)] // pub API wired in Task 3 (ORT infer)
 //! Mixar-owned model manifest, download, and path safety.
 
 use std::path::{Path, PathBuf};

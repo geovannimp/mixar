@@ -79,9 +79,14 @@ impl TrackStemsInfo {
     fn matches(&self, fingerprint: &str, backend: &str, format: &str) -> bool {
         self.all_files_exist()
             && self.source_fingerprint == fingerprint
-            && self.backend == backend
+            && model_id(&self.backend) == model_id(backend)
             && self.format == format
     }
+}
+
+/// Model id from a `{model}/{ep}` tag: stems are interchangeable across EPs.
+fn model_id(backend: &str) -> &str {
+    backend.split_once('/').map_or(backend, |(model, _)| model)
 }
 
 fn now_iso() -> String {

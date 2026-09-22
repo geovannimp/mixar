@@ -1,13 +1,14 @@
 //! Offline stem separation for Mixar.
 //!
-//! Uses [stem-splitter-core](https://crates.io/crates/stem-splitter-core) HTDemucs ONNX
-//! on already-decoded interleaved stereo PCM (no second file decode).
-//! Mixar-owned [`manifest`] downloads StemSplit `htdemucs_ort_v2` for the ORT pivot.
+//! Mixar-owned ort Session + StemSplit HTDemucs ONNX on already-decoded
+//! interleaved stereo PCM (no second file decode).
 
 mod ep;
 mod format;
+mod infer;
 mod manifest;
-mod ort_ep;
+mod resample_pcm;
+mod session;
 mod split;
 mod window;
 
@@ -17,14 +18,15 @@ pub use ep::{
 
 pub use format::{encode_stem_file, StemAudioFormat, OPUS_BITRATE_BPS, OPUS_SAMPLE_RATE};
 
-// Mixar ort_v2 manifest (wired in Task 3). Keep SSC ensure/DEFAULT_MODEL public until then.
-pub use manifest::{builtin_manifest, Artifact};
+pub use infer::{separate_interleaved, SAMPLE_RATE as STEM_SAMPLE_RATE};
 
-pub use ort_ep::prepare_ort_execution_providers;
-
-pub use split::{
-    ensure_from_manifest, ensure_model, resolve_model, split_interleaved_stereo, StemSplitRequest,
-    StemSplitResult, DEFAULT_MODEL, STEM_NAMES,
+pub use manifest::{
+    builtin_manifest, ensure_from_manifest, ensure_model, resolve_model, Artifact, ModelHandle,
+    ModelManifest, DEFAULT_MODEL,
 };
+
+pub use resample_pcm::resample_interleaved_stereo;
+
+pub use split::{split_interleaved_stereo, StemSplitRequest, StemSplitResult, STEM_NAMES};
 
 pub use window::{audio_frame_count, fill_stereo_window};
