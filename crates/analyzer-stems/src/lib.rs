@@ -3,11 +3,14 @@
 //! Mixar-owned Burn HTDemucs on already-decoded interleaved stereo PCM
 //! (no second file decode).
 
+pub mod dsp;
 mod format;
 mod manifest;
 mod resample_pcm;
 mod split;
 mod window;
+
+pub use dsp::{cac_planar_to_complex, stft_to_cac_planar, Stft, HOP_LENGTH, N_FFT};
 
 pub use format::{encode_stem_file, StemAudioFormat, OPUS_BITRATE_BPS, OPUS_SAMPLE_RATE};
 

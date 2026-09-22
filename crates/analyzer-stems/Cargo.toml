@@ -21,6 +21,8 @@ ruopus = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+realfft = "3.5"
+num-complex = "0.4"
 
 [dev-dependencies]
 tempfile = "3.0"

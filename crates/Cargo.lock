@@ -119,6 +119,8 @@ dependencies = [
  "anyhow",
  "flacenc",
  "hex",
+ "num-complex",
+ "realfft",
  "reqwest",
  "resampler",
  "ruopus",
