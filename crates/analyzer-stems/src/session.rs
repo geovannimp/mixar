@@ -41,9 +41,13 @@ pub fn with_session<R>(
 
 fn load_session(path: &Path) -> Result<LoadedSession> {
     let started = Instant::now();
-    info!(path = %path.display(), "stem ort: loading ONNX");
-
     let cascade = preferred_ep_cascade();
+    info!(
+        path = %path.display(),
+        cascade = ?cascade.iter().map(|(l, _)| *l).collect::<Vec<_>>(),
+        "stem ort: loading ONNX"
+    );
+
     let mut last_err = None;
 
     for (label, ep) in cascade {

@@ -7,9 +7,9 @@ repository.workspace = true
 description = "Offline stem separation for Mixar (HTDemucs via ort + StemSplit ONNX)"
 
 [features]
-default = []
-# EP preference stubs — enable to offer that EP in the cascade.
-# Do not enable `cuda` and `webgpu` together when linking ort EP features (no joint binary).
+# Desktop default: WebGPU (Vulkan/DX12/Metal) so GPUs work without a CUDA toolkit.
+# Do not enable `cuda` and `webgpu` together — ort has no joint EP binary.
+default = ["webgpu"]
 cuda = ["ort/cuda"]
 webgpu = ["ort/webgpu"]
 coreml = ["ort/coreml"]

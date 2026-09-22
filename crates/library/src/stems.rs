@@ -380,7 +380,8 @@ fn generate_stem_files(
             message: stem_io_message(&e),
         })?;
 
-        report("stems_separate", Some(0.0));
+        // Fraction stays unknown until the first chunk finishes.
+        report("stems_separate", None);
         let progress_for_split = progress.clone();
         let split_result =
             analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
@@ -393,7 +394,11 @@ fn generate_stem_files(
                 on_window_progress: Some(Box::new(move |done, total| {
                     if total > 0 {
                         if let Some(cb) = progress_for_split.as_ref() {
-                            cb("stems_separate", Some(done as f32 / total as f32));
+                            if done == 0 {
+                                cb("stems_separate", None);
+                            } else {
+                                cb("stems_separate", Some(done as f32 / total as f32));
+                            }
                         }
                     }
                 })),
