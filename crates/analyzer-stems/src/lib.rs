@@ -6,11 +6,24 @@
 pub mod dsp;
 mod format;
 mod manifest;
+pub mod model;
 mod resample_pcm;
 mod split;
+pub mod weights;
 mod window;
 
+/// CPU backend used for headless / CI inference.
+#[cfg(feature = "burn-ndarray")]
+pub type NdArrayBackend = burn::backend::NdArray<f32>;
+
 pub use dsp::{cac_planar_to_complex, stft_to_cac_planar, Stft, HOP_LENGTH, N_FFT};
+
+pub use model::{
+    HTDemucs, CHANNELS, DEPTH, GROWTH, KERNEL_SIZE, SAMPLE_RATE, STRIDE, TRAINING_LENGTH, T_HEADS,
+    T_LAYERS,
+};
+
+pub use weights::{load_htdemucs_from_safetensors, TensorStore, HTDEMUCS_SIGNATURE};
 
 pub use format::{encode_stem_file, StemAudioFormat, OPUS_BITRATE_BPS, OPUS_SAMPLE_RATE};
 

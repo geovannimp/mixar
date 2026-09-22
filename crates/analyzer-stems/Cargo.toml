@@ -8,11 +8,14 @@ description = "Offline stem separation for Mixar (HTDemucs via Burn)"
 
 [features]
 default = ["burn-ndarray", "burn-wgpu"]
-burn-ndarray = []
-burn-wgpu = []
+burn-ndarray = ["burn/ndarray", "burn/simd"]
+burn-wgpu = ["burn/wgpu"]
 
 [dependencies]
 anyhow.workspace = true
+burn = { version = "0.20", default-features = false, features = ["std"] }
+half = "2"
+safetensors = "0.5"
 flacenc = "0.5"
 hex = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
