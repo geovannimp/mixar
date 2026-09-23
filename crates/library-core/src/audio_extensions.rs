@@ -22,6 +22,18 @@ pub fn is_supported_audio_path(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
+/// Native NI Traktor stem container (`*.stem.mp4`).
+pub fn is_stem_audio_path(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.to_ascii_lowercase().ends_with(".stem.mp4"))
+}
+
+/// Returns whether `path` is a loadable/scannable audio file (including native stems).
+pub fn is_loadable_audio_path(path: &Path) -> bool {
+    is_supported_audio_path(path) || is_stem_audio_path(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -39,5 +51,14 @@ mod tests {
     fn recognizes_paths() {
         assert!(is_supported_audio_path(Path::new("/music/track.opus")));
         assert!(!is_supported_audio_path(Path::new("/music/readme.txt")));
+    }
+
+    #[test]
+    fn recognizes_stem_mp4_paths() {
+        assert!(is_stem_audio_path(Path::new("/music/Track.stem.mp4")));
+        assert!(is_stem_audio_path(Path::new("/music/Track.STEM.MP4")));
+        assert!(!is_stem_audio_path(Path::new("/music/Track.mp4")));
+        assert!(is_loadable_audio_path(Path::new("/music/Track.stem.mp4")));
+        assert!(!is_loadable_audio_path(Path::new("/music/readme.txt")));
     }
 }

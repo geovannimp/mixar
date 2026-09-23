@@ -4,6 +4,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use audio_core::secs_to_ms;
+#[cfg(feature = "analysis")]
+use codec::stem_container_info;
 use library_core::{path_label, TrackMetadata};
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
@@ -11,6 +13,10 @@ use lofty::tag::{Accessor, ItemKey};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
+    if library_core::is_stem_audio_path(path) {
+        return read_stem_tags(path);
+    }
+
     let tagged = Probe::open(path)
         .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
@@ -140,6 +146,36 @@ fn io_backend(message: String) -> library_core::LibraryError {
         backend: "library",
         message,
     }
+}
+
+fn read_stem_tags(path: &Path) -> library_core::Result<TrackMetadata> {
+    let mut metadata = TrackMetadata {
+        title: stem_file_title(path),
+        channels: Some(2),
+        ..TrackMetadata::default()
+    };
+
+    #[cfg(feature = "analysis")]
+    {
+        let (sample_rate, duration_frames) = stem_container_info(path)
+            .map_err(|e| io_backend(format!("read stem container {}: {e}", path_label(path))))?;
+        metadata.sample_rate = Some(sample_rate);
+        if duration_frames > 0 {
+            let secs = duration_frames as f64 / f64::from(sample_rate);
+            metadata.duration_ms = duration_ms(Duration::from_secs_f64(secs));
+        }
+    }
+
+    Ok(metadata)
+}
+
+fn stem_file_title(path: &Path) -> Option<String> {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .and_then(|name| {
+            let lower = name.to_ascii_lowercase();
+            lower.strip_suffix(".stem.mp4").map(|stem| stem.to_string())
+        })
 }
 
 #[cfg(test)]

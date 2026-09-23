@@ -60,6 +60,24 @@ pub fn is_stem_path(path: &Path) -> bool {
         .is_some_and(|name| name.to_ascii_lowercase().ends_with(".stem.mp4"))
 }
 
+/// Presentation sample rate and frame count from the container (no PCM decode).
+pub fn stem_container_info(path: &Path) -> Result<(u32, u64)> {
+    let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
+    let mp4 = mp4io::Mp4::parse(&bytes).context("parse stem mp4")?;
+    let track = mp4
+        .tracks()
+        .first()
+        .ok_or_else(|| anyhow!("stem mp4 has no tracks"))?;
+    let sample_rate = track.timescale();
+    let duration_frames = track
+        .edits()
+        .first()
+        .map(|edit| edit.segment_duration)
+        .filter(|duration| *duration > 0)
+        .unwrap_or_else(|| track.duration().saturating_sub(u64::from(OPUS_PRE_SKIP)));
+    Ok((sample_rate, duration_frames))
+}
+
 pub fn decode_stem_file(path: &Path) -> Result<StemPcmBundle> {
     let file = File::open(path)?;
     let source = MediaSourceStream::new(Box::new(file), Default::default());
@@ -568,6 +586,30 @@ mod tests {
     use super::{decode_stem_file, encode_stem_mp4, is_stem_path, StemMuxFormat};
     use crate::StemAtom;
     use std::path::Path;
+
+    #[test]
+    fn stem_container_info_reads_presentation_duration() {
+        let rate: u32 = 48_000;
+        let frames = (rate / 10) as usize;
+        let pcm: Vec<f32> = (0..frames * 2)
+            .map(|i| 0.1 * ((i / 2) as f32 * 0.01).sin())
+            .collect();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.stem.mp4");
+        encode_stem_mp4(
+            &path,
+            StemMuxFormat::Opus,
+            rate,
+            &pcm,
+            [&pcm, &pcm, &pcm, &pcm],
+            &StemAtom::default_ni(),
+        )
+        .unwrap();
+
+        let (sample_rate, duration_frames) = super::stem_container_info(&path).unwrap();
+        assert_eq!(sample_rate, rate);
+        assert_eq!(duration_frames, frames as u64);
+    }
 
     #[test]
     fn is_stem_path_detects_extension() {

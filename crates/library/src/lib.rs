@@ -46,11 +46,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    is_supported_audio_extension, is_supported_audio_path, path_label, AnalyzeTrackOptions,
-    AudioSource, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library, LibraryConfig,
-    LibraryError, LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
-    StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    is_loadable_audio_path, is_supported_audio_extension, is_supported_audio_path, path_label,
+    AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig, CollectionConfigUpdate,
+    CollectionEntry, CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library,
+    LibraryConfig, LibraryError, LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport,
+    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -1793,7 +1793,7 @@ fn loaded_from_stem_bundle(
 }
 
 fn is_audio_file(path: &Path) -> bool {
-    is_supported_audio_path(path)
+    is_loadable_audio_path(path)
 }
 
 fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
@@ -2053,24 +2053,40 @@ mod tests {
 
     #[cfg(feature = "analysis")]
     #[test]
-    fn prepare_resolves_native_stem_file() {
+    fn import_and_prepare_native_stem_file() {
         let dir = tempfile::tempdir().unwrap();
         let stem_path = write_tiny_stem_mp4(dir.path());
         let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
-        let track_id = {
-            let lib = library.lock().unwrap();
-            lib.upsert_file_source(&stem_path, &TrackMetadata::default())
-                .unwrap()
-                .id()
-                .clone()
-        };
 
-        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        let prepared =
+            LibraryManager::prepare_file_path_for_playback(&library, &stem_path).unwrap();
         assert!(prepared.stems.is_some());
         assert!(prepared.audio.samples.len() > 1_000);
         let stems = prepared.stems.unwrap();
         assert_eq!(stems.len(), 4);
         assert!(stems[0].source_id.ends_with("#drums"));
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn import_file_path_accepts_native_stem_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let stem_path = write_tiny_stem_mp4(dir.path());
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_file_path(&stem_path).unwrap();
+        assert_eq!(track.file().unwrap().path(), stem_path.as_path());
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn collect_audio_files_includes_native_stem_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let stem_path = write_tiny_stem_mp4(dir.path());
+        write_minimal_wav(&dir.path().join("plain.wav"));
+
+        let files = collect_audio_files(dir.path(), false).unwrap();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().any(|path| path == &stem_path));
     }
 
     #[cfg(feature = "analysis")]

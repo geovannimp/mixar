@@ -17,7 +17,8 @@ mod types;
 pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{LoadableAudio, LoadedAudio};
 pub use audio_extensions::{
-    is_supported_audio_extension, is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
+    is_loadable_audio_path, is_stem_audio_path, is_supported_audio_extension,
+    is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
 };
 pub use error::{path_label, LibraryError, Result};
 pub use key_format::{

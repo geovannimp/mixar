@@ -7,7 +7,8 @@ mod stem_mp4;
 
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
 pub use stem_mp4::{
-    decode_stem_file, encode_stem_mp4, is_stem_path, StemMuxFormat, StemPcmBundle, OPUS_SAMPLE_RATE,
+    decode_stem_file, encode_stem_mp4, is_stem_path, stem_container_info, StemMuxFormat,
+    StemPcmBundle, OPUS_SAMPLE_RATE,
 };
 
 use anyhow::Result;
