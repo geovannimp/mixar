@@ -5,7 +5,7 @@ use flacenc::bitsink::ByteSink;
 use flacenc::component::BitRepr;
 use flacenc::error::Verify;
 use flacenc::source::MemSource;
-use mp4io::{Codec, InputSample, TrackParams, Writer, WriterConfig};
+use mp4io::{Codec, EditEntry, InputSample, TrackParams, Writer, WriterConfig};
 use ruopus::{Bandwidth, OpusEncoder};
 use std::fs::File;
 use std::io::{Cursor, Read, Seek, SeekFrom};
@@ -261,13 +261,31 @@ pub fn encode_stem_mp4(
         StemMuxFormat::Opus => (Codec::Opus, OPUS_SAMPLE_RATE),
         StemMuxFormat::Flac => (Codec::Flac, sample_rate),
     };
-    let mut writer = Writer::new(WriterConfig::default());
+    // Run the movie clock at the sample rate too: `elst::segment_duration` is in
+    // the movie timescale, and the writer's 1 kHz default could only express the
+    // presentation duration to the nearest millisecond.
+    let mut writer = Writer::new(WriterConfig {
+        timescale: track_rate,
+        ..WriterConfig::default()
+    });
     let tracks: Vec<_> = encoded
         .iter()
         .map(|stream| {
             let params = TrackParams::audio(codec, 2, track_rate).timescale(track_rate);
             writer.add_track(match format {
-                StemMuxFormat::Opus => params.opus_config(stream.config.clone()),
+                StemMuxFormat::Opus => params
+                    .opus_config(stream.config.clone())
+                    // Present the coded timeline exactly: enter the media
+                    // `OPUS_PRE_SKIP` frames in, past the encoder delay, and play
+                    // `frames` of it, stopping before the zero padding the final
+                    // packet carries. Both fields count frames because the movie
+                    // and media clocks both run at `track_rate`.
+                    .edit_list(vec![EditEntry {
+                        segment_duration: frames as u64,
+                        media_time: i64::from(OPUS_PRE_SKIP),
+                        media_rate: 1.0,
+                    }]),
+                // FLAC codes no delay, so its coded timeline is the presentation one.
                 StemMuxFormat::Flac => params.flac_config(stream.config.clone()),
             })
         })
@@ -641,6 +659,57 @@ mod tests {
         }
     }
 
+    /// The container itself must state the playable duration, not just decode to
+    /// it: `mdhd` counts every coded frame (encoder delay included), and the
+    /// `elst` edit is what trims the delay off the head and the packet padding off
+    /// the tail. A player that honours the edit list lands on the input duration
+    /// with no decoder-side truncation involved.
+    #[test]
+    fn stem_mp4_declares_exact_presentation_duration() {
+        let rate: u32 = 48_000;
+        let frames: usize = 4_321; // deliberately not a whole number of packets
+        let pcm: Vec<f32> = (0..frames * 2)
+            .map(|i| 0.1 * ((i / 2) as f32 * 0.01).sin())
+            .collect();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.stem.mp4");
+        encode_stem_mp4(
+            &path,
+            StemMuxFormat::Opus,
+            rate,
+            &pcm,
+            [&pcm, &pcm, &pcm, &pcm],
+            &StemAtom::default_ni(),
+        )
+        .unwrap();
+
+        let bytes = std::fs::read(&path).unwrap();
+        let mp4 = mp4io::Mp4::parse(&bytes).unwrap();
+        // Both clocks run at the sample rate, so an edit is exact in frames rather
+        // than rounded to the writer's default millisecond movie timescale.
+        assert_eq!(mp4.timescale(), rate);
+        assert_eq!(mp4.tracks().len(), 5);
+        for track in mp4.tracks() {
+            assert_eq!(track.timescale(), rate, "track {}", track.id());
+            assert_eq!(
+                track.duration(),
+                (frames + super::OPUS_PRE_SKIP as usize) as u64,
+                "track {} media duration",
+                track.id()
+            );
+            let [edit] = track.edits() else {
+                panic!(
+                    "track {} has no single edit: {:?}",
+                    track.id(),
+                    track.edits()
+                );
+            };
+            assert_eq!(edit.segment_duration, frames as u64, "track {}", track.id());
+            assert_eq!(edit.media_time, i64::from(super::OPUS_PRE_SKIP));
+            assert_eq!(edit.media_rate, 1.0);
+        }
+    }
+
     /// Mixar does not implement the mastering DSP, so the muxer must not write an
     /// atom that tells another player to apply one.
     #[test]
@@ -723,6 +792,15 @@ mod tests {
             &StemAtom::default_ni(),
         )
         .unwrap();
+
+        // FLAC codes no encoder delay, so the coded duration is already the input
+        // duration and the container needs no edit to be exact.
+        let bytes = std::fs::read(&path).unwrap();
+        let mp4 = mp4io::Mp4::parse(&bytes).unwrap();
+        for track in mp4.tracks() {
+            assert_eq!(track.duration(), frames as u64, "track {}", track.id());
+            assert!(track.edits().is_empty(), "track {}", track.id());
+        }
 
         let bundle = decode_stem_file(&path).unwrap();
         assert_eq!(bundle.sample_rate, rate as u32);
