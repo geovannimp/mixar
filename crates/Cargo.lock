@@ -1823,6 +1823,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "codec",
  "controller",
  "engine-api",
  "engine-core",
@@ -2366,6 +2367,7 @@ dependencies = [
  "analyzer-stems",
  "audio-core 0.1.0",
  "chrono",
+ "codec",
  "library-api",
  "library-core",
  "lofty",

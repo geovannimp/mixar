@@ -14,10 +14,8 @@ pub struct Model {
     #[sea_orm(default_value = "opus")]
     pub format: String,
     pub sample_rate: i32,
-    pub vocals_path: String,
-    pub drums_path: String,
-    pub bass_path: String,
-    pub other_path: String,
+    /// Absolute path to the cached `.stem.mp4`.
+    pub path: String,
     pub generated_at: String,
     #[sea_orm(
         belongs_to,

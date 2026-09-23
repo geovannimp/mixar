@@ -463,17 +463,12 @@ impl LibraryManager {
         waveform::get_track_waveform_row(&self.db, id)
     }
 
-    /// Load stored stem file paths for a track, if present and all four files exist.
+    /// Load stored stem cache path for a track, if present and the `.stem.mp4` exists.
     pub fn get_track_stems(&self, id: &TrackId) -> Result<Option<stems::TrackStemsInfo>> {
-        Ok(stems::get_track_stems(&self.db, id)?.filter(|info| {
-            info.vocals_path.is_file()
-                && info.drums_path.is_file()
-                && info.bass_path.is_file()
-                && info.other_path.is_file()
-        }))
+        Ok(stems::get_track_stems(&self.db, id)?.filter(|info| info.path.is_file()))
     }
 
-    /// True when a complete stem row exists and all four stem files are on disk.
+    /// True when a complete stem row exists and the cached `.stem.mp4` is on disk.
     pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
         stems::has_track_stems(&self.db, id)
     }

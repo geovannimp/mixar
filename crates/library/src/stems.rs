@@ -37,10 +37,7 @@ pub struct TrackStemsInfo {
     pub source_fingerprint: String,
     pub format: String,
     pub sample_rate: i32,
-    pub vocals_path: PathBuf,
-    pub drums_path: PathBuf,
-    pub bass_path: PathBuf,
-    pub other_path: PathBuf,
+    pub path: PathBuf,
     pub generated_at: String,
 }
 
@@ -55,25 +52,13 @@ impl TrackStemsInfo {
                 row.format.clone()
             },
             sample_rate: row.sample_rate,
-            vocals_path: PathBuf::from(&row.vocals_path),
-            drums_path: PathBuf::from(&row.drums_path),
-            bass_path: PathBuf::from(&row.bass_path),
-            other_path: PathBuf::from(&row.other_path),
+            path: PathBuf::from(&row.path),
             generated_at: row.generated_at.clone(),
         }
     }
 
-    fn paths(&self) -> [&Path; 4] {
-        [
-            self.vocals_path.as_path(),
-            self.drums_path.as_path(),
-            self.bass_path.as_path(),
-            self.other_path.as_path(),
-        ]
-    }
-
     fn all_files_exist(&self) -> bool {
-        self.paths().iter().all(|p| p.is_file())
+        self.path.is_file()
     }
 
     fn matches(&self, fingerprint: &str, backend: &str, format: &str) -> bool {
@@ -107,13 +92,13 @@ fn fnv1a64(data: &[u8]) -> u64 {
     hash
 }
 
-/// Bounded collision-resistant directory name under `stems_root`.
+/// Bounded collision-resistant cache file name under `stems_root`.
 fn stem_cache_key(track_id: &TrackId) -> String {
     format!("{:016x}", fnv1a64(track_id.as_str().as_bytes()))
 }
 
-fn stem_output_dir(stems_root: &Path, track_id: &TrackId) -> PathBuf {
-    stems_root.join(stem_cache_key(track_id))
+fn stem_cache_path(stems_root: &Path, track_id: &TrackId) -> PathBuf {
+    stems_root.join(format!("{}.stem.mp4", stem_cache_key(track_id)))
 }
 
 /// Fingerprint of the decoded source used to build stems (path mtime/size + PCM shape).
@@ -155,6 +140,13 @@ fn demucs_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
+fn aac_not_implemented_error() -> LibraryError {
+    LibraryError::Backend {
+        backend: "stems",
+        message: "AAC stem encode is not implemented yet".into(),
+    }
+}
+
 pub(crate) fn has_track_stems(db: &Db, track_id: &TrackId) -> Result<bool> {
     Ok(get_track_stems(db, track_id)?.is_some_and(|info| info.all_files_exist()))
 }
@@ -173,6 +165,7 @@ fn has_valid_track_stems(
 fn normalize_stems_format(format: &str) -> &'static str {
     match format {
         "flac" => "flac",
+        "aac" => "aac",
         _ => "opus",
     }
 }
@@ -191,10 +184,7 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
         source_fingerprint: Set(info.source_fingerprint.clone()),
         format: Set(info.format.clone()),
         sample_rate: Set(info.sample_rate),
-        vocals_path: Set(info.vocals_path.to_string_lossy().into_owned()),
-        drums_path: Set(info.drums_path.to_string_lossy().into_owned()),
-        bass_path: Set(info.bass_path.to_string_lossy().into_owned()),
-        other_path: Set(info.other_path.to_string_lossy().into_owned()),
+        path: Set(info.path.to_string_lossy().into_owned()),
         generated_at: Set(info.generated_at.clone()),
     };
 
@@ -206,59 +196,13 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
                     track_stem::Column::SourceFingerprint,
                     track_stem::Column::Format,
                     track_stem::Column::SampleRate,
-                    track_stem::Column::VocalsPath,
-                    track_stem::Column::DrumsPath,
-                    track_stem::Column::BassPath,
-                    track_stem::Column::OtherPath,
+                    track_stem::Column::Path,
                     track_stem::Column::GeneratedAt,
                 ])
                 .to_owned(),
         )
         .exec(db.conn()?.as_connection())
         .map_err(db::db_err)?;
-    Ok(())
-}
-
-/// Write stems into a temp dir, then atomically publish to the track cache dir.
-fn publish_stem_dir(tmp_dir: &Path, final_dir: &Path) -> Result<()> {
-    if let Some(parent) = final_dir.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| LibraryError::Backend {
-            backend: "stems",
-            message: format!("create stems root: {e}"),
-        })?;
-    }
-
-    if !final_dir.exists() {
-        std::fs::rename(tmp_dir, final_dir).map_err(|e| LibraryError::Backend {
-            backend: "stems",
-            message: stem_io_message(&e),
-        })?;
-        return Ok(());
-    }
-
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let old_dir = final_dir.with_file_name(format!(
-        ".{}.old-{stamp}",
-        final_dir
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("stems")
-    ));
-    std::fs::rename(final_dir, &old_dir).map_err(|e| LibraryError::Backend {
-        backend: "stems",
-        message: format!("park old stems dir: {e}"),
-    })?;
-    if let Err(e) = std::fs::rename(tmp_dir, final_dir) {
-        let _ = std::fs::rename(&old_dir, final_dir);
-        return Err(LibraryError::Backend {
-            backend: "stems",
-            message: format!("publish stems dir: {e}"),
-        });
-    }
-    let _ = std::fs::remove_dir_all(&old_dir);
     Ok(())
 }
 
@@ -273,6 +217,9 @@ pub(crate) fn ensure_track_stems_on(
 ) -> Result<()> {
     let backend = expected_backend();
     let format = normalize_stems_format(format);
+    if format == "aac" {
+        return Err(aac_not_implemented_error());
+    }
     let path = {
         let source = library
             .get_track(id)?
@@ -283,6 +230,11 @@ pub(crate) fn ensure_track_stems_on(
             .path()
             .to_path_buf()
     };
+
+    #[cfg(feature = "analysis")]
+    if codec::is_stem_path(&path) {
+        return Ok(());
+    }
 
     let cached = {
         let cache = LibraryManager::lock_decode_cache(&library.decode_cache)?;
@@ -364,87 +316,120 @@ fn generate_stem_files(
     #[cfg(feature = "analysis")]
     {
         let format = normalize_stems_format(format);
-        let stem_format = analyzer_stems::StemAudioFormat::parse(format)
-            .unwrap_or(analyzer_stems::StemAudioFormat::Opus);
-        let ext = stem_format.extension();
-        let key = stem_cache_key(id);
-        let final_dir = stem_output_dir(stems_root, id);
-        let stamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        let tmp_dir = stems_root.join(format!(".{key}.tmp-{stamp}"));
-        let _ = std::fs::remove_dir_all(&tmp_dir);
-        std::fs::create_dir_all(&tmp_dir).map_err(|e| LibraryError::Backend {
-            backend: "stems",
-            message: stem_io_message(&e),
-        })?;
+        if format == "aac" {
+            return Err(aac_not_implemented_error());
+        }
 
-        // Fraction stays unknown until the first chunk finishes.
+        let mux_format = match format {
+            "flac" => codec::StemMuxFormat::Flac,
+            _ => codec::StemMuxFormat::Opus,
+        };
+        let stem_rate = analyzer_stems::STEM_SAMPLE_RATE;
+        let mux_rate = match mux_format {
+            codec::StemMuxFormat::Opus => codec::OPUS_SAMPLE_RATE,
+            codec::StemMuxFormat::Flac => stem_rate,
+        };
+
+        let handle =
+            analyzer_stems::resolve_model(models_root, analyzer_stems::DEFAULT_MODEL, None)
+                .map_err(|e| LibraryError::Backend {
+                    backend: "stems",
+                    message: e.to_string(),
+                })?;
+
         report("stems_separate", None);
         let progress_for_split = progress.clone();
-        let split_result =
-            analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
-                interleaved_stereo: &audio.samples,
-                sample_rate: audio.sample_rate,
-                output_dir: &tmp_dir,
-                models_root,
-                model_name: analyzer_stems::DEFAULT_MODEL,
-                format: stem_format,
-                on_window_progress: Some(Box::new(move |done, total| {
-                    if total > 0 {
-                        if let Some(cb) = progress_for_split.as_ref() {
-                            if done == 0 {
-                                cb("stems_separate", None);
-                            } else {
-                                cb("stems_separate", Some(done as f32 / total as f32));
-                            }
+        let (stems, ep) = analyzer_stems::separate_interleaved(
+            &handle.local_path,
+            &audio.samples,
+            audio.sample_rate,
+            Some(&|done: usize, total: usize| {
+                if total > 0 {
+                    if let Some(cb) = progress_for_split.as_ref() {
+                        if done == 0 {
+                            cb("stems_separate", None);
+                        } else {
+                            cb("stems_separate", Some(done as f32 / total as f32));
                         }
                     }
-                })),
-            })
-            .map_err(|e| LibraryError::Backend {
+                }
+            }),
+        )
+        .map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: e.to_string(),
+        })?;
+
+        report("stems_encode", Some(0.0));
+
+        let mixdown = analyzer_stems::resample_interleaved_stereo(
+            &audio.samples,
+            audio.sample_rate,
+            mux_rate,
+        )
+        .map_err(|e| LibraryError::Backend {
+            backend: "stems",
+            message: format!("resample mixdown: {e}"),
+        })?;
+
+        let stems_at_rate: [Vec<f32>; 4] = if mux_rate == stem_rate {
+            stems
+        } else {
+            let mut out = std::array::from_fn(|_| Vec::new());
+            for (i, stem) in stems.into_iter().enumerate() {
+                out[i] = analyzer_stems::resample_interleaved_stereo(&stem, stem_rate, mux_rate)
+                    .map_err(|e| LibraryError::Backend {
+                        backend: "stems",
+                        message: format!("resample stem {i}: {e}"),
+                    })?;
+            }
+            out
+        };
+
+        let final_path = stem_cache_path(stems_root, id);
+        if let Some(parent) = final_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| LibraryError::Backend {
+                backend: "stems",
+                message: stem_io_message(&e),
+            })?;
+        }
+
+        let stem_refs = [
+            stems_at_rate[0].as_slice(),
+            stems_at_rate[1].as_slice(),
+            stems_at_rate[2].as_slice(),
+            stems_at_rate[3].as_slice(),
+        ];
+        if let Err(e) = codec::encode_stem_mp4(
+            &final_path,
+            mux_format,
+            mux_rate,
+            &mixdown,
+            stem_refs,
+            &codec::StemAtom::default_ni(),
+        ) {
+            let _ = std::fs::remove_file(&final_path);
+            return Err(LibraryError::Backend {
                 backend: "stems",
                 message: e.to_string(),
             });
-
-        let result = match split_result {
-            Ok(r) => r,
-            Err(e) => {
-                let _ = std::fs::remove_dir_all(&tmp_dir);
-                return Err(e);
-            }
-        };
-
-        report("stems_encode", Some(0.0));
-        if let Err(e) = publish_stem_dir(&tmp_dir, &final_dir) {
-            let _ = std::fs::remove_dir_all(&tmp_dir);
-            return Err(e);
         }
+
+        if !final_path.is_file() {
+            return Err(LibraryError::Backend {
+                backend: "stems",
+                message: format!("missing published stem {}", final_path.display()),
+            });
+        }
+
         report("stems_encode", Some(1.0));
 
-        let vocals_path = final_dir.join(format!("vocals.{ext}"));
-        let drums_path = final_dir.join(format!("drums.{ext}"));
-        let bass_path = final_dir.join(format!("bass.{ext}"));
-        let other_path = final_dir.join(format!("other.{ext}"));
-        for p in [&vocals_path, &drums_path, &bass_path, &other_path] {
-            if !p.is_file() {
-                return Err(LibraryError::Backend {
-                    backend: "stems",
-                    message: format!("missing published stem {}", p.display()),
-                });
-            }
-        }
-
         Ok(TrackStemsInfo {
-            backend: result.backend,
+            backend: format!("{}/{ep}", analyzer_stems::DEFAULT_MODEL),
             source_fingerprint: fingerprint.to_string(),
             format: format.to_string(),
-            sample_rate: result.sample_rate as i32,
-            vocals_path,
-            drums_path,
-            bass_path,
-            other_path,
+            sample_rate: mux_rate as i32,
+            path: final_path,
             generated_at: now_iso(),
         })
     }
@@ -502,6 +487,9 @@ pub fn ensure_track_stems_with_progress(
 
     let backend = expected_backend();
     let format = normalize_stems_format(format);
+    if format == "aac" {
+        return Err(aac_not_implemented_error());
+    }
     let path = {
         let lib = LibraryManager::lock_library(library)?;
         let source = lib
@@ -513,6 +501,11 @@ pub fn ensure_track_stems_with_progress(
             .path()
             .to_path_buf()
     };
+
+    #[cfg(feature = "analysis")]
+    if codec::is_stem_path(&path) {
+        return Ok(());
+    }
 
     report("decode", None);
     let cached = {
@@ -713,6 +706,15 @@ mod tests {
     }
 
     #[test]
+    fn stem_cache_path_uses_stem_mp4_suffix() {
+        let root = Path::new("/stems");
+        let id = TrackId::new("/music/track.wav");
+        let path = stem_cache_path(root, &id);
+        assert!(path.to_string_lossy().ends_with(".stem.mp4"));
+        assert_eq!(path.parent().unwrap(), root);
+    }
+
+    #[test]
     fn dir_size_sums_nested_files() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("a/b")).unwrap();
@@ -723,14 +725,14 @@ mod tests {
     }
 
     #[test]
-    fn dir_size_includes_dot_ephemeral_dirs() {
+    fn dir_size_includes_dot_ephemeral_files() {
         let dir = tempfile::tempdir().unwrap();
-        let published = dir.path().join("abcd1234efgh5678");
-        let tmp = dir.path().join(".abcd1234efgh5678.tmp-1");
-        std::fs::create_dir_all(&published).unwrap();
-        std::fs::create_dir_all(&tmp).unwrap();
-        std::fs::write(published.join("vocals.opus"), [0u8; 20]).unwrap();
-        std::fs::write(tmp.join("vocals.opus"), [0u8; 100]).unwrap();
+        std::fs::write(dir.path().join("abcd1234efgh5678.stem.mp4"), [0u8; 20]).unwrap();
+        std::fs::write(
+            dir.path().join(".abcd1234efgh5678.stem.mp4.tmp"),
+            [0u8; 100],
+        )
+        .unwrap();
         assert_eq!(dir_size(dir.path()), 120);
     }
 
@@ -738,8 +740,9 @@ mod tests {
     fn clear_all_track_stems_wipes_files() {
         let dir = tempfile::tempdir().unwrap();
         let stems = dir.path().join("stems");
-        std::fs::create_dir_all(stems.join("abcd")).unwrap();
-        std::fs::write(stems.join("abcd/vocals.opus"), b"opus").unwrap();
+        std::fs::create_dir_all(stems.join("legacy_dir")).unwrap();
+        std::fs::write(stems.join("abcd.stem.mp4"), b"stem").unwrap();
+        std::fs::write(stems.join("legacy_dir/vocals.opus"), b"opus").unwrap();
         let db_path = dir.path().join("library.db");
         let library = LibraryManager::open(&db_path, LibraryConfig::default()).unwrap();
 
@@ -765,22 +768,14 @@ mod tests {
     #[test]
     fn stems_format_mismatch_fails_matches() {
         let dir = tempfile::tempdir().unwrap();
-        let v = dir.path().join("vocals.opus");
-        let d = dir.path().join("drums.opus");
-        let b = dir.path().join("bass.opus");
-        let o = dir.path().join("other.opus");
-        for p in [&v, &d, &b, &o] {
-            std::fs::write(p, b"x").unwrap();
-        }
+        let path = dir.path().join("cache.stem.mp4");
+        std::fs::write(&path, b"x").unwrap();
         let info = TrackStemsInfo {
             backend: "htdemucs_mixxx_v1".into(),
             source_fingerprint: "fp".into(),
             format: "opus".into(),
             sample_rate: 48_000,
-            vocals_path: v,
-            drums_path: d,
-            bass_path: b,
-            other_path: o,
+            path,
             generated_at: "1".into(),
         };
         assert!(info.matches("fp", "htdemucs_mixxx_v1", "opus"));
@@ -791,8 +786,16 @@ mod tests {
     fn normalize_stems_format_defaults_unknown_to_opus() {
         assert_eq!(normalize_stems_format("flac"), "flac");
         assert_eq!(normalize_stems_format("opus"), "opus");
+        assert_eq!(normalize_stems_format("aac"), "aac");
         assert_eq!(normalize_stems_format("wav"), "opus");
         assert_eq!(normalize_stems_format(""), "opus");
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn is_stem_source_path_is_detected() {
+        assert!(codec::is_stem_path(Path::new("/music/track.stem.mp4")));
+        assert!(!codec::is_stem_path(Path::new("/music/track.wav")));
     }
 }
 

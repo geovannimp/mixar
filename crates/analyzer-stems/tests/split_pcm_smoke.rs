@@ -4,9 +4,7 @@
 //! cargo test -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke -- --ignored --nocapture
 //! ```
 
-use analyzer_stems::{
-    split_interleaved_stereo, StemAudioFormat, StemSplitRequest, DEFAULT_MODEL, STEM_NAMES,
-};
+use analyzer_stems::{split_interleaved_stereo, StemSplitRequest, DEFAULT_MODEL, STEM_NAMES};
 use std::f32::consts::TAU;
 
 #[test]
@@ -25,36 +23,28 @@ fn split_short_synthetic_pcm() {
     let dir = tempfile::tempdir().expect("tempdir");
     let models = dir.path().join("models");
     std::fs::create_dir_all(&models).expect("models dir");
-    let out = dir.path().join("out");
-    std::fs::create_dir_all(&out).expect("out dir");
 
     let result = split_interleaved_stereo(StemSplitRequest {
         interleaved_stereo: &pcm,
         sample_rate,
-        output_dir: &out,
         models_root: &models,
         model_name: DEFAULT_MODEL,
-        format: StemAudioFormat::Opus,
         on_window_progress: None,
     })
     .expect("split");
 
-    assert_eq!(result.sample_rate, 48_000); // Opus resample target
+    assert_eq!(result.sample_rate, 44_100);
     assert!(
         result.backend.starts_with(&format!("{DEFAULT_MODEL}/")),
         "backend {}",
         result.backend
     );
     for (i, name) in STEM_NAMES.iter().enumerate() {
-        let path = &result.paths[i];
+        let stem = &result.stems[i];
+        assert!(!stem.is_empty(), "{name} stem should have PCM samples");
         assert!(
-            path.ends_with(format!("{name}.opus")),
-            "path {} should be {name}.opus",
-            path.display()
+            stem.len().is_multiple_of(2),
+            "{name} should be interleaved stereo"
         );
-        let meta = std::fs::metadata(path).unwrap_or_else(|e| {
-            panic!("missing {}: {e}", path.display());
-        });
-        assert!(meta.len() > 0, "{} empty", path.display());
     }
 }

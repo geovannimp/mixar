@@ -13,6 +13,7 @@ engine-core = { path = "../engine-core" }
 fs-browser = { path = "../fs-browser" }
 flutter_rust_bridge = "=2.12.0"
 audio-core = { path = "../audio-core" }
+codec = { path = "../codec" }
 controller = { path = "../controller" }
 library = { path = "../library" }
 library-api = { path = "../library-api" }

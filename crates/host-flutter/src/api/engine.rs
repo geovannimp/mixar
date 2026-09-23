@@ -18,7 +18,7 @@ use library::{
 use library_api::{
     decode_evt_body as decode_library_evt_body, EvtBody as LibraryEvtBody, Kind as LibraryKind,
 };
-use library_core::{AudioSource, FileAudioSource, LoadableAudio, TrackId};
+use library_core::{AudioSource, TrackId};
 
 use crate::api::history_worker::HistoryWorker;
 use crate::api::library::LibraryTransport;
@@ -247,22 +247,18 @@ fn chrome_from_prepared(prepared: &PreparedTrackPlayback) -> SamplerSlotChrome {
 }
 
 fn load_stem_buffers(info: &TrackStemsInfo) -> Result<[Arc<audio_core::LoadedAudio>; 4], String> {
-    let paths = [
-        info.vocals_path.as_path(),
-        info.drums_path.as_path(),
-        info.bass_path.as_path(),
-        info.other_path.as_path(),
-    ];
-    let mut loaded = Vec::with_capacity(4);
-    for path in paths {
-        let audio = FileAudioSource::from_path(path)
-            .load()
-            .map_err(|e| format!("decode {}: {e}", path.display()))?;
-        loaded.push(Arc::new(audio));
-    }
-    loaded
-        .try_into()
-        .map_err(|_| "expected four stem buffers".to_string())
+    let bundle = codec::decode_stem_file(&info.path)
+        .map_err(|e| format!("decode {}: {e}", info.path.display()))?;
+    let source_id = info.path.to_string_lossy();
+    let labels = ["drums", "bass", "other", "vocals"];
+    Ok(std::array::from_fn(|i| {
+        Arc::new(audio_core::LoadedAudio {
+            samples: bundle.stems[i].clone(),
+            sample_rate: bundle.sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#{}", labels[i]),
+        })
+    }))
 }
 
 /// Background ensure + attach for one deck/track (load path and post-analyze).
