@@ -28,7 +28,7 @@
 {app_support}/
   library.db
   settings.json
-  stems/{fnv64(track_id)}/*.{opus,flac}
+  stems/{fnv64(track_id)}/*.{opus,flac}   ← superseded by NI `.stem.mp4` (see docs/superpowers/specs/2026-09-23-ni-stem-mp4-cache-design.md)
   models/{name}-{sha8}.onnx          ← HTDemucs ONNX (Mixxx `htdemucs_mixxx_v1`)
 
 analyzer-stems::ensure_model(models_root, name)

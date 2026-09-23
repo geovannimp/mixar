@@ -79,5 +79,9 @@ void main() {
       ),
       isTrue,
     );
+    expect(
+      appSettingsDirty(copyAppSettings(baseline, stemsFormat: 'aac'), baseline),
+      isTrue,
+    );
   });
 }

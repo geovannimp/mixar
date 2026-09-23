@@ -19,7 +19,7 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
 | Inference | **pykeio/ort** + Mixxx HTDemucs ONNX (`htdemucs_mixxx_v1`) via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — see `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
-| Stem files | Opus (default) or FLAC under `{app_support}/stems/{fnv64(track_id)}/` |
+| Stem files | Opus (default) or FLAC under `{app_support}/stems/{fnv64(track_id)}/` — cache format superseded by NI `.stem.mp4`; see `docs/superpowers/specs/2026-09-23-ni-stem-mp4-cache-design.md` |
 | Model weights | Mixar `{app_support}/models/` ONNX download/verify; Mixar owns **stem audio** paths in DB — see `docs/stems-storage-models-design.md` |
 | Realtime | Document only (see below) |
 | charon-audio | **Not a product dependency** (see findings) |

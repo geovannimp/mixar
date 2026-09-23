@@ -75,6 +75,17 @@ class SettingsLibraryPanel extends StatelessWidget {
   static String _keyColorLabel(KeyColorModeSetting mode) =>
       _keyColorModes.firstWhere((m) => m.$1 == mode).$2;
 
+  static const _stemsFormats = ['opus', 'flac', 'aac'];
+
+  static String _normalizedStemsFormat(String format) =>
+      _stemsFormats.contains(format) ? format : 'opus';
+
+  static String _stemsFormatLabel(String format) => switch (format) {
+    'flac' => 'FLAC (lossless)',
+    'aac' => 'AAC',
+    _ => 'Opus (160 kbps)',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
@@ -145,10 +156,9 @@ class SettingsLibraryPanel extends StatelessWidget {
           SettingsField(
             label: 'Stem format',
             child: SettingsSelect<String>(
-              value: draft.stemsFormat == 'flac' ? 'flac' : 'opus',
-              options: const ['opus', 'flac'],
-              labelBuilder: (v) =>
-                  v == 'opus' ? 'Opus (160 kbps)' : 'FLAC (lossless)',
+              value: _normalizedStemsFormat(draft.stemsFormat),
+              options: _stemsFormats,
+              labelBuilder: _stemsFormatLabel,
               onChanged: (v) =>
                   onChanged(copyAppSettings(draft, stemsFormat: v)),
             ),
