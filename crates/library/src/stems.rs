@@ -79,9 +79,14 @@ impl TrackStemsInfo {
     fn matches(&self, fingerprint: &str, backend: &str, format: &str) -> bool {
         self.all_files_exist()
             && self.source_fingerprint == fingerprint
-            && self.backend == backend
+            && model_id(&self.backend) == model_id(backend)
             && self.format == format
     }
+}
+
+/// Model id from a `{model}/{ep}` tag: stems are interchangeable across EPs.
+fn model_id(backend: &str) -> &str {
+    backend.split_once('/').map_or(backend, |(model, _)| model)
 }
 
 fn now_iso() -> String {
@@ -375,7 +380,8 @@ fn generate_stem_files(
             message: stem_io_message(&e),
         })?;
 
-        report("stems_separate", Some(0.0));
+        // Fraction stays unknown until the first chunk finishes.
+        report("stems_separate", None);
         let progress_for_split = progress.clone();
         let split_result =
             analyzer_stems::split_interleaved_stereo(analyzer_stems::StemSplitRequest {
@@ -388,7 +394,11 @@ fn generate_stem_files(
                 on_window_progress: Some(Box::new(move |done, total| {
                     if total > 0 {
                         if let Some(cb) = progress_for_split.as_ref() {
-                            cb("stems_separate", Some(done as f32 / total as f32));
+                            if done == 0 {
+                                cb("stems_separate", None);
+                            } else {
+                                cb("stems_separate", Some(done as f32 / total as f32));
+                            }
                         }
                     }
                 })),
@@ -763,7 +773,7 @@ mod tests {
             std::fs::write(p, b"x").unwrap();
         }
         let info = TrackStemsInfo {
-            backend: "htdemucs_ort_v1".into(),
+            backend: "htdemucs_mixxx_v1".into(),
             source_fingerprint: "fp".into(),
             format: "opus".into(),
             sample_rate: 48_000,
@@ -773,8 +783,8 @@ mod tests {
             other_path: o,
             generated_at: "1".into(),
         };
-        assert!(info.matches("fp", "htdemucs_ort_v1", "opus"));
-        assert!(!info.matches("fp", "htdemucs_ort_v1", "flac"));
+        assert!(info.matches("fp", "htdemucs_mixxx_v1", "opus"));
+        assert!(!info.matches("fp", "htdemucs_mixxx_v1", "flac"));
     }
 
     #[test]

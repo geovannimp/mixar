@@ -4,16 +4,29 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Offline stem separation for Mixar (HTDemucs via stem-splitter-core)"
+description = "Offline stem separation for Mixar (HTDemucs via ort + Mixxx ONNX)"
+
+[features]
+# Desktop default: WebGPU (Vulkan/DX12/Metal) so GPUs work without a CUDA toolkit.
+# Only one ORT EP feature — `cargo build --all-features` (moon CI) must not enable
+# cuda/nvrtx alongside webgpu; ort-sys has no joint prebuilt and falls back to the
+# CPU tarball while still emitting `-lwebgpu_dawn`.
+default = ["webgpu"]
+webgpu = ["ort/webgpu"]
 
 [dependencies]
 anyhow.workspace = true
 flacenc = "0.5"
-libloading = "0.8"
+hex = "0.4"
+libc = "0.2"
+ort = "=2.0.0-rc.11"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 resampler = { path = "../resampler" }
 ruopus = "0.1"
+serde = { workspace = true }
 serde_json = "1"
-stem-splitter-core = "1.2"
+sha2 = "0.10"
+tracing.workspace = true
 
 [dev-dependencies]
 tempfile = "3.0"

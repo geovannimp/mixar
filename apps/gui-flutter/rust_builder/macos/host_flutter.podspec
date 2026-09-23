@@ -32,8 +32,11 @@ A new Flutter FFI plugin project.
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
-    # created by this build step.
-    :output_files => ["${BUILT_PRODUCTS_DIR}/libhost_flutter.a"],
+    # created by this build step. Dawn is ORT WebGPU's runtime sidecar.
+    :output_files => [
+      "${BUILT_PRODUCTS_DIR}/libhost_flutter.a",
+      "${BUILT_PRODUCTS_DIR}/libwebgpu_dawn.dylib",
+    ],
   }
   # force_load of the static Rust lib does not pull cargo's framework link args;
   # midir/cpal need these for universal (x86_64) Flutter macOS links.
@@ -42,6 +45,7 @@ A new Flutter FFI plugin project.
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a',
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn',
+    'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
   }
 end

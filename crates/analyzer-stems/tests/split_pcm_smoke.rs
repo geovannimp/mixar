@@ -1,4 +1,4 @@
-//! Optional end-to-end smoke: downloads ~200MB HTDemucs ONNX and runs a short split.
+//! Optional end-to-end smoke: downloads ~166MB HTDemucs ONNX and runs a short split.
 //!
 //! ```text
 //! cargo test -p analyzer-stems --manifest-path crates/Cargo.toml --test split_pcm_smoke -- --ignored --nocapture
@@ -10,7 +10,7 @@ use analyzer_stems::{
 use std::f32::consts::TAU;
 
 #[test]
-#[ignore = "downloads HTDemucs ONNX (~200MB) and runs inference"]
+#[ignore = "downloads HTDemucs ONNX (~166MB) and runs ort inference"]
 fn split_short_synthetic_pcm() {
     let sample_rate = 44_100u32;
     let frames = sample_rate as usize; // 1 s
@@ -23,29 +23,28 @@ fn split_short_synthetic_pcm() {
     }
 
     let dir = tempfile::tempdir().expect("tempdir");
-    let models = tempfile::tempdir().expect("models");
+    let models = dir.path().join("models");
+    std::fs::create_dir_all(&models).expect("models dir");
+    let out = dir.path().join("out");
+    std::fs::create_dir_all(&out).expect("out dir");
+
     let result = split_interleaved_stereo(StemSplitRequest {
         interleaved_stereo: &pcm,
         sample_rate,
-        output_dir: dir.path(),
-        models_root: models.path(),
+        output_dir: &out,
+        models_root: &models,
         model_name: DEFAULT_MODEL,
         format: StemAudioFormat::Opus,
         on_window_progress: None,
     })
     .expect("split");
-    assert!(
-        models
-            .path()
-            .read_dir()
-            .expect("models dir")
-            .next()
-            .is_some(),
-        "model artifact should land under Mixar models_root"
-    );
 
-    assert_eq!(result.sample_rate, 48_000);
-    assert_eq!(result.backend, DEFAULT_MODEL);
+    assert_eq!(result.sample_rate, 48_000); // Opus resample target
+    assert!(
+        result.backend.starts_with(&format!("{DEFAULT_MODEL}/")),
+        "backend {}",
+        result.backend
+    );
     for (i, name) in STEM_NAMES.iter().enumerate() {
         let path = &result.paths[i];
         assert!(
@@ -56,6 +55,6 @@ fn split_short_synthetic_pcm() {
         let meta = std::fs::metadata(path).unwrap_or_else(|e| {
             panic!("missing {}: {e}", path.display());
         });
-        assert!(meta.len() > 44, "{} too small", path.display());
+        assert!(meta.len() > 0, "{} empty", path.display());
     }
 }

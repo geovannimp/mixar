@@ -13,7 +13,11 @@ apply_cargokit(${PROJECT_NAME} ../../../../crates/host-flutter host_flutter "")
 # List of absolute paths to libraries that should be bundled with the plugin.
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
+#
+# ORT WebGPU: Dawn sidecar (copied by cargokit build_cmake next to the cdylib).
+# Required when analyzer-stems default feature `webgpu` is enabled.
 set(host_flutter_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
+  "${CMAKE_CURRENT_BINARY_DIR}/libwebgpu_dawn.so"
   PARENT_SCOPE
 )

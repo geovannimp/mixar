@@ -10,6 +10,7 @@ import 'builder.dart';
 import 'environment.dart';
 import 'options.dart';
 import 'target.dart';
+import 'util.dart';
 
 class BuildCMake {
   final CargokitUserOptions userOptions;
@@ -34,6 +35,9 @@ class BuildCMake {
       if (lib.type == AritifactType.dylib) {
         File(lib.path)
             .copySync(path.join(Environment.outputDir, lib.finalFileName));
+        // ORT WebGPU links libwebgpu_dawn.*; cargo places it next to the
+        // cdylib but cargokit only copied the crate artifact.
+        copyOrtDawnSidecars(path.dirname(lib.path), Environment.outputDir);
       }
     }
   }
