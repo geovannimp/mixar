@@ -86,7 +86,7 @@ pub struct Deck {
     processing: bool,
     /// Shared decoded audio (cache and multiple decks can reference the same buffer).
     loaded: Option<Arc<LoadedAudio>>,
-    /// Optional four stem layers (vocals, drums, bass, other), same playhead as `loaded`.
+    /// Optional four stem layers (drums, bass, other, vocals — NI index order), same playhead as `loaded`.
     stems: Option<[Arc<LoadedAudio>; 4]>,
     /// Per-stem mute (true = silent).
     stem_mute: [bool; 4],
@@ -821,7 +821,7 @@ impl Deck {
         Ok(())
     }
 
-    /// Attach four stem buffers (vocals, drums, bass, other). Cleared on next [`Self::load`].
+    /// Attach four stem buffers (drums, bass, other, vocals — NI index order). Cleared on next [`Self::load`].
     pub fn attach_stems(&mut self, stems: [Arc<LoadedAudio>; 4]) {
         self.stems = Some(stems);
         self.stem_mute = [false; 4];
@@ -1870,6 +1870,55 @@ mod tests {
         let (l, _) = deck.mix_at_position(2.0, &[], 48_000);
         // Four stems * 0.75 at stem frame 1.
         assert!((l - 3.0).abs() < 1e-5, "scaled stem sample={l}");
+    }
+
+    #[test]
+    fn stems_ni_index_order_mute_zero_silences_drums() {
+        // NI attach order: drums (0), bass (1), other (2), vocals (3).
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.0f32; CHUNK * 2], ENGINE_RATE);
+
+        fn stem_with_level(level: f32) -> Arc<LoadedAudio> {
+            Arc::new(LoadedAudio {
+                samples: vec![level; CHUNK * 2 * 4],
+                sample_rate: ENGINE_RATE,
+                channels: 2,
+                source_id: "stem.wav".into(),
+            })
+        }
+
+        deck.attach_stems([
+            stem_with_level(0.4),
+            stem_with_level(0.3),
+            stem_with_level(0.2),
+            stem_with_level(0.1),
+        ]);
+        deck.stem_gain_current.fill(1.0);
+
+        let (full, _) = deck.mix_at_position(0.0, &[], ENGINE_RATE);
+        assert!(
+            (full - 1.0).abs() < 1e-5,
+            "all four stems audible at pos 0, got {full}"
+        );
+
+        deck.set_stem_mute(0, true);
+        deck.stem_gain_current[0] = 0.0;
+        let (without_drums, _) = deck.mix_at_position(0.0, &[], ENGINE_RATE);
+        assert!(
+            (without_drums - 0.6).abs() < 1e-5,
+            "index 0 is drums: mute removes 0.4, got {without_drums}"
+        );
+
+        deck.set_stem_mute(0, false);
+        deck.set_stem_mute(3, true);
+        for i in 0..4 {
+            deck.stem_gain_current[i] = deck.stem_target_gain(i);
+        }
+        let (without_vocals, _) = deck.mix_at_position(0.0, &[], ENGINE_RATE);
+        assert!(
+            (without_vocals - 0.9).abs() < 1e-5,
+            "index 3 is vocals: mute removes 0.1, got {without_vocals}"
+        );
     }
 
     #[test]
