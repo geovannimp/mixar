@@ -29,7 +29,7 @@ pub struct StemSplitRequest<'a> {
 pub struct StemSplitResult {
     pub paths: [PathBuf; 4],
     pub sample_rate: u32,
-    /// `{model id}/{ep}`, e.g. `htdemucs_ort_v2/cpu`.
+    /// `{model id}/{ep}`, e.g. `htdemucs_mixxx_v1/webgpu`.
     pub backend: String,
 }
 

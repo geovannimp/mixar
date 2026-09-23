@@ -1,7 +1,7 @@
 //! Chunked StemSplit HTDemucs ONNX inference over interleaved stereo PCM.
 //!
-//! Overlap-add mirrors Demucs `apply_model` (25 % overlap / triangular fade) from
-//! the Burn path; each chunk is a single ORT forward with StemSplit I/O shapes.
+//! Overlap-add matches StemSplit `infer.py`: 25 % overlap, stride = N − overlap,
+//! linear fade on the overlap only (complementary → weight sum ≡ 1 in seams).
 
 use std::path::Path;
 use std::time::Instant;
@@ -17,8 +17,9 @@ use crate::session::{self, SEGMENT_SAMPLES};
 pub const SAMPLE_RATE: u32 = 44_100;
 /// Four stems.
 pub const SOURCES: usize = 4;
-/// 25 % overlap → stride is 75 % of the segment (same math as Burn `CHUNK_STRIDE`).
-const CHUNK_STRIDE: usize = SEGMENT_SAMPLES * 3 / 4;
+/// StemSplit: `overlap = N // 4`, `stride = N - overlap`.
+const OVERLAP: usize = SEGMENT_SAMPLES / 4;
+const CHUNK_STRIDE: usize = SEGMENT_SAMPLES - OVERLAP;
 /// ONNX stem order is drums, bass, other, vocals; Mixar is vocals, drums, bass, other.
 const SOURCE_ORDER: [usize; SOURCES] = [3, 0, 1, 2];
 
@@ -59,11 +60,19 @@ pub fn separate_interleaved(
     );
 
     let started = Instant::now();
-    let (stems, ep) = session::with_session(weights, |ort_session, ep_label| {
-        info!(ep = ep_label, "stem separate: ORT session");
-        let stems = overlap_add(&pcm, on_progress, |chunk| run_chunk(ort_session, chunk))?;
-        Ok((stems, ep_label))
-    })?;
+    let (stems, ep) =
+        session::with_session(weights, |ort_session, ep_label, in_name, out_name| {
+            info!(
+                ep = ep_label,
+                input = in_name,
+                output = out_name,
+                "stem separate: ORT session"
+            );
+            let stems = overlap_add(&pcm, on_progress, |chunk| {
+                run_chunk(ort_session, chunk, in_name, out_name)
+            })?;
+            Ok((stems, ep_label))
+        })?;
 
     info!(
         frames,
@@ -75,7 +84,12 @@ pub fn separate_interleaved(
     Ok((stems, ep))
 }
 
-fn run_chunk(session: &mut ort::session::Session, chunk: &[f32]) -> Result<[Vec<f32>; SOURCES]> {
+fn run_chunk(
+    session: &mut ort::session::Session,
+    chunk: &[f32],
+    input_name: &str,
+    output_name: &str,
+) -> Result<[Vec<f32>; SOURCES]> {
     debug_assert_eq!(chunk.len(), SEGMENT_SAMPLES * 2);
 
     // Interleaved → planar (1, 2, L) channel-major.
@@ -88,11 +102,11 @@ fn run_chunk(session: &mut ort::session::Session, chunk: &[f32]) -> Result<[Vec<
     let input =
         Tensor::from_array(([1usize, 2, SEGMENT_SAMPLES], planar)).context("ort mix tensor")?;
     let outputs = session
-        .run(ort::inputs!["mix" => input])
+        .run(ort::inputs![input_name => input])
         .context("ort stems run")?;
     let stems_val = outputs
-        .get("stems")
-        .ok_or_else(|| anyhow::anyhow!("ORT output missing 'stems'"))?;
+        .get(output_name)
+        .ok_or_else(|| anyhow::anyhow!("ORT output missing '{output_name}'"))?;
     let (shape, data) = stems_val
         .try_extract_tensor::<f32>()
         .context("extract stems tensor")?;
@@ -119,15 +133,53 @@ fn run_chunk(session: &mut ort::session::Session, chunk: &[f32]) -> Result<[Vec<
     Ok(out)
 }
 
-/// Triangular fade, peaking mid-chunk and normalised to 1 (`transition_power = 1`).
+/// StemSplit-style OLA window: 1.0 in the middle, linear fade over `OVERLAP`.
 fn chunk_weights() -> Vec<f32> {
-    let half = SEGMENT_SAMPLES / 2;
-    (0..SEGMENT_SAMPLES)
-        .map(|i| {
-            let raw = if i < half { i + 1 } else { SEGMENT_SAMPLES - i };
-            raw as f32 / half as f32
-        })
-        .collect()
+    let n = SEGMENT_SAMPLES;
+    let mut w = vec![1.0f32; n];
+    if OVERLAP <= 1 {
+        return w;
+    }
+    let denom = (OVERLAP - 1) as f32;
+    for i in 0..OVERLAP {
+        let fade = i as f32 / denom;
+        w[i] = fade;
+        w[n - OVERLAP + i] = (OVERLAP - 1 - i) as f32 / denom;
+    }
+    w
+}
+
+/// Copy `valid` frames from `pcm` at `offset`; reflect-pad the rest of the segment
+/// so the model does not see a hard zero cliff (zero-pad → edge glitches).
+fn fill_chunk_reflect(pcm: &[f32], frames: usize, offset: usize, valid: usize, chunk: &mut [f32]) {
+    debug_assert_eq!(chunk.len(), SEGMENT_SAMPLES * 2);
+    chunk.fill(0.0);
+    if valid == 0 || frames == 0 {
+        return;
+    }
+    chunk[..valid * 2].copy_from_slice(&pcm[offset * 2..(offset + valid) * 2]);
+    if valid >= SEGMENT_SAMPLES {
+        return;
+    }
+    if valid == 1 {
+        let l = chunk[0];
+        let r = chunk[1];
+        for i in 1..SEGMENT_SAMPLES {
+            chunk[i * 2] = l;
+            chunk[i * 2 + 1] = r;
+        }
+        return;
+    }
+    // Numpy `mode='reflect'`: period 2*(valid-1), fold the second half back.
+    let period = 2 * (valid - 1);
+    for i in valid..SEGMENT_SAMPLES {
+        let mut x = i % period;
+        if x >= valid {
+            x = period - x;
+        }
+        chunk[i * 2] = chunk[x * 2];
+        chunk[i * 2 + 1] = chunk[x * 2 + 1];
+    }
 }
 
 /// Run `separate_chunk` over overlapping [`SEGMENT_SAMPLES`] chunks and blend.
@@ -154,8 +206,7 @@ fn overlap_add(
     for index in 0..total {
         let offset = index * CHUNK_STRIDE;
         let valid = (frames - offset).min(SEGMENT_SAMPLES);
-        chunk.fill(0.0);
-        chunk[..valid * 2].copy_from_slice(&pcm[offset * 2..(offset + valid) * 2]);
+        fill_chunk_reflect(pcm, frames, offset, valid, &mut chunk);
 
         info!(chunk = index + 1, total, "stem separate: chunk start");
         let chunk_started = Instant::now();
@@ -217,11 +268,12 @@ mod tests {
     fn overlap_add_reconstructs_a_passthrough_chunker() {
         let frames = SEGMENT_SAMPLES + CHUNK_STRIDE + 517;
         let pcm = tone(frames);
+        let expected_chunks = frames.div_ceil(CHUNK_STRIDE);
         let mut seen = Vec::new();
         let stems = overlap_add(
             &pcm,
             Some(&|done, total| {
-                assert_eq!(total, 3);
+                assert_eq!(total, expected_chunks);
                 assert!((0..=total).contains(&done));
             }),
             |chunk| {
@@ -236,7 +288,7 @@ mod tests {
             },
         )
         .expect("overlap add");
-        assert_eq!(seen, vec![SEGMENT_SAMPLES * 2; 3]);
+        assert_eq!(seen, vec![SEGMENT_SAMPLES * 2; expected_chunks]);
         assert_eq!(stems[0].len(), pcm.len());
         let worst = pcm
             .iter()
@@ -270,12 +322,37 @@ mod tests {
     }
 
     #[test]
-    fn chunk_weights_fade_in_and_out() {
+    fn chunk_weights_fade_only_on_overlap() {
         let w = chunk_weights();
         assert_eq!(w.len(), SEGMENT_SAMPLES);
-        assert_eq!(w[SEGMENT_SAMPLES / 2 - 1], 1.0);
-        assert!(w[0] < 1e-4 && w[SEGMENT_SAMPLES - 1] < 1e-4);
-        assert!(w.iter().all(|v| *v > 0.0 && *v <= 1.0));
+        assert_eq!(w[0], 0.0);
+        assert_eq!(w[SEGMENT_SAMPLES - 1], 0.0);
+        assert_eq!(w[OVERLAP], 1.0);
+        assert_eq!(w[SEGMENT_SAMPLES / 2], 1.0);
+        assert!((w[OVERLAP / 2] - 0.5).abs() < 1e-5);
+        assert!(w.iter().all(|v| *v >= 0.0 && *v <= 1.0));
+    }
+
+    #[test]
+    fn chunk_weights_are_complementary_across_stride() {
+        let w = chunk_weights();
+        // In the overlap of chunk0 and chunk1, fade_out + fade_in == 1.
+        for i in 0..OVERLAP {
+            let a = w[CHUNK_STRIDE + i];
+            let b = w[i];
+            assert!((a + b - 1.0).abs() < 1e-5, "seam {i}: {a} + {b} != 1");
+        }
+    }
+
+    #[test]
+    fn fill_chunk_reflect_pads_past_eof() {
+        let pcm = tone(4);
+        let mut chunk = vec![0.0f32; SEGMENT_SAMPLES * 2];
+        fill_chunk_reflect(&pcm, 4, 0, 4, &mut chunk);
+        assert_eq!(&chunk[..8], &pcm[..]);
+        // First reflected frame mirrors index 2 (reflect over last real frame 3).
+        assert_eq!(chunk[4 * 2], chunk[2 * 2]);
+        assert_eq!(chunk[4 * 2 + 1], chunk[2 * 2 + 1]);
     }
 
     #[test]

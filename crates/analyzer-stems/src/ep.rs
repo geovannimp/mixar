@@ -105,29 +105,60 @@ fn preference_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
 }
 
 fn cpu_entry() -> (&'static str, ExecutionProviderDispatch) {
+    // CPU may remain the only EP; silent failure is fine.
     ("cpu", ep::CPU::default().build())
 }
 
 fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispatch)> {
+    // Non-CPU EPs must `.error_on_failure()`: ort's default is fail-silently and
+    // still commit a CPU session, which would make our cascade think the GPU EP
+    // won while inference stays on CPU.
     let ep = match label {
         "cpu" => ep::CPU::default().build(),
         #[cfg(feature = "cuda")]
-        "cuda" => ep::CUDA::default().build(),
+        "cuda" => ep::CUDA::default().build().error_on_failure(),
         #[cfg(feature = "tensorrt")]
-        "tensorrt" => ep::TensorRT::default().build(),
+        "tensorrt" => ep::TensorRT::default().build().error_on_failure(),
         #[cfg(feature = "nvrtx")]
-        "tensorrt_rtx" => ep::NVRTX::default().build(),
+        "tensorrt_rtx" => ep::NVRTX::default().build().error_on_failure(),
         #[cfg(feature = "webgpu")]
-        "webgpu" => ep::WebGPU::default().build(),
+        "webgpu" => webgpu_ep().error_on_failure(),
         #[cfg(feature = "coreml")]
-        "coreml" => ep::CoreML::default().build(),
+        "coreml" => ep::CoreML::default().build().error_on_failure(),
         #[cfg(feature = "directml")]
-        "directml" => ep::DirectML::default().build(),
+        "directml" => ep::DirectML::default().build().error_on_failure(),
         #[cfg(feature = "openvino")]
-        "openvino" => ep::OpenVINO::default().build(),
+        "openvino" => ep::OpenVINO::default().build().error_on_failure(),
         _ => return None,
     };
     Some((label, ep))
+}
+
+#[cfg(feature = "webgpu")]
+fn webgpu_ep() -> ExecutionProviderDispatch {
+    // Bare EP registration. ort 2.0.0-rc.11's with_* helpers pass keys already
+    // prefixed `ep.webgpuexecutionprovider.*` into AppendExecutionProvider,
+    // which prefixes again — options never apply. Real options are set on the
+    // SessionBuilder in `session::try_commit` via with_config_entry.
+    force_c_numeric_locale();
+    ep::WebGPU::default().build()
+}
+
+/// ORT WebGPU embeds floats into WGSL with locale-sensitive C printf.
+/// Flutter calls `setlocale(LC_ALL, "")` at startup; under pt_BR that yields
+/// `f32(0,000010)` which Dawn rejects as "integer literal cannot have leading 0s".
+#[cfg(feature = "webgpu")]
+pub(crate) fn force_c_numeric_locale() {
+    #[cfg(unix)]
+    {
+        let prev = unsafe { libc::setlocale(libc::LC_NUMERIC, c"C".as_ptr()) };
+        if !prev.is_null() {
+            let previous = unsafe { std::ffi::CStr::from_ptr(prev) }.to_string_lossy();
+            if previous != "C" && previous != "POSIX" {
+                tracing::info!(%previous, "stem ort: LC_NUMERIC=C for WebGPU WGSL floats");
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -189,5 +220,26 @@ mod tests {
             );
             assert_eq!(cpu, Some(1), "expected cpu after webgpu: {labels:?}");
         });
+    }
+
+    #[cfg(all(feature = "webgpu", unix))]
+    #[test]
+    fn force_c_numeric_locale_makes_printf_use_dot() {
+        unsafe {
+            let pt = std::ffi::CString::new("pt_BR.UTF-8").unwrap();
+            libc::setlocale(libc::LC_NUMERIC, pt.as_ptr());
+        }
+        force_c_numeric_locale();
+        let mut buf = [0i8; 64];
+        unsafe {
+            libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), 0.00001f64);
+        }
+        let s = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
+            .to_string_lossy()
+            .into_owned();
+        assert!(
+            s.contains('.') && !s.contains(','),
+            "expected C-locale float, got {s:?}"
+        );
     }
 }

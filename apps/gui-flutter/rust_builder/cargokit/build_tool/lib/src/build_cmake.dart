@@ -34,7 +34,27 @@ class BuildCMake {
       if (lib.type == AritifactType.dylib) {
         File(lib.path)
             .copySync(path.join(Environment.outputDir, lib.finalFileName));
+        // ORT WebGPU links libwebgpu_dawn.*; cargo places it next to the
+        // cdylib but cargokit only copied the crate artifact.
+        _copyOrtDawnSidecars(path.dirname(lib.path), Environment.outputDir);
       }
     }
+  }
+}
+
+/// Copy ORT Dawn sidecars (follow symlinks) into the Flutter plugin output dir.
+void _copyOrtDawnSidecars(String artifactDir, String outputDir) {
+  const names = <String>[
+    'libwebgpu_dawn.so',
+    'libwebgpu_dawn.dylib',
+    'webgpu_dawn.dll',
+  ];
+  for (final name in names) {
+    final src = File(path.join(artifactDir, name));
+    if (!src.existsSync()) {
+      continue;
+    }
+    final real = src.resolveSymbolicLinksSync();
+    File(real).copySync(path.join(outputDir, name));
   }
 }
