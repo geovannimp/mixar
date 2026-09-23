@@ -6,7 +6,9 @@ mod stem_atom;
 mod stem_mp4;
 
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
-pub use stem_mp4::{decode_stem_file, is_stem_path, StemPcmBundle};
+pub use stem_mp4::{
+    decode_stem_file, encode_stem_mp4, is_stem_path, StemMuxFormat, StemPcmBundle, OPUS_SAMPLE_RATE,
+};
 
 use anyhow::Result;
 use audio_core::Sample;

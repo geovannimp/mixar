@@ -771,6 +771,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "flacenc",
+ "mp4io",
+ "ruopus",
  "serde",
  "serde_json",
  "symphonia",
@@ -2629,6 +2632,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "mp4io"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c488beae43628748ca13f6fd6441487e466147292b72d90596a94c26456cb848"
+
+[[package]]
 name = "native-tls"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3393,7 +3402,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
