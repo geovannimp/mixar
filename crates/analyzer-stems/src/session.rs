@@ -1,4 +1,4 @@
-//! Process-global ort Session for HTDemucs ONNX (StemSplit or Mixxx export).
+//! Process-global ort Session for Mixxx HTDemucs ONNX.
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -143,7 +143,7 @@ fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) 
         .with_context(|| format!("ort commit ONNX with EP '{label}' ({})", path.display()))
 }
 
-/// StemSplit uses `mix`/`stems`; Mixxx/stemgen uses `input`/`output`.
+/// Mixxx/stemgen uses `input`/`output` (discovered dynamically from the graph).
 pub(crate) fn resolve_io_names(session: &Session) -> Result<(String, String)> {
     let inputs = session.inputs();
     let outputs = session.outputs();

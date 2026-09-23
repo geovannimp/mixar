@@ -47,7 +47,7 @@ pub struct StemSplitRequest<'a> {
     pub interleaved_stereo: &'a [f32],
     pub sample_rate: u32,
     pub output_dir: &'a Path,
-    pub model_name: &'a str, // default "htdemucs_ort_v1"
+    pub model_name: &'a str, // default "htdemucs_mixxx_v1"
 }
 pub struct StemSplitResult {
     pub paths: [PathBuf; 4], // vocals, drums, bass, other

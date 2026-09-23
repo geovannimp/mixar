@@ -7,10 +7,9 @@ use reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-/// Default HTDemucs ONNX model id (Mixxx GSoC export — same I/O as stemgen 0.5).
+/// Sole built-in HTDemucs ONNX model id (Mixxx GSoC export — same I/O as stemgen 0.5).
 ///
 /// See <https://mixxx.org/news/2025-10-27-gsoc2025-demucs-to-onnx-dhunstack/>.
-/// StemSplit exports remain available as `htdemucs_ort_v*`.
 pub const DEFAULT_MODEL: &str = "htdemucs_mixxx_v1";
 
 /// On-disk artifact descriptor in a Mixar model manifest.
@@ -61,37 +60,6 @@ pub fn builtin_manifest(model_name: &str) -> Result<ModelManifest> {
                 sha256: "db37d1314ac1e1051e7978d25ef45b3f1d3f43c837678752f592c0f2deca752d".into(),
                 size_bytes: 304_413_278,
                 url: "https://github.com/mixxxdj/demucs/releases/download/v4.0.1-19-gd182d42-onnxmodel/htdemucs.onnx"
-                    .into(),
-                format: "onnx".into(),
-            }],
-        }),
-        "htdemucs_ort_v5" | "htdemucs_ort_v4" | "htdemucs_ort_v2" => Ok(ModelManifest {
-            name: match model_name {
-                "htdemucs_ort_v2" => "htdemucs_ort_v2".into(),
-                "htdemucs_ort_v4" => "htdemucs_ort_v4".into(),
-                _ => "htdemucs_ort_v5".into(),
-            },
-            sample_rate: 44_100,
-            artifacts: vec![Artifact {
-                file: "htdemucs_fp16weights.onnx".into(),
-                // sha256 pinned from Hugging Face StemSplitio/htdemucs-onnx LFS oid
-                sha256: "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a".into(),
-                size_bytes: 165_612_636,
-                url: "https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs_fp16weights.onnx"
-                    .into(),
-                format: "onnx".into(),
-            }],
-        }),
-        // Optional CPU-oriented fp32 (StemSplit parity default). Prefer when
-        // forcing `MIXAR_STEMS_ORT_EP=cpu` or once WebGPU can load it.
-        "htdemucs_ort_v3" => Ok(ModelManifest {
-            name: "htdemucs_ort_v3".into(),
-            sample_rate: 44_100,
-            artifacts: vec![Artifact {
-                file: "htdemucs.onnx".into(),
-                sha256: "68d0bf16428ef66e692cdff8a9ccf28f1ef3f69440d57e58605a4cc55fcc5e74".into(),
-                size_bytes: 316_446_953,
-                url: "https://huggingface.co/StemSplitio/htdemucs-onnx/resolve/main/htdemucs.onnx"
                     .into(),
                 format: "onnx".into(),
             }],
@@ -308,19 +276,9 @@ mod tests {
     }
 
     #[test]
-    fn builtin_manifest_legacy_stemsplit_v5() {
-        let m = builtin_manifest("htdemucs_ort_v5").expect("v5");
-        assert_eq!(m.name, "htdemucs_ort_v5");
-        assert_eq!(
-            m.resolve_primary_artifact().unwrap().file,
-            "htdemucs_fp16weights.onnx"
-        );
-    }
-    #[test]
-    fn builtin_manifest_optional_v3_fp32() {
-        let m = builtin_manifest("htdemucs_ort_v3").expect("v3");
-        assert_eq!(m.name, "htdemucs_ort_v3");
-        assert_eq!(m.resolve_primary_artifact().unwrap().file, "htdemucs.onnx");
+    fn builtin_manifest_rejects_unknown_model() {
+        assert!(builtin_manifest("htdemucs_ort_v5").is_err());
+        assert!(builtin_manifest("htdemucs_ort_v3").is_err());
     }
 
     #[test]
@@ -357,20 +315,20 @@ mod tests {
         let root = Path::new("/tmp/mixar-models");
         let manifest = manifest_from_json(
             r#"{
-              "name": "htdemucs_ort_v2",
+              "name": "htdemucs_mixxx_v1",
               "sample_rate": 44100
             }"#,
         );
         let path = artifact_path(
             root,
             &manifest,
-            "htdemucs_fp16weights.onnx",
-            "d05c269d0178d2a72ad484b10b11dd370193fc923201c3b27a99f848745db70a",
+            "htdemucs.onnx",
+            "db37d1314ac1e1051e7978d25ef45b3f1d3f43c837678752f592c0f2deca752d",
         )
         .unwrap();
         assert_eq!(
             path,
-            PathBuf::from("/tmp/mixar-models/htdemucs_ort_v2-d05c269d.onnx")
+            PathBuf::from("/tmp/mixar-models/htdemucs_mixxx_v1-db37d131.onnx")
         );
     }
 

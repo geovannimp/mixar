@@ -17,7 +17,7 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
 | Pads | Enabled only when stems ready for the loaded track |
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
-| Inference | **pykeio/ort** + StemSplit HTDemucs ONNX (`htdemucs_ort_v2`) via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — see `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md` |
+| Inference | **pykeio/ort** + Mixxx HTDemucs ONNX (`htdemucs_mixxx_v1`) via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — see `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
 | Stem files | Opus (default) or FLAC under `{app_support}/stems/{fnv64(track_id)}/` |
 | Model weights | Mixar `{app_support}/models/` ONNX download/verify; Mixar owns **stem audio** paths in DB — see `docs/stems-storage-models-design.md` |
@@ -39,7 +39,7 @@ Inspecting crate `0.1.0` source:
 **Keep as reference:** AudioBuffer-shaped PCM API, segment/overlap processor shape, realtime buffer sketch.  
 **Do not depend on charon for separation quality.**
 
-Burn HTDemucs was evaluated and dropped for speed; shipping path is ORT + StemSplit ONNX (supersedes Burn notes). Out of this pass: settings model picker / FT bag.
+Burn HTDemucs was evaluated and dropped for speed; shipping path is ORT + Mixxx HTDemucs ONNX (supersedes Burn / StemSplit notes). Out of this pass: settings model picker / FT bag.
 
 ## Architecture
 
@@ -51,7 +51,7 @@ library analyze / deck prepare
         │  enqueue if missing/stale
         ▼
 analyzer-stems
-  ensure_model (Mixar models/ + StemSplit ONNX)
+  ensure_model (Mixar models/ + Mixxx HTDemucs ONNX)
   ort Session + EP cascade → overlap-add chunks
   write 4 Opus/FLAC + DB rows
         │
@@ -64,7 +64,7 @@ analyzer-stems
 
 | Crate | Responsibility |
 |-------|----------------|
-| `analyzer-stems` (new) | PCM → 4 stems; model ensure; write WAV; progress callbacks |
+| `analyzer-stems` (new) | PCM → 4 stems; model ensure; write Opus/FLAC; progress callbacks |
 | `library` | `track_stem` metadata; `ensure_track_stems`; worker enqueue; events |
 | `engine-api` / `engine-core` / `engine-dsp` | `PadMode::Stems`; stem attach; per-stem gains; pad handlers |
 | `host-flutter` + Flutter | Settings toggle; Stems pad UI; FRB |
@@ -81,7 +81,7 @@ analyzer-stems
 **Table `track_stem`** (one row per track when complete)
 
 - `track_id` PK
-- `backend` (e.g. `htdemucs_ort_v2/{ep}`) — model id before `/` compared to current `DEFAULT_MODEL` before cache reuse
+- `backend` (e.g. `htdemucs_mixxx_v1/{ep}`) — model id before `/` compared to current `DEFAULT_MODEL` before cache reuse
 - `source_fingerprint` (path mtime/size + PCM shape) — stale when source changes
 - `sample_rate`
 - `generated_at`
@@ -128,7 +128,7 @@ Controller MIDI: extend pad_mode mapping like Sampler.
 
 - Do **not** open a second CPAL input device — feed from the deck’s already-playing PCM (or a sidechain ring) so it stays in sync with transport.
 - Only useful as fallback while offline stems generate; quality/latency will be worse than cached stems.
-- Requires a **real** windowed Demucs path (ORT + StemSplit ONNX), not charon’s stub infer.
+- Requires a **real** windowed Demucs path (ORT + Mixxx HTDemucs ONNX), not charon’s stub infer.
 - Keep realtime off the audio callback’s critical path: hop-sized jobs on a worker, crossfade results.
 
 ## Out of scope

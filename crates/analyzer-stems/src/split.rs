@@ -1,4 +1,4 @@
-//! HTDemucs split of interleaved stereo PCM via ort + StemSplit ONNX.
+//! HTDemucs split of interleaved stereo PCM via ort + Mixxx ONNX.
 
 use std::path::{Path, PathBuf};
 

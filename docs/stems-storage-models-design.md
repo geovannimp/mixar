@@ -4,7 +4,7 @@
 **Status:** Approved (owner: skip per-section review; implement)  
 **Issue:** [geovannimp/mixar#46](https://github.com/geovannimp/mixar/issues/46)  
 **Depends on:** stems pad mode foundation (`docs/stems-pad-mode-design.md`, #380)  
-**Inference:** ORT + StemSplit ONNX — `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md`
+**Inference:** ORT + Mixxx HTDemucs ONNX — `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md`
 
 ## Goal
 
@@ -20,7 +20,7 @@
 | Clear stems | Delete `{stems_root}/**` and all `track_stem` rows; never touch original audio |
 | Clear model | Delete `{models_root}/**` |
 | Eviction | Manual only |
-| Cache model id | `htdemucs_ort_v2` (old `htdemucs_ort_v1` / Burn ids miss and regenerate) |
+| Cache backend id | `{model}/{ep}`, default `htdemucs_mixxx_v1/<ep>` (older SSC / Burn ids miss and regenerate) |
 
 ## Architecture
 
@@ -29,7 +29,7 @@
   library.db
   settings.json
   stems/{fnv64(track_id)}/*.{opus,flac}
-  models/{name}-{sha8}.onnx          ← StemSplit HTDemucs ONNX
+  models/{name}-{sha8}.onnx          ← HTDemucs ONNX (Mixxx `htdemucs_mixxx_v1`)
 
 analyzer-stems::ensure_model(models_root, name)
   → registry manifest + download/verify into models_root

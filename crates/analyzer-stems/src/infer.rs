@@ -1,4 +1,4 @@
-//! Chunked StemSplit HTDemucs ONNX inference over interleaved stereo PCM.
+//! Chunked Mixxx HTDemucs ONNX inference over interleaved stereo PCM.
 //!
 //! Overlap-add matches StemSplit `infer.py`: 25 % overlap, stride = N − overlap,
 //! linear fade on the overlap only (complementary → weight sum ≡ 1 in seams).
@@ -13,11 +13,11 @@ use tracing::info;
 use crate::resample_pcm::resample_interleaved_stereo;
 use crate::session::{self, SEGMENT_SAMPLES};
 
-/// Model sample rate (StemSplit HTDemucs ONNX).
+/// Model sample rate (Mixxx HTDemucs ONNX).
 pub const SAMPLE_RATE: u32 = 44_100;
 /// Four stems.
 pub const SOURCES: usize = 4;
-/// StemSplit: `overlap = N // 4`, `stride = N - overlap`.
+/// StemSplit-style OLA: `overlap = N // 4`, `stride = N - overlap`.
 const OVERLAP: usize = SEGMENT_SAMPLES / 4;
 const CHUNK_STRIDE: usize = SEGMENT_SAMPLES - OVERLAP;
 /// ONNX stem order is drums, bass, other, vocals; Mixar is vocals, drums, bass, other.

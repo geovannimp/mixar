@@ -1,6 +1,6 @@
 //! Offline stem separation for Mixar.
 //!
-//! Mixar-owned ort Session + StemSplit HTDemucs ONNX on already-decoded
+//! Mixar-owned ort Session + Mixxx HTDemucs ONNX on already-decoded
 //! interleaved stereo PCM (no second file decode).
 
 mod ep;

@@ -773,7 +773,7 @@ mod tests {
             std::fs::write(p, b"x").unwrap();
         }
         let info = TrackStemsInfo {
-            backend: "htdemucs_ort_v1".into(),
+            backend: "htdemucs_mixxx_v1".into(),
             source_fingerprint: "fp".into(),
             format: "opus".into(),
             sample_rate: 48_000,
@@ -783,8 +783,8 @@ mod tests {
             other_path: o,
             generated_at: "1".into(),
         };
-        assert!(info.matches("fp", "htdemucs_ort_v1", "opus"));
-        assert!(!info.matches("fp", "htdemucs_ort_v1", "flac"));
+        assert!(info.matches("fp", "htdemucs_mixxx_v1", "opus"));
+        assert!(!info.matches("fp", "htdemucs_mixxx_v1", "flac"));
     }
 
     #[test]

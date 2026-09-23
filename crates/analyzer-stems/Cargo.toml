@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Offline stem separation for Mixar (HTDemucs via ort + StemSplit ONNX)"
+description = "Offline stem separation for Mixar (HTDemucs via ort + Mixxx ONNX)"
 
 [features]
 # Desktop default: WebGPU (Vulkan/DX12/Metal) so GPUs work without a CUDA toolkit.
