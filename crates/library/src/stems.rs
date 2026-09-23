@@ -103,14 +103,7 @@ fn stem_cache_path(stems_root: &Path, track_id: &TrackId) -> PathBuf {
 
 /// Fingerprint of the decoded source used to build stems (path mtime/size + PCM shape).
 fn source_fingerprint(path: &Path, audio: &LoadedAudio) -> String {
-    let meta = std::fs::metadata(path).ok();
-    let mtime = meta
-        .as_ref()
-        .and_then(|m| m.modified().ok())
-        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let size = meta.map(|m| m.len()).unwrap_or(0);
+    let (mtime, size) = source_file_mtime_size(path);
     format!(
         "v1:{}:{}:{}:{}:{}:{}",
         path.display(),
@@ -120,6 +113,27 @@ fn source_fingerprint(path: &Path, audio: &LoadedAudio) -> String {
         audio.channels,
         audio.samples.len()
     )
+}
+
+fn source_file_mtime_size(path: &Path) -> (u64, u64) {
+    let meta = std::fs::metadata(path).ok();
+    let mtime = meta
+        .as_ref()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let size = meta.map(|m| m.len()).unwrap_or(0);
+    (mtime, size)
+}
+
+/// True when the cached stem row still matches the source file's path/mtime/size prefix.
+///
+/// Cheap prepare-path check (no decode). Full PCM fingerprint is validated on ensure.
+pub(crate) fn cache_matches_source_file(info: &TrackStemsInfo, source: &Path) -> bool {
+    let (mtime, size) = source_file_mtime_size(source);
+    info.source_fingerprint
+        .starts_with(&format!("v1:{}:{}:{}:", source.display(), mtime, size))
 }
 
 fn expected_backend() -> &'static str {
@@ -224,9 +238,6 @@ pub(crate) fn ensure_track_stems_on(
 ) -> Result<()> {
     let backend = expected_backend();
     let format = normalize_stems_format(format);
-    if format == "aac" {
-        return Err(aac_not_implemented_error());
-    }
     let path = {
         let source = library
             .get_track(id)?
@@ -241,6 +252,9 @@ pub(crate) fn ensure_track_stems_on(
     #[cfg(feature = "analysis")]
     if codec::is_stem_path(&path) {
         return Ok(());
+    }
+    if format == "aac" {
+        return Err(aac_not_implemented_error());
     }
 
     let cached = {
@@ -494,9 +508,6 @@ pub fn ensure_track_stems_with_progress(
 
     let backend = expected_backend();
     let format = normalize_stems_format(format);
-    if format == "aac" {
-        return Err(aac_not_implemented_error());
-    }
     let path = {
         let lib = LibraryManager::lock_library(library)?;
         let source = lib
@@ -512,6 +523,9 @@ pub fn ensure_track_stems_with_progress(
     #[cfg(feature = "analysis")]
     if codec::is_stem_path(&path) {
         return Ok(());
+    }
+    if format == "aac" {
+        return Err(aac_not_implemented_error());
     }
 
     report("decode", None);
@@ -803,6 +817,26 @@ mod tests {
     fn is_stem_source_path_is_detected() {
         assert!(codec::is_stem_path(Path::new("/music/track.stem.mp4")));
         assert!(!codec::is_stem_path(Path::new("/music/track.wav")));
+    }
+
+    #[test]
+    fn cache_matches_source_file_uses_path_mtime_size_prefix() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("track.wav");
+        std::fs::write(&source, b"pcm").unwrap();
+        let (mtime, size) = source_file_mtime_size(&source);
+        let info = TrackStemsInfo {
+            backend: "htdemucs_mixxx_v1/cpu".into(),
+            source_fingerprint: format!("v1:{}:{}:{}:48000:2:100", source.display(), mtime, size),
+            format: "opus".into(),
+            sample_rate: 48_000,
+            path: dir.path().join("cache.stem.mp4"),
+            generated_at: "1".into(),
+        };
+        assert!(cache_matches_source_file(&info, &source));
+
+        std::fs::write(&source, b"pcm-changed").unwrap();
+        assert!(!cache_matches_source_file(&info, &source));
     }
 }
 

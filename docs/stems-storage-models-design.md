@@ -28,12 +28,12 @@
 {app_support}/
   library.db
   settings.json
-  stems/{fnv64(track_id)}/*.{opus,flac}   ← superseded by NI `.stem.mp4` (see docs/superpowers/specs/2026-09-23-ni-stem-mp4-cache-design.md)
+  stems/{fnv64(track_id)}.stem.mp4   ← NI Stem cache (see docs/ni-stem-mp4-cache-design.md)
   models/{name}-{sha8}.onnx          ← HTDemucs ONNX (Mixxx `htdemucs_mixxx_v1`)
 
 analyzer-stems::ensure_model(models_root, name)
   → registry manifest + download/verify into models_root
-  → local ONNX path → ort Session (EP cascade) → encode Opus/FLAC
+  → local ONNX path → ort Session (EP cascade) → mux `.stem.mp4`
 
 LibraryBuses: stems_root + models_root
 LibraryTransport: storageUsage / clearStemCache / clearModelCache
@@ -47,7 +47,7 @@ Settings → Storage
 
 | Piece | Change |
 |-------|--------|
-| `analyzer-stems` | `ensure_model(models_root, …)`; split takes `models_root`; ort infer + Opus/FLAC encode |
+| `analyzer-stems` | `ensure_model(models_root, …)`; split takes `models_root`; ort infer + `.stem.mp4` mux |
 | `library` | `models_root` on buses; `clear_all_track_stems` (files + rows); dir size helpers |
 | `host-flutter` | Set `models_root` next to `stems` on open; FRB storage usage/clear |
 | Flutter | `SettingsSection.storage` + panel; confirm dialogs; refresh sizes |

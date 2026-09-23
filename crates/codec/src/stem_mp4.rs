@@ -74,7 +74,17 @@ pub fn stem_container_info(path: &Path) -> Result<(u32, u64)> {
         .first()
         .map(|edit| edit.segment_duration)
         .filter(|duration| *duration > 0)
-        .unwrap_or_else(|| track.duration().saturating_sub(u64::from(OPUS_PRE_SKIP)));
+        .unwrap_or_else(|| {
+            // Opus media duration includes decoder priming; presentation length
+            // is media − pre-skip. FLAC/AAC media duration already equals
+            // presentation duration — do not subtract.
+            let media = track.duration();
+            if track.codec() == Some(Codec::Opus) {
+                media.saturating_sub(u64::from(OPUS_PRE_SKIP))
+            } else {
+                media
+            }
+        });
     Ok((sample_rate, duration_frames))
 }
 
@@ -516,7 +526,10 @@ fn find_atom<R: Read + Seek>(
                 }
                 size => (u64::from(size), 8),
             };
-        if size < header_len || pos + size > end {
+        let Some(next) = pos.checked_add(size) else {
+            bail!("malformed mp4 atom at offset {pos}");
+        };
+        if size < header_len || next > end {
             bail!("malformed mp4 atom at offset {pos}");
         }
 
@@ -530,10 +543,13 @@ fn find_atom<R: Read + Seek>(
                 Ok(Some(span))
             } else {
                 let payload = span.start + span.header_len;
-                find_atom(reader, payload, payload + span.payload_len, rest)
+                let payload_end = payload
+                    .checked_add(span.payload_len)
+                    .ok_or_else(|| anyhow!("malformed mp4 atom at offset {pos}"))?;
+                find_atom(reader, payload, payload_end, rest)
             };
         }
-        pos += size;
+        pos = next;
     }
 
     Ok(None)

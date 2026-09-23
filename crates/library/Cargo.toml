@@ -29,6 +29,7 @@ analyzer-stems = { path = "../analyzer-stems", optional = true }
 codec = { path = "../codec", optional = true }
 xspf = "0.4.2"
 xml = "0.8"
+tracing.workspace = true
 
 [features]
 default = ["analysis"]

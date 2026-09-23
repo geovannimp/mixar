@@ -347,7 +347,7 @@ pub struct EngineEvt {
     pub sampler_slots_known: bool,
     /// True when four stem layers are attached for playback.
     pub stems_ready: Option<bool>,
-    /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[vocals, drums, bass, other]`).
+    /// Per-stem mute flags when [`Self::stems_ready`] is authored (`[drums, bass, other, vocals]`).
     pub stem_mute: Option<Vec<bool>>,
     /// Isolated stem index when set; `None` clears isolate when stems are authored.
     pub stem_isolate: Option<u8>,
