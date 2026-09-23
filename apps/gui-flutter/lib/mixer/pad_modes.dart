@@ -34,7 +34,7 @@ const kSamplerPlayModeOptions = <String>[
 ];
 
 /// Stem names for pad slots 0–3 (mute) and 4–7 (isolate/solo).
-const kStemNames = <String>['vocal', 'drums', 'bass', 'other'];
+const kStemNames = <String>['drums', 'bass', 'other', 'vocals'];
 
 String padModeShortLabel(PadMode mode) => switch (mode) {
   PadMode.hotCue => 'Cue',

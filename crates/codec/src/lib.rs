@@ -2,6 +2,10 @@
 //!
 //! This crate provides audio decoding capabilities using symphonia.
 
+mod stem_atom;
+
+pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
+
 use anyhow::Result;
 use audio_core::Sample;
 use std::fs::File;

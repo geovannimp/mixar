@@ -10,7 +10,7 @@ use crate::infer::{self, SAMPLE_RATE};
 use crate::manifest::{resolve_model, DEFAULT_MODEL};
 
 /// Canonical stem file order / names.
-pub const STEM_NAMES: [&str; 4] = ["vocals", "drums", "bass", "other"];
+pub const STEM_NAMES: [&str; 4] = ["drums", "bass", "other", "vocals"];
 
 /// Request to separate already-decoded interleaved stereo PCM.
 pub struct StemSplitRequest<'a> {
