@@ -170,3 +170,20 @@ String _resolveExecutable(String executable) {
     return executable;
   }
 }
+
+/// Copy ORT Dawn sidecars (follow symlinks) into a Flutter plugin output dir.
+void copyOrtDawnSidecars(String artifactDir, String outputDir) {
+  const names = <String>[
+    'libwebgpu_dawn.so',
+    'libwebgpu_dawn.dylib',
+    'webgpu_dawn.dll',
+  ];
+  for (final name in names) {
+    final src = File(path.join(artifactDir, name));
+    if (!src.existsSync()) {
+      continue;
+    }
+    final real = src.resolveSymbolicLinksSync();
+    File(real).copySync(path.join(outputDir, name));
+  }
+}

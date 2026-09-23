@@ -105,15 +105,17 @@ pub fn ensure_from_manifest(models_root: &Path, manifest: &ModelManifest) -> Res
     let need_download = !matches!(verify_sha256(&local_path, &artifact.sha256), Ok(true));
     if need_download {
         let client = http_client()?;
-        download_file(&client, &artifact.url, &local_path)?;
-        if !verify_sha256(&local_path, &artifact.sha256)? {
+        let tmp = local_path.with_extension("part");
+        download_file(&client, &artifact.url, &tmp)?;
+        if !verify_sha256(&tmp, &artifact.sha256)? {
+            let _ = std::fs::remove_file(&tmp);
             return Err(anyhow!(
                 "checksum mismatch for stem model {}",
                 local_path.display()
             ));
         }
         if artifact.size_bytes > 0 {
-            let size = std::fs::metadata(&local_path).map(|m| m.len()).unwrap_or(0);
+            let size = std::fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0);
             if size != artifact.size_bytes {
                 eprintln!(
                     "stem model size mismatch for {}, expected {} bytes, got {}",
@@ -123,6 +125,8 @@ pub fn ensure_from_manifest(models_root: &Path, manifest: &ModelManifest) -> Res
                 );
             }
         }
+        std::fs::rename(&tmp, &local_path)
+            .with_context(|| format!("rename to {}", local_path.display()))?;
     }
 
     Ok(ModelHandle {
@@ -146,20 +150,27 @@ fn fetch_manifest(url: &str) -> Result<ModelManifest> {
 fn http_client() -> Result<Client> {
     Client::builder()
         .user_agent("mixar-analyzer-stems/1.0")
+        // ponytail: no total timeout — Mixxx ONNX is ~300 MB; slow links exceed 30s.
+        // Upgrade: progress + soft idle timeout if downloads hang mid-body.
+        .connect_timeout(std::time::Duration::from_secs(30))
+        .timeout(None)
         .build()
         .context("create HTTP client")
 }
 
 fn download_file(client: &Client, url: &str, dest: &Path) -> Result<()> {
-    let bytes = client
+    let mut resp = client
         .get(url)
         .send()
         .with_context(|| format!("download {url}"))?
         .error_for_status()
-        .with_context(|| format!("download HTTP status for {url}"))?
-        .bytes()
+        .with_context(|| format!("download HTTP status for {url}"))?;
+    let mut f =
+        std::fs::File::create(dest).with_context(|| format!("create {}", dest.display()))?;
+    resp.copy_to(&mut f)
         .with_context(|| format!("read download body for {url}"))?;
-    std::fs::write(dest, &bytes).with_context(|| format!("write {}", dest.display()))?;
+    f.sync_all()
+        .with_context(|| format!("sync {}", dest.display()))?;
     Ok(())
 }
 
@@ -167,10 +178,35 @@ fn verify_sha256(path: &Path, expected: &str) -> Result<bool> {
     if !path.is_file() {
         return Ok(false);
     }
-    let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
-    let hash = hex::encode(Sha256::digest(bytes));
-    Ok(hash.eq_ignore_ascii_case(expected))
+    // ponytail: process-level skip after first OK — assumes models_root is
+    // immutable for the process lifetime. Upgrade: mtime/inode check if
+    // Storage clear can race a live session.
+    {
+        let cache =
+            VERIFIED_SHA256.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+        let guard = cache.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.contains(path) {
+            return Ok(true);
+        }
+    }
+    let mut f = std::fs::File::open(path).with_context(|| format!("read {}", path.display()))?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut f, &mut hasher).with_context(|| format!("hash {}", path.display()))?;
+    let hash = hex::encode(hasher.finalize());
+    let ok = hash.eq_ignore_ascii_case(expected);
+    if ok {
+        let cache =
+            VERIFIED_SHA256.get_or_init(|| std::sync::Mutex::new(std::collections::HashSet::new()));
+        cache
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(path.to_path_buf());
+    }
+    Ok(ok)
 }
+
+static VERIFIED_SHA256: std::sync::OnceLock<std::sync::Mutex<std::collections::HashSet<PathBuf>>> =
+    std::sync::OnceLock::new();
 
 fn artifact_path(
     models_root: &Path,

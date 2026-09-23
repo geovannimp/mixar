@@ -51,6 +51,13 @@ done
 
 sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 
+# Embed ORT Dawn beside the app Frameworks when Xcode provides the paths.
+DAWN_SRC="$CARGOKIT_OUTPUT_DIR/libwebgpu_dawn.dylib"
+if [ -f "$DAWN_SRC" ] && [ -n "${TARGET_BUILD_DIR:-}" ] && [ -n "${FRAMEWORKS_FOLDER_PATH:-}" ]; then
+  mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+  cp -f "$DAWN_SRC" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
+fi
+
 # Make a symlink from built framework to phony file, which will be used as input to
 # build script. This should force rebuild (podspec currently doesn't support alwaysOutOfDate
 # attribute on custom build phase)

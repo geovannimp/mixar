@@ -35,6 +35,9 @@ pub trait Resampler: Send {
 
     /// Clear internal filter/history state (e.g. after seek or stop).
     fn reset(&mut self);
+
+    /// Output-side FIR/FFT delay in frames (0 when passthrough).
+    fn output_delay(&self) -> usize;
 }
 
 /// Rubato FFT resampler using fixed **output** chunks so input consumption tracks playback.
@@ -225,6 +228,13 @@ impl Resampler for RubatoResampler {
         if let Err(e) = self.update_resampler() {
             eprintln!("Failed to reset resampler: {}", e);
         }
+    }
+
+    fn output_delay(&self) -> usize {
+        self.resampler
+            .as_ref()
+            .map(|r| r.output_delay())
+            .unwrap_or(0)
     }
 }
 

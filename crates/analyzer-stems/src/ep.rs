@@ -102,8 +102,7 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
 fn webgpu_ep() -> ExecutionProviderDispatch {
     // Bare EP registration. ort 2.0.0-rc.11's with_* helpers pass keys already
     // prefixed `ep.webgpuexecutionprovider.*` into AppendExecutionProvider,
-    // which prefixes again — options never apply. Real options are set on the
-    // SessionBuilder in `session::try_commit` via with_config_entry.
+    // which prefixes again — options never apply. Run with ORT WebGPU defaults.
     force_c_numeric_locale();
     ep::WebGPU::default().build()
 }
@@ -194,7 +193,7 @@ mod tests {
             libc::setlocale(libc::LC_NUMERIC, pt.as_ptr());
         }
         force_c_numeric_locale();
-        let mut buf = [0i8; 64];
+        let mut buf = [0 as libc::c_char; 64];
         unsafe {
             libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), 0.00001f64);
         }
