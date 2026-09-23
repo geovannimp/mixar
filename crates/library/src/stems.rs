@@ -177,6 +177,13 @@ pub(crate) fn get_track_stems(db: &Db, track_id: &TrackId) -> Result<Option<Trac
     Ok(row.map(|r| TrackStemsInfo::from_row(&r)))
 }
 
+pub(crate) fn delete_track_stems(db: &Db, track_id: &TrackId) -> Result<()> {
+    TrackStemEntity::delete_by_id(track_id.as_str())
+        .exec(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+    Ok(())
+}
+
 pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsInfo) -> Result<()> {
     let active = track_stem::ActiveModel {
         track_id: Set(track_id.as_str().to_string()),
