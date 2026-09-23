@@ -31,9 +31,14 @@ const OPUS_FRAME: usize = 960;
 /// Largest Opus packet ruopus emits for a 20 ms frame.
 const OPUS_MAX_PACKET: usize = 1275;
 
-/// Decoder warm-up to discard: the fullband CELT reconstruction delay `ruopus`
-/// `encode_auto` incurs above 40 kb/s (it uses 69 for hybrid below that).
-const OPUS_PRE_SKIP: u16 = 120;
+/// Decoder warm-up to discard, measured for this exact pair: `ruopus`
+/// `encode_auto` fullband at [`OPUS_BITRATE_BPS`] into libopus via
+/// `symphonia-adapter-libopus`. `ruopus` nominally declares 120 for CELT above
+/// 40 kb/s, but its output lines up with libopus 3 frames earlier than that, and
+/// over-trimming shifts every stem against the analysed waveform. The round-trip
+/// tests assert zero lag, so a `ruopus` upgrade that moves this will fail loudly
+/// rather than silently skew playback.
+const OPUS_PRE_SKIP: u16 = 117;
 
 /// On-disk codec for the five streams of a `.stem.mp4`. No AAC encoder in-tree yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,21 +84,19 @@ pub fn decode_stem_file(path: &Path) -> Result<StemPcmBundle> {
     });
 
     let decoder_options = DecoderOptions::default();
-    let mut tracks: Vec<(u32, u32, Box<dyn Decoder>)> = format
+    let mut tracks: Vec<StemTrack> = format
         .tracks()
         .iter()
         .filter(|track| track.codec_params.codec != CODEC_TYPE_NULL)
         .filter_map(|track| {
-            codec_registry()
-                .make(&decoder_params(&track.codec_params), &decoder_options)
-                .ok()
-                .map(|decoder| {
-                    (
-                        track.id,
-                        track.codec_params.sample_rate.unwrap_or(44_100),
-                        decoder,
-                    )
-                })
+            let params = decoder_params(&track.codec_params);
+            let decoder = codec_registry().make(&params, &decoder_options).ok()?;
+            Some(StemTrack {
+                id: track.id,
+                sample_rate: params.sample_rate.unwrap_or(44_100),
+                declared_samples: declared_samples(&params),
+                decoder,
+            })
         })
         .take(5)
         .collect();
@@ -105,7 +108,7 @@ pub fn decode_stem_file(path: &Path) -> Result<StemPcmBundle> {
         );
     }
 
-    let sample_rate = tracks[0].1;
+    let sample_rate = tracks[0].sample_rate;
     let mut samples: [Vec<Sample>; 5] = std::array::from_fn(|_| Vec::new());
     loop {
         let packet = match format.next_packet() {
@@ -119,12 +122,20 @@ pub fn decode_stem_file(path: &Path) -> Result<StemPcmBundle> {
 
         let Some(index) = tracks
             .iter()
-            .position(|(track_id, _, _)| *track_id == packet.track_id())
+            .position(|track| track.id == packet.track_id())
         else {
             continue;
         };
-        let decoded = tracks[index].2.decode(&packet)?;
+        let decoded = tracks[index].decoder.decode(&packet)?;
         samples[index].extend(AudioDecoder::audio_buffer_to_samples(&decoded));
+    }
+
+    // Drop the codec padding past the declared duration so the PCM length is the
+    // one the file advertises rather than whatever the last packet decoded to.
+    for (pcm, track) in samples.iter_mut().zip(&tracks) {
+        if let Some(declared) = track.declared_samples {
+            pcm.truncate(declared);
+        }
     }
 
     let [mixdown, drums, bass, other, vocals] = samples;
@@ -134,6 +145,42 @@ pub fn decode_stem_file(path: &Path) -> Result<StemPcmBundle> {
         stems: [drums, bass, other, vocals],
         atom,
     })
+}
+
+/// One decodable audio track of a stem file.
+struct StemTrack {
+    id: u32,
+    sample_rate: u32,
+    /// Interleaved samples the container declares, or `None` when it declares none.
+    declared_samples: Option<usize>,
+    decoder: Box<dyn Decoder>,
+}
+
+/// Interleaved sample count the container declares for a track, after the Opus
+/// pre-skip the decoder discards from the head.
+///
+/// Symphonia reports `n_frames` from `mdhd`, which counts every coded frame
+/// including the codec's own delay and tail padding. Muxers (this one included)
+/// declare `pre-skip + real duration` there, so subtracting the pre-skip gives the
+/// real frame count.
+fn declared_samples(params: &CodecParameters) -> Option<usize> {
+    let channels = params.channels?.count();
+    let pre_skip = if params.codec == CODEC_TYPE_OPUS {
+        // `decoder_params` has already byte-swapped this into native order.
+        params
+            .extra_data
+            .as_ref()
+            .filter(|data| data.len() >= 12)
+            .map_or(0, |data| {
+                u64::from(u16::from_le_bytes([data[10], data[11]]))
+            })
+    } else {
+        0
+    };
+
+    // A zero duration means the file does not say; decode everything in that case.
+    let frames = params.n_frames?.checked_sub(pre_skip).filter(|n| *n > 0)?;
+    usize::try_from(frames).ok()?.checked_mul(channels)
 }
 
 /// Repair the Opus codec parameters Symphonia's isomp4 reader produces. It hands
@@ -229,9 +276,14 @@ pub fn encode_stem_mp4(
     // mp4io chunks by push order, so interleave roughly a second of each track at
     // a time: contiguous enough to keep `stco`/`stsc` small, interleaved enough
     // that a player does not seek across the whole file per packet.
-    let per_chunk = encoded[0].samples.first().map_or(1, |(_, duration)| {
-        (track_rate / (*duration).max(1)).max(1) as usize
-    });
+    // Use the longest sample duration: only the final sample of a stream is trimmed.
+    let nominal = encoded[0]
+        .samples
+        .iter()
+        .map(|(_, duration)| *duration)
+        .max()
+        .unwrap_or(1);
+    let per_chunk = (track_rate / nominal.max(1)).max(1) as usize;
     let longest = encoded
         .iter()
         .map(|stream| stream.samples.len())
@@ -254,14 +306,24 @@ pub fn encode_stem_mp4(
         }
     }
 
-    let bytes = with_stem_udta(writer.finalize()?, &serde_json::to_vec(atom)?)?;
+    // Mixar never applies the mastering DSP, so never advertise it as enabled: a
+    // player that honoured it would not sound like what was analysed here.
+    let mut atom = atom.clone();
+    atom.mastering_dsp.compressor.enabled = false;
+    atom.mastering_dsp.limiter.enabled = false;
+
+    let bytes = with_stem_udta(writer.finalize()?, &serde_json::to_vec(&atom)?)?;
     let temp = path.with_extension("tmp");
-    std::fs::write(&temp, &bytes).with_context(|| format!("write {}", temp.display()))?;
-    std::fs::rename(&temp, path)
-        .inspect_err(|_| {
-            let _ = std::fs::remove_file(&temp);
-        })
-        .with_context(|| format!("rename onto {}", path.display()))
+    let written = std::fs::write(&temp, &bytes)
+        .with_context(|| format!("write {}", temp.display()))
+        .and_then(|()| {
+            std::fs::rename(&temp, path).with_context(|| format!("rename onto {}", path.display()))
+        });
+    if written.is_err() {
+        // A partial temp file is never left behind, whichever step failed.
+        let _ = std::fs::remove_file(&temp);
+    }
+    written
 }
 
 /// One muxed track: its codec config box payload plus `(sample, duration)` pairs.
@@ -275,16 +337,28 @@ fn encode_opus(pcm: &[f32]) -> Result<EncodedStream> {
     encoder.set_bandwidth(Bandwidth::FullBand);
     encoder.set_bitrate(Some(OPUS_BITRATE_BPS));
 
+    // Decoder output lags the input by the pre-skip, so the last input frame only
+    // comes out if `OPUS_PRE_SKIP` extra frames are fed in. The timeline must then
+    // declare exactly `pre-skip + input` frames: the decoder drops the pre-skip at
+    // the head, and shortening the final sample's duration drops the zero padding
+    // at the tail, leaving the input frame count intact.
+    let frames = pcm.len() / 2;
+    let timeline = frames + OPUS_PRE_SKIP as usize;
+    let packets = timeline.div_ceil(OPUS_FRAME);
     let frame_samples = OPUS_FRAME * 2;
-    let samples = pcm
-        .chunks(frame_samples)
-        .map(|chunk| {
-            let mut frame = chunk.to_vec();
-            frame.resize(frame_samples, 0.0); // zero-pad the final partial frame
+
+    let samples = (0..packets)
+        .map(|index| {
+            let start = index * frame_samples;
+            let mut frame = pcm[start.min(pcm.len())..].to_vec();
+            frame.truncate(frame_samples);
+            frame.resize(frame_samples, 0.0); // zero-pad past the end of the input
             let packet = encoder
                 .encode_auto(&frame, OPUS_MAX_PACKET)
                 .map_err(|error| anyhow!("opus encode: {error:?}"))?;
-            Ok((packet, OPUS_FRAME as u32))
+            // Only the final sample is trimmed; the rest decode in full.
+            let duration = (timeline - index * OPUS_FRAME).min(OPUS_FRAME) as u32;
+            Ok((packet, duration))
         })
         .collect::<Result<Vec<_>>>()?;
 
@@ -510,19 +584,115 @@ mod tests {
         let bundle = decode_stem_file(&path).unwrap();
         assert_eq!(bundle.stems.len(), 4);
         assert!(bundle.mixdown.len() > 1000);
-        // The declared pre-skip is honoured, so playback starts at input frame 0
-        // rather than on the encoder's warm-up.
-        assert_eq!(
-            bundle.mixdown.len(),
-            (frames - super::OPUS_PRE_SKIP as usize) * 2
-        );
+        // Every input frame survives: the encoder delay is trimmed at the head and
+        // the packet padding at the tail, leaving the input duration exactly.
+        assert_eq!(bundle.mixdown.len(), frames * 2);
         // The temp file is renamed, never left behind.
         assert!(!path.with_extension("tmp").exists());
         assert_eq!(bundle.sample_rate, rate);
         assert_consistent(&bundle);
         // Amplitude per stream identifies its slot: NI order survived the mux.
         assert_amplitude_order(&bundle, 0.05);
+        // ...and the content lines up with the input, not shifted by the pre-skip.
+        assert_eq!(best_lag(&mix, &bundle.mixdown, 200), 0);
         assert_eq!(bundle.atom.unwrap().stems[0].name, "Drums");
+    }
+
+    /// The shortest input is neither a whole number of 960-frame Opus packets nor
+    /// the longest stream, so both the truncate-to-shortest and the tail-padding
+    /// paths have to land on the same exact frame count.
+    #[test]
+    fn stem_mp4_opus_round_trip_unaligned() {
+        let rate: u32 = 48_000;
+        let shortest: usize = 4_321; // 4.5 packets of 960
+        assert!(!shortest.is_multiple_of(super::OPUS_FRAME));
+        let tone = |amp: f32, n: usize| -> Vec<f32> {
+            (0..n * 2)
+                .map(|i| amp * ((i / 2) as f32 * 0.01).sin())
+                .collect()
+        };
+        let mix = tone(0.1, shortest + 5_000);
+        let stems = [
+            tone(0.2, shortest + 12),
+            tone(0.3, shortest),
+            tone(0.4, shortest + 960),
+            tone(0.5, shortest + 1),
+        ];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.stem.mp4");
+        encode_stem_mp4(
+            &path,
+            StemMuxFormat::Opus,
+            rate,
+            &mix,
+            [&stems[0], &stems[1], &stems[2], &stems[3]],
+            &StemAtom::default_ni(),
+        )
+        .unwrap();
+
+        let bundle = decode_stem_file(&path).unwrap();
+        assert_eq!(bundle.mixdown.len(), shortest * 2);
+        assert_consistent(&bundle);
+        assert_amplitude_order(&bundle, 0.05);
+        // Content-dependent mode choices could move the delay, so check every stream.
+        assert_eq!(best_lag(&mix, &bundle.mixdown, 200), 0);
+        for (index, stem) in bundle.stems.iter().enumerate() {
+            assert_eq!(best_lag(&stems[index], stem, 200), 0, "stem {index}");
+        }
+    }
+
+    /// Mixar does not implement the mastering DSP, so the muxer must not write an
+    /// atom that tells another player to apply one.
+    #[test]
+    fn stem_mp4_disables_mastering() {
+        let mut atom = StemAtom::default_ni();
+        atom.mastering_dsp.compressor.enabled = true;
+        atom.mastering_dsp.limiter.enabled = true;
+
+        let pcm = vec![0.1f32; 960 * 2];
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.stem.mp4");
+        encode_stem_mp4(
+            &path,
+            StemMuxFormat::Flac,
+            44_100,
+            &pcm,
+            [&pcm, &pcm, &pcm, &pcm],
+            &atom,
+        )
+        .unwrap();
+
+        let written = decode_stem_file(&path).unwrap().atom.unwrap();
+        assert!(!written.mastering_dsp.compressor.enabled);
+        assert!(!written.mastering_dsp.limiter.enabled);
+        // Only the enabled flags are normalised; the rest of the atom is the caller's.
+        assert_eq!(written.stems, atom.stems);
+    }
+
+    #[test]
+    fn stem_mp4_cleans_up_temp_on_failure() {
+        let dir = tempfile::tempdir().unwrap();
+        // A directory at the destination makes the rename fail after the temp file
+        // has been written, which is the one case that can strand a `.tmp`.
+        let path = dir.path().join("t.stem.mp4");
+        std::fs::create_dir(&path).unwrap();
+
+        let pcm = vec![0.1f32; 960 * 2];
+        let error = encode_stem_mp4(
+            &path,
+            StemMuxFormat::Flac,
+            44_100,
+            &pcm,
+            [&pcm, &pcm, &pcm, &pcm],
+            &StemAtom::default_ni(),
+        )
+        .unwrap_err();
+
+        assert!(error.to_string().contains("rename"), "{error}");
+        assert!(
+            !path.with_extension("tmp").exists(),
+            "temp file was stranded"
+        );
     }
 
     #[test]
@@ -560,6 +730,7 @@ mod tests {
         assert_consistent(&bundle);
         // FLAC is lossless bar the 16-bit quantisation, so amplitudes are exact.
         assert_amplitude_order(&bundle, 0.005);
+        assert_eq!(best_lag(&mix, &bundle.mixdown, 200), 0);
         assert_eq!(bundle.atom.unwrap().stems[3].name, "Vocals");
     }
 
@@ -600,6 +771,29 @@ mod tests {
                 "stem {index} length differs from the mixdown"
             );
         }
+    }
+
+    /// Lag in frames at which `decoded` best matches `input`, searching ±`search`.
+    /// Zero means the encoder delay was trimmed by exactly the right amount: a
+    /// stream that is the right *length* can still be shifted by the pre-skip.
+    fn best_lag(input: &[f32], decoded: &[f32], search: i32) -> i32 {
+        const BASE: usize = 500;
+        const WINDOW: usize = 1_000;
+        assert!(decoded.len() / 2 > BASE + WINDOW + search as usize);
+
+        (-search..=search)
+            .map(|lag| {
+                let error: f32 = (0..WINDOW)
+                    .map(|frame| {
+                        let left = input[(BASE + frame) * 2];
+                        let right = decoded[((BASE + frame) as i32 + lag) as usize * 2];
+                        (left - right) * (left - right)
+                    })
+                    .sum();
+                (error, lag)
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+            .map_or(i32::MAX, |(_, lag)| lag)
     }
 
     /// The five streams were encoded at 0.1/0.2/0.3/0.4/0.5 peak amplitude; check
