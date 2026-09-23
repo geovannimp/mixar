@@ -8,15 +8,11 @@ description = "Offline stem separation for Mixar (HTDemucs via ort + StemSplit O
 
 [features]
 # Desktop default: WebGPU (Vulkan/DX12/Metal) so GPUs work without a CUDA toolkit.
-# Do not enable `cuda` and `webgpu` together — ort has no joint EP binary.
+# Only one ORT EP feature — `cargo build --all-features` (moon CI) must not enable
+# cuda/nvrtx alongside webgpu; ort-sys has no joint prebuilt and falls back to the
+# CPU tarball while still emitting `-lwebgpu_dawn`.
 default = ["webgpu"]
-cuda = ["ort/cuda"]
 webgpu = ["ort/webgpu"]
-coreml = ["ort/coreml"]
-directml = ["ort/directml"]
-tensorrt = ["ort/tensorrt"]
-nvrtx = ["ort/nvrtx"]
-openvino = ["ort/openvino"]
 
 [dependencies]
 anyhow.workspace = true

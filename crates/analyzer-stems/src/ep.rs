@@ -1,15 +1,14 @@
 //! ORT execution-provider preference cascade.
 //!
-//! Prefer the fastest available EP, always end on CPU. Optional force via
-//! `MIXAR_STEMS_ORT_EP` (e.g. `cpu`, `cuda`, `webgpu`). Cargo features gate
-//! which non-CPU EPs are offered; CI stays on default (CPU only).
+//! Prefer WebGPU when the `webgpu` feature is on, always end on CPU. Optional
+//! force via `MIXAR_STEMS_ORT_EP` (e.g. `cpu`, `webgpu`).
 
 use ort::ep::{self, ExecutionProviderDispatch};
 
 /// Env var that forces a single EP label (skips the platform cascade).
 pub const FORCE_EP_ENV: &str = "MIXAR_STEMS_ORT_EP";
 
-/// Short Mixar cache/backend label for an EP name (`cpu`, `cuda`, …).
+/// Short Mixar cache/backend label for an EP name (`cpu`, `webgpu`, …).
 ///
 /// Accepts either our short labels or ORT `*ExecutionProvider` names.
 /// Unknown names fall back to `"cpu"`.
@@ -51,10 +50,12 @@ fn normalize_ep_key(name: &str) -> String {
 fn parse_ep_label(name: &str) -> Option<&'static str> {
     match normalize_ep_key(name).as_str() {
         "cpu" | "cpuexecutionprovider" => Some("cpu"),
+        "webgpu" | "webgpuexecutionprovider" => Some("webgpu"),
+        // Recognized for cache/env docs; not compiled in (no joint ORT EP binary
+        // with webgpu — enabling these as cargo features breaks `--all-features`).
         "cuda" | "cudaexecutionprovider" => Some("cuda"),
         "tensorrt" | "tensorrtexecutionprovider" => Some("tensorrt"),
         "tensorrt_rtx" | "nvtensorrtrtxexecutionprovider" | "nvrtx" => Some("tensorrt_rtx"),
-        "webgpu" | "webgpuexecutionprovider" => Some("webgpu"),
         "coreml" | "coremlexecutionprovider" => Some("coreml"),
         "directml" | "dmlexecutionprovider" | "dml" => Some("directml"),
         "openvino" | "openvinoexecutionprovider" => Some("openvino"),
@@ -69,36 +70,11 @@ fn preference_cascade() -> Vec<(&'static str, ExecutionProviderDispatch)> {
 
     let mut out = Vec::new();
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
-    {
-        #[cfg(feature = "nvrtx")]
-        out.push(ep_entry("tensorrt_rtx").expect("nvrtx feature"));
-        #[cfg(feature = "tensorrt")]
-        out.push(ep_entry("tensorrt").expect("tensorrt feature"));
-        #[cfg(feature = "cuda")]
-        out.push(ep_entry("cuda").expect("cuda feature"));
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        #[cfg(feature = "directml")]
-        out.push(ep_entry("directml").expect("directml feature"));
-    }
-
-    #[cfg(target_vendor = "apple")]
-    {
-        #[cfg(feature = "coreml")]
-        out.push(ep_entry("coreml").expect("coreml feature"));
-    }
-
     #[cfg(any(target_os = "linux", target_os = "windows", target_vendor = "apple"))]
     {
         #[cfg(feature = "webgpu")]
         out.push(ep_entry("webgpu").expect("webgpu feature"));
     }
-
-    #[cfg(all(feature = "openvino", target_os = "linux"))]
-    out.push(ep_entry("openvino").expect("openvino feature"));
 
     out.push(cpu_entry());
     out
@@ -115,20 +91,8 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
     // won while inference stays on CPU.
     let ep = match label {
         "cpu" => ep::CPU::default().build(),
-        #[cfg(feature = "cuda")]
-        "cuda" => ep::CUDA::default().build().error_on_failure(),
-        #[cfg(feature = "tensorrt")]
-        "tensorrt" => ep::TensorRT::default().build().error_on_failure(),
-        #[cfg(feature = "nvrtx")]
-        "tensorrt_rtx" => ep::NVRTX::default().build().error_on_failure(),
         #[cfg(feature = "webgpu")]
         "webgpu" => webgpu_ep().error_on_failure(),
-        #[cfg(feature = "coreml")]
-        "coreml" => ep::CoreML::default().build().error_on_failure(),
-        #[cfg(feature = "directml")]
-        "directml" => ep::DirectML::default().build().error_on_failure(),
-        #[cfg(feature = "openvino")]
-        "openvino" => ep::OpenVINO::default().build().error_on_failure(),
         _ => return None,
     };
     Some((label, ep))
