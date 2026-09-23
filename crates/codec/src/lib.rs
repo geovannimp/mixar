@@ -3,8 +3,10 @@
 //! This crate provides audio decoding capabilities using symphonia.
 
 mod stem_atom;
+mod stem_mp4;
 
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
+pub use stem_mp4::{decode_stem_file, is_stem_path, StemPcmBundle};
 
 use anyhow::Result;
 use audio_core::Sample;
@@ -238,7 +240,7 @@ impl AudioDecoder {
     }
 
     /// Convert symphonia audio buffer to f32 samples (interleaved stereo)
-    fn audio_buffer_to_samples(audio_buf: &AudioBufferRef) -> Vec<Sample> {
+    pub(crate) fn audio_buffer_to_samples(audio_buf: &AudioBufferRef) -> Vec<Sample> {
         let mut samples = Vec::new();
 
         match audio_buf {

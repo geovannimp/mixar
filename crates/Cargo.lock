@@ -771,6 +771,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "serde",
+ "serde_json",
  "symphonia",
  "symphonia-adapter-libopus",
  "tempfile",
