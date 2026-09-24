@@ -2,8 +2,8 @@
 
 **Date:** 2026-09-23  
 **Status:** Approved (brainstorm)  
-**Depends on:** stems pad mode (`docs/stems-pad-mode-design.md`), storage/models (`docs/stems-storage-models-design.md`), ORT HTDemucs (`docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md`)  
-**References:** [NI Stems](https://www.native-instruments.com/pages/stems), [Mixxx stem mixing](https://mixxx.org/news/2024-08-26-stem-mixing/), [stemgen `nistem.rs`](https://github.com/acolombier/stemgen/main/src/nistem.rs)
+**Depends on:** stems pad mode (`docs/stems-pad-mode-design.md`), storage/models (`docs/stems-storage-models-design.md`), ORT HTDemucs (`docs/stems-ort-onnx-design.md`)  
+**References:** [NI Stems](https://www.native-instruments.com/pages/stems), [Mixxx stem mixing](https://mixxx.org/news/2024-08-26-stem-mixing/), [stemgen `nistem.rs`](https://github.com/acolombier/stemgen/blob/main/src/nistem.rs)
 
 ## Goal
 

@@ -621,11 +621,11 @@ No bulk `save_hot_cues` / `save_loops` — each user action upserts or deletes o
 
 ## 9 — Engine Event System
 
-**Current implementation:** [`2026-07-26-engine-event-bus-design.md`](superpowers/specs/2026-07-26-engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire; hosts (Flutter FRB) bridge bytes / typed events only; frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is the MessagePack omnibus (Flutter: FRB methods + `subscribeEvents`).
+**Current implementation:** [`engine-event-bus-design.md`](engine-event-bus-design.md) — engine-owned **omnibus** cmd/evt buses, MessagePack wire; hosts (Flutter FRB) bridge bytes / typed events only; frontend **`EngineTransport`**. The JSON `engine://event` path is **retired**; runtime traffic is the MessagePack omnibus (Flutter: FRB methods + `subscribeEvents`).
 
 Library metadata / decode / waveform peaks / artwork stay on **`LibraryTransport`** (separate from the engine bus). Hosts prepare playback via `LibraryManager` → `PreparedTrackPlayback` → `Engine::load_prepared_track`, without holding `AppState` across decode.
 
-**Library bus:** [`2026-07-31-library-event-bus-design.md`](superpowers/specs/2026-07-31-library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`); Flutter FRB `LibraryTransport` publish / subscribe. First migrated domain: track analysis.
+**Library bus:** [`library-event-bus-design.md`](library-event-bus-design.md) — library-owned omnibus cmd/evt (`library-api` + `LibrarySession`); Flutter FRB `LibraryTransport` publish / subscribe. First migrated domain: track analysis.
 
 ### 9.1 Problem
 

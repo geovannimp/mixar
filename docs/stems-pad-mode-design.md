@@ -17,9 +17,9 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
 | Pads | Enabled only when stems ready for the loaded track |
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
-| Inference | **pykeio/ort** + Mixxx HTDemucs ONNX (`htdemucs_mixxx_v1`) via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — see `docs/superpowers/specs/2026-09-22-stems-ort-onnx-design.md` |
+| Inference | **pykeio/ort** + Mixxx HTDemucs ONNX via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — `docs/stems-ort-onnx-design.md` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
-| Stem files | Opus (default) or FLAC under `{app_support}/stems/{fnv64(track_id)}/` — cache format superseded by NI `.stem.mp4`; see `docs/superpowers/specs/2026-09-23-ni-stem-mp4-cache-design.md` |
+| Stem files | Single NI `.stem.mp4` under `{app_support}/stems/` — `docs/ni-stem-mp4-cache-design.md` |
 | Model weights | Mixar `{app_support}/models/` ONNX download/verify; Mixar owns **stem audio** paths in DB — see `docs/stems-storage-models-design.md` |
 | Realtime | Document only (see below) |
 | charon-audio | **Not a product dependency** (see findings) |
@@ -101,13 +101,29 @@ Stale if model/backend changes, fingerprint mismatches, or files missing.
 Extend `PadMode` with `Stems`.
 
 User-facing pad labels are **1–8**; the engine and controller use **zero-based slots 0–7**.
+Stem indices follow NI order: **drums, bass, other, vocals**.
+
+Pad chrome matches Jump’s two-line layout: action on line 1, stem name on line 2 (`mute` / `solo` + `drums`/`bass`/`other`/`vocal`).
 
 | Engine slot | UI pad | Action |
 |-------------|--------|--------|
-| 0–3 | 1–4 | Toggle mute vocals / drums / bass / other |
+| 0–3 | 1–4 | Toggle mute drums / bass / other / vocals |
 | 4–7 | 5–8 | Set isolate to that stem (press again / same slot clears isolate) |
 
+| Slot | Action | Label line 1 | Label line 2 |
+|------|--------|--------------|--------------|
+| 0 | Mute drums | mute | drums |
+| 1 | Mute bass | mute | bass |
+| 2 | Mute other | mute | other |
+| 3 | Mute vocals | mute | vocal |
+| 4 | Isolate drums | solo | drums |
+| 5 | Isolate bass | solo | bass |
+| 6 | Isolate other | solo | other |
+| 7 | Isolate vocals | solo | vocal |
+
 Controller MIDI: extend pad_mode mapping like Sampler.
+
+Progress / analyze vs stems jobs: `docs/stems-analyze-progress-design.md`.
 
 ### Settings / analyze / load
 
