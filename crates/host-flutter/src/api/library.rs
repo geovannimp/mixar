@@ -762,6 +762,18 @@ impl LibraryTransport {
         lib.clear_stem_cache(&stems_root).map_err(|e| e.to_string())
     }
 
+    /// Remove orphan stem cache files (and rows whose files are gone).
+    ///
+    /// Returns how many on-disk files were deleted under the stems root.
+    pub fn sync_stem_cache(&self) -> Result<u32, String> {
+        let stems_root = self.buses.stems_root();
+        let lib = self
+            .library
+            .lock()
+            .map_err(|_| "library lock poisoned".to_string())?;
+        lib.sync_stem_cache(&stems_root).map_err(|e| e.to_string())
+    }
+
     /// Wipe the Mixar-owned ONNX model cache directory.
     pub fn clear_model_cache(&self) -> Result<(), String> {
         library::clear_model_cache(&self.buses.models_root()).map_err(|e| e.to_string())

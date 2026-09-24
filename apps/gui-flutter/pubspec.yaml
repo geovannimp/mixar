@@ -33,7 +33,7 @@ dependencies:
 
   host_flutter:
     path: rust_builder
-  flutter_rust_bridge: 2.12.0
+  flutter_rust_bridge: 2.13.0
   window_manager: ^0.5.2
   flutter_riverpod: ^3.4.2
   path_provider: ^2.1.6

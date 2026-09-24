@@ -61,6 +61,60 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
     }
   }
 
+  Future<void> _confirmSyncStems() async {
+    final confirmed = await showMixarConfirm<bool>(
+      context: context,
+      title: 'Sync stem cache?',
+      body: 'Removes stem files that are not listed in the library database, and drops DB rows whose files are missing. Referenced cache files and original audio are kept.',
+      actions: const [
+        MixarDialogAction(
+          label: 'Cancel',
+          value: false,
+          variant: MixarButtonVariant.outline,
+        ),
+        MixarDialogAction(
+          label: 'Sync',
+          value: true,
+          variant: MixarButtonVariant.primary,
+        ),
+      ],
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final transport = await ref.read(libraryTransportProvider.future);
+      final removed = await transport.syncStemCache();
+      if (!mounted) {
+        return;
+      }
+      showMixarToast(
+        context: context,
+        title: Text(
+          removed == 0
+              ? 'Stem cache already in sync'
+              : 'Removed $removed orphan stem file${removed == 1 ? '' : 's'}',
+        ),
+      );
+      await _refresh();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      showMixarToast(
+        context: context,
+        title: const Text('Sync failed'),
+        description: Text('$e'),
+        variant: MixarToastVariant.destructive,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   Future<void> _confirmClear({
     required String title,
     required String body,
@@ -187,6 +241,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     color: _kStemCacheColor,
                     label: 'Stem cache',
                     sizeLabel: ready ? formatStorageBytes(stems) : '…',
+                    onSync: !clearEnabled ? null : () => _confirmSyncStems(),
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
@@ -200,6 +255,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     color: _kStemModelColor,
                     label: 'Stem model',
                     sizeLabel: ready ? formatStorageBytes(models) : '…',
+                    onSync: null,
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
@@ -213,6 +269,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     color: _kWaveformColor,
                     label: 'Waveform',
                     sizeLabel: ready ? formatStorageBytes(waveforms) : '…',
+                    onSync: null,
                     onClear: !clearEnabled
                         ? null
                         : () => _confirmClear(
@@ -226,6 +283,7 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     color: _kMetadataColor,
                     label: 'Track metadata',
                     sizeLabel: ready ? formatStorageBytes(metadata) : '…',
+                    onSync: null,
                     onClear: null,
                   ),
                 ],
@@ -287,12 +345,14 @@ class _StorageLegendRow extends StatelessWidget {
     required this.color,
     required this.label,
     required this.sizeLabel,
+    required this.onSync,
     required this.onClear,
   });
 
   final Color color;
   final String label;
   final String sizeLabel;
+  final VoidCallback? onSync;
   final VoidCallback? onClear;
 
   @override
@@ -322,6 +382,13 @@ class _StorageLegendRow extends StatelessWidget {
             color: theme.colors.mutedForeground,
           ),
         ),
+        if (onSync != null)
+          AppButton(
+            variant: MixarButtonVariant.outline,
+            size: MixarButtonSize.sm,
+            onPress: onSync,
+            child: const Text('Sync'),
+          ),
         if (onClear != null)
           AppButton(
             variant: MixarButtonVariant.destructive,

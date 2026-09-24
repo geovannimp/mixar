@@ -75,14 +75,13 @@ class SettingsLibraryPanel extends StatelessWidget {
   static String _keyColorLabel(KeyColorModeSetting mode) =>
       _keyColorModes.firstWhere((m) => m.$1 == mode).$2;
 
-  static const _stemsFormats = ['opus', 'flac', 'aac'];
+  static const _stemsFormats = ['opus', 'flac'];
 
   static String _normalizedStemsFormat(String format) =>
       _stemsFormats.contains(format) ? format : 'opus';
 
   static String _stemsFormatLabel(String format) => switch (format) {
     'flac' => 'FLAC (lossless)',
-    'aac' => 'AAC',
     _ => 'Opus (160 kbps)',
   };
 

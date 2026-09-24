@@ -37,7 +37,7 @@ use analyzer::{analyze_file, analyze_pcm, merge_track_metadata, AnalysisConfig, 
 #[cfg(feature = "analysis")]
 use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 #[cfg(feature = "analysis")]
-use codec::{decode_stem_file, is_stem_path, StemPcmBundle};
+use codec::{decode_stem_file, StemPcmBundle};
 
 use library_api::{EvtBody, Kind, Origin};
 use library_core::AnalysisDurationMode;
@@ -73,8 +73,8 @@ pub use sampler_data::{
 pub use session::LibrarySession;
 pub use stems::{
     clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems,
-    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, StemProgressFn,
-    TrackStemsInfo,
+    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, sync_stem_cache_with_db,
+    StemProgressFn, TrackStemsInfo,
 };
 pub use tags::read_artwork;
 pub use waveform::{
@@ -495,6 +495,11 @@ impl LibraryManager {
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
     pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
         stems::clear_all_track_stems(&self.db, stems_root)
+    }
+
+    /// Remove orphan stem cache files and rows that no longer match on disk.
+    pub fn sync_stem_cache(&self, stems_root: &Path) -> Result<u32> {
+        stems::sync_stem_cache_with_db(&self.db, stems_root)
     }
 
     /// Delete all cached waveform overview rows.
@@ -935,6 +940,16 @@ impl LibraryManager {
         mut source: AudioSource,
     ) -> Result<PreparedTrackPlayback> {
         let track_id = source.id().clone();
+
+        #[cfg(feature = "analysis")]
+        if let Some(path) = source
+            .file()
+            .map(|f| f.path().to_path_buf())
+            .filter(|path| is_stem_audio_path(path))
+        {
+            return prepare_native_stem_for_playback(library, source, path);
+        }
+
         if source.file().is_some() {
             Self::ensure_track_analysis(library, &track_id)?;
             source = {
@@ -951,26 +966,6 @@ impl LibraryManager {
 
         #[cfg(feature = "analysis")]
         {
-            if let Some(path) = source.file().map(|f| f.path().to_path_buf()) {
-                if is_stem_path(&path) {
-                    let bundle = decode_stem_file(&path).map_err(|e| LibraryError::Backend {
-                        backend: "codec",
-                        message: format!(
-                            "failed to decode native stem file {}: {e}",
-                            path.display()
-                        ),
-                    })?;
-                    let (audio, stems) = loaded_from_stem_bundle(&path, bundle);
-                    return Ok(PreparedTrackPlayback {
-                        track_id,
-                        source,
-                        audio,
-                        stems: Some(stems),
-                        loudness_lufs,
-                    });
-                }
-            }
-
             let stems_enabled = {
                 let lib = Self::lock_library(library)?;
                 lib.buses().is_some_and(|buses| buses.stems_enabled())
@@ -1500,7 +1495,7 @@ fn compute_file_analysis(
     config.max_duration_ms = options
         .analysis_duration
         .resolve_max_duration_ms(tag_metadata.duration_ms);
-    let mut analysis = if is_stem_path(&path) {
+    let mut analysis = if is_stem_audio_path(&path) {
         analyze_stem_mixdown(&path, &config)?
     } else {
         analyze_file(&path, &config).map_err(analysis::analyzer_error)?
@@ -1535,15 +1530,24 @@ fn analyze_stem_mixdown(path: &Path, config: &AnalysisConfig) -> Result<analyzer
         backend: "codec",
         message: format!("failed to decode stem mixdown {}: {e}", path.display()),
     })?;
-    let mut mono = downmix_interleaved_to_mono(&bundle.mixdown, 2);
+    analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, config)
+}
+
+/// Analyze an already-decoded Stem mixdown (Fast window truncates via config).
+#[cfg(feature = "analysis")]
+fn analyze_stem_mixdown_pcm(
+    mixdown: &[f32],
+    sample_rate: u32,
+    config: &AnalysisConfig,
+) -> Result<analyzer::TrackAnalysis> {
+    let mut mono = downmix_interleaved_to_mono(mixdown, 2);
     if let Some(max_ms) = config.max_duration_ms {
-        let max_frames =
-            (f64::from(max_ms) / 1000.0 * f64::from(bundle.sample_rate)).ceil() as usize;
+        let max_frames = (f64::from(max_ms) / 1000.0 * f64::from(sample_rate)).ceil() as usize;
         if mono.len() > max_frames {
             mono.truncate(max_frames);
         }
     }
-    analyze_pcm(&mono, bundle.sample_rate, config).map_err(analysis::analyzer_error)
+    analyze_pcm(&mono, sample_rate, config).map_err(analysis::analyzer_error)
 }
 
 #[cfg(feature = "analysis")]
@@ -1820,6 +1824,80 @@ fn normalize_path(path: &Path) -> Result<PathBuf> {
     } else {
         Ok(path.to_path_buf())
     }
+}
+
+#[cfg(feature = "analysis")]
+fn prepare_native_stem_for_playback(
+    library: &Mutex<LibraryManager>,
+    mut source: AudioSource,
+    path: PathBuf,
+) -> Result<PreparedTrackPlayback> {
+    let track_id = source.id().clone();
+    let bundle = decode_stem_file(&path).map_err(|e| LibraryError::Backend {
+        backend: "codec",
+        message: format!("failed to decode native stem file {}: {e}", path.display()),
+    })?;
+
+    let needs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.needs_playback_analysis(&track_id)?
+    };
+    if needs {
+        let options = AnalyzeTrackOptions {
+            force: false,
+            analysis_duration: AnalysisDurationMode::Fast,
+            ..Default::default()
+        };
+        let mut config = AnalysisConfig::default();
+        let tag_metadata = tags::read_tags(&path)?;
+        config.max_duration_ms = options
+            .analysis_duration
+            .resolve_max_duration_ms(tag_metadata.duration_ms);
+        let mut analysis = analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, &config)?;
+        let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
+        analysis.loudness_lufs =
+            preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
+        let tag_side = TagMetadata {
+            bpm: tag_metadata.bpm,
+            key: tag_metadata.key.clone(),
+        };
+        let merged = merge_track_metadata(
+            &tag_side,
+            &analysis,
+            options.force,
+            config.min_bpm_confidence,
+            config.min_key_confidence,
+        );
+        let mut metadata = tag_metadata;
+        metadata.bpm = merged.bpm;
+        metadata.key = merged.key;
+        let computed = ComputedFileAnalysis { metadata, analysis };
+        {
+            let lib = LibraryManager::lock_library(library)?;
+            if lib.needs_playback_analysis(&track_id)? {
+                lib.persist_file_analysis(&path, &computed, false)?;
+            }
+        }
+        source = {
+            let lib = LibraryManager::lock_library(library)?;
+            lib.get_track(&track_id)?
+                .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
+        };
+    }
+
+    let loudness_lufs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.track_loudness_lufs(&track_id)?
+    };
+    source.metadata_mut().loudness_lufs = loudness_lufs;
+    let (audio, stems) = loaded_from_stem_bundle(&path, bundle);
+    Ok(PreparedTrackPlayback {
+        track_id,
+        source,
+        audio,
+        stems: Some(stems),
+        loudness_lufs,
+    })
 }
 
 #[cfg(feature = "analysis")]

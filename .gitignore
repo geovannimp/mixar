@@ -133,3 +133,6 @@ docs/superpowers/
 .impeccable/live/
 .impeccable/config.local.json
 .agents/skills/impeccable/scripts/.impeccable/
+
+# Local cargo target dirs (quota workarounds)
+target-local/

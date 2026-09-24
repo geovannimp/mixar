@@ -18,7 +18,7 @@ Replace Mixar’s four-file Opus/FLAC stem cache with a single NI-compatible `.s
 | When stems are prepared | Early only (analyze / library worker). **No** ensure or hot-swap on deck load |
 | Deck load if cache missing | Play original only; Stems pads inert |
 | Mux mode | **Consistent streams** — all five streams same codec + sample rate |
-| Codecs | Settings `stems_format`: `opus` (default) \| `aac` \| `flac`. Each option must encode **and** decode in pure Rust inside `codec`; if AAC encode is not available in-tree yet, keep the setting but ship opus/flac first and reject `aac` ensure with a clear error until the encoder lands. |
+| Codecs | Settings `stems_format`: `opus` (default) \| `flac`. AAC stays out of the UI until a pure-Rust encoder lands in `codec`. |
 | Tooling | Pure Rust mux/demux in `codec` (Symphonia for demux/decode; dedicated MP4 writer + STEM atom — **no ffmpeg**) |
 | Stem order (file + engine) | NI: `drums`, `bass`, `other`, `vocals` (mixdown = stream 0) |
 | UI pad labels | Out of scope for this pass; engine indices follow NI order |

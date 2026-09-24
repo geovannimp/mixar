@@ -154,13 +154,6 @@ fn demucs_lock() -> &'static Mutex<()> {
     LOCK.get_or_init(|| Mutex::new(()))
 }
 
-fn aac_not_implemented_error() -> LibraryError {
-    LibraryError::Backend {
-        backend: "stems",
-        message: "AAC stem encode is not implemented yet".into(),
-    }
-}
-
 pub(crate) fn has_track_stems(db: &Db, track_id: &TrackId) -> Result<bool> {
     Ok(get_track_stems(db, track_id)?.is_some_and(|info| info.all_files_exist()))
 }
@@ -179,7 +172,7 @@ fn has_valid_track_stems(
 fn normalize_stems_format(format: &str) -> &'static str {
     match format {
         "flac" => "flac",
-        "aac" => "aac",
+        // AAC encode is not in-tree yet; treat as opus until it ships.
         _ => "opus",
     }
 }
@@ -249,12 +242,8 @@ pub(crate) fn ensure_track_stems_on(
             .to_path_buf()
     };
 
-    #[cfg(feature = "analysis")]
-    if codec::is_stem_path(&path) {
+    if library_core::is_stem_audio_path(&path) {
         return Ok(());
-    }
-    if format == "aac" {
-        return Err(aac_not_implemented_error());
     }
 
     let cached = {
@@ -337,9 +326,6 @@ fn generate_stem_files(
     #[cfg(feature = "analysis")]
     {
         let format = normalize_stems_format(format);
-        if format == "aac" {
-            return Err(aac_not_implemented_error());
-        }
 
         let mux_format = match format {
             "flac" => codec::StemMuxFormat::Flac,
@@ -520,12 +506,8 @@ pub fn ensure_track_stems_with_progress(
             .to_path_buf()
     };
 
-    #[cfg(feature = "analysis")]
-    if codec::is_stem_path(&path) {
+    if library_core::is_stem_audio_path(&path) {
         return Ok(());
-    }
-    if format == "aac" {
-        return Err(aac_not_implemented_error());
     }
 
     report("decode", None);
@@ -669,6 +651,67 @@ pub fn clear_all_track_stems(db: &Db, stems_root: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Drop DB rows whose cache file is missing, and delete on-disk files under
+/// `stems_root` that no row references. Never touches library audio or files
+/// outside `stems_root`. Returns how many filesystem entries were removed.
+pub fn sync_stem_cache_with_db(db: &Db, stems_root: &Path) -> Result<u32> {
+    let rows = TrackStemEntity::find()
+        .all(db.conn()?.as_connection())
+        .map_err(db::db_err)?;
+
+    let mut keep = std::collections::HashSet::new();
+    for row in &rows {
+        let path = PathBuf::from(&row.path);
+        if path.is_file() {
+            if let Ok(canon) = path.canonicalize() {
+                keep.insert(canon);
+            } else {
+                keep.insert(path);
+            }
+        } else {
+            delete_track_stems(db, &TrackId::new(&row.track_id))?;
+        }
+    }
+
+    if !stems_root.exists() {
+        return Ok(0);
+    }
+    let root = stems_root
+        .canonicalize()
+        .unwrap_or_else(|_| stems_root.to_path_buf());
+
+    let mut removed = 0u32;
+    let mut stack = vec![root.clone()];
+    let mut dirs = Vec::new();
+    while let Some(dir) = stack.pop() {
+        let entries = match std::fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            if file_type.is_dir() {
+                stack.push(path.clone());
+                dirs.push(path);
+            } else if file_type.is_file() {
+                let canon = path.canonicalize().unwrap_or_else(|_| path.clone());
+                if !keep.contains(&canon) && std::fs::remove_file(&path).is_ok() {
+                    removed = removed.saturating_add(1);
+                }
+            }
+        }
+    }
+    // Deepest dirs first so nested empties clear.
+    dirs.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+    for dir in dirs {
+        let _ = std::fs::remove_dir(&dir);
+    }
+    Ok(removed)
+}
+
 /// Wipe `models_root` and recreate empty.
 pub fn clear_model_cache(models_root: &Path) -> Result<()> {
     if models_root.exists() {
@@ -807,16 +850,73 @@ mod tests {
     fn normalize_stems_format_defaults_unknown_to_opus() {
         assert_eq!(normalize_stems_format("flac"), "flac");
         assert_eq!(normalize_stems_format("opus"), "opus");
-        assert_eq!(normalize_stems_format("aac"), "aac");
+        assert_eq!(normalize_stems_format("aac"), "opus");
         assert_eq!(normalize_stems_format("wav"), "opus");
         assert_eq!(normalize_stems_format(""), "opus");
     }
 
-    #[cfg(feature = "analysis")]
     #[test]
     fn is_stem_source_path_is_detected() {
-        assert!(codec::is_stem_path(Path::new("/music/track.stem.mp4")));
-        assert!(!codec::is_stem_path(Path::new("/music/track.wav")));
+        assert!(library_core::is_stem_audio_path(Path::new(
+            "/music/track.stem.mp4"
+        )));
+        assert!(!library_core::is_stem_audio_path(Path::new(
+            "/music/track.wav"
+        )));
+    }
+
+    #[test]
+    fn sync_stem_cache_removes_orphans_keeps_referenced() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let stems = dir.path().join("stems");
+        std::fs::create_dir_all(&stems).unwrap();
+        let keep = stems.join("keep.stem.mp4");
+        let orphan = stems.join("orphan.stem.mp4");
+        std::fs::write(&keep, b"keep").unwrap();
+        std::fs::write(&orphan, b"orphan").unwrap();
+
+        let wav = dir.path().join("track.wav");
+        {
+            let mut file = std::fs::File::create(&wav).unwrap();
+            let data_size: u32 = 16;
+            let file_size: u32 = 36 + data_size;
+            file.write_all(b"RIFF").unwrap();
+            file.write_all(&file_size.to_le_bytes()).unwrap();
+            file.write_all(b"WAVEfmt ").unwrap();
+            file.write_all(&16u32.to_le_bytes()).unwrap();
+            file.write_all(&1u16.to_le_bytes()).unwrap();
+            file.write_all(&1u16.to_le_bytes()).unwrap();
+            file.write_all(&8000u32.to_le_bytes()).unwrap();
+            file.write_all(&8000u32.to_le_bytes()).unwrap();
+            file.write_all(&1u16.to_le_bytes()).unwrap();
+            file.write_all(&8u16.to_le_bytes()).unwrap();
+            file.write_all(b"data").unwrap();
+            file.write_all(&data_size.to_le_bytes()).unwrap();
+            file.write_all(&[0u8; 16]).unwrap();
+        }
+
+        let library = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let id = library.import_file_path(&wav).unwrap().id().clone();
+        upsert_track_stems(
+            &library.db,
+            &id,
+            &TrackStemsInfo {
+                backend: "htdemucs_mixxx_v1".into(),
+                source_fingerprint: "fp".into(),
+                format: "opus".into(),
+                sample_rate: 48_000,
+                path: keep.clone(),
+                generated_at: "1".into(),
+            },
+        )
+        .unwrap();
+
+        let removed = sync_stem_cache_with_db(&library.db, &stems).unwrap();
+        assert_eq!(removed, 1);
+        assert!(keep.is_file());
+        assert!(!orphan.exists());
     }
 
     #[test]

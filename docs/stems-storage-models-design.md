@@ -19,6 +19,7 @@
 | Storage UI depth | Minimal: sizes + Clear all stems / Clear model |
 | Model location | `{app_support}/models/` — Mixar download + verify + ONNX path for ort Session |
 | Clear stems | Delete `{stems_root}/**` and all `track_stem` rows; never touch original audio |
+| Sync stems | Remove orphan files under `{stems_root}` not referenced by `track_stem`, and drop rows whose files are missing |
 | Clear model | Delete `{models_root}/**` |
 | Eviction | Manual only |
 | Cache backend id | `{model}/{ep}`, default `htdemucs_mixxx_v1/<ep>` (older SSC / Burn ids miss and regenerate) |

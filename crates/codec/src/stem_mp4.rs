@@ -54,6 +54,10 @@ pub struct StemPcmBundle {
     pub atom: Option<StemAtom>,
 }
 
+/// True when `path` looks like an NI Stem container (`.stem.mp4`).
+///
+/// Filename check only — same rule as `library_core::is_stem_audio_path`. Kept
+/// here so `codec` does not depend on `library-core`.
 pub fn is_stem_path(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())

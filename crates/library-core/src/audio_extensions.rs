@@ -23,6 +23,9 @@ pub fn is_supported_audio_path(path: &Path) -> bool {
 }
 
 /// Native NI Traktor stem container (`*.stem.mp4`).
+///
+/// Lives in `library-core` so import/scan/tags can classify stems without
+/// depending on `codec`. Same rule as `codec::is_stem_path` (filename only).
 pub fn is_stem_audio_path(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())

@@ -370,7 +370,7 @@ fn default_stems_format() -> String {
 fn normalize_stems_format(format: &str) -> String {
     match format.trim() {
         "flac" => "flac".into(),
-        "aac" => "aac".into(),
+        "aac" => "opus".into(), // not implemented yet
         _ => "opus".into(),
     }
 }
