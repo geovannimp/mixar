@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:gui_flutter/src/rust/api/library.dart';
 
-/// Matches `library-core` `SUPPORTED_AUDIO_EXTENSIONS`.
+/// Matches `codec` `SUPPORTED_AUDIO_EXTENSIONS`.
 const supportedAudioExtensions = [
   'mp3',
   'flac',
