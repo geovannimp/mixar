@@ -772,6 +772,7 @@ dependencies = [
  "anyhow",
  "audio-core 0.1.0",
  "flacenc",
+ "lofty",
  "mp4io",
  "ruopus",
  "serde",
@@ -1556,7 +1557,7 @@ dependencies = [
 name = "fs-browser"
 version = "0.1.0"
 dependencies = [
- "library-core",
+ "codec",
  "serde",
  "tempfile",
 ]
@@ -2370,7 +2371,6 @@ dependencies = [
  "codec",
  "library-api",
  "library-core",
- "lofty",
  "omnibus",
  "rusqlite",
  "sea-orm-sync",

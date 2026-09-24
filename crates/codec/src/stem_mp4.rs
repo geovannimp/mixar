@@ -54,16 +54,6 @@ pub struct StemPcmBundle {
     pub atom: Option<StemAtom>,
 }
 
-/// True when `path` looks like an NI Stem container (`.stem.mp4`).
-///
-/// Filename check only — same rule as `library_core::is_stem_audio_path`. Kept
-/// here so `codec` does not depend on `library-core`.
-pub fn is_stem_path(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.to_ascii_lowercase().ends_with(".stem.mp4"))
-}
-
 /// Presentation sample rate and frame count from the container (no PCM decode).
 pub fn stem_container_info(path: &Path) -> Result<(u32, u64)> {
     let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
@@ -603,7 +593,8 @@ fn stem_atom_from_metadata(metadata: &MetadataRevision) -> Option<StemAtom> {
 
 #[cfg(test)]
 mod tests {
-    use super::{decode_stem_file, encode_stem_mp4, is_stem_path, StemMuxFormat};
+    use super::{decode_stem_file, encode_stem_mp4, StemMuxFormat};
+    use crate::paths::is_stem_path;
     use crate::StemAtom;
     use std::path::Path;
 

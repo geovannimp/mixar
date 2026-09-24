@@ -242,7 +242,7 @@ pub(crate) fn ensure_track_stems_on(
             .to_path_buf()
     };
 
-    if library_core::is_stem_audio_path(&path) {
+    if codec::is_stem_path(&path) {
         return Ok(());
     }
 
@@ -506,7 +506,7 @@ pub fn ensure_track_stems_with_progress(
             .to_path_buf()
     };
 
-    if library_core::is_stem_audio_path(&path) {
+    if codec::is_stem_path(&path) {
         return Ok(());
     }
 
@@ -857,12 +857,8 @@ mod tests {
 
     #[test]
     fn is_stem_source_path_is_detected() {
-        assert!(library_core::is_stem_audio_path(Path::new(
-            "/music/track.stem.mp4"
-        )));
-        assert!(!library_core::is_stem_audio_path(Path::new(
-            "/music/track.wav"
-        )));
+        assert!(codec::is_stem_path(Path::new("/music/track.stem.mp4")));
+        assert!(!codec::is_stem_path(Path::new("/music/track.wav")));
     }
 
     #[test]

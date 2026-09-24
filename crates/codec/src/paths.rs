@@ -1,8 +1,8 @@
-//! Canonical list of audio file extensions recognized by the library and GUI.
+//! Path classification for formats `codec` can open (decode / tags / stems).
 
 use std::path::Path;
 
-/// File extensions (without a leading dot) treated as loadable/scannable audio.
+/// File extensions (without a leading dot) treated as loadable audio.
 pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &[
     "mp3", "flac", "wav", "aiff", "aif", "ogg", "m4a", "aac", "opus", "wma", "alac",
 ];
@@ -22,11 +22,10 @@ pub fn is_supported_audio_path(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Native NI Traktor stem container (`*.stem.mp4`).
+/// True when `path` looks like an NI Stem container (`.stem.mp4`).
 ///
-/// Lives in `library-core` so import/scan/tags can classify stems without
-/// depending on `codec`. Same rule as `codec::is_stem_path` (filename only).
-pub fn is_stem_audio_path(path: &Path) -> bool {
+/// Filename check only — use for behavioral stem branches (demux, tags, skip Demucs).
+pub fn is_stem_path(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| name.to_ascii_lowercase().ends_with(".stem.mp4"))
@@ -34,7 +33,7 @@ pub fn is_stem_audio_path(path: &Path) -> bool {
 
 /// Returns whether `path` is a loadable/scannable audio file (including native stems).
 pub fn is_loadable_audio_path(path: &Path) -> bool {
-    is_supported_audio_path(path) || is_stem_audio_path(path)
+    is_supported_audio_path(path) || is_stem_path(path)
 }
 
 #[cfg(test)]
@@ -58,9 +57,9 @@ mod tests {
 
     #[test]
     fn recognizes_stem_mp4_paths() {
-        assert!(is_stem_audio_path(Path::new("/music/Track.stem.mp4")));
-        assert!(is_stem_audio_path(Path::new("/music/Track.STEM.MP4")));
-        assert!(!is_stem_audio_path(Path::new("/music/Track.mp4")));
+        assert!(is_stem_path(Path::new("/music/Track.stem.mp4")));
+        assert!(is_stem_path(Path::new("/music/Track.STEM.MP4")));
+        assert!(!is_stem_path(Path::new("/music/Track.mp4")));
         assert!(is_loadable_audio_path(Path::new("/music/Track.stem.mp4")));
         assert!(!is_loadable_audio_path(Path::new("/music/readme.txt")));
     }

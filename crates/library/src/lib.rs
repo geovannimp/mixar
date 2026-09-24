@@ -38,6 +38,7 @@ use analyzer::{analyze_file, analyze_pcm, merge_track_metadata, AnalysisConfig, 
 use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
 #[cfg(feature = "analysis")]
 use codec::{decode_stem_file, StemPcmBundle};
+use codec::{is_loadable_audio_path, is_stem_path};
 
 use library_api::{EvtBody, Kind, Origin};
 use library_core::AnalysisDurationMode;
@@ -46,12 +47,11 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    is_loadable_audio_path, is_stem_audio_path, is_supported_audio_extension,
-    is_supported_audio_path, path_label, AnalyzeTrackOptions, AudioSource, Collection,
-    CollectionConfig, CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId,
-    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio,
-    LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId,
-    TrackMetadata, UpdateCollection, WritableLibrary,
+    path_label, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
+    CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
+    FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio, LoadedAudio,
+    NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
+    UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -945,7 +945,7 @@ impl LibraryManager {
         if let Some(path) = source
             .file()
             .map(|f| f.path().to_path_buf())
-            .filter(|path| is_stem_audio_path(path))
+            .filter(|path| is_stem_path(path))
         {
             return prepare_native_stem_for_playback(library, source, path);
         }
@@ -1495,7 +1495,7 @@ fn compute_file_analysis(
     config.max_duration_ms = options
         .analysis_duration
         .resolve_max_duration_ms(tag_metadata.duration_ms);
-    let mut analysis = if is_stem_audio_path(&path) {
+    let mut analysis = if is_stem_path(&path) {
         analyze_stem_mixdown(&path, &config)?
     } else {
         analyze_file(&path, &config).map_err(analysis::analyzer_error)?
