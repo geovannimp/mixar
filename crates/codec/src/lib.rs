@@ -2,14 +2,21 @@
 //!
 //! This crate provides audio decoding capabilities using symphonia.
 
+mod paths;
 mod stem_atom;
 mod stem_mp4;
+mod tags;
 
+pub use paths::{
+    is_loadable_audio_path, is_stem_path, is_supported_audio_extension, is_supported_audio_path,
+    SUPPORTED_AUDIO_EXTENSIONS,
+};
 pub use stem_atom::{MasteringDsp, StemAtom, StemSlot};
 pub use stem_mp4::{
-    decode_stem_file, encode_stem_mp4, is_stem_path, stem_container_info, StemMuxFormat,
-    StemPcmBundle, OPUS_SAMPLE_RATE,
+    decode_stem_file, encode_stem_mp4, stem_container_info, StemMuxFormat, StemPcmBundle,
+    OPUS_SAMPLE_RATE,
 };
+pub use tags::{read_file_artwork, read_file_tags, read_replaygain_track_gain_db, FileTags};
 
 use anyhow::Result;
 use audio_core::Sample;

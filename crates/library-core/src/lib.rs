@@ -6,7 +6,6 @@
 //! [`AudioSource`] implements [`LoadableAudio`] so library entries load directly
 //! into the engine: `engine.load_track(0, AudioSource::File(FileAudioSource::from_path(...)))?`.
 
-mod audio_extensions;
 mod audio_source;
 mod error;
 mod key_format;
@@ -16,10 +15,6 @@ mod types;
 
 pub use analyzer_core::AnalysisDurationMode;
 pub use audio_core::{LoadableAudio, LoadedAudio};
-pub use audio_extensions::{
-    is_loadable_audio_path, is_stem_audio_path, is_supported_audio_extension,
-    is_supported_audio_path, SUPPORTED_AUDIO_EXTENSIONS,
-};
 pub use error::{path_label, LibraryError, Result};
 pub use key_format::{
     camelot_code_to_musical, camelot_to_musical, format_key, musical_to_camelot, KeyDisplayMode,

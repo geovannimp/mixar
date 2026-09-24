@@ -1,61 +1,45 @@
-//! File tag reading for native library import.
+//! Map codec file tags into library `TrackMetadata`.
 
 use std::path::Path;
-use std::time::Duration;
 
-use audio_core::secs_to_ms;
-#[cfg(feature = "analysis")]
-use codec::stem_container_info;
+use codec::{
+    read_file_artwork, read_file_tags, read_replaygain_track_gain_db as codec_replaygain, FileTags,
+};
 use library_core::{path_label, TrackMetadata};
-use lofty::file::{AudioFile, TaggedFileExt};
-use lofty::probe::Probe;
-use lofty::tag::{Accessor, ItemKey};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
-    if library_core::is_stem_audio_path(path) {
-        return read_stem_tags(path);
-    }
+    let tags = read_file_tags(path).map_err(|e| io_backend(format!("{e}")))?;
+    Ok(track_metadata_from_file_tags(path, tags))
+}
 
-    let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
-        .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
+/// Read the ReplayGain track gain tag, in decibels, when present and valid.
+pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result<Option<f64>> {
+    codec_replaygain(path).map_err(|e| io_backend(format!("{e}")))
+}
 
-    let properties = tagged.properties();
-    let tag = tagged.primary_tag().or_else(|| tagged.first_tag());
+/// Read embedded album artwork from an audio file, if present.
+pub fn read_artwork(path: &Path) -> library_core::Result<Option<Vec<u8>>> {
+    read_file_artwork(path)
+        .map_err(|e| io_backend(format!("read artwork {}: {e}", path_label(path))))
+}
 
+fn track_metadata_from_file_tags(path: &Path, tags: FileTags) -> TrackMetadata {
     let mut metadata = TrackMetadata {
-        duration_ms: duration_ms(properties.duration()),
-        sample_rate: properties.sample_rate(),
-        channels: properties.channels().map(|c| c as u16),
-        bitrate_kbps: properties.audio_bitrate(),
+        title: tags.title,
+        artist: tags.artist,
+        album: tags.album,
+        genre: tags.genre,
+        bpm: tags.bpm,
+        key: tags.key.as_deref().map(normalize_key_notation),
+        duration_ms: tags.duration_ms,
+        sample_rate: tags.sample_rate,
+        channels: tags.channels,
+        bitrate_kbps: tags.bitrate_kbps,
+        replaygain_track_gain_db: tags.replaygain_track_gain_db,
+        isrc: tags.isrc,
         ..TrackMetadata::default()
     };
-
-    if let Some(tag) = tag {
-        metadata.title = tag.title().map(|s| s.to_string());
-        metadata.artist = tag.artist().map(|s| s.to_string());
-        metadata.album = tag.album().map(|s| s.to_string());
-        metadata.genre = tag.genre().map(|s| s.to_string());
-
-        if let Some(bpm) = tag.get_string(&lofty::tag::ItemKey::Bpm) {
-            metadata.bpm = bpm.parse().ok();
-        }
-        if metadata.bpm.is_none() {
-            if let Some(bpm) = tag.get_string(&lofty::tag::ItemKey::IntegerBpm) {
-                metadata.bpm = bpm.parse().ok();
-            }
-        }
-
-        metadata.key = tag
-            .get_string(&lofty::tag::ItemKey::InitialKey)
-            .map(normalize_key_notation);
-
-        metadata.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
-    }
-
-    metadata.replaygain_track_gain_db = replaygain_track_gain_db(&tagged);
 
     if metadata.title.is_none() {
         metadata.title = path
@@ -64,37 +48,7 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
             .map(|s| s.to_string());
     }
 
-    Ok(metadata)
-}
-
-/// Read the ReplayGain track gain tag, in decibels, when present and valid.
-pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result<Option<f64>> {
-    if library_core::is_stem_audio_path(path) {
-        // Multi-track Stem files confuse lofty's MP4 probe; skip ReplayGain here.
-        return Ok(None);
-    }
-    let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
-        .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
-    Ok(replaygain_track_gain_db(&tagged))
-}
-
-fn replaygain_track_gain_db(tagged: &impl TaggedFileExt) -> Option<f64> {
-    tagged.tags().iter().find_map(|tag| {
-        tag.get_string(&ItemKey::ReplayGainTrackGain)
-            .and_then(parse_replaygain_track_gain_db)
-    })
-}
-
-fn parse_replaygain_track_gain_db(raw: &str) -> Option<f64> {
-    let normalized = raw.trim().replace('−', "-");
-    let value = normalized
-        .strip_suffix("dB")
-        .or_else(|| normalized.strip_suffix("db"))
-        .unwrap_or(&normalized)
-        .trim();
-    value.parse().ok()
+    metadata
 }
 
 /// Convert Camelot/Open Key codes to musical notation; pass through other values.
@@ -118,33 +72,6 @@ fn normalize_key_notation(raw: &str) -> String {
     library_core::camelot_code_to_musical(num, minor).unwrap_or_else(|| trimmed.to_string())
 }
 
-/// Read embedded album artwork from an audio file, if present.
-pub fn read_artwork(path: &Path) -> library_core::Result<Option<Vec<u8>>> {
-    let tagged = Probe::open(path)
-        .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
-        .read()
-        .map_err(|e| io_backend(format!("read tags {}: {e}", path_label(path))))?;
-
-    let Some(tag) = tagged.primary_tag().or_else(|| tagged.first_tag()) else {
-        return Ok(None);
-    };
-
-    let Some(picture) = tag.pictures().first() else {
-        return Ok(None);
-    };
-
-    Ok(Some(picture.data().to_vec()))
-}
-
-fn duration_ms(duration: Duration) -> Option<i32> {
-    let secs = duration.as_secs_f64();
-    if secs > 0.0 {
-        Some(secs_to_ms(secs))
-    } else {
-        None
-    }
-}
-
 fn io_backend(message: String) -> library_core::LibraryError {
     library_core::LibraryError::Backend {
         backend: "library",
@@ -152,92 +79,9 @@ fn io_backend(message: String) -> library_core::LibraryError {
     }
 }
 
-fn read_stem_tags(path: &Path) -> library_core::Result<TrackMetadata> {
-    let mut metadata = match Probe::open(path).and_then(|probe| probe.read()) {
-        Ok(tagged) => {
-            let properties = tagged.properties();
-            let tag = tagged.primary_tag().or_else(|| tagged.first_tag());
-            let mut metadata = TrackMetadata {
-                duration_ms: duration_ms(properties.duration()),
-                sample_rate: properties.sample_rate(),
-                channels: properties.channels().map(|c| c as u16).or(Some(2)),
-                bitrate_kbps: properties.audio_bitrate(),
-                ..TrackMetadata::default()
-            };
-            if let Some(tag) = tag {
-                metadata.title = tag.title().map(|s| s.to_string());
-                metadata.artist = tag.artist().map(|s| s.to_string());
-                metadata.album = tag.album().map(|s| s.to_string());
-                metadata.genre = tag.genre().map(|s| s.to_string());
-                if let Some(bpm) = tag.get_string(&ItemKey::Bpm) {
-                    metadata.bpm = bpm.parse().ok();
-                }
-                if metadata.bpm.is_none() {
-                    if let Some(bpm) = tag.get_string(&ItemKey::IntegerBpm) {
-                        metadata.bpm = bpm.parse().ok();
-                    }
-                }
-                metadata.key = tag
-                    .get_string(&ItemKey::InitialKey)
-                    .map(normalize_key_notation);
-                metadata.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
-            }
-            metadata.replaygain_track_gain_db = replaygain_track_gain_db(&tagged);
-            metadata
-        }
-        Err(_) => TrackMetadata {
-            title: stem_file_title(path),
-            channels: Some(2),
-            ..TrackMetadata::default()
-        },
-    };
-
-    #[cfg(feature = "analysis")]
-    {
-        if let Ok((sample_rate, duration_frames)) = stem_container_info(path) {
-            metadata.sample_rate = Some(sample_rate);
-            metadata.channels = Some(2);
-            if duration_frames > 0 {
-                let secs = duration_frames as f64 / f64::from(sample_rate);
-                metadata.duration_ms = duration_ms(Duration::from_secs_f64(secs));
-            }
-        }
-    }
-
-    if metadata.title.is_none() {
-        metadata.title = stem_file_title(path);
-    }
-
-    Ok(metadata)
-}
-
-fn stem_file_title(path: &Path) -> Option<String> {
-    let name = path.file_name()?.to_str()?;
-    let lower = name.to_ascii_lowercase();
-    let stripped_len = lower.strip_suffix(".stem.mp4")?.len();
-    Some(name[..stripped_len].to_string())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
-
-    use lofty::file::{FileType, TaggedFile};
-    use lofty::properties::FileProperties;
-    use lofty::tag::{Tag, TagType};
-
-    #[test]
-    fn stem_file_title_preserves_case() {
-        assert_eq!(
-            stem_file_title(Path::new("/music/My Track.stem.mp4")).as_deref(),
-            Some("My Track")
-        );
-        assert_eq!(
-            stem_file_title(Path::new("/music/My Track.STEM.MP4")).as_deref(),
-            Some("My Track")
-        );
-    }
 
     #[test]
     fn normalize_camelot_key_to_musical() {
@@ -255,48 +99,21 @@ mod tests {
     }
 
     #[test]
-    fn parses_replaygain_track_gain_values() {
-        assert_eq!(parse_replaygain_track_gain_db("+3.20 dB"), Some(3.2));
-        assert_eq!(parse_replaygain_track_gain_db("-1.5 dB"), Some(-1.5));
-        assert_eq!(parse_replaygain_track_gain_db("−1.5 dB"), Some(-1.5));
-        assert_eq!(parse_replaygain_track_gain_db("not a gain"), None);
-    }
-
-    #[test]
-    fn reads_first_valid_replaygain_from_secondary_tag() {
-        let mut primary = Tag::new(TagType::Id3v2);
-        assert!(primary.insert_text(ItemKey::ReplayGainTrackGain, "not a gain".to_string()));
-        let mut secondary = Tag::new(TagType::Ape);
-        assert!(secondary.insert_text(ItemKey::ReplayGainTrackGain, "+3.20 dB".to_string()));
-        let tagged = TaggedFile::new(
-            FileType::Mpeg,
-            FileProperties::default(),
-            vec![primary, secondary],
-        );
-
-        assert_eq!(replaygain_track_gain_db(&tagged), Some(3.2));
+    fn maps_file_tags_and_falls_back_title() {
+        let tags = FileTags {
+            artist: Some("Artist".into()),
+            key: Some("8A".into()),
+            ..FileTags::default()
+        };
+        let meta = track_metadata_from_file_tags(Path::new("/music/My Song.flac"), tags);
+        assert_eq!(meta.artist.as_deref(), Some("Artist"));
+        assert_eq!(meta.key.as_deref(), Some("Am"));
+        assert_eq!(meta.title.as_deref(), Some("My Song"));
     }
 
     #[test]
     fn read_tags_missing_file_errors() {
         let err = read_tags(Path::new("/no/such/file.mp3")).unwrap_err();
-        assert!(matches!(
-            err,
-            library_core::LibraryError::Backend {
-                backend: "library",
-                ..
-            }
-        ));
-    }
-
-    #[test]
-    fn read_tags_rejects_non_audio() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("notes.txt");
-        let mut file = std::fs::File::create(&path).unwrap();
-        writeln!(file, "not audio").unwrap();
-
-        let err = read_tags(&path).unwrap_err();
         assert!(matches!(
             err,
             library_core::LibraryError::Backend {
