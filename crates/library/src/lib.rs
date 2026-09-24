@@ -33,9 +33,11 @@ mod waveform;
 mod worker;
 
 #[cfg(feature = "analysis")]
-use analyzer::{analyze_file, merge_track_metadata, AnalysisConfig, TagMetadata};
+use analyzer::{analyze_file, analyze_pcm, merge_track_metadata, AnalysisConfig, TagMetadata};
 #[cfg(feature = "analysis")]
 use analyzer_core::loudness_lufs_from_replaygain_track_gain_db;
+#[cfg(feature = "analysis")]
+use codec::{decode_stem_file, StemPcmBundle};
 
 use library_api::{EvtBody, Kind, Origin};
 use library_core::AnalysisDurationMode;
@@ -44,11 +46,12 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    is_supported_audio_extension, is_supported_audio_path, path_label, AnalyzeTrackOptions,
-    AudioSource, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library, LibraryConfig,
-    LibraryError, LoadableAudio, LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource,
-    StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
+    is_loadable_audio_path, is_stem_audio_path, is_supported_audio_extension,
+    is_supported_audio_path, path_label, AnalyzeTrackOptions, AudioSource, Collection,
+    CollectionConfig, CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId,
+    CollectionType, FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio,
+    LoadedAudio, NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId,
+    TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -70,8 +73,8 @@ pub use sampler_data::{
 pub use session::LibrarySession;
 pub use stems::{
     clear_all_track_stems, clear_model_cache, dir_size, ensure_track_stems,
-    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, StemProgressFn,
-    TrackStemsInfo,
+    ensure_track_stems_with_progress, sqlite_db_bytes, stem_io_message, sync_stem_cache_with_db,
+    StemProgressFn, TrackStemsInfo,
 };
 pub use tags::read_artwork;
 pub use waveform::{
@@ -85,6 +88,8 @@ pub struct PreparedTrackPlayback {
     pub track_id: TrackId,
     pub source: AudioSource,
     pub audio: Arc<LoadedAudio>,
+    /// NI order (drums, bass, other, vocals) when a native Stem or valid cache was resolved.
+    pub stems: Option<[Arc<LoadedAudio>; 4]>,
     pub loudness_lufs: Option<f64>,
 }
 
@@ -463,17 +468,12 @@ impl LibraryManager {
         waveform::get_track_waveform_row(&self.db, id)
     }
 
-    /// Load stored stem file paths for a track, if present and all four files exist.
+    /// Load stored stem cache path for a track, if present and the `.stem.mp4` exists.
     pub fn get_track_stems(&self, id: &TrackId) -> Result<Option<stems::TrackStemsInfo>> {
-        Ok(stems::get_track_stems(&self.db, id)?.filter(|info| {
-            info.vocals_path.is_file()
-                && info.drums_path.is_file()
-                && info.bass_path.is_file()
-                && info.other_path.is_file()
-        }))
+        Ok(stems::get_track_stems(&self.db, id)?.filter(|info| info.path.is_file()))
     }
 
-    /// True when a complete stem row exists and all four stem files are on disk.
+    /// True when a complete stem row exists and the cached `.stem.mp4` is on disk.
     pub fn has_track_stems(&self, id: &TrackId) -> Result<bool> {
         stems::has_track_stems(&self.db, id)
     }
@@ -495,6 +495,11 @@ impl LibraryManager {
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
     pub fn clear_stem_cache(&self, stems_root: &Path) -> Result<()> {
         stems::clear_all_track_stems(&self.db, stems_root)
+    }
+
+    /// Remove orphan stem cache files and rows that no longer match on disk.
+    pub fn sync_stem_cache(&self, stems_root: &Path) -> Result<u32> {
+        stems::sync_stem_cache_with_db(&self.db, stems_root)
     }
 
     /// Delete all cached waveform overview rows.
@@ -935,6 +940,16 @@ impl LibraryManager {
         mut source: AudioSource,
     ) -> Result<PreparedTrackPlayback> {
         let track_id = source.id().clone();
+
+        #[cfg(feature = "analysis")]
+        if let Some(path) = source
+            .file()
+            .map(|f| f.path().to_path_buf())
+            .filter(|path| is_stem_audio_path(path))
+        {
+            return prepare_native_stem_for_playback(library, source, path);
+        }
+
         if source.file().is_some() {
             Self::ensure_track_analysis(library, &track_id)?;
             source = {
@@ -948,6 +963,62 @@ impl LibraryManager {
             lib.track_loudness_lufs(&track_id)?
         };
         source.metadata_mut().loudness_lufs = loudness_lufs;
+
+        #[cfg(feature = "analysis")]
+        {
+            let stems_enabled = {
+                let lib = Self::lock_library(library)?;
+                lib.buses().is_some_and(|buses| buses.stems_enabled())
+            };
+            if stems_enabled {
+                let source_path = source.file().map(|f| f.path().to_path_buf());
+                let cache = {
+                    let lib = Self::lock_library(library)?;
+                    lib.get_track_stems(&track_id)?
+                };
+                if let Some(info) = cache {
+                    let stale = source_path
+                        .as_ref()
+                        .is_some_and(|path| !stems::cache_matches_source_file(&info, path));
+                    if stale {
+                        tracing::warn!(
+                            track_id = %track_id,
+                            cache = %info.path.display(),
+                            "stem cache fingerprint mismatch; discarding"
+                        );
+                        let lib = Self::lock_library(library)?;
+                        stems::delete_track_stems(&lib.db, &track_id)?;
+                        drop(lib);
+                        let _ = std::fs::remove_file(&info.path);
+                    } else {
+                        match decode_stem_file(&info.path) {
+                            Ok(bundle) => {
+                                let (audio, stems) = loaded_from_stem_bundle(&info.path, bundle);
+                                return Ok(PreparedTrackPlayback {
+                                    track_id,
+                                    source,
+                                    audio,
+                                    stems: Some(stems),
+                                    loudness_lufs,
+                                });
+                            }
+                            Err(err) => {
+                                tracing::warn!(
+                                    track_id = %track_id,
+                                    cache = %info.path.display(),
+                                    error = %err,
+                                    "stem cache decode failed; discarding"
+                                );
+                                let lib = Self::lock_library(library)?;
+                                stems::delete_track_stems(&lib.db, &track_id)?;
+                                drop(lib);
+                                let _ = std::fs::remove_file(&info.path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let cached = {
             let lib = Self::lock_library(library)?;
@@ -977,6 +1048,7 @@ impl LibraryManager {
             track_id,
             source,
             audio,
+            stems: None,
             loudness_lufs,
         })
     }
@@ -1423,7 +1495,11 @@ fn compute_file_analysis(
     config.max_duration_ms = options
         .analysis_duration
         .resolve_max_duration_ms(tag_metadata.duration_ms);
-    let mut analysis = analyze_file(&path, &config).map_err(analysis::analyzer_error)?;
+    let mut analysis = if is_stem_audio_path(&path) {
+        analyze_stem_mixdown(&path, &config)?
+    } else {
+        analyze_file(&path, &config).map_err(analysis::analyzer_error)?
+    };
     let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
     analysis.loudness_lufs =
         preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
@@ -1445,6 +1521,48 @@ fn compute_file_analysis(
     metadata.key = merged.key;
 
     Ok(ComputedFileAnalysis { metadata, analysis })
+}
+
+/// Decode a `.stem.mp4` mixdown via the repaired Stem path, then analyze mono PCM.
+#[cfg(feature = "analysis")]
+fn analyze_stem_mixdown(path: &Path, config: &AnalysisConfig) -> Result<analyzer::TrackAnalysis> {
+    let bundle = decode_stem_file(path).map_err(|e| LibraryError::Backend {
+        backend: "codec",
+        message: format!("failed to decode stem mixdown {}: {e}", path.display()),
+    })?;
+    analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, config)
+}
+
+/// Analyze an already-decoded Stem mixdown (Fast window truncates via config).
+#[cfg(feature = "analysis")]
+fn analyze_stem_mixdown_pcm(
+    mixdown: &[f32],
+    sample_rate: u32,
+    config: &AnalysisConfig,
+) -> Result<analyzer::TrackAnalysis> {
+    let mut mono = downmix_interleaved_to_mono(mixdown, 2);
+    if let Some(max_ms) = config.max_duration_ms {
+        let max_frames = (f64::from(max_ms) / 1000.0 * f64::from(sample_rate)).ceil() as usize;
+        if mono.len() > max_frames {
+            mono.truncate(max_frames);
+        }
+    }
+    analyze_pcm(&mono, sample_rate, config).map_err(analysis::analyzer_error)
+}
+
+#[cfg(feature = "analysis")]
+fn downmix_interleaved_to_mono(interleaved: &[f32], channels: usize) -> Vec<f32> {
+    if channels <= 1 {
+        return interleaved.to_vec();
+    }
+    let frames = interleaved.len() / channels;
+    let mut mono = Vec::with_capacity(frames);
+    for frame in 0..frames {
+        let base = frame * channels;
+        let sum: f32 = (0..channels).map(|ch| interleaved[base + ch]).sum();
+        mono.push(sum / channels as f32);
+    }
+    mono
 }
 
 #[cfg(feature = "analysis")]
@@ -1708,8 +1826,125 @@ fn normalize_path(path: &Path) -> Result<PathBuf> {
     }
 }
 
+#[cfg(feature = "analysis")]
+fn prepare_native_stem_for_playback(
+    library: &Mutex<LibraryManager>,
+    mut source: AudioSource,
+    path: PathBuf,
+) -> Result<PreparedTrackPlayback> {
+    let track_id = source.id().clone();
+    let bundle = decode_stem_file(&path).map_err(|e| LibraryError::Backend {
+        backend: "codec",
+        message: format!("failed to decode native stem file {}: {e}", path.display()),
+    })?;
+
+    let needs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.needs_playback_analysis(&track_id)?
+    };
+    if needs {
+        let options = AnalyzeTrackOptions {
+            force: false,
+            analysis_duration: AnalysisDurationMode::Fast,
+            ..Default::default()
+        };
+        let mut config = AnalysisConfig::default();
+        let tag_metadata = tags::read_tags(&path)?;
+        config.max_duration_ms = options
+            .analysis_duration
+            .resolve_max_duration_ms(tag_metadata.duration_ms);
+        let mut analysis = analyze_stem_mixdown_pcm(&bundle.mixdown, bundle.sample_rate, &config)?;
+        let replaygain_track_gain_db = tags::read_replaygain_track_gain_db(&path)?;
+        analysis.loudness_lufs =
+            preferred_loudness_lufs(analysis.loudness_lufs, replaygain_track_gain_db);
+        let tag_side = TagMetadata {
+            bpm: tag_metadata.bpm,
+            key: tag_metadata.key.clone(),
+        };
+        let merged = merge_track_metadata(
+            &tag_side,
+            &analysis,
+            options.force,
+            config.min_bpm_confidence,
+            config.min_key_confidence,
+        );
+        let mut metadata = tag_metadata;
+        metadata.bpm = merged.bpm;
+        metadata.key = merged.key;
+        let computed = ComputedFileAnalysis { metadata, analysis };
+        {
+            let lib = LibraryManager::lock_library(library)?;
+            if lib.needs_playback_analysis(&track_id)? {
+                lib.persist_file_analysis(&path, &computed, false)?;
+            }
+        }
+        source = {
+            let lib = LibraryManager::lock_library(library)?;
+            lib.get_track(&track_id)?
+                .ok_or_else(|| LibraryError::NotFound(track_id.to_string()))?
+        };
+    }
+
+    let loudness_lufs = {
+        let lib = LibraryManager::lock_library(library)?;
+        lib.track_loudness_lufs(&track_id)?
+    };
+    source.metadata_mut().loudness_lufs = loudness_lufs;
+    let (audio, stems) = loaded_from_stem_bundle(&path, bundle);
+    Ok(PreparedTrackPlayback {
+        track_id,
+        source,
+        audio,
+        stems: Some(stems),
+        loudness_lufs,
+    })
+}
+
+#[cfg(feature = "analysis")]
+fn loaded_from_stem_bundle(
+    path: &Path,
+    bundle: StemPcmBundle,
+) -> (Arc<LoadedAudio>, [Arc<LoadedAudio>; 4]) {
+    let source_id = path.display().to_string();
+    let sample_rate = bundle.sample_rate;
+    let mixdown = Arc::new(LoadedAudio {
+        samples: bundle.mixdown,
+        sample_rate,
+        channels: 2,
+        source_id: source_id.clone(),
+    });
+    let [drums, bass, other, vocals] = bundle.stems;
+    let stems = [
+        Arc::new(LoadedAudio {
+            samples: drums,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#drums"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: bass,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#bass"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: other,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#other"),
+        }),
+        Arc::new(LoadedAudio {
+            samples: vocals,
+            sample_rate,
+            channels: 2,
+            source_id: format!("{source_id}#vocals"),
+        }),
+    ];
+    (mixdown, stems)
+}
+
 fn is_audio_file(path: &Path) -> bool {
-    is_supported_audio_path(path)
+    is_loadable_audio_path(path)
 }
 
 fn collect_audio_files(root: &Path, recursive: bool) -> Result<Vec<PathBuf>> {
@@ -1939,6 +2174,203 @@ mod tests {
             .get_track_waveform_overview(&track_id)
             .unwrap()
             .is_some());
+    }
+
+    #[cfg(feature = "analysis")]
+    fn write_tiny_stem_mp4(dir: &Path) -> PathBuf {
+        use codec::{encode_stem_mp4, StemAtom, StemMuxFormat};
+
+        let rate: u32 = 48_000;
+        let frames = (rate / 10) as usize;
+        let tone = |amp: f32| -> Vec<f32> {
+            (0..frames * 2)
+                .map(|i| amp * ((i / 2) as f32 * 0.01).sin())
+                .collect()
+        };
+        let mix = tone(0.1);
+        let stems = [tone(0.2), tone(0.3), tone(0.4), tone(0.5)];
+        let path = dir.join("fixture.stem.mp4");
+        encode_stem_mp4(
+            &path,
+            StemMuxFormat::Opus,
+            rate,
+            &mix,
+            [&stems[0], &stems[1], &stems[2], &stems[3]],
+            &StemAtom::default_ni(),
+        )
+        .unwrap();
+        path
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn import_and_prepare_native_stem_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let stem_path = write_tiny_stem_mp4(dir.path());
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+
+        let prepared =
+            LibraryManager::prepare_file_path_for_playback(&library, &stem_path).unwrap();
+        assert!(prepared.stems.is_some());
+        assert!(prepared.audio.samples.len() > 1_000);
+        let stems = prepared.stems.unwrap();
+        assert_eq!(stems.len(), 4);
+        assert!(stems[0].source_id.ends_with("#drums"));
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn import_file_path_accepts_native_stem_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let stem_path = write_tiny_stem_mp4(dir.path());
+        let lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let track = lib.import_file_path(&stem_path).unwrap();
+        assert_eq!(track.file().unwrap().path(), stem_path.as_path());
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn collect_audio_files_includes_native_stem_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let stem_path = write_tiny_stem_mp4(dir.path());
+        write_minimal_wav(&dir.path().join("plain.wav"));
+
+        let files = collect_audio_files(dir.path(), false).unwrap();
+        assert_eq!(files.len(), 2);
+        assert!(files.iter().any(|path| path == &stem_path));
+    }
+
+    #[cfg(feature = "analysis")]
+    fn matching_stem_fingerprint(source: &Path) -> String {
+        let meta = std::fs::metadata(source).unwrap();
+        let mtime = meta
+            .modified()
+            .unwrap()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        format!("v1:{}:{}:{}:48000:2:0", source.display(), mtime, meta.len())
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn prepare_resolves_stem_cache_hit() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+        let cache_path = write_tiny_stem_mp4(dir.path());
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let buses = LibraryBuses::new();
+        buses.set_stems_enabled(true);
+        lib.set_buses(buses);
+
+        let library = Mutex::new(lib);
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_file_path(&wav).unwrap().id().clone()
+        };
+        {
+            let lib = library.lock().unwrap();
+            stems::upsert_track_stems(
+                &lib.db,
+                &track_id,
+                &TrackStemsInfo {
+                    backend: "htdemucs_mixxx_v1".into(),
+                    source_fingerprint: matching_stem_fingerprint(&wav),
+                    format: "opus".into(),
+                    sample_rate: 48_000,
+                    path: cache_path,
+                    generated_at: "1".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert!(prepared.stems.is_some());
+        assert!(prepared.audio.samples.len() > 1_000);
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn prepare_stem_cache_miss_when_stems_disabled() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+        let cache_path = write_tiny_stem_mp4(dir.path());
+
+        let library = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default()).unwrap());
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_file_path(&wav).unwrap().id().clone()
+        };
+        {
+            let lib = library.lock().unwrap();
+            stems::upsert_track_stems(
+                &lib.db,
+                &track_id,
+                &TrackStemsInfo {
+                    backend: "htdemucs_mixxx_v1".into(),
+                    source_fingerprint: "fp".into(),
+                    format: "opus".into(),
+                    sample_rate: 48_000,
+                    path: cache_path,
+                    generated_at: "1".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert!(prepared.stems.is_none());
+    }
+
+    #[cfg(feature = "analysis")]
+    #[test]
+    fn prepare_corrupt_stem_cache_falls_back_to_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let wav = dir.path().join("track.wav");
+        write_analysis_wav(&wav);
+        let corrupt = dir.path().join("bad.stem.mp4");
+        std::fs::write(&corrupt, b"not a stem file").unwrap();
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let buses = LibraryBuses::new();
+        buses.set_stems_enabled(true);
+        lib.set_buses(buses);
+
+        let library = Mutex::new(lib);
+        let track_id = {
+            let lib = library.lock().unwrap();
+            lib.import_file_path(&wav).unwrap().id().clone()
+        };
+        {
+            let lib = library.lock().unwrap();
+            stems::upsert_track_stems(
+                &lib.db,
+                &track_id,
+                &TrackStemsInfo {
+                    backend: "htdemucs_mixxx_v1".into(),
+                    source_fingerprint: matching_stem_fingerprint(&wav),
+                    format: "opus".into(),
+                    sample_rate: 48_000,
+                    path: corrupt,
+                    generated_at: "1".into(),
+                },
+            )
+            .unwrap();
+        }
+
+        let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
+        assert!(prepared.stems.is_none());
+        assert!(library
+            .lock()
+            .unwrap()
+            .get_track_stems(&track_id)
+            .unwrap()
+            .is_none());
+        assert!(prepared.audio.samples.len() > 1_000);
     }
 
     #[test]

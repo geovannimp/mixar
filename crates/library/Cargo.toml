@@ -26,12 +26,14 @@ uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }
 analyzer-core = { path = "../analyzer-core", optional = true }
 analyzer-stems = { path = "../analyzer-stems", optional = true }
+codec = { path = "../codec", optional = true }
 xspf = "0.4.2"
 xml = "0.8"
+tracing.workspace = true
 
 [features]
 default = ["analysis"]
-analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems"]
+analysis = ["dep:analyzer", "dep:analyzer-core", "dep:analyzer-stems", "dep:codec"]
 
 [dev-dependencies]
 tempfile = "3.0"

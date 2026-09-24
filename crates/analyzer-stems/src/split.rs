@@ -1,39 +1,36 @@
 //! HTDemucs split of interleaved stereo PCM via ort + Mixxx ONNX.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{anyhow, Result};
 use tracing::info;
 
-use crate::format::{encode_stem_file, StemAudioFormat};
 use crate::infer::{self, SAMPLE_RATE};
 use crate::manifest::{resolve_model, DEFAULT_MODEL};
 
 /// Canonical stem file order / names.
-pub const STEM_NAMES: [&str; 4] = ["vocals", "drums", "bass", "other"];
+pub const STEM_NAMES: [&str; 4] = ["drums", "bass", "other", "vocals"];
 
 /// Request to separate already-decoded interleaved stereo PCM.
 pub struct StemSplitRequest<'a> {
     pub interleaved_stereo: &'a [f32],
     pub sample_rate: u32,
-    pub output_dir: &'a Path,
     /// Mixar-owned model cache root (`{app_support}/models`).
     pub models_root: &'a Path,
     pub model_name: &'a str,
-    pub format: StemAudioFormat,
     /// Called with `(windows_done, windows_total)` during separation.
     pub on_window_progress: Option<Box<dyn Fn(usize, usize) + Send + Sync + 'a>>,
 }
 
-/// Paths to written stem files (same order as [`STEM_NAMES`]).
+/// PCM stems in [`STEM_NAMES`] order plus model metadata.
 pub struct StemSplitResult {
-    pub paths: [PathBuf; 4],
+    pub stems: [Vec<f32>; 4],
     pub sample_rate: u32,
     /// `{model id}/{ep}`, e.g. `htdemucs_mixxx_v1/webgpu`.
     pub backend: String,
 }
 
-/// Separate interleaved stereo PCM into four stem files under `output_dir`.
+/// Separate interleaved stereo PCM into four NI-order stems.
 pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitResult> {
     let model_name = if req.model_name.is_empty() {
         DEFAULT_MODEL
@@ -68,19 +65,11 @@ pub fn split_interleaved_stereo(req: StemSplitRequest<'_>) -> Result<StemSplitRe
         progress,
     )?;
 
-    info!(format = ?req.format, ep, "stem split: encoding");
-    let mut paths: [PathBuf; 4] = std::array::from_fn(|_| PathBuf::new());
-    let mut written_rate = SAMPLE_RATE;
-    for ((path, name), stem) in paths.iter_mut().zip(STEM_NAMES).zip(&stems) {
-        *path = req
-            .output_dir
-            .join(format!("{name}.{}", req.format.extension()));
-        written_rate = encode_stem_file(path, req.format, stem, SAMPLE_RATE)?;
-    }
+    info!(ep, "stem split: done");
 
     Ok(StemSplitResult {
-        paths,
-        sample_rate: written_rate,
+        stems,
+        sample_rate: SAMPLE_RATE,
         backend: format!("{model_name}/{ep}"),
     })
 }

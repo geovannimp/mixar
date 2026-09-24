@@ -101,7 +101,7 @@ impl LibraryBuses {
         *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
     }
 
-    /// Stem cache codec (`opus` | `flac`).
+    /// Stem cache codec (`opus` | `flac`). AAC is normalized to opus until encode ships.
     pub fn set_stems_format(&self, format: impl Into<String>) {
         let format = format.into();
         let normalized = match format.as_str() {

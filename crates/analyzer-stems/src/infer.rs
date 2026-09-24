@@ -20,8 +20,8 @@ pub const SOURCES: usize = 4;
 /// StemSplit-style OLA: `overlap = N // 4`, `stride = N - overlap`.
 const OVERLAP: usize = SEGMENT_SAMPLES / 4;
 const CHUNK_STRIDE: usize = SEGMENT_SAMPLES - OVERLAP;
-/// ONNX stem order is drums, bass, other, vocals; Mixar is vocals, drums, bass, other.
-const SOURCE_ORDER: [usize; SOURCES] = [3, 0, 1, 2];
+/// ONNX stem order is drums, bass, other, vocals — same as NI / Mixar.
+const SOURCE_ORDER: [usize; SOURCES] = [0, 1, 2, 3];
 
 /// Separate `pcm` (interleaved stereo) into four interleaved stereo stems at
 /// [`SAMPLE_RATE`], in [`crate::STEM_NAMES`] order.
@@ -357,8 +357,7 @@ mod tests {
 
     #[test]
     fn source_order_maps_onnx_to_mixar() {
-        // ONNX: drums=0, bass=1, other=2, vocals=3
-        // Mixar STEM_NAMES: vocals, drums, bass, other
-        assert_eq!(SOURCE_ORDER, [3, 0, 1, 2]);
+        // ONNX and Mixar STEM_NAMES: drums, bass, other, vocals
+        assert_eq!(SOURCE_ORDER, [0, 1, 2, 3]);
     }
 }

@@ -10,8 +10,13 @@ description = "Audio codec wrapper for Mixar"
 audio-core = { path = "../audio-core" }
 anyhow.workspace = true
 thiserror.workspace = true
+serde.workspace = true
+serde_json = "1.0"
 symphonia = { version = "0.5", features = ["all"] }
 symphonia-adapter-libopus = "0.2"
+mp4io = "0.1"
+ruopus = "0.1"
+flacenc = "0.5"
 
 [dev-dependencies]
 tempfile = "3.0"

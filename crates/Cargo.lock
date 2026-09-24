@@ -771,6 +771,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "flacenc",
+ "mp4io",
+ "ruopus",
+ "serde",
+ "serde_json",
  "symphonia",
  "symphonia-adapter-libopus",
  "tempfile",
@@ -1471,9 +1476,9 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge"
-version = "2.12.0"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0884853aae8a6517b5b58cf36f55da487f2fe110e1686938eb29b6640aae4a5"
+checksum = "24a973d15b8fc7de9fb29cdfbec58a2ac41f6252492d3b882abfdc603e32b34f"
 dependencies = [
  "allo-isolate",
  "android_logger",
@@ -1500,9 +1505,9 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge_macros"
-version = "2.12.0"
+version = "2.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b5ce32f35f710ced8c5aa557f023f1a624e737b5460cee2b70fcd3a8df09e1b"
+checksum = "901eec2d226107dad1c55b30f7421c4687bebcf70ed43ca44d1b447ca087b238"
 dependencies = [
  "hex",
  "md-5",
@@ -1818,6 +1823,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "audio-core 0.1.0",
+ "codec",
  "controller",
  "engine-api",
  "engine-core",
@@ -2361,6 +2367,7 @@ dependencies = [
  "analyzer-stems",
  "audio-core 0.1.0",
  "chrono",
+ "codec",
  "library-api",
  "library-core",
  "lofty",
@@ -2370,6 +2377,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tracing",
  "uuid",
  "xml",
  "xspf",
@@ -2625,6 +2633,12 @@ dependencies = [
  "wasi 0.11.1+wasi-snapshot-preview1",
  "windows-sys 0.59.0",
 ]
+
+[[package]]
+name = "mp4io"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c488beae43628748ca13f6fd6441487e466147292b72d90596a94c26456cb848"
 
 [[package]]
 name = "native-tls"
@@ -3391,7 +3405,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

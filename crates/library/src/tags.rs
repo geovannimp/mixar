@@ -4,6 +4,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use audio_core::secs_to_ms;
+#[cfg(feature = "analysis")]
+use codec::stem_container_info;
 use library_core::{path_label, TrackMetadata};
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
@@ -11,6 +13,10 @@ use lofty::tag::{Accessor, ItemKey};
 
 /// Read metadata tags from an audio file.
 pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
+    if library_core::is_stem_audio_path(path) {
+        return read_stem_tags(path);
+    }
+
     let tagged = Probe::open(path)
         .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
@@ -63,6 +69,10 @@ pub fn read_tags(path: &Path) -> library_core::Result<TrackMetadata> {
 
 /// Read the ReplayGain track gain tag, in decibels, when present and valid.
 pub(crate) fn read_replaygain_track_gain_db(path: &Path) -> library_core::Result<Option<f64>> {
+    if library_core::is_stem_audio_path(path) {
+        // Multi-track Stem files confuse lofty's MP4 probe; skip ReplayGain here.
+        return Ok(None);
+    }
     let tagged = Probe::open(path)
         .map_err(|e| io_backend(format!("open {}: {e}", path_label(path))))?
         .read()
@@ -142,6 +152,72 @@ fn io_backend(message: String) -> library_core::LibraryError {
     }
 }
 
+fn read_stem_tags(path: &Path) -> library_core::Result<TrackMetadata> {
+    let mut metadata = match Probe::open(path).and_then(|probe| probe.read()) {
+        Ok(tagged) => {
+            let properties = tagged.properties();
+            let tag = tagged.primary_tag().or_else(|| tagged.first_tag());
+            let mut metadata = TrackMetadata {
+                duration_ms: duration_ms(properties.duration()),
+                sample_rate: properties.sample_rate(),
+                channels: properties.channels().map(|c| c as u16).or(Some(2)),
+                bitrate_kbps: properties.audio_bitrate(),
+                ..TrackMetadata::default()
+            };
+            if let Some(tag) = tag {
+                metadata.title = tag.title().map(|s| s.to_string());
+                metadata.artist = tag.artist().map(|s| s.to_string());
+                metadata.album = tag.album().map(|s| s.to_string());
+                metadata.genre = tag.genre().map(|s| s.to_string());
+                if let Some(bpm) = tag.get_string(&ItemKey::Bpm) {
+                    metadata.bpm = bpm.parse().ok();
+                }
+                if metadata.bpm.is_none() {
+                    if let Some(bpm) = tag.get_string(&ItemKey::IntegerBpm) {
+                        metadata.bpm = bpm.parse().ok();
+                    }
+                }
+                metadata.key = tag
+                    .get_string(&ItemKey::InitialKey)
+                    .map(normalize_key_notation);
+                metadata.isrc = tag.get_string(&ItemKey::Isrc).map(|s| s.to_string());
+            }
+            metadata.replaygain_track_gain_db = replaygain_track_gain_db(&tagged);
+            metadata
+        }
+        Err(_) => TrackMetadata {
+            title: stem_file_title(path),
+            channels: Some(2),
+            ..TrackMetadata::default()
+        },
+    };
+
+    #[cfg(feature = "analysis")]
+    {
+        if let Ok((sample_rate, duration_frames)) = stem_container_info(path) {
+            metadata.sample_rate = Some(sample_rate);
+            metadata.channels = Some(2);
+            if duration_frames > 0 {
+                let secs = duration_frames as f64 / f64::from(sample_rate);
+                metadata.duration_ms = duration_ms(Duration::from_secs_f64(secs));
+            }
+        }
+    }
+
+    if metadata.title.is_none() {
+        metadata.title = stem_file_title(path);
+    }
+
+    Ok(metadata)
+}
+
+fn stem_file_title(path: &Path) -> Option<String> {
+    let name = path.file_name()?.to_str()?;
+    let lower = name.to_ascii_lowercase();
+    let stripped_len = lower.strip_suffix(".stem.mp4")?.len();
+    Some(name[..stripped_len].to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,6 +226,18 @@ mod tests {
     use lofty::file::{FileType, TaggedFile};
     use lofty::properties::FileProperties;
     use lofty::tag::{Tag, TagType};
+
+    #[test]
+    fn stem_file_title_preserves_case() {
+        assert_eq!(
+            stem_file_title(Path::new("/music/My Track.stem.mp4")).as_deref(),
+            Some("My Track")
+        );
+        assert_eq!(
+            stem_file_title(Path::new("/music/My Track.STEM.MP4")).as_deref(),
+            Some("My Track")
+        );
+    }
 
     #[test]
     fn normalize_camelot_key_to_musical() {

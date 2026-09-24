@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use library_core::is_supported_audio_path;
+use library_core::is_loadable_audio_path;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct VolumeInfo {
@@ -26,7 +26,7 @@ pub struct DirectoryListing {
 }
 
 fn is_audio_file(path: &Path) -> bool {
-    is_supported_audio_path(path)
+    is_loadable_audio_path(path)
 }
 
 fn is_hidden(name: &str) -> bool {

@@ -1592,7 +1592,7 @@ impl Engine {
         Ok(())
     }
 
-    /// Attach four stem buffers to a deck (vocals, drums, bass, other).
+    /// Attach four stem buffers to a deck (drums, bass, other, vocals — NI index order).
     pub fn attach_deck_stems(
         &mut self,
         deck_id: usize,
