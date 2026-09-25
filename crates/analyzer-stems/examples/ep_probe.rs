@@ -48,7 +48,6 @@ fn try_ep(
     label: &str,
     ep: ort::ep::ExecutionProviderDispatch,
 ) -> Result<()> {
-    // `with_*` steps error with `Error<SessionBuilder>`, which `anyhow::Context` rejects.
     let mut builder = Session::builder().context("builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)

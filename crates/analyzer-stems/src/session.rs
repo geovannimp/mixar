@@ -133,8 +133,6 @@ fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) 
         crate::ep::force_c_numeric_locale();
     }
 
-    // `with_*` steps error with `Error<SessionBuilder>`, which is not `Send`/`Sync`,
-    // so `anyhow::Context` cannot wrap them.
     let mut builder = Session::builder().context("ort Session::builder")?;
     builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
