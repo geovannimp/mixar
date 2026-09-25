@@ -5,6 +5,10 @@ inputs:
   platform:
     description: linux | macos | windows
     required: true
+  refresh_index:
+    description: Run `apt-get update` first (Linux only). Set false if an earlier step already refreshed the index.
+    required: false
+    default: 'true'
 
 runs:
   using: composite
@@ -16,14 +20,21 @@ runs:
         # Pinned release — bump deliberately; verify SHA-256 below.
         APPIMAGETOOL_URL: https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
         APPIMAGETOOL_SHA256: ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+        REFRESH_INDEX: ${{ inputs.refresh_index }}
       run: |
         set -euo pipefail
-        sudo apt-get update
+        # ubuntu-24.04 already ships clang, cmake, ninja, pkg-config, wget.
+        # libfuse2+fuse: appimagetool is an AppImage and needs FUSE to mount.
+        if [ "$REFRESH_INDEX" = 'true' ]; then
+          sudo apt-get update
+        fi
         sudo apt-get install -y \
-          clang cmake ninja-build pkg-config \
-          libgtk-3-dev liblzma-dev libstdc++-12-dev \
-          libfuse2 fuse locate wget desktop-file-utils
-        sudo updatedb || true
+          libgtk-3-dev liblzma-dev \
+          libfuse2 fuse
+
+        # Skipped: locate/updatedb (appimage make_config.yaml has include: [], so
+        # fastforge never queries the DB), desktop-file-utils, libstdc++-12-dev.
+
         curl -fsSL --retry 3 -o appimagetool "$APPIMAGETOOL_URL"
         actual="$(sha256sum appimagetool | awk '{print $1}')"
         if [ "$actual" != "$APPIMAGETOOL_SHA256" ]; then
@@ -38,10 +49,19 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        npm install -g appdmg@0.6.6
+        # fastforge execs appdmg; its own fallback is `pnpm install -g appdmg` (unpinned).
+        npm install -g appdmg@0.6.6 --no-fund --no-audit
 
     - name: Windows Inno Setup
       if: inputs.platform == 'windows'
       shell: pwsh
       run: |
-        choco install innosetup --version=6.7.1 -y --no-progress
+        # Already on windows-latest, and the first path resolveIsccPath() probes.
+        $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+        if (Test-Path $iscc) {
+          Write-Host "Inno Setup already on image: $iscc"
+        } elseif (Get-Command ISCC.exe -ErrorAction SilentlyContinue) {
+          Write-Host 'Inno Setup already on PATH'
+        } else {
+          choco install innosetup --version=6.7.1 -y --no-progress
+        }
