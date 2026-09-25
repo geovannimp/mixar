@@ -33,8 +33,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: crates -> target
-          shared-key: test
+          # Must stay identical to build.yml / lint.yml — see build.yml.
+          shared-key: crates-dev
           cache-on-failure: true
+          cache-directories: ~/.cache/ort.pyke.io # see build.yml
 
       - name: Install npm dependencies
         run: npm ci
