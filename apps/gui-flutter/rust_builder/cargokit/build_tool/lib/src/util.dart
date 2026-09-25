@@ -171,19 +171,40 @@ String _resolveExecutable(String executable) {
   }
 }
 
-/// Copy ORT Dawn sidecars (follow symlinks) into a Flutter plugin output dir.
-void copyOrtDawnSidecars(String artifactDir, String outputDir) {
-  const names = <String>[
-    'libwebgpu_dawn.so',
-    'libwebgpu_dawn.dylib',
-    'webgpu_dawn.dll',
-  ];
-  for (final name in names) {
+/// Runtime sidecars that `ort` drops next to the cdylib and that the Flutter
+/// bundle therefore has to ship.
+///
+/// This mirrors what `ort-sys`'s `copy_dylibs` places there: the Dawn library,
+/// plus — only in the Windows WebGPU distribution — the DirectX shader compiler
+/// that Dawn's D3D12 backend opens at runtime. Import libraries (`.lib`) and
+/// debug info (`.pdb`) are deliberately not copied; the lists are per platform
+/// so an absent name is skipped.
+const ortRuntimeSidecars = <String>[
+  // Linux
+  'libwebgpu_dawn.so',
+  // macOS
+  'libwebgpu_dawn.dylib',
+  // Windows
+  'webgpu_dawn.dll',
+  'dxcompiler.dll',
+  'dxil.dll',
+];
+
+/// Copy the [ortRuntimeSidecars] (following symlinks) into a plugin output dir.
+///
+/// The sidecars are logged at info level because the plugin CMakeLists must
+/// list the same destination paths in `<plugin>_bundled_libraries`; when a
+/// path there drifts from [outputDir] the symptom is an install-time failure
+/// with no obvious connection to this function.
+void copyOrtRuntimeSidecars(String artifactDir, String outputDir) {
+  for (final name in ortRuntimeSidecars) {
     final src = File(path.join(artifactDir, name));
     if (!src.existsSync()) {
       continue;
     }
     final real = src.resolveSymbolicLinksSync();
-    File(real).copySync(path.join(outputDir, name));
+    final dest = path.join(outputDir, name);
+    File(real).copySync(dest);
+    log.info('Copied ORT sidecar $name -> $dest');
   }
 }

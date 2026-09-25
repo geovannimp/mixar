@@ -15,9 +15,19 @@ apply_cargokit(${PROJECT_NAME} ../../../../crates/host-flutter host_flutter "")
 # This list could contain prebuilt libraries, or libraries created by an
 # external build triggered from this build file.
 #
-# ORT WebGPU: Dawn sidecar (copied by cargokit build_cmake next to the cdylib).
+# ORT WebGPU sidecars (copied by cargokit build_cmake next to the cdylib, see
+# ortRuntimeSidecars in the build tool): the Dawn library, plus the DirectX
+# shader compiler that Dawn's D3D12 backend opens at runtime. The Windows ORT
+# WebGPU distribution is the only one that ships more than the Dawn library.
+#
+# Windows uses the multi-config VS generator, so cargokit writes every artifact
+# into ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> (cargokit.cmake CARGOKIT_OUTPUT_DIR).
+# The $<CONFIG> is required here: without it install() looks one level too high,
+# the build compiles fine, and the INSTALL project dies with a bare MSB3073.
 set(host_flutter_bundled_libraries
   "${${PROJECT_NAME}_cargokit_lib}"
-  "${CMAKE_CURRENT_BINARY_DIR}/webgpu_dawn.dll"
+  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/webgpu_dawn.dll"
+  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dxcompiler.dll"
+  "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dxil.dll"
   PARENT_SCOPE
 )

@@ -82,6 +82,25 @@ install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 if(PLUGIN_BUNDLED_LIBRARIES)
+  # A plugin that lists a sidecar it never produced (e.g. the ORT WebGPU Dawn
+  # DLL) otherwise fails the whole build in the INSTALL project, where CMake's
+  # output is swallowed and MSBuild only reports "exited with code 1". Check at
+  # install time — paths carry $<CONFIG> and only resolve then — and name the
+  # offenders instead of shipping a bundle with a missing runtime dependency.
+  string(REPLACE ";" "|" _bundled_libraries "${PLUGIN_BUNDLED_LIBRARIES}")
+  install(CODE "
+    string(REPLACE \"|\" \";\" _bundled \"${_bundled_libraries}\")
+    set(_missing \"\")
+    foreach(_library IN LISTS _bundled)
+      if(NOT EXISTS \"\${_library}\")
+        string(APPEND _missing \"\n  \${_library}\")
+      endif()
+    endforeach()
+    if(NOT _missing STREQUAL \"\")
+      message(FATAL_ERROR \"PLUGIN_BUNDLED_LIBRARIES entries do not exist:\${_missing}\")
+    endif()
+    " COMPONENT Runtime)
+
   install(FILES "${PLUGIN_BUNDLED_LIBRARIES}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
     COMPONENT Runtime)
