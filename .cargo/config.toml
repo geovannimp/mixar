@@ -1,0 +1,12 @@
+# Shared cargo settings. Machine-local overrides belong in ~/.cargo/config.toml.
+#
+# Shipped x86-64 binaries (AppImage, Windows .exe) require an AVX2 CPU (~2013+);
+# older hardware will SIGILL. Portable one-off build:
+#   RUSTFLAGS="-C target-cpu=x86-64" cargo build --release
+# aarch64 stays at baseline: x86-64-v3 is x86-only, aarch64 already has NEON.
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=x86-64-v3"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-cpu=x86-64-v3"]

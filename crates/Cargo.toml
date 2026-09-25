@@ -47,7 +47,8 @@ dasp_graph = { version = "0.11", default-features = false, features = ["node-sum
 petgraph = "0.5"
 
 [profile.release]
-opt-level = "z"
+# 3, not "z": "z" disables loop vectorization. See docs/tech-spec.md §13.
+opt-level = 3
 lto = true
 codegen-units = 1
 panic = "abort"
