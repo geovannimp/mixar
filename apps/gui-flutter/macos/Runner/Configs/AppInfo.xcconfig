@@ -20,3 +20,8 @@ PRODUCT_COPYRIGHT = Copyright © 2026 Mixar. All rights reserved.
 // rust_builder/macos/host_flutter.podspec), otherwise the pod still tries to
 // cross-compile x86_64 and cargo fails on ort-sys.
 ARCHS = arm64
+
+// ONNX Runtime's macOS prebuilt is compiled for macOS 13.4 and is force-loaded
+// into the app, so that is the real floor regardless of the project default
+// (10.15). Keep in sync with the podspec, which sets the same value.
+MACOSX_DEPLOYMENT_TARGET = 13.4
