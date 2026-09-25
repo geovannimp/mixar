@@ -808,7 +808,7 @@ Use `Cargo.toml` / `.cargo/config.toml` release profile tuned for audio performa
 
 ```toml
 [profile.release]
-opt-level = "z"   # or 3 for maximum speed; consider "z" if distribution size matters
+opt-level = 3      # "z" disables loop vectorization
 lto = true
 codegen-units = 1
 panic = "abort"

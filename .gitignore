@@ -73,9 +73,12 @@ node_modules/
 tmp/
 temp/
 
-# Configuration files (user-specific)
+# Configuration files (user-specific) — engine runtime config
 config.toml
 *.config.toml
+
+# Cargo build config is shared
+!.cargo/config.toml
 
 # Documentation build output
 /book/
