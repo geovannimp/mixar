@@ -100,9 +100,8 @@ fn ep_entry(label: &'static str) -> Option<(&'static str, ExecutionProviderDispa
 
 #[cfg(feature = "webgpu")]
 fn webgpu_ep() -> ExecutionProviderDispatch {
-    // Bare EP registration. ort 2.0.0-rc.11's with_* helpers pass keys already
-    // prefixed `ep.webgpuexecutionprovider.*` into AppendExecutionProvider,
-    // which prefixes again — options never apply. Run with ORT WebGPU defaults.
+    // Bare EP registration — with_* helpers pre-prefix `ep.webgpuexecutionprovider.*`,
+    // which AppendExecutionProvider prefixes again, so options never apply. Use defaults.
     force_c_numeric_locale();
     ep::WebGPU::default().build()
 }

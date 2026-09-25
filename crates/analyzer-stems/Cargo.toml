@@ -11,6 +11,8 @@ description = "Offline stem separation for Mixar (HTDemucs via ort + Mixxx ONNX)
 # Only one ORT EP feature — `cargo build --all-features` (moon CI) must not enable
 # cuda/nvrtx alongside webgpu; ort-sys has no joint prebuilt and falls back to the
 # CPU tarball while still emitting `-lwebgpu_dawn`.
+# rc.11 also lacked an aarch64-apple-darwin wgpu prebuilt, so macOS hit the same link
+# error; rc.12 is the first release that ships one. Do not downgrade below rc.12.
 default = ["webgpu"]
 webgpu = ["ort/webgpu"]
 
@@ -19,7 +21,7 @@ anyhow.workspace = true
 flacenc = "0.5"
 hex = "0.4"
 libc = "0.2"
-ort = "=2.0.0-rc.11"
+ort = "=2.0.0-rc.12"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 resampler = { path = "../resampler" }
 ruopus = "0.1"

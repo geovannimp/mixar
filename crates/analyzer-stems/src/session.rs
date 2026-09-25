@@ -133,12 +133,16 @@ fn try_commit(path: &Path, label: &str, ep: ort::ep::ExecutionProviderDispatch) 
         crate::ep::force_c_numeric_locale();
     }
 
-    Session::builder()
-        .context("ort Session::builder")?
+    // `with_*` steps error with `Error<SessionBuilder>`, which is not `Send`/`Sync`,
+    // so `anyhow::Context` cannot wrap them.
+    let mut builder = Session::builder().context("ort Session::builder")?;
+    builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
-        .context("ort optimization level")?
+        .map_err(|err| anyhow!("ort optimization level: {err}"))?;
+    builder = builder
         .with_execution_providers([ep])
-        .with_context(|| format!("ort register EP '{label}'"))?
+        .map_err(|err| anyhow!("ort register EP '{label}': {err}"))?;
+    builder
         .commit_from_file(path)
         .with_context(|| format!("ort commit ONNX with EP '{label}' ({})", path.display()))
 }
