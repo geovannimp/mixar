@@ -29,10 +29,11 @@ Register EPs in preference order; failed register / unsupported ops → next; al
 
 **Windows:** TensorRT RTX → TensorRT → CUDA → DirectML → WebGPU → CPU  
 
-**macOS:** CoreML → WebGPU → CPU  
+**macOS:** CoreML → WebGPU → CPU (Apple Silicon only)  
 
 Notes:
 
+- macOS ships arm64-only: `ort-sys` prebuilts exist for `aarch64-apple-darwin` alone — there is no `x86_64-apple-darwin` dist, not even CPU-only — so the x86_64 slice of a universal build cannot link ORT. `ARCHS = arm64` is pinned in `apps/gui-flutter/macos/Runner/Configs/AppInfo.xcconfig` and in the `host_flutter` podspec (cargokit reads `$ARCHS`); both must stay in sync.
 - WebGPU EP is experimental upstream — best-effort, never hard-fail the app.
 - CUDA/TensorRT only when libs are present; no install gate for launching Mixar.
 - CI / headless: CPU EP only (Cargo features).
