@@ -1,0 +1,72 @@
+{
+  "exclude": [
+    "**/Cargo.lock",
+    "**/pubspec.lock",
+    "**/package-lock.json",
+    "**/*.g.dart",
+    "**/*.freezed.dart",
+    "apps/gui-flutter/lib/src/rust/frb_generated*.dart",
+    "crates/host-flutter/src/frb_generated.rs",
+    ".agents/skills/**",
+    "apps/gui-flutter/build/**",
+    "apps/gui-flutter/.dart_tool/**",
+    "**/target/**",
+    "**/node_modules/**",
+    "**/*.png",
+    "**/*.wav",
+    "**/*.mp3",
+    "**/*.onnx"
+  ],
+  "rules": [
+    {
+      "path": "crates/engine-core/**/*.rs",
+      "rule": "Engine core: producer thread, ring buffer, and the audio callback path. The callback is real-time: flag any heap allocation (Vec/String/Box/format!/to_owned/collect), any mutex or RwLock acquisition, any blocking I/O, any unbounded loop, and any panic path (unwrap/expect/panic!/indexing) that can be reached from the render or process loop. Buffers must be preallocated before the stream starts. On ring-buffer underrun, write silence rather than stalling. Producer must stay paced by the device callback count.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/engine-dsp/**/*.rs",
+      "rule": "Pure DSP, no I/O. Flag any file or network I/O, any allocation inside the process/deck render path, and any state that is mutated without a clear per-block boundary. Channel mapping is stereo: a bus maps to a stereo pair or a single mono channel (1-based), with mono folding L+R * 0.5. Sample-rate and buffer-size handling must stay consistent with engine-core (48 kHz / 512-frame defaults).",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/host-flutter/**/*.rs",
+      "rule": "flutter_rust_bridge host layer. UI widgets must never call raw host invoke/listen; all engine and library I/O goes through the transport types (EngineTransport, LibraryTransport, ControllerTransport). engine-core owns the single omnibus cmd/evt bus; cross-boundary payloads are MessagePack bytes, not JSON. Never hold the host session lock while awaiting a library call: prepare PreparedTrackPlayback outside the lock. Any change to the bridge surface must stay in sync with the generated Dart API under apps/gui-flutter/lib/src/rust/.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/audio-core/**/*.rs",
+      "rule": "Shared traits and types (AudioBackend, AudioSource, StreamParams, DeviceId). These types are consumed by every other crate, so flag anything that widens a public signature, breaks a trait contract, or changes the dasp frame/sample representation. Keep this crate free of I/O and heavy dependencies.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/backend-cpal/**/*.rs",
+      "rule": "CPAL backend. Device capabilities must be read from CPAL at runtime (channel counts, sample-rate ranges) — flag hardcoded channel counts or sample rates. When opening a stream, prefer the 2-channel config with the lowest minimum sample rate and the smallest buffer size. The build callback is real-time: no allocation, no locking, no blocking. Low-latency/realtime features are the default backend behavior.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/library*/**/*.rs",
+      "rule": "Library I/O against library.db (SQLite). Flag any unbounded query, missing index on a lookup column, transaction left open on an error path, or a schema change that is not paired with a migration. Waveforms, hot cues, and loops each live in their own dedicated table (track_waveform, track_hot_cue, track_loop) — keep new persisted data out of the tracks table. Never block the caller while holding a database handle across an await.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "crates/{codec,resampler,stretch,analyzer*}/**/*.rs",
+      "rule": "Decoding, resampling, and analysis. rubato is the resampler and symphonia the decoder. Flag fallible third-party calls that return an error that is then discarded with unwrap/expect, and any per-block allocation inside the sample-processing loop.",
+      "merge_system_rule": true
+    },
+    {
+      "path": "apps/gui-flutter/**/*.dart",
+      "rule": "Flutter desktop UI. No built-in Dart codegen ships in this repo, so apply Flutter review fundamentals directly: dispose every StreamSubscription, AnimationController, TextEditingController, ScrollController and any listener in dispose(); never call setState/context after dispose; never do async work in build(); use const constructors and avoid rebuild-all. Prefer Mixar shell widgets and `context.theme` tokens (Shad-bridged) over one-off chrome. Report errors concisely via showMixarToast / context_show, including async engine-start failures. Do not read engine state directly from widgets — go through the generated bridge API under lib/src/rust/api. Performance controls (tempo, loops, hot cues) belong in bordered panels and must be disabled when no track is loaded. Never block the UI isolate with sync I/O or heavy decoding; hand work to a worker.",
+      "merge_system_rule": true
+    },
+    {
+      "path": ".github/workflows/*.yml",
+      "rule": "CI workflow review. Flag a `uses:` reference to a branch or tag that can move (e.g. @main, @v1) where a commit SHA would do, third-party actions that receive secrets while running untrusted PR code, missing `permissions:` blocks, `pull_request_target` combined with a checkout of the PR head, and PR-controlled values interpolated directly into a `run:` block instead of being passed through `env:`.",
+      "merge_system_rule": false
+    },
+    {
+      "path": "**/*",
+      "rule": "General review for this repo (Mixar, a Rust audio engine with a Flutter desktop UI). Security: flag hardcoded secrets or credentials, unvalidated paths or shell interpolation, and untrusted input reaching a database query or a process spawn. Correctness: flag duplicated logic that clearly belongs in an existing shared helper. Style: follow the surrounding code and the specs in docs/ — prefer minimal, focused changes over broad refactors. When a change touches a public API or a crate boundary, call out the cross-crate impact.",
+      "merge_system_rule": true
+    }
+  ]
+}

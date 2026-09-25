@@ -1,0 +1,179 @@
+name: Code Review
+
+# AI PR review via OpenCodeReview (https://github.com/alibaba/open-code-review).
+# Posts inline findings to the PR diff plus a summary comment.
+#
+# Setup required once, under Settings -> Secrets and variables -> Actions:
+#   variable  OCR_LLM_URL            LLM API endpoint
+#   secret    OCR_LLM_AUTH_TOKEN     LLM auth token (mapped to OCR_LLM_TOKEN)
+#   variable  OCR_LLM_MODEL          model name
+#   variable  OCR_LLM_USE_ANTHROPIC  'true' for Anthropic, 'false' for OpenAI-compatible
+#
+# Review guidance lives in .opencodereview/rule.json (auto-discovered).
+#
+# Triggers:
+#   - pull_request_target: opened / synchronize / reopened / ready_for_review
+#   - /open-code-review (or @open-code-review) as a PR conversation comment
+#   - the same command as a comment on a diff line in the Files-changed tab
+#   - workflow_dispatch, for a manual run against a given pr_number
+#
+# Like pull_request_target and issue_comment, workflow_dispatch only becomes
+# available once this file is on the default branch — so this workflow cannot be
+# exercised on the PR that introduces it. Merge first, then use the Actions tab
+# ("Run workflow") or comment /open-code-review on any open PR.
+
+on:
+  # pull_request_target, not pull_request, so secrets are available for fork PRs.
+  # The action checks out the trusted *base* ref and reviews the base->head diff
+  # straight from git objects, so no untrusted PR file is ever materialized or
+  # executed. Do not add steps here that check out the PR head or run repo code.
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Manual re-run: comment /open-code-review (or @open-code-review) on a PR.
+  # Registered for both comment surfaces — the conversation tab fires
+  # issue_comment, the Files-changed tab fires pull_request_review_comment.
+  # Without the second one, typing the command on a diff line is ignored.
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  # Manual run from the Actions tab, against any existing PR. This is also the
+  # way to exercise this workflow: like pull_request_target and issue_comment,
+  # it only becomes available once this file exists on the default branch, so
+  # it cannot be tested on the PR that adds it. Running a workflow manually
+  # already requires write access, so it needs no author_association gate.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: string
+
+# Least privilege: the action only needs to read the repo and post PR reviews.
+permissions:
+  contents: read
+  pull-requests: write
+
+# GitHub evaluates concurrency BEFORE job-level `if:`, so a flat per-PR group
+# would let any unrelated comment cancel a running review. Matching events share
+# an ocr-<pr> group (a new review cancels a stale one); everything else falls into
+# a unique noop-<run_id> group that can never collide and is skipped instantly.
+concurrency:
+  group: >-
+    ${{
+      (
+        github.event_name == 'pull_request_target'
+        || github.event_name == 'workflow_dispatch'
+        || (
+          (
+            github.event_name == 'pull_request_review_comment'
+            || (
+              github.event_name == 'issue_comment'
+              && github.event.issue.pull_request
+            )
+          )
+          && github.event.comment.user.type != 'Bot'
+          && (
+            github.event.comment.author_association == 'MEMBER'
+            || github.event.comment.author_association == 'OWNER'
+            || github.event.comment.author_association == 'COLLABORATOR'
+          )
+          && (
+            startsWith(github.event.comment.body, '/open-code-review')
+            || startsWith(github.event.comment.body, '@open-code-review')
+          )
+        )
+      )
+      && format('ocr-{0}', github.event.pull_request.number || github.event.issue.number || inputs.pr_number)
+      || format('noop-{0}', github.run_id)
+    }}
+  cancel-in-progress: true
+
+jobs:
+  code-review:
+    name: open-code-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Run on PR lifecycle events, on a manual dispatch, or on a human comment
+    # starting with a trigger keyword. Comment triggers are gated on
+    # author_association so only MEMBER/OWNER/COLLABORATOR users can spend LLM
+    # quota on a re-review. workflow_dispatch is ungated by design: triggering a
+    # workflow by hand already requires write access.
+    if: |
+      github.event_name == 'pull_request_target'
+      || github.event_name == 'workflow_dispatch'
+      || (
+        (
+          github.event_name == 'pull_request_review_comment'
+          || (
+            github.event_name == 'issue_comment'
+            && github.event.issue.pull_request
+          )
+        )
+        && github.event.comment.user.type != 'Bot'
+        && (
+          github.event.comment.author_association == 'MEMBER'
+          || github.event.comment.author_association == 'OWNER'
+          || github.event.comment.author_association == 'COLLABORATOR'
+        )
+        && (
+          startsWith(github.event.comment.body, '/open-code-review')
+          || startsWith(github.event.comment.body, '@open-code-review')
+        )
+      )
+    steps:
+      # issue_comment and workflow_dispatch payloads carry no top-level
+      # pull_request fields, so resolve the PR number, base ref, head sha and
+      # title from the API. pull_request_target and pull_request_review_comment
+      # already carry all of these, and are left to the action's own fallbacks.
+      - name: Resolve PR context
+        id: pr-context
+        if: github.event_name == 'issue_comment' || github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const raw = context.payload.inputs && context.payload.inputs.pr_number
+              ? context.payload.inputs.pr_number
+              : context.issue.number;
+            const prNumber = Number(raw);
+            if (!Number.isInteger(prNumber) || prNumber < 1) {
+              core.setFailed(`pr_number must be a positive integer, got: ${raw}`);
+              return;
+            }
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            core.setOutput('pr_number', String(prNumber));
+            core.setOutput('base_ref', pullRequest.base.ref);
+            core.setOutput('head_sha', pullRequest.head.sha);
+            core.setOutput('title', pullRequest.title);
+
+      - name: Run OpenCodeReview
+        uses: alibaba/open-code-review@bccbc15f785269400735d5255540c231e6c02b6d # v1.12.9
+        with:
+          llm_url: ${{ vars.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          # Keep the CLI in lockstep with the pinned action; the action's own
+          # default is `latest`, which could drift onto a version this
+          # action does not expect.
+          ocr_version: '1.12.9'
+          # Empty keeps the CLI default (medium). Set to low/medium/high to tune.
+          effort: ''
+          # PR titles follow conventional commits here, so they are useful
+          # review context. The action passes this through `env:` and quotes it,
+          # so a hostile title cannot inject shell. Empty on events with no PR
+          # payload, where the action simply omits --background.
+          background: ${{ github.event.pull_request.title || steps.pr-context.outputs.title }}
+          # pull_request_target and pull_request_review_comment already carry a
+          # PR number, and the action does not read one from
+          # pull_request_review_comment on its own — so pass it explicitly.
+          # Empty step outputs fall back to the event payload inside the action.
+          pr_number: ${{ github.event.pull_request.number || steps.pr-context.outputs.pr_number }}
+          base_ref: ${{ steps.pr-context.outputs.base_ref || github.event.pull_request.base.ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha || github.event.pull_request.head.sha }}
+          # Live progress in the Actions log; findings still post to the PR.
+          stream_progress: 'true'
