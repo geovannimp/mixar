@@ -51,11 +51,34 @@ done
 
 sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 
-# Embed ORT Dawn beside the app Frameworks when Xcode provides the paths.
-DAWN_SRC="$CARGOKIT_OUTPUT_DIR/libwebgpu_dawn.dylib"
-if [ -f "$DAWN_SRC" ] && [ -n "${TARGET_BUILD_DIR:-}" ] && [ -n "${FRAMEWORKS_FOLDER_PATH:-}" ]; then
-  mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
-  cp -f "$DAWN_SRC" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
+# Stage ONNX Runtime's C++ runtime dylib next to libhost_flutter.a. ort-sys
+# emits `-lc++` and `-lclang_rt.osx` when it links ORT's static build on macOS
+# (libc++'s hidden inline instantiations only exist in the toolchain's
+# libclang_rt, not in the OS libc++), but this pod force-loads the .a into an
+# Xcode link that reads only OTHER_LDFLAGS, so the podspec repeats those flags.
+# The dylib lives under the Xcode version directory, so the path can only be
+# resolved here, at build time.
+CLANG_RT_SRC="$(xcrun --sdk macosx clang --print-resource-dir 2>/dev/null)/lib/darwin/libclang_rt.osx.dylib"
+if [ -f "$CLANG_RT_SRC" ]; then
+  cp -f "$CLANG_RT_SRC" "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib"
+  # Ship it from the app's Frameworks; the runner rpaths only look there.
+  install_name_tool -id @rpath/libclang_rt.osx.dylib \
+    "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib" 2>/dev/null || true
+else
+  echo "warning: libclang_rt.osx.dylib not found at '$CLANG_RT_SRC'" >&2
+  echo "warning: the host_flutter link will fail with 'library not found for -lclang_rt.osx'" >&2
+fi
+
+# Embed the ORT runtime sidecars beside the app Frameworks when Xcode provides
+# the paths, and sign them: on Apple Silicon every Mach-O in the bundle needs a
+# signature to be mapped, and nothing else signs dylibs copied by a build phase.
+if [ -n "${TARGET_BUILD_DIR:-}" ] && [ -n "${FRAMEWORKS_FOLDER_PATH:-}" ]; then
+  for sidecar in libwebgpu_dawn.dylib libclang_rt.osx.dylib; do
+    [ -f "$CARGOKIT_OUTPUT_DIR/$sidecar" ] || continue
+    mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+    cp -f "$CARGOKIT_OUTPUT_DIR/$sidecar" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
+    codesign --force --sign - "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/${sidecar}" 2>/dev/null || true
+  done
 fi
 
 # Make a symlink from built framework to phony file, which will be used as input to

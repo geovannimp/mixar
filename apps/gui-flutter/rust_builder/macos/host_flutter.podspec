@@ -32,10 +32,11 @@ A new Flutter FFI plugin project.
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
-    # created by this build step. Dawn is ORT WebGPU's runtime sidecar.
+    # created by this build step. Dawn and libclang_rt are ORT's runtime sidecars.
     :output_files => [
       "${BUILT_PRODUCTS_DIR}/libhost_flutter.a",
       "${BUILT_PRODUCTS_DIR}/libwebgpu_dawn.dylib",
+      "${BUILT_PRODUCTS_DIR}/libclang_rt.osx.dylib",
     ],
   }
   # force_load of the static Rust lib does not pull cargo's framework link args;
@@ -51,7 +52,18 @@ A new Flutter FFI plugin project.
     # directly rather than relying on EXCLUDED_ARCHS to filter $ARCHS. Keep in
     # sync with macos/Runner/Configs/AppInfo.xcconfig.
     'ARCHS' => 'arm64',
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn',
+    # ONNX Runtime's macOS prebuilt is built for macOS 13.4, so linking it into
+    # a lower deployment target warns on every ORT object. This is a build
+    # setting rather than `s.platform` because the generated Podfile pins
+    # `platform :osx, '12.0'` and CocoaPods rejects a podspec platform above it.
+    'MACOSX_DEPLOYMENT_TARGET' => '13.4',
+    # ort-sys links `-lc++`, `-lclang_rt.osx` and Foundation for ORT's static
+    # macOS build. cargo applied them while building the Rust lib, but -force_load
+    # means the Xcode link below is the one that has to resolve ~250 libc++ and
+    # libc++abi symbols. build_pod.sh stages libclang_rt.osx.dylib into
+    # ${BUILT_PRODUCTS_DIR} (its path is under the Xcode version, so it cannot be
+    # hardcoded here) and ships it in the app's Frameworks dir.
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn -lclang_rt.osx -lc++ -framework Foundation',
     'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
   }
 end
