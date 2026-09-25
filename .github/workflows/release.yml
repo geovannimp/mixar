@@ -117,7 +117,7 @@ jobs:
       - name: Cache pub
         uses: actions/cache@v6
         with:
-          path: ${{ runner.os == 'Windows' && 'C:/tmp/pubcache' || format('{0}/.pub-cache', runner.home) }}
+          path: ${{ runner.os == 'Windows' && 'C:/tmp/pubcache' || '~/.pub-cache' }}
           key: ${{ runner.os }}-pub-${{ hashFiles('apps/gui-flutter/pubspec.lock') }}
           restore-keys: |
             ${{ runner.os }}-pub-
