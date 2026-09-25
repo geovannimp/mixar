@@ -54,4 +54,11 @@ panic = "abort"
 
 [profile.dev]
 opt-level = 0
-debug = true
+# "line-tables-only" keeps file/line in backtraces, panics and test failures,
+# but drops variable/type DWARF. Deps inherit this, so the win scales with the
+# ~570-crate dependency graph: less debuginfo to emit, less to write, faster
+# links and a much smaller target/ (CI cache + local disk).
+# Need full debuginfo for a one-off debugging session? Override without
+# editing this file:
+#   cargo build --config 'profile.dev.debug="full"'
+debug = "line-tables-only"
