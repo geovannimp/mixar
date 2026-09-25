@@ -48,12 +48,14 @@ fn try_ep(
     label: &str,
     ep: ort::ep::ExecutionProviderDispatch,
 ) -> Result<()> {
-    let mut session = Session::builder()
-        .context("builder")?
+    let mut builder = Session::builder().context("builder")?;
+    builder = builder
         .with_optimization_level(GraphOptimizationLevel::Level3)
-        .context("opt")?
+        .map_err(|err| anyhow!("opt: {err}"))?;
+    builder = builder
         .with_execution_providers([ep])
-        .with_context(|| format!("register {label}"))?
+        .map_err(|err| anyhow!("register {label}: {err}"))?;
+    let mut session = builder
         .commit_from_file(path)
         .with_context(|| format!("commit {label}"))?;
 

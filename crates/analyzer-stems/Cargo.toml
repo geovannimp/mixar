@@ -19,7 +19,7 @@ anyhow.workspace = true
 flacenc = "0.5"
 hex = "0.4"
 libc = "0.2"
-ort = "=2.0.0-rc.11"
+ort = "=2.0.0-rc.12"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 resampler = { path = "../resampler" }
 ruopus = "0.1"
