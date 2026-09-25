@@ -7,7 +7,9 @@ name: Code Review
 #   variable  OCR_LLM_URL            LLM API endpoint
 #   secret    OCR_LLM_AUTH_TOKEN     LLM auth token (mapped to OCR_LLM_TOKEN)
 #   variable  OCR_LLM_MODEL          model name
-#   variable  OCR_LLM_USE_ANTHROPIC  'true' for Anthropic, 'false' for OpenAI-compatible
+#
+# The protocol is pinned in the workflow (llm_use_anthropic: 'false') rather
+# than read from a variable — see the step comment for why.
 #
 # Review guidance lives in .opencodereview/rule.json (auto-discovered).
 #
@@ -156,7 +158,19 @@ jobs:
           llm_url: ${{ vars.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
           llm_model: ${{ vars.OCR_LLM_MODEL }}
-          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          # Pinned false deliberately. The action maps an empty value to the
+          # Anthropic protocol, so reading this from a variable meant a missing
+          # variable silently produced anthropic requests against an
+          # OpenAI-compatible endpoint. Only switch this if you also move
+          # OCR_LLM_URL to a /v1/messages endpoint (MiniMax, Qwen3.6/3.7/3.8).
+          llm_use_anthropic: 'false'
+          # opencode.ai/zen/go rejects requests that carry no session id with
+          # 400 MissingSessionID, so send a stable one per run for routing and
+          # prompt caching. Overridable via a repo variable for a provider that
+          # needs different headers. See https://opencode.ai/docs/go/#where-can-i-use-it
+          llm_extra_headers: >-
+            ${{ vars.OCR_LLM_EXTRA_HEADERS
+            || format('x-opencode-session=github-{0}-{1}', github.run_id, github.run_attempt) }}
           # Keep the CLI in lockstep with the pinned action; the action's own
           # default is `latest`, which could drift onto a version this
           # action does not expect.
