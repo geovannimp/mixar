@@ -39,12 +39,18 @@ A new Flutter FFI plugin project.
     ],
   }
   # force_load of the static Rust lib does not pull cargo's framework link args;
-  # midir/cpal need these for universal (x86_64) Flutter macOS links.
+  # midir/cpal need these for the Flutter macOS link.
   s.frameworks = 'AudioToolbox', 'CoreAudio', 'CoreMIDI'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     # Flutter.framework does not contain a i386 slice.
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    # Apple Silicon only: ort-sys (2.0.0-rc.12) has no x86_64-apple-darwin
+    # prebuilt, so cargokit would fail building the x86_64 slice of the Rust lib.
+    # build_pod.sh builds one Rust target per entry of $ARCHS, so set ARCHS
+    # directly rather than relying on EXCLUDED_ARCHS to filter $ARCHS. Keep in
+    # sync with macos/Runner/Configs/AppInfo.xcconfig.
+    'ARCHS' => 'arm64',
     'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn',
     'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
   }

@@ -12,3 +12,11 @@ PRODUCT_BUNDLE_IDENTIFIER = top.mixar.app
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 Mixar. All rights reserved.
+
+// macOS is Apple Silicon only. `analyzer-stems` links ONNX Runtime, and ort-sys
+// (2.0.0-rc.12) only publishes prebuilts for aarch64-apple-darwin — there is no
+// x86_64-apple-darwin dist at all, not even CPU-only — so the x86_64 slice of a
+// universal build cannot link. Keep the host_flutter pod in sync (see
+// rust_builder/macos/host_flutter.podspec), otherwise the pod still tries to
+// cross-compile x86_64 and cargo fails on ort-sys.
+ARCHS = arm64
