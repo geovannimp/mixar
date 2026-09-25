@@ -113,6 +113,15 @@ jobs:
           mkdir -p /c/tmp/pubcache
           echo "PUB_CACHE=C:/tmp/pubcache" >> "$GITHUB_ENV"
 
+      # After flutter-action + the Windows PUB_CACHE override, which reset/redirect it.
+      - name: Cache pub
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.os == 'Windows' && 'C:/tmp/pubcache' || format('{0}/.pub-cache', runner.home) }}
+          key: ${{ runner.os }}-pub-${{ hashFiles('apps/gui-flutter/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
       - name: Install native audio deps (Linux)
         if: matrix.platform == 'linux'
         uses: ./.github/actions/install-native-deps
@@ -121,6 +130,8 @@ jobs:
         uses: ./.github/actions/install-flutter-desktop-deps
         with:
           platform: ${{ matrix.platform }}
+          # install-native-deps above already ran `apt-get update`.
+          refresh_index: ${{ matrix.platform != 'linux' }}
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
