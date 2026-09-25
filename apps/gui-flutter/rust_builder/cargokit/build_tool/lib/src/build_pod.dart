@@ -61,8 +61,8 @@ class BuildPod {
     if (staticLibs.isNotEmpty) {
       final finalTargetFile = path.join(outputDir, "lib$libName.a");
       performLipo(finalTargetFile, staticLibs.map((e) => e.path));
-      // ORT WebGPU Dawn sidecar (staticlib path never went through BuildCMake).
-      copyOrtDawnSidecars(path.dirname(staticLibs.first.path), outputDir);
+      // ORT WebGPU sidecars (staticlib path never went through BuildCMake).
+      copyOrtRuntimeSidecars(path.dirname(staticLibs.first.path), outputDir);
     } else {
       // Otherwise try to replace bundle dylib with our dylib
       final bundlePaths = [
@@ -83,7 +83,8 @@ class BuildPod {
             targetFile,
           ]);
           if (dynamicLibs.isNotEmpty) {
-            copyOrtDawnSidecars(path.dirname(dynamicLibs.first.path), outputDir);
+            copyOrtRuntimeSidecars(
+                path.dirname(dynamicLibs.first.path), outputDir);
           }
           return;
         }

@@ -37,7 +37,7 @@ class BuildCMake {
             .copySync(path.join(Environment.outputDir, lib.finalFileName));
         // ORT WebGPU links libwebgpu_dawn.*; cargo places it next to the
         // cdylib but cargokit only copied the crate artifact.
-        copyOrtDawnSidecars(path.dirname(lib.path), Environment.outputDir);
+        copyOrtRuntimeSidecars(path.dirname(lib.path), Environment.outputDir);
       }
     }
   }
