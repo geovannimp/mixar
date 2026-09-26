@@ -51,6 +51,35 @@ done
 
 sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 
+# Split the Rust objects out of the merged static lib. cargokit merges the
+# crate's objects with every native static library cargo linked, and the ONNX
+# Runtime prebuilt ships members twice -- two builds of onnx-ml.pb.cc.o alone
+# define ~776 of the same strong symbols -- so the podspec can only force_load
+# the Rust half. The native members are pulled in lazily from the merged
+# archive, which is how cargo already links this exact archive on Linux and
+# Windows, so the repeats stay latent.
+#
+# rustc names its own objects <...>.rcgu.o and nothing in ONNX Runtime does, so
+# the split is a name filter rather than a heuristic about provenance.
+MERGED_LIB="$CARGOKIT_OUTPUT_DIR/libhost_flutter.a"
+RUST_LIB="$CARGOKIT_OUTPUT_DIR/libhost_flutter_rust.a"
+if [ -f "$MERGED_LIB" ]; then
+  RUST_COUNT="$(ar t "$MERGED_LIB" | grep -c '\.rcgu\.o$' || true)"
+  if [ "${RUST_COUNT:-0}" -gt 0 ]; then
+    RUST_OBJ_DIR="$(mktemp -d)"
+    # ar takes a few thousand names at most, so extract in batches rather than
+    # handing it the whole member list. Object names carry no spaces.
+    ar t "$MERGED_LIB" | grep '\.rcgu\.o$' | xargs -n 200 sh -c 'cd "$1" || exit 1; a="$2"; shift 2; ar x "$a" "$@"' _ "$RUST_OBJ_DIR" "$MERGED_LIB"
+    rm -f "$RUST_LIB"
+    find "$RUST_OBJ_DIR" -name '*.rcgu.o' | xargs -n 300 ar -rcs "$RUST_LIB"
+    rm -rf "$RUST_OBJ_DIR"
+    echo "info: split $RUST_COUNT Rust objects into $RUST_LIB"
+  else
+    echo "warning: no .rcgu.o members in $MERGED_LIB" >&2
+    echo "warning: the link will fail with 'no such file: $RUST_LIB'" >&2
+  fi
+fi
+
 # Stage ONNX Runtime's C++ runtime where the pod's `-lclang_rt.osx` can see it.
 # ORT's static objects reference compiler-rt builtins (e.g.
 # __isPlatformVersionAtLeast, which clang emits for @available in the CoreML EP's

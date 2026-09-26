@@ -37,6 +37,7 @@ A new Flutter FFI plugin project.
     # declared here (build_pod.sh picks whichever name it finds).
     :output_files => [
       "${BUILT_PRODUCTS_DIR}/libhost_flutter.a",
+      "${BUILT_PRODUCTS_DIR}/libhost_flutter_rust.a",
       "${BUILT_PRODUCTS_DIR}/libwebgpu_dawn.dylib",
     ],
   }
@@ -58,14 +59,27 @@ A new Flutter FFI plugin project.
     # setting rather than `s.platform` because the generated Podfile pins
     # `platform :osx, '12.0'` and CocoaPods rejects a podspec platform above it.
     'MACOSX_DEPLOYMENT_TARGET' => '13.4',
-    # ort-sys links `-lc++`, `-lclang_rt.osx` and Foundation for ORT's static
-    # macOS build. cargo applied them while building the Rust lib, but -force_load
-    # means the Xcode link below is the one that has to resolve ~250 libc++ and
-    # libc++abi symbols plus ORT's compiler-rt builtins. build_pod.sh stages the
-    # clang_rt runtime into ${BUILT_PRODUCTS_DIR} (it lives inside the toolchain
-    # or SDK and its path moves with the Xcode version, so it is discovered
-    # there rather than hardcoded here).
-    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn -lclang_rt.osx -lc++ -framework Foundation',
+    # -force_load only the Rust half of the static lib; ONNX Runtime's members
+    # come in lazily from libhost_flutter.a.
+    #
+    # cargokit merges the crate's objects with every native static library cargo
+    # linked, and the ORT prebuilt ships members twice -- two builds of
+    # onnx-ml.pb.cc.o alone define ~776 of the same strong symbols -- so
+    # -force_load of the merged archive dies with "756 duplicate symbols". Those
+    # repeats are latent for a normal link, which is how cargo links this exact
+    # archive on Linux and Windows (and how the Rust cdylib link on this machine
+    # already succeeds), because only the members still needed are pulled in.
+    # build_pod.sh splits the Rust objects (rustc's *.rcgu.o) into
+    # libhost_flutter_rust.a, since nothing references them and they still have
+    # to be forced in.
+    #
+    # ort-sys also links `-lc++`, `-lclang_rt.osx` and Foundation for ORT's
+    # static macOS build. cargo applied them to the Rust link, but this Xcode
+    # link is the one that has to resolve ~250 libc++/libc++abi symbols plus
+    # ORT's compiler-rt builtins. build_pod.sh stages the clang_rt runtime into
+    # ${BUILT_PRODUCTS_DIR} (it lives inside the toolchain or SDK and its path
+    # moves with the Xcode version, so it is discovered there, not hardcoded).
+    'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter_rust.a -L${BUILT_PRODUCTS_DIR} -lhost_flutter -lwebgpu_dawn -lclang_rt.osx -lc++ -framework Foundation',
     'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
   }
 end
