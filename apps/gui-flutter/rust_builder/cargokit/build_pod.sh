@@ -69,12 +69,17 @@ if [ -f "$MERGED_LIB" ]; then
   # refuses those ("is a fat file"). Thin it per arch first, split each slice,
   # and lipo the Rust halves back together when there is more than one.
   SPLIT_DIR="$(mktemp -d)"
+  # Drop any archive from an earlier build first, so the failure path below
+  # cannot leave a stale one behind for the podspec to -force_load.
+  rm -f "$RUST_LIB"
   RUST_SLICE_COUNT=0
   LAST_SLICE=""
   for arch in ${ARCHS:-arm64}; do
     SLICE="$SPLIT_DIR/lib-$arch.a"
-    if ! lipo -thin "$arch" "$MERGED_LIB" -output "$SLICE" 2>/dev/null; then
-      echo "warning: no $arch slice in $MERGED_LIB" >&2
+    # lipo's own message distinguishes "no such slice" from a real problem, so
+    # keep it in the log.
+    if ! lipo -thin "$arch" "$MERGED_LIB" -output "$SLICE"; then
+      echo "warning: could not thin $arch out of $MERGED_LIB" >&2
       continue
     fi
     MEMBERS="$(ar t "$SLICE" | grep -c '\.rcgu\.o$' || true)"
@@ -96,7 +101,6 @@ if [ -f "$MERGED_LIB" ]; then
     echo "info: split $MEMBERS Rust objects out of the $arch slice"
   done
   if [ "$RUST_SLICE_COUNT" -gt 0 ]; then
-    rm -f "$RUST_LIB"
     if [ "$RUST_SLICE_COUNT" -eq 1 ]; then
       cp "$LAST_SLICE" "$RUST_LIB"
     else
