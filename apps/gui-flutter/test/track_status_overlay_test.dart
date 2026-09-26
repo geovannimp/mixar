@@ -332,6 +332,9 @@ void main() {
     FlutterError.onError = (d) {
       final text = d.toString();
       if (text.contains('overflowed')) overflows.add(text);
+      // Always forward, including overflows: flutter_test asserts that a
+      // handler which swallows an error leaves its bookkeeping inconsistent,
+      // which replaces a readable failure with an internal assertion.
       previous?.call(d);
     };
     addTearDown(() => FlutterError.onError = previous);
@@ -347,7 +350,7 @@ void main() {
 
     expect(find.text('Measuring loudness 100%'), findsOneWidget);
     expect(find.text('Separating stems 100%'), findsOneWidget);
-    expect(overflows, isEmpty);
+    expect(overflows, isEmpty, reason: 'pills overflowed: $overflows');
   });
 
   test('a non-finite engine fraction is dropped, not shown as 100%', () {
@@ -355,26 +358,23 @@ void main() {
     addTearDown(container.dispose);
     final notifier = container.read(trackProgressProvider.notifier);
 
+    // Asserted rather than force-unwrapped so a provider shape change fails
+    // with the real reason instead of a null-check error.
+    TrackProgressInfo onlyJob(String id) {
+      final jobs = container.read(trackProgressProvider)[id];
+      expect(jobs, isNotNull, reason: 'no job recorded for $id');
+      expect(jobs, hasLength(1), reason: 'expected one lane for $id');
+      return jobs!.single;
+    }
+
     notifier.set('t1', 'stems_separate', double.nan);
-    expect(
-      container.read(trackProgressProvider)['t1']!.single.fraction,
-      isNull,
-    );
-    expect(
-      container.read(trackProgressProvider)['t1']!.single.label,
-      'Separating stems',
-    );
+    expect(onlyJob('t1').fraction, isNull);
+    expect(onlyJob('t1').label, 'Separating stems');
 
     notifier.set('t1', 'stems_separate', double.infinity);
-    expect(
-      container.read(trackProgressProvider)['t1']!.single.fraction,
-      isNull,
-    );
+    expect(onlyJob('t1').fraction, isNull);
 
     notifier.set('t1', 'stems_separate', 0.25);
-    expect(
-      container.read(trackProgressProvider)['t1']!.single.label,
-      'Separating stems 25%',
-    );
+    expect(onlyJob('t1').label, 'Separating stems 25%');
   });
 }
