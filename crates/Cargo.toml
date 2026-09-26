@@ -54,7 +54,8 @@ codegen-units = 1
 panic = "abort"
 
 [profile.dev]
-opt-level = 0
+# At 0 the stem Opus encode costs 53.7 s vs 2.9 s in release.
+opt-level = 1
 # "line-tables-only" keeps file/line in backtraces, panics and test failures,
 # but drops variable/type DWARF. Deps inherit this, so the win scales with the
 # ~570-crate dependency graph: less debuginfo to emit, less to write, faster
