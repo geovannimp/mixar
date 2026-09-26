@@ -61,13 +61,15 @@ sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 # name move with the Xcode version (26.6 has no libclang_rt.osx.dylib at all), so
 # it is discovered rather than assumed. The static archive is preferred: it needs
 # no shipping, signing or rpath.
-CLANG_RT_TOOLCHAIN="$(xcrun -f clang 2>/dev/null | sed 's#/bin/clang$##')" || true
-CLANG_RT_ROOTS="$(xcrun clang --print-resource-dir 2>/dev/null)/lib/darwin
-${CLANG_RT_TOOLCHAIN}/usr/lib
-$(xcrun --show-sdk-path 2>/dev/null)/usr/lib" || true
+CLANG_RT_CLANG="$(xcrun -f clang 2>/dev/null)" || true
+CLANG_RT_ROOT1="$(xcrun clang --print-resource-dir 2>/dev/null)/lib/darwin" || true
+CLANG_RT_ROOT2="$(dirname "$CLANG_RT_CLANG")/../lib"
+CLANG_RT_ROOT3="$(xcrun --show-sdk-path 2>/dev/null)/usr/lib" || true
 CLANG_RT_SRC=""
 for pattern in libclang_rt.osx.a libclang_rt.macosx.a libclang_rt.osx.dylib libclang_rt.macosx.dylib; do
-  for dir in $CLANG_RT_ROOTS; do
+  # Each root is quoted: Xcode can sit under a path containing spaces, which word
+  # splitting would tear apart.
+  for dir in "$CLANG_RT_ROOT1" "$CLANG_RT_ROOT2" "$CLANG_RT_ROOT3"; do
     if [ -z "$CLANG_RT_SRC" ] && [ -d "$dir" ]; then
       CLANG_RT_SRC="$(find "$dir" -maxdepth 5 -name "$pattern" 2>/dev/null | head -1)"
     fi
@@ -83,6 +85,9 @@ if [ -n "$CLANG_RT_SRC" ]; then
     *.a) CLANG_RT_STAGED="$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.a" ;;
     *)   CLANG_RT_STAGED="$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib" ;;
   esac
+  # Drop any other variant an earlier build staged: ld looks for the dylib before
+  # the archive in a directory, and the sidecar loop below ships whatever is here.
+  rm -f "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.a" "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib"
   cp -f "$CLANG_RT_SRC" "$CLANG_RT_STAGED"
   echo "info: staged ORT C++ runtime from $CLANG_RT_SRC"
   # Dynamic variant only: it has to be reachable through the runner rpaths, which
@@ -92,7 +97,9 @@ if [ -n "$CLANG_RT_SRC" ]; then
   esac
 else
   echo "warning: no libclang_rt.osx runtime found under:" >&2
-  echo "warning:   $CLANG_RT_ROOTS" >&2
+  echo "warning:   $CLANG_RT_ROOT1" >&2
+  echo "warning:   $CLANG_RT_ROOT2" >&2
+  echo "warning:   $CLANG_RT_ROOT3" >&2
   echo "warning: the host_flutter link will fail with 'library not found for -lclang_rt.osx'" >&2
 fi
 
