@@ -389,9 +389,9 @@ fn encode_opus(pcm: &[f32]) -> Result<EncodedStream> {
 
     let samples = (0..packets)
         .map(|index| {
-            let start = index * frame_samples;
-            let mut frame = pcm[start.min(pcm.len())..].to_vec();
-            frame.truncate(frame_samples);
+            let start = (index * frame_samples).min(pcm.len());
+            let end = (start + frame_samples).min(pcm.len());
+            let mut frame = pcm[start..end].to_vec();
             frame.resize(frame_samples, 0.0); // zero-pad past the end of the input
             let packet = encoder
                 .encode_auto(&frame, OPUS_MAX_PACKET)
