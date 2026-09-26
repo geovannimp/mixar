@@ -5,10 +5,11 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_table_pane.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/m_loader.dart';
+import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
@@ -41,11 +42,14 @@ void main() {
     path: '/tmp/samples/other.wav',
   );
 
-  Future<ProviderContainer> pumpTable(WidgetTester tester) async {
+  Future<ProviderContainer> pumpTable(
+    WidgetTester tester, {
+    double width = 900,
+  }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
     final theme = MixarThemeData.light();
-    tester.view.physicalSize = const Size(900, 600);
+    tester.view.physicalSize = Size(width, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -61,8 +65,12 @@ void main() {
         child: MaterialApp(
           theme: materialUiThemeFromMixar(theme),
           builder: mixarMaterialAppBuilder(theme),
-          home: const Scaffold(
-            body: SizedBox(width: 900, height: 600, child: TrackTablePane()),
+          home: Scaffold(
+            body: SizedBox(
+              width: width,
+              height: 600,
+              child: const TrackTablePane(),
+            ),
           ),
         ),
       ),
@@ -100,9 +108,9 @@ void main() {
       await tester.pump();
       expect(find.text('Detecting BPM 42%'), findsOneWidget);
       expect(find.text('Separating stems 50%'), findsOneWidget);
-      // Only the working row is decorated.
+      // The idle row still renders, and contributes no pill or bar: exactly
+      // two bars exist, one per job on the working row.
       expect(find.text('Other Track'), findsOneWidget);
-      // One bar per job.
       expect(find.byType(FractionallySizedBox), findsNWidgets(2));
 
       // Finishing stems drops only that lane.
@@ -117,7 +125,7 @@ void main() {
     },
   );
 
-  testWidgets('the 3-dot menu stays available while a track is busy', (
+  testWidgets('row and cell menus stay available while a track is busy', (
     tester,
   ) async {
     final container = await pumpTable(tester);
@@ -147,9 +155,21 @@ void main() {
           .enabled,
       isTrue,
     );
-
     // Determinate analysis: no spinner anywhere, least of all in the cell.
     expect(find.byType(MLoader), findsNothing);
+
+    // The actions cell 3-dot itself also opens while analyzing — previously it
+    // swapped to a loader and stopped responding.
+    await tester.tap(
+      find
+          .byWidgetPredicate(
+            (w) => w is AppButton && w.semanticsLabel == 'Track actions',
+          )
+          // First row is `track`, the one under analysis.
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Analyzing…'), findsOneWidget);
   });
 
   testWidgets('one loader per busy job, all inside the pill', (tester) async {
@@ -280,6 +300,29 @@ void main() {
       rowSlotBottom - bar.bottom,
       closeTo(manager.configuration.style.cellHorizontalBorderWidth, 0.01),
     );
-    expect(bar.height, 2);
+  });
+
+  testWidgets('two long pills do not overflow a narrow pane', (tester) async {
+    final overflows = <String>[];
+    final previous = FlutterError.onError;
+    FlutterError.onError = (d) {
+      final text = d.toString();
+      if (text.contains('overflowed')) overflows.add(text);
+      previous?.call(d);
+    };
+    addTearDown(() => FlutterError.onError = previous);
+
+    final container = await pumpTable(tester, width: 380);
+    // Longest realistic label on both lanes at once.
+    container.read(analyzingTrackIdsProvider.notifier).add(track.id);
+    container.read(trackProgressProvider.notifier).set(track.id, 'loudness', 1);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 1);
+    await tester.pump();
+
+    expect(find.text('Measuring loudness 100%'), findsOneWidget);
+    expect(find.text('Separating stems 100%'), findsOneWidget);
+    expect(overflows, isEmpty);
   });
 }

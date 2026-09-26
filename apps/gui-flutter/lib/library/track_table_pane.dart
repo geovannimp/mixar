@@ -40,6 +40,15 @@ const kSessionPlayedRowOpacity = 0.3;
 /// of it, so the two must not drift apart.
 const kActionsColumnWidth = 44.0;
 
+/// Gap between the status pill group and the actions column, and between
+/// adjacent pills.
+const kStatusPillGap = 8.0;
+
+/// Progress bar thickness, and the gap that keeps stacked per-job bars apart.
+/// The vertical stride is their sum, so changing one stays consistent.
+const kStatusBarHeight = 2.0;
+const kStatusBarGap = 1.0;
+
 /// Identity for [TrinaGrid] remounts. Keep play/harmonic state out — those
 /// change often and remounting the grid is what blinks the library table.
 Object libraryTableRemountKey({
@@ -858,15 +867,19 @@ class _TrackStatusOverlay extends ConsumerWidget {
           top: 0,
           bottom: 0,
           child: Padding(
-            padding: const EdgeInsets.only(right: kActionsColumnWidth + 8),
+            padding: const EdgeInsets.only(
+              right: kActionsColumnWidth + kStatusPillGap,
+            ),
             child: Align(
               alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   for (var i = 0; i < infos.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 6),
-                    _TrackStatusPill(info: infos[i]),
+                    if (i > 0) const SizedBox(width: kStatusPillGap),
+                    // Flexible so long labels on two lanes ellipsize in a
+                    // narrow pane instead of overflowing the row.
+                    Flexible(child: _TrackStatusPill(info: infos[i])),
                   ],
                 ],
               ),
@@ -879,9 +892,9 @@ class _TrackStatusOverlay extends ConsumerWidget {
             Positioned(
               left: 0,
               right: 0,
-              bottom: bottomInset + i * 3,
+              bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
               child: SizedBox(
-                height: 2,
+                height: kStatusBarHeight,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: theme.colors.primary.withValues(alpha: 0.18),
@@ -932,11 +945,17 @@ class _TrackStatusPill extends StatelessWidget {
                 MLoader(size: MLoaderSize.xs, color: fg),
                 const SizedBox(width: 5),
               ],
-              Text(
-                info.label,
-                style: theme.typography.body.xs.copyWith(
-                  color: fg,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                // Semantics above still carry the full label; the ellipsis is
+                // only for when two lanes crowd a narrow pane.
+                child: Text(
+                  info.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.body.xs.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
