@@ -36,6 +36,19 @@ Color libraryTableSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
 /// Opacity applied to rows already committed in the open history session.
 const kSessionPlayedRowOpacity = 0.3;
 
+/// Trailing actions column width. The row status overlay keeps its pill clear
+/// of it, so the two must not drift apart.
+const kActionsColumnWidth = 44.0;
+
+/// Gap between the status pill group and the actions column, and between
+/// adjacent pills.
+const kStatusPillGap = 8.0;
+
+/// Progress bar thickness, and the gap that keeps stacked per-job bars apart.
+/// The vertical stride is their sum, so changing one stays consistent.
+const kStatusBarHeight = 2.0;
+const kStatusBarGap = 1.0;
+
 /// Identity for [TrinaGrid] remounts. Keep play/harmonic state out — those
 /// change often and remounting the grid is what blinks the library table.
 Object libraryTableRemountKey({
@@ -136,8 +149,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final drive = ref.watch(librarySourceTabProvider) == LibrarySourceTab.drive;
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
-    final analyzingIds = ref.watch(analyzingTrackIdsProvider);
-    final progressById = ref.watch(trackProgressProvider);
     final tableColumns = ref.watch(libraryTableColumnsProvider);
     final settings = ref
         .watch(appSettingsProvider)
@@ -146,28 +157,10 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
     final config = _gridConfig(theme);
 
-    ref.listen(analyzingTrackIdsProvider, (_, next) {
-      final manager = _manager;
-      if (manager == null || _tracks.isEmpty) {
-        return;
-      }
-      manager.removeAllRows();
-      manager.appendRows(
-        _rowsFor(_tracks, next, ref.read(trackProgressProvider)),
-      );
-      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
-    });
-    ref.listen(trackProgressProvider, (_, next) {
-      final manager = _manager;
-      if (manager == null || _tracks.isEmpty) {
-        return;
-      }
-      manager.removeAllRows();
-      manager.appendRows(
-        _rowsFor(_tracks, ref.read(analyzingTrackIdsProvider), next),
-      );
-      _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
-    });
+    // No listener on analyzing / track progress: both render in the per-row
+    // status overlay. Regenerating rows here blinked the whole table on every
+    // fraction tick (stems report many) and dropped cell state.
+
     // Session dim: each row Consumer watches sessionPlayedKeysProvider — do not
     // notifyListeners the grid when history commits (min play seconds).
     ref.listen(artworkCacheProvider, (_, _) {
@@ -192,7 +185,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         _tracks = tracks;
         manager.removeAllRows();
         if (tracks.isNotEmpty) {
-          manager.appendRows(_rowsFor(tracks, analyzingIds, progressById));
+          manager.appendRows(_rowsFor(tracks));
         }
         _applyMidiFocus(manager, ref.read(focusedTrackRowIndexProvider));
         _requestVisibleArtwork(manager);
@@ -279,11 +272,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
                                   keyDisplayMode: keyDisplayMode,
                                   keyColorMode: keyColorMode,
                                 ),
-                                rows: _rowsFor(
-                                  tracks,
-                                  analyzingIds,
-                                  progressById,
-                                ),
+                                rows: _rowsFor(tracks),
                                 mode: TrinaGridMode.readOnly,
                                 rowWrapper: _rowWrapper,
                                 onLoaded: (e) {
@@ -501,8 +490,8 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: '',
         field: 'actions',
         type: TrinaColumnType.text(),
-        width: 44,
-        minWidth: 44,
+        width: kActionsColumnWidth,
+        minWidth: kActionsColumnWidth,
         cellPadding: EdgeInsets.zero,
         suppressedAutoSize: true,
         enableContextMenu: false,
@@ -513,23 +502,33 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           if (track == null) {
             return const SizedBox.shrink();
           }
-          final analyzing = ref
-              .read(analyzingTrackIdsProvider)
-              .contains(track.id);
-          final stemsGenerating = ref
-              .read(stemGeneratingTrackIdsProvider)
-              .contains(track.id);
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           final title = trackTitleLabel(track);
+          // Watch job state so Analyze / Generate stems re-enable the moment
+          // the job ends. The grid no longer regenerates rows for it.
           return Center(
-            child: TrackActionsMenu(
-              trackId: track.id,
-              path: track.path,
-              title: title,
-              inLibrary: inLibrary,
-              analyzing: analyzing,
-              stemsGenerating: stemsGenerating,
-              enableSecondaryPress: false,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final analyzing = ref.watch(
+                  analyzingTrackIdsProvider.select(
+                    (ids) => ids.contains(track.id),
+                  ),
+                );
+                final stemsGenerating = ref.watch(
+                  stemGeneratingTrackIdsProvider.select(
+                    (ids) => ids.contains(track.id),
+                  ),
+                );
+                return TrackActionsMenu(
+                  trackId: track.id,
+                  path: track.path,
+                  title: title,
+                  inLibrary: inLibrary,
+                  analyzing: analyzing,
+                  stemsGenerating: stemsGenerating,
+                  enableSecondaryPress: false,
+                );
+              },
             ),
           );
         },
@@ -607,11 +606,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     );
   }
 
-  List<TrinaRow<dynamic>> _rowsFor(
-    List<LibraryTrackSummary> tracks,
-    Set<String> analyzingIds,
-    Map<String, TrackProgressInfo> progressById,
-  ) {
+  List<TrinaRow<dynamic>> _rowsFor(List<LibraryTrackSummary> tracks) {
     final tab = ref.read(librarySourceTabProvider);
     final resolved =
         ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
@@ -628,18 +623,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
               ),
             ),
             'artwork': TrinaCell(value: t.id),
-            'title': TrinaCell(
-              value: () {
-                final progress = progressById[t.id];
-                if (progress != null) {
-                  return '${trackTitleLabel(t)} — ${progress.label}';
-                }
-                if (analyzingIds.contains(t.id)) {
-                  return '${trackTitleLabel(t)} …';
-                }
-                return trackTitleLabel(t);
-              }(),
-            ),
+            'title': TrinaCell(value: trackTitleLabel(t)),
             'artist': TrinaCell(value: t.artist ?? ''),
             'album': TrinaCell(value: t.album ?? ''),
             'genre': TrinaCell(value: t.genre ?? ''),
@@ -668,10 +652,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     }
     final inLibrary = rowData.cells['inLibrary']?.value == true;
     final title = trackTitleLabel(track);
-    final analyzing = ref.read(analyzingTrackIdsProvider).contains(track.id);
-    final stemsGenerating = ref
-        .read(stemGeneratingTrackIdsProvider)
-        .contains(track.id);
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so Trina's onTapUp never selects the row.
     return Listener(
@@ -682,8 +662,6 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         path: track.path,
         title: title,
         inLibrary: inLibrary,
-        analyzing: analyzing,
-        stemsGenerating: stemsGenerating,
         // Watch engine + dim here so drag attaches after start without
         // remounting TrinaGrid (ValueKey no longer includes engineRunning).
         child: Consumer(
@@ -691,7 +669,24 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
             final dimmed = ref.watch(
               sessionTrackDimmedProvider((track.id, track.path)),
             );
-            final row = child ?? const SizedBox.shrink();
+            // Overlay sits inside the drag/dim wrapper so it tracks the row
+            // when it is dragged onto a deck. Positioned children only, so the
+            // row height still measures from the Trina row alone.
+            final row = Stack(
+              children: [
+                child ?? const SizedBox.shrink(),
+                _TrackStatusOverlay(
+                  trackId: track.id,
+                  // The row slot is rowHeight + cellHorizontalBorderWidth.
+                  // Anchor the bar to the painted content so the 1px
+                  // separator stays below it instead of reading as a gap.
+                  bottomInset: stateManager
+                      .configuration
+                      .style
+                      .cellHorizontalBorderWidth,
+                ),
+              ],
+            );
             final content = ref.watch(engineRunningProvider)
                 ? _dragRowWrapper(context, row, rowData, stateManager)
                 : row;
@@ -818,6 +813,167 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
   }
 }
 
+/// In-flight analysis / stem job chrome drawn over a track row.
+///
+/// Lives in the row wrapper rather than the title cell so a progress tick
+/// rebuilds one row instead of regenerating every row in the grid.
+class _TrackStatusOverlay extends ConsumerWidget {
+  const new({required this.trackId, required this.bottomInset});
+
+  final String trackId;
+
+  /// Trina reserves a horizontal cell border below each row's painted content.
+  /// Progress bars are offset by it so they sit flush on the content edge.
+  final double bottomInset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jobs =
+        ref.watch(trackProgressProvider.select((byId) => byId[trackId])) ??
+        const <TrackProgressInfo>[];
+    final analyzing = ref.watch(
+      analyzingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
+    final stemsGenerating = ref.watch(
+      stemGeneratingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
+    // Queued work has no phase yet. Reuse the label vocabulary with a null
+    // fraction so it reads indeterminate instead of inventing a percentage.
+    // At most one job per lane, so at most two pills.
+    final infos =
+        <TrackProgressInfo>[
+          ...jobs,
+          if (analyzing && !jobs.any((i) => !isStemProgressPhase(i.phase)))
+            const TrackProgressInfo(phase: 'analyze'),
+          if (stemsGenerating && !jobs.any((i) => isStemProgressPhase(i.phase)))
+            const TrackProgressInfo(phase: 'stems_queued'),
+        ]..sort(
+          (a, b) => (isStemProgressPhase(a.phase) ? 1 : 0).compareTo(
+            isStemProgressPhase(b.phase) ? 1 : 0,
+          ),
+        );
+    if (infos.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final fractions = [for (final info in infos) ?info.fraction];
+    final theme = context.theme;
+    // Decorative only. Without this the bar's ColoredBox and the pill's own
+    // widgets are the topmost hit target, so Stack hit testing stops there
+    // and the row's pointer-down selection and drag-to-deck never fire.
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          // Span the row so the pill group stays flush right as it grows —
+          // a right-only Positioned hands its child loose constraints, which
+          // Center then centres inside the inset box and drifts left.
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                right: kActionsColumnWidth + kStatusPillGap,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < infos.length; i++) ...[
+                      if (i > 0) const SizedBox(width: kStatusPillGap),
+                      // Flexible so long labels on two lanes ellipsize in a
+                      // narrow pane instead of overflowing the row.
+                      Flexible(child: _TrackStatusPill(info: infos[i])),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // One bar per job that reported a fraction, stacked in pill order.
+          // The ordinal counts rendered bars, not entries in `infos`: a lane
+          // with no fraction draws nothing, and counting it would leave a
+          // spurious stride gap under the first real bar.
+          for (var i = 0; i < fractions.length; i++)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
+              child: SizedBox(
+                height: kStatusBarHeight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.primary.withValues(alpha: 0.18),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: fractions[i].clamp(0.0, 1.0),
+                      child: SizedBox.expand(
+                        child: ColoredBox(color: theme.colors.primary),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrackStatusPill extends StatelessWidget {
+  const new({required this.info});
+
+  final TrackProgressInfo info;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final fg = theme.colors.mutedForeground;
+    return Semantics(
+      label: info.label,
+      container: true,
+      // Announce the phase once instead of also reading the spinner + text.
+      excludeSemantics: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colors.background,
+          borderRadius: theme.style.borderRadius.pill,
+          border: Border.all(color: theme.colors.border),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (info.fraction == null) ...[
+                MLoader(size: MLoaderSize.xs, color: fg),
+                const SizedBox(width: 5),
+              ],
+              Flexible(
+                // Semantics above still carry the full label; the ellipsis is
+                // only for when two lanes crowd a narrow pane.
+                child: Text(
+                  info.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.body.xs.copyWith(
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class TrackActionsMenu extends ConsumerWidget {
   const new({
     required this.trackId,
@@ -841,8 +997,9 @@ class TrackActionsMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final engineRunning = ref.watch(engineRunningProvider);
+    // Always reachable: a running job disables its own menu item, and the
+    // row status pill is what shows progress.
     return MixarMenuAnchor(
-      enabled: !analyzing,
       menuBuilder: (context, controller) => _trackActionsMenuBody(
         context: context,
         ref: ref,
@@ -859,13 +1016,9 @@ class TrackActionsMenu extends ConsumerWidget {
         variant: .ghost,
         size: .xs,
         semanticsLabel: 'Track actions',
-        onPress: analyzing ? null : controller.toggle,
-        onSecondaryPress: analyzing || !enableSecondaryPress
-            ? null
-            : controller.toggle,
-        child: analyzing
-            ? const MLoader()
-            : const Icon(LucideIcons.ellipsisVertical),
+        onPress: controller.toggle,
+        onSecondaryPress: enableSecondaryPress ? controller.toggle : null,
+        child: const Icon(LucideIcons.ellipsisVertical),
       ),
     );
   }
@@ -877,8 +1030,6 @@ class _TrackActionsContextMenu extends ConsumerWidget {
     required this.path,
     required this.title,
     required this.inLibrary,
-    required this.analyzing,
-    required this.stemsGenerating,
     required this.child,
   });
 
@@ -886,15 +1037,20 @@ class _TrackActionsContextMenu extends ConsumerWidget {
   final String path;
   final String title;
   final bool inLibrary;
-  final bool analyzing;
-  final bool stemsGenerating;
   final Widget child;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final engineRunning = ref.watch(engineRunningProvider);
+    // Watched here rather than read in the row wrapper: the grid no longer
+    // regenerates rows when a job starts or ends, so a read would go stale.
+    final analyzing = ref.watch(
+      analyzingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
+    final stemsGenerating = ref.watch(
+      stemGeneratingTrackIdsProvider.select((ids) => ids.contains(trackId)),
+    );
     return MixarContextMenu(
-      enabled: !analyzing,
       menuBuilder: (context, handle) => _trackActionsMenuBody(
         context: context,
         ref: ref,
@@ -908,12 +1064,8 @@ class _TrackActionsContextMenu extends ConsumerWidget {
         engineRunning: engineRunning,
       ),
       childBuilder: (context, handle) => GestureDetector(
-        onSecondaryTapDown: analyzing
-            ? null
-            : (details) => handle.showAt(details.globalPosition),
-        onLongPressStart: analyzing
-            ? null
-            : (details) => handle.showAt(details.globalPosition),
+        onSecondaryTapDown: (details) => handle.showAt(details.globalPosition),
+        onLongPressStart: (details) => handle.showAt(details.globalPosition),
         child: child,
       ),
     );
