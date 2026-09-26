@@ -3,10 +3,10 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::{CmdBody, Kind, Origin};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
-use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
+use crate::action::{resolve_action, ControlSnapshot, ControlValue, DeckFeedback, RoutedAction};
 use crate::bundle::MappingBundle;
 use crate::device::SECTION_CUSTOM;
 use crate::error::{LoadError, MidiPortError, RuntimeError};
@@ -17,6 +17,19 @@ use crate::script::{ScriptHost, ScriptRuntime};
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
+/// Half period of a blinking LED (on → off → on).
+pub const BLINK_HALF_PERIOD: Duration = Duration::from_millis(200);
+
+/// LED state resolved from a `map.toml` output `signal`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LedState {
+    #[default]
+    Off,
+    On,
+    /// Signal true and the binding declares a `blink` target; the session
+    /// alternates `blink` / `off` on [`BLINK_HALF_PERIOD`].
+    Blink,
+}
 
 /// Snapshot / LED array slot for a deck origin (defense if an OOR index slips past load).
 fn deck_slot(d: u16) -> usize {
@@ -83,8 +96,13 @@ pub struct MappingSession {
     cc14_state: HashMap<String, (Option<u8>, Option<u8>)>,
     /// Last edge state for notes: "section.alias" → active.
     note_state: HashMap<String, bool>,
-    /// Output signal cache: "section.alias" → active.
-    output_state: HashMap<String, bool>,
+    /// LED cache: "section.alias" → last resolved state.
+    output_state: HashMap<String, LedState>,
+    /// Any output declares a `blink` target (skips the per-pump blink scan).
+    has_blink: bool,
+    /// Current blink phase (true = lit) and last phase-flip time.
+    blink_on: bool,
+    last_blink: Option<Instant>,
     /// Last VU MIDI data2 per "section.vu_meter" (skip duplicates).
     vu_out: HashMap<String, u8>,
     script: Option<ScriptRuntime>,
@@ -99,6 +117,12 @@ impl MappingSession {
             None => None,
         };
         Ok(Self {
+            has_blink: bundle
+                .map
+                .outputs
+                .values()
+                .flat_map(|s| s.values())
+                .any(|o| o.blink.is_some()),
             bundle,
             snapshot: ControlSnapshot::default(),
             modifiers: HashSet::new(),
@@ -108,6 +132,8 @@ impl MappingSession {
             cc14_state: HashMap::new(),
             note_state: HashMap::new(),
             output_state: HashMap::new(),
+            blink_on: false,
+            last_blink: None,
             vu_out: HashMap::new(),
             script,
             last_idle_heartbeat: None,
@@ -118,6 +144,21 @@ impl MappingSession {
         &self.snapshot
     }
 
+    /// Engine deck state mirrored for LED feedback (one refresh per event).
+    pub fn set_deck_feedback(&mut self, deck: u16, fb: &DeckFeedback, midi: &mut impl MidiOut) {
+        let i = deck_slot(deck);
+        self.playing_decks[i] = fb.playing;
+        self.snapshot.playing[i] = fb.playing;
+        self.snapshot.sync[i] = fb.sync;
+        self.snapshot.quantize[i] = fb.quantize;
+        self.snapshot.headphone_cue[i] = fb.headphone_cue;
+        self.snapshot.loop_active[i] = fb.loop_active;
+        self.snapshot.track_loaded[i] = fb.track_loaded;
+        self.snapshot.loop_slots[i] = fb.loop_slots;
+        self.snapshot.pad_mode[i] = fb.pad_mode;
+        self.set_deck_hot_cues(deck, fb.hot_cues, midi);
+    }
+
     /// LED/toggle-pause and the `trigger_hot_cue` shortcut use these positions.
     /// MIDI `pad n` publishes named press/release; it does not look up cue ms.
     pub fn set_deck_hot_cues(
@@ -126,43 +167,28 @@ impl MappingSession {
         cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT],
         midi: &mut impl MidiOut,
     ) {
-        let i = (deck as usize).min(3);
+        let i = deck_slot(deck);
         self.snapshot.hot_cues[i] = cues;
-        self.refresh_hot_cue_leds(deck, midi);
+        self.refresh_deck_leds(deck, midi);
     }
 
     /// Mirror engine playhead so `loop_in` / `loop_out` can stamp `position_ms`.
     pub fn set_deck_position_ms(&mut self, deck: u16, position_ms: i32) {
-        let i = (deck as usize).min(3);
+        let i = deck_slot(deck);
         self.snapshot.position_ms[i] = position_ms;
     }
 
-    /// Mirror engine `pad_mode` so MIDI `pad n` matches the UI.
-    pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
-        let i = (deck as usize).min(3);
-        self.snapshot.pad_mode[i] = mode;
-        if mode == PadMode::HotCue {
-            self.refresh_hot_cue_leds(deck, midi);
-        }
+    /// Mirror mixer state (MASTER CUE LED).
+    pub fn set_master_cue(&mut self, enabled: bool, midi: &mut impl MidiOut) {
+        self.snapshot.master_cue = enabled;
+        self.refresh_leds(crate::device::SECTION_MASTER, midi);
     }
 
-    /// Re-send pad LED MIDI for the deck's hot-cue slots (also after pad-mode changes).
-    pub fn refresh_hot_cue_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
-        let i = (deck as usize).min(3);
-        let cues = self.snapshot.hot_cues[i];
-        let section = format!("deck_{}", deck + 1);
-        for (slot, pos) in cues.iter().enumerate() {
-            let alias = format!("hot_cue_{}", slot + 1);
-            // Force re-send: HW often clears pad LEDs on mode switch.
-            self.output_state.remove(&format!("{section}.{alias}"));
-            self.apply_output_signal(&section, &alias, pos.is_some(), midi);
-        }
-    }
-
+    /// State-only mirror; use the `set_deck_*` setters to also refresh LEDs.
     pub fn set_control_value(&mut self, origin: Origin, key: &str, value: f32) {
         if key == "playing" {
-            if let Origin::Deck(d) = &origin {
-                self.set_playing_deck(*d, value > 0.5);
+            if let Origin::Deck(d) = origin {
+                self.set_playing_deck(d, value > 0.5);
                 return;
             }
         }
@@ -170,25 +196,32 @@ impl MappingSession {
     }
 
     fn set_playing_deck(&mut self, deck: u16, playing: bool) {
-        let i = (deck as usize).min(3);
+        let i = deck_slot(deck);
         self.playing_decks[i] = playing;
         self.snapshot.playing[i] = playing;
     }
 
+    /// Lifecycle init, then a forced LED sweep so attach / reconnect re-asserts
+    /// every lamp (the unit may still hold state from a previous run).
     pub fn on_init(
         &mut self,
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        self.run_lifecycle("on_init", bus, midi)
+        self.run_lifecycle("on_init", bus, midi)?;
+        self.refresh_all_leds(midi);
+        Ok(())
     }
 
+    /// Lifecycle shutdown, then explicitly clear every lamp so nothing stays lit.
     pub fn on_shutdown(
         &mut self,
         bus: &mut impl ActionPublish,
         midi: &mut impl MidiOut,
     ) -> Result<(), RuntimeError> {
-        self.run_lifecycle("on_shutdown", bus, midi)
+        let result = self.run_lifecycle("on_shutdown", bus, midi);
+        self.clear_leds(midi);
+        result
     }
 
     /// Drive continuous `vu_meter` CC out (Mixxx scale: level×150, clamp 127).
@@ -274,6 +307,8 @@ impl MappingSession {
             } else {
                 self.modifiers.remove(&mod_key);
             }
+            // Modifiers gate the +SHIFT indicators, so re-resolve every section.
+            self.refresh_all_sections(midi);
             // custom is not declarative-input bindable; still allow script-only later
             return None;
         }
@@ -511,78 +546,7 @@ impl MappingSession {
                 kind,
                 body,
             } => {
-                // Local mirrors still needed for pad routing + LED until Status is wired fully.
-                match body {
-                    CmdBody::SetPadMode { mode } => {
-                        if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.pad_mode[i] = *mode;
-                            if *mode == PadMode::HotCue {
-                                self.refresh_hot_cue_leds(d, midi);
-                            }
-                        }
-                    }
-                    CmdBody::SetTempoRange { tempo_range } => {
-                        if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.tempo_range[i] = *tempo_range;
-                        }
-                    }
-                    CmdBody::SetHeadphoneCue { enabled } => {
-                        if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.headphone_cue[i] = *enabled;
-                            let deck_section = format!("deck_{}", d + 1);
-                            self.apply_output_signal(
-                                &deck_section,
-                                "headphone_cue",
-                                *enabled,
-                                midi,
-                            );
-                        }
-                    }
-                    _ => {}
-                }
-                if matches!(kind, Kind::ToggleHeadphoneCue) {
-                    if let Origin::Deck(d) = *o {
-                        let i = deck_slot(d);
-                        let enabled = !self.snapshot.headphone_cue[i];
-                        self.snapshot.headphone_cue[i] = enabled;
-                        let deck_section = format!("deck_{}", d + 1);
-                        self.apply_output_signal(&deck_section, "headphone_cue", enabled, midi);
-                    }
-                }
-                if matches!(kind, Kind::Play | Kind::TriggerHotCue) {
-                    if let Origin::Deck(d) = *o {
-                        self.set_playing_deck(d, true);
-                        let deck_section = format!("deck_{}", d + 1);
-                        self.apply_output_signal(&deck_section, "play_pause", true, midi);
-                    }
-                }
-                if matches!(kind, Kind::HotCuePadPress) {
-                    if let (Origin::Deck(d), CmdBody::HotCuePadPress { slot, shift: false }) =
-                        (o, body)
-                    {
-                        let i = deck_slot(*d);
-                        let filled = self.snapshot.hot_cues[i]
-                            .get(*slot as usize)
-                            .copied()
-                            .flatten()
-                            .is_some();
-                        if filled {
-                            self.set_playing_deck(*d, true);
-                            let deck_section = format!("deck_{}", d + 1);
-                            self.apply_output_signal(&deck_section, "play_pause", true, midi);
-                        }
-                    }
-                }
-                if matches!(kind, Kind::Pause) {
-                    if let Origin::Deck(d) = *o {
-                        self.set_playing_deck(d, false);
-                        let deck_section = format!("deck_{}", d + 1);
-                        self.apply_output_signal(&deck_section, "play_pause", false, midi);
-                    }
-                }
+                self.mirror_engine_cmd(o.clone(), kind, body, midi);
                 bus.publish_engine(o.clone(), kind.clone(), body.clone());
             }
             RoutedAction::LibraryEvt { origin, kind, body } => {
@@ -592,35 +556,221 @@ impl MappingSession {
         (true, None)
     }
 
-    /// Update playing signal and emit mapped LED MIDI if changed.
-    pub fn on_deck_playing(&mut self, deck: u16, playing: bool, midi: &mut impl MidiOut) {
-        self.set_playing_deck(deck, playing);
-        let deck_section = format!("deck_{}", deck.min(3) + 1);
-        self.apply_output_signal(&deck_section, "play_pause", playing, midi);
+    /// Mirror a routed engine cmd into the local snapshot, then refresh the
+    /// affected section's LEDs. The engine stays the source of truth; its
+    /// `DeckUpdated` / `EngineStatus` mirror corrects any drift.
+    fn mirror_engine_cmd(
+        &mut self,
+        origin: Origin,
+        kind: &Kind,
+        body: &CmdBody,
+        midi: &mut impl MidiOut,
+    ) {
+        if let Origin::Deck(d) = origin {
+            let i = deck_slot(d);
+            match body {
+                CmdBody::SetPadMode { mode } => self.snapshot.pad_mode[i] = *mode,
+                CmdBody::SetTempoRange { tempo_range } => {
+                    self.snapshot.tempo_range[i] = *tempo_range;
+                }
+                CmdBody::SetHeadphoneCue { enabled } => {
+                    self.snapshot.headphone_cue[i] = *enabled;
+                }
+                _ => {}
+            }
+            match kind {
+                Kind::ToggleHeadphoneCue => {
+                    self.snapshot.headphone_cue[i] = !self.snapshot.headphone_cue[i]
+                }
+                Kind::ToggleSync => self.snapshot.sync[i] = !self.snapshot.sync[i],
+                Kind::ToggleQuantize => self.snapshot.quantize[i] = !self.snapshot.quantize[i],
+                Kind::BeginCueHold => self.snapshot.cue_hold[i] = true,
+                Kind::EndCueHold => self.snapshot.cue_hold[i] = false,
+                Kind::Play | Kind::TriggerHotCue => self.set_playing_deck(d, true),
+                Kind::Pause => self.set_playing_deck(d, false),
+                Kind::LoopOut => self.snapshot.loop_active[i] = true,
+                Kind::ExitLoop => self.snapshot.loop_active[i] = false,
+                // A filled hot cue starts playback; an empty one saves the cue.
+                Kind::HotCuePadPress => {
+                    if let CmdBody::HotCuePadPress { slot, shift: false } = body {
+                        let filled = self.snapshot.hot_cues[i]
+                            .get(*slot as usize)
+                            .copied()
+                            .flatten()
+                            .is_some();
+                        if filled {
+                            self.set_playing_deck(d, true);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            self.refresh_deck_leds(d, midi);
+        } else if origin == Origin::Mixer {
+            match kind {
+                Kind::ToggleMasterCue => self.snapshot.master_cue = !self.snapshot.master_cue,
+                _ => {
+                    if let CmdBody::SetMasterCue { enabled } = body {
+                        self.snapshot.master_cue = *enabled;
+                    }
+                }
+            }
+            self.refresh_leds(crate::device::SECTION_MASTER, midi);
+        }
     }
 
-    pub fn apply_output_signal(
+    fn refresh_deck_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
+        let section = format!("deck_{}", deck.min(3) + 1);
+        self.refresh_leds(&section, midi);
+    }
+
+    /// Re-resolve every `signal` binding in `section`; send only what changed.
+    fn refresh_leds(&mut self, section: &str, midi: &mut impl MidiOut) {
+        let resolved = self.resolve_section(section);
+        for (alias, state) in resolved {
+            self.apply_led(section, &alias, state, false, midi);
+        }
+    }
+
+    /// Non-forced sweep of every mapped section (modifier changes).
+    fn refresh_all_sections(&mut self, midi: &mut impl MidiOut) {
+        let sections: Vec<String> = self.bundle.map.outputs.keys().cloned().collect();
+        for section in &sections {
+            self.refresh_leds(section, midi);
+        }
+    }
+
+    /// Forced sweep of every mapped section (attach / reconnect).
+    fn refresh_all_leds(&mut self, midi: &mut impl MidiOut) {
+        let sections: Vec<String> = self.bundle.map.outputs.keys().cloned().collect();
+        for section in &sections {
+            for (alias, state) in self.resolve_section(section) {
+                self.apply_led(section, &alias, state, true, midi);
+            }
+        }
+    }
+
+    /// Send every mapped lamp's `off` bytes (detach, shutdown).
+    fn clear_leds(&mut self, midi: &mut impl MidiOut) {
+        let sections: Vec<String> = self.bundle.map.outputs.keys().cloned().collect();
+        for section in &sections {
+            let aliases: Vec<String> = self
+                .bundle
+                .map
+                .outputs
+                .get(section)
+                .map(|s| s.keys().cloned().collect())
+                .unwrap_or_default();
+            for alias in aliases {
+                self.apply_led(section, &alias, LedState::Off, true, midi);
+            }
+        }
+        self.output_state.clear();
+    }
+
+    /// `(alias, state)` for every output in `section` that declares a `signal`.
+    fn resolve_section(&self, section: &str) -> Vec<(String, LedState)> {
+        let Some(sec) = self.bundle.map.outputs.get(section) else {
+            return Vec::new();
+        };
+        sec.iter()
+            .filter_map(|(alias, out)| {
+                let signal = out.signal.as_deref()?;
+                let active = self.resolve_signal(section, signal)?;
+                let state = match (active, &out.blink) {
+                    (false, _) => LedState::Off,
+                    (true, Some(_)) => LedState::Blink,
+                    (true, None) => LedState::On,
+                };
+                Some((alias.clone(), state))
+            })
+            .collect()
+    }
+
+    /// `shift_held` lives in the modifier set, not the snapshot.
+    fn resolve_signal(&self, section: &str, signal: &str) -> Option<bool> {
+        if signal == "shift_held" {
+            return Some(self.shift_held(section));
+        }
+        self.snapshot.signal(section, signal)
+    }
+
+    fn shift_held(&self, section: &str) -> bool {
+        crate::device::deck_index(section)
+            .is_some_and(|n| self.modifiers.contains(&format!("custom.shift_deck{n}")))
+    }
+
+    /// Advance the blink phase; re-send blinking LEDs. Call from the MIDI pump.
+    pub fn tick_leds(&mut self, midi: &mut impl MidiOut) {
+        if !self.has_blink {
+            return;
+        }
+        let now = Instant::now();
+        if self
+            .last_blink
+            .is_some_and(|t| now.duration_since(t) < BLINK_HALF_PERIOD)
+        {
+            return;
+        }
+        self.last_blink = Some(now);
+        self.blink_on = !self.blink_on;
+        let blinking: Vec<(String, String)> = self
+            .output_state
+            .iter()
+            .filter(|(_, state)| **state == LedState::Blink)
+            .filter_map(|(key, _)| {
+                key.split_once('.')
+                    .map(|(s, a)| (s.to_string(), a.to_string()))
+            })
+            .collect();
+        for (section, alias) in blinking {
+            if let Some(bytes) = self.blink_bytes(&section, &alias) {
+                midi.send(&bytes);
+            }
+        }
+    }
+
+    /// Blink phase bytes: lit target while `blink_on`, else the `off` target.
+    fn blink_bytes(&self, section: &str, alias: &str) -> Option<[u8; 3]> {
+        let out = self.bundle.map.outputs.get(section)?.get(alias)?;
+        let target = if self.blink_on {
+            out.blink.as_ref().unwrap_or(&out.on)
+        } else {
+            &out.off
+        };
+        resolve_output_bytes(&self.bundle.device, section, target)
+    }
+
+    /// Send `state` unless it already matches the cache. Uncached entries count
+    /// as [`LedState::Off`] so a fresh session does not spam every lamp.
+    fn apply_led(
         &mut self,
         section: &str,
         alias: &str,
-        active: bool,
+        state: LedState,
+        force: bool,
         midi: &mut impl MidiOut,
     ) {
         let key = format!("{section}.{alias}");
-        if self.output_state.get(&key).copied() == Some(active) {
+        let cached = self.output_state.get(&key).copied().unwrap_or_default();
+        if !force && cached == state {
             return;
         }
-        self.output_state.insert(key, active);
-        let Some(sec) = self.bundle.map.outputs.get(section) else {
-            return;
-        };
-        let Some(out) = sec.get(alias) else {
-            return;
-        };
-        let target = if active { &out.on } else { &out.off };
-        if let Some(bytes) = resolve_output_bytes(&self.bundle.device, section, target) {
+        let bytes = self.led_bytes(section, alias, state);
+        self.output_state.insert(key, state);
+        if let Some(bytes) = bytes {
             midi.send(&bytes);
         }
+    }
+
+    fn led_bytes(&self, section: &str, alias: &str, state: LedState) -> Option<[u8; 3]> {
+        let out = self.bundle.map.outputs.get(section)?.get(alias)?;
+        let target = match state {
+            LedState::On => &out.on,
+            LedState::Off => &out.off,
+            LedState::Blink => out.blink.as_ref()?,
+        };
+        resolve_output_bytes(&self.bundle.device, section, target)
     }
 }
 

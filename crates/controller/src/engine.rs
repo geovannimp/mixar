@@ -9,11 +9,11 @@ use midir::{Ignore, MidiInput, MidiInputConnection, MidiOutput, MidiOutputConnec
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::action::DeckFeedback;
 use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut};
-use engine_api::PadMode;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -277,6 +277,10 @@ pub struct ControllerEngine {
     enum_out: Option<MidiOutput>,
     /// Live input port name → attached mapping session.
     attached: HashMap<String, Attached>,
+    /// Last engine state mirrored per deck / mixer, replayed into every newly
+    /// attached session so a hot-plugged controller starts in sync.
+    deck_feedback: [DeckFeedback; 4],
+    master_cue: bool,
 }
 
 impl ControllerEngine {
@@ -305,6 +309,8 @@ impl ControllerEngine {
             enum_in: None,
             enum_out: None,
             attached: HashMap::new(),
+            deck_feedback: [DeckFeedback::default(); 4],
+            master_cue: false,
         };
         this.ensure_seeded()?;
         Ok(this)
@@ -689,6 +695,12 @@ impl ControllerEngine {
                 );
                 return Err(err.into());
             }
+            // Replay mirrored engine state so attach / reconnect lights the
+            // lamps the engine already expects, not just the defaults.
+            for (i, fb) in self.deck_feedback.iter().enumerate() {
+                session.set_deck_feedback(i as u16, fb, &mut sink);
+            }
+            session.set_master_cue(self.master_cue, &mut sink);
         }
         self.suppressed_ports.remove(&port_name);
         self.attached.insert(
@@ -810,6 +822,7 @@ impl ControllerEngine {
                     send_gate: &mut attached.send_gate,
                 };
                 let flush_fails = attached.session.flush_coalesced(bus, &mut sink);
+                attached.session.tick_leds(&mut sink);
                 let heartbeat = attached.session.idle_heartbeat(bus, &mut sink);
                 (flush_fails, heartbeat)
             };
@@ -829,7 +842,9 @@ impl ControllerEngine {
         }
     }
 
-    pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
+    /// Mirror an engine deck snapshot into every attached mapping (LED feedback).
+    pub fn set_deck_feedback(&mut self, deck: u16, feedback: &DeckFeedback) {
+        self.deck_feedback[deck.min(3) as usize] = *feedback;
         for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
@@ -838,7 +853,24 @@ impl ControllerEngine {
                 port_name,
                 send_gate: &mut attached.send_gate,
             };
-            attached.session.on_deck_playing(deck, playing, &mut sink);
+            attached
+                .session
+                .set_deck_feedback(deck, feedback, &mut sink);
+        }
+    }
+
+    /// Mirror mixer state (MASTER CUE LED).
+    pub fn set_master_cue(&mut self, enabled: bool) {
+        self.master_cue = enabled;
+        for (port_name, attached) in self.attached.iter_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
+            };
+            attached.session.set_master_cue(enabled, &mut sink);
         }
     }
 
@@ -860,20 +892,6 @@ impl ControllerEngine {
     pub fn set_deck_position_ms(&mut self, deck: u16, position_ms: i32) {
         for attached in self.attached.values_mut() {
             attached.session.set_deck_position_ms(deck, position_ms);
-        }
-    }
-
-    /// Mirror engine pad mode so MIDI `pad n` matches the UI.
-    pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached.session.set_deck_pad_mode(deck, mode, &mut sink);
         }
     }
 

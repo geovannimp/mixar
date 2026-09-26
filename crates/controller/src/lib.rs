@@ -15,13 +15,16 @@ mod session;
 pub mod check;
 pub mod script;
 
-pub use action::{resolve_action, ControlValue, RoutedAction, HOT_CUE_SLOT_COUNT};
+pub use action::{resolve_action, ControlValue, DeckFeedback, RoutedAction, HOT_CUE_SLOT_COUNT};
 pub use action_id::{
     bind_origin, format_bound_action, parse_action_id, ActionArgs, ArgValue, BoundOrigin,
     OriginTemplate,
 };
 pub use bundle::{load_bundle, MappingBundle};
-pub use catalog::{is_closed_input_alias, is_known_action, is_relative_action, ActionName};
+pub use catalog::{
+    is_closed_input_alias, is_known_action, is_known_signal, is_relative_action, ActionName,
+    LOOP_SLOT_COUNT,
+};
 pub use check::check_bundle_dir;
 pub use device::{
     AudioHints, DeviceFile, SectionName, TomlSchemaRef, SECTION_CUSTOM, SECTION_MASTER,
@@ -40,5 +43,6 @@ pub use midi::{
     MidiIdentity, MidiMsgType, ParsedMidi, RelativeMode, ShortMsg,
 };
 pub use session::{
-    ActionPublish, BusPublish, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
+    ActionPublish, BusPublish, LedState, MappingSession, MidiOut, MidiPort, ScriptBindingFailure,
+    BLINK_HALF_PERIOD,
 };
