@@ -200,7 +200,12 @@ class TrackProgressMap extends Notifier<Map<String, List<TrackProgressInfo>>> {
         ...?state[trackId]?.where(
           (info) => isStemProgressPhase(info.phase) != lane,
         ),
-        TrackProgressInfo(phase: phase, fraction: fraction),
+        // Engine is the untrusted source. num.clamp maps NaN to the upper
+        // bound, so a bad ratio would otherwise render as a false "100%".
+        TrackProgressInfo(
+          phase: phase,
+          fraction: fraction != null && fraction!.isFinite ? fraction : null,
+        ),
       ],
     };
   }

@@ -855,6 +855,10 @@ class _TrackStatusOverlay extends ConsumerWidget {
     if (infos.isEmpty) {
       return const SizedBox.shrink();
     }
+    final fractions = [
+      for (final info in infos)
+        if (info.fraction case final fraction?) fraction,
+    ];
     final theme = context.theme;
     return Stack(
       children: [
@@ -886,31 +890,33 @@ class _TrackStatusOverlay extends ConsumerWidget {
             ),
           ),
         ),
-        // One bar per job, stacked in the same order as the pills above.
-        for (var i = 0; i < infos.length; i++)
-          if (infos[i].fraction case final fraction?)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
-              child: SizedBox(
-                height: kStatusBarHeight,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.primary.withValues(alpha: 0.18),
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FractionallySizedBox(
-                      widthFactor: fraction.clamp(0.0, 1.0),
-                      child: SizedBox.expand(
-                        child: ColoredBox(color: theme.colors.primary),
-                      ),
+        // One bar per job that reported a fraction, stacked in pill order.
+        // The ordinal counts rendered bars, not entries in `infos`: a lane
+        // with no fraction draws nothing, and counting it would leave a
+        // spurious stride gap under the first real bar.
+        for (var i = 0; i < fractions.length; i++)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
+            child: SizedBox(
+              height: kStatusBarHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colors.primary.withValues(alpha: 0.18),
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: fractions[i].clamp(0.0, 1.0),
+                    child: SizedBox.expand(
+                      child: ColoredBox(color: theme.colors.primary),
                     ),
                   ),
                 ),
               ),
             ),
+          ),
       ],
     );
   }

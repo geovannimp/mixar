@@ -302,6 +302,30 @@ void main() {
     );
   });
 
+  testWidgets('a bar ordinal ignores lanes that render no bar', (tester) async {
+    final container = await pumpTable(tester);
+    // Analysis reports no fraction, stems do. The single bar belongs on the
+    // content edge, not one stride up.
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'analyze', null);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 0.5);
+    await tester.pump();
+
+    final manager = tester
+        .state<TrinaGridState>(find.byType(TrinaGrid))
+        .stateManager;
+    final rowSlotBottom = manager.bodyTopOffset + manager.rowTotalHeight;
+    final bars = find.byType(FractionallySizedBox);
+    expect(bars, findsOneWidget);
+    expect(
+      rowSlotBottom - tester.getRect(bars).bottom,
+      closeTo(manager.configuration.style.cellHorizontalBorderWidth, 0.01),
+    );
+  });
+
   testWidgets('two long pills do not overflow a narrow pane', (tester) async {
     final overflows = <String>[];
     final previous = FlutterError.onError;
@@ -324,5 +348,33 @@ void main() {
     expect(find.text('Measuring loudness 100%'), findsOneWidget);
     expect(find.text('Separating stems 100%'), findsOneWidget);
     expect(overflows, isEmpty);
+  });
+
+  test('a non-finite engine fraction is dropped, not shown as 100%', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(trackProgressProvider.notifier);
+
+    notifier.set('t1', 'stems_separate', double.nan);
+    expect(
+      container.read(trackProgressProvider)['t1']!.single.fraction,
+      isNull,
+    );
+    expect(
+      container.read(trackProgressProvider)['t1']!.single.label,
+      'Separating stems',
+    );
+
+    notifier.set('t1', 'stems_separate', double.infinity);
+    expect(
+      container.read(trackProgressProvider)['t1']!.single.fraction,
+      isNull,
+    );
+
+    notifier.set('t1', 'stems_separate', 0.25);
+    expect(
+      container.read(trackProgressProvider)['t1']!.single.label,
+      'Separating stems 25%',
+    );
   });
 }
