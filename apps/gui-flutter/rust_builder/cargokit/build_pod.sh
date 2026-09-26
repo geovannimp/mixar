@@ -69,9 +69,16 @@ if [ -f "$MERGED_LIB" ]; then
   # refuses those ("is a fat file"). Thin it per arch first, split each slice,
   # and lipo the Rust halves back together when there is more than one.
   SPLIT_DIR="$(mktemp -d)"
+  # The temp dir holds per-arch slices plus extracted objects, so a set -e abort
+  # anywhere below must not leak it.
+  trap 'rm -rf "$SPLIT_DIR"' EXIT
   # Drop any archive from an earlier build first, so the failure path below
   # cannot leave a stale one behind for the podspec to -force_load.
   rm -f "$RUST_LIB"
+  ARCH_COUNT=0
+  for arch in ${ARCHS:-arm64}; do
+    ARCH_COUNT=$((ARCH_COUNT + 1))
+  done
   RUST_SLICE_COUNT=0
   LAST_SLICE=""
   for arch in ${ARCHS:-arm64}; do
@@ -106,10 +113,16 @@ if [ -f "$MERGED_LIB" ]; then
     else
       lipo -create "$SPLIT_DIR"/rust-*.a -output "$RUST_LIB"
     fi
+    # A slice that failed to thin leaves a single-arch archive that the podspec
+    # force_loads for every arch, so say so here rather than letting the link
+    # fail later with something unrelated.
+    if [ "$RUST_SLICE_COUNT" -lt "$ARCH_COUNT" ]; then
+      echo "warning: only $RUST_SLICE_COUNT of $ARCH_COUNT arch slices produced Rust objects;" >&2
+      echo "warning: libhost_flutter_rust.a is missing slices and the link will fail for the rest" >&2
+    fi
   else
     echo "warning: the link will fail with 'no such file: $RUST_LIB'" >&2
   fi
-  rm -rf "$SPLIT_DIR"
 fi
 
 # Stage ONNX Runtime's C++ runtime where the pod's `-lclang_rt.osx` can see it.
