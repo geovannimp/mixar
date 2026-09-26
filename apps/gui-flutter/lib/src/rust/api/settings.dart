@@ -65,9 +65,6 @@ class AppSettings {
   final bool showTooltips;
   final bool dimPlayedTracks;
 
-  /// Offline HTDemucs stem separation for Stems pad mode (default off).
-  final bool stemsEnabled;
-
   /// Stem cache codec: `opus` (default) or `flac`.
   final String stemsFormat;
 
@@ -102,7 +99,6 @@ class AppSettings {
     required this.historyMinDeckVolume,
     required this.showTooltips,
     required this.dimPlayedTracks,
-    required this.stemsEnabled,
     required this.stemsFormat,
   });
 
@@ -138,7 +134,6 @@ class AppSettings {
       historyMinDeckVolume.hashCode ^
       showTooltips.hashCode ^
       dimPlayedTracks.hashCode ^
-      stemsEnabled.hashCode ^
       stemsFormat.hashCode;
 
   @override
@@ -176,7 +171,6 @@ class AppSettings {
           historyMinDeckVolume == other.historyMinDeckVolume &&
           showTooltips == other.showTooltips &&
           dimPlayedTracks == other.dimPlayedTracks &&
-          stemsEnabled == other.stemsEnabled &&
           stemsFormat == other.stemsFormat;
 }
 

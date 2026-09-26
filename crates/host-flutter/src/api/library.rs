@@ -517,6 +517,18 @@ impl LibraryTransport {
             .map_err(|e| e.to_string())
     }
 
+    /// Queue stem generation for a track via the library cmd bus only.
+    ///
+    /// Separate from [`Self::analyze_track`]: analysis never generates stems
+    /// implicitly. No-op server-side when a valid stem cache already exists.
+    pub fn generate_stems(&self, track_id: String) -> Result<(), String> {
+        let bytes =
+            encode_cmd_body(&CmdBody::GenerateStems { track_id }).map_err(|e| e.to_string())?;
+        self.buses
+            .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
+            .map_err(|e| e.to_string())
+    }
+
     /// L0 overview peaks from the library DB (generates overview when missing).
     pub fn get_waveform_overview(&self, track_id: String) -> Result<Option<WaveformPeaks>, String> {
         let id = TrackId::new(track_id);
@@ -710,21 +722,19 @@ impl LibraryTransport {
         LibraryBusHandle::from_buses(self.buses.clone())
     }
 
-    /// Library cmd/evt buses (engine stem ensure reads stems_enabled / stems_root).
+    /// Library cmd/evt buses (engine stem ensure reads stems_root / stems_format).
     #[flutter_rust_bridge::frb(ignore)]
     pub fn library_buses(&self) -> LibraryBuses {
         self.buses.clone()
     }
 
-    /// Apply library analysis duration, stems gate, and stem format from app settings.
+    /// Apply library analysis duration and stem format from app settings.
     pub fn apply_library_settings(
         &self,
         analysis_duration: LibraryAnalysisDurationSetting,
-        stems_enabled: bool,
         stems_format: String,
     ) -> Result<(), String> {
         self.buses.set_analysis_duration(analysis_duration.into());
-        self.buses.set_stems_enabled(stems_enabled);
         self.buses.set_stems_format(stems_format);
         Ok(())
     }

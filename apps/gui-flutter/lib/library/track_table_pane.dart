@@ -516,6 +516,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
           final analyzing = ref
               .read(analyzingTrackIdsProvider)
               .contains(track.id);
+          final stemsGenerating = ref
+              .read(stemGeneratingTrackIdsProvider)
+              .contains(track.id);
           final inLibrary = ctx.row.cells['inLibrary']?.value == true;
           final title = trackTitleLabel(track);
           return Center(
@@ -525,6 +528,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
               title: title,
               inLibrary: inLibrary,
               analyzing: analyzing,
+              stemsGenerating: stemsGenerating,
               enableSecondaryPress: false,
             ),
           );
@@ -665,6 +669,9 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
     final inLibrary = rowData.cells['inLibrary']?.value == true;
     final title = trackTitleLabel(track);
     final analyzing = ref.read(analyzingTrackIdsProvider).contains(track.id);
+    final stemsGenerating = ref
+        .read(stemGeneratingTrackIdsProvider)
+        .contains(track.id);
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so Trina's onTapUp never selects the row.
     return Listener(
@@ -676,6 +683,7 @@ class _TrackTablePaneState extends ConsumerState<TrackTablePane> {
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
+        stemsGenerating: stemsGenerating,
         // Watch engine + dim here so drag attaches after start without
         // remounting TrinaGrid (ValueKey no longer includes engineRunning).
         child: Consumer(
@@ -817,6 +825,7 @@ class TrackActionsMenu extends ConsumerWidget {
     required this.title,
     required this.inLibrary,
     required this.analyzing,
+    required this.stemsGenerating,
     this.enableSecondaryPress = true,
     super.key,
   });
@@ -826,6 +835,7 @@ class TrackActionsMenu extends ConsumerWidget {
   final String title;
   final bool inLibrary;
   final bool analyzing;
+  final bool stemsGenerating;
   final bool enableSecondaryPress;
 
   @override
@@ -842,6 +852,7 @@ class TrackActionsMenu extends ConsumerWidget {
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
+        stemsGenerating: stemsGenerating,
         engineRunning: engineRunning,
       ),
       childBuilder: (context, controller) => AppButton.icon(
@@ -867,6 +878,7 @@ class _TrackActionsContextMenu extends ConsumerWidget {
     required this.title,
     required this.inLibrary,
     required this.analyzing,
+    required this.stemsGenerating,
     required this.child,
   });
 
@@ -875,6 +887,7 @@ class _TrackActionsContextMenu extends ConsumerWidget {
   final String title;
   final bool inLibrary;
   final bool analyzing;
+  final bool stemsGenerating;
   final Widget child;
 
   @override
@@ -891,6 +904,7 @@ class _TrackActionsContextMenu extends ConsumerWidget {
         title: title,
         inLibrary: inLibrary,
         analyzing: analyzing,
+        stemsGenerating: stemsGenerating,
         engineRunning: engineRunning,
       ),
       childBuilder: (context, handle) => GestureDetector(
@@ -915,6 +929,7 @@ Widget _trackActionsMenuBody({
   required String title,
   required bool inLibrary,
   required bool analyzing,
+  required bool stemsGenerating,
   required bool engineRunning,
 }) {
   Future<void> load(int deckId) {
@@ -983,6 +998,21 @@ Widget _trackActionsMenuBody({
                 : () {
                     dismiss();
                     unawaited(analyzeTrackAction(ref, trackId));
+                  },
+          ),
+          MixarMenuItem(
+            title: Text(
+              stemsGenerating ? 'Generating stems…' : 'Generate stems',
+            ),
+            // Stems are a separate, explicit action: analysis never triggers
+            // them. Safe to fire against a track that already has a cache —
+            // the worker no-ops when the cache is valid.
+            enabled: inLibrary && !stemsGenerating,
+            onPress: !inLibrary || stemsGenerating
+                ? null
+                : () {
+                    dismiss();
+                    unawaited(generateStemsAction(ref, trackId));
                   },
           ),
           MixarMenuItem(

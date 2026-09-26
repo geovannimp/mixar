@@ -145,23 +145,15 @@ class SettingsLibraryPanel extends StatelessWidget {
             ],
           ),
         ),
-        SettingsToggle(
-          label: 'Generate stems (offline)',
-          value: draft.stemsEnabled,
-          onChanged: (enabled) =>
-              onChanged(copyAppSettings(draft, stemsEnabled: enabled)),
-        ),
-        if (draft.stemsEnabled)
-          SettingsField(
-            label: 'Stem format',
-            child: SettingsSelect<String>(
-              value: _normalizedStemsFormat(draft.stemsFormat),
-              options: _stemsFormats,
-              labelBuilder: _stemsFormatLabel,
-              onChanged: (v) =>
-                  onChanged(copyAppSettings(draft, stemsFormat: v)),
-            ),
+        SettingsField(
+          label: 'Stem format',
+          child: SettingsSelect<String>(
+            value: _normalizedStemsFormat(draft.stemsFormat),
+            options: _stemsFormats,
+            labelBuilder: _stemsFormatLabel,
+            onChanged: (v) => onChanged(copyAppSettings(draft, stemsFormat: v)),
           ),
+        ),
         SettingsToggle(
           label: 'Dim played tracks',
           value: draft.dimPlayedTracks,

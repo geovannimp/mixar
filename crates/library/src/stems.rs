@@ -220,94 +220,6 @@ pub(crate) fn upsert_track_stems(db: &Db, track_id: &TrackId, info: &TrackStemsI
     Ok(())
 }
 
-/// Like [`ensure_track_stems`], but for exclusive `&mut LibraryManager` callers
-/// (e.g. [`WritableLibrary::analyze_track`](library_core::WritableLibrary::analyze_track)).
-pub(crate) fn ensure_track_stems_on(
-    library: &mut LibraryManager,
-    id: &TrackId,
-    stems_root: &Path,
-    models_root: &Path,
-    format: &str,
-) -> Result<()> {
-    let backend = expected_backend();
-    let format = normalize_stems_format(format);
-    let path = {
-        let source = library
-            .get_track(id)?
-            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
-        source
-            .file()
-            .ok_or(LibraryError::Unsupported("stream tracks have no stems"))?
-            .path()
-            .to_path_buf()
-    };
-
-    if codec::is_stem_path(&path) {
-        return Ok(());
-    }
-
-    let cached = {
-        let cache = LibraryManager::lock_decode_cache(&library.decode_cache)?;
-        cache.get(id).cloned()
-    };
-
-    let audio = if let Some(cached) = cached {
-        cached
-    } else {
-        let source = library
-            .get_track(id)?
-            .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
-        if source.file().is_none() {
-            return Err(LibraryError::Unsupported("stream tracks have no stems"));
-        }
-        let loaded = Arc::new(source.load().map_err(|e| LibraryError::Backend {
-            backend: "stems",
-            message: format!("failed to decode track for stems: {e}"),
-        })?);
-        let mut cache = LibraryManager::lock_decode_cache(&library.decode_cache)?;
-        if let Some(existing) = cache.get(id) {
-            Arc::clone(existing)
-        } else {
-            cache.insert(id.clone(), Arc::clone(&loaded));
-            loaded
-        }
-    };
-
-    if audio.channels != 2 {
-        return Err(LibraryError::Backend {
-            backend: "stems",
-            message: format!(
-                "stem separation requires interleaved stereo (got {} channels)",
-                audio.channels
-            ),
-        });
-    }
-
-    let fingerprint = source_fingerprint(&path, &audio);
-    if has_valid_track_stems(&library.db, id, &fingerprint, backend, format)? {
-        return Ok(());
-    }
-
-    let _demucs = demucs_lock().lock().unwrap_or_else(|e| e.into_inner());
-    if has_valid_track_stems(&library.db, id, &fingerprint, backend, format)? {
-        return Ok(());
-    }
-
-    let info = generate_stem_files(
-        id,
-        stems_root,
-        models_root,
-        &audio,
-        &fingerprint,
-        format,
-        None,
-    )?;
-    if has_valid_track_stems(&library.db, id, &fingerprint, backend, format)? {
-        return Ok(());
-    }
-    upsert_track_stems(&library.db, id, &info)
-}
-
 fn generate_stem_files(
     id: &TrackId,
     stems_root: &Path,
@@ -458,18 +370,19 @@ fn generate_stem_files(
     }
 }
 
-/// Generate and persist stems when missing or stale. No-op when `enabled` is false.
+/// Generate and persist stems when missing or stale.
 ///
-/// Takes `&Mutex<LibraryManager>` so decode / Demucs work does not hold the library lock.
+/// Reached from the standalone `GenerateStems` action and from deck load, never
+/// from analyze. Takes `&Mutex<LibraryManager>` so decode / Demucs work does not
+/// hold the library lock.
 pub fn ensure_track_stems(
     library: &Mutex<LibraryManager>,
     id: &TrackId,
     stems_root: &Path,
     models_root: &Path,
-    enabled: bool,
     format: &str,
 ) -> Result<()> {
-    ensure_track_stems_with_progress(library, id, stems_root, models_root, enabled, format, None)
+    ensure_track_stems_with_progress(library, id, stems_root, models_root, format, None)
 }
 
 /// Like [`ensure_track_stems`] with optional phase progress callbacks.
@@ -478,14 +391,9 @@ pub fn ensure_track_stems_with_progress(
     id: &TrackId,
     stems_root: &Path,
     models_root: &Path,
-    enabled: bool,
     format: &str,
     progress: Option<StemProgressFn>,
 ) -> Result<()> {
-    if !enabled {
-        return Ok(());
-    }
-
     let report = |phase: &str, fraction: Option<f32>| {
         if let Some(cb) = progress.as_ref() {
             cb(phase, fraction);
@@ -750,12 +658,14 @@ mod tests {
     }
 
     #[test]
-    fn ensure_track_stems_disabled_is_noop() {
+    fn ensure_track_stems_missing_track_errors() {
         let dir = tempfile::tempdir().unwrap();
         let db_path = dir.path().join("library.db");
         let library = Mutex::new(LibraryManager::open(&db_path, LibraryConfig::default()).unwrap());
         let id = TrackId::new("/missing/track.wav");
-        ensure_track_stems(&library, &id, dir.path(), dir.path(), false, "opus").unwrap();
+        // Stems are opt-in per track now, so an unknown id is a hard error
+        // rather than a silent no-op.
+        assert!(ensure_track_stems(&library, &id, dir.path(), dir.path(), "opus").is_err());
         let lib = library.lock().unwrap();
         assert!(!has_track_stems(&lib.db, &id).unwrap());
     }
@@ -933,32 +843,5 @@ mod tests {
 
         std::fs::write(&source, b"pcm-changed").unwrap();
         assert!(!cache_matches_source_file(&info, &source));
-    }
-}
-
-#[cfg(test)]
-mod options_tests {
-    use library_core::AnalyzeTrackOptions;
-
-    #[test]
-    fn validate_stems_rejects_enabled_without_root() {
-        let opts = AnalyzeTrackOptions {
-            stems_enabled: true,
-            stems_root: None,
-            models_root: Some(std::path::PathBuf::from("models")),
-            ..Default::default()
-        };
-        assert!(opts.validate_stems().is_err());
-    }
-
-    #[test]
-    fn validate_stems_rejects_enabled_without_models_root() {
-        let opts = AnalyzeTrackOptions {
-            stems_enabled: true,
-            stems_root: Some(std::path::PathBuf::from("stems")),
-            models_root: None,
-            ..Default::default()
-        };
-        assert!(opts.validate_stems().is_err());
     }
 }

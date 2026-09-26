@@ -478,18 +478,18 @@ impl LibraryManager {
         stems::has_track_stems(&self.db, id)
     }
 
-    /// Generate and persist stem files when missing. No-op when `enabled` is false.
+    /// Generate and persist stem files when missing.
     ///
-    /// Takes `&Mutex<Self>` so decode / Demucs work does not hold the library lock.
+    /// Backs the standalone `GenerateStems` action. Takes `&Mutex<Self>` so
+    /// decode / Demucs work does not hold the library lock.
     pub fn ensure_track_stems(
         library: &Mutex<Self>,
         id: &TrackId,
         stems_root: &Path,
         models_root: &Path,
-        enabled: bool,
         format: &str,
     ) -> Result<()> {
-        stems::ensure_track_stems(library, id, stems_root, models_root, enabled, format)
+        stems::ensure_track_stems(library, id, stems_root, models_root, format)
     }
 
     /// Delete all `track_stem` rows and wipe `stems_root` (recreate empty).
@@ -583,7 +583,6 @@ impl LibraryManager {
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: AnalysisDurationMode::Fast,
-            ..Default::default()
         };
         let computed = compute_file_analysis(&path, options)?;
 
@@ -607,7 +606,6 @@ impl LibraryManager {
         id: &TrackId,
         options: AnalyzeTrackOptions,
     ) -> Result<AudioSource> {
-        options.validate_stems()?;
         let path = {
             let lib = Self::lock_library(library)?;
             let source = lib
@@ -631,24 +629,6 @@ impl LibraryManager {
                 lib.ensure_track_still_at_path(id, &path)?;
                 lib.persist_file_analysis(&path, &computed, true)?
             };
-            if options.stems_enabled {
-                let stems_root = options
-                    .stems_root
-                    .as_ref()
-                    .expect("validate_stems requires stems_root when enabled");
-                let models_root = options
-                    .models_root
-                    .as_ref()
-                    .expect("validate_stems requires models_root when enabled");
-                stems::ensure_track_stems(
-                    library,
-                    id,
-                    stems_root,
-                    models_root,
-                    true,
-                    &options.stems_format,
-                )?;
-            }
             Ok(source)
         }
         #[cfg(not(feature = "analysis"))]
@@ -966,54 +946,48 @@ impl LibraryManager {
 
         #[cfg(feature = "analysis")]
         {
-            let stems_enabled = {
+            let source_path = source.file().map(|f| f.path().to_path_buf());
+            let cache = {
                 let lib = Self::lock_library(library)?;
-                lib.buses().is_some_and(|buses| buses.stems_enabled())
+                lib.get_track_stems(&track_id)?
             };
-            if stems_enabled {
-                let source_path = source.file().map(|f| f.path().to_path_buf());
-                let cache = {
+            if let Some(info) = cache {
+                let stale = source_path
+                    .as_ref()
+                    .is_some_and(|path| !stems::cache_matches_source_file(&info, path));
+                if stale {
+                    tracing::warn!(
+                        track_id = %track_id,
+                        cache = %info.path.display(),
+                        "stem cache fingerprint mismatch; discarding"
+                    );
                     let lib = Self::lock_library(library)?;
-                    lib.get_track_stems(&track_id)?
-                };
-                if let Some(info) = cache {
-                    let stale = source_path
-                        .as_ref()
-                        .is_some_and(|path| !stems::cache_matches_source_file(&info, path));
-                    if stale {
-                        tracing::warn!(
-                            track_id = %track_id,
-                            cache = %info.path.display(),
-                            "stem cache fingerprint mismatch; discarding"
-                        );
-                        let lib = Self::lock_library(library)?;
-                        stems::delete_track_stems(&lib.db, &track_id)?;
-                        drop(lib);
-                        let _ = std::fs::remove_file(&info.path);
-                    } else {
-                        match decode_stem_file(&info.path) {
-                            Ok(bundle) => {
-                                let (audio, stems) = loaded_from_stem_bundle(&info.path, bundle);
-                                return Ok(PreparedTrackPlayback {
-                                    track_id,
-                                    source,
-                                    audio,
-                                    stems: Some(stems),
-                                    loudness_lufs,
-                                });
-                            }
-                            Err(err) => {
-                                tracing::warn!(
-                                    track_id = %track_id,
-                                    cache = %info.path.display(),
-                                    error = %err,
-                                    "stem cache decode failed; discarding"
-                                );
-                                let lib = Self::lock_library(library)?;
-                                stems::delete_track_stems(&lib.db, &track_id)?;
-                                drop(lib);
-                                let _ = std::fs::remove_file(&info.path);
-                            }
+                    stems::delete_track_stems(&lib.db, &track_id)?;
+                    drop(lib);
+                    let _ = std::fs::remove_file(&info.path);
+                } else {
+                    match decode_stem_file(&info.path) {
+                        Ok(bundle) => {
+                            let (audio, stems) = loaded_from_stem_bundle(&info.path, bundle);
+                            return Ok(PreparedTrackPlayback {
+                                track_id,
+                                source,
+                                audio,
+                                stems: Some(stems),
+                                loudness_lufs,
+                            });
+                        }
+                        Err(err) => {
+                            tracing::warn!(
+                                track_id = %track_id,
+                                cache = %info.path.display(),
+                                error = %err,
+                                "stem cache decode failed; discarding"
+                            );
+                            let lib = Self::lock_library(library)?;
+                            stems::delete_track_stems(&lib.db, &track_id)?;
+                            drop(lib);
+                            let _ = std::fs::remove_file(&info.path);
                         }
                     }
                 }
@@ -1622,30 +1596,15 @@ impl Library for LibraryManager {
 
 impl WritableLibrary for LibraryManager {
     fn analyze_track(&mut self, id: &TrackId, options: AnalyzeTrackOptions) -> Result<AudioSource> {
-        options.validate_stems()?;
         let source = self
             .get_track(id)?
             .ok_or_else(|| LibraryError::NotFound(id.to_string()))?;
-        let analyzed = match source {
-            AudioSource::File(file) => self.analyze_file_source(file.path(), options.clone())?,
-            AudioSource::Stream(_) => {
-                return Err(LibraryError::Unsupported(
-                    "stream track analysis not implemented",
-                ));
-            }
-        };
-        if options.stems_enabled {
-            let stems_root = options
-                .stems_root
-                .as_ref()
-                .expect("validate_stems requires stems_root when enabled");
-            let models_root = options
-                .models_root
-                .as_ref()
-                .expect("validate_stems requires models_root when enabled");
-            stems::ensure_track_stems_on(self, id, stems_root, models_root, &options.stems_format)?;
+        match source {
+            AudioSource::File(file) => self.analyze_file_source(file.path(), options),
+            AudioSource::Stream(_) => Err(LibraryError::Unsupported(
+                "stream track analysis not implemented",
+            )),
         }
-        Ok(analyzed)
     }
 
     fn add_collection(&mut self, collection: &NewCollection) -> Result<Collection> {
@@ -1846,7 +1805,6 @@ fn prepare_native_stem_for_playback(
         let options = AnalyzeTrackOptions {
             force: false,
             analysis_duration: AnalysisDurationMode::Fast,
-            ..Default::default()
         };
         let mut config = AnalysisConfig::default();
         let tag_metadata = tags::read_tags(&path)?;
@@ -2262,7 +2220,6 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let buses = LibraryBuses::new();
-        buses.set_stems_enabled(true);
         lib.set_buses(buses);
 
         let library = Mutex::new(lib);
@@ -2294,7 +2251,12 @@ mod tests {
 
     #[cfg(feature = "analysis")]
     #[test]
-    fn prepare_stem_cache_miss_when_stems_disabled() {
+    fn prepare_discards_fingerprint_mismatched_stem_cache() {
+        // Deck load always consults the stem cache now, so a cache whose
+        // fingerprint no longer matches the source file must be discarded and
+        // playback must fall back to the original. Assert the discard itself,
+        // not just the absent stems, so this cannot silently start passing for
+        // a different reason.
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("track.wav");
         write_analysis_wav(&wav);
@@ -2312,10 +2274,11 @@ mod tests {
                 &track_id,
                 &TrackStemsInfo {
                     backend: "htdemucs_mixxx_v1".into(),
+                    // Deliberately not `matching_stem_fingerprint(&wav)`.
                     source_fingerprint: "fp".into(),
                     format: "opus".into(),
                     sample_rate: 48_000,
-                    path: cache_path,
+                    path: cache_path.clone(),
                     generated_at: "1".into(),
                 },
             )
@@ -2324,6 +2287,14 @@ mod tests {
 
         let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
         assert!(prepared.stems.is_none());
+
+        // The stale row and its file are dropped, so the next prepare does not
+        // retry the same decode.
+        {
+            let lib = library.lock().unwrap();
+            assert!(!stems::has_track_stems(&lib.db, &track_id).unwrap());
+        }
+        assert!(!cache_path.is_file(), "stale stem file left on disk");
     }
 
     #[cfg(feature = "analysis")]
@@ -2337,7 +2308,6 @@ mod tests {
 
         let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
         let buses = LibraryBuses::new();
-        buses.set_stems_enabled(true);
         lib.set_buses(buses);
 
         let library = Mutex::new(lib);
@@ -2489,7 +2459,6 @@ mod tests {
         let options = AnalyzeTrackOptions {
             force: true,
             analysis_duration: AnalysisDurationMode::Fast,
-            ..Default::default()
         };
         let _computed = compute_file_analysis(&path, options).unwrap();
 

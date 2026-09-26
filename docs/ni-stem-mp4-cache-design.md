@@ -28,7 +28,7 @@ Replace Mixar’s four-file Opus/FLAC stem cache with a single NI-compatible `.s
 ## Architecture
 
 ```text
-Early prep (analyze / library worker, stems_enabled)
+Early prep (GenerateStems action / library worker)
   └─ source is normal audio (not a Stem file)
         └─ Demucs → mux consistent .stem.mp4 → track_stem.path
 
@@ -36,7 +36,7 @@ Prepare / load track
         │
         ├─ source is .stem.mp4? ──► StemBundle (in place) ──► deck load
         │
-        ├─ stems_enabled && valid cache? ──► StemBundle(cache) ──► deck load
+        ├─ valid stem cache? ──► StemBundle(cache) ──► deck load
         │         (main = mixdown; stems attached)
         │
         └─ else ──► decode original ──► deck load

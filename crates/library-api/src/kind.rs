@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     AnalyzeTrack,
+    /// Standalone stem generation for one track. Independent of `AnalyzeTrack`.
+    GenerateStems,
     TrackAnalyzed,
     RefreshTrack,
     TrackUpdated,
