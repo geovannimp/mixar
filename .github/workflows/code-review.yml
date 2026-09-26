@@ -51,9 +51,9 @@ on:
         required: true
         type: string
 
-# Least privilege: the action only needs to read the repo and post PR reviews.
+# resolve_outdated needs repo write access, not the pull-request scope.
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 # GitHub evaluates concurrency BEFORE job-level `if:`, so a flat per-PR group
@@ -191,3 +191,5 @@ jobs:
           head_sha: ${{ steps.pr-context.outputs.head_sha || github.event.pull_request.head.sha }}
           # Live progress in the Actions log; findings still post to the PR.
           stream_progress: 'true'
+          # Resolves this action's own outdated review threads.
+          resolve_outdated: 'true'
