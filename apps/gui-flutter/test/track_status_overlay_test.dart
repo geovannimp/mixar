@@ -455,4 +455,45 @@ void main() {
     notifier.set('t1', 'stems_separate', 0.25);
     expect(onlyJob('t1').label, 'Separating stems 25%');
   });
+
+  test('an unchanged phase keeps the list identity so select can suppress', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(trackProgressProvider.notifier);
+
+    notifier.set('t1', 'stems_separate', null);
+    final first = container.read(trackProgressProvider)['t1'];
+    // The engine emits this exact pair twice: once from the pre-call report
+    // and once from the first progress tick.
+    notifier.set('t1', 'stems_separate', null);
+    expect(
+      identical(container.read(trackProgressProvider)['t1'], first),
+      isTrue,
+    );
+
+    // A real change still publishes.
+    notifier.set('t1', 'stems_separate', 0.4);
+    expect(
+      identical(container.read(trackProgressProvider)['t1'], first),
+      isFalse,
+    );
+    expect(container.read(trackProgressProvider)['t1']!.single.fraction, 0.4);
+  });
+
+  test('updating one lane keeps the lane order stable', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final notifier = container.read(trackProgressProvider.notifier);
+
+    notifier.set('t1', 'bpm', 0.5);
+    notifier.set('t1', 'stems_separate', 0.2);
+    List<String?> phases() => [
+      for (final job in container.read(trackProgressProvider)['t1']!) job.phase,
+    ];
+    expect(phases(), ['bpm', 'stems_separate']);
+
+    // Re-reporting the first lane must not move it to the end of the list.
+    notifier.set('t1', 'bpm', 0.9);
+    expect(phases(), ['bpm', 'stems_separate']);
+  });
 }

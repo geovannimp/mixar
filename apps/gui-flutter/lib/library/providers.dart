@@ -194,20 +194,40 @@ class TrackProgressMap extends Notifier<Map<String, List<TrackProgressInfo>>> {
       _drop(trackId, lane: lane);
       return;
     }
-    state = {
-      ...state,
-      trackId: [
-        ...?state[trackId]?.where(
-          (info) => isStemProgressPhase(info.phase) != lane,
-        ),
-        // Engine is the untrusted source. num.clamp maps NaN to the upper
-        // bound, so a bad ratio would otherwise render as a false "100%".
-        TrackProgressInfo(
-          phase: phase,
-          fraction: fraction != null && fraction.isFinite ? fraction : null,
-        ),
-      ],
-    };
+    // Engine is the untrusted source. num.clamp maps NaN to the upper bound,
+    // so a bad ratio would otherwise render as a false "100%".
+    final info = TrackProgressInfo(
+      phase: phase,
+      fraction: fraction != null && fraction.isFinite ? fraction : null,
+    );
+    final existing = state[trackId];
+    // Replace the lane in place so an update to one lane does not reorder the
+    // other, which would churn the list identity for no visible reason.
+    final next = [...?existing];
+    final idx = next.indexWhere((i) => isStemProgressPhase(i.phase) == lane);
+    if (idx >= 0) {
+      next[idx] = info;
+    } else {
+      next.add(info);
+    }
+    // The engine re-reports an unchanged phase: `ensure_track_stems_with_progress`
+    // emits `stems_separate` with no fraction from both the pre-call report and
+    // the first progress tick. Skipping the write keeps the list identity, so
+    // the row overlay's select suppresses the rebuild instead of re-rendering
+    // a pill for an event that changes nothing.
+    if (existing != null && _sameJobs(existing, next)) return;
+    state = {...state, trackId: next};
+  }
+
+  /// Value equality for lane entries; [TrackProgressInfo] has no `==`.
+  static bool _sameJobs(List<TrackProgressInfo> a, List<TrackProgressInfo> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].phase != b[i].phase || a[i].fraction != b[i].fraction) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /// Clear every lane for [trackId].
