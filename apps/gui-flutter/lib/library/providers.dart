@@ -180,38 +180,60 @@ class TrackProgressInfo {
   }
 }
 
-class TrackProgressMap extends Notifier<Map<String, TrackProgressInfo>> {
+/// In-flight jobs per track, one entry per lane.
+///
+/// Analysis and stem separation run independently and can overlap on the same
+/// track, so each lane keeps its own phase instead of overwriting the other.
+class TrackProgressMap extends Notifier<Map<String, List<TrackProgressInfo>>> {
   @override
-  Map<String, TrackProgressInfo> build() => const {};
+  Map<String, List<TrackProgressInfo>> build() => const {};
 
   void set(String trackId, String phase, double? fraction) {
+    final lane = isStemProgressPhase(phase);
     if (phase == 'stems_ready' || phase == 'stems_failed') {
-      final next = {...state}..remove(trackId);
-      state = next;
-      return;
-    }
-    final existing = state[trackId];
-    // Analyze runs in parallel with stems; keep stems_* label visible.
-    if (existing != null &&
-        _isStemProgressPhase(existing.phase) &&
-        !_isStemProgressPhase(phase)) {
+      _drop(trackId, lane: lane);
       return;
     }
     state = {
       ...state,
-      trackId: TrackProgressInfo(phase: phase, fraction: fraction),
+      trackId: [
+        ...?state[trackId]?.where(
+          (info) => isStemProgressPhase(info.phase) != lane,
+        ),
+        TrackProgressInfo(phase: phase, fraction: fraction),
+      ],
     };
   }
 
-  void clearIf(String? trackId) {
-    if (trackId == null || !state.containsKey(trackId)) return;
-    final next = {...state}..remove(trackId);
+  /// Clear every lane for [trackId].
+  void clearIf(String? trackId) => _drop(trackId);
+
+  /// Clear one lane, leaving a concurrent job on the other lane running.
+  void clearLane(String? trackId, {required bool lane}) =>
+      _drop(trackId, lane: lane);
+
+  void _drop(String? trackId, {bool? lane}) {
+    if (trackId == null) return;
+    final existing = state[trackId];
+    if (existing == null) return;
+    final kept = lane == null
+        ? const <TrackProgressInfo>[]
+        : existing
+              .where((info) => isStemProgressPhase(info.phase) != lane)
+              .toList();
+    if (kept.length == existing.length) return;
+    final next = {...state};
+    if (kept.isEmpty) {
+      next.remove(trackId);
+    } else {
+      next[trackId] = kept;
+    }
     state = next;
   }
 }
 
 final trackProgressProvider =
-    NotifierProvider<TrackProgressMap, Map<String, TrackProgressInfo>>(
+    NotifierProvider<TrackProgressMap, Map<String, List<TrackProgressInfo>>>(
       TrackProgressMap.new,
     );
 
@@ -348,15 +370,17 @@ class FocusedTrackRowIndex extends Notifier<int> {
 final focusedTrackRowIndexProvider =
     NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
 
-bool _isStemProgressPhase(String phase) =>
+/// Phases driven by the stem pipeline rather than track analysis. `decode`
+/// belongs to the stem pass: it re-decodes the source for the separator.
+bool isStemProgressPhase(String phase) =>
     phase == 'decode' || phase.startsWith('stems_');
 
 bool _stemsStillRunning(Ref ref, String trackId) {
   if (ref.read(stemGeneratingTrackIdsProvider).contains(trackId)) {
     return true;
   }
-  final progress = ref.read(trackProgressProvider)[trackId];
-  return progress != null && _isStemProgressPhase(progress.phase);
+  final jobs = ref.read(trackProgressProvider)[trackId];
+  return jobs != null && jobs.any((info) => isStemProgressPhase(info.phase));
 }
 
 void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
@@ -374,12 +398,11 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
         }
         if (trackId != null) {
           ref.read(trackBeatGridsProvider.notifier).remove(trackId);
-          final progress = ref.read(trackProgressProvider)[trackId];
-          if (progress != null &&
-              !progress.phase.startsWith('stems_') &&
-              progress.phase != 'decode') {
-            ref.read(trackProgressProvider.notifier).clearIf(trackId);
-          }
+          // Analysis finished: drop only its lane so a concurrent stem job
+          // keeps reporting.
+          ref
+              .read(trackProgressProvider.notifier)
+              .clearLane(trackId, lane: false);
         }
         ref.read(libraryAnalysisEpochProvider.notifier).bump();
       }
