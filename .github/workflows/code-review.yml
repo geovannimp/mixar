@@ -2,8 +2,6 @@ name: Code Review
 
 # AI PR review via OpenCodeReview (https://github.com/alibaba/open-code-review).
 # Posts inline findings to the PR diff plus a summary comment.
-# Stale threads from findings this PR has since fixed are auto-resolved
-# (resolve_outdated; currently in 'report' dry-run mode, see below).
 #
 # Setup required once, under Settings -> Secrets and variables -> Actions:
 #   variable  OCR_LLM_URL            LLM API endpoint
@@ -53,9 +51,7 @@ on:
         required: true
         type: string
 
-# `contents: write` is required by resolve_outdated below: GitHub gates the
-# resolveReviewThread mutation on repository write access, not on the
-# pull-request scope, so `pull-requests: write` alone returns FORBIDDEN.
+# resolve_outdated needs repo write access, not the pull-request scope.
 permissions:
   contents: write
   pull-requests: write
@@ -195,15 +191,6 @@ jobs:
           head_sha: ${{ steps.pr-context.outputs.head_sha || github.event.pull_request.head.sha }}
           # Live progress in the Actions log; findings still post to the PR.
           stream_progress: 'true'
-          # Auto-resolve this action's own inline review threads that GitHub has
-          # already marked outdated (their original lines no longer exist in the
-          # diff) — the thread left behind by a finding this PR has since fixed.
-          # Vetoes: threads a human replied to, threads already resolved, and
-          # threads whose original lines a finding from this same run still
-          # covers. Without `contents: write` the action warns, posts the review
-          # anyway, and resolves nothing.
-          #
-          # 'report' is the dry run: it logs what it would resolve and mutates
-          # nothing. Promote to 'true' once the log confirms the token is
-          # permitted to mutate.
+          # 'report' = dry run: logs what it would resolve, mutates nothing.
+          # Flip to 'true' once the log confirms the token may resolve threads.
           resolve_outdated: 'report'
