@@ -32,11 +32,12 @@ A new Flutter FFI plugin project.
     :execution_position => :before_compile,
     :input_files => ['${BUILT_PRODUCTS_DIR}/cargokit_phony'],
     # Let XCode know that the static library referenced in -force_load below is
-    # created by this build step. Dawn and libclang_rt are ORT's runtime sidecars.
+    # created by this build step. Dawn is ORT WebGPU's runtime sidecar; the
+    # clang_rt runtime staged next to it is a link input only, so it is not
+    # declared here (build_pod.sh picks whichever name it finds).
     :output_files => [
       "${BUILT_PRODUCTS_DIR}/libhost_flutter.a",
       "${BUILT_PRODUCTS_DIR}/libwebgpu_dawn.dylib",
-      "${BUILT_PRODUCTS_DIR}/libclang_rt.osx.dylib",
     ],
   }
   # force_load of the static Rust lib does not pull cargo's framework link args;
@@ -60,9 +61,10 @@ A new Flutter FFI plugin project.
     # ort-sys links `-lc++`, `-lclang_rt.osx` and Foundation for ORT's static
     # macOS build. cargo applied them while building the Rust lib, but -force_load
     # means the Xcode link below is the one that has to resolve ~250 libc++ and
-    # libc++abi symbols. build_pod.sh stages libclang_rt.osx.dylib into
-    # ${BUILT_PRODUCTS_DIR} (its path is under the Xcode version, so it cannot be
-    # hardcoded here) and ships it in the app's Frameworks dir.
+    # libc++abi symbols plus ORT's compiler-rt builtins. build_pod.sh stages the
+    # clang_rt runtime into ${BUILT_PRODUCTS_DIR} (it lives inside the toolchain
+    # or SDK and its path moves with the Xcode version, so it is discovered
+    # there rather than hardcoded here).
     'OTHER_LDFLAGS' => '-force_load ${BUILT_PRODUCTS_DIR}/libhost_flutter.a -L${BUILT_PRODUCTS_DIR} -lwebgpu_dawn -lclang_rt.osx -lc++ -framework Foundation',
     'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @loader_path @executable_path/../Frameworks',
   }

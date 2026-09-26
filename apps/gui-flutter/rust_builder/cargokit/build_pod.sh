@@ -51,21 +51,55 @@ done
 
 sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 
-# Stage ONNX Runtime's C++ runtime dylib next to libhost_flutter.a. ort-sys
-# emits `-lc++` and `-lclang_rt.osx` when it links ORT's static build on macOS
-# (libc++'s hidden inline instantiations only exist in the toolchain's
-# libclang_rt, not in the OS libc++), but this pod force-loads the .a into an
-# Xcode link that reads only OTHER_LDFLAGS, so the podspec repeats those flags.
-# The dylib lives under the Xcode version directory, so the path can only be
-# resolved here, at build time.
-CLANG_RT_SRC="$(xcrun --sdk macosx clang --print-resource-dir 2>/dev/null)/lib/darwin/libclang_rt.osx.dylib"
-if [ -f "$CLANG_RT_SRC" ]; then
-  cp -f "$CLANG_RT_SRC" "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib"
-  # Ship it from the app's Frameworks; the runner rpaths only look there.
-  install_name_tool -id @rpath/libclang_rt.osx.dylib \
-    "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib" 2>/dev/null || true
+# Stage ONNX Runtime's C++ runtime where the pod's `-lclang_rt.osx` can see it.
+# ORT's static objects reference compiler-rt builtins (e.g.
+# __isPlatformVersionAtLeast, which clang emits for @available in the CoreML EP's
+# Objective-C++) that neither the OS libc++ nor libSystem export -- that is why
+# ort-sys links `-lclang_rt.osx` on apple-darwin. The pod's Xcode link only reads
+# OTHER_LDFLAGS, so the podspec repeats the flag, and the runtime itself is
+# staged here: it lives inside the toolchain or SDK, and both the layout and the
+# name move with the Xcode version (26.6 has no libclang_rt.osx.dylib at all), so
+# it is discovered rather than assumed. The static archive is preferred: it needs
+# no shipping, signing or rpath.
+CLANG_RT_CLANG="$(xcrun -f clang 2>/dev/null)" || true
+CLANG_RT_ROOT1="$(xcrun clang --print-resource-dir 2>/dev/null)/lib/darwin" || true
+CLANG_RT_ROOT2="$(dirname "$CLANG_RT_CLANG")/../lib"
+CLANG_RT_ROOT3="$(xcrun --show-sdk-path 2>/dev/null)/usr/lib" || true
+CLANG_RT_SRC=""
+for pattern in libclang_rt.osx.a libclang_rt.macosx.a libclang_rt.osx.dylib libclang_rt.macosx.dylib; do
+  # Each root is quoted: Xcode can sit under a path containing spaces, which word
+  # splitting would tear apart.
+  for dir in "$CLANG_RT_ROOT1" "$CLANG_RT_ROOT2" "$CLANG_RT_ROOT3"; do
+    if [ -z "$CLANG_RT_SRC" ] && [ -d "$dir" ]; then
+      CLANG_RT_SRC="$(find "$dir" -maxdepth 5 -name "$pattern" 2>/dev/null | head -1)"
+    fi
+  done
+  if [ -n "$CLANG_RT_SRC" ]; then
+    break
+  fi
+done
+if [ -n "$CLANG_RT_SRC" ]; then
+  # Normalise the name so the podspec's `-lclang_rt.osx` resolves even when the
+  # toolchain calls the runtime macosx.
+  case "$CLANG_RT_SRC" in
+    *.a) CLANG_RT_STAGED="$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.a" ;;
+    *)   CLANG_RT_STAGED="$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib" ;;
+  esac
+  # Drop any other variant an earlier build staged: ld looks for the dylib before
+  # the archive in a directory, and the sidecar loop below ships whatever is here.
+  rm -f "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.a" "$CARGOKIT_OUTPUT_DIR/libclang_rt.osx.dylib"
+  cp -f "$CLANG_RT_SRC" "$CLANG_RT_STAGED"
+  echo "info: staged ORT C++ runtime from $CLANG_RT_SRC"
+  # Dynamic variant only: it has to be reachable through the runner rpaths, which
+  # look in the app's Frameworks.
+  case "$CLANG_RT_STAGED" in
+    *.dylib) install_name_tool -id @rpath/libclang_rt.osx.dylib "$CLANG_RT_STAGED" 2>/dev/null || true ;;
+  esac
 else
-  echo "warning: libclang_rt.osx.dylib not found at '$CLANG_RT_SRC'" >&2
+  echo "warning: no libclang_rt.osx runtime found under:" >&2
+  echo "warning:   $CLANG_RT_ROOT1" >&2
+  echo "warning:   $CLANG_RT_ROOT2" >&2
+  echo "warning:   $CLANG_RT_ROOT3" >&2
   echo "warning: the host_flutter link will fail with 'library not found for -lclang_rt.osx'" >&2
 fi
 
@@ -74,10 +108,11 @@ fi
 # signature to be mapped, and nothing else signs dylibs copied by a build phase.
 if [ -n "${TARGET_BUILD_DIR:-}" ] && [ -n "${FRAMEWORKS_FOLDER_PATH:-}" ]; then
   for sidecar in libwebgpu_dawn.dylib libclang_rt.osx.dylib; do
-    [ -f "$CARGOKIT_OUTPUT_DIR/$sidecar" ] || continue
-    mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
-    cp -f "$CARGOKIT_OUTPUT_DIR/$sidecar" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
-    codesign --force --sign - "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/${sidecar}" 2>/dev/null || true
+    if [ -f "$CARGOKIT_OUTPUT_DIR/$sidecar" ]; then
+      mkdir -p "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+      cp -f "$CARGOKIT_OUTPUT_DIR/$sidecar" "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/"
+      codesign --force --sign - "${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/${sidecar}" 2>/dev/null || true
+    fi
   done
 fi
 
