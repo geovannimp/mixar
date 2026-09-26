@@ -1,114 +1,159 @@
 name: Tmp resolve permission probe
 
-# TEMPORARY — deleted after the probe run. Runs with exactly the permissions
-# the upstream split-job pattern gives its resolve job
-# (contents: write + pull-requests: read) and reports what this repo's real
-# GITHUB_TOKEN can actually do, because the resolve job's action invocation
-# posts comments before it ever reaches the resolve call.
+# TEMPORARY — deleted after the probe run. Reproduces the upstream split-job
+# resolve pattern against this repo's real GITHUB_TOKEN, because the pattern
+# only works if EVERY call the action makes before it reaches resolveReviewThread
+# survives the resolve job's reduced scope.
 #
-#   A. resolveReviewThread          — the whole point of the split
-#   B. issues.updateComment         — summary rewrite, runs before resolve
-#   C. issues.createComment         — summary anchor, runs before resolve
-#   D. pulls.createReview           — inline comments, runs before resolve
+# seed  — contents: read, pull-requests: write. Creates the review thread and
+#         the summary comment the probe will later operate on, stamped with
+#         OCR's markers so they look like the real thing.
+# probe — contents: write, pull-requests: read. Exactly the resolve job's
+#         scope. Every call the action's post step makes before resolving is
+#         attempted here, in the action's own order:
+#           B issues.updateComment  (finalizeSummary — runs before resolve)
+#           C issues.createComment  (ensureSummaryAnchor — runs before resolve)
+#           D pulls.createReview    (inline comments — runs before resolve)
+#           A resolveReviewThread   (the point of the split)
+#         Results go to the job summary, which needs no API permission.
 
 on:
   pull_request:
     types: [opened, synchronize]
 
-permissions:
-  contents: write
-  pull-requests: read
+permissions: {}
 
 jobs:
-  probe:
+  seed:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      thread_id: ${{ steps.seed.outputs.thread_id }}
+      summary_id: ${{ steps.seed.outputs.summary_id }}
+      commit_sha: ${{ steps.seed.outputs.commit_sha }}
+      filename: ${{ steps.seed.outputs.filename }}
+      line: ${{ steps.seed.outputs.line }}
     steps:
-      - name: Probe
+      - name: Seed OCR-shaped thread and summary
+        id: seed
         uses: actions/github-script@v7
         with:
-          github-token: ${{ github.token }}
           script: |
-            const out = {};
             const o = context.repo.owner, r = context.repo.repo;
             const pr = context.payload.pull_request.number;
-            const cap = (k, f) => { try { out[k] = f(); } catch (e) { out[k] = `FAIL ${e.status || ''} ${String(e.message).slice(0, 200)}`; } };
+            const sha = context.payload.pull_request.head.sha;
 
-            // A. resolve / unresolve an OCR thread (resolve then restore).
-            const q = `query($owner:String!,$repo:String!,$n:Int!){
-              repository(owner:$owner,name:$repo){
-                pullRequest(number:$n){
-                  viewerCanResolve
-                  reviewThreads(first:50){
-                    nodes{ id isOutdated isResolved path originalLine
-                      comments(first:20){ totalCount nodes{ author{ login __typename } body } } }
-                  }
-                }
-              }
-            }`;
-            const rp = (await github.graphql(q, { owner: o, repo: r, n: pr })).repository.pullRequest;
-            out.viewerCanResolve = String(rp.viewerCanResolve);
-            const ours = rp.reviewThreads.nodes.filter(t => (t.comments.nodes[0]?.body || '').includes('<!-- ocr-'));
-            out.ocr_threads = String(ours.length);
-            out.ocr_outdated = String(ours.filter(t => t.isOutdated && !t.isResolved).length);
-            // Any unresolved OCR thread: the mutation does not require isOutdated,
-            // so this answers "may this token resolve at all".
-            const target = ours.find(t => !t.isResolved);
-            out.target = target ? `${target.path}:${target.originalLine}` : 'none';
-            if (target) {
-              const m = `mutation($id:ID!){ resolveReviewThread(input:{threadId:$id}){ thread{ isResolved } } }`;
-              const u = `mutation($id:ID!){ unresolveReviewThread(input:{threadId:$id}){ thread{ isResolved } } }`;
-              cap('A_resolve', () => 'OK');
-              try {
-                const x = await github.graphql(m, { id: target.id });
-                out.A_resolve = `OK isResolved=${x.resolveReviewThread.thread.isResolved}`;
-              } catch (e) { out.A_resolve = `FAIL ${String(e.message).slice(0, 200)}`; }
-              try {
-                const x = await github.graphql(u, { id: target.id });
-                out.A_unresolve = `OK isResolved=${x.unresolveReviewThread.thread.isResolved}`;
-              } catch (e) { out.A_unresolve = `FAIL ${String(e.message).slice(0, 200)}`; }
-            }
-
-            // B/C. summary comment update + create.
-            const { data: cs } = await github.rest.issues.listComments({ owner: o, repo: r, issue_number: pr, per_page: 100 });
-            const summary = cs.find(c => (c.body || '').includes('<!-- ocr-summary'));
-            out.summary_found = String(!!summary);
-            if (summary) {
-              cap('B_updateComment', () => 'x');
-              try {
-                await github.rest.issues.updateComment({ owner: o, repo: r, comment_id: summary.id, body: summary.body });
-                out.B_updateComment = 'OK';
-              } catch (e) { out.B_updateComment = `FAIL ${e.status} ${String(e.message).slice(0, 150)}`; }
-            }
-            cap('C_createComment', () => 'x');
-            try {
-              await github.rest.issues.createComment({ owner: o, repo: r, issue_number: pr, body: 'probe: can this token create a comment?' });
-              out.C_createComment = 'OK';
-            } catch (e) { out.C_createComment = `FAIL ${e.status} ${String(e.message).slice(0, 150)}`; }
-
-            // D. inline review comment on a real diff line.
-            cap('D_files', () => 'x');
             const { data: files } = await github.rest.pulls.listFiles({ owner: o, repo: r, pull_number: pr });
-            out.diff_files = files.length;
             const f = files.find(x => x.patch);
-            out.D_createReview = f ? 'skip' : 'no patch';
-            if (f) {
-              const line = (f.patch.match(/^@@ -\d+(?:,\d+)? \+(\d+)/) || [])[1];
-              out.D_line = String(line);
-              try {
-                await github.rest.pulls.createReview({
-                  owner: o, repo: r, pull_number: pr,
-                  commit_id: context.payload.pull_request.head.sha,
-                  body: 'probe', event: 'COMMENT',
-                  comments: [{ path: f.filename, line: Number(line), side: 'RIGHT', body: 'probe inline' }],
-                });
-                out.D_createReview = 'OK';
-              } catch (e) { out.D_createReview = `FAIL ${e.status} ${String(e.message).slice(0, 150)}`; }
-            }
+            if (!f) { core.setFailed('no file with a patch in this PR diff'); return; }
+            const line = Number((f.patch.match(/^@@ -\d+(?:,\d+)? \+(\d+)/) || [])[1]);
 
-            core.info(`PROBE ${JSON.stringify(out, null, 2)}`);
-            try {
-              await github.rest.issues.createComment({
-                owner: o, repo: r, issue_number: pr,
-                body: '```json\n' + JSON.stringify(out, null, 2) + '\n```',
+            // Summary issue comment, carrying the marker postSummary looks for.
+            const { data: summary } = await github.rest.issues.createComment({
+              owner: o, repo: r, issue_number: pr,
+              body: '<!-- ocr-summary -->\n<!-- ocr-summary-run:probe -->\nseed summary',
+            });
+
+            // Inline review comment, carrying the marker threadIsOurs gates on.
+            const { data: review } = await github.rest.pulls.createReview({
+              owner: o, repo: r, pull_number: pr, commit_id: sha,
+              body: '<!-- ocr-review -->', event: 'COMMENT',
+              comments: [{
+                path: f.filename, line, side: 'RIGHT',
+                body: '<!-- ocr-probe-1-deadbeef -->\nprobe: seeded review comment',
+              }],
+            });
+
+            const q = `query($owner:String!,$repo:String!,$n:Int!){
+              repository(owner:$owner,name:$repo){ pullRequest(number:$n){
+                reviewThreads(first:50){ nodes{ id isOutdated isResolved path originalLine
+                  comments(first:20){ totalCount nodes{ author{ login __typename } body } } } } } } }`;
+            const rp = (await github.graphql(q, { owner: o, repo: r, n: pr })).repository.pullRequest;
+            const thread = rp.reviewThreads.nodes.find(t =>
+              (t.comments.nodes[0]?.body || '').includes('<!-- ocr-probe-1-'));
+            if (!thread) { core.setFailed('seeded thread not found'); return; }
+
+            core.info(`seeded thread ${thread.id} on ${thread.path}:${thread.originalLine} outdated=${thread.isOutdated}`);
+            core.setOutput('thread_id', thread.id);
+            core.setOutput('summary_id', summary.id);
+            core.setOutput('commit_sha', sha);
+            core.setOutput('filename', f.filename);
+            core.setOutput('line', String(line));
+
+  probe:
+    needs: seed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Probe every call the post step makes before resolve
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const o = context.repo.owner, r = context.repo.repo;
+            const pr = context.payload.pull_request.number;
+            const out = {};
+            const rows = [];
+            const check = async (name, fn) => {
+              try { const v = await fn(); out[name] = `OK${v === undefined ? '' : ' ' + v}`; }
+              catch (e) { out[name] = `FAIL ${e.status || ''} ${String(e.message).slice(0, 180)}`; }
+            };
+
+            // B. finalizeSummary — updates the anchored summary comment.
+            await check('B_issues.updateComment', async () => {
+              const cur = await github.rest.issues.getComment({ owner: o, repo: r, comment_id: '${{ needs.seed.outputs.summary_id }}' });
+              await github.rest.issues.updateComment({
+                owner: o, repo: r, comment_id: '${{ needs.seed.outputs.summary_id }}',
+                body: cur.data.body + '\nprobe touched',
               });
-            } catch (e) { core.warning(`could not post probe results: ${e.message}`); }
+            });
+
+            // C. ensureSummaryAnchor — creates a comment when none exists.
+            await check('C_issues.createComment', () => github.rest.issues.createComment({
+              owner: o, repo: r, issue_number: pr, body: 'probe: create with pull-requests:read',
+            }));
+
+            // D. inline review comments.
+            await check('D_pulls.createReview', async () => {
+              const r2 = await github.rest.pulls.createReview({
+                owner: o, repo: r, pull_number: pr,
+                commit_id: '${{ needs.seed.outputs.commit_sha }}',
+                body: 'probe', event: 'COMMENT',
+                comments: [{ path: '${{ needs.seed.outputs.filename }}', line: Number('${{ needs.seed.outputs.line }}'), side: 'RIGHT', body: 'probe inline' }],
+              });
+              return r2.data.id;
+            });
+
+            // Read-only calls the resolve path itself depends on.
+            await check('R_listReviewThreads', async () => {
+              const q = `query($owner:String!,$repo:String!,$n:Int!){
+                repository(owner:$owner,name:$repo){ pullRequest(number:$n){
+                  viewerCanResolve
+                  reviewThreads(first:50){ nodes{ id isOutdated isResolved
+                    comments(first:20){ totalCount nodes{ author{ login __typename } body } } } } } } }`;
+              const rp = (await github.graphql(q, { owner: o, repo: r, n: pr })).repository.pullRequest;
+              out.viewerCanResolve = String(rp.viewerCanResolve);
+              return `${rp.reviewThreads.nodes.length} threads`;
+            });
+
+            // A. the point of the split. Resolve, then restore.
+            const tid = '${{ needs.seed.outputs.thread_id }}';
+            await check('A_resolveReviewThread', async () => {
+              const m = `mutation($id:ID!){ resolveReviewThread(input:{threadId:$id}){ thread{ isResolved } } }`;
+              const x = await github.graphql(m, { id: tid });
+              return `isResolved=${x.resolveReviewThread.thread.isResolved}`;
+            });
+            await check('A_unresolveReviewThread', async () => {
+              const m = `mutation($id:ID!){ unresolveReviewThread(input:{threadId:$id}){ thread{ isResolved } } }`;
+              const x = await github.graphql(m, { id: tid });
+              return `isResolved=${x.unresolveReviewThread.thread.isResolved}`;
+            });
+
+            for (const [k, v] of Object.entries(out)) {
+              rows.push(`| \`${k}\` | ${String(v).replace(/\|/g, '\\|')} |`);
+            }
+            await core.summary.addRaw(`| call | result |\n|---|---|\n${rows.join('\n')}\n`);
+            core.info(`PROBE ${JSON.stringify(out, null, 2)}`);
