@@ -64,20 +64,48 @@ sh "$BASEDIR/run_build_tool.sh" build-pod "$@"
 MERGED_LIB="$CARGOKIT_OUTPUT_DIR/libhost_flutter.a"
 RUST_LIB="$CARGOKIT_OUTPUT_DIR/libhost_flutter_rust.a"
 if [ -f "$MERGED_LIB" ]; then
-  RUST_COUNT="$(ar t "$MERGED_LIB" | grep -c '\.rcgu\.o$' || true)"
-  if [ "${RUST_COUNT:-0}" -gt 0 ]; then
-    RUST_OBJ_DIR="$(mktemp -d)"
+  # cargokit always runs `lipo -create` over the static lib, so what lands in
+  # ${BUILT_PRODUCTS_DIR} is a fat archive even for a single arch -- and ar
+  # refuses those ("is a fat file"). Thin it per arch first, split each slice,
+  # and lipo the Rust halves back together when there is more than one.
+  SPLIT_DIR="$(mktemp -d)"
+  RUST_SLICE_COUNT=0
+  LAST_SLICE=""
+  for arch in ${ARCHS:-arm64}; do
+    SLICE="$SPLIT_DIR/lib-$arch.a"
+    if ! lipo -thin "$arch" "$MERGED_LIB" -output "$SLICE" 2>/dev/null; then
+      echo "warning: no $arch slice in $MERGED_LIB" >&2
+      continue
+    fi
+    MEMBERS="$(ar t "$SLICE" | grep -c '\.rcgu\.o$' || true)"
+    if [ "${MEMBERS:-0}" -eq 0 ]; then
+      echo "warning: no .rcgu.o members in the $arch slice of $MERGED_LIB" >&2
+      continue
+    fi
+    OBJ_DIR="$SPLIT_DIR/objs-$arch"
+    mkdir -p "$OBJ_DIR"
     # ar takes a few thousand names at most, so extract in batches rather than
     # handing it the whole member list. Object names carry no spaces.
-    ar t "$MERGED_LIB" | grep '\.rcgu\.o$' | xargs -n 200 sh -c 'cd "$1" || exit 1; a="$2"; shift 2; ar x "$a" "$@"' _ "$RUST_OBJ_DIR" "$MERGED_LIB"
+    ar t "$SLICE" | grep '\.rcgu\.o$' | xargs -n 200 sh -c 'cd "$1" || exit 1; a="$2"; shift 2; ar x "$a" "$@"' _ "$OBJ_DIR" "$SLICE"
+    RUST_SLICE="$SPLIT_DIR/rust-$arch.a"
+    rm -f "$RUST_SLICE"
+    find "$OBJ_DIR" -name '*.rcgu.o' | xargs -n 300 ar -rcs "$RUST_SLICE"
+    rm -rf "$OBJ_DIR"
+    LAST_SLICE="$RUST_SLICE"
+    RUST_SLICE_COUNT=$((RUST_SLICE_COUNT + 1))
+    echo "info: split $MEMBERS Rust objects out of the $arch slice"
+  done
+  if [ "$RUST_SLICE_COUNT" -gt 0 ]; then
     rm -f "$RUST_LIB"
-    find "$RUST_OBJ_DIR" -name '*.rcgu.o' | xargs -n 300 ar -rcs "$RUST_LIB"
-    rm -rf "$RUST_OBJ_DIR"
-    echo "info: split $RUST_COUNT Rust objects into $RUST_LIB"
+    if [ "$RUST_SLICE_COUNT" -eq 1 ]; then
+      cp "$LAST_SLICE" "$RUST_LIB"
+    else
+      lipo -create "$SPLIT_DIR"/rust-*.a -output "$RUST_LIB"
+    fi
   else
-    echo "warning: no .rcgu.o members in $MERGED_LIB" >&2
     echo "warning: the link will fail with 'no such file: $RUST_LIB'" >&2
   fi
+  rm -rf "$SPLIT_DIR"
 fi
 
 # Stage ONNX Runtime's C++ runtime where the pod's `-lclang_rt.osx` can see it.
