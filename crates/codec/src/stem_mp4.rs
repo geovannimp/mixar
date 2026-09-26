@@ -31,6 +31,23 @@ const OPUS_FRAME: usize = 960;
 /// Largest Opus packet ruopus emits for a 20 ms frame.
 const OPUS_MAX_PACKET: usize = 1275;
 
+/// Per-packet byte ceiling that holds the average at [`OPUS_BITRATE_BPS`]:
+/// a 20 ms frame at `bitrate` bps is `bitrate / 400` bytes.
+///
+/// Handing ruopus the 1275 maximum instead and letting its VBR target pick the
+/// size on its own overshoots: `compute_vbr` boosts the target by
+/// `2 * (tf_estimate - 0.044)` and caps the result at twice the base rate, so
+/// transient frames land near 2x the nominal rate. Measured over music-like
+/// material that averaged 185 kbps against a 160 kbps target, with per-frame
+/// sizes bimodal at 377 and 805 bytes. Clamping here keeps the average on
+/// target and bounds the worst frame, while leaving ruopus free to spend fewer
+/// bytes than the ceiling on quiet frames, so this is not CBR.
+const OPUS_FRAME_BYTES: usize = if OPUS_BITRATE_BPS as usize / 400 > OPUS_MAX_PACKET {
+    OPUS_MAX_PACKET
+} else {
+    OPUS_BITRATE_BPS as usize / 400
+};
+
 /// Decoder warm-up to discard, measured for this exact pair: `ruopus`
 /// `encode_auto` fullband at [`OPUS_BITRATE_BPS`] into libopus via
 /// `symphonia-adapter-libopus`. `ruopus` nominally declares 120 for CELT above
@@ -394,7 +411,7 @@ fn encode_opus(pcm: &[f32]) -> Result<EncodedStream> {
             let mut frame = pcm[start..end].to_vec();
             frame.resize(frame_samples, 0.0); // zero-pad past the end of the input
             let packet = encoder
-                .encode_auto(&frame, OPUS_MAX_PACKET)
+                .encode_auto(&frame, OPUS_FRAME_BYTES)
                 .map_err(|error| anyhow!("opus encode: {error:?}"))?;
             // Only the final sample is trimmed; the rest decode in full.
             let duration = (timeline - index * OPUS_FRAME).min(OPUS_FRAME) as u32;
