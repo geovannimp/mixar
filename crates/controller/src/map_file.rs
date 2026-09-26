@@ -6,7 +6,8 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::catalog::{
-    is_absolute_action, is_closed_input_alias, is_known_action, is_relative_action,
+    is_absolute_action, is_closed_input_alias, is_known_action, is_known_signal,
+    is_relative_action, is_snake_case,
 };
 use crate::device::{is_section_key, DeviceFile, TomlSchemaRef, SECTION_CUSTOM};
 use crate::error::LoadError;
@@ -92,8 +93,15 @@ pub enum OutputTarget {
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct OutputBinding {
+    /// State name driving this LED (see `ControlSnapshot::signal`). Absent means
+    /// the host drives it explicitly through `apply_output_signal`.
+    #[serde(default)]
+    pub signal: Option<String>,
     pub on: OutputTarget,
     pub off: OutputTarget,
+    /// Third state: while the signal is true, alternate `on` / `off` on a timer.
+    #[serde(default)]
+    pub blink: Option<OutputTarget>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
@@ -274,18 +282,33 @@ impl MapFile {
                 )));
             }
             for (alias, out) in aliases {
-                // Watch key must be closed catalog (signal) for the section.
-                if section != SECTION_CUSTOM && !is_closed_input_alias(section, alias) {
+                let path = format!("outputs.{section}.{alias}");
+                if !is_snake_case(alias) {
                     return Err(LoadError::Validation(format!(
-                        "outputs.{section}.{alias}: watch key not in closed catalog"
+                        "{path}: alias must be snake_case"
                     )));
                 }
-                validate_output_target(device, &out.on, &format!("outputs.{section}.{alias}.on"))?;
-                validate_output_target(
-                    device,
-                    &out.off,
-                    &format!("outputs.{section}.{alias}.off"),
-                )?;
+                // Without a `signal` the key doubles as the closed-catalog watch name.
+                if out.signal.is_none()
+                    && section != SECTION_CUSTOM
+                    && !is_closed_input_alias(section, alias)
+                {
+                    return Err(LoadError::Validation(format!(
+                        "{path}: watch key not in closed catalog"
+                    )));
+                }
+                if let Some(signal) = &out.signal {
+                    if !is_known_signal(section, signal) {
+                        return Err(LoadError::Validation(format!(
+                            "{path}: unknown signal `{signal}` for `{section}`"
+                        )));
+                    }
+                }
+                validate_output_target(device, &out.on, &format!("{path}.on"))?;
+                validate_output_target(device, &out.off, &format!("{path}.off"))?;
+                if let Some(blink) = &out.blink {
+                    validate_output_target(device, blink, &format!("{path}.blink"))?;
+                }
             }
         }
         Ok(())

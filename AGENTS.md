@@ -28,3 +28,5 @@
 - Library I/O uses `LibraryTransport` (separate from the engine bus). Hosts prepare `PreparedTrackPlayback` outside the host session lock; never hold that lock while waiting on `library`.
 - Controller / MIDI mapping I/O uses `ControllerTransport` (same rule: no raw host invoke/listen from UI widgets).
 - Hot cues and loops persist in dedicated `track_hot_cue` / `track_loop` tables in `library.db` (same pattern as waveforms).
+- Controller LEDs are declarative: each `map.toml` `[outputs.*]` entry names the `signal` that drives it (closed vocabulary in `controller::catalog::is_known_signal`, resolved against `ControlSnapshot::signal`); `on` / `off` / optional `blink` give steady, dark and flashing states. The session re-resolves a section on every state change, force-sweeps on attach, and clears every lamp on detach; `ControllerEngine` replays the last `DeckFeedback` into each newly attached session so hot-plug starts in sync. Add new hardware feedback by binding a signal, not by editing session code.
+- `mappings/ddj-400` pins its wire bytes in `crates/controller/tests/ddj400_feedback.rs`; `docs/ddj-400-hardware-checklist.md` is the manual pass.
