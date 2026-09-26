@@ -2251,7 +2251,12 @@ mod tests {
 
     #[cfg(feature = "analysis")]
     #[test]
-    fn prepare_stem_cache_miss_when_stems_disabled() {
+    fn prepare_discards_fingerprint_mismatched_stem_cache() {
+        // Deck load always consults the stem cache now, so a cache whose
+        // fingerprint no longer matches the source file must be discarded and
+        // playback must fall back to the original. Assert the discard itself,
+        // not just the absent stems, so this cannot silently start passing for
+        // a different reason.
         let dir = tempfile::tempdir().unwrap();
         let wav = dir.path().join("track.wav");
         write_analysis_wav(&wav);
@@ -2269,10 +2274,11 @@ mod tests {
                 &track_id,
                 &TrackStemsInfo {
                     backend: "htdemucs_mixxx_v1".into(),
+                    // Deliberately not `matching_stem_fingerprint(&wav)`.
                     source_fingerprint: "fp".into(),
                     format: "opus".into(),
                     sample_rate: 48_000,
-                    path: cache_path,
+                    path: cache_path.clone(),
                     generated_at: "1".into(),
                 },
             )
@@ -2281,6 +2287,14 @@ mod tests {
 
         let prepared = LibraryManager::prepare_track_for_playback(&library, &track_id).unwrap();
         assert!(prepared.stems.is_none());
+
+        // The stale row and its file are dropped, so the next prepare does not
+        // retry the same decode.
+        {
+            let lib = library.lock().unwrap();
+            assert!(!stems::has_track_stems(&lib.db, &track_id).unwrap());
+        }
+        assert!(!cache_path.is_file(), "stale stem file left on disk");
     }
 
     #[cfg(feature = "analysis")]
