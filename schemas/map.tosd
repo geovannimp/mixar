@@ -83,11 +83,19 @@ allowedvalues = ["in", "out", "inout"]
 [types.output_binding]
 type = "table"
 
+[types.output_binding.signal]
+type = "string"
+optional = true
+
 [types.output_binding.on]
 typeof = "types.output_target"
 
 [types.output_binding.off]
 typeof = "types.output_target"
+
+[types.output_binding.blink]
+typeof = "types.output_target"
+optional = true
 
 [types.section_outputs]
 type = "collection"

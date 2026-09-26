@@ -29,7 +29,27 @@
 - Library I/O uses `LibraryTransport` (separate from the engine bus). Hosts prepare `PreparedTrackPlayback` outside the host session lock; never hold that lock while waiting on `library`.
 - Controller / MIDI mapping I/O uses `ControllerTransport` (same rule: no raw host invoke/listen from UI widgets).
 - Hot cues and loops persist in dedicated `track_hot_cue` / `track_loop` tables in `library.db` (same pattern as waveforms).
+- Controller LEDs are declarative: each `map.toml` `[outputs.*]` entry names the `signal` that drives it (closed vocabulary in `controller::catalog::is_known_signal`, resolved against `ControlSnapshot::signal`); `on` / `off` / optional `blink` give steady, dark and flashing states. The session re-resolves a section on every state change, force-sweeps on attach, and clears every lamp on detach; `ControllerEngine` replays the last `DeckFeedback` into each newly attached session so hot-plug starts in sync. Add new hardware feedback by binding a signal, not by editing session code.
+- `mappings/ddj-400` pins its wire bytes in `crates/controller/tests/ddj400_feedback.rs`; `docs/ddj-400-hardware-checklist.md` is the manual pass.
 
 ## Mappings
 
 - When changing any shipped MIDI mapping bundle under `mappings/<id>/`, always bump that bundle’s `mapping_version` in `device.toml` to a strictly newer parseable value (e.g. `1.0.0` → `1.0.1`). Lint enforces this on PRs via `scripts/check-mapping-version-bump.sh` so Settings can show “Update available.”
+
+⚠ 1 unresolved conflict detected
+- ours = HEAD
+- theirs = 0361e5bc (controller(ddj-400): complete LED and pad feedback)
+NOTICE: Inspect a block by reading `conflict://<N>` (add `/ours` / `/theirs` / `/base` to render a single side). Resolve with `write({ path: "conflict://<N>", content })`, or bulk-resolve every registered conflict with `write({ path: "conflict://*", content })`. Writes replace ONLY the marker block (markers + all sides) — never repeat the lines before/after it; they stay in place.
+`content` shorthand: a line that is exactly `@ours` / `@theirs` / `@base` / `@both` expands to that recorded section. `@both` is ours-then-theirs with no separator — only for additive conflicts where each side adds something different; NEVER for competing edits of the same lines (pick a side or write the combined text). Lines that are not a token pass through verbatim, so `"// keep both\n@ours\n@theirs"` literally writes the comment, then ours, then theirs.
+Per-id bulk: `write({ path: "conflict://*", content: "1: @ours\n2: @theirs\n…" })` resolves each listed id with that side in ONE call — the cheapest way through many pick-one conflicts; unlisted ids stay registered.
+Resolve each block faithfully: keep one side (`@ours`/`@theirs`), or combine them when both intents apply — never invent content beyond the recorded sides, and never stack both sides of competing edits. Resolve several conflicts in a single turn by issuing multiple `write` calls at once; ids stay valid as earlier blocks are resolved.
+
+──── #19  L32-40 ────
+<<< ours
+
+## Mappings
+
+- When changing any shipped MIDI mapping bundle under `mappings/<id>/`, always bump that bundle’s `mapping_version` in `device.toml` to a strictly newer parseable value (e.g. `1.0.0` → `1.0.1`). Lint enforces this on PRs via `scripts/check-mapping-version-bump.sh` so Settings can show “Update available.”
+>>> theirs
+- Controller LEDs are declarative: each `map.toml` `[outputs.*]` entry names the `signal` that drives it (closed vocabulary in `controller::catalog::is_known_signal`, resolved against `ControlSnapshot::signal`); `on` / `off` / optional `blink` give steady, dark and flashing states. The session re-resolves a section on every state change, force-sweeps on attach, and clears every lamp on detach; `ControllerEngine` replays the last `DeckFeedback` into each newly attached session so hot-plug starts in sync. Add new hardware feedback by binding a signal, not by editing session code.
+- `mappings/ddj-400` pins its wire bytes in `crates/controller/tests/ddj400_feedback.rs`; `docs/ddj-400-hardware-checklist.md` is the manual pass.
