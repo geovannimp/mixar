@@ -191,6 +191,5 @@ jobs:
           head_sha: ${{ steps.pr-context.outputs.head_sha || github.event.pull_request.head.sha }}
           # Live progress in the Actions log; findings still post to the PR.
           stream_progress: 'true'
-          # 'report' = dry run: logs what it would resolve, mutates nothing.
-          # Flip to 'true' once the log confirms the token may resolve threads.
-          resolve_outdated: 'report'
+          # Resolves this action's own outdated review threads.
+          resolve_outdated: 'true'
