@@ -204,7 +204,7 @@ class TrackProgressMap extends Notifier<Map<String, List<TrackProgressInfo>>> {
         // bound, so a bad ratio would otherwise render as a false "100%".
         TrackProgressInfo(
           phase: phase,
-          fraction: fraction != null && fraction!.isFinite ? fraction : null,
+          fraction: fraction != null && fraction.isFinite ? fraction : null,
         ),
       ],
     };

@@ -17,6 +17,19 @@ import 'package:trina_grid/trina_grid.dart';
 
 import 'support/mixar_material_app.dart';
 
+// Both widget types are used elsewhere in the app (m_tabs.dart renders
+// FractionallySizedBox), so a global count would break for reasons unrelated
+// to the overlay. Scope to the pane under test.
+Finder barsInPane() => find.descendant(
+  of: find.byType(TrackTablePane),
+  matching: find.byType(FractionallySizedBox),
+);
+
+Finder loadersInPane() => find.descendant(
+  of: find.byType(TrackTablePane),
+  matching: find.byType(MLoader),
+);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -93,13 +106,13 @@ void main() {
       expect(find.text('Analyzing'), findsOneWidget);
       expect(find.text('Demo Track'), findsOneWidget);
       // A percentage is only drawn when the engine actually reported one.
-      expect(find.byType(FractionallySizedBox), findsNothing);
+      expect(barsInPane(), findsNothing);
 
       container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.42);
       await tester.pump();
       expect(find.text('Detecting BPM 42%'), findsOneWidget);
       expect(find.text('Demo Track'), findsOneWidget);
-      expect(find.byType(FractionallySizedBox), findsOneWidget);
+      expect(barsInPane(), findsOneWidget);
 
       // Stems open a second lane: both jobs report at once.
       container
@@ -111,7 +124,7 @@ void main() {
       // The idle row still renders, and contributes no pill or bar: exactly
       // two bars exist, one per job on the working row.
       expect(find.text('Other Track'), findsOneWidget);
-      expect(find.byType(FractionallySizedBox), findsNWidgets(2));
+      expect(barsInPane(), findsNWidgets(2));
 
       // Finishing stems drops only that lane.
       container
@@ -120,7 +133,7 @@ void main() {
       await tester.pump();
       expect(find.text('Separating stems 50%'), findsNothing);
       expect(find.text('Detecting BPM 42%'), findsOneWidget);
-      expect(find.byType(FractionallySizedBox), findsOneWidget);
+      expect(barsInPane(), findsOneWidget);
       expect(find.text('Demo Track'), findsOneWidget);
     },
   );
@@ -156,7 +169,7 @@ void main() {
       isTrue,
     );
     // Determinate analysis: no spinner anywhere, least of all in the cell.
-    expect(find.byType(MLoader), findsNothing);
+    expect(loadersInPane(), findsNothing);
 
     // The actions cell 3-dot itself also opens while analyzing — previously it
     // swapped to a loader and stopped responding.
@@ -180,7 +193,7 @@ void main() {
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
     expect(find.text('Analyzing'), findsOneWidget);
-    expect(find.byType(MLoader), findsOneWidget);
+    expect(loadersInPane(), findsOneWidget);
 
     // Two lanes open: one loader each, and the 3-dot cell is not a third.
     container
@@ -192,7 +205,7 @@ void main() {
     await tester.pump();
     expect(find.text('Analyzing'), findsOneWidget);
     expect(find.text('Queuing stems'), findsOneWidget);
-    expect(find.byType(MLoader), findsNWidgets(2));
+    expect(loadersInPane(), findsNWidgets(2));
 
     // A determinate phase drops that lane's loader.
     container
@@ -200,7 +213,7 @@ void main() {
         .set(track.id, 'stems_separate', 0.4);
     await tester.pump();
     expect(find.text('Separating stems 40%'), findsOneWidget);
-    expect(find.byType(MLoader), findsOneWidget);
+    expect(loadersInPane(), findsOneWidget);
   });
 
   testWidgets('progress ticks reuse grid rows instead of regenerating them', (
@@ -300,7 +313,7 @@ void main() {
     // Trina's row slot is rowHeight + a horizontal cell border; anchoring the
     // bar to the slot instead left a visible gap below it.
     final rowSlotBottom = manager.bodyTopOffset + manager.rowTotalHeight;
-    final bar = tester.getRect(find.byType(FractionallySizedBox));
+    final bar = tester.getRect(barsInPane());
     expect(
       rowSlotBottom - bar.bottom,
       closeTo(manager.configuration.style.cellHorizontalBorderWidth, 0.01),
@@ -323,7 +336,7 @@ void main() {
         .state<TrinaGridState>(find.byType(TrinaGrid))
         .stateManager;
     final rowSlotBottom = manager.bodyTopOffset + manager.rowTotalHeight;
-    final bars = find.byType(FractionallySizedBox);
+    final bars = barsInPane();
     expect(bars, findsOneWidget);
     expect(
       rowSlotBottom - tester.getRect(bars).bottom,
@@ -375,7 +388,7 @@ void main() {
     await tester.pump();
     expect(find.text('Detecting BPM 60%'), findsOneWidget);
     expect(find.text('Separating stems 30%'), findsOneWidget);
-    expect(find.byType(FractionallySizedBox), findsNWidgets(2));
+    expect(barsInPane(), findsNWidgets(2));
 
     // Failure drops the stem lane; the concurrent analysis job keeps running
     // and keeps its own pill and bar.
@@ -385,7 +398,7 @@ void main() {
     await tester.pump();
     expect(find.text('Separating stems 30%'), findsNothing);
     expect(find.text('Detecting BPM 60%'), findsOneWidget);
-    expect(find.byType(FractionallySizedBox), findsOneWidget);
+    expect(barsInPane(), findsOneWidget);
     expect(find.text('Demo Track'), findsOneWidget);
   });
 
@@ -415,7 +428,7 @@ void main() {
     // No stranded pill, no queued-stem fallback, no bar.
     expect(find.text('Loading stem model'), findsNothing);
     expect(find.text('Queuing stems'), findsNothing);
-    expect(find.byType(FractionallySizedBox), findsNothing);
+    expect(barsInPane(), findsNothing);
   });
 
   test('a non-finite engine fraction is dropped, not shown as 100%', () {
