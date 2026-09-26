@@ -41,10 +41,9 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required double minDeckVolume,
   });
 
-  /// Apply library analysis duration, stems gate, and stem format from app settings.
+  /// Apply library analysis duration and stem format from app settings.
   Future<void> applyLibrarySettings({
     required LibraryAnalysisDurationSetting analysisDuration,
-    required bool stemsEnabled,
     required String stemsFormat,
   });
 
@@ -70,6 +69,12 @@ abstract class LibraryTransport implements RustOpaqueInterface {
     required HistoryExportFormatSetting format,
     required String destPath,
   });
+
+  /// Queue stem generation for a track via the library cmd bus only.
+  ///
+  /// Separate from [`Self::analyze_track`]: analysis never generates stems
+  /// implicitly. No-op server-side when a valid stem cache already exists.
+  Future<void> generateStems({required String trackId});
 
   /// Analyzed beat grid, if present.
   Future<BeatGridData?> getBeatGrid({required String trackId});

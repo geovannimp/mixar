@@ -60,15 +60,6 @@ void main() {
     );
   });
 
-  test('stemsEnabled defaults false and dirty when toggled', () {
-    final baseline = defaultAppSettings();
-    expect(baseline.stemsEnabled, isFalse);
-    expect(
-      appSettingsDirty(copyAppSettings(baseline, stemsEnabled: true), baseline),
-      isTrue,
-    );
-  });
-
   test('stemsFormat defaults opus and dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.stemsFormat, 'opus');

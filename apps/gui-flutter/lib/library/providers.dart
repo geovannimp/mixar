@@ -519,6 +519,21 @@ Future<void> analyzeTrackAction(WidgetRef ref, String trackId) async {
   }
 }
 
+/// Queue stem generation for one track.
+///
+/// Deliberately independent of [analyzeTrackAction]: a full Demucs pass is far
+/// more expensive than analysis, so it is opt-in per track. Server-side this
+/// no-ops when a valid stem cache already exists.
+Future<void> generateStemsAction(WidgetRef ref, String trackId) async {
+  ref.read(libraryMessageProvider.notifier).clear();
+  try {
+    final transport = await ref.read(libraryTransportProvider.future);
+    await transport.generateStems(trackId: trackId);
+  } catch (e) {
+    ref.read(libraryMessageProvider.notifier).setError('$e');
+  }
+}
+
 Future<void> refreshTrackAction(WidgetRef ref, String trackId) async {
   ref.read(libraryMessageProvider.notifier).clear();
   try {

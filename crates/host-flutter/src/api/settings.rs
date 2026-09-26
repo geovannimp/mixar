@@ -273,9 +273,6 @@ pub struct AppSettings {
     pub show_tooltips: bool,
     #[serde(default = "default_dim_played_tracks")]
     pub dim_played_tracks: bool,
-    /// Offline HTDemucs stem separation for Stems pad mode (default off).
-    #[serde(default)]
-    pub stems_enabled: bool,
     /// Stem cache codec: `opus` (default) or `flac`.
     #[serde(default = "default_stems_format")]
     pub stems_format: String,
@@ -305,7 +302,6 @@ struct SettingsHost {
     history_min_deck_volume: f32,
     show_tooltips: bool,
     dim_played_tracks: bool,
-    stems_enabled: bool,
     stems_format: String,
 }
 
@@ -333,7 +329,6 @@ impl Default for SettingsHost {
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
             dim_played_tracks: default_dim_played_tracks(),
-            stems_enabled: false,
             stems_format: default_stems_format(),
         }
     }
@@ -617,7 +612,6 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
         dim_played_tracks: host.dim_played_tracks,
-        stems_enabled: host.stems_enabled,
         stems_format: host.stems_format.clone(),
     }
 }
@@ -658,7 +652,6 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
     host.dim_played_tracks = settings.dim_played_tracks;
-    host.stems_enabled = settings.stems_enabled;
     host.stems_format = settings.stems_format;
     host.configured = true;
     Ok(())
@@ -769,7 +762,6 @@ mod tests {
         assert_eq!(parsed.key_color_mode, KeyColorModeSetting::Off);
         assert!(parsed.trusted_controller_device_ids.is_empty());
         assert!(parsed.show_tooltips);
-        assert!(!parsed.stems_enabled);
         assert_eq!(parsed.stems_format, "opus");
     }
 
@@ -794,29 +786,22 @@ mod tests {
     }
 
     #[test]
-    fn missing_stems_enabled_defaults_false() {
+    fn legacy_stems_enabled_key_is_ignored() {
+        // Settings files written before stems became a standalone action still
+        // carry `stems_enabled`. Loading must not fail and must not resurrect a
+        // gate that no longer exists.
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut value = serde_json::to_value(sample_settings()).expect("json");
         value
             .as_object_mut()
             .expect("object")
-            .remove("stems_enabled");
+            .insert("stems_enabled".into(), serde_json::Value::Bool(true));
         std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
-        let host = load_host(&path);
-        assert!(!settings_from_host(&host).stems_enabled);
-    }
-
-    #[test]
-    fn stems_enabled_round_trip_survives_reload() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let path = dir.path().join("settings.json");
-        let mut settings = sample_settings();
-        settings.stems_enabled = true;
-        write_settings_file(&path, &settings).expect("write");
 
         let host = load_host(&path);
-        assert!(settings_from_host(&host).stems_enabled);
+        assert!(host.configured);
+        assert_eq!(settings_from_host(&host).stems_format, "opus");
     }
 
     #[test]

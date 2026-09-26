@@ -33,6 +33,7 @@ void main() {
   Future<void> pumpMenu(
     WidgetTester tester, {
     required bool inLibrary,
+    bool stemsGenerating = false,
     double width = 200,
   }) async {
     final theme = MixarThemeData.dark();
@@ -51,6 +52,7 @@ void main() {
                 title: 'Track',
                 inLibrary: inLibrary,
                 analyzing: false,
+                stemsGenerating: stemsGenerating,
               ),
             ),
           ),
@@ -81,6 +83,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Analyze'), findsOneWidget);
     expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
+  });
+
+  testWidgets('Generate stems is its own action for library tracks', (
+    tester,
+  ) async {
+    await pumpMenu(tester, inLibrary: true);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    // Stems no longer ride along with Analyze, so they get a separate item.
+    expect(find.text('Generate stems'), findsOneWidget);
+  });
+
+  testWidgets('Generate stems reports progress and blocks a second run', (
+    tester,
+  ) async {
+    await pumpMenu(tester, inLibrary: true, stemsGenerating: true);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+    expect(find.text('Generating stems…'), findsOneWidget);
+    expect(find.text('Generate stems'), findsNothing);
   });
 
   testWidgets('Load to A/B is disabled when the engine is stopped', (
@@ -124,6 +146,7 @@ void main() {
                 title: 'Track',
                 inLibrary: true,
                 analyzing: false,
+                stemsGenerating: false,
               ),
             ),
           ),

@@ -13,8 +13,8 @@ Settings-gated offline stem separation → cache under app support → non-block
 | Topic | Choice |
 |-------|--------|
 | Stem set | 4: `vocals`, `drums`, `bass`, `other` (Demucs / issue comment) |
-| Feature gate | `AppSettings.stems_enabled` (default **false**) |
-| Triggers | When enabled: library analyze **and** deck prepare/load enqueue stem ensure; never block playback |
+| Gate | None — stems are always available; generation is a per-track opt-in action |
+| Triggers | Explicit `GenerateStems` action per track, **and** deck prepare/load; never block playback. Analyze never triggers stems |
 | Pads | Enabled only when stems ready for the loaded track |
 | Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
 | Inference | **pykeio/ort** + Mixxx HTDemucs ONNX via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — `docs/stems-ort-onnx-design.md` |
@@ -44,10 +44,7 @@ Burn HTDemucs was evaluated and dropped for speed; shipping path is ORT + Mixxx 
 ## Architecture
 
 ```text
-Settings.stems_enabled
-        │
-        ▼
-library analyze / deck prepare
+GenerateStems action / deck prepare
         │  enqueue if missing/stale
         ▼
 analyzer-stems
@@ -127,9 +124,10 @@ Progress / analyze vs stems jobs: `docs/stems-analyze-progress-design.md`.
 
 ### Settings / analyze / load
 
-- `stems_enabled: bool` on `AppSettings` (default false), Settings → Library (or Analysis) panel.
-- Analyze path: after BPM/waveform (or parallel worker job), if enabled → `ensure_track_stems`.
-- Deck prepare/load: start playback with prepared original; if enabled and stems missing, spawn ensure **without** holding host session lock; on completion emit library/engine event so UI enables pads and engine can `attach_stems`.
+- No stems gate. `stems_format` stays on `AppSettings` (Settings → Library panel).
+- `GenerateStems` action: per-track menu item in the library table. Fires the `GenerateStems` cmd; the worker spawns a `stems-ensure-{track_id}` thread that runs `ensure_track_stems` and reports the `stems_*` phases. No-op when a valid cache exists, so the UI need not pre-check.
+- Analyze path: BPM/waveform only. It does **not** generate stems.
+- Deck prepare/load: start playback with prepared original; if a valid stem cache exists, use it; if stems are missing, spawn ensure **without** holding host session lock; on completion emit library/engine event so UI enables pads and engine can `attach_stems`.
 
 ### Realtime (documentation only)
 

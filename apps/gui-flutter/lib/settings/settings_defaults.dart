@@ -93,7 +93,6 @@ AppSettings defaultAppSettings() {
     historyMinDeckVolume: 0.05,
     showTooltips: true,
     dimPlayedTracks: true,
-    stemsEnabled: false,
     stemsFormat: 'opus',
   );
 }
@@ -169,7 +168,6 @@ AppSettings copyAppSettings(
   double? historyMinDeckVolume,
   bool? showTooltips,
   bool? dimPlayedTracks,
-  bool? stemsEnabled,
   String? stemsFormat,
 }) {
   return AppSettings(
@@ -207,7 +205,6 @@ AppSettings copyAppSettings(
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
     showTooltips: showTooltips ?? base.showTooltips,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
-    stemsEnabled: stemsEnabled ?? base.stemsEnabled,
     stemsFormat: stemsFormat ?? base.stemsFormat,
   );
 }
@@ -244,7 +241,6 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       draft.showTooltips != baseline.showTooltips ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
-      draft.stemsEnabled != baseline.stemsEnabled ||
       draft.stemsFormat != baseline.stemsFormat ||
       !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
       !_sameList(

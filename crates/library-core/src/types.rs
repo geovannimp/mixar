@@ -336,7 +336,10 @@ impl UpdateCollection {
 }
 
 /// Options for [`WritableLibrary::analyze_track`].
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+///
+/// Analysis only — stem generation is a separate action, so nothing here
+/// configures it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct AnalyzeTrackOptions {
     /// When true, DSP analysis results replace BPM/key from file tags.
     /// When false, existing tag values are kept when present; analysis fills
@@ -344,36 +347,6 @@ pub struct AnalyzeTrackOptions {
     pub force: bool,
     /// How much of the track to analyze.
     pub analysis_duration: AnalysisDurationMode,
-    /// When true, ensure offline stems after analysis (requires [`Self::stems_root`]
-    /// and [`Self::models_root`]).
-    #[serde(default)]
-    pub stems_enabled: bool,
-    /// Root directory for stem caches (`{stems_root}/{fnv64(track_id)}/`).
-    #[serde(default)]
-    pub stems_root: Option<PathBuf>,
-    /// Root directory for HTDemucs ONNX weights (`{app_support}/models`).
-    #[serde(default)]
-    pub models_root: Option<PathBuf>,
-    /// Stem cache codec: `opus` (default) or `flac`.
-    #[serde(default = "default_stems_format")]
-    pub stems_format: String,
-}
-
-fn default_stems_format() -> String {
-    "opus".into()
-}
-
-impl Default for AnalyzeTrackOptions {
-    fn default() -> Self {
-        Self {
-            force: false,
-            analysis_duration: AnalysisDurationMode::default(),
-            stems_enabled: false,
-            stems_root: None,
-            models_root: None,
-            stems_format: default_stems_format(),
-        }
-    }
 }
 
 impl AnalyzeTrackOptions {
@@ -382,25 +355,7 @@ impl AnalyzeTrackOptions {
         Self {
             force: true,
             analysis_duration: AnalysisDurationMode::Complete,
-            ..Default::default()
         }
-    }
-
-    /// Reject `stems_enabled` without configured stems/models roots.
-    pub fn validate_stems(&self) -> crate::Result<()> {
-        if self.stems_enabled && self.stems_root.is_none() {
-            return Err(crate::LibraryError::Backend {
-                backend: "stems",
-                message: "stems_enabled requires stems_root".into(),
-            });
-        }
-        if self.stems_enabled && self.models_root.is_none() {
-            return Err(crate::LibraryError::Backend {
-                backend: "stems",
-                message: "stems_enabled requires models_root".into(),
-            });
-        }
-        Ok(())
     }
 }
 

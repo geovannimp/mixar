@@ -53,6 +53,12 @@ pub enum CmdBody {
         track_id: String,
         force: bool,
     },
+    /// Separately generate the stem cache for one track. Analyze never does this
+    /// implicitly; stems are expensive (a full Demucs pass) so they are opt-in
+    /// per track.
+    GenerateStems {
+        track_id: String,
+    },
     RefreshTrack {
         track_id: String,
     },

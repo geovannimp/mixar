@@ -96,6 +96,7 @@ fn handle_cmd(
     let revision = buses.revision_arc();
     match event.kind() {
         Kind::AnalyzeTrack => handle_analyze(event, library, buses),
+        Kind::GenerateStems => handle_generate_stems(event, library, buses),
         Kind::RefreshTrack => handle_refresh_track(event, library, &evt_bus, &revision),
         Kind::SaveHotCue => handle_save_hot_cue(event, library, &evt_bus, &revision),
         Kind::DeleteHotCue => handle_delete_hot_cue(event, library, &evt_bus, &revision),
@@ -250,15 +251,10 @@ fn handle_analyze(
         .analysis_duration_arc()
         .lock()
         .unwrap_or_else(|e| e.into_inner());
-    let stems_on = buses.stems_enabled();
 
     let options = AnalyzeTrackOptions {
         force,
         analysis_duration: duration,
-        stems_enabled: false,
-        stems_root: None,
-        models_root: None,
-        stems_format: buses.stems_format(),
     };
 
     let _ = publish_evt(
@@ -279,22 +275,6 @@ fn handle_analyze(
     match result {
         Ok(source) => match track_summary(&source) {
             Some(track) => {
-                // Spawn stems after analyze succeeds so missing tracks don't queue work.
-                // Publish stems_queued before TrackAnalyzed so the UI keeps the loader.
-                if stems_on {
-                    let _ = publish_evt(
-                        &evt_bus,
-                        &revision,
-                        Origin::Track(track.id.clone()),
-                        Kind::TrackProgress,
-                        EvtBody::TrackProgress {
-                            track_id: track.id.clone(),
-                            phase: "stems_queued".into(),
-                            fraction: None,
-                        },
-                    );
-                    spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track.id.clone());
-                }
                 let _ = publish_evt(
                     &evt_bus,
                     &revision,
@@ -319,6 +299,51 @@ fn handle_analyze(
             Some(track_id),
         ),
     }
+}
+
+/// Queue the standalone stem generation job for one track.
+///
+/// A no-op when a valid cache already exists, so the UI can fire this without
+/// first checking whether the track already has stems.
+fn handle_generate_stems(
+    event: &Event<Origin, Kind, Arc<[u8]>>,
+    library: &Arc<Mutex<LibraryManager>>,
+    buses: &LibraryBuses,
+) {
+    let evt_bus = buses.evt_bus();
+    let revision = buses.revision_arc();
+    let track_id = match decode_cmd_body(event.payload()) {
+        Ok(CmdBody::GenerateStems { track_id }) => track_id,
+        Ok(_) => {
+            publish_error(
+                &evt_bus,
+                &revision,
+                Origin::Library,
+                "generate_stems body mismatch".into(),
+                None,
+            );
+            return;
+        }
+        Err(err) => {
+            publish_error(&evt_bus, &revision, Origin::Library, err.to_string(), None);
+            return;
+        }
+    };
+
+    // Publish the queued phase before spawning so the UI shows a loader even if
+    // the job turns out to be a no-op against an existing cache.
+    let _ = publish_evt(
+        &evt_bus,
+        &revision,
+        Origin::Track(track_id.clone()),
+        Kind::TrackProgress,
+        EvtBody::TrackProgress {
+            track_id: track_id.clone(),
+            phase: "stems_queued".into(),
+            fraction: None,
+        },
+    );
+    spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track_id);
 }
 
 fn spawn_stem_ensure_job(
@@ -355,7 +380,6 @@ fn spawn_stem_ensure_job(
                 &TrackId::new(track_id.clone()),
                 &stems_root,
                 &models_root,
-                true,
                 &format,
                 Some(progress),
             );

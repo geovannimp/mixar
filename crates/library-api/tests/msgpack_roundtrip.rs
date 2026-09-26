@@ -32,6 +32,32 @@ fn wire_analyze_track_roundtrips() {
 }
 
 #[test]
+fn wire_generate_stems_roundtrips() {
+    // Stems are a standalone action, so the command carries only a track id —
+    // no `force`, and nothing about stems rides on AnalyzeTrack.
+    let body = encode_cmd_body(&CmdBody::GenerateStems {
+        track_id: "t1".into(),
+    })
+    .unwrap();
+    let msg = WireMessage {
+        origin: Origin::Library,
+        kind: Kind::GenerateStems,
+        revision: 0,
+        action_timestamp_ms: 1_700_000_000_000,
+        body,
+    };
+    let bytes = encode_wire(&msg).unwrap();
+    let decoded = decode_wire(&bytes).unwrap();
+    assert_eq!(decoded, msg);
+    assert_eq!(
+        decode_cmd_body(&decoded.body).unwrap(),
+        CmdBody::GenerateStems {
+            track_id: "t1".into(),
+        }
+    );
+}
+
+#[test]
 fn cmd_and_evt_bodies_roundtrip() {
     let cmd = CmdBody::Empty;
     assert_eq!(

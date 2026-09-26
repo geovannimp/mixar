@@ -26,14 +26,14 @@ pub type Evt = omnibus::Event<Origin, Kind, Arc<[u8]>>;
 /// (Tauri `library://bus`) with a monotonic library-state counter.
 /// `analysis_duration` is the worker default for `AnalyzeTrack` when the cmd
 /// does not override duration (shared with engine/settings at session start).
-/// `stems_enabled` / `stems_root` / `models_root` gate offline stem ensure on analyze and deck load.
+/// `stems_format` / `stems_root` / `models_root` configure the standalone
+/// `GenerateStems` action and the stem cache read on deck load.
 #[derive(Clone)]
 pub struct LibraryBuses {
     cmd: LibraryBus,
     evt: LibraryBus,
     revision: Arc<AtomicU64>,
     analysis_duration: Arc<Mutex<AnalysisDurationMode>>,
-    stems_enabled: Arc<Mutex<bool>>,
     stems_format: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
     models_root: Arc<Mutex<std::path::PathBuf>>,
@@ -48,7 +48,6 @@ impl LibraryBuses {
             evt,
             revision: Arc::new(AtomicU64::new(0)),
             analysis_duration: Arc::new(Mutex::new(AnalysisDurationMode::default())),
-            stems_enabled: Arc::new(Mutex::new(false)),
             stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
             models_root: Arc::new(Mutex::new(std::path::PathBuf::from("models"))),
@@ -96,11 +95,6 @@ impl LibraryBuses {
             .unwrap_or_else(|e| e.into_inner()) = duration;
     }
 
-    /// Enable or disable offline stem generation for analyze / deck load.
-    pub fn set_stems_enabled(&self, enabled: bool) {
-        *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner()) = enabled;
-    }
-
     /// Stem cache codec (`opus` | `flac`). AAC is normalized to opus until encode ships.
     pub fn set_stems_format(&self, format: impl Into<String>) {
         let format = format.into();
@@ -119,11 +113,6 @@ impl LibraryBuses {
     /// Root directory for HTDemucs ONNX weights.
     pub fn set_models_root(&self, root: std::path::PathBuf) {
         *self.models_root.lock().unwrap_or_else(|e| e.into_inner()) = root;
-    }
-
-    /// Current stems feature gate.
-    pub fn stems_enabled(&self) -> bool {
-        *self.stems_enabled.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Current stem cache codec (`opus` | `flac`).

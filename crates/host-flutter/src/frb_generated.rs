@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1590145876;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 2053512633;
 
 // Section: executor
 
@@ -3865,7 +3865,6 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                 <crate::api::library::LibraryAnalysisDurationSetting>::sse_decode(
                     &mut deserializer,
                 );
-            let api_stems_enabled = <bool>::sse_decode(&mut deserializer);
             let api_stems_format = <String>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
@@ -3887,7 +3886,6 @@ fn wire__crate__api__library__LibraryTransport_apply_library_settings_impl(
                     let output_ok = crate::api::library::LibraryTransport::apply_library_settings(
                         &*api_that_guard,
                         api_analysis_duration,
-                        api_stems_enabled,
                         api_stems_format,
                     )?;
                     std::result::Result::Ok(output_ok)
@@ -4257,6 +4255,59 @@ fn wire__crate__api__library__LibraryTransport_export_history_session_impl(
                         api_session_id,
                         api_format,
                         api_dest_path,
+                    )?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__api__library__LibraryTransport_generate_stems_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "LibraryTransport_generate_stems",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_that = <RustOpaqueMoi<
+                flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryTransport>,
+            >>::sse_decode(&mut deserializer);
+            let api_track_id = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let mut api_that_guard = None;
+                    let decode_indices_ =
+                        flutter_rust_bridge::for_generated::lockable_compute_decode_order(vec![
+                            flutter_rust_bridge::for_generated::LockableOrderInfo::new(
+                                &api_that, 0, false,
+                            ),
+                        ]);
+                    for i in decode_indices_ {
+                        match i {
+                            0 => api_that_guard = Some(api_that.lockable_decode_sync_ref()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    let api_that_guard = api_that_guard.unwrap();
+                    let output_ok = crate::api::library::LibraryTransport::generate_stems(
+                        &*api_that_guard,
+                        api_track_id,
                     )?;
                     std::result::Result::Ok(output_ok)
                 })())
@@ -6461,7 +6512,6 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
         let mut var_showTooltips = <bool>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
-        let mut var_stemsEnabled = <bool>::sse_decode(deserializer);
         let mut var_stemsFormat = <String>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
             backend: var_backend,
@@ -6494,7 +6544,6 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_min_deck_volume: var_historyMinDeckVolume,
             show_tooltips: var_showTooltips,
             dim_played_tracks: var_dimPlayedTracks,
-            stems_enabled: var_stemsEnabled,
             stems_format: var_stemsFormat,
         };
     }
@@ -8319,224 +8368,230 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        79 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
+        79 => wire__crate__api__library__LibraryTransport_generate_stems_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        80 => wire__crate__api__library__LibraryTransport_get_track_impl(
+        80 => wire__crate__api__library__LibraryTransport_get_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        81 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
+        81 => wire__crate__api__library__LibraryTransport_get_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        82 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
+        82 => wire__crate__api__library__LibraryTransport_get_waveform_overview_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        83 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
+        83 => wire__crate__api__library__LibraryTransport_get_waveform_window_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        84 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
+        84 => wire__crate__api__library__LibraryTransport_history_can_resume_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        85 => wire__crate__api__library__LibraryTransport_history_dir_impl(
+        85 => wire__crate__api__library__LibraryTransport_history_decline_restore_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        86 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
+        86 => wire__crate__api__library__LibraryTransport_history_dir_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        87 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
+        87 => wire__crate__api__library__LibraryTransport_history_new_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        88 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
+        88 => wire__crate__api__library__LibraryTransport_history_restore_prompt_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        89 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
+        89 => wire__crate__api__library__LibraryTransport_history_restore_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        90 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
+        90 => wire__crate__api__library__LibraryTransport_history_resume_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        91 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
+        91 => wire__crate__api__library__LibraryTransport_history_session_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        92 => wire__crate__api__library__LibraryTransport_list_collections_impl(
+        92 => wire__crate__api__library__LibraryTransport_list_collection_entries_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        93 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
+        93 => wire__crate__api__library__LibraryTransport_list_collections_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        94 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
+        94 => wire__crate__api__library__LibraryTransport_list_history_sessions_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        95 => {
+        95 => wire__crate__api__library__LibraryTransport_list_sampler_banks_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
+        96 => {
             wire__crate__api__library__LibraryTransport_open_impl(port, ptr, rust_vec_len, data_len)
         }
-        96 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
+        97 => wire__crate__api__library__LibraryTransport_open_in_memory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        97 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
+        98 => wire__crate__api__library__LibraryTransport_refresh_track_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        98 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
+        99 => wire__crate__api__library__LibraryTransport_rename_history_session_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        99 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
+        100 => wire__crate__api__library__LibraryTransport_resolve_tracks_for_paths_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        100 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
+        101 => wire__crate__api__library__LibraryTransport_reveal_history_folder_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        101 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
+        102 => wire__crate__api__library__LibraryTransport_save_beat_grid_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        102 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
+        103 => wire__crate__api__library__LibraryTransport_save_history_as_playlist_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        103 => wire__crate__api__library__LibraryTransport_save_loop_impl(
+        104 => wire__crate__api__library__LibraryTransport_save_loop_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        104 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
+        105 => wire__crate__api__library__LibraryTransport_storage_usage_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        105 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
+        106 => wire__crate__api__library__LibraryTransport_subscribe_events_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        106 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
+        107 => wire__crate__api__library__LibraryTransport_sync_stem_cache_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        107 => wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
+        108 => wire__crate__api__library__LibraryTransport_update_track_isrc_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        108 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
+        109 => wire__crate__api__settings__SettingsTransport_get_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        109 => wire__crate__api__settings__SettingsTransport_open_impl(
+        110 => wire__crate__api__settings__SettingsTransport_open_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        110 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
+        111 => wire__crate__api__settings__SettingsTransport_save_settings_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        112 => wire__crate__api__fs_browser__browse_fs_directory_impl(
+        113 => wire__crate__api__fs_browser__browse_fs_directory_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        113 => wire__crate__api__settings__bus_channel_mode_default_impl(
+        114 => wire__crate__api__settings__bus_channel_mode_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        114 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
-        115 => wire__crate__api__settings__key_color_mode_setting_default_impl(
+        115 => wire__crate__api__meta__init_app_impl(port, ptr, rust_vec_len, data_len),
+        116 => wire__crate__api__settings__key_color_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        116 => wire__crate__api__settings__key_display_mode_setting_default_impl(
+        117 => wire__crate__api__settings__key_display_mode_setting_default_impl(
             port,
             ptr,
             rust_vec_len,
             data_len,
         ),
-        117 => {
+        118 => {
             wire__crate__api__fs_browser__list_fs_volumes_impl(port, ptr, rust_vec_len, data_len)
         }
-        118 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
+        119 => wire__crate__api__engine__sampler_slot_chrome_default_impl(
             port,
             ptr,
             rust_vec_len,
@@ -8559,7 +8614,7 @@ fn pde_ffi_dispatcher_sync_impl(
             rust_vec_len,
             data_len,
         ),
-        111 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
+        112 => wire__crate__api__meta__app_display_name_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -8787,7 +8842,6 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.history_min_deck_volume.into_into_dart().into_dart(),
             self.show_tooltips.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
-            self.stems_enabled.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -10059,7 +10113,6 @@ impl SseEncode for crate::api::settings::AppSettings {
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
         <bool>::sse_encode(self.show_tooltips, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
-        <bool>::sse_encode(self.stems_enabled, serializer);
         <String>::sse_encode(self.stems_format, serializer);
     }
 }

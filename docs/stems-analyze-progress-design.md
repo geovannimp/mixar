@@ -41,20 +41,34 @@ UI: library row / detail shows short phase label (+ % when fraction present). An
 - Deck `Updated` authors `stemsReady` and **`stemsGenerating`**.
 - Banner iff `stemsGenerating`; pads live iff `stemsReady`; else disabled, no banner (idle / failed / stems off).
 
-## Analyze worker flow (stems enabled)
+## Analyze worker flow (no stems)
 
 ```text
 decode PCM (progress: decode)
         │
-        ├── analysis thread → bpm/key/loudness/waveform → persist → TrackAnalyzed
-        └── stems thread → model → separate → mux .stem.mp4 → upsert
+        └── bpm/key/loudness/waveform → persist → TrackAnalyzed
+```
+
+Analyze never generates stems: they are expensive (a full Demucs pass) and are
+opt-in per track.
+
+## GenerateStems worker flow
+
+```text
+decode PCM (progress: decode)
+        │
+        └── model → separate → mux .stem.mp4 → upsert
               ├── success: stems_ready
               └── failure: stems_failed + Error (disk full mapped)
 ```
 
-When stems disabled: analysis only (unchanged completion).
+Fired by the per-track `GenerateStems` action; no-op when a valid cache already
+exists. Runs on its own `stems-ensure-{track_id}` thread, so it never blocks
+analyze or playback.
 
-Stem ensure runs from analyze / library worker only — **not** on deck load (`docs/ni-stem-mp4-cache-design.md`).
+Stem ensure runs from the `GenerateStems` action only — **not** on deck load,
+which reads an existing cache and otherwise plays the original
+(`docs/ni-stem-mp4-cache-design.md`).
 
 ## Out of scope
 

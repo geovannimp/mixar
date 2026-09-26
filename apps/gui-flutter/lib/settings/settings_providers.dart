@@ -58,7 +58,7 @@ LibraryAnalysisDurationSetting _libraryAnalysisDuration(
   };
 }
 
-/// Push analysis duration + stems gate once settings and library are ready.
+/// Push analysis duration + stem format once settings and library are ready.
 final librarySettingsBootstrapProvider = Provider<void>((ref) {
   final settings = ref.watch(appSettingsProvider);
   final library = ref.watch(libraryTransportProvider);
@@ -69,7 +69,6 @@ final librarySettingsBootstrapProvider = Provider<void>((ref) {
         analysisDuration: _libraryAnalysisDuration(
           settings.value.analysisDuration,
         ),
-        stemsEnabled: settings.value.stemsEnabled,
         stemsFormat: settings.value.stemsFormat,
       ),
     );
@@ -107,7 +106,6 @@ Future<SaveAppSettingsResult> saveAppSettings(
   try {
     await library.applyLibrarySettings(
       analysisDuration: _libraryAnalysisDuration(normalized.analysisDuration),
-      stemsEnabled: normalized.stemsEnabled,
       stemsFormat: normalized.stemsFormat,
     );
     await library.applyHistorySettings(
