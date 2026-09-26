@@ -288,14 +288,36 @@ pub fn encode_stem_mp4(
         bail!("stem PCM is empty");
     }
 
-    let encoded = inputs
-        .iter()
-        .map(|pcm| match format {
-            StemMuxFormat::Opus => encode_opus(&pcm[..frames * 2]),
-            StemMuxFormat::Flac => encode_flac(&pcm[..frames * 2], sample_rate),
-        })
-        .collect::<Result<Vec<_>>>()?;
-
+    // The five streams are independent and single-threaded, so encode them
+    // concurrently: serial is 2.9 s for a 3-minute track, one-per-core is
+    // ~0.6 s. `scope` keeps the `&[f32]` borrows and each thread builds its own
+    // encoder; results are joined in `inputs` order, so the muxed track order
+    // is unchanged.
+    //
+    // The handles must be collected before the first join. Chaining
+    // `.map(spawn).map(join)` would look concurrent but is lazy: it pulls one
+    // element, spawns that thread, joins it, and only then spawns the next —
+    // five encodes in series, which measured identically to the serial loop.
+    let encoded = std::thread::scope(|scope| {
+        let handles = inputs
+            .iter()
+            .map(|pcm| {
+                let pcm = &pcm[..frames * 2];
+                scope.spawn(move || match format {
+                    StemMuxFormat::Opus => encode_opus(pcm),
+                    StemMuxFormat::Flac => encode_flac(pcm, sample_rate),
+                })
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| {
+                handle
+                    .join()
+                    .unwrap_or_else(|payload| std::panic::resume_unwind(payload))
+            })
+            .collect::<Result<Vec<_>>>()
+    })?;
     let (codec, track_rate) = match format {
         StemMuxFormat::Opus => (Codec::Opus, OPUS_SAMPLE_RATE),
         StemMuxFormat::Flac => (Codec::Flac, sample_rate),
