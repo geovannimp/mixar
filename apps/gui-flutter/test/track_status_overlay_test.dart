@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -495,5 +496,37 @@ void main() {
     // Re-reporting the first lane must not move it to the end of the list.
     notifier.set('t1', 'bpm', 0.9);
     expect(phases(), ['bpm', 'stems_separate']);
+  });
+
+  testWidgets('the progress bar does not swallow row pointer events', (
+    tester,
+  ) async {
+    final container = await pumpTable(tester);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.6);
+    await tester.pump();
+
+    // The bar spans the row's bottom edge. It is decorative, so a pointer
+    // there must reach the row rather than stop on the bar's own render box.
+    final bar = tester.getRect(barsInPane());
+    final hitBar = tester
+        .hitTestOnBinding(Offset(bar.left + 20, bar.center.dy))
+        .path
+        .any((e) => e.target is RenderFractionallySizedOverflowBox);
+    expect(hitBar, isFalse, reason: 'the decorative bar absorbed the hit');
+  });
+
+  testWidgets('a busy row still selects on pointer down', (tester) async {
+    final container = await pumpTable(tester);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.6);
+    await tester.pump();
+
+    // Selection survives the overlay because the row's Listener is
+    // translucent, but pin it so a change there is caught.
+    final manager = tester
+        .state<TrinaGridState>(find.byType(TrinaGrid))
+        .stateManager;
+    await tester.tapAt(tester.getRect(find.text('Demo Track')).center);
+    await tester.pump();
+    expect(manager.currentRowIdx, 0);
   });
 }

@@ -855,69 +855,71 @@ class _TrackStatusOverlay extends ConsumerWidget {
     if (infos.isEmpty) {
       return const SizedBox.shrink();
     }
-    final fractions = [
-      for (final info in infos)
-        if (info.fraction case final fraction?) fraction,
-    ];
+    final fractions = [for (final info in infos) ?info.fraction];
     final theme = context.theme;
-    return Stack(
-      children: [
-        // Span the row so the pill group stays flush right as it grows —
-        // a right-only Positioned hands its child loose constraints, which
-        // Center then centres inside the inset box and drifts left.
-        Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-          child: Padding(
-            padding: const EdgeInsets.only(
-              right: kActionsColumnWidth + kStatusPillGap,
-            ),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < infos.length; i++) ...[
-                    if (i > 0) const SizedBox(width: kStatusPillGap),
-                    // Flexible so long labels on two lanes ellipsize in a
-                    // narrow pane instead of overflowing the row.
-                    Flexible(child: _TrackStatusPill(info: infos[i])),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-        // One bar per job that reported a fraction, stacked in pill order.
-        // The ordinal counts rendered bars, not entries in `infos`: a lane
-        // with no fraction draws nothing, and counting it would leave a
-        // spurious stride gap under the first real bar.
-        for (var i = 0; i < fractions.length; i++)
+    // Decorative only. Without this the bar's ColoredBox and the pill's own
+    // widgets are the topmost hit target, so Stack hit testing stops there
+    // and the row's pointer-down selection and drag-to-deck never fire.
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          // Span the row so the pill group stays flush right as it grows —
+          // a right-only Positioned hands its child loose constraints, which
+          // Center then centres inside the inset box and drifts left.
           Positioned(
             left: 0,
             right: 0,
-            bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
-            child: SizedBox(
-              height: kStatusBarHeight,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colors.primary.withValues(alpha: 0.18),
+            top: 0,
+            bottom: 0,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                right: kActionsColumnWidth + kStatusPillGap,
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < infos.length; i++) ...[
+                      if (i > 0) const SizedBox(width: kStatusPillGap),
+                      // Flexible so long labels on two lanes ellipsize in a
+                      // narrow pane instead of overflowing the row.
+                      Flexible(child: _TrackStatusPill(info: infos[i])),
+                    ],
+                  ],
                 ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FractionallySizedBox(
-                    widthFactor: fractions[i].clamp(0.0, 1.0),
-                    child: SizedBox.expand(
-                      child: ColoredBox(color: theme.colors.primary),
+              ),
+            ),
+          ),
+          // One bar per job that reported a fraction, stacked in pill order.
+          // The ordinal counts rendered bars, not entries in `infos`: a lane
+          // with no fraction draws nothing, and counting it would leave a
+          // spurious stride gap under the first real bar.
+          for (var i = 0; i < fractions.length; i++)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: bottomInset + i * (kStatusBarHeight + kStatusBarGap),
+              child: SizedBox(
+                height: kStatusBarHeight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.primary.withValues(alpha: 0.18),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: fractions[i].clamp(0.0, 1.0),
+                      child: SizedBox.expand(
+                        child: ColoredBox(color: theme.colors.primary),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

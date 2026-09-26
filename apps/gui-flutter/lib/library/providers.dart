@@ -194,8 +194,8 @@ class TrackProgressMap extends Notifier<Map<String, List<TrackProgressInfo>>> {
       _drop(trackId, lane: lane);
       return;
     }
-    // Engine is the untrusted source. num.clamp maps NaN to the upper bound,
-    // so a bad ratio would otherwise render as a false "100%".
+    // Engine is the untrusted source. A non-finite ratio would otherwise
+    // render as a false "100%", since num.clamp maps NaN to the upper bound.
     final info = TrackProgressInfo(
       phase: phase,
       fraction: fraction != null && fraction.isFinite ? fraction : null,
