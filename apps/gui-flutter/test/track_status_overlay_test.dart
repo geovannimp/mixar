@@ -282,6 +282,11 @@ void main() {
     );
   });
 
+  // The two bar-placement tests below assert against trina_grid's row-slot
+  // math (bodyTopOffset + rowTotalHeight - cellHorizontalBorderWidth), so they
+  // are coupled to that library's layout contract rather than to pixels we
+  // choose. A trina_grid upgrade that changes those semantics is the expected
+  // cause of failure here; do not loosen the tolerance to make them green.
   testWidgets('progress bars sit flush on the row content edge', (
     tester,
   ) async {
@@ -328,6 +333,10 @@ void main() {
 
   testWidgets('two long pills do not overflow a narrow pane', (tester) async {
     final overflows = <String>[];
+    final container = await pumpTable(tester, width: 380);
+
+    // Scoped to the pump that can overflow and restored in a finally, so the
+    // process-global handler cannot leak into another test in this file.
     final previous = FlutterError.onError;
     FlutterError.onError = (d) {
       final text = d.toString();
@@ -337,20 +346,76 @@ void main() {
       // which replaces a readable failure with an internal assertion.
       previous?.call(d);
     };
-    addTearDown(() => FlutterError.onError = previous);
-
-    final container = await pumpTable(tester, width: 380);
-    // Longest realistic label on both lanes at once.
-    container.read(analyzingTrackIdsProvider.notifier).add(track.id);
-    container.read(trackProgressProvider.notifier).set(track.id, 'loudness', 1);
-    container
-        .read(trackProgressProvider.notifier)
-        .set(track.id, 'stems_separate', 1);
-    await tester.pump();
+    try {
+      // Longest realistic label on both lanes at once.
+      container.read(analyzingTrackIdsProvider.notifier).add(track.id);
+      container
+          .read(trackProgressProvider.notifier)
+          .set(track.id, 'loudness', 1);
+      container
+          .read(trackProgressProvider.notifier)
+          .set(track.id, 'stems_separate', 1);
+      await tester.pump();
+    } finally {
+      FlutterError.onError = previous;
+    }
 
     expect(find.text('Measuring loudness 100%'), findsOneWidget);
     expect(find.text('Separating stems 100%'), findsOneWidget);
     expect(overflows, isEmpty, reason: 'pills overflowed: $overflows');
+  });
+
+  testWidgets('a failed stem job clears only the stem lane', (tester) async {
+    final container = await pumpTable(tester);
+    container.read(analyzingTrackIdsProvider.notifier).add(track.id);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.6);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 0.3);
+    await tester.pump();
+    expect(find.text('Detecting BPM 60%'), findsOneWidget);
+    expect(find.text('Separating stems 30%'), findsOneWidget);
+    expect(find.byType(FractionallySizedBox), findsNWidgets(2));
+
+    // Failure drops the stem lane; the concurrent analysis job keeps running
+    // and keeps its own pill and bar.
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_failed', null);
+    await tester.pump();
+    expect(find.text('Separating stems 30%'), findsNothing);
+    expect(find.text('Detecting BPM 60%'), findsOneWidget);
+    expect(find.byType(FractionallySizedBox), findsOneWidget);
+    expect(find.text('Demo Track'), findsOneWidget);
+  });
+
+  testWidgets('a failed stem job with no analysis leaves the row clean', (
+    tester,
+  ) async {
+    final container = await pumpTable(tester);
+    container
+        .read(stemGeneratingTrackIdsProvider.notifier)
+        .setGenerating(track.id, true);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_model', null);
+    await tester.pump();
+    expect(find.text('Loading stem model'), findsOneWidget);
+
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_failed', null);
+    // The real LibraryEvt path clears stemGenerating alongside the lane
+    // (_handleLibraryEvt). Mirror that: leaving it set is a state the overlay
+    // never sees, and it would correctly re-synthesise a "Queuing stems" pill.
+    container
+        .read(stemGeneratingTrackIdsProvider.notifier)
+        .setGenerating(track.id, false);
+    await tester.pump();
+    // No stranded pill, no queued-stem fallback, no bar.
+    expect(find.text('Loading stem model'), findsNothing);
+    expect(find.text('Queuing stems'), findsNothing);
+    expect(find.byType(FractionallySizedBox), findsNothing);
   });
 
   test('a non-finite engine fraction is dropped, not shown as 100%', () {
