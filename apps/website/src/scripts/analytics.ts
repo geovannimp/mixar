@@ -61,7 +61,9 @@ const STARTED_ATTR = "data-mixar-analytics-started";
 
 export function readConfig(doc: Document = document): AnalyticsConfig | null {
   const meta = doc.querySelector<HTMLMetaElement>(`meta[name="${META_NAME}"]`);
-  const key = meta?.dataset.key?.trim() ?? "";
+  if (meta === null) return null;
+
+  const key = meta.dataset.key?.trim() ?? "";
   if (key === "") return null;
 
   const host = meta.dataset.host?.trim() ?? "";

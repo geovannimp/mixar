@@ -54,3 +54,13 @@ tasks:
     inputs:
       - "@group(sources)"
       - "vitest.config.ts"
+
+  # Vite strips types without checking them, so without this a type error in
+  # src/scripts would only surface at runtime.
+  check:
+    command: "npm"
+    args: ["run", "check"]
+    toolchain: "node"
+    inputs:
+      - "@group(sources)"
+      - "tsconfig.json"
