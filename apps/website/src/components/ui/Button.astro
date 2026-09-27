@@ -4,9 +4,21 @@ interface Props {
   variant?: "primary" | "secondary";
   external?: boolean;
   class?: string;
+  /**
+   * Analytics placement bucket. Rendered as `data-placement` and read by the
+   * delegated listener in `src/scripts/analytics.ts`. Astro drops the attribute
+   * when this is undefined.
+   */
+  placement?: string;
 }
 
-const { href, variant = "primary", external = false, class: className } = Astro.props;
+const {
+  href,
+  variant = "primary",
+  external = false,
+  class: className,
+  placement,
+} = Astro.props;
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-full px-5.5 py-3 text-[0.9375rem] font-semibold transition hover:-translate-y-px active:translate-y-0";
@@ -20,6 +32,7 @@ const variants = {
 <a
   href={href}
   class:list={[base, variants[variant], className]}
+  data-placement={placement}
   target={external ? "_blank" : undefined}
   rel={external ? "noopener noreferrer" : undefined}
 >

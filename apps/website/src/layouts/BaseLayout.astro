@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import { META_NAME } from "../scripts/analytics";
 
 interface Props {
   title: string;
@@ -11,6 +12,14 @@ interface Props {
 
 const { title, description, currentPage = "home" } = Astro.props;
 const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · Mixar`;
+
+// Analytics is opt-in by configuration, not by consent UI. With no key the
+// element below is not rendered, the script's config read returns null, and the
+// posthog-js chunk is never fetched — which is the default for local dev and
+// for pull requests from forks, since those get no repository secrets.
+const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY?.trim() ?? "";
+const posthogHost = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() || undefined;
+const analyticsEnabled = posthogKey !== "";
 ---
 
 <!doctype html>
@@ -24,6 +33,11 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    {
+      analyticsEnabled && (
+        <meta name={META_NAME} data-key={posthogKey} data-host={posthogHost} />
+      )
+    }
     <script is:inline>
       (function () {
         const stored = localStorage.getItem("theme");
@@ -56,6 +70,13 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
           themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
         }
       });
+    </script>
+    <script>
+      import { initAnalytics } from "../scripts/analytics";
+
+      // Resolves immediately with no key configured; the SDK is behind a dynamic
+      // import so an unconfigured build never fetches it.
+      void initAnalytics();
     </script>
   </body>
 </html>

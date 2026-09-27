@@ -43,8 +43,15 @@ jobs:
 
       # Build via the workspace script (astro), not `moon run`, so a shallow
       # PR checkout does not trip moon's defaultBranch (`main`) VCS lookup.
+      #
+      # The PostHog token is public and write-only, but it lives in a secret so
+      # it can be rotated without a code change. Fork PRs get no secrets, which
+      # leaves the key empty and analytics disabled for those builds.
       - name: Build website
         run: npm run build -w website
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_PROJECT_KEY }}
+          PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
 
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
