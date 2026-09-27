@@ -46,3 +46,11 @@ tasks:
     inputs:
       - "@group(sources)"
       - "dist/**/*"
+
+  test:
+    command: "npm"
+    args: ["run", "test"]
+    toolchain: "node"
+    inputs:
+      - "@group(sources)"
+      - "vitest.config.ts"
