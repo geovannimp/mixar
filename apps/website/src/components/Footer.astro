@@ -2,7 +2,7 @@
 import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL } from "../consts";
 
 interface Props {
-  currentPage?: "home" | "developers";
+  currentPage?: "home" | "developers" | "privacy";
 }
 
 const { currentPage = "home" } = Astro.props;
@@ -102,6 +102,13 @@ const footerLink =
           aria-label="GPL-3.0 license (opens in new tab)"
         >
           License
+        </a>
+        <a
+          class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+          href="/privacy"
+          aria-current={currentPage === "privacy" ? "page" : undefined}
+        >
+          Privacy
         </a>
         <a
           class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
