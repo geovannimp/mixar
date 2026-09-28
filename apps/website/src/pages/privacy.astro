@@ -48,9 +48,18 @@ import BaseLayout from "../layouts/BaseLayout.astro";
             because that is the minimum a web analytics tool needs to tell two pages apart.
           </p>
           <p class="mt-3 leading-relaxed text-muted">
-            Before anything is sent, we strip your timezone, your browser language, and your
-            browser's user-agent string from every event. There is no autocapture, so the text
-            you read and the code samples on this site are never sent.
+            Before anything is sent, we strip your timezone and your browser language from every
+            event. There is no autocapture, so the text you read and the code samples on this site
+            are never sent.
+          </p>
+          <p class="mt-3 leading-relaxed text-muted">
+            Your browser's user-agent string does travel with the event, because cookieless mode
+            needs it: it is one of four inputs PostHog combines — with the day, your IP address and
+            this site's domain — into a one-way hash that stands in for a cookie. That hash is
+            rotated daily and the key for it is discarded once the day is processed, so the
+            original string cannot be recovered from it. This is also why no location data is
+            stored: your IP is used for the same one-way calculation and is discarded before any
+            other processing runs.
           </p>
         </section>
 

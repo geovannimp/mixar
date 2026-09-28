@@ -39,18 +39,26 @@ type Capture = (event: string, properties: Record<string, string>) => void;
  * anything leaves the page.
  *
  * `$timezone` and `$browser_language` are a coarse location signal, which would
- * contradict the privacy page's claim that no location data is collected.
- * `$raw_user_agent` is a fingerprinting surface, and cookieless mode already
- * declines to use it for the unique-user hash, so keeping it on events buys
- * nothing. Screen dimensions are deliberately NOT stripped: they are not
- * identifying and they are useful for catching a broken responsive layout.
+ * contradict the privacy page's claim that no location data is collected. They
+ * are safe to remove: they are not inputs to the cookieless hash.
+ *
+ * `$raw_user_agent` is deliberately NOT in this list. Cookieless mode derives
+ * the anonymous distinct id server-side from
+ * `hash(calendar day + user agent + IP + host)`, so stripping it makes the
+ * identity uncomputable and ingestion discards every event with
+ * `cookieless_missing_user_agent` — behind a 200 OK, so it looks like success.
+ * The agent string is an input to a one-way hash whose salt is discarded daily,
+ * not a stored property, which is why keeping it is compatible with the
+ * privacy claim on the privacy page.
+ *
+ * Screen dimensions are also left alone: not identifying, and useful for
+ * catching a broken responsive layout.
  */
 const REDACTED_PROPERTIES = [
   "$timezone",
   "$timezone_offset",
   "$browser_language",
   "$browser_language_prefix",
-  "$raw_user_agent",
 ] as const;
 
 /**

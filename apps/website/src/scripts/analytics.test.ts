@@ -328,9 +328,17 @@ describe("redactEvent", () => {
     expect(analytics.redactEvent(event).properties).toEqual({});
   });
 
-  it("strips the raw user agent", () => {
-    const event = { properties: { $raw_user_agent: "Mozilla/5.0 …" } };
-    expect(analytics.redactEvent(event).properties).toEqual({});
+  // Do NOT strip $raw_user_agent. Cookieless mode hashes
+  // calendar day + user agent + IP + host server-side to build the anonymous
+  // distinct id, so removing it makes the identity uncomputable and ingestion
+  // drops every event with `cookieless_missing_user_agent` — silently, behind
+  // a 200 OK. The agent string is an input to a one-way daily-rotating hash,
+  // not a stored property.
+  it("keeps the raw user agent, which cookieless hashing requires", () => {
+    const event = { properties: { $raw_user_agent: "Mozilla/5.0 …", $timezone: "UTC" } };
+    expect(analytics.redactEvent(event).properties).toEqual({
+      $raw_user_agent: "Mozilla/5.0 …",
+    });
   });
 
   it("keeps the fields the funnel is built on", () => {
