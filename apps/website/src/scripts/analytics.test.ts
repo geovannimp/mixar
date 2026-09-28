@@ -118,8 +118,6 @@ describe("initAnalytics", () => {
       api_host: analytics.DEFAULT_HOST,
       // No cookie, no localStorage, no consent banner.
       cookieless_mode: "always",
-      // identify() becomes a no-op, so no persistent distinct ID is ever created.
-      person_profiles: "never",
       // The site is dev-content heavy; autocapture would ship prose and code
       // snippets to PostHog.
       autocapture: false,
@@ -141,6 +139,32 @@ describe("initAnalytics", () => {
       newDoc("", { "data-key": "phc_test", "data-debug": "true" }),
     );
     expect(init.mock.calls[0]?.[1]).toMatchObject({ debug: true });
+  });
+
+  // person_profiles: 'never' stamps every event with
+  // $process_person_profile: false, and PostHog's cookieless pipeline assigns
+  // the server-side hashed distinct id during person processing — so the flag
+  // can leave the event with no distinct_id at all, which ingestion then drops
+  // behind a 200 OK. The site never calls identify(), and cookieless mode
+  // already prevents a persistent ID, so the guard bought nothing.
+  it("does not disable person profiles", async () => {
+    await analytics.initAnalytics(newDoc("", HOSTED));
+    expect(init.mock.calls[0]?.[1]).not.toHaveProperty("person_profiles");
+  });
+
+  // Without a global there is nothing to poke at from the console, which is the
+  // entire point of the debug switch.
+  it("exposes the SDK on window when debug is on", async () => {
+    await analytics.initAnalytics(
+      newDoc("", { "data-key": "phc_test", "data-debug": "true" }),
+    );
+    expect((globalThis as { posthog?: unknown }).posthog).toBeDefined();
+  });
+
+  it("keeps the SDK off window when debug is off", async () => {
+    delete (globalThis as { posthog?: unknown }).posthog;
+    await analytics.initAnalytics(newDoc("", HOSTED));
+    expect((globalThis as { posthog?: unknown }).posthog).toBeUndefined();
   });
 
   // The SDK is ~95KB gzipped. Without buffering, the hero CTA — the first thing

@@ -146,8 +146,14 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         // No cookie, no localStorage, no consent banner. PostHog counts unique
         // users with a daily-salted server-side hash instead.
         cookieless_mode: "always",
-        // identify() becomes a no-op, so no persistent distinct ID is created.
-        person_profiles: "never",
+        // NOTE: `person_profiles: 'never'` is deliberately NOT set. It stamps
+        // every event with $process_person_profile: false, and PostHog's
+        // cookieless pipeline assigns the server-side hashed distinct id during
+        // person processing — so it can leave an event with no distinct_id at
+        // all, which ingestion then discards behind a 200 OK. This site never
+        // calls identify(), and cookieless mode already prevents a persistent
+        // ID, so the guard bought nothing. See the privacy note in
+        // src/pages/privacy.astro before changing this.
         // The site is dev-content heavy; autocapture would ship prose, code
         // snippets and MIDI mapping tables to PostHog.
         autocapture: false,
@@ -164,6 +170,14 @@ export function initAnalytics(doc: Document = document): Promise<void> {
       send = (name, properties) => posthog.capture(name, properties);
       for (const [name, properties] of pending) send(name, properties);
       pending.length = 0;
+
+      // The snippet-based integrations install a `posthog` global; bundling the
+      // SDK as a module does not. Expose it under debug so the console is
+      // actually usable for `posthog.capture(...)` and config inspection —
+      // otherwise a debug switch that gives you nothing to look at.
+      if (config.debug) {
+        (globalThis as { posthog?: unknown }).posthog = posthog;
+      }
     })
     .catch(() => {
       // Analytics must never break the page. A failed SDK load is not the
