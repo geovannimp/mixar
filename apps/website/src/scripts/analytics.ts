@@ -12,6 +12,12 @@ export const DEFAULT_HOST = "https://eu.i.posthog.com";
 export type AnalyticsConfig = {
   key: string;
   host: string;
+  /**
+   * Off unless the build opts in. A wrong host, a bad token or a request blocked
+   * by a tracking blocker all fail silently, so local setup needs a way to see
+   * what the SDK is actually doing.
+   */
+  debug: boolean;
 };
 
 /** PostHog's `[object] [verb]` convention. */
@@ -103,7 +109,11 @@ export function readConfig(doc: Document = document): AnalyticsConfig | null {
   if (key === "") return null;
 
   const host = meta.dataset.host?.trim() ?? "";
-  return { key, host: host === "" ? DEFAULT_HOST : host };
+  return {
+    key,
+    host: host === "" ? DEFAULT_HOST : host,
+    debug: meta.dataset.debug === "true",
+  };
 }
 
 export function initAnalytics(doc: Document = document): Promise<void> {
@@ -148,6 +158,7 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         disable_surveys: true,
         advanced_disable_flags: true,
         before_send: redactEvent,
+        debug: config.debug,
       });
 
       send = (name, properties) => posthog.capture(name, properties);

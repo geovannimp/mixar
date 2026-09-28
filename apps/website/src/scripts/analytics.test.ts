@@ -71,7 +71,7 @@ describe("readConfig", () => {
       analytics.readConfig(
         newDoc("", { "data-key": "phc_test", "data-host": "https://eu.i.posthog.com" }),
       ),
-    ).toEqual({ key: "phc_test", host: "https://eu.i.posthog.com" });
+    ).toEqual({ key: "phc_test", host: "https://eu.i.posthog.com", debug: false });
   });
 
   // A half-configured build must still land on the EU host rather than the
@@ -80,7 +80,22 @@ describe("readConfig", () => {
     expect(analytics.readConfig(newDoc("", { "data-key": "phc_test" }))).toEqual({
       key: "phc_test",
       host: analytics.DEFAULT_HOST,
+      debug: false,
     });
+  });
+
+  // A wrong host, a bad token or a blocked request all fail silently otherwise,
+  // so local setup needs a way to see what the SDK is actually doing.
+  it("opts into SDK debug logging when the meta asks for it", () => {
+    expect(
+      analytics.readConfig(newDoc("", { "data-key": "phc_test", "data-debug": "true" })),
+    ).toMatchObject({ debug: true });
+  });
+
+  it("leaves debug off for any other value", () => {
+    expect(
+      analytics.readConfig(newDoc("", { "data-key": "phc_test", "data-debug": "1" })),
+    ).toMatchObject({ debug: false });
   });
 });
 
@@ -117,7 +132,15 @@ describe("initAnalytics", () => {
       // Strips the location-ish and fingerprinting properties the SDK attaches
       // by default, so the privacy page can be exact about what leaves.
       before_send: expect.any(Function),
+      debug: false,
     });
+  });
+
+  it("forwards the debug opt-in to the SDK", async () => {
+    await analytics.initAnalytics(
+      newDoc("", { "data-key": "phc_test", "data-debug": "true" }),
+    );
+    expect(init.mock.calls[0]?.[1]).toMatchObject({ debug: true });
   });
 
   // The SDK is ~95KB gzipped. Without buffering, the hero CTA — the first thing

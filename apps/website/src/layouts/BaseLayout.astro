@@ -19,6 +19,9 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
 // for pull requests from forks, since those get no repository secrets.
 const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY?.trim() ?? "";
 const posthogHost = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() || undefined;
+// Local-only escape hatch. A wrong host, a bad token or a tracking blocker all
+// fail silently, so this makes the SDK narrate itself in the console.
+const posthogDebug = import.meta.env.PUBLIC_POSTHOG_DEBUG === "true";
 const analyticsEnabled = posthogKey !== "";
 ---
 
@@ -35,7 +38,12 @@ const analyticsEnabled = posthogKey !== "";
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     {
       analyticsEnabled && (
-        <meta name={META_NAME} data-key={posthogKey} data-host={posthogHost} />
+        <meta
+          name={META_NAME}
+          data-key={posthogKey}
+          data-host={posthogHost}
+          data-debug={posthogDebug ? "true" : undefined}
+        />
       )
     }
     <script is:inline>
