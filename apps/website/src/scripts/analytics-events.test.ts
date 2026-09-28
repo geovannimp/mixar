@@ -1,3 +1,7 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,7 +11,26 @@ import {
   README_URL,
   TECH_SPEC_URL,
 } from "../consts";
-import { resolveDestination } from "./analytics-events";
+import { PLACEMENTS, resolveDestination } from "./analytics-events";
+
+const COMPONENTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "components");
+
+function astroFiles(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return astroFiles(path);
+    return entry.name.endsWith(".astro") ? [path] : [];
+  });
+}
+
+/** Every `placement="x"` / `data-placement="x"` value across the components. */
+function placementsInUse(): string[] {
+  const attribute = /(?:data-)?placement="([^"]+)"/g;
+  return astroFiles(COMPONENTS_DIR).flatMap((file) => {
+    const source = readFileSync(file, "utf8");
+    return [...source.matchAll(attribute)].map((match) => match[1] as string);
+  });
+}
 
 describe("resolveDestination", () => {
   // Every outbound CTA href comes from src/consts.ts, so each one must map to
@@ -64,5 +87,25 @@ describe("resolveDestination", () => {
 
   it("tolerates surrounding whitespace", () => {
     expect(resolveDestination(`  ${GITHUB_REPO}  `)).toBe("repo");
+  });
+});
+
+describe("PLACEMENTS", () => {
+  // A misspelled placement is non-empty, so the `unknown` fallback does not
+  // catch it: `dev-hero` would silently fork the `dev_hero` bucket in two.
+  // `tsc` cannot help here because it does not parse .astro files, so the
+  // closed set is enforced against the component sources instead.
+  it("accepts every placement used by a component", () => {
+    expect(placementsInUse().filter((value) => !PLACEMENTS.includes(value as never))).toEqual(
+      [],
+    );
+  });
+
+  it("is actually used, so the set cannot rot into fiction", () => {
+    expect(placementsInUse().length).toBeGreaterThan(0);
+  });
+
+  it("has no duplicates", () => {
+    expect(new Set(PLACEMENTS).size).toBe(PLACEMENTS.length);
   });
 });

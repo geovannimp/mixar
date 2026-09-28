@@ -1,4 +1,6 @@
 ---
+import type { Placement } from "../../scripts/analytics-events";
+
 interface Props {
   href: string;
   variant?: "primary" | "secondary";
@@ -8,8 +10,12 @@ interface Props {
    * Analytics placement bucket. Rendered as `data-placement` and read by the
    * delegated listener in `src/scripts/analytics.ts`. Astro drops the attribute
    * when this is undefined.
+   *
+   * Typed as the closed `Placement` set for editor feedback. Note that `tsc`
+   * does not parse .astro files, so the set is actually enforced against the
+   * component sources by `src/scripts/analytics-events.test.ts`.
    */
-  placement?: string;
+  placement?: Placement;
 }
 
 const {

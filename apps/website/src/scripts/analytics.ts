@@ -20,10 +20,46 @@ const OUTBOUND_CLICK_EVENT = "outbound link clicked";
 /**
  * Losing a conversion because an annotation was forgotten is worse than an
  * `unknown` bucket, which at least keeps the event in the destination funnel.
+ * A *misspelled* annotation is the case this does not help: it is non-empty, so
+ * it would fork a real bucket in two. `PLACEMENTS` closes that set and the
+ * component sources are checked against it in `analytics-events.test.ts`.
  */
 const UNKNOWN_PLACEMENT = "unknown";
 
 type Capture = (event: string, properties: Record<string, string>) => void;
+
+/**
+ * Properties posthog-js attaches to every event by default, removed before
+ * anything leaves the page.
+ *
+ * `$timezone` and `$browser_language` are a coarse location signal, which would
+ * contradict the privacy page's claim that no location data is collected.
+ * `$raw_user_agent` is a fingerprinting surface, and cookieless mode already
+ * declines to use it for the unique-user hash, so keeping it on events buys
+ * nothing. Screen dimensions are deliberately NOT stripped: they are not
+ * identifying and they are useful for catching a broken responsive layout.
+ */
+const REDACTED_PROPERTIES = [
+  "$timezone",
+  "$timezone_offset",
+  "$browser_language",
+  "$browser_language_prefix",
+  "$raw_user_agent",
+] as const;
+
+/**
+ * `before_send` hook. Mutates and returns the event, or passes `null` through
+ * so a drop decision made elsewhere is preserved.
+ */
+export function redactEvent<T extends { properties?: Record<string, unknown> } | null>(
+  event: T,
+): T {
+  if (event === null || event.properties === undefined) return event;
+  for (const key of REDACTED_PROPERTIES) {
+    delete event.properties[key];
+  }
+  return event;
+}
 
 /**
  * One delegated listener for the whole page. CTAs are annotated declaratively
@@ -77,6 +113,22 @@ export function initAnalytics(doc: Document = document): Promise<void> {
   }
   doc.documentElement.setAttribute(STARTED_ATTR, "");
 
+  // Listen immediately and buffer until the SDK is ready. The posthog chunk is
+  // ~95KB gzipped, and the hero CTA is the first thing a visitor touches — with
+  // no buffer, clicks in the first moments of page life are dropped silently
+  // and the funnel reads low, biased against exactly the fast clickers it
+  // exists to measure.
+  const pending: Array<[string, Record<string, string>]> = [];
+  let send: Capture | null = null;
+  const capture: Capture = (name, properties) => {
+    if (send === null) {
+      pending.push([name, properties]);
+      return;
+    }
+    send(name, properties);
+  };
+  trackOutboundClicks(capture, doc);
+
   return import("posthog-js")
     .then(({ default: posthog }) => {
       posthog.init(config.key, {
@@ -90,12 +142,22 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         // snippets and MIDI mapping tables to PostHog.
         autocapture: false,
         capture_pageview: true,
+        // Both default to false, so a posthog-js upgrade could start
+        // auto-loading a survey banner on a site whose entire privacy story is
+        // "there is nothing to consent to".
+        disable_surveys: true,
+        advanced_disable_flags: true,
+        before_send: redactEvent,
       });
 
-      trackOutboundClicks((name, properties) => posthog.capture(name, properties), doc);
+      send = (name, properties) => posthog.capture(name, properties);
+      for (const [name, properties] of pending) send(name, properties);
+      pending.length = 0;
     })
     .catch(() => {
       // Analytics must never break the page. A failed SDK load is not the
-      // visitor's problem and is not worth a console error.
+      // visitor's problem and is not worth a console error. The buffer is
+      // dropped with it: there is nothing to flush it into.
+      pending.length = 0;
     });
 }

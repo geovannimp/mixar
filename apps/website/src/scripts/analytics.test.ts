@@ -109,7 +109,47 @@ describe("initAnalytics", () => {
       // snippets to PostHog.
       autocapture: false,
       capture_pageview: true,
+      // Observed SDK defaults, not guarantees: both default to false, so a
+      // posthog-js upgrade could start auto-loading a survey banner on a site
+      // whose whole privacy story is "there is nothing to consent to".
+      disable_surveys: true,
+      advanced_disable_flags: true,
+      // Strips the location-ish and fingerprinting properties the SDK attaches
+      // by default, so the privacy page can be exact about what leaves.
+      before_send: expect.any(Function),
     });
+  });
+
+  // The SDK is ~95KB gzipped. Without buffering, the hero CTA — the first thing
+  // a visitor touches — is missed whenever they click before the chunk resolves,
+  // and the loss is silent and biased toward fast clickers.
+  it("captures a click that lands before the SDK has loaded", async () => {
+    const doc = newDoc(
+      `<a id="cta" href="${GITHUB_REPO}" data-placement="hero">go</a>`,
+      HOSTED,
+    );
+    // Deliberately not awaited: the click happens while the chunk is in flight.
+    const ready = analytics.initAnalytics(doc);
+    doc.getElementById("cta")?.click();
+    await ready;
+
+    expect(capture).toHaveBeenCalledWith("outbound link clicked", {
+      destination: "repo",
+      placement: "hero",
+    });
+  });
+
+  it("does not capture a buffered click twice", async () => {
+    const doc = newDoc(
+      `<a id="cta" href="${GITHUB_REPO}" data-placement="hero">go</a>`,
+      HOSTED,
+    );
+    const ready = analytics.initAnalytics(doc);
+    doc.getElementById("cta")?.click();
+    await ready;
+    doc.getElementById("cta")?.click();
+
+    expect(capture).toHaveBeenCalledTimes(2);
   });
 
   // A double init double-counts every pageview, which corrupts the funnel
@@ -224,5 +264,54 @@ describe("outbound link tracking", () => {
 
     expect(init).not.toHaveBeenCalled();
     expect(capture).not.toHaveBeenCalled();
+  });
+});
+
+describe("redactEvent", () => {
+  // posthog-js attaches these to every event by default. $timezone and
+  // $browser_language are a coarse location signal, which would contradict the
+  // privacy page's claim that no location data is collected.
+  it("strips the timezone properties", () => {
+    const event = { properties: { $timezone: "America/Sao_Paulo", $timezone_offset: -180 } };
+    expect(analytics.redactEvent(event).properties).toEqual({});
+  });
+
+  it("strips the browser language properties", () => {
+    const event = { properties: { $browser_language: "pt-BR", $browser_language_prefix: "pt" } };
+    expect(analytics.redactEvent(event).properties).toEqual({});
+  });
+
+  it("strips the raw user agent", () => {
+    const event = { properties: { $raw_user_agent: "Mozilla/5.0 …" } };
+    expect(analytics.redactEvent(event).properties).toEqual({});
+  });
+
+  it("keeps the fields the funnel is built on", () => {
+    const event = {
+      properties: {
+        destination: "repo",
+        placement: "hero",
+        $current_url: "https://mixar.top/",
+        $pathname: "/",
+        $host: "mixar.top",
+        title: "Mixar | Free DJ software",
+      },
+    };
+    expect(analytics.redactEvent(event).properties).toEqual(event.properties);
+  });
+
+  it("keeps screen dimensions, which are not identifying", () => {
+    const event = { properties: { $screen_width: 1920, $viewport_height: 1080 } };
+    expect(analytics.redactEvent(event).properties).toEqual(event.properties);
+  });
+
+  // `null` is how before_send drops an event; it must pass through untouched.
+  it("passes null through so a drop decision is preserved", () => {
+    expect(analytics.redactEvent(null)).toBeNull();
+  });
+
+  it("passes an event with no properties through", () => {
+    const event = {};
+    expect(analytics.redactEvent(event)).toEqual({});
   });
 });

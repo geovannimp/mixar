@@ -23,6 +23,28 @@ export const DESTINATIONS = {
 export type Destination = (typeof DESTINATIONS)[keyof typeof DESTINATIONS];
 
 /**
+ * Closed set of placements a CTA can be annotated with.
+ *
+ * `placement` is read off the DOM at runtime, so a misspelling is non-empty and
+ * slips past the `unknown` fallback — `dev-hero` would quietly split the
+ * `dev_hero` bucket in two. The set is enforced against the component sources
+ * by `analytics-events.test.ts`; this export is the single definition both the
+ * test and `Button.astro` refer to.
+ */
+export const PLACEMENTS = [
+  "header",
+  "hero",
+  "platforms",
+  "developers",
+  "dev_hero",
+  "dev_architecture",
+  "dev_docs",
+  "footer",
+] as const;
+
+export type Placement = (typeof PLACEMENTS)[number];
+
+/**
  * `GITHUB_REPO` is a prefix of every other consts URL, so the scan is an exact
  * match across all of them first; the bare-repository fallback is considered
  * only afterwards. A first-match-wins scan in declaration order would collapse

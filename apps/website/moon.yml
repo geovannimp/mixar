@@ -17,6 +17,10 @@ fileGroups:
     - "public/**/*"
     - "astro.config.mjs"
     - "package.json"
+  # Both the test and lint tasks are sensitive to both config files.
+  configs:
+    - "tsconfig.json"
+    - "vitest.config.ts"
 
 tasks:
   dev:
@@ -53,14 +57,19 @@ tasks:
     toolchain: "node"
     inputs:
       - "@group(sources)"
-      - "vitest.config.ts"
+      - "@group(configs)"
 
+  # Named `lint` so it joins the existing pipeline: root `npm run lint` is
+  # `moon run :lint`, which .github/workflows/lint.yml runs, and `moon ci` picks
+  # it up. The website opts out of inherited tasks, so without a task here this
+  # would be config nothing ever calls.
+  #
   # Vite strips types without checking them, so without this a type error in
   # src/scripts would only surface at runtime.
-  check:
+  lint:
     command: "npm"
     args: ["run", "check"]
     toolchain: "node"
     inputs:
       - "@group(sources)"
-      - "tsconfig.json"
+      - "@group(configs)"

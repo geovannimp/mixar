@@ -28,7 +28,8 @@ import BaseLayout from "../layouts/BaseLayout.astro";
               class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
               href="https://posthog.com"
               target="_blank"
-              rel="noopener noreferrer">PostHog</a
+              rel="noopener noreferrer"
+              aria-label="PostHog (opens in new tab)">PostHog</a
             > to understand which parts of this site are useful, hosted in the EU region. It runs
             in <strong class="font-semibold text-fg">cookieless mode</strong>, which means:
           </p>
@@ -41,24 +42,31 @@ import BaseLayout from "../layouts/BaseLayout.astro";
             </li>
           </ul>
           <p class="mt-3 leading-relaxed text-muted">
-            We record two things: that a page was viewed, and which outbound link was clicked
-            (for example the quick-start guide, or the repository). Nothing else. There is no
-            autocapture, so the text you read and the code samples on this site are never sent.
+            We send two kinds of event: that a page was viewed, and which outbound link was
+            clicked (for example the quick-start guide, or the repository). Alongside those, the
+            page's own address, its title, and your screen dimensions travel with the event,
+            because that is the minimum a web analytics tool needs to tell two pages apart.
+          </p>
+          <p class="mt-3 leading-relaxed text-muted">
+            Before anything is sent, we strip your timezone, your browser language, and your
+            browser's user-agent string from every event. There is no autocapture, so the text
+            you read and the code samples on this site are never sent.
           </p>
         </section>
 
         <section>
           <h2 class="text-[1.5rem] font-bold tracking-tight">The Mixar app</h2>
           <p class="mt-3 leading-relaxed text-muted">
-            Analytics in the desktop app are <strong class="font-semibold text-fg"
-              >off by default</strong
-            >. On first launch Mixar asks once whether you want to send anonymous usage data.
-            Decline and it never asks again; you can change your mind later in Settings.
+            The desktop app does not collect usage data. Anonymous, opt-in analytics are planned
+            but have not shipped: telemetry is currently an explicit non-goal for this
+            milestone.
           </p>
           <p class="mt-3 leading-relaxed text-muted">
-            If you turn it on, Mixar sends a single event when the app starts, carrying only a
-            randomly generated identifier and your app version, operating system, architecture,
-            and whether it is a debug or release build.
+            When it does arrive, it will be off by default with a one-time prompt and a Settings
+            switch, and it will carry only a randomly generated identifier plus your app version,
+            operating system, architecture, and whether it is a debug or release build. Track
+            data is not part of that design: the component that sends analytics has no access to
+            your library or your audio, so it cannot leak them.
           </p>
         </section>
 
@@ -81,15 +89,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
         <section>
           <h2 class="text-[1.5rem] font-bold tracking-tight">Turning it off</h2>
           <p class="mt-3 leading-relaxed text-muted">
-            In the app, switch off "Send anonymous usage data" in Settings. Doing so deletes the
-            stored identifier and any queued events, so re-enabling later starts a fresh anonymous
-            identity rather than reviving the old one.
-          </p>
-          <p class="mt-3 leading-relaxed text-muted">
             On this website, enabling Do Not Track or using a content blocker that blocks
             <code class="rounded-sm bg-bg-elevated px-1 py-0.5 font-mono text-[0.875rem]">eu.i.posthog.com</code>
             stops all of it. Because the mode is cookieless, blocking it costs nothing: there is no
-            stored state to fall back to.
+            stored state to fall back to and nothing to clear afterwards.
           </p>
         </section>
 
