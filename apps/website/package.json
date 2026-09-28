@@ -21,6 +21,7 @@
     "posthog-js": "^1.434.15"
   },
   "devDependencies": {
+    "@posthog/rollup-plugin": "^1.6.1",
     "@tailwindcss/vite": "^4.1.11",
     "@types/jsdom": "^30.0.0",
     "jsdom": "^30.1.1",

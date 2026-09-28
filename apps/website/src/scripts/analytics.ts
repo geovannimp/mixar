@@ -171,6 +171,13 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         // "there is nothing to consent to".
         disable_surveys: true,
         advanced_disable_flags: true,
+        // Unhandled errors and unhandled rejections. `capture_exceptions` is a
+        // separate option from `autocapture` — resolved from the SDK, not the
+        // docs, which lead with `error_tracking` (that one has no on/off flag;
+        // it configures suppression rules). Left undefined it resolves to all
+        // false, so error tracking is off unless this is set. Console errors
+        // stay off: third-party noise buries real ones.
+        capture_exceptions: true,
         before_send: redactEvent,
         debug: config.debug,
       });

@@ -127,6 +127,11 @@ describe("initAnalytics", () => {
       // whose whole privacy story is "there is nothing to consent to".
       disable_surveys: true,
       advanced_disable_flags: true,
+      // Unhandled errors and unhandled rejections. This is a separate option
+      // from `autocapture`, so it works while autocapture stays off.
+      // `capture_console_errors` is deliberately left at its false default:
+      // third-party console noise buries real errors.
+      capture_exceptions: true,
       // Strips the location-ish and fingerprinting properties the SDK attaches
       // by default, so the privacy page can be exact about what leaves.
       before_send: expect.any(Function),
