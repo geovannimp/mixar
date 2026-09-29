@@ -1,0 +1,309 @@
+---
+import { AudioLines, Disc3, FileMusic, SlidersHorizontal, Zap } from "@lucide/astro";
+import { NI_STEMS_URL } from "../consts";
+
+/** NI / stemgen default stem order, labels, and colors (written into the STEM atom). */
+const stems = [
+  { key: "drums", label: "Drums", color: "var(--stem-drums)" },
+  { key: "bass", label: "Bass", color: "var(--stem-bass)" },
+  { key: "other", label: "Other", color: "var(--stem-other)" },
+  { key: "vocals", label: "Vocals", color: "var(--stem-vocals)" },
+] as const;
+
+const padModes = ["Cue", "Roll", "Jump", "Sample", "Stems"] as const;
+
+/** The two pad rows share every attribute, differing only by action and label. */
+const padRows = [
+  { action: "mute", label: "mute" },
+  { action: "solo", label: "solo" },
+] as const;
+
+const iconProps = { size: 18, "stroke-width": 2 };
+
+/** Deterministic bar heights (percent) so each lane reads as audio, not a solid bar. */
+const waveBars = (seed: number, count = 44) =>
+  Array.from({ length: count }, (_, i) => {
+    const a = Math.sin((i + seed) * 0.85);
+    const b = Math.sin((i + seed) * 2.1) * 0.5;
+    const v = 0.38 + 0.42 * Math.abs(a) + 0.2 * Math.abs(b);
+    return Math.round(Math.min(1, v) * 100);
+  });
+
+const points = [
+  {
+    icon: "lines",
+    title: "Plays NI Stems natively",
+    body: "Drop a Stem file on a deck and every part is ready to go. No converting, no re-exporting, no extra software.",
+  },
+  {
+    icon: "zap",
+    title: "Splits any track into four",
+    body: "A normal track can be separated into drums, bass, other, and vocals, so your whole library becomes mixable.",
+  },
+  {
+    icon: "sliders",
+    title: "Mute and solo live",
+    body: "The deck's pads mute any part or solo one on its own, so you can change the arrangement while the track plays.",
+  },
+  {
+    icon: "file",
+    title: "Ready next time you load it",
+    body: "Mixar keeps the four parts together with the track, so they're waiting the next time the track hits a deck.",
+  },
+] as const;
+---
+
+<section
+  id="stems"
+  class="scroll-mt-20 border-y border-border px-section py-24 lg:py-28"
+>
+  <div class="mx-auto max-w-content">
+    <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20" data-reveal-group>
+      <div data-reveal style="--reveal-delay: 0ms">
+        <h2
+          class="text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.08] tracking-[-0.03em]"
+        >
+          Four stems.<br />One file.
+        </h2>
+        <p
+          class="mt-5 max-w-[46ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl"
+        >
+          A Stem file is a track split into its parts: drums, bass, other, and
+          vocals. Mixar plays NI Stems natively, so you can pull the vocals for an a
+          cappella, cut the drums for a breakdown, or solo one part and let it ride. No
+          Stems yet? Mixar can split any track into four for you.
+        </p>
+
+        <ul class="mt-9 grid gap-x-8 gap-y-6 sm:grid-cols-2">
+          {
+            points.map((point) => (
+              <li class="flex gap-3.5">
+                <span
+                  class="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent-dim text-accent [&_svg]:size-[18px]"
+                  aria-hidden="true"
+                >
+                  {point.icon === "lines" && <AudioLines {...iconProps} />}
+                  {point.icon === "zap" && <Zap {...iconProps} />}
+                  {point.icon === "sliders" && <SlidersHorizontal {...iconProps} />}
+                  {point.icon === "file" && <FileMusic {...iconProps} />}
+                </span>
+                <div>
+                  <h3 class="mb-1 font-serif text-base font-bold leading-snug tracking-tight">
+                    {point.title}
+                  </h3>
+                  <p class="text-[0.9375rem] leading-relaxed text-muted">
+                    {point.body}
+                  </p>
+                </div>
+              </li>
+            ))
+          }
+        </ul>
+
+        <p class="mt-8 text-[0.9375rem] leading-relaxed text-muted">
+          Stems are an open format from
+          {" "}
+          <a
+            class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+            href={NI_STEMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Native Instruments</a
+          >. Mixar plays them as they are, and can build one from any track you own.
+        </p>
+      </div>
+
+      <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
+        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
+            {
+              padModes.map((mode) => (
+                <li
+                  class:list={[
+                    "rounded-full px-2.5 py-1 text-[0.8125rem] font-semibold uppercase tracking-[0.06em]",
+                    mode === "Stems"
+                      ? "bg-accent text-white dark:text-teal-950"
+                      : "border border-border text-muted",
+                  ]}
+                  aria-current={mode === "Stems" ? "true" : undefined}
+                >
+                  {mode}
+                </li>
+              ))
+            }
+          </ul>
+          <span class="font-mono text-[0.8125rem] text-muted">track.stem.mp4</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2.5" role="group" aria-label="Stems mute and solo pads">
+          {
+            padRows.flatMap((row) =>
+              stems.map((stem, index) => (
+                <button
+                  type="button"
+                  data-stem-pad
+                  data-action={row.action}
+                  data-stem={index}
+                  aria-pressed="false"
+                  style={`--stem: ${stem.color}`}
+                  class="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none"
+                >
+                  <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
+                    {row.label}
+                  </span>
+                  <span class="text-[0.8125rem] font-semibold text-fg">{stem.label}</span>
+                </button>
+              )),
+            )
+          }
+        </div>
+
+        <div class="mt-6 border-t border-border pt-5">
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <span
+              class="text-[0.8125rem] font-semibold uppercase tracking-[0.08em] text-muted"
+            >
+              Audible
+            </span>
+            <button
+              type="button"
+              data-stem-reset
+              class="text-[0.8125rem] font-semibold text-muted transition hover:text-accent"
+            >
+              Reset
+            </button>
+          </div>
+          <div class="flex justify-center items-stretch w-full h-64 py-4" aria-hidden="true">
+            <span class="flex justify-center items-center text-accent">
+              <Disc3 size={34} stroke-width={1.5} />
+            </span>
+            <svg
+              data-stem-connector
+              class="flex h-full [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
+              viewBox="0 0 48 152"
+              preserveAspectRatio="none"
+              focusable="false"
+            >
+              <path data-stem="0" d="M0 76 C24 76 24 16 48 16" />
+              <path data-stem="1" d="M0 76 C24 76 24 56 48 56" />
+              <path data-stem="2" d="M0 76 C24 76 24 96 48 96" />
+              <path data-stem="3" d="M0 76 C24 76 24 136 48 138" />
+            </svg>
+            <ul class="flex flex-col grow gap-4">
+              {
+                stems.map((stem, index) => (
+                  <li
+                    data-stem-lane
+                    data-stem={index}
+                    data-stem-label={stem.label}
+                    data-audible="true"
+                    style={`--stem: ${stem.color}`}
+                    class="flex flex-row grow w-full justify-between items-center gap-2 data-[audible=false]:opacity-30"
+                  >
+                    <span class="w-12 pl-2 text-sm">{stem.label}</span>
+                    <span class="grow flex justify-center items-center h-full gap-1">
+                      {waveBars(index * 7 + 3).map((height) => (
+                        <i class="flex grow bg-(--stem) rounded-full" style={`height: ${height}%`} />
+                      ))}
+                    </span>
+                  </li>
+                ))
+              }
+            </ul>
+          </div>
+          <p class="mt-4 text-[0.8125rem] leading-relaxed text-muted">
+            <span class="font-medium text-fg" data-stem-summary aria-live="polite">
+              All four stems in
+            </span>
+            {" "}— the same mute and solo pads you get on the deck.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  import {
+    initStemConnectorFlow,
+    type StemConnectorFlow,
+  } from "../scripts/stem-connector-flow";
+
+  const initStemsDemo = (root: HTMLElement, connectorFlow?: StemConnectorFlow) => {
+    const pads = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-stem-pad]"));
+    const lanes = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-lane]"));
+    const summaryEl = root.querySelector<HTMLElement>("[data-stem-summary]");
+    const resetButton = root.querySelector<HTMLButtonElement>("[data-stem-reset]");
+
+    // Derive the labels (and state width) from the rendered lanes so this can't
+    // drift from the `stems` array that produced them.
+    const names = lanes.map((lane) => lane.dataset.stemLabel ?? "");
+    const mutes = names.map(() => false);
+    let isolate: number | null = null;
+
+    const render = () => {
+      const audible =
+        isolate === null ? mutes.map((muted) => !muted) : mutes.map((_, i) => i === isolate);
+
+      for (const pad of pads) {
+        const index = Number(pad.dataset.stem);
+        const isMute = pad.dataset.action === "mute";
+        const lit = isMute ? mutes[index] : isolate === index;
+        pad.dataset.lit = String(lit);
+        pad.setAttribute("aria-pressed", String(lit));
+      }
+
+      for (const lane of lanes) {
+        const index = Number(lane.dataset.stem);
+        lane.dataset.audible = String(audible[index]);
+        connectorFlow?.setAudible(index, audible[index]);
+      }
+
+      if (summaryEl) {
+        if (isolate !== null) {
+          summaryEl.textContent = `Solo: ${names[isolate]}`;
+        } else {
+          const live = names.filter((_, i) => audible[i]);
+          if (live.length === 0) {
+            summaryEl.textContent = "All stems muted";
+          } else if (live.length === names.length) {
+            summaryEl.textContent = "All four stems in";
+          } else {
+            summaryEl.textContent = `Audible: ${live.join(", ")}`;
+          }
+        }
+      }
+    };
+
+    const reset = () => {
+      mutes.fill(false);
+      isolate = null;
+      render();
+    };
+
+    for (const pad of pads) {
+      pad.addEventListener("click", () => {
+        const index = Number(pad.dataset.stem);
+        if (pad.dataset.action === "mute") {
+          // Mute always has an audible effect, so drop any solo first.
+          isolate = null;
+          mutes[index] = !mutes[index];
+        } else {
+          // Solo is exclusive; clear stored mutes so pad states stay honest.
+          mutes.fill(false);
+          isolate = isolate === index ? null : index;
+        }
+        render();
+      });
+    }
+
+    resetButton?.addEventListener("click", reset);
+
+    render();
+  };
+
+  for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
+    initStemsDemo(root, initStemConnectorFlow(root));
+  }
+</script>

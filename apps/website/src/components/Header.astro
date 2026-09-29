@@ -22,7 +22,7 @@ const iconProps = { size: 18, "stroke-width": 2 };
     class="mx-auto flex h-full max-w-content items-center justify-between px-section"
     aria-label="Primary"
   >
-    <a class="-ml-2 flex h-10 items-center rounded-sm px-2" href="/">
+    <a class="-ml-2 flex h-10 shrink-0 items-center rounded-sm px-2" href="/">
       <img
         class="h-5 w-auto brightness-0 dark:invert"
         src="/mixar-logo.png"
@@ -31,10 +31,20 @@ const iconProps = { size: 18, "stroke-width": 2 };
         height="20"
       />
     </a>
-    <div class="flex items-center gap-6">
-      <div class="flex items-center gap-6">
+    <div class="flex items-center gap-5 sm:gap-6">
+      <div class="hidden items-center gap-6 md:flex">
         <a class:list={[navLink]} href={currentPage === "home" ? "#features" : "/#features"}
           >Features</a
+        >
+        <a
+          class:list={[navLink]}
+          href={currentPage === "home" ? "#stems" : "/#stems"}
+          >NI Stems</a
+        >
+        <a
+          class:list={[navLink]}
+          href={currentPage === "home" ? "#pricing" : "/#pricing"}
+          >Pricing</a
         >
         <a
           class={navLink}
@@ -43,15 +53,15 @@ const iconProps = { size: 18, "stroke-width": 2 };
         >
           Developers
         </a>
-        <a
-          class={navLink}
-          href={GITHUB_REPO}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub repository (opens in new tab)"
-          >GitHub</a
-        >
       </div>
+      <a
+        class:list={[navLink, "whitespace-nowrap"]}
+        href={GITHUB_REPO}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="GitHub repository (opens in new tab)"
+        >GitHub</a
+      >
       <button
         id="theme-toggle"
         type="button"

@@ -1,6 +1,6 @@
 ---
 import History from "../icons/History.astro";
-import { Layers, PanelTop, Volume2 } from "@lucide/astro";
+import { Activity, Cable, Layers, PanelTop, Split, Volume2 } from "@lucide/astro";
 import FeatureCard from "./ui/FeatureCard.astro";
 import SectionHeader from "./ui/SectionHeader.astro";
 
@@ -10,7 +10,7 @@ const iconProps = { size: 24, "stroke-width": 2 };
 <section class="px-section py-24 lg:py-28">
   <SectionHeader
     title="Stack"
-    description="Engine-first design with clear boundaries between audio, library, and UI."
+    description="Engine-first, with clean boundaries between audio, library, and UI."
   >
     <Layers slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
@@ -20,18 +20,33 @@ const iconProps = { size: 24, "stroke-width": 2 };
   >
     <FeatureCard revealIndex={0} iconTone="deck-a" title="Rust engine">
       <Volume2 slot="icon" {...iconProps} />
-      Real-time audio, mixing, library I/O, and analysis. Rust gives predictable performance and
-      memory safety on the audio path.
+      Real-time audio and mixing in Rust. The audio callback allocates nothing, so timing
+      stays predictable under load.
     </FeatureCard>
     <FeatureCard revealIndex={1} iconTone="deck-b" title="Flutter UI">
       <PanelTop slot="icon" {...iconProps} />
-      Cross-platform decks, waveforms, and mixer chrome. Flutter keeps one UI codebase for desktop
-      and mobile targets.
+      Decks, waveforms, and mixer chrome, in one UI codebase for desktop and the mobile
+      targets to come.
     </FeatureCard>
     <FeatureCard revealIndex={2} iconTone="accent" title="Async buses">
       <History slot="icon" {...iconProps} />
-      The UI talks to the engine, library, and controllers through async message buses instead of
-      calling engine code on the UI thread.
+      The UI talks to the engine, library, and controllers over async message buses, so
+      engine code never runs on the UI thread.
+    </FeatureCard>
+    <FeatureCard revealIndex={3} iconTone="accent" title="Stem separation">
+      <Split slot="icon" {...iconProps} />
+      HTDemucs splits a track into drums, bass, other, and vocals offline. GPU (WebGPU)
+      when available, CPU otherwise, with no cloud round-trip.
+    </FeatureCard>
+    <FeatureCard revealIndex={4} iconTone="deck-a" title="Offline analysis">
+      <Activity slot="icon" {...iconProps} />
+      BPM, key, loudness, artwork, and waveforms are computed locally and cached in a
+      SQLite library.
+    </FeatureCard>
+    <FeatureCard revealIndex={5} iconTone="deck-b" title="Pluggable backends">
+      <Cable slot="icon" {...iconProps} />
+      CPAL/PipeWire, miniaudio, or a null backend for tests, chosen at runtime behind one
+      trait.
     </FeatureCard>
   </div>
 </section>
