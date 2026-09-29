@@ -12,6 +12,12 @@ const stems = [
 
 const padModes = ["Cue", "Roll", "Jump", "Sample", "Stems"] as const;
 
+/** The two pad rows share every attribute, differing only by action and label. */
+const padRows = [
+  { action: "mute", label: "mute" },
+  { action: "solo", label: "solo" },
+] as const;
+
 const iconProps = { size: 18, "stroke-width": 2 };
 
 /** Deterministic bar heights (percent) so each lane reads as audio, not a solid bar. */
@@ -132,40 +138,24 @@ const points = [
 
         <div class="grid grid-cols-4 gap-2.5" role="group" aria-label="Stems mute and solo pads">
           {
-            stems.map((stem, index) => (
-              <button
-                type="button"
-                data-stem-pad
-                data-action="mute"
-                data-stem={index}
-                aria-pressed="false"
-                style={`--stem: ${stem.color}`}
-                class="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none"
-              >
-                <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
-                  mute
-                </span>
-                <span class="text-[0.8125rem] font-semibold text-fg">{stem.label}</span>
-              </button>
-            ))
-          }
-          {
-            stems.map((stem, index) => (
-              <button
-                type="button"
-                data-stem-pad
-                data-action="solo"
-                data-stem={index}
-                aria-pressed="false"
-                style={`--stem: ${stem.color}`}
-                class="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none"
-              >
-                <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
-                  solo
-                </span>
-                <span class="text-[0.8125rem] font-semibold text-fg">{stem.label}</span>
-              </button>
-            ))
+            padRows.flatMap((row) =>
+              stems.map((stem, index) => (
+                <button
+                  type="button"
+                  data-stem-pad
+                  data-action={row.action}
+                  data-stem={index}
+                  aria-pressed="false"
+                  style={`--stem: ${stem.color}`}
+                  class="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none"
+                >
+                  <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
+                    {row.label}
+                  </span>
+                  <span class="text-[0.8125rem] font-semibold text-fg">{stem.label}</span>
+                </button>
+              )),
+            )
           }
         </div>
 
@@ -206,6 +196,7 @@ const points = [
                   <li
                     data-stem-lane
                     data-stem={index}
+                    data-stem-label={stem.label}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
                     class="flex flex-row grow w-full justify-between items-center gap-2 data-[audible=false]:opacity-30"
@@ -239,8 +230,6 @@ const points = [
     type StemConnectorFlow,
   } from "../scripts/stem-connector-flow";
 
-  const names = ["Drums", "Bass", "Other", "Vocals"];
-
   const initStemsDemo = (connectorFlow?: StemConnectorFlow) => {
     const root = document.querySelector<HTMLElement>("[data-stems-demo]");
     if (!root) return;
@@ -250,7 +239,10 @@ const points = [
     const summaryEl = root.querySelector<HTMLElement>("[data-stem-summary]");
     const resetButton = root.querySelector<HTMLButtonElement>("[data-stem-reset]");
 
-    const mutes = [false, false, false, false];
+    // Derive the labels (and state width) from the rendered lanes so this can't
+    // drift from the `stems` array that produced them.
+    const names = lanes.map((lane) => lane.dataset.stemLabel ?? "");
+    const mutes = names.map(() => false);
     let isolate: number | null = null;
 
     const render = () => {

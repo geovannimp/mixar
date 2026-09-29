@@ -16,6 +16,12 @@ export interface StemConnectorFlow {
   setAudible(index: number, audible: boolean): void;
 }
 
+/** One connector curve and the flow animation that drives it. */
+interface LaneEntry {
+  path: SVGPathElement;
+  animation?: AnimationPlaybackControls;
+}
+
 /**
  * Animates the stem connector curves so dashes travel from the disc out to the
  * four lanes, reading as signal flowing through each stem. Muting a stem dims
@@ -30,10 +36,10 @@ export function initStemConnectorFlow(): StemConnectorFlow | undefined {
   if (paths.length === 0) return undefined;
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const lanes = new Map<number, { path: SVGPathElement; animation?: AnimationPlaybackControls }>();
+  const lanes = new Map<number, LaneEntry>();
 
   for (const path of paths) {
-    const entry: { path: SVGPathElement; animation?: AnimationPlaybackControls } = { path };
+    const entry: LaneEntry = { path };
     if (!reduceMotion) {
       path.style.transition = "opacity 0.2s ease";
       path.style.strokeDasharray = `${DASH} ${GAP}`;
