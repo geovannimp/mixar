@@ -52,8 +52,8 @@ const points = [
   class="scroll-mt-20 border-y border-border px-section py-24 lg:py-28"
 >
   <div class="mx-auto max-w-content">
-    <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20">
-      <div>
+    <div class="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr] lg:gap-20" data-reveal-group>
+      <div data-reveal style="--reveal-delay: 0ms">
         <h2
           class="text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.08] tracking-[-0.03em]"
         >
@@ -108,7 +108,7 @@ const points = [
         </p>
       </div>
 
-      <div data-stems-demo class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
+      <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
         <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
           <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
             {
