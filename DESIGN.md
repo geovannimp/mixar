@@ -7,6 +7,10 @@ colors:
   accent-dim: "rgba(13, 148, 136, 0.1)"
   deck-a: "#16a34a"
   deck-b: "#0284c7"
+  stem-drums: "#009e73"
+  stem-bass: "#d55e00"
+  stem-other: "#cc79a7"
+  stem-vocals: "#56b4e9"
   bg: "#fafafa"
   bg-elevated: "#f4f4f5"
   bg-card: "#ffffff"
@@ -130,6 +134,15 @@ A zinc-forward palette with one confident teal accent and semantic deck hues —
 - **Deck A Green** (#16a34a light / #4ade80 dark): Marketing feature tiles and deck-A semantic highlights on the website.
 - **Deck B Sky** (#0284c7 light / #38bdf8 dark): Marketing feature tiles and deck-B semantic highlights on the website.
 
+### Stems
+
+Fixed slot colors for the four NI Stems, written into the `.stem.mp4` STEM atom by `crates/codec` (`stem_atom.rs::default_ni`) and mirrored as `--stem-*` tokens on the website. They are metadata, not themed accents: keep the hex values stable so generated Stems match the NI/stemgen defaults. Stem colors are semantic identifiers (like deck-a / deck-b), never page-level accents.
+
+- **Drums** (#009e73): NI slot 1
+- **Bass** (#d55e00): NI slot 2
+- **Other** (#cc79a7): NI slot 3
+- **Vocals** (#56b4e9): NI slot 4
+
 ### Tertiary
 
 - **Dev Amber** (amber-400 family at ~12–15% opacity): "In development" and cautionary status badges only — not a general warning color.
@@ -197,7 +210,7 @@ Flutter currently inherits **Forui neutral** type scale (`theme.typography.*`). 
 
 **App shell:** Minimum window 1024×768, default 1280×800. Deck layout: Deck A | Mixer | Deck B in a single card row (`deck_grid.dart`). Custom 40px header; content clipped to 12px top radius on undecorated Linux desktop windows.
 
-**Responsive breakpoints (web):** Tailwind defaults — `sm` 640px, `lg` 1024px. Mobile nav collapses Features link; theme toggle always visible.
+**Responsive breakpoints (web):** Tailwind defaults — `sm` 640px, `md` 768px, `lg` 1024px. Below `md` the header keeps the logo, GitHub link, and theme toggle; the section links (Features, NI Stems, Developers) appear from `md` up.
 
 ## Elevation & Depth
 

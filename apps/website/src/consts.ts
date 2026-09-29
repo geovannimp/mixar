@@ -3,3 +3,5 @@ export const QUICK_START_URL = `${GITHUB_REPO}#quick-start`;
 export const TECH_SPEC_URL = `${GITHUB_REPO}/blob/main/docs/tech-spec.md`;
 export const README_URL = `${GITHUB_REPO}#readme`;
 export const CONTRIBUTING_URL = `${GITHUB_REPO}/contribute`;
+export const NI_STEMS_URL = "https://www.native-instruments.com/pages/stems";
+export const ISSUES_URL = `${GITHUB_REPO}/issues`;
