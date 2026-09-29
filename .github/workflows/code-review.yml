@@ -96,6 +96,15 @@ jobs:
     name: open-code-review
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The OCR CLI ships its own auto-updater: unless OCR_NO_UPDATE is set, every
+    # `ocr` invocation spawns a detached `npm i -g @alibaba-group/open-code-review@latest`.
+    # Configure OCR calls `ocr` ~12x in a row on a fresh runner (no update
+    # cooldown file), so those detached installs race and clobber
+    # /usr/local/bin/ocr mid-step — the job dies with "Cannot find module
+    # '/usr/local/bin/ocr'" before any review runs. We pin ocr_version on
+    # purpose, so turn the updater off.
+    env:
+      OCR_NO_UPDATE: '1'
     # Run on PR lifecycle events, on a manual dispatch, or on a human comment
     # starting with a trigger keyword. Comment triggers are gated on
     # author_association so only MEMBER/OWNER/COLLABORATOR users can spend LLM
