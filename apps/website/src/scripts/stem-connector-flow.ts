@@ -33,7 +33,8 @@ interface LaneEntry {
  */
 export function initStemConnectorFlow(root: ParentNode = document): StemConnectorFlow | undefined {
   const connector = root.querySelector<SVGSVGElement>("[data-stem-connector]");
-  if (!connector) return undefined;
+  if (!connector || connector.dataset.flowInit !== undefined) return undefined;
+  connector.dataset.flowInit = "";
 
   const paths = Array.from(connector.querySelectorAll<SVGPathElement>("path[data-stem]"));
   if (paths.length === 0) return undefined;
