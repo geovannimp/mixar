@@ -45,6 +45,8 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
     <Footer currentPage={currentPage} />
     <span id="theme-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
     <script>
+      import { initRevealGroups } from "../scripts/features-reveal";
+
       const toggle = document.getElementById("theme-toggle");
       const themeStatus = document.getElementById("theme-status");
       toggle?.addEventListener("click", () => {
@@ -56,6 +58,8 @@ const fullTitle = title === "Mixar" ? "Mixar | Free DJ software" : `${title} · 
           themeStatus.textContent = `${next === "dark" ? "Dark" : "Light"} theme enabled`;
         }
       });
+
+      initRevealGroups();
     </script>
   </body>
 </html>
