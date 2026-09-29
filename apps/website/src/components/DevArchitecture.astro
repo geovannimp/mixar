@@ -56,7 +56,7 @@ library-api"]
   <div class="mx-auto max-w-content">
     <SectionHeader
       title="Architecture"
-      description="The Flutter UI, controller layer, and engine stay in sync over omnibus cmd/evt buses. Transports exchange MessagePack in both directions on a shared bus layer (engine-api and library-api); each domain maps to focused Rust crates behind it."
+      description="UI, controllers, and engine stay in sync over cmd/evt buses. Transports move MessagePack in both directions, with a focused Rust crate behind each domain."
     >
       <GitBranch
         slot="icon"

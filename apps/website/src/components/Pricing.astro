@@ -1,0 +1,109 @@
+---
+import { BadgeDollarSign, Check } from "@lucide/astro";
+import SectionHeader from "./ui/SectionHeader.astro";
+
+const checkProps = { size: 16, "stroke-width": 2.5 };
+
+const rows = [
+  { label: "Every feature", mixar: "Included", other: 'Held for a "pro" tier' },
+  { label: "MIDI controller", mixar: "Any device, no fee", other: "Per-controller unlock" },
+  { label: "Stems", mixar: "Built in, offline", other: "Paid add-on" },
+  { label: "Account", mixar: "None required", other: "Sign-in required" },
+  { label: "Source code", mixar: "GPL-3.0, yours to keep", other: "Closed" },
+] as const;
+---
+
+<section id="pricing" class="scroll-mt-20 border-y border-border bg-bg-elevated px-section py-24 lg:py-28">
+  <SectionHeader
+    title="DJ software without the asterisks"
+    description="No tiers, no unlocks, no fine print. Here is the whole price list, and what the subscription apps leave out."
+  >
+    <BadgeDollarSign slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
+  </SectionHeader>
+
+  <div class="mx-auto max-w-content">
+    <div class="overflow-hidden rounded-2xl border border-border bg-bg-card">
+      <div class="overflow-x-auto">
+        <table class="pricing-table w-full border-collapse text-left sm:min-w-[40rem]">
+          <caption class="sr-only">Mixar price and feature comparison</caption>
+          <thead>
+            <tr class="border-b border-border">
+              <th scope="col" class="p-5 align-bottom text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-muted sm:p-6">
+                Compare
+              </th>
+              <th scope="col" class="bg-accent-dim p-5 align-bottom sm:p-6">
+                <span class="block font-serif text-[2.75rem] font-bold leading-none tracking-[-0.03em] text-accent">
+                  $0
+                </span>
+                <span class="mt-2 block text-[0.9375rem] font-semibold text-fg">Mixar</span>
+                <span class="block text-[0.8125rem] text-muted">Free as in freedom</span>
+              </th>
+              <th scope="col" class="p-5 align-bottom sm:p-6">
+                <span class="block font-serif text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-muted">
+                  Pay monthly
+                </span>
+                <span class="mt-2 block text-[0.9375rem] font-semibold text-muted">Most DJ apps</span>
+                <span class="block text-[0.8125rem] text-muted">Then pay again to unlock</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map((row) => (
+                <tr class="border-b border-border last:border-b-0">
+                  <th
+                    scope="row"
+                    class="p-5 align-middle text-[0.9375rem] font-medium text-muted sm:p-6"
+                  >
+                    {row.label}
+                  </th>
+                  <td class="bg-accent-dim p-5 align-middle sm:p-6">
+                    <span class="flex items-center gap-2 text-[0.9375rem] font-medium text-fg">
+                      <Check {...checkProps} class="size-4 shrink-0 text-accent" aria-hidden="true" />
+                      {row.mixar}
+                    </span>
+                  </td>
+                  <td class="p-5 align-middle text-[0.9375rem] text-muted sm:p-6">
+                    {row.other}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Below sm, reflow the comparison from a table into a two-column grid:
+     feature label spans the row, then Mixar and the competitor sit side by side. */
+  @media (max-width: 639px) {
+    .pricing-table,
+    .pricing-table thead,
+    .pricing-table tbody {
+      display: block;
+    }
+
+    .pricing-table thead tr,
+    .pricing-table tbody tr {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .pricing-table thead th:first-child {
+      display: none;
+    }
+
+    .pricing-table tbody th {
+      grid-column: 1 / -1;
+      padding-bottom: 0.375rem;
+    }
+
+    .pricing-table th,
+    .pricing-table td {
+      padding: 0.875rem 1.25rem;
+    }
+  }
+</style>

@@ -6,10 +6,10 @@ import SectionHeader from "./ui/SectionHeader.astro";
 const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
 ---
 
-<section class="bg-bg-elevated px-section py-24 lg:py-28">
+<section class="px-section py-24 lg:py-28">
   <SectionHeader
-    title="Built for every platform"
-    description="Built for desktop and mobile from the start. One product for every screen you mix on, not a desktop app awkwardly ported elsewhere."
+    title="Linux now, everywhere next"
+    description="One app shaped for desktop and mobile. Linux builds from source today; the other platforms are on the way."
   >
     <MonitorSmartphone slot="icon" class="size-20 shrink-0 text-accent" stroke-width={1.75} aria-hidden="true" />
   </SectionHeader>
@@ -21,10 +21,10 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
     >
       <div>
         <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-fg">
-          In progress
+          Linux
         </h3>
         <p class="mt-2 text-lg text-muted">
-          Actively developed. Linux builds available today.
+          Primary development target. Build it from source and it runs on Linux now.
         </p>
       </div>
       <a
@@ -43,7 +43,7 @@ const upcomingPlatforms = ["macOS", "Windows", "iOS", "Android"] as const;
       class="flex min-h-[220px] flex-col justify-between rounded-2xl border border-dashed border-border p-10 sm:p-12"
     >
       <h3 class="font-serif text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight tracking-tight text-muted">
-        On roadmap
+        On the roadmap
       </h3>
       <ul class="mt-4 space-y-1 font-serif text-[clamp(1.5rem,3.5vw,2.25rem)] font-bold leading-tight tracking-tight text-muted/50">
         {
