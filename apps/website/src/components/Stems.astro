@@ -2,12 +2,12 @@
 import { AudioLines, Disc3, FileMusic, SlidersHorizontal, Zap } from "@lucide/astro";
 import { NI_STEMS_URL } from "../consts";
 
-/** NI / stemgen default stem order, labels, and colors (written into the STEM atom). */
+/** NI / stemgen default stem order, labels, and colors. */
 const stems = [
-  { key: "drums", label: "Drums", color: "var(--stem-drums)" },
-  { key: "bass", label: "Bass", color: "var(--stem-bass)" },
-  { key: "other", label: "Other", color: "var(--stem-other)" },
-  { key: "vocals", label: "Vocals", color: "var(--stem-vocals)" },
+  { label: "Drums", color: "var(--stem-drums)" },
+  { label: "Bass", color: "var(--stem-bass)" },
+  { label: "Other", color: "var(--stem-other)" },
+  { label: "Vocals", color: "var(--stem-vocals)" },
 ] as const;
 
 const padModes = ["Cue", "Roll", "Jump", "Sample", "Stems"] as const;
@@ -17,6 +17,10 @@ const padRows = [
   { action: "mute", label: "mute" },
   { action: "solo", label: "solo" },
 ] as const;
+
+/** Shared styling for a mute/solo pad button. */
+const padClass =
+  "group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none";
 
 const iconProps = { size: 18, "stroke-width": 2 };
 
@@ -147,7 +151,7 @@ const points = [
                   data-stem={index}
                   aria-pressed="false"
                   style={`--stem: ${stem.color}`}
-                  class="group flex aspect-square cursor-pointer flex-col items-center justify-center gap-[0.15rem] rounded-[10px] border border-[color-mix(in_srgb,var(--stem)_30%,var(--border))] bg-bg-card text-muted transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-(--stem) active:translate-y-0 data-[lit=true]:border-(--stem) data-[lit=true]:bg-[color-mix(in_srgb,var(--stem)_16%,var(--bg-card))] motion-reduce:transition-none"
+                  class={padClass}
                 >
                   <span class="text-[0.6875rem] font-bold uppercase tracking-[0.08em] group-data-[lit=true]:text-[color-mix(in_srgb,var(--stem)_55%,var(--text))]">
                     {row.label}
@@ -304,6 +308,8 @@ const points = [
   };
 
   for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
+    if (root.dataset.stemsInit !== undefined) continue;
+    root.dataset.stemsInit = "";
     initStemsDemo(root, initStemConnectorFlow(root));
   }
 </script>
