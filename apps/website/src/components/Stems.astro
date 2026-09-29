@@ -189,15 +189,16 @@ const points = [
               <Disc3 size={34} stroke-width={1.5} />
             </span>
             <svg
-              class="flex h-full [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[vector-effect:non-scaling-stroke]"
+              data-stem-connector
+              class="flex h-full [&_path]:fill-none [&_path]:[stroke:color-mix(in_srgb,var(--accent)_55%,var(--border))] [&_path]:[stroke-width:1.5] [&_path]:[stroke-linecap:round] [&_path]:[vector-effect:non-scaling-stroke]"
               viewBox="0 0 48 152"
               preserveAspectRatio="none"
               focusable="false"
             >
-              <path d="M0 76 C24 76 24 16 48 16" />
-              <path d="M0 76 C24 76 24 56 48 56" />
-              <path d="M0 76 C24 76 24 96 48 96" />
-              <path d="M0 76 C24 76 24 136 48 138" />
+              <path data-stem="0" d="M0 76 C24 76 24 16 48 16" />
+              <path data-stem="1" d="M0 76 C24 76 24 56 48 56" />
+              <path data-stem="2" d="M0 76 C24 76 24 96 48 96" />
+              <path data-stem="3" d="M0 76 C24 76 24 136 48 138" />
             </svg>
             <ul class="flex flex-col grow gap-4">
               {
@@ -233,9 +234,14 @@ const points = [
 </section>
 
 <script>
+  import {
+    initStemConnectorFlow,
+    type StemConnectorFlow,
+  } from "../scripts/stem-connector-flow";
+
   const names = ["Drums", "Bass", "Other", "Vocals"];
 
-  const initStemsDemo = () => {
+  const initStemsDemo = (connectorFlow?: StemConnectorFlow) => {
     const root = document.querySelector<HTMLElement>("[data-stems-demo]");
     if (!root) return;
 
@@ -260,7 +266,9 @@ const points = [
       }
 
       for (const lane of lanes) {
-        lane.dataset.audible = String(audible[Number(lane.dataset.stem)]);
+        const index = Number(lane.dataset.stem);
+        lane.dataset.audible = String(audible[index]);
+        connectorFlow?.setAudible(index, audible[index]);
       }
 
       if (summaryEl) {
@@ -305,5 +313,5 @@ const points = [
     render();
   };
 
-  initStemsDemo();
+  initStemsDemo(initStemConnectorFlow());
 </script>
