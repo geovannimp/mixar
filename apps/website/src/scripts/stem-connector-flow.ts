@@ -28,9 +28,11 @@ interface LaneEntry {
  * four lanes, reading as signal flowing through each stem. Muting a stem dims
  * its curve and pauses the flow, mirroring the waveform lane it feeds. Falls
  * back to a static solid connector when the visitor prefers reduced motion.
+ *
+ * Scoped to `root` so a second stems demo on the page gets its own flow.
  */
-export function initStemConnectorFlow(): StemConnectorFlow | undefined {
-  const connector = document.querySelector<SVGSVGElement>("[data-stem-connector]");
+export function initStemConnectorFlow(root: ParentNode = document): StemConnectorFlow | undefined {
+  const connector = root.querySelector<SVGSVGElement>("[data-stem-connector]");
   if (!connector) return undefined;
 
   const paths = Array.from(connector.querySelectorAll<SVGPathElement>("path[data-stem]"));

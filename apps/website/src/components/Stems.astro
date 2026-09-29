@@ -230,10 +230,7 @@ const points = [
     type StemConnectorFlow,
   } from "../scripts/stem-connector-flow";
 
-  const initStemsDemo = (connectorFlow?: StemConnectorFlow) => {
-    const root = document.querySelector<HTMLElement>("[data-stems-demo]");
-    if (!root) return;
-
+  const initStemsDemo = (root: HTMLElement, connectorFlow?: StemConnectorFlow) => {
     const pads = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-stem-pad]"));
     const lanes = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-lane]"));
     const summaryEl = root.querySelector<HTMLElement>("[data-stem-summary]");
@@ -306,5 +303,7 @@ const points = [
     render();
   };
 
-  initStemsDemo(initStemConnectorFlow());
+  for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
+    initStemsDemo(root, initStemConnectorFlow(root));
+  }
 </script>

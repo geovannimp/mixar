@@ -20,6 +20,7 @@
   --accent-dim: rgba(15, 118, 110, 0.1);
   --deck-a: #16a34a;
   --deck-b: #0284c7;
+  --warn: #fbbf24;
   /* NI Stems slot colors written into the .stem.mp4 STEM atom (fixed metadata,
      not themed). Keep in sync with stem_atom.rs default_ni(). */
   --stem-drums: #009e73;
@@ -49,6 +50,7 @@
   --accent-dim: rgba(45, 212, 191, 0.12);
   --deck-a: #4ade80;
   --deck-b: #38bdf8;
+  --warn: #fbbf24;
   --header-bg: rgba(9, 9, 11, 0.85);
   --screenshot-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.03), 0 24px 64px rgba(0, 0, 0, 0.5);
@@ -80,6 +82,7 @@
   --font-size-caption: 0.8125rem;
   --color-deck-a: var(--deck-a);
   --color-deck-b: var(--deck-b);
+  --color-warn: var(--warn);
   --max-width-content: 70rem;
   --spacing-section: clamp(2rem, 5vw, 4rem);
 }
