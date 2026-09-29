@@ -24,21 +24,21 @@ const rows = [
   <div class="mx-auto max-w-content" data-reveal-group>
     <div data-reveal style="--reveal-delay: 0ms" class="overflow-hidden rounded-2xl border border-border bg-bg-card">
       <div class="overflow-x-auto">
-        <table class="pricing-table w-full border-collapse text-left sm:min-w-[40rem]">
+        <table class="pricing-table w-full border-collapse text-left sm:min-w-[40rem]" role="table">
           <caption class="sr-only">Mixar price and feature comparison</caption>
-          <thead>
-            <tr class="border-b border-border">
-              <th scope="col" class="p-5 align-bottom text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-muted sm:p-6">
+          <thead role="rowgroup">
+            <tr class="border-b border-border" role="row">
+              <th scope="col" role="columnheader" class="p-5 align-bottom text-[0.75rem] font-semibold uppercase tracking-[0.1em] text-muted sm:p-6">
                 Compare
               </th>
-              <th scope="col" class="bg-accent-dim p-5 align-bottom sm:p-6">
+              <th scope="col" role="columnheader" class="bg-accent-dim p-5 align-bottom sm:p-6">
                 <span class="block font-serif text-[2.75rem] font-bold leading-none tracking-[-0.03em] text-accent">
                   $0
                 </span>
                 <span class="mt-2 block text-[0.9375rem] font-semibold text-fg">Mixar</span>
                 <span class="block text-[0.8125rem] text-muted">Free as in freedom</span>
               </th>
-              <th scope="col" class="p-5 align-bottom sm:p-6">
+              <th scope="col" role="columnheader" class="p-5 align-bottom sm:p-6">
                 <span class="block font-serif text-[1.5rem] font-bold leading-none tracking-[-0.02em] text-muted">
                   Pay monthly
                 </span>
@@ -47,23 +47,24 @@ const rows = [
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             {
               rows.map((row) => (
-                <tr class="border-b border-border last:border-b-0">
+                <tr class="border-b border-border last:border-b-0" role="row">
                   <th
                     scope="row"
+                    role="rowheader"
                     class="p-5 align-middle text-[0.9375rem] font-medium text-muted sm:p-6"
                   >
                     {row.label}
                   </th>
-                  <td class="bg-accent-dim p-5 align-middle sm:p-6">
+                  <td role="cell" class="bg-accent-dim p-5 align-middle sm:p-6">
                     <span class="flex items-center gap-2 text-[0.9375rem] font-medium text-fg">
                       <Check {...checkProps} class="size-4 shrink-0 text-accent" aria-hidden="true" />
                       {row.mixar}
                     </span>
                   </td>
-                  <td class="p-5 align-middle text-[0.9375rem] text-muted sm:p-6">
+                  <td role="cell" class="p-5 align-middle text-[0.9375rem] text-muted sm:p-6">
                     {row.other}
                   </td>
                 </tr>

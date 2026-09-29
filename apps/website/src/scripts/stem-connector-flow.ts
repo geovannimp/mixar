@@ -20,6 +20,7 @@ export interface StemConnectorFlow {
 interface LaneEntry {
   path: SVGPathElement;
   animation?: AnimationPlaybackControls;
+  audible: boolean;
 }
 
 /**
@@ -37,9 +38,21 @@ export function initStemConnectorFlow(): StemConnectorFlow | undefined {
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const lanes = new Map<number, LaneEntry>();
+  let onScreen = true;
+
+  // Flow only while the connector is on screen and its lane is audible, so the
+  // endless dash loop costs nothing once the section scrolls out of view.
+  const sync = (lane: LaneEntry) => {
+    if (!lane.animation) return;
+    if (onScreen && lane.audible) {
+      lane.animation.play();
+    } else {
+      lane.animation.pause();
+    }
+  };
 
   for (const path of paths) {
-    const entry: LaneEntry = { path };
+    const entry: LaneEntry = { path, audible: true };
     if (!reduceMotion) {
       path.style.transition = "opacity 0.2s ease";
       path.style.strokeDasharray = `${DASH} ${GAP}`;
@@ -55,17 +68,21 @@ export function initStemConnectorFlow(): StemConnectorFlow | undefined {
     lanes.set(Number(path.dataset.stem), entry);
   }
 
+  if (!reduceMotion) {
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry?.isIntersecting ?? true;
+      for (const lane of lanes.values()) sync(lane);
+    });
+    observer.observe(connector);
+  }
+
   return {
     setAudible(index, audible) {
       const lane = lanes.get(index);
       if (!lane) return;
+      lane.audible = audible;
       lane.path.style.opacity = audible ? "1" : String(MUTED_OPACITY);
-      if (!lane.animation) return;
-      if (audible) {
-        lane.animation.play();
-      } else {
-        lane.animation.pause();
-      }
+      sync(lane);
     },
   };
 }

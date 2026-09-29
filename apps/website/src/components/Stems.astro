@@ -268,12 +268,13 @@ const points = [
           summaryEl.textContent = `Solo: ${names[isolate]}`;
         } else {
           const live = names.filter((_, i) => audible[i]);
-          summaryEl.textContent =
-            live.length === 0
-              ? "All stems muted"
-              : live.length === names.length
-                ? "All four stems in"
-                : `Audible: ${live.join(", ")}`;
+          if (live.length === 0) {
+            summaryEl.textContent = "All stems muted";
+          } else if (live.length === names.length) {
+            summaryEl.textContent = "All four stems in";
+          } else {
+            summaryEl.textContent = `Audible: ${live.join(", ")}`;
+          }
         }
       }
     };
