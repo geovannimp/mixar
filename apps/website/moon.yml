@@ -61,14 +61,14 @@ tasks:
     options:
       runInCI: true
 
-  # Named `lint` so it joins the existing pipeline: root `npm run lint` is
-  # `moon run :lint`, which .github/workflows/lint.yml runs, and `moon ci` picks
-  # it up. The website opts out of inherited tasks, so without a task here this
-  # would be config nothing ever calls.
+  # A type check, not a linter, and named for what it does — the website has no
+  # ESLint/format step, and calling this `lint` would report lint coverage that
+  # does not exist. .github/workflows/lint.yml invokes it explicitly by name,
+  # because no workflow runs `moon ci`, so runInCI alone would not schedule it.
   #
   # Vite strips types without checking them, so without this a type error in
   # src/scripts would only surface at runtime.
-  lint:
+  typecheck:
     command: "npm"
     args: ["run", "check"]
     toolchain: "node"

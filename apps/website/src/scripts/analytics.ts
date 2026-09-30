@@ -69,9 +69,9 @@ export function redactEvent<T extends { properties?: Record<string, unknown> | n
   event: T,
 ): T {
   // Strict equality per the repo's style rule; `properties` may be null or
-// undefined, and a throw inside before_send runs on the capture path and can
-// take the event down with it.
-if (
+  // undefined, and a throw inside before_send runs on the capture path and can
+  // take the event down with it.
+  if (
     event === null ||
     event.properties === null ||
     event.properties === undefined

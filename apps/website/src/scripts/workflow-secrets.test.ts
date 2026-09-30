@@ -30,19 +30,37 @@ function or(a: unknown, b: unknown): unknown {
   return a ? a : b;
 }
 
-function evalExpression(expr: string, isPullRequest: boolean): unknown {
-  // Only the shape used by the workflow: `cond && X || Y`
-  const match = /^\$\{\{\s*github\.event_name\s*(!=|==)\s*'pull_request'\s*&&\s*(\S+)\s*\|\|\s*(\S+)\s*\}\}$/.exec(
-    expr.trim(),
-  );
-  if (!match) throw new Error(`unrecognised expression: ${expr}`);
+type Context = { event: string; ref: string };
 
-  const [, operator, whenTrue, whenFalse] = match;
-  const cond = operator === "!=" ? !isPullRequest : isPullRequest;
-  const truthy = whenTrue.includes("secrets.") ? SECRET : whenTrue.replace(/^'|'$/g, "");
-  const falsy = whenFalse.includes("secrets.") ? SECRET : whenFalse.replace(/^'|'$/g, "");
+/**
+ * Evaluates the workflow's gate. Supports the shape it actually uses:
+ * one or more `github.*` comparisons, `&&`-chained, then `|| <fallback>`.
+ */
+function evalExpression(expr: string, ctx: Context): unknown {
+  const body = /^\$\{\{(.*)\}\}$/.exec(expr.trim())?.[1];
+  if (!body) throw new Error(`unrecognised expression: ${expr}`);
 
-  return or(and(cond, truthy), falsy);
+  const [chain, fallback] = body.split("||").map((part) => part.trim());
+  if (fallback === undefined) throw new Error(`no fallback branch: ${expr}`);
+
+  const falsy = fallback.includes("secrets.")
+    ? SECRET
+    : fallback.replace(/^'|'$/g, "");
+
+  let value: unknown = true;
+  for (const clause of chain.split("&&").map((c) => c.trim())) {
+    const cmp = /^github\.(\w+)\s*(!=|==)\s*'([^']*)'$/.exec(clause);
+    if (cmp) {
+      const [, field, operator, expected] = cmp;
+      const actual = ctx[field as keyof Context];
+      value = and(value, operator === "!=" ? actual !== expected : actual === expected);
+      continue;
+    }
+    // A non-comparison operand is the value yielded when the conditions hold.
+    value = and(value, clause.includes("secrets.") ? SECRET : clause.replace(/^'|'$/g, ""));
+  }
+
+  return or(value, falsy);
 }
 
 function keyExpression(): string {
@@ -55,16 +73,48 @@ function keyExpression(): string {
 
 describe("pages.yml PostHog credentials", () => {
   // This is the security-critical invariant: the write-capable personal token
-  // must never reach a pull_request build, which executes PR-controlled code
-  // (astro.config.mjs, package.json, npm ci install scripts). The first version
-  // of this line was inverted and leaked the key on *every* event, because an
+  // must never reach a build that executes untrusted code. The first version of
+  // this line was inverted and leaked the key on *every* event, because an
   // empty string is falsy so `'' || secret` resolves to the secret.
   it("withholds the personal API key on pull_request events", () => {
-    expect(evalExpression(keyExpression(), true)).toBe("");
+    expect(evalExpression(keyExpression(), { event: "pull_request", ref: "refs/pull/1/merge" })).toBe("");
   });
 
-  it("provides the personal API key on trusted events", () => {
-    expect(evalExpression(keyExpression(), false)).toBe(SECRET);
+  // workflow_dispatch can target any ref. Dispatching against an unmerged
+  // branch runs that branch's astro.config.mjs / package.json / npm ci scripts
+  // with the secret in its environment, which is the same exfiltration vector
+  // the pull_request guard exists to close.
+  it("withholds the personal API key on a workflow_dispatch against a branch", () => {
+    expect(
+      evalExpression(keyExpression(), {
+        event: "workflow_dispatch",
+        ref: "refs/heads/some-feature-branch",
+      }),
+    ).toBe("");
+  });
+
+  it("provides the personal API key when pushing to main", () => {
+    expect(
+      evalExpression(keyExpression(), { event: "push", ref: "refs/heads/main" }),
+    ).toBe(SECRET);
+  });
+
+  it("provides the personal API key when dispatching on main", () => {
+    expect(
+      evalExpression(keyExpression(), {
+        event: "workflow_dispatch",
+        ref: "refs/heads/main",
+      }),
+    ).toBe(SECRET);
+  });
+
+  it("withholds the personal API key when pushing to a branch", () => {
+    expect(
+      evalExpression(keyExpression(), {
+        event: "push",
+        ref: "refs/heads/some-feature-branch",
+      }),
+    ).toBe("");
   });
 
   // The project token is public and write-only by design, so PR builds may

@@ -64,7 +64,7 @@ jobs:
         env:
           PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_PROJECT_KEY }}
           PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
-          POSTHOG_API_KEY: ${{ github.event_name != 'pull_request' && secrets.POSTHOG_PERSONAL_API_KEY || '' }}
+          POSTHOG_API_KEY: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.POSTHOG_PERSONAL_API_KEY || '' }}
           POSTHOG_PROJECT_ID: ${{ vars.POSTHOG_PROJECT_ID }}
           # App host, for the source map upload API — not the `eu.i.` ingestion
           # host that posthog-js uses.

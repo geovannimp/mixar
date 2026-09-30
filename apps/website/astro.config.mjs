@@ -28,9 +28,13 @@ export default defineConfig({
               host: process.env.POSTHOG_HOST ?? "https://eu.posthog.com",
               sourcemaps: {
                 enabled: true,
-                // Must match the release naming in PostHog or uploads succeed
-                // but stop matching, and traces silently go back to minified.
-                // Env-overridable so it can be changed without a code edit.
+                // The default releaseMode is `event`, which resolves a release
+                // id during the build and injects it into every chunk as
+                // `globalThis._posthogReleaseId`; posthog-js reads that when
+                // capturing $exception and tags it with $release_id. So the
+                // exceptions and the uploaded maps are linked by the build
+                // itself — nothing here has to be kept in sync by hand.
+                // Env-overridable so a rename needs no code edit.
                 releaseName: process.env.POSTHOG_RELEASE_NAME ?? "mixar-website",
                 // Emits maps as Rollup `hidden` (not referenced by a
                 // sourceMappingURL comment) and deletes them after upload, so
