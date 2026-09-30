@@ -21,7 +21,13 @@ const posthogKey = import.meta.env.PUBLIC_POSTHOG_KEY?.trim() ?? "";
 const posthogHost = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() || undefined;
 // Local-only escape hatch. A wrong host, a bad token or a tracking blocker all
 // fail silently, so this makes the SDK narrate itself in the console.
-const posthogDebug = import.meta.env.PUBLIC_POSTHOG_DEBUG === "true";
+//
+// ANDed with DEV on purpose: a PUBLIC_ flag alone is deployable, so a stray
+// value in CI would turn on verbose SDK logging for every visitor and expose
+// the SDK instance on their console. `astro dev` only — a note in
+// .env.example cannot enforce that.
+const posthogDebug =
+  import.meta.env.DEV && import.meta.env.PUBLIC_POSTHOG_DEBUG === "true";
 const analyticsEnabled = posthogKey !== "";
 ---
 

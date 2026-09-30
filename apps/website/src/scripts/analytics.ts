@@ -179,6 +179,15 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         // stay off: third-party noise buries real ones.
         capture_exceptions: true,
         before_send: redactEvent,
+        // Defaults to false, which would leave a visitor who sends Do Not Track
+        // being tracked and make the privacy page's promise false. When true the
+        // SDK also honours `msDoNotTrack` and Global Privacy Control, so this is
+        // broader than the DNT the page names.
+        respect_dnt: true,
+        // Drops exceptions raised by browser extensions and other injected
+        // scripts before capture. The privacy page states this, so it is set
+        // explicitly rather than left as an SDK default.
+        error_tracking: { captureExtensionExceptions: false },
         debug: config.debug,
       });
 

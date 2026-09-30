@@ -135,6 +135,15 @@ describe("initAnalytics", () => {
       // Strips the location-ish and fingerprinting properties the SDK attaches
       // by default, so the privacy page can be exact about what leaves.
       before_send: expect.any(Function),
+      // Defaults to false. With it off, a visitor who sends Do Not Track (or
+      // Global Privacy Control) is still tracked, which would make the privacy
+      // page's promise a lie. When true the SDK also honours msDoNotTrack and
+      // GPC, which is broader than the DNT the page names.
+      respect_dnt: true,
+      // Exceptions raised by extensions and injected scripts are dropped before
+      // capture. The privacy page says so; this makes it structural rather than
+      // an SDK default that a future version could flip.
+      error_tracking: { captureExtensionExceptions: false },
       debug: false,
     });
   });
