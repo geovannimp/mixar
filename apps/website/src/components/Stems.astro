@@ -378,6 +378,13 @@ const points = [
   for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
     if (root.dataset.stemsInit !== undefined) continue;
     root.dataset.stemsInit = "";
-    initStemsDemo(root, initStemConnectorFlow(root), initStemDemoPlayer(root));
+    const connectorFlow = initStemConnectorFlow(root);
+    initStemsDemo(
+      root,
+      connectorFlow,
+      initStemDemoPlayer(root, {
+        onPlayingChange: (playing) => connectorFlow?.setPlaying(playing),
+      }),
+    );
   }
 </script>

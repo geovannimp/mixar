@@ -96,6 +96,11 @@ export interface StemDemoPlayerHandle {
   dispose: () => void;
 }
 
+export interface StemDemoPlayerUiOptions {
+  /** Fired when transport enters/leaves playing (not on every tick). */
+  onPlayingChange?: (playing: boolean) => void;
+}
+
 const handlesByRoot = new WeakMap<HTMLElement, StemDemoPlayerHandle>();
 const liveHandles = new Set<StemDemoPlayerHandle>();
 let teardownWired = false;
@@ -118,7 +123,10 @@ function ensureGlobalTeardown(): void {
  * Bind the deck-style transport panel inside a stems demo root.
  * Load is deferred until the first Play so the marketing page stays light.
  */
-export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
+export function initStemDemoPlayer(
+  root: HTMLElement,
+  opts: StemDemoPlayerUiOptions = {},
+): StemDemoPlayerHandle {
   handlesByRoot.get(root)?.dispose();
   ensureGlobalTeardown();
 
@@ -145,6 +153,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   let lastDuration = "";
   let lastPlayingLabel = "";
   let lastAriaKey = "";
+  let lastPlaying = false;
   let resumeAfterScrub = false;
   let disposed = false;
 
@@ -220,6 +229,10 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
       lastPlayingLabel = playingLabel;
       playBtn.dataset.playing = String(playing);
       playBtn.setAttribute("aria-label", playingLabel);
+    }
+    if (playing !== lastPlaying) {
+      lastPlaying = playing;
+      opts.onPlayingChange?.(playing);
     }
     playBtn.disabled = snap.status === "loading";
 
@@ -341,6 +354,10 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    if (lastPlaying) {
+      lastPlaying = false;
+      opts.onPlayingChange?.(false);
+    }
     ac.abort();
     ro.disconnect();
     themeObs.disconnect();
