@@ -11,6 +11,9 @@ export const STEM_DEMO_TITLE = "Hittin Hard";
 
 /** stem-mp4 track indices: 0 master, 1–4 drums/bass/other/vocals. */
 const STEM_TRACK_INDICES = [1, 2, 3, 4] as const;
+const STEM_COUNT = STEM_TRACK_INDICES.length;
+/** Master + four stems. */
+const STEM_FILE_TRACK_COUNT = STEM_COUNT + 1;
 
 const GAIN_RAMP_SEC = 0.015;
 
@@ -92,8 +95,9 @@ export class StemDemoPlayer {
   private playing = false;
   private loadPromise: Promise<void> | null = null;
   private playPromise: Promise<void> | null = null;
+  private fetchAbort: AbortController | null = null;
   private raf = 0;
-  private audible = [true, true, true, true];
+  private audible = STEM_TRACK_INDICES.map(() => true);
   private disposed = false;
 
   constructor(opts: StemDemoPlayerOptions = {}) {
@@ -139,7 +143,7 @@ export class StemDemoPlayer {
 
   /** Wire mute/solo: `true` = audible. */
   setAudible(audible: boolean[]): void {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < STEM_COUNT; i++) {
       const next = audible[i] ?? true;
       if (this.audible[i] === next) continue;
       this.audible[i] = next;
@@ -255,6 +259,8 @@ export class StemDemoPlayer {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.fetchAbort?.abort();
+    this.fetchAbort = null;
     this.pause();
     this.stopTick();
     void this.ctx?.close();
@@ -277,18 +283,22 @@ export class StemDemoPlayer {
     this.message = undefined;
     this.emit();
 
+    this.fetchAbort?.abort();
+    this.fetchAbort = new AbortController();
+    const { signal } = this.fetchAbort;
+
     let response: Response;
     try {
-      response = await fetch(this.url);
+      response = await fetch(this.url, { signal });
     } catch {
-      if (this.disposed) return;
+      if (this.disposed || signal.aborted) return;
       this.status = "error";
       this.message = "Demo stem unavailable";
       this.emit();
       return;
     }
 
-    if (this.disposed) return;
+    if (this.disposed || signal.aborted) return;
 
     if (response.status === 404) {
       this.status = "missing";
@@ -306,11 +316,11 @@ export class StemDemoPlayer {
 
     try {
       const data = new Uint8Array(await response.arrayBuffer());
-      if (this.disposed) return;
+      if (this.disposed || signal.aborted) return;
       const { extractAllTracks } = await import("stem-mp4/extractor");
-      if (this.disposed) return;
+      if (this.disposed || signal.aborted) return;
       const tracks = extractAllTracks(data);
-      if (tracks.length < 5) {
+      if (tracks.length < STEM_FILE_TRACK_COUNT) {
         this.status = "error";
         this.message = "Demo stem unavailable";
         this.emit();
@@ -330,7 +340,7 @@ export class StemDemoPlayer {
         ),
         master ? ctx.decodeAudioData(copyTrackBytes(master)) : Promise.resolve(null),
       ]);
-      if (this.disposed) return;
+      if (this.disposed || signal.aborted) return;
       const overviewBuf = overview ?? stemBuffers[0]!;
 
       this.buffers = stemBuffers;
@@ -347,7 +357,7 @@ export class StemDemoPlayer {
       this.message = undefined;
       this.emit();
     } catch {
-      if (this.disposed) return;
+      if (this.disposed || signal.aborted) return;
       this.status = "error";
       this.message = "Demo stem unavailable";
       this.emit();

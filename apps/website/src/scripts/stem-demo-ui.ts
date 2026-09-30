@@ -83,6 +83,14 @@ function readThemeColor(el: Element, name: string, fallback: string): string {
   return value || fallback;
 }
 
+function readPalette(root: Element): WaveColors {
+  return {
+    wave: readThemeColor(root, "--accent", "#2dd4bf"),
+    playhead: "#f4f4f5",
+    bg: "#000000",
+  };
+}
+
 export interface StemDemoPlayerHandle {
   setAudible: (audible: boolean[]) => void;
   dispose: () => void;
@@ -126,11 +134,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   if (!playBtn || !canvas || !waveWrap) return noop;
 
   const peaksLayer = document.createElement("canvas");
-  let colors: WaveColors = {
-    wave: readThemeColor(root, "--accent", "#2dd4bf"),
-    playhead: "#f4f4f5",
-    bg: "#000000",
-  };
+  let colors = readPalette(root);
   let layerKey = "";
   let wrapW = waveWrap.clientWidth;
   let wrapH = waveWrap.clientHeight;
@@ -145,11 +149,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   let disposed = false;
 
   const refreshColors = () => {
-    colors = {
-      wave: readThemeColor(root, "--accent", "#2dd4bf"),
-      playhead: "#f4f4f5",
-      bg: "#000000",
-    };
+    colors = readPalette(root);
     layerKey = "";
   };
 
@@ -196,6 +196,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
 
   let player: StemDemoPlayer;
   const paint = (snap: StemDemoSnapshot) => {
+    if (disposed) return;
     if (titleEl && snap.title !== lastTitle) {
       lastTitle = snap.title;
       titleEl.textContent = snap.title;
@@ -262,12 +263,13 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     player.seekRatio(ratio);
   };
 
-  const endScrub = (event: PointerEvent) => {
+  const endScrub = (event: PointerEvent, resume: boolean) => {
     if (waveWrap.hasPointerCapture(event.pointerId)) {
       waveWrap.releasePointerCapture(event.pointerId);
     }
     if (!resumeAfterScrub) return;
     resumeAfterScrub = false;
+    if (!resume) return;
     player.primeAudio();
     void player.play();
   };
@@ -293,8 +295,8 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     },
     { signal },
   );
-  waveWrap.addEventListener("pointerup", endScrub, { signal });
-  waveWrap.addEventListener("pointercancel", endScrub, { signal });
+  waveWrap.addEventListener("pointerup", (event) => endScrub(event, true), { signal });
+  waveWrap.addEventListener("pointercancel", (event) => endScrub(event, false), { signal });
   waveWrap.addEventListener(
     "keydown",
     (event) => {
