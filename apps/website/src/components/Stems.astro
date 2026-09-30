@@ -9,6 +9,7 @@ import {
   Zap,
 } from "@lucide/astro";
 import { NI_STEMS_URL } from "../consts";
+import { STEM_DEMO_TITLE } from "../scripts/stem-demo-player";
 
 /** NI / stemgen default stem order, labels, and colors. */
 const stems = [
@@ -177,7 +178,7 @@ const points = [
                 data-stem-title
                 class="block truncate text-sm font-semibold leading-snug text-fg"
               >
-                Hittin Hard
+                {STEM_DEMO_TITLE}
               </span>
               <div
                 class="mt-1 flex items-center justify-between gap-3 font-mono text-[0.75rem] tabular-nums text-muted"
@@ -267,7 +268,6 @@ const points = [
                   <li
                     data-stem-lane
                     data-stem={index}
-                    data-stem-label={stem.label}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
                     class="flex flex-row grow w-full justify-between items-center gap-2 data-[audible=false]:opacity-30"
@@ -375,6 +375,9 @@ const points = [
   for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
     if (root.dataset.stemsInit !== undefined) continue;
     root.dataset.stemsInit = "";
-    initStemsDemo(root, initStemConnectorFlow(root), initStemDemoPlayer(root));
+    const audio = initStemDemoPlayer(root);
+    initStemsDemo(root, initStemConnectorFlow(root), audio);
+    // Mirror pagehide so Astro HMR / soft navs that skip pagehide still tear down.
+    document.addEventListener("astro:before-swap", () => audio.dispose(), { once: true });
   }
 </script>

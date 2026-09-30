@@ -88,11 +88,15 @@ export interface StemDemoPlayerHandle {
   dispose: () => void;
 }
 
+const handles = new WeakMap<HTMLElement, StemDemoPlayerHandle>();
+
 /**
  * Bind the deck-style transport panel inside a stems demo root.
  * Load is deferred until the first Play so the marketing page stays light.
  */
 export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
+  handles.get(root)?.dispose();
+
   const playBtn = root.querySelector<HTMLButtonElement>("[data-stem-play]");
   const titleEl = root.querySelector<HTMLElement>("[data-stem-title]");
   const elapsedEl = root.querySelector<HTMLElement>("[data-stem-elapsed]");
@@ -111,10 +115,15 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     bg: "#000000",
   };
   let layerKey = "";
-  let lastCssW = 0;
-  let lastCssH = 0;
+  let wrapW = waveWrap.clientWidth;
+  let wrapH = waveWrap.clientHeight;
   let lastPeaks: Float32Array | null = null;
   let lastStatus: StemDemoSnapshot["status"] | "" = "";
+  let lastTitle = "";
+  let lastElapsed = "";
+  let lastDuration = "";
+  let lastPlayingLabel = "";
+  let lastAriaKey = "";
   let disposed = false;
 
   const refreshColors = () => {
@@ -126,10 +135,10 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     layerKey = "";
   };
 
-  const ensurePeaksLayer = (peaks: Float32Array | null, cssW: number, cssH: number) => {
+  const ensurePeaksLayer = (peaks: Float32Array | null) => {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, Math.round(cssW * dpr));
-    const height = Math.max(1, Math.round(cssH * dpr));
+    const width = Math.max(1, Math.round(wrapW * dpr));
+    const height = Math.max(1, Math.round(wrapH * dpr));
     const key = `${width}x${height}|${colors.wave}|${colors.bg}`;
     if (
       layerKey === key &&
@@ -149,6 +158,9 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   const updateSeekAria = (snap: StemDemoSnapshot) => {
     const max = Math.max(0, Math.round(snap.duration));
     const now = Math.max(0, Math.min(max, Math.round(snap.position)));
+    const key = `${now}|${max}`;
+    if (key === lastAriaKey) return;
+    lastAriaKey = key;
     waveWrap.setAttribute("aria-valuemin", "0");
     waveWrap.setAttribute("aria-valuemax", String(max));
     waveWrap.setAttribute("aria-valuenow", String(now));
@@ -159,14 +171,30 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   };
 
   const paint = (snap: StemDemoSnapshot) => {
-    if (titleEl) titleEl.textContent = snap.title;
+    if (titleEl && snap.title !== lastTitle) {
+      lastTitle = snap.title;
+      titleEl.textContent = snap.title;
+    }
+
     const remaining = Math.max(0, snap.duration - snap.position);
-    if (elapsedEl) elapsedEl.textContent = formatDeckTime(remaining, true);
-    if (durationEl) durationEl.textContent = formatDeckTime(snap.duration);
+    const elapsedText = formatDeckTime(remaining, true);
+    const durationText = formatDeckTime(snap.duration);
+    if (elapsedEl && elapsedText !== lastElapsed) {
+      lastElapsed = elapsedText;
+      elapsedEl.textContent = elapsedText;
+    }
+    if (durationEl && durationText !== lastDuration) {
+      lastDuration = durationText;
+      durationEl.textContent = durationText;
+    }
 
     const playing = snap.status === "playing";
-    playBtn.dataset.playing = String(playing);
-    playBtn.setAttribute("aria-label", playing ? "Pause" : "Play");
+    const playingLabel = playing ? "Pause" : "Play";
+    if (playingLabel !== lastPlayingLabel) {
+      lastPlayingLabel = playingLabel;
+      playBtn.dataset.playing = String(playing);
+      playBtn.setAttribute("aria-label", playingLabel);
+    }
     playBtn.disabled = snap.status === "loading";
 
     if (statusEl && snap.status !== lastStatus) {
@@ -182,16 +210,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
       }
     }
 
-    const cssW = waveWrap.clientWidth;
-    const cssH = waveWrap.clientHeight;
-    if (cssW !== lastCssW || cssH !== lastCssH) {
-      lastCssW = cssW;
-      lastCssH = cssH;
-      layerKey = "";
-    }
-
-    const peaks = player.getPeaks();
-    ensurePeaksLayer(peaks, cssW, cssH);
+    ensurePeaksLayer(player.getPeaks());
     drawStemWaveform(canvas, peaksLayer, snap.position, snap.duration, colors.playhead);
     updateSeekAria(snap);
   };
@@ -202,13 +221,26 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   const ac = new AbortController();
   const { signal } = ac;
 
-  playBtn.addEventListener("click", () => void player.toggle(), { signal });
+  playBtn.addEventListener(
+    "click",
+    () => {
+      player.primeAudio();
+      void player.toggle();
+    },
+    { signal },
+  );
 
   const seekFromEvent = (clientX: number) => {
+    if (wrapW <= 0) return;
     const rect = waveWrap.getBoundingClientRect();
-    if (rect.width <= 0) return;
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     player.seekRatio(ratio);
+  };
+
+  const releaseCapture = (event: PointerEvent) => {
+    if (waveWrap.hasPointerCapture(event.pointerId)) {
+      waveWrap.releasePointerCapture(event.pointerId);
+    }
   };
 
   waveWrap.addEventListener(
@@ -228,6 +260,8 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     },
     { signal },
   );
+  waveWrap.addEventListener("pointerup", releaseCapture, { signal });
+  waveWrap.addEventListener("pointercancel", releaseCapture, { signal });
   waveWrap.addEventListener(
     "keydown",
     (event) => {
@@ -251,7 +285,13 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     { signal },
   );
 
-  const ro = new ResizeObserver(() => paint(player.snapshot()));
+  const ro = new ResizeObserver((entries) => {
+    const box = entries[0]?.contentRect;
+    wrapW = box?.width ?? waveWrap.clientWidth;
+    wrapH = box?.height ?? waveWrap.clientHeight;
+    layerKey = "";
+    paint(player.snapshot());
+  });
   ro.observe(waveWrap);
 
   const themeObs = new MutationObserver(() => {
@@ -270,13 +310,16 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     ro.disconnect();
     themeObs.disconnect();
     player.dispose();
+    if (handles.get(root) === handle) handles.delete(root);
   };
   window.addEventListener("pagehide", dispose, { once: true, signal });
 
-  return {
+  const handle: StemDemoPlayerHandle = {
     setAudible(audible) {
       player.setAudible(audible);
     },
     dispose,
   };
+  handles.set(root, handle);
+  return handle;
 }

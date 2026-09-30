@@ -12,6 +12,8 @@ export const STEM_DEMO_TITLE = "Hittin Hard";
 /** stem-mp4 track indices: 0 master, 1–4 drums/bass/other/vocals. */
 const STEM_TRACK_INDICES = [1, 2, 3, 4] as const;
 
+const GAIN_RAMP_SEC = 0.015;
+
 export type StemDemoStatus =
   | "idle"
   | "loading"
@@ -114,33 +116,54 @@ export class StemDemoPlayer {
 
   position(): number {
     if (this.playing && this.ctx) {
-      return Math.min(this.pauseAt + (this.ctx.currentTime - this.startedAt), this.duration);
+      return Math.max(
+        0,
+        Math.min(this.pauseAt + (this.ctx.currentTime - this.startedAt), this.duration),
+      );
     }
     return this.pauseAt;
+  }
+
+  /**
+   * Create/resume the AudioContext inside a user gesture so later awaits
+   * (fetch/decode) do not leave playback permanently suspended.
+   */
+  primeAudio(): void {
+    this.ctx ??= new AudioContext();
+    if (this.ctx.state === "suspended") {
+      void this.ctx.resume();
+    }
   }
 
   /** Wire mute/solo: `true` = audible. */
   setAudible(audible: boolean[]): void {
     for (let i = 0; i < 4; i++) {
-      this.audible[i] = audible[i] ?? true;
+      const next = audible[i] ?? true;
+      if (this.audible[i] === next) continue;
+      this.audible[i] = next;
       const gain = this.gains[i];
-      if (gain && this.ctx) {
-        gain.gain.setValueAtTime(this.audible[i] ? 1 : 0, this.ctx.currentTime);
-      }
+      if (!gain || !this.ctx) continue;
+      const now = this.ctx.currentTime;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(next ? 1 : 0, now + GAIN_RAMP_SEC);
     }
   }
 
   async ensureLoaded(): Promise<void> {
-    if (this.status === "ready" || this.status === "playing" || this.status === "paused") {
+    if (
+      this.status === "ready" ||
+      this.status === "playing" ||
+      this.status === "paused" ||
+      this.status === "missing" ||
+      this.status === "error"
+    ) {
       return;
     }
-    if (this.loadPromise) return this.loadPromise;
-    this.loadPromise = this.load();
-    try {
-      await this.loadPromise;
-    } finally {
-      this.loadPromise = null;
-    }
+    // Keep the promise for the lifetime of the player so concurrent Play calls
+    // share one fetch/decode and failures are not re-issued.
+    this.loadPromise ??= this.load();
+    await this.loadPromise;
   }
 
   async toggle(): Promise<void> {
@@ -162,6 +185,9 @@ export class StemDemoPlayer {
       this.pauseAt = 0;
     }
 
+    // Cancel any prior RAF chain before starting a new one (seek-while-playing
+    // used to orphan frames by overwriting `this.raf`).
+    this.stopTick();
     this.stopSources();
     const when = this.ctx.currentTime + 0.03;
     this.startedAt = when;
@@ -192,6 +218,7 @@ export class StemDemoPlayer {
     if (this.duration <= 0) return;
     const next = Math.max(0, Math.min(seconds, this.duration));
     const wasPlaying = this.playing;
+    this.stopTick();
     this.stopSources();
     this.playing = false;
     this.pauseAt = next;
@@ -258,21 +285,24 @@ export class StemDemoPlayer {
       }
 
       this.ctx ??= new AudioContext();
-      const stemBuffers: AudioBuffer[] = [];
-      for (const index of STEM_TRACK_INDICES) {
-        const track = tracks[index];
-        if (!track) throw new Error(`missing stem track ${index}`);
-        stemBuffers.push(await this.ctx.decodeAudioData(copyTrackBytes(track)));
-      }
-
       const master = tracks[0];
-      const overview = master
-        ? await this.ctx.decodeAudioData(copyTrackBytes(master))
-        : stemBuffers[0]!;
+      const [stemBuffers, overview] = await Promise.all([
+        Promise.all(
+          STEM_TRACK_INDICES.map(async (index) => {
+            const track = tracks[index];
+            if (!track) throw new Error(`missing stem track ${index}`);
+            return this.ctx!.decodeAudioData(copyTrackBytes(track));
+          }),
+        ),
+        master
+          ? this.ctx.decodeAudioData(copyTrackBytes(master))
+          : Promise.resolve(null),
+      ]);
+      const overviewBuf = overview ?? stemBuffers[0]!;
 
       this.buffers = stemBuffers;
       this.duration = Math.max(...stemBuffers.map((b) => b.duration));
-      this.peaks = peaksFromBuffer(overview, this.peaksSampleCount);
+      this.peaks = peaksFromBuffer(overviewBuf, this.peaksSampleCount);
       this.gains = stemBuffers.map((_, i) => {
         const gain = this.ctx!.createGain();
         gain.gain.value = this.audible[i] ? 1 : 0;
