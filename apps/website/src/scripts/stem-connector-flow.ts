@@ -42,6 +42,7 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
   const paths = Array.from(connector.querySelectorAll<SVGPathElement>("path[data-stem]"));
   if (paths.length === 0) return undefined;
 
+  const disc = root.querySelector<HTMLElement>("[data-stem-disc]");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const lanes = new Map<number, LaneEntry>();
   let onScreen = true;
@@ -60,6 +61,10 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
 
   const syncAll = () => {
     for (const lane of lanes.values()) sync(lane);
+  };
+
+  const syncDisc = () => {
+    disc?.setAttribute("data-playing", String(playing && onScreen));
   };
 
   for (const path of paths) {
@@ -85,6 +90,7 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
     const observer = new IntersectionObserver(([entry]) => {
       onScreen = entry?.isIntersecting ?? true;
       syncAll();
+      syncDisc();
     });
     observer.observe(connector);
   }
@@ -101,6 +107,7 @@ export function initStemConnectorFlow(root: ParentNode = document): StemConnecto
       if (playing === next) return;
       playing = next;
       syncAll();
+      syncDisc();
     },
   };
 }
