@@ -1,11 +1,9 @@
 ---
 import { GITHUB_REPO, QUICK_START_URL } from "../consts";
-import { Code, Star, Terminal } from "@lucide/astro";
-import Badge from "./ui/Badge.astro";
+import { Star, Terminal } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
-const badgeIconProps = { size: 14, "stroke-width": 2 };
 ---
 
 <section class="relative px-section py-24 lg:py-28">
@@ -15,18 +13,14 @@ const badgeIconProps = { size: 14, "stroke-width": 2 };
   >
   </div>
   <div class="mx-auto max-w-content text-center">
-    <Badge>
-      <Code {...badgeIconProps} aria-hidden="true" />
-      Open source
-    </Badge>
     <h1
       class="mb-5 text-[clamp(2.75rem,6vw,4rem)] font-bold leading-[1.02] tracking-[-0.03em]"
     >
       <span class="text-accent">Build</span> with us
     </h1>
     <p class="mx-auto mb-8 max-w-[48ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
-      Mixar is a modular Rust audio engine with a Flutter UI. Inspect the code, run it locally, and
-      help shape the future of open DJ software.
+      Mixar is open source: a Rust audio engine with a Flutter front end. Clone it, run
+      it locally, and change whatever gets in your way.
     </p>
     <div class="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
       <Button href={GITHUB_REPO} external placement="dev_hero" class="px-7 py-3.5 text-base">

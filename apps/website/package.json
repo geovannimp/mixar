@@ -18,7 +18,8 @@
     "astro": "^7.2.10",
     "mermaid": "^11.17.2",
     "motion": "^13.1.1",
-    "posthog-js": "^1.434.15"
+    "posthog-js": "^1.434.15",
+    "stem-mp4": "^0.5.0"
   },
   "devDependencies": {
     "@posthog/rollup-plugin": "^1.6.1",

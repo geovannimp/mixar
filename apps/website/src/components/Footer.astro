@@ -25,10 +25,11 @@ const footerLink =
           />
         </a>
         <p class="mt-4 font-serif text-[clamp(1.25rem,3vw,1.5rem)] font-bold leading-snug tracking-tight text-fg">
-          Free DJ software that doesn't limit you
+          Free DJ software, nothing locked away
         </p>
         <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
-          Open-source mixing for Linux today. Desktop and mobile platforms on the roadmap.
+          Open source under GPL-3.0 and running on Linux today. macOS, Windows, and
+          mobile are on the roadmap.
         </p>
       </div>
       <nav aria-label="Footer">
@@ -36,6 +37,16 @@ const footerLink =
           <li>
             <a class={footerLink} href={currentPage === "home" ? "#features" : "/#features"}>
               Features
+            </a>
+          </li>
+          <li>
+            <a class={footerLink} href={currentPage === "home" ? "#stems" : "/#stems"}>
+              NI Stems
+            </a>
+          </li>
+          <li>
+            <a class={footerLink} href={currentPage === "home" ? "#pricing" : "/#pricing"}>
+              Pricing
             </a>
           </li>
           <li>

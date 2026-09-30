@@ -6,9 +6,9 @@ import Button from "./ui/Button.astro";
 const iconProps = { size: 18, "stroke-width": 2 };
 
 const bullets = [
-  "Inspectable codebase with a modular crate layout",
-  "Real-time, low-latency audio engine in Rust",
-  "Issues and pull requests welcome at every skill level",
+  "The engine, GUI, and library all live in one repo",
+  "A real-time Rust audio path you can trace end to end",
+  "Issues and pull requests welcome, whatever your experience",
 ] as const;
 
 const bulletClass =
@@ -21,11 +21,11 @@ const bulletClass =
   >
     <Handshake class="mx-auto mb-6 size-20 text-accent" stroke-width={1.75} aria-hidden="true" />
     <h2 class="mb-4 font-serif text-[clamp(2rem,5vw,2.75rem)] font-bold leading-[1.1] tracking-[-0.03em]">
-      Open source, built for the community
+      Open source, top to bottom
     </h2>
     <p class="mx-auto mb-10 max-w-[50ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
-      Mixar is GPL-3.0 licensed and open to contributors. Fork, extend, report bugs, or open a pull
-      request, whether you code or just follow along.
+      Mixar is GPL-3.0. Read the whole engine, fork it for your own setup, or send a fix
+      upstream. Bug reports and pull requests are all welcome.
     </p>
     <ul
       class="mx-auto mb-10 max-w-[32rem] space-y-3 text-left text-base leading-relaxed text-muted"

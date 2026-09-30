@@ -1,6 +1,6 @@
 ---
-import { README_URL, CONTRIBUTING_URL } from "../consts";
-import { BookOpen, Handshake } from "@lucide/astro";
+import { README_URL, CONTRIBUTING_URL, ISSUES_URL } from "../consts";
+import { BookOpen, Bug, Handshake } from "@lucide/astro";
 import Button from "./ui/Button.astro";
 
 const iconProps = { size: 18, "stroke-width": 2 };
@@ -17,7 +17,8 @@ const iconProps = { size: 18, "stroke-width": 2 };
       Get involved
     </h2>
     <p class="mx-auto mb-10 max-w-[50ch] text-[1.125rem] leading-relaxed text-muted lg:text-xl">
-      Local setup and prerequisites are in the README; contribution guidelines are on GitHub.
+      Setup steps are in the README and contribution guidelines live on GitHub. Pick a bug
+      or a rough edge you care about and start there.
     </p>
     <div class="flex flex-wrap justify-center gap-3">
       <Button href={README_URL} external placement="dev_docs" class="px-7 py-3.5 text-base">
@@ -26,6 +27,10 @@ const iconProps = { size: 18, "stroke-width": 2 };
       </Button>
       <Button href={CONTRIBUTING_URL} external variant="secondary" placement="dev_docs" class="px-7 py-3.5 text-base">
         Contributing
+      </Button>
+      <Button href={ISSUES_URL} external variant="secondary" class="px-7 py-3.5 text-base">
+        <Bug {...iconProps} aria-hidden="true" />
+        Open issues
       </Button>
     </div>
   </div>
