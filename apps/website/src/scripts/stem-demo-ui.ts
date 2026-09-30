@@ -88,18 +88,35 @@ export interface StemDemoPlayerHandle {
   dispose: () => void;
 }
 
-const handles = new WeakMap<HTMLElement, StemDemoPlayerHandle>();
+const handlesByRoot = new WeakMap<HTMLElement, StemDemoPlayerHandle>();
+const liveHandles = new Set<StemDemoPlayerHandle>();
+let teardownWired = false;
+
+/** Tear down every live stem demo player (pagehide / Astro swap). */
+export function disposeAllStemDemoPlayers(): void {
+  for (const handle of [...liveHandles]) handle.dispose();
+}
+
+function ensureGlobalTeardown(): void {
+  if (teardownWired) return;
+  teardownWired = true;
+  // Persistent listeners: dispose is idempotent and liveHandles is empty after teardown,
+  // so repeated pagehide / before-swap events are cheap and cover soft navigations.
+  window.addEventListener("pagehide", disposeAllStemDemoPlayers);
+  document.addEventListener("astro:before-swap", disposeAllStemDemoPlayers);
+}
 
 /**
  * Bind the deck-style transport panel inside a stems demo root.
  * Load is deferred until the first Play so the marketing page stays light.
  */
 export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
-  handles.get(root)?.dispose();
+  handlesByRoot.get(root)?.dispose();
+  ensureGlobalTeardown();
 
   const playBtn = root.querySelector<HTMLButtonElement>("[data-stem-play]");
   const titleEl = root.querySelector<HTMLElement>("[data-stem-title]");
-  const elapsedEl = root.querySelector<HTMLElement>("[data-stem-elapsed]");
+  const remainingEl = root.querySelector<HTMLElement>("[data-stem-remaining]");
   const durationEl = root.querySelector<HTMLElement>("[data-stem-duration]");
   const statusEl = root.querySelector<HTMLElement>("[data-stem-player-status]");
   const canvas = root.querySelector<HTMLCanvasElement>("[data-stem-wave]");
@@ -120,10 +137,11 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   let lastPeaks: Float32Array | null = null;
   let lastStatus: StemDemoSnapshot["status"] | "" = "";
   let lastTitle = "";
-  let lastElapsed = "";
+  let lastRemaining = "";
   let lastDuration = "";
   let lastPlayingLabel = "";
   let lastAriaKey = "";
+  let resumeAfterScrub = false;
   let disposed = false;
 
   const refreshColors = () => {
@@ -177,11 +195,11 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     }
 
     const remaining = Math.max(0, snap.duration - snap.position);
-    const elapsedText = formatDeckTime(remaining, true);
+    const remainingText = formatDeckTime(remaining, true);
     const durationText = formatDeckTime(snap.duration);
-    if (elapsedEl && elapsedText !== lastElapsed) {
-      lastElapsed = elapsedText;
-      elapsedEl.textContent = elapsedText;
+    if (remainingEl && remainingText !== lastRemaining) {
+      lastRemaining = remainingText;
+      remainingEl.textContent = remainingText;
     }
     if (durationEl && durationText !== lastDuration) {
       lastDuration = durationText;
@@ -237,16 +255,23 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     player.seekRatio(ratio);
   };
 
-  const releaseCapture = (event: PointerEvent) => {
+  const endScrub = (event: PointerEvent) => {
     if (waveWrap.hasPointerCapture(event.pointerId)) {
       waveWrap.releasePointerCapture(event.pointerId);
     }
+    if (!resumeAfterScrub) return;
+    resumeAfterScrub = false;
+    player.primeAudio();
+    void player.play();
   };
 
   waveWrap.addEventListener(
     "pointerdown",
     (event) => {
       if (player.snapshot().duration <= 0) return;
+      // Pause for the drag so pointermove seeks don't rebuild sources every event.
+      resumeAfterScrub = player.snapshot().status === "playing";
+      if (resumeAfterScrub) player.pause();
       waveWrap.setPointerCapture(event.pointerId);
       seekFromEvent(event.clientX);
     },
@@ -260,8 +285,8 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     },
     { signal },
   );
-  waveWrap.addEventListener("pointerup", releaseCapture, { signal });
-  waveWrap.addEventListener("pointercancel", releaseCapture, { signal });
+  waveWrap.addEventListener("pointerup", endScrub, { signal });
+  waveWrap.addEventListener("pointercancel", endScrub, { signal });
   waveWrap.addEventListener(
     "keydown",
     (event) => {
@@ -310,9 +335,9 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     ro.disconnect();
     themeObs.disconnect();
     player.dispose();
-    if (handles.get(root) === handle) handles.delete(root);
+    liveHandles.delete(handle);
+    if (handlesByRoot.get(root) === handle) handlesByRoot.delete(root);
   };
-  window.addEventListener("pagehide", dispose, { once: true, signal });
 
   const handle: StemDemoPlayerHandle = {
     setAudible(audible) {
@@ -320,6 +345,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     },
     dispose,
   };
-  handles.set(root, handle);
+  handlesByRoot.set(root, handle);
+  liveHandles.add(handle);
   return handle;
 }

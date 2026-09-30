@@ -91,8 +91,10 @@ export class StemDemoPlayer {
   private startedAt = 0;
   private playing = false;
   private loadPromise: Promise<void> | null = null;
+  private playPromise: Promise<void> | null = null;
   private raf = 0;
   private audible = [true, true, true, true];
+  private disposed = false;
 
   constructor(opts: StemDemoPlayerOptions = {}) {
     this.url = opts.url ?? STEM_DEMO_URL;
@@ -151,6 +153,7 @@ export class StemDemoPlayer {
   }
 
   async ensureLoaded(): Promise<void> {
+    if (this.disposed) return;
     if (
       this.status === "ready" ||
       this.status === "playing" ||
@@ -167,6 +170,7 @@ export class StemDemoPlayer {
   }
 
   async toggle(): Promise<void> {
+    if (this.disposed) return;
     if (this.playing) {
       this.pause();
       return;
@@ -175,11 +179,26 @@ export class StemDemoPlayer {
   }
 
   async play(): Promise<void> {
+    if (this.disposed) return;
+    if (this.playing) return;
+    // Collapse rapid double-clicks while the first Play is still awaiting load.
+    if (this.playPromise) return this.playPromise;
+    this.playPromise = this.startPlayback();
+    try {
+      await this.playPromise;
+    } finally {
+      this.playPromise = null;
+    }
+  }
+
+  private async startPlayback(): Promise<void> {
     await this.ensureLoaded();
+    if (this.disposed || this.playing) return;
     if (this.status === "missing" || this.status === "error") return;
     if (!this.ctx || this.buffers.length === 0) return;
 
     if (this.ctx.state === "suspended") await this.ctx.resume();
+    if (this.disposed || this.playing) return;
 
     if (this.pauseAt >= this.duration && this.duration > 0) {
       this.pauseAt = 0;
@@ -215,7 +234,7 @@ export class StemDemoPlayer {
   }
 
   seek(seconds: number): void {
-    if (this.duration <= 0) return;
+    if (this.disposed || this.duration <= 0) return;
     const next = Math.max(0, Math.min(seconds, this.duration));
     const wasPlaying = this.playing;
     this.stopTick();
@@ -238,13 +257,26 @@ export class StemDemoPlayer {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
     this.pause();
     this.stopTick();
     void this.ctx?.close();
     this.ctx = null;
+    this.buffers = [];
+    this.gains = [];
+    this.sources = [];
+    this.peaks = null;
+    this.duration = 0;
+    this.pauseAt = 0;
+    this.loadPromise = null;
+    this.playPromise = null;
+    this.status = "idle";
+    this.message = undefined;
   }
 
   private async load(): Promise<void> {
+    if (this.disposed) return;
     this.status = "loading";
     this.message = undefined;
     this.emit();
@@ -253,11 +285,14 @@ export class StemDemoPlayer {
     try {
       response = await fetch(this.url);
     } catch {
+      if (this.disposed) return;
       this.status = "error";
       this.message = "Demo stem unavailable";
       this.emit();
       return;
     }
+
+    if (this.disposed) return;
 
     if (response.status === 404) {
       this.status = "missing";
@@ -275,7 +310,9 @@ export class StemDemoPlayer {
 
     try {
       const data = new Uint8Array(await response.arrayBuffer());
+      if (this.disposed) return;
       const { extractAllTracks } = await import("stem-mp4/extractor");
+      if (this.disposed) return;
       const tracks = extractAllTracks(data);
       if (tracks.length < 5) {
         this.status = "error";
@@ -285,28 +322,28 @@ export class StemDemoPlayer {
       }
 
       this.ctx ??= new AudioContext();
+      const ctx = this.ctx;
       const master = tracks[0];
       const [stemBuffers, overview] = await Promise.all([
         Promise.all(
           STEM_TRACK_INDICES.map(async (index) => {
             const track = tracks[index];
             if (!track) throw new Error(`missing stem track ${index}`);
-            return this.ctx!.decodeAudioData(copyTrackBytes(track));
+            return ctx.decodeAudioData(copyTrackBytes(track));
           }),
         ),
-        master
-          ? this.ctx.decodeAudioData(copyTrackBytes(master))
-          : Promise.resolve(null),
+        master ? ctx.decodeAudioData(copyTrackBytes(master)) : Promise.resolve(null),
       ]);
+      if (this.disposed) return;
       const overviewBuf = overview ?? stemBuffers[0]!;
 
       this.buffers = stemBuffers;
       this.duration = Math.max(...stemBuffers.map((b) => b.duration));
       this.peaks = peaksFromBuffer(overviewBuf, this.peaksSampleCount);
       this.gains = stemBuffers.map((_, i) => {
-        const gain = this.ctx!.createGain();
+        const gain = ctx.createGain();
         gain.gain.value = this.audible[i] ? 1 : 0;
-        gain.connect(this.ctx!.destination);
+        gain.connect(ctx.destination);
         return gain;
       });
       this.pauseAt = 0;
@@ -314,6 +351,7 @@ export class StemDemoPlayer {
       this.message = undefined;
       this.emit();
     } catch {
+      if (this.disposed) return;
       this.status = "error";
       this.message = "Demo stem unavailable";
       this.emit();

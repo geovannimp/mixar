@@ -183,7 +183,7 @@ const points = [
               <div
                 class="mt-1 flex items-center justify-between gap-3 font-mono text-[0.75rem] tabular-nums text-muted"
               >
-                <span data-stem-elapsed>-0:00.0</span>
+                <span data-stem-remaining>-0:00.0</span>
                 <span data-stem-duration>0:00.0</span>
               </div>
             </div>
@@ -202,6 +202,8 @@ const points = [
             <canvas data-stem-wave class="absolute inset-0 size-full"></canvas>
             <p
               data-stem-player-status
+              role="status"
+              aria-live="polite"
               class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 px-3 text-center text-[0.75rem] text-muted"
               hidden
             ></p>
@@ -375,9 +377,6 @@ const points = [
   for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
     if (root.dataset.stemsInit !== undefined) continue;
     root.dataset.stemsInit = "";
-    const audio = initStemDemoPlayer(root);
-    initStemsDemo(root, initStemConnectorFlow(root), audio);
-    // Mirror pagehide so Astro HMR / soft navs that skip pagehide still tear down.
-    document.addEventListener("astro:before-swap", () => audio.dispose(), { once: true });
+    initStemsDemo(root, initStemConnectorFlow(root), initStemDemoPlayer(root));
   }
 </script>
