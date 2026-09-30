@@ -315,12 +315,15 @@ const points = [
     initStemConnectorFlow,
     type StemConnectorFlow,
   } from "../scripts/stem-connector-flow";
-  import { initStemDemoPlayer } from "../scripts/stem-demo-ui";
+  import {
+    initStemDemoPlayer,
+    type StemDemoPlayerHandle,
+  } from "../scripts/stem-demo-ui";
 
   const initStemsDemo = (
     root: HTMLElement,
     connectorFlow?: StemConnectorFlow,
-    audio?: { setAudible: (audible: boolean[]) => void },
+    audio?: StemDemoPlayerHandle,
   ) => {
     const pads = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-stem-pad]"));
     const lanes = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-lane]"));

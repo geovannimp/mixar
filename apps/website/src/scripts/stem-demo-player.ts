@@ -9,6 +9,9 @@ export const STEM_DEMO_URL = "/demo/track.stem.mp4";
 /** Title from the NI free Stems pack demo file (`©nam`). */
 export const STEM_DEMO_TITLE = "Hittin Hard";
 
+/** Visitor-facing status when the demo asset cannot be loaded. */
+export const STEM_UNAVAILABLE_MESSAGE = "Demo stem unavailable";
+
 /** stem-mp4 track indices: 0 master, 1–4 drums/bass/other/vocals. */
 const STEM_TRACK_INDICES = [1, 2, 3, 4] as const;
 const STEM_COUNT = STEM_TRACK_INDICES.length;
@@ -61,7 +64,7 @@ export function peaksFromBuffer(buffer: AudioBuffer, samples: number): Float32Ar
   const bucket = channel.length / samples;
   for (let i = 0; i < samples; i++) {
     const start = Math.floor(i * bucket);
-    const end = Math.min(channel.length, Math.floor((i + 1) * bucket));
+    const end = Math.max(start + 1, Math.min(channel.length, Math.floor((i + 1) * bucket)));
     let max = 0;
     for (let j = start; j < end; j++) {
       const v = Math.abs(channel[j] ?? 0);
@@ -293,7 +296,7 @@ export class StemDemoPlayer {
     } catch {
       if (this.disposed || signal.aborted) return;
       this.status = "error";
-      this.message = "Demo stem unavailable";
+      this.message = STEM_UNAVAILABLE_MESSAGE;
       this.emit();
       return;
     }
@@ -302,14 +305,14 @@ export class StemDemoPlayer {
 
     if (response.status === 404) {
       this.status = "missing";
-      this.message = "Demo stem unavailable";
+      this.message = STEM_UNAVAILABLE_MESSAGE;
       console.info("Stem demo: drop track.stem.mp4 into public/demo/");
       this.emit();
       return;
     }
     if (!response.ok) {
       this.status = "error";
-      this.message = "Demo stem unavailable";
+      this.message = STEM_UNAVAILABLE_MESSAGE;
       this.emit();
       return;
     }
@@ -322,7 +325,7 @@ export class StemDemoPlayer {
       const tracks = extractAllTracks(data);
       if (tracks.length < STEM_FILE_TRACK_COUNT) {
         this.status = "error";
-        this.message = "Demo stem unavailable";
+        this.message = STEM_UNAVAILABLE_MESSAGE;
         this.emit();
         return;
       }
@@ -359,7 +362,7 @@ export class StemDemoPlayer {
     } catch {
       if (this.disposed || signal.aborted) return;
       this.status = "error";
-      this.message = "Demo stem unavailable";
+      this.message = STEM_UNAVAILABLE_MESSAGE;
       this.emit();
     }
   }

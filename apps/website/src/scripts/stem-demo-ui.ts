@@ -1,6 +1,7 @@
 import {
   formatDeckTime,
   StemDemoPlayer,
+  STEM_UNAVAILABLE_MESSAGE,
   type StemDemoSnapshot,
 } from "./stem-demo-player";
 
@@ -49,7 +50,7 @@ function paintPeaksLayer(
 }
 
 /** Compose cached peaks + playhead onto the visible canvas. */
-export function drawStemWaveform(
+function drawStemWaveform(
   canvas: HTMLCanvasElement,
   peaksLayer: HTMLCanvasElement,
   position: number,
@@ -106,7 +107,7 @@ const liveHandles = new Set<StemDemoPlayerHandle>();
 let teardownWired = false;
 
 /** Tear down every live stem demo player (pagehide / Astro swap). */
-export function disposeAllStemDemoPlayers(): void {
+function disposeAllStemDemoPlayers(): void {
   for (const handle of [...liveHandles]) handle.dispose();
 }
 
@@ -243,7 +244,7 @@ export function initStemDemoPlayer(
         statusEl.textContent = "Loading stem…";
       } else if (snap.status === "missing" || snap.status === "error") {
         statusEl.hidden = false;
-        statusEl.textContent = snap.message ?? "Demo stem unavailable";
+        statusEl.textContent = snap.message ?? STEM_UNAVAILABLE_MESSAGE;
       } else {
         statusEl.hidden = true;
       }
@@ -276,13 +277,13 @@ export function initStemDemoPlayer(
     player.seekRatio(ratio);
   };
 
-  const endScrub = (event: PointerEvent, resume: boolean) => {
+  const endScrub = (event: PointerEvent, completed: boolean) => {
     if (waveWrap.hasPointerCapture(event.pointerId)) {
       waveWrap.releasePointerCapture(event.pointerId);
     }
-    if (!resumeAfterScrub) return;
+    const shouldResume = resumeAfterScrub;
     resumeAfterScrub = false;
-    if (!resume) return;
+    if (!completed || !shouldResume || disposed) return;
     player.primeAudio();
     void player.play();
   };
@@ -354,6 +355,7 @@ export function initStemDemoPlayer(
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    resumeAfterScrub = false;
     if (lastPlaying) {
       lastPlaying = false;
       opts.onPlayingChange?.(false);
