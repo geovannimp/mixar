@@ -173,20 +173,12 @@ const points = [
               />
             </button>
             <div class="min-w-0 flex-1">
-              <div class="flex items-start justify-between gap-3">
-                <span
-                  data-stem-title
-                  class="truncate text-sm font-semibold leading-snug text-fg"
-                >
-                  Hittin Hard
-                </span>
-                <span
-                  data-stem-key
-                  class="shrink-0 font-mono text-[0.75rem] text-muted"
-                >
-                  —
-                </span>
-              </div>
+              <span
+                data-stem-title
+                class="block truncate text-sm font-semibold leading-snug text-fg"
+              >
+                Hittin Hard
+              </span>
               <div
                 class="mt-1 flex items-center justify-between gap-3 font-mono text-[0.75rem] tabular-nums text-muted"
               >
@@ -199,10 +191,12 @@ const points = [
             data-stem-wave-wrap
             class="relative h-14 cursor-pointer touch-none bg-black select-none"
             role="slider"
+            tabindex="0"
             aria-label="Seek"
             aria-valuemin="0"
-            aria-valuemax="100"
+            aria-valuemax="0"
             aria-valuenow="0"
+            aria-valuetext="0:00.0 of 0:00.0"
           >
             <canvas data-stem-wave class="absolute inset-0 size-full"></canvas>
             <p

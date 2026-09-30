@@ -24,7 +24,6 @@ export type StemDemoStatus =
 export interface StemDemoSnapshot {
   status: StemDemoStatus;
   title: string;
-  key: string;
   position: number;
   duration: number;
   message?: string;
@@ -78,7 +77,6 @@ export class StemDemoPlayer {
 
   private readonly onChange?: (snap: StemDemoSnapshot) => void;
   private title: string;
-  private key = "—";
   private status: StemDemoStatus = "idle";
   private message?: string;
   private ctx: AudioContext | null = null;
@@ -108,7 +106,6 @@ export class StemDemoPlayer {
     return {
       status: this.playing ? "playing" : this.status,
       title: this.title,
-      key: this.key,
       position: this.position(),
       duration: this.duration,
       message: this.message,
@@ -198,7 +195,11 @@ export class StemDemoPlayer {
     this.stopSources();
     this.playing = false;
     this.pauseAt = next;
-    this.status = wasPlaying ? "playing" : this.status === "ready" ? "paused" : this.status;
+    // Seek only works after load (`duration > 0`), so idle never reaches here.
+    // Keep paused when scrubbing while stopped; play() restores playing.
+    if (!wasPlaying && (this.status === "ready" || this.status === "paused")) {
+      this.status = "paused";
+    }
     this.emit();
     if (wasPlaying) {
       void this.play();
@@ -226,20 +227,21 @@ export class StemDemoPlayer {
       response = await fetch(this.url);
     } catch {
       this.status = "error";
-      this.message = "Could not fetch demo stem";
+      this.message = "Demo stem unavailable";
       this.emit();
       return;
     }
 
     if (response.status === 404) {
       this.status = "missing";
-      this.message = "Drop track.stem.mp4 into public/demo/";
+      this.message = "Demo stem unavailable";
+      console.info("Stem demo: drop track.stem.mp4 into public/demo/");
       this.emit();
       return;
     }
     if (!response.ok) {
       this.status = "error";
-      this.message = `Stem fetch failed (${response.status})`;
+      this.message = "Demo stem unavailable";
       this.emit();
       return;
     }
@@ -250,7 +252,7 @@ export class StemDemoPlayer {
       const tracks = extractAllTracks(data);
       if (tracks.length < 5) {
         this.status = "error";
-        this.message = "File is not a 5-track Stem";
+        this.message = "Demo stem unavailable";
         this.emit();
         return;
       }
@@ -281,9 +283,9 @@ export class StemDemoPlayer {
       this.status = "ready";
       this.message = undefined;
       this.emit();
-    } catch (err) {
+    } catch {
       this.status = "error";
-      this.message = err instanceof Error ? err.message : "Failed to decode stem";
+      this.message = "Demo stem unavailable";
       this.emit();
     }
   }
