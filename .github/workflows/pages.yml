@@ -43,8 +43,32 @@ jobs:
 
       # Build via the workspace script (astro), not `moon run`, so a shallow
       # PR checkout does not trip moon's defaultBranch (`main`) VCS lookup.
+      #
+      # Two different credentials, deliberately treated differently:
+      #
+      # - PUBLIC_POSTHOG_KEY is a *project* token (phc_): public and write-only
+      #   by design, shipped to every visitor of any PostHog web app. Safe to
+      #   expose to pull requests. Held as a secret only so it can be rotated
+      #   without a code change.
+      #
+      # - POSTHOG_API_KEY is a *personal* token (phx_) with write access on
+      #   error tracking, needed to upload source maps. A pull_request run
+      #   executes code the PR controls — astro.config.mjs, package.json, and
+      #   `npm ci` install scripts — all of which can read the environment and
+      #   exfiltrate it. Fork PRs get no secrets, but a PR from a branch *inside*
+      #   this repository does, so the secret is withheld from every
+      #   pull_request event rather than relying on the fork exemption. Those
+      #   builds simply ship with minified stack traces.
       - name: Build website
         run: npm run build -w website
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ secrets.POSTHOG_PROJECT_KEY }}
+          PUBLIC_POSTHOG_HOST: https://eu.i.posthog.com
+          POSTHOG_API_KEY: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && secrets.POSTHOG_PERSONAL_API_KEY || '' }}
+          POSTHOG_PROJECT_ID: ${{ vars.POSTHOG_PROJECT_ID }}
+          # App host, for the source map upload API — not the `eu.i.` ingestion
+          # host that posthog-js uses.
+          POSTHOG_HOST: https://eu.posthog.com
 
       - uses: actions/upload-pages-artifact@v3
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
