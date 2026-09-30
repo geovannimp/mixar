@@ -28,7 +28,10 @@ export default defineConfig({
               host: process.env.POSTHOG_HOST ?? "https://eu.posthog.com",
               sourcemaps: {
                 enabled: true,
-                releaseName: "mixar-website",
+                // Must match the release naming in PostHog or uploads succeed
+                // but stop matching, and traces silently go back to minified.
+                // Env-overridable so it can be changed without a code edit.
+                releaseName: process.env.POSTHOG_RELEASE_NAME ?? "mixar-website",
                 // Emits maps as Rollup `hidden` (not referenced by a
                 // sourceMappingURL comment) and deletes them after upload, so
                 // the full original source is never served publicly.

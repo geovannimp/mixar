@@ -1,10 +1,10 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { DEFAULT_HOST } from "../scripts/analytics";
+import { resolvePosthogHost } from "../scripts/analytics";
 
-// Read from the same place the analytics config does, so the endpoint named
+// Read through the same helper the analytics config uses, so the endpoint named
 // here cannot drift from the one events are actually sent to.
-const posthogHost = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_HOST;
+const posthogHost = resolvePosthogHost();
 ---
 
 <BaseLayout
@@ -39,7 +39,7 @@ const posthogHost = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() || DEFAULT_HOST;
             in <strong class="font-semibold text-fg">cookieless mode</strong>, which means:
           </p>
           <ul class="mt-3 list-disc space-y-2 pl-5 leading-relaxed text-muted">
-            <li>No cookie is set, and nothing is written to local or session storage.</li>
+            <li>PostHog sets no cookie and writes nothing to local or session storage.</li>
             <li>There is no consent banner, because there is nothing to consent to.</li>
             <li>
               You are not given a persistent identifier. PostHog counts unique visitors with a

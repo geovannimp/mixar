@@ -196,6 +196,36 @@ describe("initAnalytics", () => {
     expect(init).toHaveBeenCalledTimes(2);
   });
 
+  // A retry must not leave the first attempt's listener attached. Its `send`
+  // never resolves, so it buffers every later click into an abandoned array
+  // that nothing ever flushes, and each retry adds another. Asserting on the
+  // capture mock cannot see this — the successful attempt still sends — so this
+  // watches the listener lifecycle directly.
+  it("detaches its click listener when the SDK fails to load", async () => {
+    init.mockImplementationOnce(() => {
+      throw new Error("chunk load failed");
+    });
+    const doc = newDoc("", HOSTED);
+
+    const added: EventListenerOrEventListenerObject[] = [];
+    const removed: EventListenerOrEventListenerObject[] = [];
+    const origAdd = doc.addEventListener.bind(doc);
+    const origRemove = doc.removeEventListener.bind(doc);
+    doc.addEventListener = ((type: string, listener: never, options?: never) => {
+      if (type === "click") added.push(listener);
+      origAdd(type, listener, options);
+    }) as typeof doc.addEventListener;
+    doc.removeEventListener = ((type: string, listener: never, options?: never) => {
+      if (type === "click") removed.push(listener);
+      origRemove(type, listener, options);
+    }) as typeof doc.removeEventListener;
+
+    await analytics.initAnalytics(doc);
+
+    expect(added).toHaveLength(1);
+    expect(removed).toEqual(added);
+  });
+
   // The SDK is ~95KB gzipped. Without buffering, the hero CTA — the first thing
   // a visitor touches — is missed whenever they click before the chunk resolves,
   // and the loss is silent and biased toward fast clickers.

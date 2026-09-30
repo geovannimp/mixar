@@ -58,6 +58,8 @@ tasks:
     inputs:
       - "@group(sources)"
       - "@group(configs)"
+    options:
+      runInCI: true
 
   # Named `lint` so it joins the existing pipeline: root `npm run lint` is
   # `moon run :lint`, which .github/workflows/lint.yml runs, and `moon ci` picks
@@ -73,3 +75,5 @@ tasks:
     inputs:
       - "@group(sources)"
       - "@group(configs)"
+    options:
+      runInCI: true

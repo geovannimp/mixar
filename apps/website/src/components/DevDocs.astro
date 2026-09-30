@@ -28,7 +28,13 @@ const iconProps = { size: 18, "stroke-width": 2 };
       <Button href={CONTRIBUTING_URL} external variant="secondary" placement="dev_docs" class="px-7 py-3.5 text-base">
         Contributing
       </Button>
-      <Button href={ISSUES_URL} external variant="secondary" class="px-7 py-3.5 text-base">
+      <Button
+        href={ISSUES_URL}
+        external
+        variant="secondary"
+        placement="dev_docs"
+        class="px-7 py-3.5 text-base"
+      >
         <Bug {...iconProps} aria-hidden="true" />
         Open issues
       </Button>

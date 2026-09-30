@@ -68,9 +68,16 @@ const REDACTED_PROPERTIES = [
 export function redactEvent<T extends { properties?: Record<string, unknown> | null } | null>(
   event: T,
 ): T {
-  // Loose `==` so a null `properties` is covered as well as undefined: a throw
-  // inside before_send runs on the capture path and can take the event with it.
-  if (event === null || event.properties == null) return event;
+  // Strict equality per the repo's style rule; `properties` may be null or
+// undefined, and a throw inside before_send runs on the capture path and can
+// take the event down with it.
+if (
+    event === null ||
+    event.properties === null ||
+    event.properties === undefined
+  ) {
+    return event;
+  }
   for (const key of REDACTED_PROPERTIES) {
     delete event.properties[key];
   }
@@ -83,8 +90,12 @@ export function redactEvent<T extends { properties?: Record<string, unknown> | n
  * outbound CTA href comes from `src/consts.ts`. Links that are not ours — the
  * GPL text link, internal navigation — resolve to null and are never captured.
  */
-function trackOutboundClicks(capture: Capture, doc: Document): void {
-  doc.addEventListener("click", (event) => {
+/**
+ * Returns the handler so the caller can detach it if the SDK never loads —
+ * see the retry note in `initAnalytics`.
+ */
+function trackOutboundClicks(capture: Capture, doc: Document): (event: Event) => void {
+  const onClick = (event: Event): void => {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
@@ -100,7 +111,10 @@ function trackOutboundClicks(capture: Capture, doc: Document): void {
       destination,
       placement: anchor.getAttribute("data-placement")?.trim() || UNKNOWN_PLACEMENT,
     });
-  });
+  };
+
+  doc.addEventListener("click", onClick);
+  return onClick;
 }
 
 /**
@@ -110,6 +124,17 @@ function trackOutboundClicks(capture: Capture, doc: Document): void {
  * renders more than one.
  */
 const STARTED_ATTR = "data-mixar-analytics-started";
+
+/**
+ * The configured endpoint, or `DEFAULT_HOST`. Shared so the privacy page
+ * cannot name a different host than the one events actually go to — the
+ * previous version re-implemented this expression in the page, so a change here
+ * would have silently desynced the published policy.
+ */
+export function resolvePosthogHost(): string {
+  const configured = import.meta.env.PUBLIC_POSTHOG_HOST?.trim() ?? "";
+  return configured === "" ? DEFAULT_HOST : configured;
+}
 
 export function readConfig(doc: Document = document): AnalyticsConfig | null {
   const meta = doc.querySelector<HTMLMetaElement>(`meta[name="${META_NAME}"]`);
@@ -147,7 +172,7 @@ export function initAnalytics(doc: Document = document): Promise<void> {
     }
     send(name, properties);
   };
-  trackOutboundClicks(capture, doc);
+  const onClick = trackOutboundClicks(capture, doc);
 
   return import("posthog-js")
     .then(({ default: posthog }) => {
@@ -210,8 +235,12 @@ export function initAnalytics(doc: Document = document): Promise<void> {
       // visitor's problem and is not worth a console error. The buffer is
       // dropped with it: there is nothing to flush it into.
       pending.length = 0;
-      // Clear the guard, or a transient chunk failure would disable analytics
-      // for the rest of the page session with no way to retry.
+      // Clear the guard so a transient chunk failure can be retried, and detach
+      // this listener first. Leaving it attached would give the retry a second
+      // listener while the first closure stayed bound to a `send` that never
+      // resolves — so every later click would be buffered into an abandoned
+      // array and never sent.
+      doc.removeEventListener("click", onClick);
       doc.documentElement.removeAttribute(STARTED_ATTR);
       if (config.debug) {
         console.warn("[analytics] PostHog failed to load; analytics is off.", error);
