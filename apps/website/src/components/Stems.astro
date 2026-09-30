@@ -127,7 +127,7 @@ const points = [
       </div>
 
       <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="mb-5 flex flex-wrap items-center gap-3">
           <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
             {
               padModes.map((mode) => (
@@ -145,7 +145,6 @@ const points = [
               ))
             }
           </ul>
-          <span class="font-mono text-[0.8125rem] text-muted">track.stem.mp4</span>
         </div>
 
         <div
@@ -179,7 +178,7 @@ const points = [
                   data-stem-title
                   class="truncate text-sm font-semibold leading-snug text-fg"
                 >
-                  track.stem.mp4
+                  Hittin Hard
                 </span>
                 <span
                   data-stem-key
@@ -291,10 +290,18 @@ const points = [
             </ul>
           </div>
           <p class="mt-4 text-[0.8125rem] leading-relaxed text-muted">
-            <span class="font-medium text-fg" data-stem-summary aria-live="polite">
-              All four stems in
-            </span>
-            {" "}— the same mute and solo pads you get on the deck.
+            Demo track from the
+            {" "}
+            <a
+              class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+              href={NI_STEMS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Native Instruments</a
+            >
+            {" "}
+            free Stems pack.
           </p>
         </div>
       </div>
@@ -316,13 +323,11 @@ const points = [
   ) => {
     const pads = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-stem-pad]"));
     const lanes = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-lane]"));
-    const summaryEl = root.querySelector<HTMLElement>("[data-stem-summary]");
     const resetButton = root.querySelector<HTMLButtonElement>("[data-stem-reset]");
 
-    // Derive the labels (and state width) from the rendered lanes so this can't
-    // drift from the `stems` array that produced them.
-    const names = lanes.map((lane) => lane.dataset.stemLabel ?? "");
-    const mutes = names.map(() => false);
+    // Derive state width from the rendered lanes so this can't drift from the
+    // `stems` array that produced them.
+    const mutes = lanes.map(() => false);
     let isolate: number | null = null;
 
     const render = () => {
@@ -344,21 +349,6 @@ const points = [
       }
 
       audio?.setAudible(audible);
-
-      if (summaryEl) {
-        if (isolate !== null) {
-          summaryEl.textContent = `Solo: ${names[isolate]}`;
-        } else {
-          const live = names.filter((_, i) => audible[i]);
-          if (live.length === 0) {
-            summaryEl.textContent = "All stems muted";
-          } else if (live.length === names.length) {
-            summaryEl.textContent = "All four stems in";
-          } else {
-            summaryEl.textContent = `Audible: ${live.join(", ")}`;
-          }
-        }
-      }
     };
 
     const reset = () => {

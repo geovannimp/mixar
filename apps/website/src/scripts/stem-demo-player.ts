@@ -6,6 +6,9 @@
 /** Public URL for the demo `.stem.mp4` (drop the file under `public/demo/`). */
 export const STEM_DEMO_URL = "/demo/track.stem.mp4";
 
+/** Title from the NI free Stems pack demo file (`©nam`). */
+export const STEM_DEMO_TITLE = "Hittin Hard";
+
 /** stem-mp4 track indices: 0 master, 1–4 drums/bass/other/vocals. */
 const STEM_TRACK_INDICES = [1, 2, 3, 4] as const;
 
@@ -93,7 +96,7 @@ export class StemDemoPlayer {
 
   constructor(opts: StemDemoPlayerOptions = {}) {
     this.url = opts.url ?? STEM_DEMO_URL;
-    this.title = opts.title ?? "track.stem.mp4";
+    this.title = opts.title ?? STEM_DEMO_TITLE;
     this.onChange = opts.onChange;
   }
 
