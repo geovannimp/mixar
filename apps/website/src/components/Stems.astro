@@ -1,6 +1,15 @@
 ---
-import { AudioLines, Disc3, FileMusic, SlidersHorizontal, Zap } from "@lucide/astro";
+import {
+  AudioLines,
+  Disc3,
+  FileMusic,
+  Pause,
+  Play,
+  SlidersHorizontal,
+  Zap,
+} from "@lucide/astro";
 import { NI_STEMS_URL } from "../consts";
+import { STEM_DEMO_TITLE } from "../scripts/stem-demo-player";
 
 /** NI / stemgen default stem order, labels, and colors. */
 const stems = [
@@ -119,7 +128,7 @@ const points = [
       </div>
 
       <div data-stems-demo data-reveal style="--reveal-delay: 100ms" class="rounded-2xl border border-border bg-bg-card p-5 sm:p-7">
-        <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="mb-5 flex flex-wrap items-center gap-3">
           <ul class="flex flex-wrap items-center gap-1.5" aria-label="Pad modes">
             {
               padModes.map((mode) => (
@@ -137,7 +146,69 @@ const points = [
               ))
             }
           </ul>
-          <span class="font-mono text-[0.8125rem] text-muted">track.stem.mp4</span>
+        </div>
+
+        <div
+          data-stem-player
+          class="mb-5 overflow-hidden rounded-xl border border-border bg-bg"
+        >
+          <div class="flex items-center gap-3 px-3 pt-3 pb-2">
+            <button
+              type="button"
+              data-stem-play
+              data-playing="false"
+              aria-label="Play"
+              class="group relative flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-bg-card text-fg transition hover:border-accent hover:text-accent disabled:opacity-50"
+            >
+              <Play
+                size={16}
+                stroke-width={2.25}
+                class="translate-x-px group-data-[playing=true]:hidden"
+                aria-hidden="true"
+              />
+              <Pause
+                size={16}
+                stroke-width={2.25}
+                class="hidden group-data-[playing=true]:block"
+                aria-hidden="true"
+              />
+            </button>
+            <div class="min-w-0 flex-1">
+              <span
+                data-stem-title
+                class="block truncate text-sm font-semibold leading-snug text-fg"
+              >
+                {STEM_DEMO_TITLE}
+              </span>
+              <div
+                class="mt-1 flex items-center justify-between gap-3 font-mono text-[0.75rem] tabular-nums text-muted"
+              >
+                <span data-stem-remaining>-0:00.0</span>
+                <span data-stem-duration>0:00.0</span>
+              </div>
+            </div>
+          </div>
+          <div
+            data-stem-wave-wrap
+            class="relative h-14 cursor-pointer touch-none bg-black select-none"
+            role="slider"
+            tabindex="0"
+            aria-label="Seek"
+            aria-disabled="true"
+            aria-valuemin="0"
+            aria-valuemax="1"
+            aria-valuenow="0"
+            aria-valuetext="0:00.0 of 0:00.0"
+          >
+            <canvas data-stem-wave class="absolute inset-0 size-full"></canvas>
+            <p
+              data-stem-player-status
+              role="status"
+              aria-live="polite"
+              class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/70 px-3 text-center text-[0.75rem] text-muted"
+              hidden
+            ></p>
+          </div>
         </div>
 
         <div class="grid grid-cols-4 gap-2.5" role="group" aria-label="Stems mute and solo pads">
@@ -179,7 +250,11 @@ const points = [
             </button>
           </div>
           <div class="flex justify-center items-stretch w-full h-64 py-4" aria-hidden="true">
-            <span class="flex justify-center items-center text-accent">
+            <span
+              data-stem-disc
+              data-playing="false"
+              class="flex justify-center items-center text-accent"
+            >
               <Disc3 size={34} stroke-width={1.5} />
             </span>
             <svg
@@ -200,7 +275,6 @@ const points = [
                   <li
                     data-stem-lane
                     data-stem={index}
-                    data-stem-label={stem.label}
                     data-audible="true"
                     style={`--stem: ${stem.color}`}
                     class="flex flex-row grow w-full justify-between items-center gap-2 data-[audible=false]:opacity-30"
@@ -217,10 +291,18 @@ const points = [
             </ul>
           </div>
           <p class="mt-4 text-[0.8125rem] leading-relaxed text-muted">
-            <span class="font-medium text-fg" data-stem-summary aria-live="polite">
-              All four stems in
-            </span>
-            {" "}— the same mute and solo pads you get on the deck.
+            Demo track from the
+            {" "}
+            <a
+              class="font-medium text-fg underline underline-offset-4 transition hover:text-accent"
+              href={NI_STEMS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Native Instruments</a
+            >
+            {" "}
+            free Stems pack.
           </p>
         </div>
       </div>
@@ -233,17 +315,23 @@ const points = [
     initStemConnectorFlow,
     type StemConnectorFlow,
   } from "../scripts/stem-connector-flow";
+  import {
+    initStemDemoPlayer,
+    type StemDemoPlayerHandle,
+  } from "../scripts/stem-demo-ui";
 
-  const initStemsDemo = (root: HTMLElement, connectorFlow?: StemConnectorFlow) => {
+  const initStemsDemo = (
+    root: HTMLElement,
+    connectorFlow?: StemConnectorFlow,
+    audio?: StemDemoPlayerHandle,
+  ) => {
     const pads = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-stem-pad]"));
     const lanes = Array.from(root.querySelectorAll<HTMLElement>("[data-stem-lane]"));
-    const summaryEl = root.querySelector<HTMLElement>("[data-stem-summary]");
     const resetButton = root.querySelector<HTMLButtonElement>("[data-stem-reset]");
 
-    // Derive the labels (and state width) from the rendered lanes so this can't
-    // drift from the `stems` array that produced them.
-    const names = lanes.map((lane) => lane.dataset.stemLabel ?? "");
-    const mutes = names.map(() => false);
+    // Derive state width from the rendered lanes so this can't drift from the
+    // `stems` array that produced them.
+    const mutes = lanes.map(() => false);
     let isolate: number | null = null;
 
     const render = () => {
@@ -264,20 +352,7 @@ const points = [
         connectorFlow?.setAudible(index, audible[index]);
       }
 
-      if (summaryEl) {
-        if (isolate !== null) {
-          summaryEl.textContent = `Solo: ${names[isolate]}`;
-        } else {
-          const live = names.filter((_, i) => audible[i]);
-          if (live.length === 0) {
-            summaryEl.textContent = "All stems muted";
-          } else if (live.length === names.length) {
-            summaryEl.textContent = "All four stems in";
-          } else {
-            summaryEl.textContent = `Audible: ${live.join(", ")}`;
-          }
-        }
-      }
+      audio?.setAudible(audible);
     };
 
     const reset = () => {
@@ -310,6 +385,13 @@ const points = [
   for (const root of document.querySelectorAll<HTMLElement>("[data-stems-demo]")) {
     if (root.dataset.stemsInit !== undefined) continue;
     root.dataset.stemsInit = "";
-    initStemsDemo(root, initStemConnectorFlow(root));
+    const connectorFlow = initStemConnectorFlow(root);
+    initStemsDemo(
+      root,
+      connectorFlow,
+      initStemDemoPlayer(root, {
+        onPlayingChange: (playing) => connectorFlow?.setPlaying(playing),
+      }),
+    );
   }
 </script>

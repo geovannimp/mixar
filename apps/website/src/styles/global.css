@@ -161,4 +161,14 @@
     opacity: 1;
     transform: translateX(0);
   }
+
+  @keyframes stem-disc-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  [data-stem-disc][data-playing="true"] {
+    animation: stem-disc-spin 12s linear infinite;
+  }
 }
