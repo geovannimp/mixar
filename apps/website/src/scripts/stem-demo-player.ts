@@ -76,7 +76,7 @@ export function peaksFromBuffer(buffer: AudioBuffer, samples: number): Float32Ar
 }
 
 function copyTrackBytes(track: Uint8Array): ArrayBuffer {
-  // `Uint8Array#buffer` is typed ArrayBufferLike (ArrayBuffer | SharedArrayBuffer)
+// `Uint8Array#buffer` is typed ArrayBufferLike (ArrayBuffer | SharedArrayBuffer)
   // and `slice()` preserves that, so it will not assign to ArrayBuffer on its
   // own. Tracks here come from `new Uint8Array(await response.arrayBuffer())`, so
   // the underlying buffer is always a plain ArrayBuffer.
