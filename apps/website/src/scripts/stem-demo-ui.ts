@@ -174,11 +174,17 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   };
 
   const updateSeekAria = (snap: StemDemoSnapshot) => {
-    const max = Math.max(0, Math.round(snap.duration));
-    const now = Math.max(0, Math.min(max, Math.round(snap.position)));
-    const key = `${now}|${max}`;
+    const ready = snap.duration > 0;
+    const max = ready ? Math.max(1, Math.round(snap.duration)) : 1;
+    const now = ready ? Math.max(0, Math.min(max, Math.round(snap.position))) : 0;
+    const key = `${ready}|${now}|${max}`;
     if (key === lastAriaKey) return;
     lastAriaKey = key;
+    if (ready) {
+      waveWrap.removeAttribute("aria-disabled");
+    } else {
+      waveWrap.setAttribute("aria-disabled", "true");
+    }
     waveWrap.setAttribute("aria-valuemin", "0");
     waveWrap.setAttribute("aria-valuemax", String(max));
     waveWrap.setAttribute("aria-valuenow", String(now));
@@ -188,6 +194,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     );
   };
 
+  let player: StemDemoPlayer;
   const paint = (snap: StemDemoSnapshot) => {
     if (titleEl && snap.title !== lastTitle) {
       lastTitle = snap.title;
@@ -233,7 +240,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
     updateSeekAria(snap);
   };
 
-  const player = new StemDemoPlayer({ onChange: paint });
+  player = new StemDemoPlayer({ onChange: paint });
   paint(player.snapshot());
 
   const ac = new AbortController();
@@ -268,6 +275,7 @@ export function initStemDemoPlayer(root: HTMLElement): StemDemoPlayerHandle {
   waveWrap.addEventListener(
     "pointerdown",
     (event) => {
+      if (event.button !== 0) return;
       if (player.snapshot().duration <= 0) return;
       // Pause for the drag so pointermove seeks don't rebuild sources every event.
       resumeAfterScrub = player.snapshot().status === "playing";

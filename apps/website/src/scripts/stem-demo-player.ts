@@ -154,18 +154,14 @@ export class StemDemoPlayer {
 
   async ensureLoaded(): Promise<void> {
     if (this.disposed) return;
-    if (
-      this.status === "ready" ||
-      this.status === "playing" ||
-      this.status === "paused" ||
-      this.status === "missing" ||
-      this.status === "error"
-    ) {
+    if (this.status === "ready" || this.status === "playing" || this.status === "paused") {
       return;
     }
-    // Keep the promise for the lifetime of the player so concurrent Play calls
-    // share one fetch/decode and failures are not re-issued.
-    this.loadPromise ??= this.load();
+    // Share one in-flight load across concurrent Play clicks; clear after settle
+    // so a later Play can retry a transient missing/error failure.
+    this.loadPromise ??= this.load().finally(() => {
+      this.loadPromise = null;
+    });
     await this.loadPromise;
   }
 
