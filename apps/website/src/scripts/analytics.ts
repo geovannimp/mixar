@@ -65,10 +65,12 @@ const REDACTED_PROPERTIES = [
  * `before_send` hook. Mutates and returns the event, or passes `null` through
  * so a drop decision made elsewhere is preserved.
  */
-export function redactEvent<T extends { properties?: Record<string, unknown> } | null>(
+export function redactEvent<T extends { properties?: Record<string, unknown> | null } | null>(
   event: T,
 ): T {
-  if (event === null || event.properties === undefined) return event;
+  // Loose `==` so a null `properties` is covered as well as undefined: a throw
+  // inside before_send runs on the capture path and can take the event with it.
+  if (event === null || event.properties == null) return event;
   for (const key of REDACTED_PROPERTIES) {
     delete event.properties[key];
   }
@@ -203,10 +205,16 @@ export function initAnalytics(doc: Document = document): Promise<void> {
         (globalThis as { posthog?: unknown }).posthog = posthog;
       }
     })
-    .catch(() => {
+    .catch((error: unknown) => {
       // Analytics must never break the page. A failed SDK load is not the
       // visitor's problem and is not worth a console error. The buffer is
       // dropped with it: there is nothing to flush it into.
       pending.length = 0;
+      // Clear the guard, or a transient chunk failure would disable analytics
+      // for the rest of the page session with no way to retry.
+      doc.documentElement.removeAttribute(STARTED_ATTR);
+      if (config.debug) {
+        console.warn("[analytics] PostHog failed to load; analytics is off.", error);
+      }
     });
 }

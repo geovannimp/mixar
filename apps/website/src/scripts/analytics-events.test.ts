@@ -85,6 +85,17 @@ describe("resolveDestination", () => {
     expect(resolveDestination("https://github.com/geovannimp/mixar-fork")).toBeNull();
   });
 
+  // The bug the single-segment test above cannot catch: the boundary check ran
+  // over the whole remainder, so any path *containing* `/` matched. A fork with
+  // a subpath counted as our repo and inflated the funnel.
+  it("does not treat a subpath of a similarly named repository as ours", () => {
+    expect(resolveDestination("https://github.com/geovannimp/mixar-fork/issues")).toBeNull();
+  });
+
+  it("does not treat a query on a similarly named repository as ours", () => {
+    expect(resolveDestination("https://github.com/geovannimp/mixar-fork?tab=readme")).toBeNull();
+  });
+
   it("tolerates surrounding whitespace", () => {
     expect(resolveDestination(`  ${GITHUB_REPO}  `)).toBe("repo");
   });

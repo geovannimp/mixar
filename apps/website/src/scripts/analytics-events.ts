@@ -57,8 +57,12 @@ const EXACT_BY_URL: ReadonlyArray<readonly [string, Destination]> = [
   [CONTRIBUTING_URL, DESTINATIONS.contributing],
 ];
 
-/** A path boundary, so that `mixar-fork` is not counted as `mixar`. */
-const REPO_PATH_BOUNDARY = /[/?#]/;
+/**
+ * Anchored: the character immediately after the repository must start a path,
+ * query or fragment. An unanchored test scans the whole remainder, which would
+ * accept `mixar-fork/issues` — the `/` is present, just not in the right place.
+ */
+const REPO_PATH_BOUNDARY = /^[/?#]/;
 
 export function resolveDestination(href: string): Destination | null {
   const url = href.trim();

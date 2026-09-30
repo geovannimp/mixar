@@ -181,6 +181,21 @@ describe("initAnalytics", () => {
     expect((globalThis as { posthog?: unknown }).posthog).toBeUndefined();
   });
 
+  // The guard is set before the dynamic import resolves, so a rejected import
+  // would otherwise leave analytics permanently short-circuited for the rest of
+  // the page session, with no way to retry.
+  it("allows a retry after the SDK fails to load", async () => {
+    init.mockImplementationOnce(() => {
+      throw new Error("chunk load failed");
+    });
+    const doc = newDoc("", HOSTED);
+
+    await analytics.initAnalytics(doc);
+    await analytics.initAnalytics(doc);
+
+    expect(init).toHaveBeenCalledTimes(2);
+  });
+
   // The SDK is ~95KB gzipped. Without buffering, the hero CTA — the first thing
   // a visitor touches — is missed whenever they click before the chunk resolves,
   // and the loss is silent and biased toward fast clickers.
@@ -382,5 +397,13 @@ describe("redactEvent", () => {
   it("passes an event with no properties through", () => {
     const event = {};
     expect(analytics.redactEvent(event)).toEqual({});
+  });
+
+  // `before_send` receives SDK-built objects, and a throw inside the hook runs
+  // on the capture path — it can take the event down with it.
+  it("tolerates null properties rather than throwing", () => {
+    const event = { properties: null };
+    expect(() => analytics.redactEvent(event)).not.toThrow();
+    expect(analytics.redactEvent(event)).toEqual({ properties: null });
   });
 });

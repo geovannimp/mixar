@@ -22,7 +22,10 @@ export default defineConfig({
             posthogRollup({
               personalApiKey: posthogApiKey,
               projectId: posthogProjectId,
-              host: process.env.POSTHOG_HOST ?? "https://eu.i.posthog.com",
+              // The APP host, which the source map upload API uses — not the
+              // `eu.i.` ingestion host that posthog-js uses for events. The two
+              // are different and conflating them makes local uploads 404.
+              host: process.env.POSTHOG_HOST ?? "https://eu.posthog.com",
               sourcemaps: {
                 enabled: true,
                 releaseName: "mixar-website",
