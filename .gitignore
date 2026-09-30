@@ -139,6 +139,3 @@ docs/superpowers/
 
 # Local cargo target dirs (quota workarounds)
 target-local/
-
-# Website stems demo asset (supplied locally / at deploy)
-apps/website/public/demo/*.stem.mp4
