@@ -2,20 +2,18 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Minimum size of a single tab header (it is a square). The bar only grows
-/// taller than [kMTabBarHeight] when a caller puts taller content in a label.
+/// Minimum size of a single tab header (it is a square).
 const kMTabHeaderMinSize = 28.0;
 
 /// Padding between the tab bar's edge and the header strip.
 const kMTabBarPadding = 4.0;
 
-/// Natural height (a floor, not exact) of a horizontal tab bar: the header
-/// minimum plus the two paddings. The 1px border is painted inside the box (a
-/// bare [DecoratedBox] does not inset its child), so it does not add to this. A
-/// label taller than [kMTabHeaderMinSize] grows the bar past this value, so
-/// treat the constant as a minimum — consumers that align to it should use a
-/// `minHeight`, not a fixed height.
-const double kMTabBarHeight = kMTabHeaderMinSize + kMTabBarPadding * 2;
+/// Minimum height of a horizontal tab bar: the header minimum plus the two
+/// paddings. The 1px border is painted inside the box (a bare [DecoratedBox]
+/// does not inset its child), so it does not add to this. A label taller than
+/// [kMTabHeaderMinSize] grows the bar past this value — it is a floor, so align
+/// with a `minHeight` unless the consumer deliberately pins a height.
+const double kMTabBarMinHeight = kMTabHeaderMinSize + kMTabBarPadding * 2;
 
 /// Identifies the tab bar's painted surface, so callers and tests can find it
 /// without matching on its fill colour (which is shared with other tokens).
@@ -62,9 +60,9 @@ class MTabs extends StatefulWidget {
   /// beside it that draws one (the library topbar). The bar's other edges are
   /// painted in its own fill colour, so only this one shows.
   ///
-  /// The border is painted inside the bar, so its width does not change
-  /// [kMTabBarHeight]; pass `theme.style.borderWidth` so it neither overlaps
-  /// the header strip nor spreads across the fill.
+  /// Only the colour (and style) are used: the width is forced to the theme
+  /// hairline, since the width is part of [kMTabBarMinHeight]'s alignment
+  /// contract and a wider side would overlap the header strip.
   final BorderSide? barBottomBorder;
 
   @override
@@ -229,16 +227,15 @@ class _TabBar extends StatelessWidget {
       color: theme.colors.muted,
       width: theme.style.borderWidth,
     );
+    // Force the theme hairline on a caller's bottom border: the width is part
+    // of the bar's alignment contract, so a wider side would misalign the rows.
+    final bottom =
+        barBottomBorder?.copyWith(width: theme.style.borderWidth) ?? flush;
     return DecoratedBox(
       key: kMTabBarKey,
       decoration: BoxDecoration(
         color: theme.colors.muted,
-        border: Border(
-          top: flush,
-          left: flush,
-          right: flush,
-          bottom: barBottomBorder ?? flush,
-        ),
+        border: Border(top: flush, left: flush, right: flush, bottom: bottom),
       ),
       child: Padding(
         padding: const EdgeInsets.all(kMTabBarPadding),

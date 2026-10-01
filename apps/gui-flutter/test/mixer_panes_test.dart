@@ -60,6 +60,17 @@ void main() {
     await tester.pump();
   }
 
+  /// The border of a decorated header row, failing readably (rather than
+  /// crashing on a cast) if its decoration is no longer a bordered box.
+  Border bottomBorderOf(WidgetTester tester, Finder finder) {
+    final box = tester.widget<DecoratedBox>(finder);
+    final decoration = box.decoration;
+    expect(decoration, isA<BoxDecoration>());
+    final border = (decoration as BoxDecoration).border;
+    expect(border, isA<Border>());
+    return border! as Border;
+  }
+
   testWidgets('LibraryPanel builds MultiPane split', (tester) async {
     await pumpSized(tester, child: const LibraryPanel());
     await tester.pumpAndSettle();
@@ -107,15 +118,13 @@ void main() {
 
     // Both header rows draw the same bottom border, so the rule reads as one
     // continuous line across the split.
-    Border bottom(DecoratedBox box) =>
-        (box.decoration as BoxDecoration).border! as Border;
     expect(
-      bottom(tester.widget<DecoratedBox>(tabBar)).bottom.color,
-      bottom(tester.widget<DecoratedBox>(toolbar)).bottom.color,
+      bottomBorderOf(tester, tabBar).bottom.color,
+      bottomBorderOf(tester, toolbar).bottom.color,
       reason: 'the tabs and topbar bottom borders must match',
     );
     expect(
-      bottom(tester.widget<DecoratedBox>(toolbar)).bottom.width,
+      bottomBorderOf(tester, toolbar).bottom.width,
       MixarThemeData.dark().style.borderWidth,
       reason: 'the toolbar border uses the theme hairline width',
     );

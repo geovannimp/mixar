@@ -143,7 +143,19 @@ void main() {
     expect(tester.getCenter(indicator).dx, greaterThan(midX));
   });
 
+  /// The tab bar's border, failing readably if the bar is not a bordered box
+  /// (rather than crashing on a cast).
+  Border barBorder(WidgetTester tester) {
+    final box = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
+    final decoration = box.decoration;
+    expect(decoration, isA<BoxDecoration>());
+    final border = (decoration as BoxDecoration).border;
+    expect(border, isA<Border>());
+    return border! as Border;
+  }
+
   testWidgets('tab bar bottom border follows barBottomBorder', (tester) async {
+    final theme = MixarThemeData.dark();
     const custom = BorderSide(color: Color(0xFF00FF00), width: 2);
     await pumpTabs(
       tester,
@@ -151,9 +163,11 @@ void main() {
       children: const [MTabEntry(label: Text('A'), child: Text('pane-a'))],
     );
 
-    final bar = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
-    final border = (bar.decoration as BoxDecoration).border! as Border;
-    expect(border.bottom, custom);
+    final bottom = barBorder(tester).bottom;
+    expect(bottom.color, custom.color);
+    // The width is forced to the theme hairline (the alignment contract), even
+    // though the caller asked for 2.
+    expect(bottom.width, theme.style.borderWidth);
   });
 
   testWidgets('tab bar falls back to the flush fill when no border is given', (
@@ -165,11 +179,9 @@ void main() {
       children: const [MTabEntry(label: Text('A'), child: Text('pane-a'))],
     );
 
-    final bar = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
-    final border = (bar.decoration as BoxDecoration).border! as Border;
-    expect(border.bottom.color, theme.colors.muted);
+    expect(barBorder(tester).bottom.color, theme.colors.muted);
 
-    // The bar's natural height is the constant consumers align to.
-    expect(tester.getSize(find.byKey(kMTabBarKey)).height, kMTabBarHeight);
+    // The bar's floor height is the constant consumers align to.
+    expect(tester.getSize(find.byKey(kMTabBarKey)).height, kMTabBarMinHeight);
   });
 }

@@ -43,10 +43,11 @@ const kActionsColumnWidth = 44.0;
 const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 
 /// Height of the library pane header — the sidebar tab bar and the filter/sort
-/// toolbar — so the two rows line up across the split. Mirrors the tab bar's
-/// height ([kMTabBarHeight]) rather than restating it; the two stay in step as
-/// long as a tab label stays within [kMTabHeaderMinSize].
-const double kLibraryHeaderHeight = kMTabBarHeight;
+/// toolbar — so the two rows line up across the split. Pinned (not a minimum)
+/// so the field band can fill it; equals the tab bar's minimum height
+/// ([kMTabBarMinHeight]) and stays aligned while a tab label stays within
+/// [kMTabHeaderMinSize].
+const double kLibraryHeaderHeight = kMTabBarMinHeight;
 
 /// Fill for the toolbar filter field: `secondary` nudged towards `card`, so the
 /// field reads as a subtle darker inset on the toolbar instead of a full panel.
