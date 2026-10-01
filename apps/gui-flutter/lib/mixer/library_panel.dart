@@ -87,12 +87,13 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
               controller: _controller,
               paneBuilder: (context, id, _) => switch (id) {
                 // Flush sidebar: no margin or rounded chrome, only a right
-                // border separating it from the track table. Painted in the
-                // list colour so the chrome reads as the lighter surround and
-                // the table as the darker inset.
+                // border separating it from the track table. The border is a
+                // foreground decoration so it stays continuous across the tab
+                // bar, and the fill is the list colour so the chrome reads as
+                // the lighter surround and the table as the darker inset.
                 'sidebar' => DecoratedBox(
+                  position: DecorationPosition.foreground,
                   decoration: BoxDecoration(
-                    color: theme.colors.secondary,
                     border: Border(
                       right: BorderSide(
                         color: theme.colors.border,
@@ -100,59 +101,65 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                       ),
                     ),
                   ),
-                  child: MTabs(
-                    expands: true,
-                    spacing: 4,
-                    barBottomBorder: BorderSide(
-                      color: theme.colors.border,
-                      width: theme.style.borderWidth,
+                  child: ColoredBox(
+                    color: theme.colors.secondary,
+                    child: MTabs(
+                      expands: true,
+                      spacing: 4,
+                      barBottomBorder: BorderSide(
+                        color: theme.colors.border,
+                        width: theme.style.borderWidth,
+                      ),
+                      index: switch (tab) {
+                        LibrarySourceTab.collections => 0,
+                        LibrarySourceTab.drive => 1,
+                        LibrarySourceTab.history => 2,
+                      },
+                      onChange: (index) {
+                        ref.read(librarySourceTabProvider.notifier).set(
+                          switch (index) {
+                            1 => LibrarySourceTab.drive,
+                            2 => LibrarySourceTab.history,
+                            _ => LibrarySourceTab.collections,
+                          },
+                        );
+                      },
+                      children: [
+                        MTabEntry(
+                          label: AppTooltip(
+                            tip: 'Collections',
+                            child: Semantics(
+                              label: 'Collections',
+                              child: const Icon(LucideIcons.library, size: 16),
+                            ),
+                          ),
+                          child: const CollectionsPane(),
+                        ),
+                        MTabEntry(
+                          label: AppTooltip(
+                            tip: 'Drive',
+                            child: Semantics(
+                              label: 'Drive',
+                              child: const Icon(
+                                LucideIcons.hardDrive,
+                                size: 16,
+                              ),
+                            ),
+                          ),
+                          child: const DrivePane(),
+                        ),
+                        MTabEntry(
+                          label: AppTooltip(
+                            tip: 'History',
+                            child: Semantics(
+                              label: 'History',
+                              child: const Icon(LucideIcons.history, size: 16),
+                            ),
+                          ),
+                          child: const HistoryPane(),
+                        ),
+                      ],
                     ),
-                    index: switch (tab) {
-                      LibrarySourceTab.collections => 0,
-                      LibrarySourceTab.drive => 1,
-                      LibrarySourceTab.history => 2,
-                    },
-                    onChange: (index) {
-                      ref.read(librarySourceTabProvider.notifier).set(
-                        switch (index) {
-                          1 => LibrarySourceTab.drive,
-                          2 => LibrarySourceTab.history,
-                          _ => LibrarySourceTab.collections,
-                        },
-                      );
-                    },
-                    children: [
-                      MTabEntry(
-                        label: AppTooltip(
-                          tip: 'Collections',
-                          child: Semantics(
-                            label: 'Collections',
-                            child: const Icon(LucideIcons.library, size: 16),
-                          ),
-                        ),
-                        child: const CollectionsPane(),
-                      ),
-                      MTabEntry(
-                        label: AppTooltip(
-                          tip: 'Drive',
-                          child: Semantics(
-                            label: 'Drive',
-                            child: const Icon(LucideIcons.hardDrive, size: 16),
-                          ),
-                        ),
-                        child: const DrivePane(),
-                      ),
-                      MTabEntry(
-                        label: AppTooltip(
-                          tip: 'History',
-                          child: Semantics(
-                            label: 'History',
-                            child: const Icon(LucideIcons.history, size: 16),
-                          ),
-                        ),
-                        child: const HistoryPane(),
-                      ),
-                    ],
                   ),
                 ),
                 'content' => ColoredBox(
