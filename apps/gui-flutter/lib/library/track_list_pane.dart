@@ -93,6 +93,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                 child: MixarInput(
                   hint: 'Filter tracks…',
                   borderless: true,
+                  fillColor: theme.colors.card,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
