@@ -87,10 +87,12 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
               controller: _controller,
               paneBuilder: (context, id, _) => switch (id) {
                 // Flush sidebar: no margin or rounded chrome, only a right
-                // border separating it from the track table.
+                // border separating it from the track table. Painted in the
+                // list colour so the chrome reads as the lighter surround and
+                // the table as the darker inset.
                 'sidebar' => DecoratedBox(
                   decoration: BoxDecoration(
-                    color: theme.colors.card,
+                    color: theme.colors.secondary,
                     border: Border(
                       right: BorderSide(
                         color: theme.colors.border,
@@ -149,10 +151,12 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                     ],
                   ),
                 ),
-                'content' =>
-                  tab == LibrarySourceTab.history
+                'content' => ColoredBox(
+                  color: theme.colors.secondary,
+                  child: tab == LibrarySourceTab.history
                       ? const HistoryDetailPane()
                       : const TrackListPane(),
+                ),
                 _ => const SizedBox.shrink(),
               },
             ),

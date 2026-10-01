@@ -18,11 +18,11 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 /// Kept out of `track_list_pane.dart` so the history list renders the same
 /// chips and BPM/key group rather than a second, drifting copy.
 
-/// Focused-row fill. Forui neutral dark uses the same hex for `muted` and
-/// `secondary`, so `theme.colors.muted` is invisible on the list surface.
+/// Focused-row fill: the selection tint blended over the list surface so it
+/// reads as a lighter shade of the row rather than a separate grey.
 Color libraryListSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
   theme.colors.primary.withValues(alpha: 0.14),
-  theme.colors.secondary,
+  theme.colors.card,
 );
 
 /// Horizontal gap between a list row's layout groups.
@@ -133,7 +133,7 @@ class LibraryListSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      ColoredBox(color: theme.colors.secondary, child: child);
+      ColoredBox(color: theme.colors.card, child: child);
 }
 
 /// Session-only density switch. Deliberately does not write settings.
