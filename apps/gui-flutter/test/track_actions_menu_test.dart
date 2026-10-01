@@ -124,6 +124,25 @@ void main() {
     expect(tester.getSize(find.text('Load to deck')).width, lessThan(300));
   });
 
+  testWidgets('the Load to deck header is not announced as a button', (
+    tester,
+  ) async {
+    await pumpMenu(tester);
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
+    await tester.pumpAndSettle();
+
+    // A static group header must not carry button semantics or be skipped by
+    // focus traversal the way a disabled MixarMenuItem would.
+    final node = tester.getSemantics(
+      find
+          .byWidgetPredicate(
+            (widget) => widget is Text && widget.data == 'Load to deck',
+          )
+          .first,
+    );
+    expect(node.flagsCollection.isButton, isFalse);
+  });
+
   testWidgets('Generate stems is its own action for library tracks', (
     tester,
   ) async {
@@ -222,8 +241,12 @@ void main() {
       await pumpSegments(
         tester,
         segments: const [
-          MixarMenuSegment(label: 'A'),
-          MixarMenuSegment(label: 'B', onPress: _noop),
+          MixarMenuSegment(label: 'A', semanticsLabel: 'Load to A'),
+          MixarMenuSegment(
+            label: 'B',
+            semanticsLabel: 'Load to B',
+            onPress: _noop,
+          ),
         ],
       );
 
@@ -246,7 +269,13 @@ void main() {
       final theme = MixarThemeData.dark();
       await pumpSegments(
         tester,
-        segments: const [MixarMenuSegment(label: 'A', onPress: _noop)],
+        segments: const [
+          MixarMenuSegment(
+            label: 'A',
+            semanticsLabel: 'Load to A',
+            onPress: _noop,
+          ),
+        ],
       );
 
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -264,6 +293,15 @@ void main() {
       await pumpSegments(tester, segments: const []);
       expect(find.byType(MixarMenuSegments), findsOneWidget);
       expect(find.byType(MDivider), findsNothing);
+    });
+
+    test('a short label without a semanticsLabel is rejected', () {
+      expect(
+        () => MixarMenuSegment(label: 'A'),
+        throwsA(isA<AssertionError>()),
+      );
+      // Long labels carry their own meaning, so they need no override.
+      expect(() => const MixarMenuSegment(label: 'Archive'), returnsNormally);
     });
   });
 }

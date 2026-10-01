@@ -11,12 +11,21 @@ class MixarMenuSegment {
     this.onPress,
     this.semanticsLabel,
     this.color,
-  });
+  }) : assert(
+         label.length > 2 || semanticsLabel != null,
+         'Short labels like "A"/"B" need a semanticsLabel: the visible text '
+         'alone is not a meaningful accessible name.',
+       );
 
+  /// Visible cell text. May be a single letter, in which case
+  /// [semanticsLabel] is required.
   final String label;
 
   /// `null` renders the segment disabled.
   final VoidCallback? onPress;
+
+  /// Accessible name for the segment. Required whenever [label] is a short
+  /// glyph ("A"/"B") that a screen reader could not interpret on its own.
   final String? semanticsLabel;
 
   /// Label colour override, e.g. the deck A/B accents. Falls back to the menu

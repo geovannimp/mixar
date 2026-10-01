@@ -494,7 +494,7 @@ Widget buildTrackListMenuBody({
     groups: [
       MixarMenuGroup(
         children: [
-          const MixarMenuItem(title: Text('Load to deck')),
+          const MixarMenuLabel(child: Text('Load to deck')),
           MixarMenuSegments(
             segments: [
               MixarMenuSegment(

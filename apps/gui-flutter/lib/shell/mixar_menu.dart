@@ -83,6 +83,31 @@ class MixarMenuGroup extends StatelessWidget {
   }
 }
 
+/// Static, non-interactive menu row (section header / disabled label).
+///
+/// Unlike [MixarMenuItem] this never wraps in an interactive widget, so it is
+/// not announced as a button and stays in normal reading order. Use it for
+/// labels like "Load to deck" that head a group of actions.
+class MixarMenuLabel extends StatelessWidget {
+  const new({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: DefaultTextStyle(
+        style: theme.typography.body.sm.copyWith(
+          color: theme.colors.mutedForeground,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// Tappable menu row. Prefer [title] for text actions; [child] for custom
 /// blocks (e.g. load-to-deck chips).
 class MixarMenuItem extends StatelessWidget {
