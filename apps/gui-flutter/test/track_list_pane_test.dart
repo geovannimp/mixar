@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -137,6 +138,25 @@ void main() {
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
     expect(container.read(focusedTrackRowIndexProvider), 1);
+  });
+
+  testWidgets('publishes the focused row payload for controller load', (
+    tester,
+  ) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+
+    // The row the list starts on, published for MIDI "load focused row".
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromListTrack(track, inLibrary: true),
+    );
+
+    container.read(focusedTrackRowIndexProvider.notifier).navigate(1);
+    await tester.pump();
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromListTrack(trackB, inLibrary: true),
+    );
   });
 
   testWidgets('right-click on a track row opens the actions menu', (

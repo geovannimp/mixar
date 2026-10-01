@@ -40,31 +40,9 @@ const kStatusBarGap = 1.0;
 // --- Row layout ---
 // Fixed trailing widths keep BPM / key aligned down the list in both
 // densities, which is what made the old column table scannable. The title (and
-// the pills in comfortable) take whatever is left. The trailing slot widths
-// themselves live with [TrailingMeta] in `library_list_chrome.dart`.
+// the pills in comfortable) take whatever is left. The trailing slot widths and
+// the shared budget live in `library_list_chrome.dart`.
 const kArtworkGap = 10.0;
-
-/// Width for the trailing meta at [available] px of row: its natural size
-/// whenever the row is wide enough, shrinking only once the title would drop
-/// below [kMinTitleWidth].
-///
-/// Computed rather than left to flex, because `Expanded` title + `Flexible`
-/// meta splits the free space evenly — the meta would claim half the row and
-/// the title would wrap its pills at widths that have plenty of room.
-double trailingMetaWidth(
-  double available,
-  double artSize, {
-  double natural = kTrailingMetaBaseWidth,
-}) {
-  final budget =
-      available -
-      artSize -
-      kArtworkGap -
-      kRowGutter -
-      kActionsColumnWidth -
-      kMinTitleWidth;
-  return budget.clamp(0.0, natural);
-}
 
 /// Filter + sortable track list.
 class TrackListPane extends ConsumerStatefulWidget {
@@ -84,6 +62,10 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final density = ref.watch(libraryRowDensityProvider);
+    // Watched (not read): `trackRowInLibrary` reads this to derive each row's
+    // payload source and menu enablement, and a drive resolution completing
+    // must rebuild the rows — the dependency the old hoisted watch provided.
+    ref.watch(driveResolvedByPathProvider);
     final settings = ref
         .watch(appSettingsProvider)
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
@@ -400,7 +382,7 @@ class _CompactRow extends StatelessWidget {
           SizedBox(
             width: trailingMetaWidth(
               constraints.maxWidth,
-              artSize,
+              artSize + kArtworkGap,
               // Compact has no metadata pills, so the trailing group carries
               // the length too and must reserve room for it.
               natural:
@@ -477,7 +459,10 @@ class _ComfortableRow extends StatelessWidget {
         // run and four pills can never need a third one. Without this a long
         // artist name consumes a whole run and the row grows past the fixed
         // `itemExtent`, where the extra runs are silently clipped.
-        final metaWidth = trailingMetaWidth(constraints.maxWidth, artSize);
+        final metaWidth = trailingMetaWidth(
+          constraints.maxWidth,
+          artSize + kArtworkGap,
+        );
         final detailsWidth =
             constraints.maxWidth -
             artSize -

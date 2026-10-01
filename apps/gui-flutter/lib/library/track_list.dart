@@ -112,9 +112,16 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// highlighted row would silently jump to whatever now sits at the old index.
   String? _focusedId;
 
+  /// Captured in `initState` because `ref` is unsafe to use from `dispose`.
+  FocusedTrackPayload? _focusedPayload;
+
+  /// Identifies this list as the payload owner, and the mount that owns it.
+  final Object _payloadOwner = Object();
+
   @override
   void initState() {
     super.initState();
+    _focusedPayload = ref.read(focusedTrackPayloadProvider);
     _scroll.addListener(_requestVisibleRange);
     // The first result set arrives after this widget's first build, so the row
     // count and focus pin are applied in a post-frame callback. Doing it inline
@@ -141,6 +148,14 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
 
   @override
   void dispose() {
+    // Relinquish the shared payload so a controller "load focused row" after
+    // this list is gone no-ops instead of loading the last highlighted row.
+    // Plain field writes: a provider must not be modified during teardown.
+    final holder = _focusedPayload;
+    if (holder != null && identical(holder.owner, _payloadOwner)) {
+      holder.owner = null;
+      holder.payload = null;
+    }
     _scroll.removeListener(_requestVisibleRange);
     _scroll.dispose();
     _focusNode.dispose();
@@ -208,11 +223,15 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
   /// Publish the focused row's payload so controller "load focused row" works
   /// for whichever list is on screen.
   void _publishFocusedPayload() {
+    final holder = _focusedPayload;
+    if (holder == null) {
+      return;
+    }
     final index = ref.read(focusedTrackRowIndexProvider);
-    final payload = (index >= 0 && index < _items.length)
+    holder.owner = _payloadOwner;
+    holder.payload = (index >= 0 && index < _items.length)
         ? widget.payloadOf(ref, _items[index])
         : null;
-    ref.read(focusedTrackPayloadProvider.notifier).set(payload);
   }
 
   /// Keyboard focus movement. [delta] is null for the absolute Home/End cases,

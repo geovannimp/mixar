@@ -263,6 +263,68 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
   });
 
+  testWidgets('publishes the focused row payload for controller load', (
+    tester,
+  ) async {
+    final container = await pumpPane(tester);
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromHistoryEntry(entry),
+    );
+
+    // The same global payload the library list publishes, so MIDI "load focused
+    // row" acts on the history row that is highlighted.
+    container.read(focusedTrackRowIndexProvider.notifier).navigate(1);
+    await tester.pump();
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromHistoryEntry(entryB),
+    );
+  });
+
+  testWidgets('clears the focused payload when the list unmounts', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.light();
+    final scopeKey = GlobalKey();
+    Widget app({required bool showList}) => ProviderScope(
+      key: scopeKey,
+      overrides: [
+        historySessionsProvider.overrideWith((ref) async => const [session]),
+        historyEntriesProvider.overrideWith(
+          (ref) async => const [entry, entryB],
+        ),
+        appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+      ],
+      child: MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: showList
+              ? const SizedBox(
+                  width: 800,
+                  height: 400,
+                  child: HistoryDetailPane(),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app(showList: true));
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(HistoryDetailPane)),
+    );
+    expect(container.read(focusedTrackPayloadProvider).payload, isNotNull);
+
+    await tester.pumpWidget(app(showList: false));
+    await tester.pumpAndSettle();
+    // A controller "load" after teardown must no-op, not load a stale row.
+    expect(container.read(focusedTrackPayloadProvider).payload, isNull);
+    expect(container.read(focusedTrackPayloadProvider).owner, isNull);
+  });
+
   testWidgets('the density button switches layout and resets on a second '
       'press', (tester) async {
     final container = await pumpPane(tester);

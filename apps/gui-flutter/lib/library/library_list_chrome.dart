@@ -36,6 +36,25 @@ const kMinTitleWidth = 64.0;
 /// overlay keeps its pills clear of the row's menu button.
 const kActionsColumnWidth = 44.0;
 
+/// Width for a row's trailing meta at [available] px: its natural size whenever
+/// the row is wide enough, shrinking only once the title would drop below
+/// [kMinTitleWidth]. [leading] is everything left of the title — the artwork and
+/// its gap, or the history `#`/deck group — so both list layouts share one
+/// budget instead of two copies that can drift.
+///
+/// Computed rather than left to flex, because `Expanded` title + `Flexible`
+/// meta splits the free space evenly — the meta would claim half the row and
+/// the title would wrap its pills at widths that have plenty of room.
+double trailingMetaWidth(
+  double available,
+  double leading, {
+  double natural = kTrailingMetaBaseWidth,
+}) {
+  final budget =
+      available - leading - kRowGutter - kActionsColumnWidth - kMinTitleWidth;
+  return budget.clamp(0.0, natural);
+}
+
 /// Identifies the right-hand BPM/key pill group, so a test can scope to it
 /// rather than to the metadata pills on the left.
 const kTrailingMetaKey = ValueKey<String>('libraryTrailingMeta');

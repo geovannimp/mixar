@@ -396,19 +396,22 @@ class FocusedTrackRowIndex extends Notifier<int> {
 final focusedTrackRowIndexProvider =
     NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
 
-/// Payload of the row the active list has focused, so controller / MIDI "load
-/// focused row" works for whichever list is on screen (library or history).
-class FocusedTrackPayload extends Notifier<TrackDragPayload?> {
-  @override
-  TrackDragPayload? build() => null;
+/// The active list's focused-row payload, so controller / MIDI "load focused
+/// row" acts on whichever list is on screen (library or history).
+///
+/// A plain holder rather than a `Notifier`: a list relinquishes it from
+/// `dispose` by clearing [owner], and Riverpod forbids a provider write during
+/// teardown. Consumers read it at load time, so no reactivity is needed.
+class FocusedTrackPayload {
+  TrackDragPayload? payload;
 
-  void set(TrackDragPayload? payload) => state = payload;
+  /// Token of the list that currently owns [payload]; `null` once it unmounts.
+  Object? owner;
 }
 
-final focusedTrackPayloadProvider =
-    NotifierProvider<FocusedTrackPayload, TrackDragPayload?>(
-      FocusedTrackPayload.new,
-    );
+final focusedTrackPayloadProvider = Provider<FocusedTrackPayload>(
+  (ref) => FocusedTrackPayload(),
+);
 
 /// Phases driven by the stem pipeline rather than track analysis. `decode`
 /// belongs to the stem pass: it re-decodes the source for the separator.
@@ -523,7 +526,8 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
 /// The focused payload is published by [TrackListView], so this works for the
 /// library list and the history list alike without knowing which is on screen.
 Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
-  final payload = ref.read(focusedTrackPayloadProvider);
+  final focused = ref.read(focusedTrackPayloadProvider);
+  final payload = focused.owner == null ? null : focused.payload;
   if (payload == null) {
     return;
   }

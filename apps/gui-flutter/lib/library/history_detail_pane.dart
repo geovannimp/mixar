@@ -376,23 +376,6 @@ String _deckLetter(int deck) => switch (deck) {
   _ => '${deck + 1}',
 };
 
-/// Trailing-meta budget for a history row: its natural width whenever the row
-/// is wide enough, shrinking only once the title would drop below
-/// [kMinTitleWidth]. History has no artwork, so only the actions slot and the
-/// title floor are reserved.
-double _historyMetaWidth(
-  double available, {
-  double natural = kTrailingMetaBaseWidth,
-}) {
-  final budget =
-      available -
-      _kHistoryLeadingWidth -
-      kRowGutter -
-      kActionsColumnWidth -
-      kMinTitleWidth;
-  return budget.clamp(0.0, natural);
-}
-
 /// Title + metadata pills on the left, BPM/key on the right.
 class _ComfortableEntryRow extends StatelessWidget {
   const new({
@@ -427,7 +410,10 @@ class _ComfortableEntryRow extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final metaWidth = _historyMetaWidth(constraints.maxWidth);
+        final metaWidth = trailingMetaWidth(
+          constraints.maxWidth,
+          _kHistoryLeadingWidth,
+        );
         final detailsWidth =
             constraints.maxWidth -
             _kHistoryLeadingWidth -
@@ -557,8 +543,9 @@ class _CompactEntryRow extends StatelessWidget {
           ),
           const SizedBox(width: kRowGutter),
           SizedBox(
-            width: _historyMetaWidth(
+            width: trailingMetaWidth(
               constraints.maxWidth,
+              _kHistoryLeadingWidth,
               // Compact hides the pills, so the trailing group carries the
               // played length too and must reserve room for it.
               natural:
