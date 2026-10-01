@@ -206,50 +206,54 @@ class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    return ConstrainedBox(
-      // minHeight, not a fixed height: the tab bar grows with its content, and
-      // a hard box would overflow the field at larger text scales.
-      constraints: const BoxConstraints(minHeight: kLibraryHeaderHeight),
-      child: DecoratedBox(
-        key: kLibraryToolbarKey,
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: theme.colors.border,
-              width: theme.style.borderWidth,
+    // A definite height is what lets the field band fill the header: with an
+    // unbounded max height `Center` shrinks to the field, re-introducing a gap
+    // above it. Text scaling is clamped so the fixed header cannot overflow.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.2,
+      child: SizedBox(
+        height: kLibraryHeaderHeight,
+        child: DecoratedBox(
+          key: kLibraryToolbarKey,
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colors.border,
+                width: theme.style.borderWidth,
+              ),
             ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 6),
-          child: Row(
-            children: [
-              Expanded(
-                child: ColoredBox(
-                  color: libraryToolbarFieldColor(
-                    theme,
-                    focused: _focusNode.hasFocus,
-                  ),
-                  // Centred vertically; the field itself takes the full width
-                  // (`ShadInput`'s row expands), so the visible band and the
-                  // tappable field coincide.
-                  child: Center(
-                    child: MixarInput(
-                      hint: widget.hint,
-                      borderless: true,
-                      focusNode: _focusNode,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ColoredBox(
+                    color: libraryToolbarFieldColor(
+                      theme,
+                      focused: _focusNode.hasFocus,
+                    ),
+                    // Vertically centred; the field takes the full width
+                    // (`ShadInput`'s row expands), so the visible band and the
+                    // tappable field coincide.
+                    child: Center(
+                      child: MixarInput(
+                        hint: widget.hint,
+                        borderless: true,
+                        focusNode: _focusNode,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        onChanged: widget.onChanged,
                       ),
-                      onChanged: widget.onChanged,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              ...widget.trailing,
-            ],
+                const SizedBox(width: 6),
+                ...widget.trailing,
+              ],
+            ),
           ),
         ),
       ),

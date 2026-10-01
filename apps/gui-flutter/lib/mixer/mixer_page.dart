@@ -64,15 +64,17 @@ class _MixerPageState extends State<MixerPage> {
           'waveforms' => const WaveformSection(),
           'decks_library' => ColoredBox(
             color: context.theme.colors.card,
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
+                const SizedBox(
                   height: MixerPage._deckRowHeight,
                   child: ClipRect(child: DeckGrid()),
                 ),
-                MDivider(padding: .zero),
-                Expanded(child: LibraryPanel()),
+                // Split the library from the mixer above it in the same border
+                // colour as the rest of the library chrome.
+                MDivider(padding: .zero, color: context.theme.colors.border),
+                const Expanded(child: LibraryPanel()),
               ],
             ),
           ),
