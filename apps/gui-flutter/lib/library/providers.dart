@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_refresh.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -152,7 +153,7 @@ final analyzingTrackIdsProvider =
 
 /// Coarse analyze/stems phase label + optional fraction per track.
 class TrackProgressInfo {
-  const TrackProgressInfo({required this.phase, this.fraction});
+  const new({required this.phase, this.fraction});
 
   final String phase;
   final double? fraction;
@@ -719,15 +720,199 @@ final driveTableTracksProvider =
       );
     });
 
-/// Right-pane rows: collection tracks or drive files, depending on the tab.
+/// Row count the Home / End keys clamp against. A count, not a list of ids:
+/// the only consumer needs the length, and materialising every id on each
+/// result-set change would be an O(n) allocation to read one integer.
+final libraryTrackCountProvider = Provider<int>((ref) {
+  return ref.watch(libraryTableTracksProvider).asData?.value.length ?? 0;
+});
+
+/// Load list row [index] to [deckId].
+///
+/// Focuses that row first so the deck and the highlighted row agree, then
+/// loads it by payload. Because [libraryTableTracksProvider] is already sorted,
+/// the list index and the focused index are the same number — which is what
+/// lets this share [focusedLoadPayload] with the MIDI path.
+Future<void> loadListRowToDeck(WidgetRef ref, int index, int deckId) async {
+  final tracks = ref.read(libraryTableTracksProvider).asData?.value;
+  if (tracks == null) {
+    return;
+  }
+  final tab = ref.read(librarySourceTabProvider);
+  final resolved =
+      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
+  final payload = focusedLoadPayload(
+    tracks,
+    index,
+    inLibrary: (t) =>
+        trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved),
+  );
+  if (payload == null) {
+    return;
+  }
+  ref.read(focusedTrackRowIndexProvider.notifier).set(index);
+  await loadPayloadToDeck(ref, deckId, payload);
+}
+
+/// Sort field for the library list toolbar.
+enum LibrarySortField {
+  title('Title'),
+  artist('Artist'),
+  bpm('BPM'),
+  key('Key'),
+  length('Length');
+
+  new(this.label);
+
+  final String label;
+}
+
+class LibrarySort extends Notifier<(LibrarySortField, bool)> {
+  @override
+  (LibrarySortField, bool) build() => (LibrarySortField.title, true);
+
+  void setField(LibrarySortField field) => state = (field, state.$2);
+
+  void toggleDirection() => state = (state.$1, !state.$2);
+}
+
+final librarySortProvider =
+    NotifierProvider<LibrarySort, (LibrarySortField, bool)>(LibrarySort.new);
+
+/// Sort [tracks] by [field]. Null metadata sorts last in either direction so
+/// an unanalyzed track never displaces a scanned one at the top of the list.
+List<LibraryTrackSummary> sortLibraryTracks(
+  List<LibraryTrackSummary> tracks,
+  LibrarySortField field, {
+  required bool ascending,
+}) {
+  // Sort (originalIndex, track) pairs rather than bare tracks: `List.sort` is
+  // only stable below its insertion-sort threshold, so a comparator that
+  // returns 0 for equal keys lets a larger library shuffle tied rows.
+  // Carrying the index makes the ordering total, which keeps provider order
+  // for ties at any size.
+  final indexed = [for (var i = 0; i < tracks.length; i++) (i, tracks[i])];
+  indexed.sort((a, b) {
+    final left = _sortKeyFor(a.$2, field);
+    final right = _sortKeyFor(b.$2, field);
+    final byRank = left.$1.compareTo(right.$1);
+    if (byRank != 0) {
+      // Rank is the missing-value marker, and it is never inverted: a track
+      // with no BPM belongs at the bottom in both directions, not floating to
+      // the top when the user flips the sort.
+      return byRank;
+    }
+    final byValue = left.$2.compareTo(right.$2);
+    if (byValue != 0) {
+      return ascending ? byValue : -byValue;
+    }
+    return a.$1.compareTo(b.$1);
+  });
+  return [for (final (_, track) in indexed) track];
+}
+
+/// Rank prefix: a known value sorts before a missing one, in both directions.
+const _kSortHasValue = 0;
+
+/// Rank for a missing value. Every missing key shares this rank and an empty
+/// value, so unknowns tie among themselves and settle at the bottom.
+const _kSortMissingValue = 1;
+
+/// Sort key for one field: a rank that separates a known value from a missing
+/// one, and the value itself as a string so one comparison serves text and
+/// numbers alike. A track with no BPM should never outrank a scanned one,
+/// hence the rank in [_kSortHasValue] / [_kSortMissingValue].
+(int rank, String value) _sortKeyFor(
+  LibraryTrackSummary track,
+  LibrarySortField field,
+) => switch (field) {
+  LibrarySortField.title => _textSortKey(trackTitleLabel(track)),
+  LibrarySortField.artist => _textSortKey(track.artist ?? ''),
+  LibrarySortField.key => _keySortKey(track.key),
+  LibrarySortField.bpm => _numericSortKey(track.bpm),
+  LibrarySortField.length => _numericSortKey(track.durationMs?.toDouble()),
+};
+
+(int, String) _textSortKey(String? value) {
+  final text = value?.trim().toLowerCase() ?? '';
+  return text.isEmpty ? (_kSortMissingValue, '') : (_kSortHasValue, text);
+}
+
+/// Camelot wheel position, not the raw label: sorted as text, `10A` lands
+/// before `2A`, which reads as no order at all. [camelotSlotForKey] normalises
+/// either key format to `(1-12, A=minor / B=major)`, so the list follows the
+/// wheel — `1A, 1B, 2A, … 12B` — keeping harmonically adjacent keys together.
+(int, String) _keySortKey(String? key) {
+  final slot = camelotSlotForKey(key ?? '');
+  if (slot == null) {
+    // An unparseable key joins the unknowns rather than sorting as text.
+    return (_kSortMissingValue, '');
+  }
+  final (number, minor) = slot;
+  return (
+    _kSortHasValue,
+    '${number.toString().padLeft(2, '0')}${minor ? '0' : '1'}',
+  );
+}
+
+/// Fixed-width padded numeric key, so `128` does not sort before `90`. A
+/// non-finite or negative value is treated as missing: a NaN from a failed
+/// analysis must not poison the whole ordering. BPM and duration are never
+/// negative, so the sign needs no case.
+///
+/// Scaled to milli-units before padding: rounding to whole units would map
+/// 109.7 and 109.9 to the same key, turning two distinct BPMs into a tie that
+/// falls back to provider order instead of the true value.
+///
+/// Values are clamped to [_kSortNumericMax] so a scaled key is always exactly
+/// [_kSortNumericDigits] long. Past that the key grows a digit, `padLeft`
+/// stops aligning, and the lexicographic comparison inverts: `'1000…'` sorts
+/// *below* `'999…'`, which silently mis-orders a short track after a long one.
+/// (`round()` also clamps to the int64 maximum rather than throwing, so an
+/// absurd duration degrades quietly instead of failing loudly.)
+(int, String) _numericSortKey(double? value) {
+  if (value == null || !value.isFinite || value < 0) {
+    return (_kSortMissingValue, '');
+  }
+  final clamped = value > _kSortNumericMax ? _kSortNumericMax : value;
+  final scaled = (clamped * _kSortNumericScale).round();
+  return (_kSortHasValue, scaled.toString().padLeft(_kSortNumericDigits, '0'));
+}
+
+/// Milli-units of precision for numeric sort keys: finer than any BPM or
+/// duration the app displays, coarse enough that `(value * scale).round()` is
+/// not tripped by floating-point representation.
+const _kSortNumericScale = 1000;
+
+/// Largest key magnitude, in the field's own units (BPM or milliseconds).
+///
+/// `_kSortNumericMax * _kSortNumericScale` is 10^15, which is 16 digits and
+/// below 2^53, so it converts to an integer exactly. A real BPM or duration is
+/// orders of magnitude smaller; anything above this is garbage metadata and
+/// sorts as the largest value rather than corrupting the ordering.
+const _kSortNumericMax = 1e12;
+
+/// Width of a padded numeric key: the digits of `10^15`.
+const _kSortNumericDigits = 16;
+
+/// Right-pane rows: collection tracks or drive files, depending on the tab,
+/// ordered by the toolbar sort. Sorting here rather than in the view keeps
+/// list index, provider index and `focusedTrackRowIndexProvider` in agreement,
+/// so MIDI "load focused row" targets the row the user is looking at.
 final libraryTableTracksProvider =
     Provider<AsyncValue<List<LibraryTrackSummary>>>((ref) {
-      switch (ref.watch(librarySourceTabProvider)) {
-        case LibrarySourceTab.collections:
-          return ref.watch(filteredTracksProvider);
-        case LibrarySourceTab.drive:
-          return ref.watch(driveTableTracksProvider);
-        case LibrarySourceTab.history:
-          return const AsyncData([]);
-      }
+      // Explicit type, not inferred: the switch mixes three AsyncValue
+      // sources, and without it the history arm's empty literal degrades the
+      // whole expression to Object/dynamic.
+      final AsyncValue<List<LibraryTrackSummary>> source = switch (ref.watch(
+        librarySourceTabProvider,
+      )) {
+        LibrarySourceTab.collections => ref.watch(filteredTracksProvider),
+        LibrarySourceTab.drive => ref.watch(driveTableTracksProvider),
+        LibrarySourceTab.history => const AsyncData([]),
+      };
+      final (field, ascending) = ref.watch(librarySortProvider);
+      return source.whenData(
+        (tracks) => sortLibraryTracks(tracks, field, ascending: ascending),
+      );
     });

@@ -2,35 +2,62 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {
   test('equal collection contents are not dirty', () {
     final baseline = defaultAppSettings();
     final restored = copyAppSettings(
       baseline,
-      libraryTableColumns: List<String>.from(baseline.libraryTableColumns),
       deckDefaultSamplerBankId: List<String?>.from(
         baseline.deckDefaultSamplerBankId,
       ),
       tempoRangeSteps: Float32List.fromList(baseline.tempoRangeSteps),
     );
     expect(appSettingsDirty(baseline, restored), isFalse);
-    expect(
-      identical(baseline.libraryTableColumns, restored.libraryTableColumns),
-      isFalse,
-    );
   });
 
-  test('library column edits are dirty', () {
+  test('row density defaults comfortable and is dirty when changed', () {
     final baseline = defaultAppSettings();
-    final next = List<String>.from(baseline.libraryTableColumns)
-      ..remove('artist');
+    expect(baseline.libraryRowDensity, LibraryRowDensitySetting.comfortable);
     expect(
       appSettingsDirty(
-        copyAppSettings(baseline, libraryTableColumns: next),
+        copyAppSettings(
+          baseline,
+          libraryRowDensity: LibraryRowDensitySetting.compact,
+        ),
         baseline,
       ),
       isTrue,
+    );
+  });
+
+  test('normalizeAppSettings keeps the saved row density', () {
+    final compact = copyAppSettings(
+      defaultAppSettings(),
+      libraryRowDensity: LibraryRowDensitySetting.compact,
+    );
+    expect(
+      normalizeAppSettings(compact).libraryRowDensity,
+      LibraryRowDensitySetting.compact,
+    );
+  });
+
+  test('row density maps to the layout the list renders', () {
+    expect(
+      libraryRowDensityFromSettings(LibraryRowDensitySetting.comfortable),
+      LibraryRowDensity.comfortable,
+    );
+    expect(
+      libraryRowDensityFromSettings(LibraryRowDensitySetting.compact),
+      LibraryRowDensity.compact,
+    );
+    // The toggle flips between the two, and only between the two.
+    expect(LibraryRowDensity.compact.other, LibraryRowDensity.comfortable);
+    expect(LibraryRowDensity.comfortable.other, LibraryRowDensity.compact);
+    expect(
+      LibraryRowDensity.values.map((d) => d.other),
+      containsAll(LibraryRowDensity.values),
     );
   });
 

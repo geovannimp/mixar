@@ -15,7 +15,7 @@ int navigateIndex(int current, int count, int delta) {
   return next;
 }
 
-TrackDragPayload payloadFromTableTrack(
+TrackDragPayload payloadFromListTrack(
   LibraryTrackSummary track, {
   required bool inLibrary,
 }) {
@@ -39,18 +39,5 @@ TrackDragPayload? focusedLoadPayload(
     return null;
   }
   final track = tracks[index];
-  return payloadFromTableTrack(track, inLibrary: inLibrary(track));
-}
-
-/// Grid row for [tableIndex] in provider order, even when the table is sorted.
-int? visualRowIndexForFocusedTrack(
-  List<String?> visualTrackIds,
-  List<String> tableTrackIds,
-  int tableIndex,
-) {
-  if (tableIndex < 0 || tableIndex >= tableTrackIds.length) {
-    return null;
-  }
-  final i = visualTrackIds.indexOf(tableTrackIds[tableIndex]);
-  return i < 0 ? null : i;
+  return payloadFromListTrack(track, inLibrary: inLibrary(track));
 }

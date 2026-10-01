@@ -6,7 +6,7 @@ import 'package:gui_flutter/library/history_detail_pane.dart';
 import 'package:gui_flutter/library/history_pane.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
 import 'package:gui_flutter/shell/m_card.dart';
@@ -148,7 +148,7 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                   'content' =>
                     tab == LibrarySourceTab.history
                         ? const HistoryDetailPane()
-                        : const TrackTablePane(),
+                        : const TrackListPane(),
                   _ => const SizedBox.shrink(),
                 },
               ),

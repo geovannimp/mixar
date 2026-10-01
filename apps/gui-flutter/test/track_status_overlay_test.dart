@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
@@ -14,7 +14,6 @@ import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:trina_grid/trina_grid.dart';
 
 import 'support/mixar_material_app.dart';
 
@@ -22,14 +21,18 @@ import 'support/mixar_material_app.dart';
 // FractionallySizedBox), so a global count would break for reasons unrelated
 // to the overlay. Scope to the pane under test.
 Finder barsInPane() => find.descendant(
-  of: find.byType(TrackTablePane),
+  of: find.byType(TrackListPane),
   matching: find.byType(FractionallySizedBox),
 );
 
 Finder loadersInPane() => find.descendant(
-  of: find.byType(TrackTablePane),
+  of: find.byType(TrackListPane),
   matching: find.byType(MLoader),
 );
+
+/// The row under a given index, for the geometry assertions below.
+Finder rowAt(int index) =>
+    find.byWidgetPredicate((w) => w is TrackListRow && w.index == index);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -59,11 +62,12 @@ void main() {
   Future<ProviderContainer> pumpTable(
     WidgetTester tester, {
     double width = 900,
+    double height = 600,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
     final theme = MixarThemeData.light();
-    tester.view.physicalSize = Size(width, 600);
+    tester.view.physicalSize = Size(width, height);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -82,8 +86,8 @@ void main() {
           home: Scaffold(
             body: SizedBox(
               width: width,
-              height: 600,
-              child: const TrackTablePane(),
+              height: height,
+              child: const TrackListPane(),
             ),
           ),
         ),
@@ -91,7 +95,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     return ProviderScope.containerOf(
-      tester.element(find.byType(TrackTablePane)),
+      tester.element(find.byType(TrackListPane)),
     );
   }
 
@@ -217,15 +221,17 @@ void main() {
     expect(loadersInPane(), findsOneWidget);
   });
 
-  testWidgets('progress ticks reuse grid rows instead of regenerating them', (
+  testWidgets('progress ticks reuse row elements instead of rebuilding them', (
     tester,
   ) async {
     final container = await pumpTable(tester);
-    final manager = tester
-        .state<TrinaGridState>(find.byType(TrinaGrid))
-        .stateManager;
-    final before = List<TrinaRow<dynamic>>.from(manager.refRows);
-    expect(before, hasLength(2));
+    expect(rowAt(0), findsOneWidget);
+    expect(rowAt(1), findsOneWidget);
+    // Capture both rows: the working one *and* an untouched one. Regenerating
+    // either on a fraction tick is the churn that used to blink the table, and
+    // only asserting row 0 would miss a regression on the idle row.
+    final beforeRow0 = tester.element(rowAt(0));
+    final beforeRow1 = tester.element(rowAt(1));
 
     container
         .read(trackProgressProvider.notifier)
@@ -237,9 +243,10 @@ void main() {
         .set(track.id, 'analyze', 0.9);
     await tester.pump();
 
-    final after = manager.refRows;
-    expect(after.first, same(before.first));
-    expect(after.last, same(before.last));
+    // Same elements, so the list did not regenerate rows on each fraction
+    // tick — the churn that used to blink the whole table.
+    expect(identical(tester.element(rowAt(0)), beforeRow0), isTrue);
+    expect(identical(tester.element(rowAt(1)), beforeRow1), isTrue);
     expect(find.text('Analyzing 90%'), findsOneWidget);
   });
 
@@ -273,6 +280,30 @@ void main() {
     expect(menu().stemsGenerating, isFalse);
   });
 
+  testWidgets('analysis pills render before stem pills', (tester) async {
+    // Pins the lane order the overlay documents. Implemented as a partition
+    // rather than a sort, since the two-lane comparator ties within a lane and
+    // Dart's sort is not stable above its insertion-sort threshold.
+    final container = await pumpTable(tester);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.4);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 0.6);
+    await tester.pump();
+
+    final analysis = tester.getRect(find.text('Detecting BPM 40%'));
+    final stems = tester.getRect(find.text('Separating stems 60%'));
+    expect(analysis.left, lessThan(stems.left));
+
+    // Same order after another tick, so a progress update cannot swap lanes.
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.8);
+    await tester.pump();
+    expect(
+      tester.getRect(find.text('Detecting BPM 80%')).left,
+      lessThan(tester.getRect(find.text('Separating stems 60%')).left),
+    );
+  });
+
   testWidgets('pills stay right-aligned as lanes stack', (tester) async {
     final container = await pumpTable(tester);
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
@@ -296,35 +327,22 @@ void main() {
     );
   });
 
-  // The two bar-placement tests below assert against trina_grid's row-slot
-  // math (bodyTopOffset + rowTotalHeight - cellHorizontalBorderWidth), so they
-  // are coupled to that library's layout contract rather than to pixels we
-  // choose. A trina_grid upgrade that changes those semantics is the expected
-  // cause of failure here; do not loosen the tolerance to make them green.
-  testWidgets('progress bars sit flush on the row content edge', (
-    tester,
-  ) async {
+  // The row owns its own height, so these two assert the bar sits on the row's
+  // own bottom edge and that stacking a second bar moves the first up by one
+  // stride — no third-party row-slot math involved.
+  testWidgets('progress bars sit flush on the row bottom edge', (tester) async {
     final container = await pumpTable(tester);
     container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.7);
     await tester.pump();
 
-    final manager = tester
-        .state<TrinaGridState>(find.byType(TrinaGrid))
-        .stateManager;
-    // Trina's row slot is rowHeight + a horizontal cell border; anchoring the
-    // bar to the slot instead left a visible gap below it.
-    final rowSlotBottom = manager.bodyTopOffset + manager.rowTotalHeight;
     final bar = tester.getRect(barsInPane());
-    expect(
-      rowSlotBottom - bar.bottom,
-      closeTo(manager.configuration.style.cellHorizontalBorderWidth, 0.01),
-    );
+    expect(bar.bottom, closeTo(tester.getRect(rowAt(0)).bottom, 0.01));
   });
 
   testWidgets('a bar ordinal ignores lanes that render no bar', (tester) async {
     final container = await pumpTable(tester);
     // Analysis reports no fraction, stems do. The single bar belongs on the
-    // content edge, not one stride up.
+    // row bottom, not one stride up.
     container
         .read(trackProgressProvider.notifier)
         .set(track.id, 'analyze', null);
@@ -333,15 +351,11 @@ void main() {
         .set(track.id, 'stems_separate', 0.5);
     await tester.pump();
 
-    final manager = tester
-        .state<TrinaGridState>(find.byType(TrinaGrid))
-        .stateManager;
-    final rowSlotBottom = manager.bodyTopOffset + manager.rowTotalHeight;
     final bars = barsInPane();
     expect(bars, findsOneWidget);
     expect(
-      rowSlotBottom - tester.getRect(bars).bottom,
-      closeTo(manager.configuration.style.cellHorizontalBorderWidth, 0.01),
+      tester.getRect(bars).bottom,
+      closeTo(tester.getRect(rowAt(0)).bottom, 0.01),
     );
   });
 
@@ -522,11 +536,8 @@ void main() {
 
     // Selection survives the overlay because the row's Listener is
     // translucent, but pin it so a change there is caught.
-    final manager = tester
-        .state<TrinaGridState>(find.byType(TrinaGrid))
-        .stateManager;
     await tester.tapAt(tester.getRect(find.text('Demo Track')).center);
     await tester.pump();
-    expect(manager.currentRowIdx, 0);
+    expect(container.read(focusedTrackRowIndexProvider), 0);
   });
 }

@@ -1,6 +1,5 @@
 //! Session settings host (mirrors Tauri `AppSettings` / `apply_settings`).
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -18,9 +17,6 @@ const PREVIEW_BUS_ID: &str = "cue";
 const TARGET_LUFS_MIN: f32 = -24.0;
 const TARGET_LUFS_MAX: f32 = -9.0;
 const TARGET_LUFS_DEFAULT: f32 = -18.0;
-const LIBRARY_COLUMN_IDS: &[&str] = &[
-    "title", "artist", "album", "genre", "bpm", "key", "duration", "path",
-];
 
 static SETTINGS: OnceLock<Arc<Mutex<SettingsHost>>> = OnceLock::new();
 
@@ -230,6 +226,16 @@ pub enum KeyColorModeSetting {
     Harmonic,
 }
 
+/// Row layout of the library track list. `Compact` is the dense single line,
+/// `Comfortable` the two-line default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryRowDensitySetting {
+    Compact,
+    #[default]
+    Comfortable,
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -242,7 +248,8 @@ pub struct AppSettings {
     pub preview_enabled: bool,
     pub preview_bus: BusRouteSettings,
     pub analysis_duration: AnalysisDurationSetting,
-    pub library_table_columns: Vec<String>,
+    #[serde(default)]
+    pub library_row_density: LibraryRowDensitySetting,
     pub volume_normalizer_enabled: bool,
     pub target_lufs: f32,
     pub sampler_play_mode: SamplerPlayModeSetting,
@@ -284,7 +291,7 @@ struct SettingsHost {
     configured: bool,
     persist_path: Option<PathBuf>,
     engine_config: EngineConfig,
-    library_table_columns: Vec<String>,
+    library_row_density: LibraryRowDensitySetting,
     volume_normalizer_enabled: bool,
     target_lufs: f32,
     sampler_play_mode: SamplerPlayModeSetting,
@@ -311,7 +318,7 @@ impl Default for SettingsHost {
             configured: false,
             persist_path: None,
             engine_config: default_engine_config(),
-            library_table_columns: default_library_table_columns(),
+            library_row_density: LibraryRowDensitySetting::default(),
             volume_normalizer_enabled: true,
             target_lufs: TARGET_LUFS_DEFAULT,
             sampler_play_mode: SamplerPlayModeSetting::Oneshot,
@@ -368,16 +375,6 @@ fn normalize_stems_format(format: &str) -> String {
         "aac" => "opus".into(), // not implemented yet
         _ => "opus".into(),
     }
-}
-
-fn default_library_table_columns() -> Vec<String> {
-    vec![
-        "title".into(),
-        "artist".into(),
-        "bpm".into(),
-        "key".into(),
-        "duration".into(),
-    ]
 }
 
 fn default_master_bus_route() -> BusRouteSettings {
@@ -458,20 +455,6 @@ fn parse_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     if settings.tempo_range_steps.is_empty() {
         errors.push("tempo_range_steps must contain at least one finite > 0 step".into());
     }
-
-    let allowed: HashSet<&str> = LIBRARY_COLUMN_IDS.iter().copied().collect();
-    let mut columns: Vec<String> = settings
-        .library_table_columns
-        .into_iter()
-        .filter(|id| allowed.contains(id.as_str()))
-        .collect();
-    if !columns.iter().any(|id| id == "title") {
-        columns.insert(0, "title".into());
-    }
-    if columns.is_empty() {
-        columns = default_library_table_columns();
-    }
-    settings.library_table_columns = columns;
 
     let mut banks = settings.deck_default_sampler_bank_id;
     banks.resize(NUM_DECKS, None);
@@ -591,7 +574,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
             .map(bus_route_from_config)
             .unwrap_or_else(default_preview_bus_route),
         analysis_duration: config.analysis_duration.into(),
-        library_table_columns: host.library_table_columns.clone(),
+        library_row_density: host.library_row_density,
         volume_normalizer_enabled: host.volume_normalizer_enabled,
         target_lufs: host.target_lufs,
         sampler_play_mode: host.sampler_play_mode,
@@ -634,7 +617,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     });
     config.validate().map_err(|e| e.to_string())?;
     host.engine_config = config;
-    host.library_table_columns = settings.library_table_columns;
+    host.library_row_density = settings.library_row_density;
     host.volume_normalizer_enabled = settings.volume_normalizer_enabled;
     host.target_lufs = settings.target_lufs;
     host.sampler_play_mode = settings.sampler_play_mode;
@@ -802,6 +785,63 @@ mod tests {
         let host = load_host(&path);
         assert!(host.configured);
         assert_eq!(settings_from_host(&host).stems_format, "opus");
+    }
+
+    #[test]
+    fn missing_library_row_density_defaults_comfortable() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("library_row_density");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(
+            settings.library_row_density,
+            LibraryRowDensitySetting::Comfortable
+        );
+    }
+
+    #[test]
+    fn library_row_density_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.library_row_density = LibraryRowDensitySetting::Compact;
+        let mut host = SettingsHost {
+            persist_path: Some(path.clone()),
+            ..Default::default()
+        };
+        apply_to_host(&mut host, settings).expect("apply");
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        write_settings_file(&path, &saved).expect("write");
+        assert_eq!(
+            load_host(&path).library_row_density,
+            LibraryRowDensitySetting::Compact
+        );
+    }
+
+    #[test]
+    fn legacy_library_table_columns_key_is_ignored() {
+        // Settings files written while the track list was still a column table
+        // carry `library_table_columns`. The key is gone from the DTO, so loading
+        // must drop it silently rather than fail on an unknown field.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value.as_object_mut().expect("object").insert(
+            "library_table_columns".into(),
+            serde_json::json!(["title", "artist", "bpm"]),
+        );
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+
+        let host = load_host(&path);
+        assert!(host.configured);
+        let saved = parse_settings(settings_from_host(&host)).expect("parse");
+        let reloaded = serde_json::to_value(&saved).expect("json");
+        assert!(!reloaded
+            .as_object()
+            .expect("object")
+            .contains_key("library_table_columns"));
     }
 
     #[test]

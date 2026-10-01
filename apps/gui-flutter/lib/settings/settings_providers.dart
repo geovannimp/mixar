@@ -34,13 +34,39 @@ final appSettingsProvider = FutureProvider<AppSettings>((ref) async {
   return normalizeAppSettings(await settings.getSettings());
 });
 
-final libraryTableColumnsProvider = Provider<List<String>>((ref) {
+/// Saved library row layout, the default the list renders with.
+final libraryRowDensitySettingProvider = Provider<LibraryRowDensity>((ref) {
   return ref
       .watch(appSettingsProvider)
       .maybeWhen(
-        data: (s) => s.libraryTableColumns,
-        orElse: () => List<String>.from(kDefaultLibraryColumns),
+        data: (s) => libraryRowDensityFromSettings(s.libraryRowDensity),
+        orElse: () => LibraryRowDensity.comfortable,
       );
+});
+
+/// Session-local density toggle for the library toolbar. It overrides the
+/// saved default for the current session only, so the button never writes
+/// settings.json or takes the engine-restart path in [saveAppSettings].
+class LibraryRowDensityOverride extends Notifier<LibraryRowDensity?> {
+  @override
+  LibraryRowDensity? build() => null;
+
+  void toggle(LibraryRowDensity current) =>
+      state = state == null ? current.other : null;
+
+  /// Null clears the override and falls back to the saved setting.
+  void set(LibraryRowDensity? density) => state = density;
+}
+
+final libraryRowDensityOverrideProvider =
+    NotifierProvider<LibraryRowDensityOverride, LibraryRowDensity?>(
+      LibraryRowDensityOverride.new,
+    );
+
+/// Effective row density: the session override if set, else the saved default.
+final libraryRowDensityProvider = Provider<LibraryRowDensity>((ref) {
+  final override = ref.watch(libraryRowDensityOverrideProvider);
+  return override ?? ref.watch(libraryRowDensitySettingProvider);
 });
 
 final samplerBanksProvider = FutureProvider<List<SamplerBankInfo>>((ref) async {
@@ -101,7 +127,11 @@ Future<SaveAppSettingsResult> saveAppSettings(
   );
   final saved = await settings.saveSettings(settings: normalized);
   ref.invalidate(appSettingsProvider);
-  ref.invalidate(libraryTableColumnsProvider);
+  ref.invalidate(libraryRowDensitySettingProvider);
+  // Drop any session-only density toggle too. It outranks the saved setting in
+  // `libraryRowDensityProvider`, so leaving it set would make the list ignore
+  // the value the user just saved.
+  ref.invalidate(libraryRowDensityOverrideProvider);
   String? applyError;
   try {
     await library.applyLibrarySettings(

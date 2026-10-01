@@ -2,8 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
-import 'package:gui_flutter/shell/mixar_checkbox.dart';
-import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 class SettingsLibraryPanel extends StatelessWidget {
@@ -87,15 +85,13 @@ class SettingsLibraryPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 16,
       children: [
         const SettingsSectionHeader(
           title: 'Library',
-          description: 'Track import, offline analysis, and table display.',
+          description: 'Track import, offline analysis, and list display.',
         ),
         SettingsField(
           label: 'Analysis quality',
@@ -161,54 +157,21 @@ class SettingsLibraryPanel extends StatelessWidget {
               onChanged(copyAppSettings(draft, dimPlayedTracks: enabled)),
         ),
         SettingsField(
-          label: 'Track table columns',
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border.all(color: theme.colors.border),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  for (final col in kLibraryColumnDefs)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          MixarCheckbox(
-                            value:
-                                col.required ||
-                                draft.libraryTableColumns.contains(col.id),
-                            onChanged: col.required
-                                ? null
-                                : (checked) {
-                                    final next = List<String>.from(
-                                      draft.libraryTableColumns,
-                                    );
-                                    if (checked) {
-                                      if (!next.contains(col.id)) {
-                                        next.add(col.id);
-                                      }
-                                    } else {
-                                      next.remove(col.id);
-                                    }
-                                    onChanged(
-                                      copyAppSettings(
-                                        draft,
-                                        libraryTableColumns: next,
-                                      ),
-                                    );
-                                  },
-                          ),
-                          const SizedBox(width: 8),
-                          Text(col.label, style: theme.typography.body.sm),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
+          label: 'Track row layout',
+          child: SettingsSelect<LibraryRowDensitySetting>(
+            value: draft.libraryRowDensity,
+            options: const [
+              LibraryRowDensitySetting.comfortable,
+              LibraryRowDensitySetting.compact,
+            ],
+            labelBuilder: (mode) => mode == LibraryRowDensitySetting.compact
+                ? 'Compact'
+                : 'Comfortable',
+            subtitleBuilder: (mode) => mode == LibraryRowDensitySetting.compact
+                ? 'One dense line per track — fits the most rows on screen.'
+                : 'Two lines per track: title above artist, BPM, key and length.',
+            onChanged: (mode) =>
+                onChanged(copyAppSettings(draft, libraryRowDensity: mode)),
           ),
         ),
       ],

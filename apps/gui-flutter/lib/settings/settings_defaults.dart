@@ -26,6 +26,33 @@ KeyColorMode keyColorModeFromSettings(KeyColorModeSetting mode) {
   };
 }
 
+/// Library list rows: one dense line, or the two-line default.
+///
+/// `comfortable` is sized for a title plus up to two runs of metadata pills, so
+/// a long artist name wraps onto a second line instead of overflowing the row.
+enum LibraryRowDensity {
+  compact(height: 36, artSize: 28),
+  comfortable(height: 68, artSize: 40);
+
+  new({required this.height, required this.artSize});
+
+  final double height;
+  final double artSize;
+
+  bool get isCompact => this == LibraryRowDensity.compact;
+
+  LibraryRowDensity get other => this == LibraryRowDensity.compact
+      ? LibraryRowDensity.comfortable
+      : LibraryRowDensity.compact;
+}
+
+LibraryRowDensity libraryRowDensityFromSettings(
+  LibraryRowDensitySetting setting,
+) => switch (setting) {
+  LibraryRowDensitySetting.compact => LibraryRowDensity.compact,
+  LibraryRowDensitySetting.comfortable => LibraryRowDensity.comfortable,
+};
+
 const kDefaultBackend = 'cpal';
 const kDefaultSampleRate = 48000;
 const kDefaultBufferSize = 512;
@@ -48,19 +75,6 @@ const kDefaultPreviewBus = BusRouteSettings(
   mode: BusChannelMode.stereo,
 );
 
-const List<({String id, String label, bool required})> kLibraryColumnDefs = [
-  (id: 'title', label: 'Title', required: true),
-  (id: 'artist', label: 'Artist', required: false),
-  (id: 'album', label: 'Album', required: false),
-  (id: 'genre', label: 'Genre', required: false),
-  (id: 'bpm', label: 'BPM', required: false),
-  (id: 'key', label: 'Key', required: false),
-  (id: 'duration', label: 'Length', required: false),
-  (id: 'path', label: 'Path', required: false),
-];
-
-const kDefaultLibraryColumns = ['title', 'artist', 'bpm', 'key', 'duration'];
-
 AppSettings defaultAppSettings() {
   return AppSettings(
     backend: kDefaultBackend,
@@ -72,7 +86,7 @@ AppSettings defaultAppSettings() {
     previewEnabled: false,
     previewBus: kDefaultPreviewBus,
     analysisDuration: AnalysisDurationSetting.precise,
-    libraryTableColumns: List<String>.from(kDefaultLibraryColumns),
+    libraryRowDensity: LibraryRowDensitySetting.comfortable,
     volumeNormalizerEnabled: true,
     targetLufs: kDefaultTargetLufs,
     samplerPlayMode: SamplerPlayModeSetting.oneshot,
@@ -101,13 +115,6 @@ AppSettings normalizeAppSettings(AppSettings settings) {
   final target = settings.targetLufs.isFinite
       ? settings.targetLufs.clamp(kMinTargetLufs, kMaxTargetLufs)
       : kDefaultTargetLufs;
-  final allowed = kLibraryColumnDefs.map((c) => c.id).toSet();
-  final columns = settings.libraryTableColumns
-      .where(allowed.contains)
-      .toList(growable: true);
-  if (!columns.contains('title')) {
-    columns.insert(0, 'title');
-  }
   final banks = List<String?>.from(settings.deckDefaultSamplerBankId);
   while (banks.length < 2) {
     banks.add(null);
@@ -118,7 +125,6 @@ AppSettings normalizeAppSettings(AppSettings settings) {
   return copyAppSettings(
     settings,
     targetLufs: target,
-    libraryTableColumns: columns,
     deckDefaultSamplerBankId: banks,
     masterBus: _normalizeBus(settings.masterBus),
     previewBus: _normalizeBus(settings.previewBus),
@@ -147,7 +153,7 @@ AppSettings copyAppSettings(
   bool? previewEnabled,
   BusRouteSettings? previewBus,
   AnalysisDurationSetting? analysisDuration,
-  List<String>? libraryTableColumns,
+  LibraryRowDensitySetting? libraryRowDensity,
   bool? volumeNormalizerEnabled,
   double? targetLufs,
   SamplerPlayModeSetting? samplerPlayMode,
@@ -180,7 +186,7 @@ AppSettings copyAppSettings(
     previewEnabled: previewEnabled ?? base.previewEnabled,
     previewBus: previewBus ?? base.previewBus,
     analysisDuration: analysisDuration ?? base.analysisDuration,
-    libraryTableColumns: libraryTableColumns ?? base.libraryTableColumns,
+    libraryRowDensity: libraryRowDensity ?? base.libraryRowDensity,
     volumeNormalizerEnabled:
         volumeNormalizerEnabled ?? base.volumeNormalizerEnabled,
     targetLufs: targetLufs ?? base.targetLufs,
@@ -242,7 +248,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.showTooltips != baseline.showTooltips ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
-      !_sameList(draft.libraryTableColumns, baseline.libraryTableColumns) ||
+      draft.libraryRowDensity != baseline.libraryRowDensity ||
       !_sameList(
         draft.deckDefaultSamplerBankId,
         baseline.deckDefaultSamplerBankId,

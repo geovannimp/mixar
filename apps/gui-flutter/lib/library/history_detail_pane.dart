@@ -7,7 +7,7 @@ import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/library/track_table_pane.dart';
+import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/app_button.dart';
@@ -121,7 +121,7 @@ class HistoryDetailPane extends ConsumerWidget {
                         rowColorCallback: (ctx) {
                           final current = ctx.stateManager.currentRowIdx;
                           if (current != null && current == ctx.rowIdx) {
-                            return libraryTableSelectedRowColor(theme);
+                            return libraryListSelectedRowColor(theme);
                           }
                           return theme.colors.secondary;
                         },
@@ -599,7 +599,7 @@ List<TrinaRow<dynamic>> _historyRows(List<HistoryEntryInfo> entries) {
 
 TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
   final surface = theme.colors.secondary;
-  final selected = libraryTableSelectedRowColor(theme);
+  final selected = libraryListSelectedRowColor(theme);
   final text = theme.typography.body.sm.copyWith(
     color: theme.colors.foreground,
   );

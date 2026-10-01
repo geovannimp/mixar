@@ -368,6 +368,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LibraryEvtKind dco_decode_library_evt_kind(dynamic raw);
 
   @protected
+  LibraryRowDensitySetting dco_decode_library_row_density_setting(dynamic raw);
+
+  @protected
   LibraryTrackSummary dco_decode_library_track_summary(dynamic raw);
 
   @protected
@@ -925,6 +928,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   LibraryEvtKind sse_decode_library_evt_kind(SseDeserializer deserializer);
+
+  @protected
+  LibraryRowDensitySetting sse_decode_library_row_density_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LibraryTrackSummary sse_decode_library_track_summary(
@@ -1598,6 +1606,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_library_evt_kind(
     LibraryEvtKind self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_library_row_density_setting(
+    LibraryRowDensitySetting self,
     SseSerializer serializer,
   );
 
