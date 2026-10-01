@@ -25,7 +25,6 @@ class MixarInput extends StatelessWidget {
     this.style,
     this.padding,
     this.borderless = false,
-    this.fillColor,
     this.maxLines = 1,
   });
 
@@ -52,30 +51,11 @@ class MixarInput extends StatelessWidget {
 
   /// Drops [ShadInput]'s rounded border, for a flat field that fills a bar.
   final bool borderless;
-
-  /// Paints the field's background. Implies [borderless] when set.
-  final Color? fillColor;
   final int? maxLines;
-
-  /// Flat chrome: no border in any state, optional fill.
-  ///
-  /// `canMerge: false` replaces the theme's bordered decoration rather than
-  /// merging with it.
-  static ShadDecoration _flatDecoration(Color? color) => ShadDecoration(
-    canMerge: false,
-    color: color,
-    border: ShadBorder.none,
-    focusedBorder: ShadBorder.none,
-    errorBorder: ShadBorder.none,
-    secondaryBorder: ShadBorder.none,
-    secondaryFocusedBorder: ShadBorder.none,
-    secondaryErrorBorder: ShadBorder.none,
-  );
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final flat = borderless || fillColor != null;
     final field = ShadInput(
       controller: controller,
       initialValue: controller == null ? initialValue : null,
@@ -91,7 +71,7 @@ class MixarInput extends StatelessWidget {
       style: style,
       maxLines: maxLines,
       padding: padding,
-      decoration: flat ? _flatDecoration(fillColor) : null,
+      decoration: borderless ? ShadDecoration.none : null,
       placeholder: hint == null
           ? null
           : Text(

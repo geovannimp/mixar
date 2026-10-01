@@ -45,6 +45,14 @@ const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 /// natural height (28px tab + 8px padding).
 const kLibraryHeaderHeight = 36.0;
 
+/// Fill for the toolbar filter field: `secondary` nudged halfway towards
+/// `card`, so the field reads as a subtle darker inset on the toolbar instead
+/// of a full panel.
+Color libraryToolbarFieldColor(MixarThemeData theme) => Color.alphaBlend(
+  theme.colors.card.withValues(alpha: 0.5),
+  theme.colors.secondary,
+);
+
 /// Width for a row's trailing meta at [available] px: its natural size whenever
 /// the row is wide enough, shrinking only once the title would drop below
 /// [kMinTitleWidth]. [leading] is everything left of the title — the artwork and

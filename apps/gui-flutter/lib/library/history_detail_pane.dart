@@ -86,16 +86,21 @@ class HistoryDetailPane extends ConsumerWidget {
           child: Row(
             children: [
               Expanded(
-                child: MixarInput(
-                  hint: 'Filter entries…',
-                  borderless: true,
-                  fillColor: theme.colors.card,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                child: ColoredBox(
+                  color: libraryToolbarFieldColor(theme),
+                  child: Center(
+                    child: MixarInput(
+                      hint: 'Filter entries…',
+                      borderless: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      onChanged: (value) => ref
+                          .read(historyEntryFilterProvider.notifier)
+                          .set(value),
+                    ),
                   ),
-                  onChanged: (value) =>
-                      ref.read(historyEntryFilterProvider.notifier).set(value),
                 ),
               ),
               const SizedBox(width: 6),

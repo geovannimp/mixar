@@ -90,16 +90,20 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
           child: Row(
             children: [
               Expanded(
-                child: MixarInput(
-                  hint: 'Filter tracks…',
-                  borderless: true,
-                  fillColor: theme.colors.card,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                child: ColoredBox(
+                  color: libraryToolbarFieldColor(theme),
+                  child: Center(
+                    child: MixarInput(
+                      hint: 'Filter tracks…',
+                      borderless: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      onChanged: (value) =>
+                          ref.read(trackFilterProvider.notifier).set(value),
+                    ),
                   ),
-                  onChanged: (value) =>
-                      ref.read(trackFilterProvider.notifier).set(value),
                 ),
               ),
               const SizedBox(width: 6),
