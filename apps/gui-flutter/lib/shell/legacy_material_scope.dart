@@ -25,10 +25,12 @@ class _FlutterMaterialLocalizationsDelegate
 }
 
 /// Maps [modern.ThemeData] into a legacy `package:flutter/material` theme for
-/// dependencies (e.g. trina_grid) that still read `Theme.of` from material.dart.
+/// dependencies that still read `Theme.of` from material.dart (e.g.
+/// `wolt_modal_sheet` and its transitive `flutter/material` consumers).
 ///
 /// ponytail: local copy of material_ui's deprecated bridge until a supported
-/// replacement ships; delete when trina_grid migrates to package:material_ui.
+/// replacement ships; delete when those dependencies migrate to
+/// package:material_ui.
 /// ponytail: English-only flutter MaterialLocalizations for any locale — swap
 /// for package:flutter_localizations GlobalMaterialLocalizations when needed.
 class LegacyMaterialScope extends StatelessWidget {

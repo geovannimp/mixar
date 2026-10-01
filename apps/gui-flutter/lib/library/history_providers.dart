@@ -198,6 +198,24 @@ String historyEntryDisplayTitle(HistoryEntryInfo entry) {
   return slash >= 0 ? entry.location.substring(slash + 1) : entry.location;
 }
 
+/// Drag payload for a logged play, mirroring the library track payload: an
+/// entry with a stable track id loads through the library, otherwise by the
+/// normalized filesystem path.
+TrackDragPayload payloadFromHistoryEntry(HistoryEntryInfo entry) {
+  final path = normalizeHistoryLocation(entry.location);
+  final trackId = entry.trackId;
+  final inLibrary = trackId != null && trackId.isNotEmpty;
+  return TrackDragPayload(
+    source: inLibrary ? TrackDragSource.library : TrackDragSource.filesystem,
+    trackId: inLibrary ? trackId : null,
+    path: path,
+    title: trackDisplayTitle(
+      title: historyEntryDisplayTitle(entry),
+      path: path,
+    ),
+  );
+}
+
 bool historyEntryMatchesFilter(HistoryEntryInfo entry, String filter) {
   if (filter.isEmpty) {
     return true;

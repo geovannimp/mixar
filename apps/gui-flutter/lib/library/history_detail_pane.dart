@@ -6,12 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/collection_actions.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/history_providers.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart';
 import 'package:gui_flutter/library/providers.dart';
-import 'package:gui_flutter/library/track_list_pane.dart';
+import 'package:gui_flutter/library/track_list.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/m_loader.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
@@ -20,9 +23,19 @@ import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:trina_grid/trina_grid.dart';
 
-/// Session detail: entry table + session actions.
+/// Width of the leading `#` column.
+const _kHistoryIndexWidth = 26.0;
+
+/// Width of the deck badge column.
+const _kHistoryDeckWidth = 28.0;
+
+/// Leading width of both densities: `#`, deck badge, and the gutters around
+/// them. Shared by the row layout and its trailing-meta budget.
+const double _kHistoryLeadingWidth =
+    _kHistoryIndexWidth + kRowGutter + _kHistoryDeckWidth + kRowGutter;
+
+/// Session detail: entry list + session actions.
 class HistoryDetailPane extends ConsumerWidget {
   const new({super.key});
 
@@ -41,15 +54,17 @@ class HistoryDetailPane extends ConsumerWidget {
     }
     final entries = ref.watch(filteredHistoryEntriesProvider);
     final allEntries = ref.watch(historyEntriesProvider).asData?.value;
+    final density = ref.watch(libraryRowDensityProvider);
+    final settings = ref
+        .watch(appSettingsProvider)
+        .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
+    final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
+    final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
 
     if (sessionId == null) {
-      return Center(
-        child: Text(
-          'Select a history session',
-          style: theme.typography.body.sm.copyWith(
-            color: theme.colors.mutedForeground,
-          ),
-        ),
+      return LibraryListMessage(
+        'Select a history session',
+        color: theme.colors.mutedForeground,
       );
     }
 
@@ -61,7 +76,6 @@ class HistoryDetailPane extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(right: 6, bottom: 8),
             child: Row(
-              spacing: 4,
               children: [
                 Expanded(
                   child: MixarInput(
@@ -71,6 +85,9 @@ class HistoryDetailPane extends ConsumerWidget {
                         .set(value),
                   ),
                 ),
+                const SizedBox(width: 6),
+                LibraryRowDensityButton(density: density),
+                const SizedBox(width: 4),
                 _HistorySessionActionsMenu(
                   sessionId: sessionId,
                   session: session,
@@ -79,58 +96,34 @@ class HistoryDetailPane extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: entries.when(
-              skipLoadingOnReload: true,
-              loading: () => const Center(child: MLoader()),
-              error: (e, _) => Center(child: Text('$e')),
-              data: (rows) {
-                if (allEntries != null && allEntries.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No plays logged in this session',
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
+            child: TrackListView<HistoryEntryInfo>(
+              items: entries,
+              idOf: (entry) => entry.id,
+              payloadOf: (ref, entry) => payloadFromHistoryEntry(entry),
+              rowBuilder: (context, ref, index, entry, density, slot) =>
+                  density.isCompact
+                  ? _CompactEntryRow(
+                      index: index,
+                      entry: entry,
+                      keyDisplayMode: keyDisplayMode,
+                      keyColorMode: keyColorMode,
+                      actionsSlot: slot,
+                    )
+                  : _ComfortableEntryRow(
+                      index: index,
+                      entry: entry,
+                      keyDisplayMode: keyDisplayMode,
+                      keyColorMode: keyColorMode,
+                      actionsSlot: slot,
                     ),
-                  );
-                }
-                if (rows.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No matching entries',
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                  );
-                }
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.colors.secondary,
-                    borderRadius: theme.style.borderRadius.md,
-                    border: Border.all(color: theme.colors.border),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: theme.style.borderRadius.md,
-                    child: SizedBox.expand(
-                      child: TrinaGrid(
-                        key: ValueKey(sessionId),
-                        columns: _historyColumns(theme),
-                        rows: _historyRows(rows),
-                        mode: TrinaGridMode.readOnly,
-                        rowColorCallback: (ctx) {
-                          final current = ctx.stateManager.currentRowIdx;
-                          if (current != null && current == ctx.rowIdx) {
-                            return libraryListSelectedRowColor(theme);
-                          }
-                          return theme.colors.secondary;
-                        },
-                        configuration: _historyGridConfig(theme),
-                      ),
-                    ),
-                  ),
-                );
-              },
+              emptyBuilder: (context) => LibraryListMessage(
+                (allEntries != null && allEntries.isEmpty)
+                    ? 'No plays logged in this session'
+                    : 'No matching entries',
+                color: theme.colors.mutedForeground,
+              ),
+              errorBuilder: (context, e) =>
+                  LibraryListMessage('$e', color: theme.colors.destructive),
             ),
           ),
         ],
@@ -319,6 +312,273 @@ class HistoryDetailPane extends ConsumerWidget {
   }
 }
 
+/// Leading `#` position, right-aligned so the numbers line up down the list.
+class _IndexBadge extends StatelessWidget {
+  const new({required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return SizedBox(
+      width: _kHistoryIndexWidth,
+      child: Text(
+        '${index + 1}',
+        textAlign: TextAlign.right,
+        maxLines: 1,
+        style: theme.typography.body.xs.copyWith(
+          color: theme.colors.mutedForeground,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+/// Deck A/B, tinted with the fader accent so it matches the deck panels.
+class _DeckBadge extends StatelessWidget {
+  const new({required this.deck});
+
+  final int deck;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final accent = faderAccentForDeck(deck);
+    final color = accent == null
+        ? theme.colors.mutedForeground
+        : FaderColors.forAccent(accent).grip;
+    return Semantics(
+      label: deckDisplayLabel(deck),
+      container: true,
+      // Announce "Deck B", not the bare letter plus the label again.
+      excludeSemantics: true,
+      child: SizedBox(
+        width: _kHistoryDeckWidth,
+        child: Text(
+          _deckLetter(deck),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          style: theme.typography.body.sm.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _deckLetter(int deck) => switch (deck) {
+  0 => 'A',
+  1 => 'B',
+  _ => '${deck + 1}',
+};
+
+/// Trailing-meta budget for a history row: its natural width whenever the row
+/// is wide enough, shrinking only once the title would drop below
+/// [kMinTitleWidth]. History has no artwork, so only the actions slot and the
+/// title floor are reserved.
+double _historyMetaWidth(
+  double available, {
+  double natural = kTrailingMetaBaseWidth,
+}) {
+  final budget =
+      available -
+      _kHistoryLeadingWidth -
+      kRowGutter -
+      kActionsColumnWidth -
+      kMinTitleWidth;
+  return budget.clamp(0.0, natural);
+}
+
+/// Title + metadata pills on the left, BPM/key on the right.
+class _ComfortableEntryRow extends StatelessWidget {
+  const new({
+    required this.index,
+    required this.entry,
+    required this.keyDisplayMode,
+    required this.keyColorMode,
+    required this.actionsSlot,
+  });
+
+  final int index;
+  final HistoryEntryInfo entry;
+  final KeyDisplayMode keyDisplayMode;
+  final KeyColorMode keyColorMode;
+  final Widget actionsSlot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    final title = historyEntryDisplayTitle(entry);
+    final pills = <Widget>[
+      ?_textPill(entry.artist),
+      ?_textPill(entry.album),
+      ?_textPill(fileNameFromPath(entry.location)),
+      ?_textPill(entry.isrc),
+      MetaPill(
+        text: formatHistoryPlaySpan(entry.startedAt, entry.endedAt),
+        leading: const MetaPillGlyph(LucideIcons.calendarClock),
+      ),
+      ?_lengthPill(entry.playedDurationMs),
+    ].toList();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final metaWidth = _historyMetaWidth(constraints.maxWidth);
+        final detailsWidth =
+            constraints.maxWidth -
+            _kHistoryLeadingWidth -
+            kRowGutter -
+            metaWidth -
+            kActionsColumnWidth;
+        // At most three pills per run, so six pills never need a third run and
+        // stay inside the fixed row height. A long label ellipsizes instead of
+        // pushing the next pill past the clip.
+        final maxPillWidth = (detailsWidth - 3 * kMetaPillGap) / 3;
+        return Row(
+          children: [
+            _IndexBadge(index: index),
+            const SizedBox(width: kRowGutter),
+            _DeckBadge(deck: entry.deck),
+            const SizedBox(width: kRowGutter),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.typography.body.sm.copyWith(
+                      color: theme.colors.foreground,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (pills.isNotEmpty && maxPillWidth > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      // Hung left by the pill's own inset so the metadata text
+                      // (e.g. the file name) lines up with the title above it.
+                      child: Transform.translate(
+                        offset: const Offset(-kMetaPillInset, 0),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxHeight: kMetaPillAreaHeight,
+                          ),
+                          child: Wrap(
+                            spacing: kMetaPillGap,
+                            runSpacing: kMetaPillGap,
+                            clipBehavior: Clip.hardEdge,
+                            children: [
+                              for (final pill in pills)
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth: maxPillWidth,
+                                  ),
+                                  child: pill,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: kRowGutter),
+            SizedBox(
+              width: metaWidth,
+              child: TrailingMeta(
+                bpm: entry.bpm,
+                rawKey: entry.key ?? '',
+                keyDisplayMode: keyDisplayMode,
+                keyColorMode: keyColorMode,
+              ),
+            ),
+            actionsSlot,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget? _textPill(String? value) {
+    final text = value?.trim() ?? '';
+    return text.isEmpty ? null : MetaPill(text: text);
+  }
+
+  /// Played length. Unknown (`—`) is omitted rather than shown as a dash pill,
+  /// matching the track list, which drops an unknown duration entirely.
+  Widget? _lengthPill(int? playedDurationMs) {
+    final text = formatPlayedDurationMs(playedDurationMs);
+    return text == '—' ? null : MetaPill(text: text);
+  }
+}
+
+/// Single dense line: `#` deck title … length BPM key.
+class _CompactEntryRow extends StatelessWidget {
+  const new({
+    required this.index,
+    required this.entry,
+    required this.keyDisplayMode,
+    required this.keyColorMode,
+    required this.actionsSlot,
+  });
+
+  final int index;
+  final HistoryEntryInfo entry;
+  final KeyDisplayMode keyDisplayMode;
+  final KeyColorMode keyColorMode;
+  final Widget actionsSlot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          _IndexBadge(index: index),
+          const SizedBox(width: kRowGutter),
+          _DeckBadge(deck: entry.deck),
+          const SizedBox(width: kRowGutter),
+          Expanded(
+            child: Text(
+              historyEntryDisplayTitle(entry),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.foreground,
+              ),
+            ),
+          ),
+          const SizedBox(width: kRowGutter),
+          SizedBox(
+            width: _historyMetaWidth(
+              constraints.maxWidth,
+              // Compact hides the pills, so the trailing group carries the
+              // played length too and must reserve room for it.
+              natural:
+                  kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+            ),
+            child: TrailingMeta(
+              bpm: entry.bpm,
+              rawKey: entry.key ?? '',
+              keyDisplayMode: keyDisplayMode,
+              keyColorMode: keyColorMode,
+              durationMs: entry.playedDurationMs,
+            ),
+          ),
+          actionsSlot,
+        ],
+      ),
+    );
+  }
+}
+
 class _HistorySessionActionsMenu extends ConsumerWidget {
   const new({required this.sessionId, required this.session});
 
@@ -431,219 +691,31 @@ String _historyExportFileName(String? sessionTitle, String ext) {
   return '$safe.$ext';
 }
 
-List<TrinaColumn> _historyColumns(MixarThemeData theme) {
-  final columns = [
-    TrinaColumn(
-      title: '#',
-      field: 'position',
-      type: TrinaColumnType.text(),
-      width: 44,
-      minWidth: 44,
-      enableContextMenu: false,
-      enableDropToResize: false,
-      enableSorting: false,
-      textAlign: TrinaColumnTextAlign.center,
-      renderer: (ctx) {
-        final value = ctx.cell.value as String? ?? '';
-        return Center(
-          child: Text(
-            value,
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.mutedForeground,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-        );
-      },
-    ),
-    TrinaColumn(
-      title: 'Deck',
-      field: 'deck',
-      type: TrinaColumnType.text(),
-      width: 72,
-      minWidth: 56,
-      enableContextMenu: false,
-      textAlign: TrinaColumnTextAlign.center,
-      renderer: (ctx) {
-        final deckId = ctx.cell.value as int? ?? 0;
-        final accent = faderAccentForDeck(deckId);
-        final color = accent == null
-            ? theme.colors.mutedForeground
-            : FaderColors.forAccent(accent).grip;
-        return Center(
-          child: Text(
-            deckDisplayLabel(deckId),
-            style: theme.typography.body.sm.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      },
-    ),
-    TrinaColumn(
-      title: 'Title',
-      field: 'title',
-      type: TrinaColumnType.text(),
-      width: 240,
-      minWidth: 120,
-      enableContextMenu: false,
-    ),
-    TrinaColumn(
-      title: 'Artist',
-      field: 'artist',
-      type: TrinaColumnType.text(),
-      width: 160,
-      minWidth: 96,
-      enableContextMenu: false,
-    ),
-    TrinaColumn(
-      title: 'File',
-      field: 'file',
-      type: TrinaColumnType.text(),
-      minWidth: 120,
-      enableContextMenu: false,
-    ),
-    TrinaColumn(
-      title: 'Start',
-      field: 'started',
-      type: TrinaColumnType.text(),
-      width: 140,
-      minWidth: 112,
-      enableContextMenu: false,
-    ),
-    TrinaColumn(
-      title: 'End',
-      field: 'ended',
-      type: TrinaColumnType.text(),
-      width: 140,
-      minWidth: 112,
-      enableContextMenu: false,
-    ),
-    TrinaColumn(
-      title: 'Length',
-      field: 'length',
-      type: TrinaColumnType.text(),
-      width: 72,
-      minWidth: 56,
-      enableContextMenu: false,
-      textAlign: TrinaColumnTextAlign.right,
-    ),
-    TrinaColumn(
-      title: 'BPM',
-      field: 'bpm',
-      type: TrinaColumnType.text(),
-      width: 56,
-      minWidth: 48,
-      enableContextMenu: false,
-      textAlign: TrinaColumnTextAlign.right,
-    ),
-    TrinaColumn(
-      title: 'Key',
-      field: 'key',
-      type: TrinaColumnType.text(),
-      width: 48,
-      minWidth: 40,
-      enableContextMenu: false,
-      textAlign: TrinaColumnTextAlign.right,
-    ),
-    TrinaColumn(
-      title: 'ISRC',
-      field: 'isrc',
-      type: TrinaColumnType.text(),
-      width: 112,
-      enableContextMenu: false,
-      textAlign: TrinaColumnTextAlign.right,
-    ),
-  ];
-  final headerBg = Color.alphaBlend(
-    theme.colors.foreground.withValues(alpha: 0.08),
-    theme.colors.secondary,
-  );
-  for (final column in columns) {
-    column.backgroundColor = headerBg;
-  }
-  return columns;
+/// `start → end` for a play, dropping the duplicated date when the play stayed
+/// on one local day. Entries crossing midnight keep both full timestamps, and
+/// an open entry ends at `live`.
+String formatHistoryPlaySpan(String startedAt, String? endedAt) {
+  final start = DateTime.tryParse(startedAt)?.toLocal();
+  final end = endedAt == null ? null : DateTime.tryParse(endedAt)?.toLocal();
+  final sameDay =
+      start != null &&
+      end != null &&
+      start.year == end.year &&
+      start.month == end.month &&
+      start.day == end.day;
+  final startText = sameDay
+      ? _clockLabel(start)
+      : formatHistoryTimestamp(startedAt);
+  final endText = endedAt == null
+      ? 'live'
+      : sameDay
+      ? _clockLabel(end)
+      : formatHistoryTimestamp(endedAt);
+  return '$startText → $endText';
 }
 
-List<TrinaRow<dynamic>> _historyRows(List<HistoryEntryInfo> entries) {
-  final rows = <TrinaRow<HistoryEntryInfo>>[
-    for (var i = 0; i < entries.length; i++)
-      TrinaRow<HistoryEntryInfo>(
-        data: entries[i],
-        cells: {
-          'position': TrinaCell(value: '${i + 1}'),
-          'deck': TrinaCell(value: entries[i].deck),
-          'title': TrinaCell(value: historyEntryDisplayTitle(entries[i])),
-          'artist': TrinaCell(value: entries[i].artist ?? ''),
-          'file': TrinaCell(value: fileNameFromPath(entries[i].location)),
-          'started': TrinaCell(
-            value: formatHistoryTimestamp(entries[i].startedAt),
-          ),
-          'ended': TrinaCell(
-            value: entries[i].endedAt == null
-                ? '…'
-                : formatHistoryTimestamp(entries[i].endedAt!),
-          ),
-          'length': TrinaCell(
-            value: formatPlayedDurationMs(entries[i].playedDurationMs),
-          ),
-          'bpm': TrinaCell(value: entries[i].bpm?.toStringAsFixed(0) ?? '—'),
-          'key': TrinaCell(value: entries[i].key ?? '—'),
-          'isrc': TrinaCell(value: entries[i].isrc ?? '—'),
-        },
-      ),
-  ];
-  return List<TrinaRow<dynamic>>.from(rows);
-}
-
-TrinaGridConfiguration _historyGridConfig(MixarThemeData theme) {
-  final surface = theme.colors.secondary;
-  final selected = libraryListSelectedRowColor(theme);
-  final text = theme.typography.body.sm.copyWith(
-    color: theme.colors.foreground,
-  );
-  final header = theme.typography.body.sm.copyWith(
-    color: theme.colors.mutedForeground,
-    fontWeight: FontWeight.w600,
-  );
-
-  return TrinaGridConfiguration(
-    rowWrapperIsConstantHeight: true,
-    selectingMode: TrinaGridSelectingMode.none,
-    scrollbar: const TrinaGridScrollbarConfig(
-      columnShowScrollWidth: false,
-      showHorizontal: false,
-    ),
-    columnSize: const TrinaGridColumnSizeConfig(
-      autoSizeMode: TrinaAutoSizeMode.scale,
-      resizeMode: TrinaResizeMode.pushAndPull,
-    ),
-    style: TrinaGridStyleConfig(
-      enableColumnBorderVertical: false,
-      enableCellBorderVertical: false,
-      gridBackgroundColor: surface,
-      rowColor: surface,
-      oddRowColor: surface,
-      evenRowColor: surface,
-      activatedColor: selected,
-      // Transparent current-cell border so focus reads as full-row fill.
-      activatedBorderColor: const Color(0x00000000),
-      unfocusedSelectionColor: selected,
-      borderColor: theme.colors.border,
-      gridBorderColor: theme.colors.border,
-      inactivatedBorderColor: const Color(0x00000000),
-      cellColorInEditState: surface,
-      cellColorInReadOnlyState: surface,
-      cellTextStyle: text,
-      columnTextStyle: header,
-      iconColor: theme.colors.mutedForeground,
-      menuBackgroundColor: theme.colors.background,
-      rowHeight: 36,
-      columnHeight: 40,
-      gridBorderWidth: 0,
-      gridPadding: 0,
-      gridBorderRadius: theme.style.borderRadius.md,
-    ),
-  );
+String _clockLabel(DateTime time) {
+  final h = time.hour.toString().padLeft(2, '0');
+  final m = time.minute.toString().padLeft(2, '0');
+  return '$h:$m';
 }

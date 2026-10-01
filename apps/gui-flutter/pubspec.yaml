@@ -37,7 +37,6 @@ dependencies:
   window_manager: ^0.5.2
   flutter_riverpod: ^3.4.2
   path_provider: ^2.1.6
-  trina_grid: ^2.3.0
   path: ^1.9.1
   collection: ^1.19.1
   material_ui: ^1.0.0
@@ -116,6 +115,3 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-dependency_overrides:
-  # trina_grid ^2.3 pins shadcn_ui ^0.55; keep Mixar on latest.
-  shadcn_ui: ^0.57.0

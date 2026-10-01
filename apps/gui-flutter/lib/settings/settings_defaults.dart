@@ -32,7 +32,7 @@ KeyColorMode keyColorModeFromSettings(KeyColorModeSetting mode) {
 /// a long artist name wraps onto a second line instead of overflowing the row.
 enum LibraryRowDensity {
   compact(height: 36, artSize: 28),
-  comfortable(height: 68, artSize: 40);
+  comfortable(height: 60, artSize: 40);
 
   new({required this.height, required this.artSize});
 

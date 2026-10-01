@@ -363,6 +363,19 @@ void main() {
     );
   });
 
+  testWidgets('metadata pills hang left to align with the title', (
+    tester,
+  ) async {
+    await pumpList(tester, width: 1000);
+
+    // `muted` matches the list surface, so the pill's horizontal padding has no
+    // visible chip to justify it — the group is shifted back so the metadata
+    // text lines up with the title above it.
+    final titleLeft = tester.getTopLeft(find.text('Demo Track')).dx;
+    final artistLeft = tester.getTopLeft(find.text('Artist')).dx;
+    expect(artistLeft, closeTo(titleLeft, 0.5));
+  });
+
   testWidgets('pills wrap to two runs and none is clipped', (tester) async {
     // A long artist name would otherwise take a whole run and push the rest
     // past the row's fixed height, where they would be silently clipped.

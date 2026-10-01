@@ -29,15 +29,3 @@ TrackDragPayload payloadFromListTrack(
     title: trackDisplayTitle(title: title, path: track.path),
   );
 }
-
-TrackDragPayload? focusedLoadPayload(
-  List<LibraryTrackSummary> tracks,
-  int index, {
-  required bool Function(LibraryTrackSummary track) inLibrary,
-}) {
-  if (index < 0 || index >= tracks.length) {
-    return null;
-  }
-  final track = tracks[index];
-  return payloadFromListTrack(track, inLibrary: inLibrary(track));
-}
