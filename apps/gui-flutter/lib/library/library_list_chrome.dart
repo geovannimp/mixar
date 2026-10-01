@@ -36,6 +36,15 @@ const kMinTitleWidth = 64.0;
 /// overlay keeps its pills clear of the row's menu button.
 const kActionsColumnWidth = 44.0;
 
+/// Identifies the filter/sort toolbar, so a test can compare its height with
+/// the sidebar tab bar's.
+const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
+
+/// Height of the library pane header — the sidebar tab bar and the filter/sort
+/// toolbar — so the two rows line up across the split. Matches the tab bar's
+/// natural height (28px tab + 8px padding).
+const kLibraryHeaderHeight = 36.0;
+
 /// Width for a row's trailing meta at [available] px: its natural size whenever
 /// the row is wide enough, shrinking only once the title would drop below
 /// [kMinTitleWidth]. [leading] is everything left of the title — the artwork and

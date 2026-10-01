@@ -71,13 +71,27 @@ class HistoryDetailPane extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+        Container(
+          key: kLibraryToolbarKey,
+          height: kLibraryHeaderHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colors.border,
+                width: theme.style.borderWidth,
+              ),
+            ),
+          ),
           child: Row(
             children: [
               Expanded(
                 child: MixarInput(
                   hint: 'Filter entries…',
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   onChanged: (value) =>
                       ref.read(historyEntryFilterProvider.notifier).set(value),
                 ),

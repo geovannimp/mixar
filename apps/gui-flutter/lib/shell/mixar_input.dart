@@ -23,6 +23,7 @@ class MixarInput extends StatelessWidget {
     this.textInputAction,
     this.inputFormatters,
     this.style,
+    this.padding,
     this.maxLines = 1,
   });
 
@@ -42,6 +43,10 @@ class MixarInput extends StatelessWidget {
   final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
   final TextStyle? style;
+
+  /// Overrides [ShadInput]'s theme padding. Used by dense toolbars that need a
+  /// shorter field than the default vertical padding produces.
+  final EdgeInsetsGeometry? padding;
   final int? maxLines;
 
   @override
@@ -61,6 +66,7 @@ class MixarInput extends StatelessWidget {
       inputFormatters: inputFormatters,
       style: style,
       maxLines: maxLines,
+      padding: padding,
       placeholder: hint == null
           ? null
           : Text(

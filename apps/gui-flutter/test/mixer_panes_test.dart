@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -70,5 +72,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MultiPane), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
+  });
+
+  testWidgets('sidebar tabs and the track toolbar share a header height', (
+    tester,
+  ) async {
+    await pumpSized(tester, child: const LibraryPanel());
+    await tester.pumpAndSettle();
+
+    // The sidebar tab bar is the muted-filled surface inside the tabs.
+    final tabBar = find
+        .descendant(
+          of: find.byType(MTabs),
+          matching: find.byWidgetPredicate(
+            (w) =>
+                w is DecoratedBox &&
+                w.decoration is BoxDecoration &&
+                (w.decoration as BoxDecoration).color ==
+                    MixarThemeData.dark().colors.muted,
+          ),
+        )
+        .first;
+
+    expect(
+      tester.getSize(find.byKey(kLibraryToolbarKey)).height,
+      tester.getSize(tabBar).height,
+      reason: 'the topbar and the tabs must share one header height',
+    );
   });
 }

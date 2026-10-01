@@ -75,13 +75,27 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+        Container(
+          key: kLibraryToolbarKey,
+          height: kLibraryHeaderHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colors.border,
+                width: theme.style.borderWidth,
+              ),
+            ),
+          ),
           child: Row(
             children: [
               Expanded(
                 child: MixarInput(
                   hint: 'Filter tracks…',
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   onChanged: (value) =>
                       ref.read(trackFilterProvider.notifier).set(value),
                 ),
@@ -93,7 +107,6 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
             ],
           ),
         ),
-        const SizedBox(height: 8),
         Expanded(
           child: !drive && selectedId == null
               ? LibraryListMessage(
