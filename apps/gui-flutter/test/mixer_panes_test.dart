@@ -80,38 +80,24 @@ void main() {
     await pumpSized(tester, child: const LibraryPanel());
     await tester.pumpAndSettle();
 
-    // The sidebar tab bar is the muted-filled surface inside the tabs.
-    final tabBar = find
-        .descendant(
-          of: find.byType(MTabs),
-          matching: find.byWidgetPredicate(
-            (w) =>
-                w is DecoratedBox &&
-                w.decoration is BoxDecoration &&
-                (w.decoration as BoxDecoration).color ==
-                    MixarThemeData.dark().colors.muted,
-          ),
-        )
-        .first;
-
-    final tabBarElement = tester.widget<DecoratedBox>(tabBar);
-    final toolbarElement = tester.widget<Container>(
-      find.byKey(kLibraryToolbarKey),
-    );
+    // Both header rows are found by their stable keys, not by a fill colour
+    // that `muted` and `secondary` share.
+    final tabBar = find.byKey(kMTabBarKey);
+    final toolbar = find.byKey(kLibraryToolbarKey);
 
     expect(
-      tester.getSize(find.byKey(kLibraryToolbarKey)).height,
+      tester.getSize(toolbar).height,
       tester.getSize(tabBar).height,
       reason: 'the topbar and the tabs must share one header height',
     );
 
     // Both header rows draw the same bottom border, so the rule reads as one
     // continuous line across the split.
-    Border bottom(Decoration? decoration) =>
-        (decoration! as BoxDecoration).border! as Border;
+    Border bottom(DecoratedBox box) =>
+        (box.decoration as BoxDecoration).border! as Border;
     expect(
-      bottom(tabBarElement.decoration).bottom.color,
-      bottom(toolbarElement.decoration).bottom.color,
+      bottom(tester.widget<DecoratedBox>(tabBar)).bottom.color,
+      bottom(tester.widget<DecoratedBox>(toolbar)).bottom.color,
       reason: 'the tabs and topbar bottom borders must match',
     );
   });

@@ -71,47 +71,15 @@ class HistoryDetailPane extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          key: kLibraryToolbarKey,
-          height: kLibraryHeaderHeight,
-          padding: const EdgeInsets.only(right: 6),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colors.border,
-                width: theme.style.borderWidth,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: ColoredBox(
-                  color: libraryToolbarFieldColor(theme),
-                  child: Center(
-                    child: MixarInput(
-                      hint: 'Filter entries…',
-                      borderless: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      onChanged: (value) => ref
-                          .read(historyEntryFilterProvider.notifier)
-                          .set(value),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              LibraryRowDensityButton(density: density),
-              const SizedBox(width: 4),
-              _HistorySessionActionsMenu(
-                sessionId: sessionId,
-                session: session,
-              ),
-            ],
-          ),
+        LibraryPaneToolbar(
+          hint: 'Filter entries…',
+          onChanged: (value) =>
+              ref.read(historyEntryFilterProvider.notifier).set(value),
+          trailing: [
+            LibraryRowDensityButton(density: density),
+            const SizedBox(width: 4),
+            _HistorySessionActionsMenu(sessionId: sessionId, session: session),
+          ],
         ),
         Expanded(
           child: TrackListView<HistoryEntryInfo>(

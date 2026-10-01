@@ -2,6 +2,22 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
+/// Minimum height of a single tab header. The bar only grows taller than this
+/// if a caller puts taller content in a label.
+const kMTabHeaderMinHeight = 28.0;
+
+/// Padding between the tab bar's edge and the header strip.
+const kMTabBarPadding = 4.0;
+
+/// Natural height of a horizontal tab bar. The 1px border is painted inside the
+/// box (a bare [DecoratedBox] does not inset its child), so it does not add to
+/// this — the headers plus the two paddings are the whole bar.
+const double kMTabBarHeight = kMTabHeaderMinHeight + kMTabBarPadding * 2;
+
+/// Identifies the tab bar's painted surface, so callers and tests can find it
+/// without matching on its fill colour (which is shared with other tokens).
+const kMTabBarKey = ValueKey<String>('mTabsBar');
+
 /// One tab label + pane for [MTabs].
 @immutable
 class MTabEntry {
@@ -207,6 +223,7 @@ class _TabBar extends StatelessWidget {
       width: theme.style.borderWidth,
     );
     return DecoratedBox(
+      key: kMTabBarKey,
       decoration: BoxDecoration(
         color: theme.colors.muted,
         border: Border(
@@ -216,7 +233,10 @@ class _TabBar extends StatelessWidget {
           bottom: barBottomBorder ?? flush,
         ),
       ),
-      child: Padding(padding: const EdgeInsets.all(4), child: strip),
+      child: Padding(
+        padding: const EdgeInsets.all(kMTabBarPadding),
+        child: strip,
+      ),
     );
   }
 
@@ -263,7 +283,10 @@ class _TabHeader extends StatelessWidget {
             borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 28, minWidth: 28),
+            constraints: const BoxConstraints(
+              minHeight: kMTabHeaderMinHeight,
+              minWidth: kMTabHeaderMinHeight,
+            ),
             child: Center(
               child: IconTheme.merge(
                 data: IconThemeData(color: foreground, size: 16),

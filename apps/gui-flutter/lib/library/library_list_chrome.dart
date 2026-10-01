@@ -7,6 +7,8 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -41,17 +43,20 @@ const kActionsColumnWidth = 44.0;
 const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 
 /// Height of the library pane header — the sidebar tab bar and the filter/sort
-/// toolbar — so the two rows line up across the split. Matches the tab bar's
-/// natural height (28px tab + 8px padding).
-const kLibraryHeaderHeight = 36.0;
+/// toolbar — so the two rows line up across the split. Derived from the tab bar
+/// itself ([kMTabBarHeight]) rather than restated as a literal, so the two
+/// cannot drift.
+const double kLibraryHeaderHeight = kMTabBarHeight;
 
-/// Fill for the toolbar filter field: `secondary` nudged halfway towards
-/// `card`, so the field reads as a subtle darker inset on the toolbar instead
-/// of a full panel.
-Color libraryToolbarFieldColor(MixarThemeData theme) => Color.alphaBlend(
-  theme.colors.card.withValues(alpha: 0.5),
-  theme.colors.secondary,
-);
+/// Fill for the toolbar filter field: `secondary` nudged towards `card`, so the
+/// field reads as a subtle darker inset on the toolbar instead of a full panel.
+/// [focused] deepens it a step for a keyboard-focus cue, since the flat field
+/// has no border to light up.
+Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) =>
+    Color.alphaBlend(
+      theme.colors.card.withValues(alpha: focused ? 0.75 : 0.5),
+      theme.colors.secondary,
+    );
 
 /// Width for a row's trailing meta at [available] px: its natural size whenever
 /// the row is wide enough, shrinking only once the title would drop below
@@ -107,10 +112,11 @@ const kMetaPillAreaHeight = 40.0;
 /// Gap between adjacent metadata pills.
 const kMetaPillGap = 6.0;
 
-/// Comfortable metadata pills: subtle chips under the title. `muted` matches
-/// the list surface, so the chip background is invisible there — the horizontal
-/// padding would read as a bare indent, which is why the pill group is hung
-/// left by [kMetaPillInset] so its text lines up with the row title.
+/// Comfortable metadata pills: subtle chips under the title. The chip fill is
+/// the row surface colour (`card`), so its background is invisible on a row —
+/// the horizontal padding would read as a bare indent, which is why the pill
+/// group is hung left by [kMetaPillInset] so its text lines up with the row
+/// title.
 const kMetaPillInset = 8.0;
 const kMetaPillPadding = EdgeInsets.symmetric(
   horizontal: kMetaPillInset,
@@ -151,6 +157,104 @@ class LibraryListSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       ColoredBox(color: theme.colors.card, child: child);
+}
+
+/// The filter/sort header both library panes share: a header-height bar with a
+/// bottom border, a flat filter field filling it, and the pane's own trailing
+/// controls on the right.
+///
+/// Kept here (rather than copied into both panes) so the header height, border
+/// and field chrome have a single definition and cannot drift.
+class LibraryPaneToolbar extends StatefulWidget {
+  const new({
+    required this.hint,
+    required this.onChanged,
+    required this.trailing,
+    super.key,
+  });
+
+  /// Placeholder for the filter field.
+  final String hint;
+
+  final ValueChanged<String> onChanged;
+
+  /// Controls drawn after the field (sort menu, density toggle, actions).
+  final List<Widget> trailing;
+
+  @override
+  State<LibraryPaneToolbar> createState() => _LibraryPaneToolbarState();
+}
+
+class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return ConstrainedBox(
+      // minHeight, not a fixed height: the tab bar grows with its content, and
+      // a hard box would overflow the field at larger text scales.
+      constraints: const BoxConstraints(minHeight: kLibraryHeaderHeight),
+      child: DecoratedBox(
+        key: kLibraryToolbarKey,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: theme.colors.border,
+              width: theme.style.borderWidth,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(right: 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: ColoredBox(
+                  color: libraryToolbarFieldColor(
+                    theme,
+                    focused: _focusNode.hasFocus,
+                  ),
+                  // Centred vertically; the field itself takes the full width
+                  // (`ShadInput`'s row expands), so the visible band and the
+                  // tappable field coincide.
+                  child: Center(
+                    child: MixarInput(
+                      hint: widget.hint,
+                      borderless: true,
+                      focusNode: _focusNode,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      onChanged: widget.onChanged,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              ...widget.trailing,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Session-only density switch. Deliberately does not write settings.
@@ -329,7 +433,7 @@ class MetaPill extends StatelessWidget {
             leading != null && innerWidth >= kMetaPillIconMinWidth;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colors.muted,
+            color: theme.colors.card,
             borderRadius: theme.style.borderRadius.pill,
           ),
           child: Padding(

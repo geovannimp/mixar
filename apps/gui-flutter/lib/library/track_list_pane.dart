@@ -15,7 +15,6 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
-import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -75,43 +74,15 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          key: kLibraryToolbarKey,
-          height: kLibraryHeaderHeight,
-          padding: const EdgeInsets.only(right: 6),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: theme.colors.border,
-                width: theme.style.borderWidth,
-              ),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: ColoredBox(
-                  color: libraryToolbarFieldColor(theme),
-                  child: Center(
-                    child: MixarInput(
-                      hint: 'Filter tracks…',
-                      borderless: true,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      onChanged: (value) =>
-                          ref.read(trackFilterProvider.notifier).set(value),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              _SortMenu(),
-              const SizedBox(width: 4),
-              LibraryRowDensityButton(density: density),
-            ],
-          ),
+        LibraryPaneToolbar(
+          hint: 'Filter tracks…',
+          onChanged: (value) =>
+              ref.read(trackFilterProvider.notifier).set(value),
+          trailing: [
+            _SortMenu(),
+            const SizedBox(width: 4),
+            LibraryRowDensityButton(density: density),
+          ],
         ),
         Expanded(
           child: !drive && selectedId == null
