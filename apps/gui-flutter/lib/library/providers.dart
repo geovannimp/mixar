@@ -789,10 +789,15 @@ List<LibraryTrackSummary> sortLibraryTracks(
   LibrarySortField field, {
   required bool ascending,
 }) {
-  final indexed = List<LibraryTrackSummary>.of(tracks);
+  // Sort (originalIndex, track) pairs rather than bare tracks: `List.sort` is
+  // only stable below its insertion-sort threshold, so a comparator that
+  // returns 0 for equal keys lets a larger library shuffle tied rows.
+  // Carrying the index makes the ordering total, which keeps provider order
+  // for ties at any size.
+  final indexed = [for (var i = 0; i < tracks.length; i++) (i, tracks[i])];
   indexed.sort((a, b) {
-    final left = _sortKeyFor(a, field);
-    final right = _sortKeyFor(b, field);
+    final left = _sortKeyFor(a.$2, field);
+    final right = _sortKeyFor(b.$2, field);
     final byRank = left.$1.compareTo(right.$1);
     if (byRank != 0) {
       // Rank is the missing-value marker, and it is never inverted: a track
@@ -801,14 +806,12 @@ List<LibraryTrackSummary> sortLibraryTracks(
       return byRank;
     }
     final byValue = left.$2.compareTo(right.$2);
-    if (byValue == 0) {
-      // Equal keys keep provider order, so an inactive sort field does not
-      // shuffle rows on every unrelated library update.
-      return 0;
+    if (byValue != 0) {
+      return ascending ? byValue : -byValue;
     }
-    return ascending ? byValue : -byValue;
+    return a.$1.compareTo(b.$1);
   });
-  return indexed;
+  return [for (final (_, track) in indexed) track];
 }
 
 /// Rank prefix: a known value sorts before a missing one, in both directions.

@@ -208,6 +208,11 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
       _scrollToRow(index);
       _pinFocusedTrackId(index);
     });
+    // A density switch changes every row's extent, so the focused row can end
+    // up outside the viewport even though the offset is unchanged.
+    ref.listen(libraryRowDensityProvider, (_, _) {
+      _scrollToRow(ref.read(focusedTrackRowIndexProvider));
+    });
     // Runs after the current build, so the provider writes inside it are safe.
     ref.listen(libraryTableTracksProvider, (_, _) => _syncFromTracks());
 
@@ -363,8 +368,25 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
   }
 
   /// Bring [index] into view without jumping past a row the user can still see.
+  ///
+  /// Deferred to the next frame: the row extent comes from the density
+  /// provider, and changing it (the toolbar's density toggle) leaves the
+  /// controller measuring the *old* itemExtent until the list re-lays out.
+  /// Scrolling synchronously would compute the target against a stale extent
+  /// and land on the wrong row.
   void _scrollToRow(int index) {
-    if (!_scroll.hasClients || index < 0) {
+    if (index < 0) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _scrollToRowNow(index);
+      }
+    });
+  }
+
+  void _scrollToRowNow(int index) {
+    if (!_scroll.hasClients) {
       return;
     }
     final height = ref.read(libraryRowDensityProvider).height;
@@ -889,14 +911,12 @@ class _TrailingMeta extends StatelessWidget {
     required this.rawKey,
     required this.keyDisplayMode,
     required this.keyColorMode,
-    required this.style,
   });
 
   final double? bpm;
   final String rawKey;
   final KeyDisplayMode keyDisplayMode;
   final KeyColorMode keyColorMode;
-  final TextStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -1106,7 +1126,6 @@ class _CompactRow extends StatelessWidget {
     final textStyle = theme.typography.body.sm.copyWith(
       color: theme.colors.foreground,
     );
-    final metaStyle = textStyle.copyWith(color: theme.colors.mutedForeground);
     return LayoutBuilder(
       builder: (context, constraints) => Row(
         children: [
@@ -1128,7 +1147,6 @@ class _CompactRow extends StatelessWidget {
               rawKey: track.key ?? '',
               keyDisplayMode: keyDisplayMode,
               keyColorMode: keyColorMode,
-              style: metaStyle,
             ),
           ),
           _RowActionsSlot(
@@ -1166,9 +1184,6 @@ class _ComfortableRow extends StatelessWidget {
     final titleStyle = theme.typography.body.sm.copyWith(
       color: theme.colors.foreground,
       fontWeight: FontWeight.w600,
-    );
-    final metaStyle = theme.typography.body.sm.copyWith(
-      color: theme.colors.mutedForeground,
     );
     // The metadata the old column table showed, less BPM and key, which are
     // aligned in the trailing meta instead. Each renders as its own pill.
@@ -1270,7 +1285,6 @@ class _ComfortableRow extends StatelessWidget {
                 rawKey: track.key ?? '',
                 keyDisplayMode: keyDisplayMode,
                 keyColorMode: keyColorMode,
-                style: metaStyle,
               ),
             ),
             const SizedBox(width: kRowGutter),

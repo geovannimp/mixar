@@ -225,9 +225,13 @@ void main() {
     tester,
   ) async {
     final container = await pumpTable(tester);
-    final before = tester.element(rowAt(0));
     expect(rowAt(0), findsOneWidget);
     expect(rowAt(1), findsOneWidget);
+    // Capture both rows: the working one *and* an untouched one. Regenerating
+    // either on a fraction tick is the churn that used to blink the table, and
+    // only asserting row 0 would miss a regression on the idle row.
+    final beforeRow0 = tester.element(rowAt(0));
+    final beforeRow1 = tester.element(rowAt(1));
 
     container
         .read(trackProgressProvider.notifier)
@@ -241,7 +245,8 @@ void main() {
 
     // Same elements, so the list did not regenerate rows on each fraction
     // tick — the churn that used to blink the whole table.
-    expect(identical(tester.element(rowAt(0)), before), isTrue);
+    expect(identical(tester.element(rowAt(0)), beforeRow0), isTrue);
+    expect(identical(tester.element(rowAt(1)), beforeRow1), isTrue);
     expect(find.text('Analyzing 90%'), findsOneWidget);
   });
 

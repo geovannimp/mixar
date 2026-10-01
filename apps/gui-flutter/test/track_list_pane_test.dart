@@ -805,6 +805,37 @@ void main() {
     expect(ids(ascending: false), ['good', 'nan', 'inf']);
   });
 
+  test(
+    'sorting keeps provider order for ties past the stable-sort threshold',
+    () {
+      // Dart's List.sort is only stable below its insertion-sort threshold (~32
+      // elements), so a comparator that returns 0 for equal keys lets a real
+      // library shuffle tied rows. Every track here ties on BPM, so the output
+      // must still be exactly provider order.
+      final tracks = [
+        for (var i = 0; i < 200; i++)
+          LibraryTrackSummary(
+            id: 't$i',
+            displayName: 't$i',
+            path: '/tmp/$i.wav',
+          ),
+      ];
+
+      for (final ascending in [true, false]) {
+        final sorted = sortLibraryTracks(
+          tracks,
+          LibrarySortField.bpm,
+          ascending: ascending,
+        );
+        expect(
+          sorted.map((t) => t.id),
+          tracks.map((t) => t.id),
+          reason: 'ties reordered (ascending: $ascending)',
+        );
+      }
+    },
+  );
+
   test('sorting does not mutate the provider list', () {
     final tracks = [
       const LibraryTrackSummary(
