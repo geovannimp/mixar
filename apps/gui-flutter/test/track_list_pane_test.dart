@@ -437,25 +437,41 @@ void main() {
     }
   });
 
-  testWidgets('BPM and key labels are never ellipsized', (tester) async {
+  testWidgets('trailing pills are never ellipsized at workable widths', (
+    tester,
+  ) async {
     // The slot widths are measured constants; if the font or the label format
     // changes, the trailing pills would silently truncate to "109.7 B...".
-    for (final width in [420.0, 700.0, 1000.0, 1900.0]) {
-      await pumpList(tester, width: width);
-      for (final label in [
-        '128.0 BPM',
-        formatDeckKey(track.key, KeyDisplayMode.musical),
-      ]) {
-        final text = find.descendant(
-          of: find.byKey(kTrailingMetaKey),
-          matching: find.text(label),
-        );
-        expect(text, findsOneWidget, reason: '"$label" missing at $width');
-        expect(
-          tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
-          isFalse,
-          reason: '"$label" was truncated at $width',
-        );
+    // Compact reserves an extra duration slot, so its floor is higher — below
+    // roughly 480px pane width it squeezes by design.
+    for (final (density, widths) in [
+      (LibraryRowDensity.comfortable, [420.0, 700.0, 1000.0, 1900.0]),
+      (LibraryRowDensity.compact, [520.0, 1000.0, 1900.0]),
+    ]) {
+      for (final width in widths) {
+        final container = await pumpList(tester, width: width);
+        container.read(libraryRowDensityOverrideProvider.notifier).set(density);
+        await tester.pumpAndSettle();
+
+        for (final label in [
+          '128.0 BPM',
+          formatDeckKey(track.key, KeyDisplayMode.musical),
+        ]) {
+          final text = find.descendant(
+            of: find.byKey(kTrailingMetaKey),
+            matching: find.text(label),
+          );
+          expect(
+            text,
+            findsOneWidget,
+            reason: '"$label" missing in ${density.name} at $width',
+          );
+          expect(
+            tester.renderObject<RenderParagraph>(text).didExceedMaxLines,
+            isFalse,
+            reason: '"$label" was truncated in ${density.name} at $width',
+          );
+        }
       }
     }
   });
@@ -514,6 +530,43 @@ void main() {
         reason: '${trackInTest.displayName}: $above px above, $below px below',
       );
     }
+  });
+
+  testWidgets('compact keeps the length in its trailing group', (tester) async {
+    // Compact has no metadata pills row, so without this the track length is
+    // invisible in compact — a regression against the old grid's Length column.
+    final container = await pumpList(tester);
+    final trailing = find.byKey(kTrailingMetaKey);
+
+    // Comfortable carries the duration on the left, so it must not duplicate it
+    // into the trailing group.
+    expect(
+      find.descendant(of: trailing, matching: find.text('3:00')),
+      findsNothing,
+      reason: 'comfortable duplicated the duration in the trailing group',
+    );
+
+    container
+        .read(libraryRowDensityOverrideProvider.notifier)
+        .set(LibraryRowDensity.compact);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: trailing, matching: find.text('3:00')),
+      findsOneWidget,
+      reason: 'compact lost the track length',
+    );
+    // Order matters: BPM and key stay flush right in both densities.
+    final order = find
+        .descendant(of: trailing, matching: find.byType(Text))
+        .evaluate()
+        .map((e) => (e.widget as Text).data)
+        .toList();
+    expect(order, [
+      '3:00',
+      '128.0 BPM',
+      formatDeckKey(track.key, KeyDisplayMode.musical),
+    ]);
   });
 
   testWidgets('compact hides the pills', (tester) async {

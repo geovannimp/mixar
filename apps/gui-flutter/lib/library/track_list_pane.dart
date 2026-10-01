@@ -62,6 +62,7 @@ const kArtworkGap = 10.0;
 // 32px of pill chrome (padding + glyph + gap). Slack is deliberately small —
 // these are maxima for a wide pane, and `trailingMetaWidth` shrinks them below
 // that when it must.
+const kDurationSlotWidth = 84.0;
 const kBpmSlotWidth = 144.0;
 const kKeySlotWidth = 72.0;
 
@@ -69,8 +70,13 @@ const kKeySlotWidth = 72.0;
 // evenly, starving the wider BPM pill and ellipsizing it even in a wide pane;
 // weighting by natural width gives each its full size and shrinks them
 // proportionally when the pane is narrow.
+const kDurationSlotFlex = 84;
 const kBpmSlotFlex = 144;
 const kKeySlotFlex = 72;
+
+/// Natural width of the trailing group without the duration pill. Comfortable
+/// uses this; compact adds [kDurationSlotWidth] and a gap on top.
+const kTrailingMetaBaseWidth = kBpmSlotWidth + kMetaPillGap + kKeySlotWidth;
 
 /// Narrowest the track name may get before the trailing meta gives width back.
 /// Below it the row would be all metadata and no track name.
@@ -87,8 +93,11 @@ const kTrailingMetaKey = ValueKey<String>('libraryTrailingMeta');
 /// Computed rather than left to flex, because `Expanded` title + `Flexible`
 /// meta splits the free space evenly — the meta would claim half the row and
 /// the title would wrap its pills at widths that have plenty of room.
-double trailingMetaWidth(double available, double artSize) {
-  const natural = kBpmSlotWidth + kMetaPillGap + kKeySlotWidth;
+double trailingMetaWidth(
+  double available,
+  double artSize, {
+  double natural = kTrailingMetaBaseWidth,
+}) {
   final budget =
       available -
       artSize -
@@ -911,6 +920,7 @@ class _TrailingMeta extends StatelessWidget {
     required this.rawKey,
     required this.keyDisplayMode,
     required this.keyColorMode,
+    this.durationMs,
   });
 
   final double? bpm;
@@ -918,33 +928,54 @@ class _TrailingMeta extends StatelessWidget {
   final KeyDisplayMode keyDisplayMode;
   final KeyColorMode keyColorMode;
 
+  /// Rendered as a leading pill when set. Compact has no metadata pills row, so
+  /// the trailing group is the only place its length can appear; comfortable
+  /// already carries the duration on the left and passes null to avoid showing
+  /// it twice.
+  final int? durationMs;
+
   @override
   Widget build(BuildContext context) {
-    // End-aligned so the group hugs the right edge and stays put when only one
-    // of the two pills is present.
+    // End-aligned so the group hugs the right edge and stays put when only some
+    // of the pills are present.
+    // Duration first, then BPM, then key: BPM and key stay flush right in both
+    // densities, so they hold their position when the density is toggled.
+    final duration = formatTrackDuration(durationMs);
+    final children = <Widget>[
+      if (duration.isNotEmpty)
+        Flexible(
+          flex: kDurationSlotFlex,
+          child: _MetaPill(
+            text: duration,
+            leading: const _MetaPillGlyph(LucideIcons.clock),
+          ),
+        ),
+      if (bpm != null)
+        Flexible(
+          flex: kBpmSlotFlex,
+          child: _MetaPill(
+            text: '${bpm!.toStringAsFixed(1)} BPM',
+            leading: const _MetaPillGlyph(LucideIcons.metronome),
+          ),
+        ),
+      if (rawKey.isNotEmpty)
+        Flexible(
+          flex: kKeySlotFlex,
+          child: _KeyPill(
+            rawKey: rawKey,
+            keyDisplayMode: keyDisplayMode,
+            keyColorMode: keyColorMode,
+          ),
+        ),
+    ];
     return Row(
       key: kTrailingMetaKey,
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        if (bpm != null)
-          Flexible(
-            flex: kBpmSlotFlex,
-            child: _MetaPill(
-              text: '${bpm!.toStringAsFixed(1)} BPM',
-              leading: const _MetaPillGlyph(LucideIcons.metronome),
-            ),
-          ),
-        if (bpm != null && rawKey.isNotEmpty)
-          const SizedBox(width: kMetaPillGap),
-        if (rawKey.isNotEmpty)
-          Flexible(
-            flex: kKeySlotFlex,
-            child: _KeyPill(
-              rawKey: rawKey,
-              keyDisplayMode: keyDisplayMode,
-              keyColorMode: keyColorMode,
-            ),
-          ),
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(width: kMetaPillGap),
+          children[i],
+        ],
       ],
     );
   }
@@ -1141,12 +1172,20 @@ class _CompactRow extends StatelessWidget {
           ),
           const SizedBox(width: kRowGutter),
           SizedBox(
-            width: trailingMetaWidth(constraints.maxWidth, artSize),
+            width: trailingMetaWidth(
+              constraints.maxWidth,
+              artSize,
+              // Compact has no metadata pills, so the trailing group carries
+              // the length too and must reserve room for it.
+              natural:
+                  kDurationSlotWidth + kMetaPillGap + kTrailingMetaBaseWidth,
+            ),
             child: _TrailingMeta(
               bpm: track.bpm,
               rawKey: track.key ?? '',
               keyDisplayMode: keyDisplayMode,
               keyColorMode: keyColorMode,
+              durationMs: track.durationMs,
             ),
           ),
           _RowActionsSlot(
