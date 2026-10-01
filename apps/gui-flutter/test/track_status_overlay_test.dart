@@ -13,6 +13,7 @@ import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -250,34 +251,30 @@ void main() {
     expect(find.text('Analyzing 90%'), findsOneWidget);
   });
 
-  testWidgets('row actions menu tracks job state without a row rebuild', (
-    tester,
-  ) async {
+  testWidgets('row actions menu tracks job state while open', (tester) async {
     final container = await pumpTable(tester);
-    TrackActionsMenu menu() =>
-        tester.widget<TrackActionsMenu>(find.byType(TrackActionsMenu).first);
-
-    expect(menu().analyzing, isFalse);
-    expect(menu().stemsGenerating, isFalse);
 
     // Determinate so the overlay has no running spinner (pumpAndSettle-safe).
     container
         .read(trackProgressProvider.notifier)
         .set(track.id, 'stems_separate', 0.3);
+    await tester.pump();
+
+    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Generate stems'), findsOneWidget);
+
     container
         .read(stemGeneratingTrackIdsProvider.notifier)
         .setGenerating(track.id, true);
     await tester.pump();
-    expect(menu().stemsGenerating, isTrue);
+    expect(find.text('Generating stems…'), findsOneWidget);
 
-    container
-        .read(trackProgressProvider.notifier)
-        .set(track.id, 'stems_ready', null);
     container
         .read(stemGeneratingTrackIdsProvider.notifier)
         .setGenerating(track.id, false);
     await tester.pump();
-    expect(menu().stemsGenerating, isFalse);
+    expect(find.text('Generate stems'), findsOneWidget);
   });
 
   testWidgets('analysis pills render before stem pills', (tester) async {

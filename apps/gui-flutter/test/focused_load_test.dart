@@ -21,42 +21,31 @@ void main() {
     expect(navigateIndex(4, 5, 3), 4);
   });
 
-  test('focusedLoadPayload prefers library track id', () {
-    final tracks = [_track('t1'), _track('t2')];
+  test('payloadFromListTrack prefers the library track id', () {
     expect(
-      focusedLoadPayload(tracks, 1, inLibrary: (_) => true),
+      payloadFromListTrack(_track('t1'), inLibrary: true),
       const TrackDragPayload(
         source: TrackDragSource.library,
-        trackId: 't2',
-        path: '/tmp/t2.wav',
-        title: 't2',
+        trackId: 't1',
+        path: '/tmp/t1.wav',
+        title: 't1',
       ),
     );
   });
 
-  test('focusedLoadPayload uses path for filesystem rows', () {
-    final tracks = [
-      const LibraryTrackSummary(
-        id: '/tmp/a.wav',
-        displayName: 'a.wav',
-        path: '/tmp/a.wav',
-      ),
-    ];
+  test('payloadFromListTrack uses the path for filesystem rows', () {
+    const track = LibraryTrackSummary(
+      id: '/tmp/a.wav',
+      displayName: 'a.wav',
+      path: '/tmp/a.wav',
+    );
     expect(
-      focusedLoadPayload(tracks, 0, inLibrary: (_) => false),
+      payloadFromListTrack(track, inLibrary: false),
       const TrackDragPayload(
         source: TrackDragSource.filesystem,
         path: '/tmp/a.wav',
         title: 'a.wav',
       ),
-    );
-  });
-
-  test('focusedLoadPayload is null off the table', () {
-    expect(focusedLoadPayload(const [], 0, inLibrary: (_) => true), isNull);
-    expect(
-      focusedLoadPayload([_track('t1')], 1, inLibrary: (_) => true),
-      isNull,
     );
   });
 

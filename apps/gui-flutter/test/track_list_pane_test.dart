@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
@@ -137,6 +138,25 @@ void main() {
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);
     await tester.pump();
     expect(container.read(focusedTrackRowIndexProvider), 1);
+  });
+
+  testWidgets('publishes the focused row payload for controller load', (
+    tester,
+  ) async {
+    final container = await pumpList(tester, tracks: const [track, trackB]);
+
+    // The row the list starts on, published for MIDI "load focused row".
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromListTrack(track, inLibrary: true),
+    );
+
+    container.read(focusedTrackRowIndexProvider.notifier).navigate(1);
+    await tester.pump();
+    expect(
+      container.read(focusedTrackPayloadProvider).payload,
+      payloadFromListTrack(trackB, inLibrary: true),
+    );
   });
 
   testWidgets('right-click on a track row opens the actions menu', (
@@ -361,6 +381,19 @@ void main() {
       find.descendant(of: trailing, matching: find.text('128.0 BPM')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('metadata pills hang left to align with the title', (
+    tester,
+  ) async {
+    await pumpList(tester, width: 1000);
+
+    // `muted` matches the list surface, so the pill's horizontal padding has no
+    // visible chip to justify it — the group is shifted back so the metadata
+    // text lines up with the title above it.
+    final titleLeft = tester.getTopLeft(find.text('Demo Track')).dx;
+    final artistLeft = tester.getTopLeft(find.text('Artist')).dx;
+    expect(artistLeft, closeTo(titleLeft, 0.5));
   });
 
   testWidgets('pills wrap to two runs and none is clipped', (tester) async {

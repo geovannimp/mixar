@@ -396,6 +396,23 @@ class FocusedTrackRowIndex extends Notifier<int> {
 final focusedTrackRowIndexProvider =
     NotifierProvider<FocusedTrackRowIndex, int>(FocusedTrackRowIndex.new);
 
+/// The active list's focused-row payload, so controller / MIDI "load focused
+/// row" acts on whichever list is on screen (library or history).
+///
+/// A plain holder rather than a `Notifier`: a list relinquishes it from
+/// `dispose` by clearing [owner], and Riverpod forbids a provider write during
+/// teardown. Consumers read it at load time, so no reactivity is needed.
+class FocusedTrackPayload {
+  TrackDragPayload? payload;
+
+  /// Token of the list that currently owns [payload]; `null` once it unmounts.
+  Object? owner;
+}
+
+final focusedTrackPayloadProvider = Provider<FocusedTrackPayload>(
+  (ref) => FocusedTrackPayload(),
+);
+
 /// Phases driven by the stem pipeline rather than track analysis. `decode`
 /// belongs to the stem pass: it re-decodes the source for the separator.
 bool isStemProgressPhase(String phase) =>
@@ -504,22 +521,13 @@ void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
   }
 }
 
-/// MIDI / controller load: focused table row → deck via [focusedLoadPayload].
+/// MIDI / controller load: the active list's focused row → deck.
+///
+/// The focused payload is published by [TrackListView], so this works for the
+/// library list and the history list alike without knowing which is on screen.
 Future<void> loadFocusedRowToDeck(Ref ref, int deckId) async {
-  final tracks = ref.read(libraryTableTracksProvider).asData?.value;
-  if (tracks == null || tracks.isEmpty) {
-    return;
-  }
-  final index = ref.read(focusedTrackRowIndexProvider);
-  final tab = ref.read(librarySourceTabProvider);
-  final resolved =
-      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
-  final payload = focusedLoadPayload(
-    tracks,
-    index,
-    inLibrary: (t) =>
-        trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved),
-  );
+  final focused = ref.read(focusedTrackPayloadProvider);
+  final payload = focused.owner == null ? null : focused.payload;
   if (payload == null) {
     return;
   }
@@ -719,40 +727,6 @@ final driveTableTracksProvider =
         },
       );
     });
-
-/// Row count the Home / End keys clamp against. A count, not a list of ids:
-/// the only consumer needs the length, and materialising every id on each
-/// result-set change would be an O(n) allocation to read one integer.
-final libraryTrackCountProvider = Provider<int>((ref) {
-  return ref.watch(libraryTableTracksProvider).asData?.value.length ?? 0;
-});
-
-/// Load list row [index] to [deckId].
-///
-/// Focuses that row first so the deck and the highlighted row agree, then
-/// loads it by payload. Because [libraryTableTracksProvider] is already sorted,
-/// the list index and the focused index are the same number — which is what
-/// lets this share [focusedLoadPayload] with the MIDI path.
-Future<void> loadListRowToDeck(WidgetRef ref, int index, int deckId) async {
-  final tracks = ref.read(libraryTableTracksProvider).asData?.value;
-  if (tracks == null) {
-    return;
-  }
-  final tab = ref.read(librarySourceTabProvider);
-  final resolved =
-      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
-  final payload = focusedLoadPayload(
-    tracks,
-    index,
-    inLibrary: (t) =>
-        trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved),
-  );
-  if (payload == null) {
-    return;
-  }
-  ref.read(focusedTrackRowIndexProvider.notifier).set(index);
-  await loadPayloadToDeck(ref, deckId, payload);
-}
 
 /// Sort field for the library list toolbar.
 enum LibrarySortField {

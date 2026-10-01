@@ -371,6 +371,7 @@ Use **`LibraryTransport`** (or `HistoryTransport` if the API grows). No raw FRB 
 - Sidebar **History**, ordered by `started_at` desc.
 - Row: title, date, entry count, span (`first started_at` → `last ended_at`).
 - Detail: `#`, `started_at`, `ended_at`, duration, deck, title, artist, BPM, key, ISRC (read-only snapshot).
+- Detail rows are selectable and can be dragged onto a deck like library tracks; the logged snapshot itself stays read-only.
 
 ### 9.2 Actions
 
