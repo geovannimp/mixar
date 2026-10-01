@@ -845,18 +845,37 @@ const _kSortMissingValue = 1;
 /// Scaled to milli-units before padding: rounding to whole units would map
 /// 109.7 and 109.9 to the same key, turning two distinct BPMs into a tie that
 /// falls back to provider order instead of the true value.
+///
+/// Values are clamped to [_kSortNumericMax] so a scaled key is always exactly
+/// [_kSortNumericDigits] long. Past that the key grows a digit, `padLeft`
+/// stops aligning, and the lexicographic comparison inverts: `'1000…'` sorts
+/// *below* `'999…'`, which silently mis-orders a short track after a long one.
+/// (`round()` also clamps to the int64 maximum rather than throwing, so an
+/// absurd duration degrades quietly instead of failing loudly.)
 (int, String) _numericSortKey(double? value) {
   if (value == null || !value.isFinite || value < 0) {
     return (_kSortMissingValue, '');
   }
-  final scaled = (value * _kSortNumericScale).round();
-  return (_kSortHasValue, scaled.toString().padLeft(15, '0'));
+  final clamped = value > _kSortNumericMax ? _kSortNumericMax : value;
+  final scaled = (clamped * _kSortNumericScale).round();
+  return (_kSortHasValue, scaled.toString().padLeft(_kSortNumericDigits, '0'));
 }
 
 /// Milli-units of precision for numeric sort keys: finer than any BPM or
 /// duration the app displays, coarse enough that `(value * scale).round()` is
 /// not tripped by floating-point representation.
 const _kSortNumericScale = 1000;
+
+/// Largest key magnitude, in the field's own units (BPM or milliseconds).
+///
+/// `_kSortNumericMax * _kSortNumericScale` is 10^15, which is 16 digits and
+/// below 2^53, so it converts to an integer exactly. A real BPM or duration is
+/// orders of magnitude smaller; anything above this is garbage metadata and
+/// sorts as the largest value rather than corrupting the ordering.
+const _kSortNumericMax = 1e12;
+
+/// Width of a padded numeric key: the digits of `10^15`.
+const _kSortNumericDigits = 16;
 
 /// Right-pane rows: collection tracks or drive files, depending on the tab,
 /// ordered by the toolbar sort. Sorting here rather than in the view keeps

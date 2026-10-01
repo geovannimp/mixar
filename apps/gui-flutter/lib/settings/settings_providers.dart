@@ -128,6 +128,10 @@ Future<SaveAppSettingsResult> saveAppSettings(
   final saved = await settings.saveSettings(settings: normalized);
   ref.invalidate(appSettingsProvider);
   ref.invalidate(libraryRowDensitySettingProvider);
+  // Drop any session-only density toggle too. It outranks the saved setting in
+  // `libraryRowDensityProvider`, so leaving it set would make the list ignore
+  // the value the user just saved.
+  ref.invalidate(libraryRowDensityOverrideProvider);
   String? applyError;
   try {
     await library.applyLibrarySettings(

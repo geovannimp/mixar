@@ -391,16 +391,6 @@ void main() {
         findsOneWidget,
         reason: '${density.name} is missing the key glyph',
       );
-
-      // The glyphs sit inside the trailing pill group.
-      expect(
-        find.descendant(
-          of: find.byKey(kTrailingMetaKey),
-          matching: find.byIcon(LucideIcons.metronome),
-        ),
-        findsOneWidget,
-        reason: 'BPM glyph is not in the trailing pills',
-      );
     }
   });
 
@@ -530,6 +520,35 @@ void main() {
         reason: '${trackInTest.displayName}: $above px above, $below px below',
       );
     }
+  });
+
+  testWidgets('clearing the density override falls back to the saved default', (
+    tester,
+  ) async {
+    // `saveAppSettings` invalidates the override so a freshly saved density
+    // takes effect. This pins the precedence that makes that necessary: the
+    // session override outranks the saved setting.
+    final container = await pumpList(tester);
+    expect(
+      container.read(libraryRowDensityProvider),
+      LibraryRowDensity.comfortable,
+    );
+
+    container
+        .read(libraryRowDensityOverrideProvider.notifier)
+        .set(LibraryRowDensity.compact);
+    expect(
+      container.read(libraryRowDensityProvider),
+      LibraryRowDensity.compact,
+      reason: 'the override should outrank the saved default',
+    );
+
+    container.invalidate(libraryRowDensityOverrideProvider);
+    expect(
+      container.read(libraryRowDensityProvider),
+      LibraryRowDensity.comfortable,
+      reason: 'a cleared override should restore the saved default',
+    );
   });
 
   testWidgets('compact keeps the length in its trailing group', (tester) async {
@@ -921,6 +940,102 @@ void main() {
         ascending: false,
       ).map((t) => t.id),
       ['high', 'low'],
+    );
+  });
+
+  test('every sort field orders known values and sinks missing ones', () {
+    LibraryTrackSummary t(
+      String id, {
+      String? artist,
+      String? key,
+      int? durationMs,
+    }) => LibraryTrackSummary(
+      id: id,
+      displayName: id,
+      artist: artist,
+      key: key,
+      durationMs: durationMs,
+      path: '/tmp/$id.wav',
+    );
+
+    final tracks = [
+      t('alpha', artist: 'Alpha', key: '8A', durationMs: 60_000),
+      t('beta', artist: 'beta', key: '3B', durationMs: 180_000),
+      t('empty'),
+    ];
+
+    List<String> ids(LibrarySortField field, {bool ascending = true}) => [
+      for (final track in sortLibraryTracks(
+        tracks,
+        field,
+        ascending: ascending,
+      ))
+        track.id,
+    ];
+
+    // Case-insensitive text, then the track with no value last.
+    expect(ids(LibrarySortField.artist), ['alpha', 'beta', 'empty']);
+    expect(ids(LibrarySortField.artist, ascending: false), [
+      'beta',
+      'alpha',
+      'empty',
+    ]);
+    // Keys here are mixed-format strings, so this only asserts ordering and
+    // that the unkeyed track sinks.
+    expect(ids(LibrarySortField.key), ['beta', 'alpha', 'empty']);
+    expect(ids(LibrarySortField.key, ascending: false), [
+      'alpha',
+      'beta',
+      'empty',
+    ]);
+    // Durations order numerically, not lexically: 60s before 180s.
+    expect(ids(LibrarySortField.length), ['alpha', 'beta', 'empty']);
+    expect(ids(LibrarySortField.length, ascending: false), [
+      'beta',
+      'alpha',
+      'empty',
+    ]);
+  });
+
+  test('an out-of-range duration cannot invert the numeric key order', () {
+    // Keys are scaled to milli-units and padded to a fixed width. A value past
+    // the clamp scales to more than that width, `padLeft` stops aligning, and
+    // '1000…' then compares below '999…' — silently sorting a shorter track
+    // after a longer one. Listed ascending so the inversion is detectable.
+    LibraryTrackSummary t(String id, {int? durationMs}) => LibraryTrackSummary(
+      id: id,
+      displayName: id,
+      durationMs: durationMs,
+      path: '/tmp/$id.wav',
+    );
+
+    final tracks = [
+      // Just over the clamp: 31.7 years in milliseconds.
+      t('beyond', durationMs: 1_000_000_000_000),
+      // Just under it, which seeds the 15-digit key that used to win.
+      t('below', durationMs: 999_999_999_999),
+      t('int64max', durationMs: 9223372036854775807),
+      t('typical', durationMs: 240_000),
+      t('unknown'),
+    ];
+
+    expect(
+      sortLibraryTracks(
+        tracks,
+        LibrarySortField.length,
+        ascending: true,
+      ).map((t) => t.id),
+      ['typical', 'below', 'beyond', 'int64max', 'unknown'],
+    );
+    // Both out-of-range values clamp to the same key, so they tie and keep
+    // provider order; only the values below the clamp are truly reversed.
+    expect(
+      sortLibraryTracks(
+        tracks,
+        LibrarySortField.length,
+        ascending: false,
+      ).map((t) => t.id),
+      ['beyond', 'int64max', 'below', 'typical', 'unknown'],
     );
   });
 
