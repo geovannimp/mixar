@@ -280,6 +280,30 @@ void main() {
     expect(menu().stemsGenerating, isFalse);
   });
 
+  testWidgets('analysis pills render before stem pills', (tester) async {
+    // Pins the lane order the overlay documents. Implemented as a partition
+    // rather than a sort, since the two-lane comparator ties within a lane and
+    // Dart's sort is not stable above its insertion-sort threshold.
+    final container = await pumpTable(tester);
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.4);
+    container
+        .read(trackProgressProvider.notifier)
+        .set(track.id, 'stems_separate', 0.6);
+    await tester.pump();
+
+    final analysis = tester.getRect(find.text('Detecting BPM 40%'));
+    final stems = tester.getRect(find.text('Separating stems 60%'));
+    expect(analysis.left, lessThan(stems.left));
+
+    // Same order after another tick, so a progress update cannot swap lanes.
+    container.read(trackProgressProvider.notifier).set(track.id, 'bpm', 0.8);
+    await tester.pump();
+    expect(
+      tester.getRect(find.text('Detecting BPM 80%')).left,
+      lessThan(tester.getRect(find.text('Separating stems 60%')).left),
+    );
+  });
+
   testWidgets('pills stay right-aligned as lanes stack', (tester) async {
     final container = await pumpTable(tester);
     container.read(analyzingTrackIdsProvider.notifier).add(track.id);

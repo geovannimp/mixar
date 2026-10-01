@@ -134,6 +134,11 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
   final FocusNode _focusNode = FocusNode();
   List<LibraryTrackSummary> _tracks = const [];
 
+  /// Latest requested scroll target, and whether a frame callback is already
+  /// queued to service it. See [_scrollToRow].
+  int? _pendingScrollIndex;
+  bool _scrollScheduled = false;
+
   /// Track the focused row is pinned to by id, not by index. A re-sort or a
   /// filter change reorders the list underneath the focus, and without this the
   /// highlighted row would silently jump to whatever track now sits at the old
@@ -203,6 +208,13 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     final drivePath = ref.watch(driveCurrentPathProvider);
     final tracksAsync = ref.watch(libraryTableTracksProvider);
     final density = ref.watch(libraryRowDensityProvider);
+    // Watched, not read: rows derive `inLibrary` from this, and hoisted above
+    // the `when` below so the subscription is unconditional rather than
+    // registered only while the track list happens to be in its data state.
+    final focused = ref.watch(focusedTrackRowIndexProvider);
+    final driveResolved =
+        ref.watch(driveResolvedByPathProvider).asData?.value ??
+        const <String, LibraryTrackSummary>{};
     final settings = ref
         .watch(appSettingsProvider)
         .maybeWhen(data: (s) => s, orElse: defaultAppSettings);
@@ -275,17 +287,13 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
                         );
                       }
                       final tab = ref.read(librarySourceTabProvider);
-                      final resolved =
-                          ref.read(driveResolvedByPathProvider).asData?.value ??
-                          const <String, LibraryTrackSummary>{};
-                      final focused = ref.watch(focusedTrackRowIndexProvider);
                       return _ListSurface(
                         theme: theme,
                         child: RepaintBoundary(
                           // Isolate list paint from overlay tooltips / meters.
                           child: LibraryListScope(
                             tab: tab,
-                            resolved: resolved,
+                            resolved: driveResolved,
                             child: _FocusScope(
                               index: focused,
                               child: _FocusableTrackList(
@@ -383,13 +391,25 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
   /// controller measuring the *old* itemExtent until the list re-lays out.
   /// Scrolling synchronously would compute the target against a stale extent
   /// and land on the wrong row.
+  ///
+  /// Coalesced: rapid focus moves (held arrow key) or a focus change plus a
+  /// density change in one frame would otherwise queue one callback each, and
+  /// every stale target would still be jumped to.
   void _scrollToRow(int index) {
     if (index < 0) {
       return;
     }
+    _pendingScrollIndex = index;
+    if (_scrollScheduled) {
+      return;
+    }
+    _scrollScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _scrollToRowNow(index);
+      _scrollScheduled = false;
+      final target = _pendingScrollIndex;
+      _pendingScrollIndex = null;
+      if (mounted && target != null) {
+        _scrollToRowNow(target);
       }
     });
   }
@@ -783,6 +803,12 @@ class TrackListRow extends ConsumerWidget {
     );
     // Pointer-down (not tap): super_dnd's drag recognizer often wins the
     // gesture arena, so a tap handler never fires on a drag.
+    //
+    // Deliberately not gated on `event.buttons`: any press focuses the row,
+    // including a right-click (which then opens the context menu) and the start
+    // of a drag. Focusing what the user just pressed is what makes the MIDI
+    // "load focused row" command and the focused-row fill agree with the row
+    // under the pointer.
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => onSelect(),
@@ -1284,8 +1310,10 @@ class _ComfortableRow extends StatelessWidget {
                   // Wrap, not a single ellipsized line: a long artist name
                   // pushes the remaining pills onto a second line instead of
                   // hiding them. Two runs is the cap (see `maxPillWidth`); the
-                  // clip is belt-and-braces so no label can paint outside the row.
-                  if (pills.isNotEmpty)
+                  // clip is belt-and-braces so no label can paint outside the
+                  // row. Skipped entirely when there is no room left: a
+                  // zero-width cap would render the pills as an empty gap.
+                  if (pills.isNotEmpty && maxPillWidth > 0)
                     Padding(
                       padding: const EdgeInsets.only(top: 3),
                       // maxHeight, not a fixed height. Reserving two runs when
@@ -1305,7 +1333,7 @@ class _ComfortableRow extends StatelessWidget {
                             for (final pill in pills)
                               ConstrainedBox(
                                 constraints: BoxConstraints(
-                                  maxWidth: maxPillWidth > 0 ? maxPillWidth : 0,
+                                  maxWidth: maxPillWidth,
                                 ),
                                 child: pill,
                               ),
@@ -1420,19 +1448,23 @@ class _TrackStatusOverlay extends ConsumerWidget {
     );
     // Queued work has no phase yet. Reuse the label vocabulary with a null
     // fraction so it reads indeterminate instead of inventing a percentage.
-    // At most one job per lane, so at most two pills.
-    final infos =
-        <TrackProgressInfo>[
-          ...jobs,
-          if (analyzing && !jobs.any((i) => !isStemProgressPhase(i.phase)))
-            const TrackProgressInfo(phase: 'analyze'),
-          if (stemsGenerating && !jobs.any((i) => isStemProgressPhase(i.phase)))
-            const TrackProgressInfo(phase: 'stems_queued'),
-        ]..sort(
-          (a, b) => (isStemProgressPhase(a.phase) ? 1 : 0).compareTo(
-            isStemProgressPhase(b.phase) ? 1 : 0,
-          ),
-        );
+    // At most one job per lane, so at most two pills. Partitioned rather than
+    // sorted: the two-lane comparator ties within a lane, and `List.sort` is
+    // only stable below its insertion-sort threshold, so a sort could swap
+    // same-lane pills between frames on a progress tick.
+    final analysisLane = <TrackProgressInfo>[
+      for (final job in jobs)
+        if (!isStemProgressPhase(job.phase)) job,
+      if (analyzing && !jobs.any((i) => !isStemProgressPhase(i.phase)))
+        const TrackProgressInfo(phase: 'analyze'),
+    ];
+    final stemLane = <TrackProgressInfo>[
+      for (final job in jobs)
+        if (isStemProgressPhase(job.phase)) job,
+      if (stemsGenerating && !jobs.any((i) => isStemProgressPhase(i.phase)))
+        const TrackProgressInfo(phase: 'stems_queued'),
+    ];
+    final infos = [...analysisLane, ...stemLane];
     if (infos.isEmpty) {
       return const SizedBox.shrink();
     }
