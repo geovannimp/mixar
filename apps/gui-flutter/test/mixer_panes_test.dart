@@ -94,10 +94,25 @@ void main() {
         )
         .first;
 
+    final tabBarElement = tester.widget<DecoratedBox>(tabBar);
+    final toolbarElement = tester.widget<Container>(
+      find.byKey(kLibraryToolbarKey),
+    );
+
     expect(
       tester.getSize(find.byKey(kLibraryToolbarKey)).height,
       tester.getSize(tabBar).height,
       reason: 'the topbar and the tabs must share one header height',
+    );
+
+    // Both header rows draw the same bottom border, so the rule reads as one
+    // continuous line across the split.
+    Border bottom(Decoration? decoration) =>
+        (decoration! as BoxDecoration).border! as Border;
+    expect(
+      bottom(tabBarElement.decoration).bottom.color,
+      bottom(toolbarElement.decoration).bottom.color,
+      reason: 'the tabs and topbar bottom borders must match',
     );
   });
 }

@@ -103,6 +103,10 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                   child: MTabs(
                     expands: true,
                     spacing: 4,
+                    barBottomBorder: BorderSide(
+                      color: theme.colors.border,
+                      width: theme.style.borderWidth,
+                    ),
                     index: switch (tab) {
                       LibrarySourceTab.collections => 0,
                       LibrarySourceTab.drive => 1,

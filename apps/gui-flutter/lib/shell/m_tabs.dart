@@ -26,6 +26,7 @@ class MTabs extends StatefulWidget {
     this.onChange,
     this.expands = false,
     this.spacing = 0,
+    this.barBottomBorder,
     super.key,
   }) : assert(children.length > 0, 'Must provide at least 1 tab.');
 
@@ -37,6 +38,11 @@ class MTabs extends StatefulWidget {
 
   /// Gap between the tab bar and the content stack.
   final double spacing;
+
+  /// Optional bottom border on the tab bar, so it can line up with a header row
+  /// beside it that draws one (the library topbar). The bar's other edges are
+  /// painted in its own fill colour, so only this one shows.
+  final BorderSide? barBottomBorder;
 
   @override
   State<MTabs> createState() => _MTabsState();
@@ -89,6 +95,7 @@ class _MTabsState extends State<MTabs> {
       children: widget.children,
       onSelect: _select,
       theme: theme,
+      barBottomBorder: widget.barBottomBorder,
     );
     final stack = IndexedStack(
       index: current,
@@ -126,6 +133,7 @@ class _TabBar extends StatelessWidget {
     required this.children,
     required this.onSelect,
     required this.theme,
+    this.barBottomBorder,
   });
 
   final Axis direction;
@@ -134,6 +142,7 @@ class _TabBar extends StatelessWidget {
   final List<MTabEntry> children;
   final ValueChanged<int> onSelect;
   final MixarThemeData theme;
+  final BorderSide? barBottomBorder;
 
   static const _slideDuration = Duration(milliseconds: 300);
 
@@ -191,12 +200,20 @@ class _TabBar extends StatelessWidget {
           )
         : labels;
 
+    // The bar's own fill colour doubles as its border, so only the caller's
+    // bottom border (if any) is visible.
+    final flush = BorderSide(
+      color: theme.colors.muted,
+      width: theme.style.borderWidth,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colors.muted,
-        border: Border.all(
-          color: theme.colors.muted,
-          width: theme.style.borderWidth,
+        border: Border(
+          top: flush,
+          left: flush,
+          right: flush,
+          bottom: barBottomBorder ?? flush,
         ),
       ),
       child: Padding(padding: const EdgeInsets.all(4), child: strip),
