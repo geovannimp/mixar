@@ -91,8 +91,8 @@ void main() {
       reason: 'the topbar and the tabs must share one header height',
     );
 
-    // The filter field's band fills the header, so there is no gap above the
-    // field (the band shrinks if the header gets an unbounded max height).
+    // The filter field's band fills the header up to the bottom border, so
+    // there is no gap above the field and it does not paint over the border.
     final band = find.byWidgetPredicate(
       (w) =>
           w is ColoredBox &&
@@ -100,8 +100,8 @@ void main() {
     );
     expect(
       tester.getSize(band).height,
-      tester.getSize(toolbar).height,
-      reason: 'the field band must fill the header edge to edge',
+      tester.getSize(toolbar).height - MixarThemeData.dark().style.borderWidth,
+      reason: 'the field band must fill the header up to the bottom border',
     );
 
     // Both header rows draw the same bottom border, so the rule reads as one

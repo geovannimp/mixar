@@ -224,7 +224,10 @@ class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.only(right: 6),
+            // Inset by the border width so the band stops above the bottom
+            // border instead of painting over it (`DecoratedBox` does not inset
+            // its child by the border the way `Container` does).
+            padding: EdgeInsets.only(right: 6, bottom: theme.style.borderWidth),
             child: Row(
               children: [
                 Expanded(
