@@ -2,17 +2,20 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Minimum height of a single tab header. The bar only grows taller than this
-/// if a caller puts taller content in a label.
-const kMTabHeaderMinHeight = 28.0;
+/// Minimum size of a single tab header (it is a square). The bar only grows
+/// taller than [kMTabBarHeight] when a caller puts taller content in a label.
+const kMTabHeaderMinSize = 28.0;
 
 /// Padding between the tab bar's edge and the header strip.
 const kMTabBarPadding = 4.0;
 
-/// Natural height of a horizontal tab bar. The 1px border is painted inside the
-/// box (a bare [DecoratedBox] does not inset its child), so it does not add to
-/// this — the headers plus the two paddings are the whole bar.
-const double kMTabBarHeight = kMTabHeaderMinHeight + kMTabBarPadding * 2;
+/// Natural height (a floor, not exact) of a horizontal tab bar: the header
+/// minimum plus the two paddings. The 1px border is painted inside the box (a
+/// bare [DecoratedBox] does not inset its child), so it does not add to this. A
+/// label taller than [kMTabHeaderMinSize] grows the bar past this value, so
+/// treat the constant as a minimum — consumers that align to it should use a
+/// `minHeight`, not a fixed height.
+const double kMTabBarHeight = kMTabHeaderMinSize + kMTabBarPadding * 2;
 
 /// Identifies the tab bar's painted surface, so callers and tests can find it
 /// without matching on its fill colour (which is shared with other tokens).
@@ -58,6 +61,10 @@ class MTabs extends StatefulWidget {
   /// Optional bottom border on the tab bar, so it can line up with a header row
   /// beside it that draws one (the library topbar). The bar's other edges are
   /// painted in its own fill colour, so only this one shows.
+  ///
+  /// The border is painted inside the bar, so its width does not change
+  /// [kMTabBarHeight]; pass `theme.style.borderWidth` so it neither overlaps
+  /// the header strip nor spreads across the fill.
   final BorderSide? barBottomBorder;
 
   @override
@@ -284,8 +291,8 @@ class _TabHeader extends StatelessWidget {
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(
-              minHeight: kMTabHeaderMinHeight,
-              minWidth: kMTabHeaderMinHeight,
+              minHeight: kMTabHeaderMinSize,
+              minWidth: kMTabHeaderMinSize,
             ),
             child: Center(
               child: IconTheme.merge(

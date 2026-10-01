@@ -50,6 +50,9 @@ class MixarInput extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
 
   /// Drops [ShadInput]'s rounded border, for a flat field that fills a bar.
+  ///
+  /// Normally paired with a compact [padding]: [borderless] alone keeps the
+  /// theme's default vertical padding, which is taller than a dense bar wants.
   final bool borderless;
   final int? maxLines;
 
