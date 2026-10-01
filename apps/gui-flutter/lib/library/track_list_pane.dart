@@ -366,7 +366,7 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
       focus.navigate(delta);
       return;
     }
-    final count = ref.read(libraryRowIdsProvider).length;
+    final count = ref.read(libraryTrackCountProvider);
     focus.set(
       edge == _FocusEdge.first
           ? 0
@@ -1381,7 +1381,6 @@ class _ArtworkThumb extends ConsumerWidget {
   }
 }
 
-/// `m:ss`, or empty when the track has no usable duration.
 /// `m:ss` for [ms], or empty when the duration is unknown.
 ///
 /// Empty, not `0:00`, for null and non-positive values: those come from missing

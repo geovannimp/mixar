@@ -887,6 +887,43 @@ void main() {
     },
   );
 
+  test('BPM sorting distinguishes values inside the same whole number', () {
+    // 109.7 and 109.9 both round to 110, so a whole-unit sort key makes them a
+    // tie and leaves them in provider order. Deliberately listed descending so
+    // a lossy key cannot pass by accident.
+    final tracks = [
+      const LibraryTrackSummary(
+        id: 'high',
+        displayName: 'high',
+        bpm: 109.9,
+        path: '/tmp/high.wav',
+      ),
+      const LibraryTrackSummary(
+        id: 'low',
+        displayName: 'low',
+        bpm: 109.7,
+        path: '/tmp/low.wav',
+      ),
+    ];
+
+    expect(
+      sortLibraryTracks(
+        tracks,
+        LibrarySortField.bpm,
+        ascending: true,
+      ).map((t) => t.id),
+      ['low', 'high'],
+    );
+    expect(
+      sortLibraryTracks(
+        tracks,
+        LibrarySortField.bpm,
+        ascending: false,
+      ).map((t) => t.id),
+      ['high', 'low'],
+    );
+  });
+
   test('sorting does not mutate the provider list', () {
     final tracks = [
       const LibraryTrackSummary(

@@ -719,15 +719,11 @@ final driveTableTracksProvider =
       );
     });
 
-/// Track ids in the order the list renders them. Used for the row count that
-/// Home / End clamp against.
-final libraryRowIdsProvider = Provider<List<String>>((ref) {
-  return [
-    for (final track
-        in ref.watch(libraryTableTracksProvider).asData?.value ??
-            const <LibraryTrackSummary>[])
-      track.id,
-  ];
+/// Row count the Home / End keys clamp against. A count, not a list of ids:
+/// the only consumer needs the length, and materialising every id on each
+/// result-set change would be an O(n) allocation to read one integer.
+final libraryTrackCountProvider = Provider<int>((ref) {
+  return ref.watch(libraryTableTracksProvider).asData?.value.length ?? 0;
 });
 
 /// Load list row [index] to [deckId].
@@ -845,12 +841,22 @@ const _kSortMissingValue = 1;
 /// non-finite or negative value is treated as missing: a NaN from a failed
 /// analysis must not poison the whole ordering. BPM and duration are never
 /// negative, so the sign needs no case.
+///
+/// Scaled to milli-units before padding: rounding to whole units would map
+/// 109.7 and 109.9 to the same key, turning two distinct BPMs into a tie that
+/// falls back to provider order instead of the true value.
 (int, String) _numericSortKey(double? value) {
   if (value == null || !value.isFinite || value < 0) {
     return (_kSortMissingValue, '');
   }
-  return (_kSortHasValue, value.round().toString().padLeft(12, '0'));
+  final scaled = (value * _kSortNumericScale).round();
+  return (_kSortHasValue, scaled.toString().padLeft(15, '0'));
 }
+
+/// Milli-units of precision for numeric sort keys: finer than any BPM or
+/// duration the app displays, coarse enough that `(value * scale).round()` is
+/// not tripped by floating-point representation.
+const _kSortNumericScale = 1000;
 
 /// Right-pane rows: collection tracks or drive files, depending on the tab,
 /// ordered by the toolbar sort. Sorting here rather than in the view keeps
