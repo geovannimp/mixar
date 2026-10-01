@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -6,6 +7,7 @@ import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -181,4 +183,89 @@ void main() {
       isTrue,
     );
   });
+
+  group('MixarMenuSegments', () {
+    Future<void> pumpSegments(
+      WidgetTester tester, {
+      required List<MixarMenuSegment> segments,
+    }) async {
+      final theme = MixarThemeData.dark();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 200,
+                child: MixarMenuSegments(segments: segments),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    Color segmentPaint(WidgetTester tester, String label) {
+      final box = tester.widget<ColoredBox>(
+        find
+            .ancestor(of: find.text(label), matching: find.byType(ColoredBox))
+            .first,
+      );
+      return box.color;
+    }
+
+    testWidgets('a disabled segment does not highlight on hover', (
+      tester,
+    ) async {
+      final theme = MixarThemeData.dark();
+      await pumpSegments(
+        tester,
+        segments: const [
+          MixarMenuSegment(label: 'A'),
+          MixarMenuSegment(label: 'B', onPress: _noop),
+        ],
+      );
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+
+      expect(
+        segmentPaint(tester, 'A'),
+        isNot(theme.colors.secondary),
+        reason: 'a disabled segment must not paint the hover highlight',
+      );
+    });
+
+    testWidgets('an enabled segment highlights on hover', (tester) async {
+      final theme = MixarThemeData.dark();
+      await pumpSegments(
+        tester,
+        segments: const [MixarMenuSegment(label: 'A', onPress: _noop)],
+      );
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+
+      await gesture.moveTo(tester.getCenter(find.text('A')));
+      await tester.pumpAndSettle();
+
+      expect(segmentPaint(tester, 'A'), theme.colors.secondary);
+    });
+
+    testWidgets('an empty segment list paints nothing', (tester) async {
+      await pumpSegments(tester, segments: const []);
+      expect(find.byType(MixarMenuSegments), findsOneWidget);
+      expect(find.byType(MDivider), findsNothing);
+    });
+  });
 }
+
+void _noop() {}

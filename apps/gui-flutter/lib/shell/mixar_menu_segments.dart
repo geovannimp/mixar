@@ -27,24 +27,25 @@ class MixarMenuSegment {
 /// A segmented group of menu cells: one bordered, rounded track split by
 /// hairlines, matching the shuffle/repeat button groups. Full width, so
 /// segments stay vertically aligned with the text actions around them.
-class MixarMenuSegments extends StatefulWidget {
+class MixarMenuSegments extends StatelessWidget {
   const new({required this.segments, super.key});
+
+  /// Horizontal inset matching MixarMenuItem's text rows (12px), so the
+  /// group's track starts at the same x as "Load to deck" and the other
+  /// actions.
+  static const _inset = 12.0;
 
   final List<MixarMenuSegment> segments;
 
   @override
-  State<MixarMenuSegments> createState() => _MixarMenuSegmentsState();
-}
-
-class _MixarMenuSegmentsState extends State<MixarMenuSegments> {
-  var _hovered = -1;
-
-  @override
   Widget build(BuildContext context) {
+    if (segments.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final theme = context.theme;
     final radius = theme.style.borderRadius.sm;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: _inset, vertical: 4),
       child: DecoratedBox(
         decoration: BoxDecoration(
           border: Border.all(
@@ -59,21 +60,14 @@ class _MixarMenuSegmentsState extends State<MixarMenuSegments> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (var i = 0; i < widget.segments.length; i++) ...[
+                for (var i = 0; i < segments.length; i++) ...[
                   if (i > 0)
                     MDivider(
                       axis: Axis.vertical,
                       padding: EdgeInsets.zero,
                       color: theme.colors.border,
                     ),
-                  Expanded(
-                    child: _Segment(
-                      segment: widget.segments[i],
-                      hovered: _hovered == i,
-                      onHover: (value) =>
-                          setState(() => _hovered = value ? i : -1),
-                    ),
-                  ),
+                  Expanded(child: _Segment(segment: segments[i])),
                 ],
               ],
             ),
@@ -85,15 +79,9 @@ class _MixarMenuSegmentsState extends State<MixarMenuSegments> {
 }
 
 class _Segment extends StatelessWidget {
-  const new({
-    required this.segment,
-    required this.hovered,
-    required this.onHover,
-  });
+  const new({required this.segment});
 
   final MixarMenuSegment segment;
-  final bool hovered;
-  final ValueChanged<bool> onHover;
 
   @override
   Widget build(BuildContext context) {
@@ -104,24 +92,22 @@ class _Segment extends StatelessWidget {
       onPress: segment.onPress,
       semanticsLabel: segment.semanticsLabel,
       builder: (context, state) {
-        return MouseRegion(
-          onEnter: (_) => onHover(true),
-          onExit: (_) => onHover(false),
-          child: ColoredBox(
-            color: state.active || hovered
-                ? theme.colors.secondary
-                : const Color(0x00000000),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Center(
-                child: Text(
-                  segment.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typography.body.sm.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: enabled ? color : color.withValues(alpha: 0.4),
-                  ),
+        // `state.active` is `!disabled && (hovered || pressed || selected)`, so
+        // a disabled segment never paints the highlight.
+        return ColoredBox(
+          color: state.active
+              ? theme.colors.secondary
+              : const Color(0x00000000),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: Text(
+                segment.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.typography.body.sm.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: enabled ? color : color.withValues(alpha: 0.4),
                 ),
               ),
             ),
