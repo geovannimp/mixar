@@ -9,7 +9,6 @@ import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
-import 'package:gui_flutter/shell/m_card.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -60,102 +59,108 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
     final message = ref.watch(libraryMessageProvider);
     final tab = ref.watch(librarySourceTabProvider);
 
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (message != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-              child: Text(
-                message,
-                style: theme.typography.body.sm.copyWith(
-                  color: theme.colors.destructive,
-                ),
-              ),
-            ),
-          Expanded(
-            // Invisible chrome; keep a grab hit-area (was FResizable divider:none).
-            child: PaneTheme(
-              data: const PaneThemeData(
-                resizerColor: Color(0x00000000),
-                resizerHoverColor: Color(0x00000000),
-                resizerFocusedColor: Color(0x00000000),
-                resizerThickness: 0,
-                resizerHitTestThickness: 8,
-              ),
-              child: MultiPane(
-                direction: Axis.horizontal,
-                controller: _controller,
-                paneBuilder: (context, id, _) => switch (id) {
-                  'sidebar' => MCard(
-                    clipBehavior: Clip.antiAlias,
-                    child: MTabs(
-                      expands: true,
-                      spacing: 4,
-                      index: switch (tab) {
-                        LibrarySourceTab.collections => 0,
-                        LibrarySourceTab.drive => 1,
-                        LibrarySourceTab.history => 2,
-                      },
-                      onChange: (index) {
-                        ref.read(librarySourceTabProvider.notifier).set(
-                          switch (index) {
-                            1 => LibrarySourceTab.drive,
-                            2 => LibrarySourceTab.history,
-                            _ => LibrarySourceTab.collections,
-                          },
-                        );
-                      },
-                      children: [
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'Collections',
-                            child: Semantics(
-                              label: 'Collections',
-                              child: const Icon(LucideIcons.library, size: 16),
-                            ),
-                          ),
-                          child: const CollectionsPane(),
-                        ),
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'Drive',
-                            child: Semantics(
-                              label: 'Drive',
-                              child: const Icon(
-                                LucideIcons.hardDrive,
-                                size: 16,
-                              ),
-                            ),
-                          ),
-                          child: const DrivePane(),
-                        ),
-                        MTabEntry(
-                          label: AppTooltip(
-                            tip: 'History',
-                            child: Semantics(
-                              label: 'History',
-                              child: const Icon(LucideIcons.history, size: 16),
-                            ),
-                          ),
-                          child: const HistoryPane(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  'content' =>
-                    tab == LibrarySourceTab.history
-                        ? const HistoryDetailPane()
-                        : const TrackListPane(),
-                  _ => const SizedBox.shrink(),
-                },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (message != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Text(
+              message,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.destructive,
               ),
             ),
           ),
-        ],
-      ),
+        Expanded(
+          // Invisible chrome; keep a grab hit-area (was FResizable divider:none).
+          child: PaneTheme(
+            data: const PaneThemeData(
+              resizerColor: Color(0x00000000),
+              resizerHoverColor: Color(0x00000000),
+              resizerFocusedColor: Color(0x00000000),
+              resizerThickness: 0,
+              resizerHitTestThickness: 8,
+            ),
+            child: MultiPane(
+              direction: Axis.horizontal,
+              controller: _controller,
+              paneBuilder: (context, id, _) => switch (id) {
+                // Flush sidebar: no margin or rounded chrome, only a right
+                // border separating it from the track table.
+                'sidebar' => DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.colors.card,
+                    border: Border(
+                      right: BorderSide(
+                        color: theme.colors.border,
+                        width: theme.style.borderWidth,
+                      ),
+                    ),
+                  ),
+                  child: MTabs(
+                    expands: true,
+                    spacing: 4,
+                    index: switch (tab) {
+                      LibrarySourceTab.collections => 0,
+                      LibrarySourceTab.drive => 1,
+                      LibrarySourceTab.history => 2,
+                    },
+                    onChange: (index) {
+                      ref.read(librarySourceTabProvider.notifier).set(
+                        switch (index) {
+                          1 => LibrarySourceTab.drive,
+                          2 => LibrarySourceTab.history,
+                          _ => LibrarySourceTab.collections,
+                        },
+                      );
+                    },
+                    children: [
+                      MTabEntry(
+                        label: AppTooltip(
+                          tip: 'Collections',
+                          child: Semantics(
+                            label: 'Collections',
+                            child: const Icon(LucideIcons.library, size: 16),
+                          ),
+                        ),
+                        child: const CollectionsPane(),
+                      ),
+                      MTabEntry(
+                        label: AppTooltip(
+                          tip: 'Drive',
+                          child: Semantics(
+                            label: 'Drive',
+                            child: const Icon(LucideIcons.hardDrive, size: 16),
+                          ),
+                        ),
+                        child: const DrivePane(),
+                      ),
+                      MTabEntry(
+                        label: AppTooltip(
+                          tip: 'History',
+                          child: Semantics(
+                            label: 'History',
+                            child: const Icon(LucideIcons.history, size: 16),
+                          ),
+                        ),
+                        child: const HistoryPane(),
+                      ),
+                    ],
+                  ),
+                ),
+                'content' => Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: tab == LibrarySourceTab.history
+                      ? const HistoryDetailPane()
+                      : const TrackListPane(),
+                ),
+                _ => const SizedBox.shrink(),
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
