@@ -74,7 +74,7 @@ class HistoryDetailPane extends ConsumerWidget {
         Container(
           key: kLibraryToolbarKey,
           height: kLibraryHeaderHeight,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.only(right: 6),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -88,6 +88,7 @@ class HistoryDetailPane extends ConsumerWidget {
               Expanded(
                 child: MixarInput(
                   hint: 'Filter entries…',
+                  borderless: true,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 6,
