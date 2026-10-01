@@ -121,7 +121,10 @@ class LibraryListMessage extends StatelessWidget {
   }
 }
 
-/// Rounded, bordered surface behind a list pane's rows.
+/// Filled surface behind a list pane's rows.
+///
+/// Flush and borderless: the list fills its pane edge to edge, so the row fill
+/// is all this needs — no radius or border insets it from the panel edges.
 class LibraryListSurface extends StatelessWidget {
   const new({required this.theme, required this.child, super.key});
 
@@ -129,28 +132,8 @@ class LibraryListSurface extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.secondary,
-        borderRadius: theme.style.borderRadius.md,
-      ),
-      child: ClipRRect(
-        borderRadius: theme.style.borderRadius.md,
-        // Foreground: rows paint an opaque `colors.secondary` fill edge to
-        // edge, so a background border sits underneath them and only shows in
-        // the empty area below the last row.
-        child: DecoratedBox(
-          position: DecorationPosition.foreground,
-          decoration: BoxDecoration(
-            borderRadius: theme.style.borderRadius.md,
-            border: Border.all(color: theme.colors.border),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      ColoredBox(color: theme.colors.secondary, child: child);
 }
 
 /// Session-only density switch. Deliberately does not write settings.

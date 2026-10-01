@@ -1184,19 +1184,24 @@ void main() {
     expect(tracks.map((t) => t.id), ['b', 'a']);
   });
 
-  testWidgets('the list border paints above the rows, not behind them', (
-    tester,
-  ) async {
-    // Rows fill `colors.secondary` edge to edge — the same colour as the
-    // surface — so a border in a background decoration is painted over wherever
-    // a row is, and only remains visible in the empty space below the last
-    // row. Assert on the decoration layer, not on geometry.
+  testWidgets('the list surface is flush and borderless', (tester) async {
+    // The list fills its pane edge to edge: removing the card chrome means no
+    // border or radius insets it from the panel edges, so the row fill runs
+    // right to the sides.
     await pumpList(tester, tracks: const [track, trackB]);
 
-    // The list surface is the bordered decoration that wraps the rows. Toolbar
-    // controls carry background borders too, so match on that containment
-    // rather than on the pane as a whole.
     final listView = find.byType(ListView);
+    final pane = tester.getRect(find.byType(TrackListPane));
+    final list = tester.getRect(listView);
+    expect(list.left, pane.left, reason: 'list is not flush to the left edge');
+    expect(
+      list.right,
+      pane.right,
+      reason: 'list is not flush to the right edge',
+    );
+
+    // No bordered or rounded surface wraps the rows. Toolbar controls carry
+    // borders too, so match on wrapping the list rather than on the pane.
     final surfaces = find
         .descendant(
           of: find.byType(TrackListPane),
@@ -1204,33 +1209,26 @@ void main() {
             (w) =>
                 w is DecoratedBox &&
                 w.decoration is BoxDecoration &&
-                (w.decoration as BoxDecoration).border != null,
+                ((w.decoration as BoxDecoration).border != null ||
+                    (w.decoration as BoxDecoration).borderRadius != null),
           ),
         )
         .evaluate();
-
     final wrapping = [
       for (final element in surfaces)
         if (find
             .descendant(of: find.byWidget(element.widget), matching: listView)
             .evaluate()
             .isNotEmpty)
-          element.widget as DecoratedBox,
+          element.widget,
     ];
 
     expect(
       wrapping,
-      hasLength(1),
+      isEmpty,
       reason:
-          'expected one bordered surface wrapping the list, got '
+          'expected the list to have no bordered/rounded surface, found '
           '${wrapping.length}',
-    );
-    expect(
-      wrapping.single.position,
-      DecorationPosition.foreground,
-      reason:
-          'the border is painted behind the rows, so it is hidden wherever a '
-          'row is drawn',
     );
   });
 }

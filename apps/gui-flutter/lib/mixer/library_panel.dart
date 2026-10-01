@@ -149,12 +149,10 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                     ],
                   ),
                 ),
-                'content' => Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: tab == LibrarySourceTab.history
+                'content' =>
+                  tab == LibrarySourceTab.history
                       ? const HistoryDetailPane()
                       : const TrackListPane(),
-                ),
                 _ => const SizedBox.shrink(),
               },
             ),
