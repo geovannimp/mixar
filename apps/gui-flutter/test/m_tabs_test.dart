@@ -13,6 +13,7 @@ void main() {
     Axis direction = Axis.horizontal,
     int? index,
     ValueChanged<int>? onChange,
+    BorderSide? barBottomBorder,
   }) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -28,6 +29,7 @@ void main() {
               expands: true,
               index: index,
               onChange: onChange,
+              barBottomBorder: barBottomBorder,
               children: children,
             ),
           ),
@@ -139,5 +141,35 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(tester.getCenter(indicator).dx, greaterThan(midX));
+  });
+
+  testWidgets('tab bar bottom border follows barBottomBorder', (tester) async {
+    const custom = BorderSide(color: Color(0xFF00FF00), width: 2);
+    await pumpTabs(
+      tester,
+      barBottomBorder: custom,
+      children: const [MTabEntry(label: Text('A'), child: Text('pane-a'))],
+    );
+
+    final bar = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
+    final border = (bar.decoration as BoxDecoration).border! as Border;
+    expect(border.bottom, custom);
+  });
+
+  testWidgets('tab bar falls back to the flush fill when no border is given', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await pumpTabs(
+      tester,
+      children: const [MTabEntry(label: Text('A'), child: Text('pane-a'))],
+    );
+
+    final bar = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
+    final border = (bar.decoration as BoxDecoration).border! as Border;
+    expect(border.bottom.color, theme.colors.muted);
+
+    // The bar's natural height is the constant consumers align to.
+    expect(tester.getSize(find.byKey(kMTabBarKey)).height, kMTabBarHeight);
   });
 }

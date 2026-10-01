@@ -89,8 +89,8 @@ class _LibraryPanelState extends ConsumerState<LibraryPanel> {
                 // Flush sidebar: no margin or rounded chrome, only a right
                 // border separating it from the track table. The border is a
                 // foreground decoration so it stays continuous across the tab
-                // bar, and the fill is the list colour so the chrome reads as
-                // the lighter surround and the table as the darker inset.
+                // bar. The sidebar and content share the `secondary` chrome
+                // fill, which sits against the list's `card` surface.
                 'sidebar' => DecoratedBox(
                   position: DecorationPosition.foreground,
                   decoration: BoxDecoration(

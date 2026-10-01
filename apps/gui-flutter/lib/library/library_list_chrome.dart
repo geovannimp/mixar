@@ -43,9 +43,9 @@ const kActionsColumnWidth = 44.0;
 const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 
 /// Height of the library pane header — the sidebar tab bar and the filter/sort
-/// toolbar — so the two rows line up across the split. Derived from the tab bar
-/// itself ([kMTabBarHeight]) rather than restated as a literal, so the two
-/// cannot drift.
+/// toolbar — so the two rows line up across the split. Mirrors the tab bar's
+/// height ([kMTabBarHeight]) rather than restating it; the two stay in step as
+/// long as a tab label stays within [kMTabHeaderMinSize].
 const double kLibraryHeaderHeight = kMTabBarHeight;
 
 /// Fill for the toolbar filter field: `secondary` nudged towards `card`, so the
@@ -208,7 +208,9 @@ class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
     final theme = context.theme;
     // A definite height is what lets the field band fill the header: with an
     // unbounded max height `Center` shrinks to the field, re-introducing a gap
-    // above it. Text scaling is clamped so the fixed header cannot overflow.
+    // above it. The clamp covers the whole toolbar — field *and* trailing
+    // controls — so none of them can outgrow the fixed header; the tab bar is
+    // icon-only, so it stays at its own height and the rows keep lining up.
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.2,
       child: SizedBox(

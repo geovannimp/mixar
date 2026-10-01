@@ -84,12 +84,12 @@ void main() {
     // that `muted` and `secondary` share.
     final tabBar = find.byKey(kMTabBarKey);
     final toolbar = find.byKey(kLibraryToolbarKey);
+    expect(tabBar, findsOneWidget);
+    expect(toolbar, findsOneWidget);
 
-    expect(
-      tester.getSize(toolbar).height,
-      tester.getSize(tabBar).height,
-      reason: 'the topbar and the tabs must share one header height',
-    );
+    // Both rows are the shared header height, not merely equal to each other.
+    expect(tester.getSize(tabBar).height, kLibraryHeaderHeight);
+    expect(tester.getSize(toolbar).height, kLibraryHeaderHeight);
 
     // The filter field's band fills the header up to the bottom border, so
     // there is no gap above the field and it does not paint over the border.
@@ -98,9 +98,10 @@ void main() {
           w is ColoredBox &&
           w.color == libraryToolbarFieldColor(MixarThemeData.dark()),
     );
+    expect(band, findsOneWidget);
     expect(
       tester.getSize(band).height,
-      tester.getSize(toolbar).height - MixarThemeData.dark().style.borderWidth,
+      kLibraryHeaderHeight - MixarThemeData.dark().style.borderWidth,
       reason: 'the field band must fill the header up to the bottom border',
     );
 
@@ -112,6 +113,11 @@ void main() {
       bottom(tester.widget<DecoratedBox>(tabBar)).bottom.color,
       bottom(tester.widget<DecoratedBox>(toolbar)).bottom.color,
       reason: 'the tabs and topbar bottom borders must match',
+    );
+    expect(
+      bottom(tester.widget<DecoratedBox>(toolbar)).bottom.width,
+      MixarThemeData.dark().style.borderWidth,
+      reason: 'the toolbar border uses the theme hairline width',
     );
   });
 }
