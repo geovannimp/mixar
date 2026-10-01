@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_refresh.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/fs_browser.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
@@ -827,7 +828,7 @@ const _kSortMissingValue = 1;
 ) => switch (field) {
   LibrarySortField.title => _textSortKey(trackTitleLabel(track)),
   LibrarySortField.artist => _textSortKey(track.artist ?? ''),
-  LibrarySortField.key => _textSortKey(track.key ?? ''),
+  LibrarySortField.key => _keySortKey(track.key),
   LibrarySortField.bpm => _numericSortKey(track.bpm),
   LibrarySortField.length => _numericSortKey(track.durationMs?.toDouble()),
 };
@@ -835,6 +836,23 @@ const _kSortMissingValue = 1;
 (int, String) _textSortKey(String? value) {
   final text = value?.trim().toLowerCase() ?? '';
   return text.isEmpty ? (_kSortMissingValue, '') : (_kSortHasValue, text);
+}
+
+/// Camelot wheel position, not the raw label: sorted as text, `10A` lands
+/// before `2A`, which reads as no order at all. [camelotSlotForKey] normalises
+/// either key format to `(1-12, A=minor / B=major)`, so the list follows the
+/// wheel — `1A, 1B, 2A, … 12B` — keeping harmonically adjacent keys together.
+(int, String) _keySortKey(String? key) {
+  final slot = camelotSlotForKey(key ?? '');
+  if (slot == null) {
+    // An unparseable key joins the unknowns rather than sorting as text.
+    return (_kSortMissingValue, '');
+  }
+  final (number, minor) = slot;
+  return (
+    _kSortHasValue,
+    '${number.toString().padLeft(2, '0')}${minor ? '0' : '1'}',
+  );
 }
 
 /// Fixed-width padded numeric key, so `128` does not sort before `90`. A

@@ -69,6 +69,10 @@ void main() {
     List<LibraryTrackSummary> tracks = const [track],
     double width = 900,
     double height = 600,
+
+    /// Stubs the engine transport to null so a load short-circuits instead of
+    /// reaching the bridge. Lets a test observe which deck a load targeted.
+    bool stubEngine = false,
   }) async {
     debugOverrideDesktopWindow = false;
     addTearDown(() => debugOverrideDesktopWindow = null);
@@ -89,6 +93,8 @@ void main() {
           collectionTracksProvider.overrideWith((ref) async => tracks),
           libraryEventsBootstrapProvider.overrideWith((ref) {}),
           appSettingsProvider.overrideWith((ref) async => defaultAppSettings()),
+          if (stubEngine)
+            engineTransportProvider.overrideWith((ref) async => null),
         ],
         child: MaterialApp(
           theme: materialUiThemeFromMixar(theme),
@@ -179,6 +185,46 @@ void main() {
     await tester.tap(find.text('Other Track'));
     await tester.pump();
     expect(container.read(focusedTrackRowIndexProvider), 1);
+  });
+
+  testWidgets('Enter loads the focused row to deck A, Shift+Enter to deck B', (
+    tester,
+  ) async {
+    // The only observable seam is the per-deck in-flight counter: the engine
+    // transport is an opaque bridge object, so a null engine is stubbed in and
+    // the load short-circuits after recording which deck it targeted. That
+    // still proves the index was in range — an out-of-range row returns before
+    // touching the counter at all.
+    final container = await pumpList(
+      tester,
+      tracks: const [track, trackB],
+      stubEngine: true,
+    );
+
+    final loadedDecks = <int>[];
+    container.listen(deckLoadInFlightProvider, (_, next) {
+      for (final deckId in next.keys) {
+        if (!loadedDecks.contains(deckId)) {
+          loadedDecks.add(deckId);
+        }
+      }
+    });
+
+    // Focus the second row, so a regression that loads index 0 is caught.
+    await tester.tap(find.text('Other Track'));
+    await tester.pumpAndSettle();
+    expect(container.read(focusedTrackRowIndexProvider), 1);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(loadedDecks, [0], reason: 'Enter should load deck A');
+
+    loadedDecks.clear();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+    await tester.pumpAndSettle();
+    expect(loadedDecks, [1], reason: 'Shift+Enter should load deck B');
   });
 
   testWidgets('the sort menu reorders the list', (tester) async {
@@ -980,8 +1026,7 @@ void main() {
       'alpha',
       'empty',
     ]);
-    // Keys here are mixed-format strings, so this only asserts ordering and
-    // that the unkeyed track sinks.
+    // Keys sort by Camelot wheel position, not by label.
     expect(ids(LibrarySortField.key), ['beta', 'alpha', 'empty']);
     expect(ids(LibrarySortField.key, ascending: false), [
       'alpha',
@@ -1036,6 +1081,49 @@ void main() {
         ascending: false,
       ).map((t) => t.id),
       ['beyond', 'int64max', 'below', 'typical', 'unknown'],
+    );
+  });
+
+  test('key sorting follows the Camelot wheel, not the label', () {
+    LibraryTrackSummary t(String id, String? key) => LibraryTrackSummary(
+      id: id,
+      displayName: id,
+      key: key,
+      path: '/tmp/$id.wav',
+    );
+
+    // Labels sort as text as '10A', '12B', '1B', '2A' — four groups in an
+    // order no DJ reads as meaningful.
+    final tracks = [
+      t('10a', '10A'),
+      t('2a', '2A'),
+      t('1b', '1B'),
+      t('12b', '12B'),
+      t('none', null),
+    ];
+    List<String> ids({required bool ascending}) => [
+      for (final track in sortLibraryTracks(
+        tracks,
+        LibrarySortField.key,
+        ascending: ascending,
+      ))
+        track.id,
+    ];
+
+    expect(ids(ascending: true), ['1b', '2a', '10a', '12b', 'none']);
+    expect(ids(ascending: false), ['12b', '10a', '2a', '1b', 'none']);
+
+    // Either key format maps to the same slot, so a musical "Am" ties with its
+    // Camelot equivalent "8A" rather than sorting away from it.
+    final mixed = [t('musical', 'Am'), t('camelot', '8A')];
+    expect(
+      sortLibraryTracks(
+        mixed,
+        LibrarySortField.key,
+        ascending: true,
+      ).map((t) => t.id),
+      ['musical', 'camelot'],
+      reason: 'Am and 8A are the same slot and should tie',
     );
   });
 
