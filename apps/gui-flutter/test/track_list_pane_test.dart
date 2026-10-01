@@ -676,36 +676,20 @@ void main() {
     }
   });
 
-  /// Key label style in the current density.
+  /// Resolved style of the key label, in whichever density is showing.
   ///
-  /// Compact renders the key as its own [Text]; comfortable renders it as a
-  /// span inside the rich-text subtitle. `Text.rich` is itself a [Text] whose
-  /// `data` is null, so match on `data` to tell the two apart.
+  /// Both densities render the key through the same trailing pill — a plain
+  /// `Text` inside `_MetaPill` — so there is a single shape to match and no
+  /// rich-text variant to fall back to.
   TextStyle keyStyleInPane(WidgetTester tester) {
-    final row = find.byType(TrackListRow);
-    for (final e
-        in find.descendant(of: row, matching: find.byType(Text)).evaluate()) {
-      final w = e.widget as Text;
-      if (w.data == '8A' && w.style != null) {
-        return w.style!;
-      }
-    }
-    for (final e
-        in find
-            .descendant(of: row, matching: find.byType(RichText))
-            .evaluate()) {
-      final spans = <TextStyle>[];
-      (e.widget as RichText).text.visitChildren((span) {
-        if (span is TextSpan && span.text == '8A' && span.style != null) {
-          spans.add(span.style!);
-        }
-        return true;
-      });
-      if (spans.isNotEmpty) {
-        return spans.single;
-      }
-    }
-    fail('no key label rendered inside the row');
+    final text = find.descendant(
+      of: find.byKey(kTrailingMetaKey),
+      matching: find.text('8A'),
+    );
+    expect(text, findsOneWidget, reason: 'no key label in the trailing meta');
+    final style = tester.widget<Text>(text).style;
+    expect(style, isNotNull, reason: 'key label has no explicit style');
+    return style!;
   }
 
   Future<void> pumpKeyedPane(
@@ -787,6 +771,20 @@ void main() {
     final absolute = keyStyleInPane(tester).color;
 
     expect(absolute, isNot(off));
+  });
+
+  test('formatTrackDuration separates unknown from a real short length', () {
+    // Unknown metadata renders nothing, so no chip appears. A *known* length
+    // must not be mistaken for that, even below one second.
+    for (final unknown in [null, 0, -1]) {
+      expect(formatTrackDuration(unknown), '', reason: 'unknown: $unknown');
+    }
+    expect(formatTrackDuration(400), '0:00');
+    expect(formatTrackDuration(1000), '0:01');
+    // Floored, matching the pre-refactor table and how file managers show it.
+    expect(formatTrackDuration(59_999), '0:59');
+    expect(formatTrackDuration(60_000), '1:00');
+    expect(formatTrackDuration(3_661_000), '61:01');
   });
 
   test('sorting is stable, case-insensitive, and puts nulls last', () {

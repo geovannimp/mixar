@@ -54,9 +54,8 @@ class LibraryRowDensityOverride extends Notifier<LibraryRowDensity?> {
   void toggle(LibraryRowDensity current) =>
       state = state == null ? current.other : null;
 
+  /// Null clears the override and falls back to the saved setting.
   void set(LibraryRowDensity? density) => state = density;
-
-  void clear() => state = null;
 }
 
 final libraryRowDensityOverrideProvider =

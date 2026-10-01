@@ -1382,6 +1382,13 @@ class _ArtworkThumb extends ConsumerWidget {
 }
 
 /// `m:ss`, or empty when the track has no usable duration.
+/// `m:ss` for [ms], or empty when the duration is unknown.
+///
+/// Empty, not `0:00`, for null and non-positive values: those come from missing
+/// metadata, and the caller treats empty as "no duration to show". A *known*
+/// sub-second length is not unknown, so it renders as `0:00` rather than
+/// vanishing. Seconds are floored, not rounded, matching how file managers and
+/// the pre-refactor table displayed the same values.
 String formatTrackDuration(int? ms) {
   if (ms == null || ms <= 0) {
     return '';
