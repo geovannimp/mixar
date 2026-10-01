@@ -98,6 +98,9 @@ class HistoryDetailPane extends ConsumerWidget {
           Expanded(
             child: TrackListView<HistoryEntryInfo>(
               items: entries,
+              // Keep the previous entries on screen while the session reloads,
+              // instead of flashing the loader (the history list's behaviour).
+              skipLoadingOnReload: true,
               idOf: (entry) => entry.id,
               payloadOf: (ref, entry) => payloadFromHistoryEntry(entry),
               rowBuilder: (context, ref, index, entry, density, slot) =>
@@ -498,10 +501,13 @@ class _ComfortableEntryRow extends StatelessWidget {
   }
 
   /// Played length. Unknown (`—`) is omitted rather than shown as a dash pill,
-  /// matching the track list, which drops an unknown duration entirely.
+  /// matching the track list, which drops an unknown duration entirely. Carries
+  /// the same clock glyph as the library's duration pill so the chips match.
   Widget? _lengthPill(int? playedDurationMs) {
     final text = formatPlayedDurationMs(playedDurationMs);
-    return text == '—' ? null : MetaPill(text: text);
+    return text == '—'
+        ? null
+        : MetaPill(text: text, leading: const MetaPillGlyph(LucideIcons.clock));
   }
 }
 

@@ -1,4 +1,3 @@
-import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -68,6 +67,10 @@ void main() {
               width: width,
               height: 36,
               child: TrackListMenuButton(
+                // Match the production row: the 3-dot only owns the primary
+                // toggle; secondary press is delegated to the row's context
+                // menu (exercised in track_list_pane_test).
+                enableSecondaryPress: false,
                 menuBuilder: (context, ref, dismiss) => buildTrackListMenuBody(
                   context: context,
                   ref: ref,
@@ -148,16 +151,6 @@ void main() {
     expect(find.text('Load to deck'), findsOneWidget);
     expect(_loadChip(tester, 'A').onPress, isNull);
     expect(_loadChip(tester, 'B').onPress, isNull);
-  });
-
-  testWidgets('right-click opens the track actions menu', (tester) async {
-    await pumpMenu(tester);
-    await tester.tap(
-      find.byIcon(LucideIcons.ellipsisVertical),
-      buttons: kSecondaryButton,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Load to deck'), findsOneWidget);
   });
 
   testWidgets('Load to A/B is enabled when the engine is running', (

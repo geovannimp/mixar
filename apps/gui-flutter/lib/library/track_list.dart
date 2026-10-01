@@ -35,6 +35,7 @@ class TrackListView<T> extends ConsumerStatefulWidget {
     required this.payloadOf,
     required this.rowBuilder,
     required this.emptyBuilder,
+    this.skipLoadingOnReload = false,
     this.extraMenuItems,
     this.overlayBuilder,
     this.dimmedOf,
@@ -68,6 +69,11 @@ class TrackListView<T> extends ConsumerStatefulWidget {
 
   /// Shown when there are no rows to render.
   final Widget Function(BuildContext context) emptyBuilder;
+
+  /// Keep rendering the previous rows while a refreshed [items] is in flight,
+  /// instead of swapping to the loader. Defaults to `false` (the library list's
+  /// original semantics); the history list opts in.
+  final bool skipLoadingOnReload;
 
   /// Extra menu items appended after the shared "Load to deck" group.
   final List<Widget> Function(
@@ -330,7 +336,7 @@ class _TrackListViewState<T> extends ConsumerState<TrackListView<T>> {
     });
 
     return widget.items.when(
-      skipLoadingOnReload: true,
+      skipLoadingOnReload: widget.skipLoadingOnReload,
       loading: () => const Center(child: MLoader()),
       error: (e, _) =>
           widget.errorBuilder?.call(context, e) ??
