@@ -6,8 +6,8 @@ import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -21,12 +21,12 @@ class _RunningEngineUi extends EngineUi {
       const EngineUiSnapshot(running: true, trackPaths: {});
 }
 
-AppButton _loadChip(WidgetTester tester, String letter) {
-  return tester.widget<AppButton>(
-    find.byWidgetPredicate(
-      (widget) =>
-          widget is AppButton && widget.semanticsLabel == 'Load to $letter',
-    ),
+MixarMenuSegment _loadSegment(WidgetTester tester, String letter) {
+  final segments = tester
+      .widget<MixarMenuSegments>(find.byType(MixarMenuSegments))
+      .segments;
+  return segments.firstWhere(
+    (segment) => segment.semanticsLabel == 'Load to $letter',
   );
 }
 
@@ -149,8 +149,8 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Load to deck'), findsOneWidget);
-    expect(_loadChip(tester, 'A').onPress, isNull);
-    expect(_loadChip(tester, 'B').onPress, isNull);
+    expect(_loadSegment(tester, 'A').onPress, isNull);
+    expect(_loadSegment(tester, 'B').onPress, isNull);
   });
 
   testWidgets('Load to A/B is enabled when the engine is running', (
@@ -160,8 +160,8 @@ void main() {
     await tester.tap(find.byIcon(LucideIcons.ellipsisVertical));
     await tester.pumpAndSettle();
     expect(find.text('Load to deck'), findsOneWidget);
-    expect(_loadChip(tester, 'A').onPress, isNotNull);
-    expect(_loadChip(tester, 'B').onPress, isNotNull);
+    expect(_loadSegment(tester, 'A').onPress, isNotNull);
+    expect(_loadSegment(tester, 'B').onPress, isNotNull);
   });
 
   test('collection tracks stay in-library when id equals path', () {

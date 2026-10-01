@@ -3,6 +3,9 @@ import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
+export 'package:gui_flutter/shell/mixar_menu_segments.dart'
+    show MixarMenuSegment, MixarMenuSegments;
+
 /// Shared panel chrome for Mixar menus and content popovers.
 ///
 /// Fixed [minWidth] — Anchor overlays get viewport-max constraints, so a
