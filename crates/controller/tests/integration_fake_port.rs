@@ -38,6 +38,13 @@ impl controller::MidiPort for FakePort {
     }
 }
 
+fn playing_feedback() -> controller::DeckFeedback {
+    controller::DeckFeedback {
+        playing: true,
+        ..Default::default()
+    }
+}
+
 #[test]
 fn fake_port_midi_in_and_led_out() {
     let b = controller::load_bundle(Path::new("tests/fixtures/valid-minimal")).unwrap();
@@ -54,10 +61,10 @@ fn fake_port_midi_in_and_led_out() {
         "TogglePlay does not light LED until engine Updated"
     );
 
-    s.on_deck_playing(0, true, &mut port.out);
+    s.set_deck_feedback(0, &playing_feedback(), &mut port.out);
     assert_eq!(port.out.frames[0], vec![0x90, 0x0C, 0x7F]);
 
-    s.on_deck_playing(0, true, &mut port.out);
+    s.set_deck_feedback(0, &playing_feedback(), &mut port.out);
     assert_eq!(
         port.out.frames.len(),
         1,

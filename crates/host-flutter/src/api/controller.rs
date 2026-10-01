@@ -8,10 +8,10 @@ use std::time::Duration;
 
 use controller::{
     ActionPublish, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, MappingInfo,
-    HOT_CUE_SLOT_COUNT,
+    HOT_CUE_SLOT_COUNT, LOOP_SLOT_COUNT,
 };
 use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, PadMode,
+    decode_evt_body, encode_cmd_body, CmdBody, DeckHotCue, EvtBody, Kind, Origin, SyncMode,
 };
 use engine_core::EngineBuses;
 use library::LibraryBuses;
@@ -405,11 +405,33 @@ fn hot_cue_slots_deck(cues: &[DeckHotCue]) -> [Option<i32>; HOT_CUE_SLOT_COUNT] 
     slots
 }
 
-fn apply_pad_mode(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, mode: PadMode) {
+fn loop_slots(loops: &[engine_api::DeckSavedLoop]) -> [bool; LOOP_SLOT_COUNT] {
+    let mut slots = [false; LOOP_SLOT_COUNT];
+    for saved in loops {
+        let idx = saved.slot as usize;
+        if idx < slots.len() {
+            slots[idx] = true;
+        }
+    }
+    slots
+}
+
+fn apply_deck_feedback(
+    eng: &Arc<Mutex<ControllerEngine>>,
+    deck: u16,
+    fb: controller::DeckFeedback,
+) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
     };
-    ctrl.set_deck_pad_mode(deck, mode);
+    ctrl.set_deck_feedback(deck, &fb);
+}
+
+fn apply_master_feedback(eng: &Arc<Mutex<ControllerEngine>>, enabled: bool) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_master_cue(enabled);
 }
 
 fn apply_hot_cues(
@@ -421,6 +443,13 @@ fn apply_hot_cues(
         return;
     };
     ctrl.set_deck_hot_cues(deck, slots);
+}
+
+fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_position_ms(deck, position_ms);
 }
 
 fn mirror_engine_library_to_controller(
@@ -450,13 +479,6 @@ fn mirror_engine_library_to_controller(
     }
 }
 
-fn apply_position(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, position_ms: i32) {
-    let Ok(mut ctrl) = eng.lock() else {
-        return;
-    };
-    ctrl.set_deck_position_ms(deck, position_ms);
-}
-
 fn apply_engine_mirror(
     controller: &Arc<Mutex<ControllerEngine>>,
     deck_tracks: &mut [Option<String>; 4],
@@ -469,15 +491,35 @@ fn apply_engine_mirror(
         EvtBody::DeckUpdated {
             id,
             track_id,
+            playing,
+            sync_mode,
+            quantize,
+            headphone_cue,
+            active_loop,
             pad_mode,
-            hot_cues,
             position_ms,
+            hot_cues,
+            saved_loops,
             ..
         } => {
             let idx = (id as usize).min(3);
+            let track_loaded = track_id.is_some();
             deck_tracks[idx] = track_id;
-            apply_pad_mode(controller, id, pad_mode);
-            apply_hot_cues(controller, id, hot_cue_slots_deck(&hot_cues));
+            apply_deck_feedback(
+                controller,
+                id,
+                controller::DeckFeedback {
+                    playing,
+                    sync: sync_mode != SyncMode::Off,
+                    quantize,
+                    headphone_cue,
+                    loop_active: active_loop.is_some_and(|l| l.active),
+                    track_loaded,
+                    loop_slots: loop_slots(&saved_loops),
+                    pad_mode,
+                    hot_cues: hot_cue_slots_deck(&hot_cues),
+                },
+            );
             if let Some(ms) = position_ms {
                 apply_position(controller, id, ms);
             }
@@ -489,15 +531,29 @@ fn apply_engine_mirror(
             apply_position(controller, id, position_ms);
         }
         EvtBody::EngineStatus { status } => {
-            for deck in status.decks {
+            for deck in &status.decks {
                 let idx = (deck.id as usize).min(3);
-                deck_tracks[idx] = deck.track_id;
-                apply_pad_mode(controller, deck.id, deck.pad_mode);
-                apply_hot_cues(controller, deck.id, hot_cue_slots_deck(&deck.hot_cues));
+                deck_tracks[idx] = deck.track_id.clone();
+                apply_deck_feedback(
+                    controller,
+                    deck.id,
+                    controller::DeckFeedback {
+                        playing: deck.playing,
+                        sync: deck.sync_mode != SyncMode::Off,
+                        quantize: deck.quantize,
+                        headphone_cue: deck.headphone_cue,
+                        loop_active: deck.active_loop.as_ref().is_some_and(|l| l.active),
+                        track_loaded: deck.track_id.is_some(),
+                        loop_slots: loop_slots(&deck.saved_loops),
+                        pad_mode: deck.pad_mode,
+                        hot_cues: hot_cue_slots_deck(&deck.hot_cues),
+                    },
+                );
                 if let Some(ms) = deck.position_ms {
                     apply_position(controller, deck.id, ms);
                 }
             }
+            apply_master_feedback(controller, status.master_cue);
         }
         _ => {}
     }

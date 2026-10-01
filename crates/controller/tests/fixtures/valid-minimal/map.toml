@@ -18,6 +18,6 @@ volume = [
 browse = "LibraryNavigation::navigate"
 
 [outputs.deck_1]
-play_pause = { on = "pause_led", off = "play_led" }
-headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
-hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 1, note = 0x2E, velocity = 0x00 } }
+play_pause = { signal = "playing", on = "pause_led", off = "play_led" }
+headphone_cue = { signal = "headphone_cue", on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
+hot_cue_1 = { signal = "hot_cue_1", on = "hot_cue_1_led", off = { type = "note", channel = 1, note = 0x2E, velocity = 0x00 } }
