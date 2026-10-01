@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 2053512633;
+  int get rustContentHash => 837949360;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -703,6 +703,9 @@ abstract class RustLibApi extends BaseApi {
   Future<KeyColorModeSetting> crateApiSettingsKeyColorModeSettingDefault();
 
   Future<KeyDisplayModeSetting> crateApiSettingsKeyDisplayModeSettingDefault();
+
+  Future<LibraryRowDensitySetting>
+  crateApiSettingsLibraryRowDensitySettingDefault();
 
   Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes();
 
@@ -5338,7 +5341,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes() {
+  Future<LibraryRowDensitySetting>
+  crateApiSettingsLibraryRowDensitySettingDefault() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -5347,6 +5351,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             generalizedFrbRustBinding,
             serializer,
             funcId: 118,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_library_row_density_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsLibraryRowDensitySettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsLibraryRowDensitySettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "library_row_density_setting_default",
+        argNames: [],
+      );
+
+  @override
+  Future<List<FsVolumeInfo>> crateApiFsBrowserListFsVolumes() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 119,
             port: port_,
           );
         },
@@ -5373,7 +5407,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 119,
+            funcId: 120,
             port: port_,
           );
         },
@@ -5725,7 +5759,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewEnabled: dco_decode_bool(arr[6]),
       previewBus: dco_decode_bus_route_settings(arr[7]),
       analysisDuration: dco_decode_analysis_duration_setting(arr[8]),
-      libraryTableColumns: dco_decode_list_String(arr[9]),
+      libraryRowDensity: dco_decode_library_row_density_setting(arr[9]),
       volumeNormalizerEnabled: dco_decode_bool(arr[10]),
       targetLufs: dco_decode_f_32(arr[11]),
       samplerPlayMode: dco_decode_sampler_play_mode_setting(arr[12]),
@@ -6245,6 +6279,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   LibraryEvtKind dco_decode_library_evt_kind(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return LibraryEvtKind.values[raw as int];
+  }
+
+  @protected
+  LibraryRowDensitySetting dco_decode_library_row_density_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return LibraryRowDensitySetting.values[raw as int];
   }
 
   @protected
@@ -7073,7 +7113,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_analysisDuration = sse_decode_analysis_duration_setting(
       deserializer,
     );
-    var var_libraryTableColumns = sse_decode_list_String(deserializer);
+    var var_libraryRowDensity = sse_decode_library_row_density_setting(
+      deserializer,
+    );
     var var_volumeNormalizerEnabled = sse_decode_bool(deserializer);
     var var_targetLufs = sse_decode_f_32(deserializer);
     var var_samplerPlayMode = sse_decode_sampler_play_mode_setting(
@@ -7111,7 +7153,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       previewEnabled: var_previewEnabled,
       previewBus: var_previewBus,
       analysisDuration: var_analysisDuration,
-      libraryTableColumns: var_libraryTableColumns,
+      libraryRowDensity: var_libraryRowDensity,
       volumeNormalizerEnabled: var_volumeNormalizerEnabled,
       targetLufs: var_targetLufs,
       samplerPlayMode: var_samplerPlayMode,
@@ -7754,6 +7796,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return LibraryEvtKind.values[inner];
+  }
+
+  @protected
+  LibraryRowDensitySetting sse_decode_library_row_density_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return LibraryRowDensitySetting.values[inner];
   }
 
   @protected
@@ -8888,7 +8939,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self.previewEnabled, serializer);
     sse_encode_bus_route_settings(self.previewBus, serializer);
     sse_encode_analysis_duration_setting(self.analysisDuration, serializer);
-    sse_encode_list_String(self.libraryTableColumns, serializer);
+    sse_encode_library_row_density_setting(self.libraryRowDensity, serializer);
     sse_encode_bool(self.volumeNormalizerEnabled, serializer);
     sse_encode_f_32(self.targetLufs, serializer);
     sse_encode_sampler_play_mode_setting(self.samplerPlayMode, serializer);
@@ -9406,6 +9457,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_library_evt_kind(
     LibraryEvtKind self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_library_row_density_setting(
+    LibraryRowDensitySetting self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs

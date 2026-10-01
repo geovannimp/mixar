@@ -152,7 +152,7 @@ final analyzingTrackIdsProvider =
 
 /// Coarse analyze/stems phase label + optional fraction per track.
 class TrackProgressInfo {
-  const TrackProgressInfo({required this.phase, this.fraction});
+  const new({required this.phase, this.fraction});
 
   final String phase;
   final double? fraction;
@@ -719,15 +719,154 @@ final driveTableTracksProvider =
       );
     });
 
-/// Right-pane rows: collection tracks or drive files, depending on the tab.
+/// Track ids in the order the list renders them. Used for the row count that
+/// Home / End clamp against.
+final libraryRowIdsProvider = Provider<List<String>>((ref) {
+  return [
+    for (final track
+        in ref.watch(libraryTableTracksProvider).asData?.value ??
+            const <LibraryTrackSummary>[])
+      track.id,
+  ];
+});
+
+/// Load list row [index] to [deckId].
+///
+/// Focuses that row first so the deck and the highlighted row agree, then
+/// loads it by payload. Because [libraryTableTracksProvider] is already sorted,
+/// the list index and the focused index are the same number — which is what
+/// lets this share [focusedLoadPayload] with the MIDI path.
+Future<void> loadListRowToDeck(WidgetRef ref, int index, int deckId) async {
+  final tracks = ref.read(libraryTableTracksProvider).asData?.value;
+  if (tracks == null) {
+    return;
+  }
+  final tab = ref.read(librarySourceTabProvider);
+  final resolved =
+      ref.read(driveResolvedByPathProvider).asData?.value ?? const {};
+  final payload = focusedLoadPayload(
+    tracks,
+    index,
+    inLibrary: (t) =>
+        trackIsInLibrary(t, tab: tab, driveResolvedByPath: resolved),
+  );
+  if (payload == null) {
+    return;
+  }
+  ref.read(focusedTrackRowIndexProvider.notifier).set(index);
+  await loadPayloadToDeck(ref, deckId, payload);
+}
+
+/// Sort field for the library list toolbar.
+enum LibrarySortField {
+  title('Title'),
+  artist('Artist'),
+  bpm('BPM'),
+  key('Key'),
+  length('Length');
+
+  new(this.label);
+
+  final String label;
+}
+
+class LibrarySort extends Notifier<(LibrarySortField, bool)> {
+  @override
+  (LibrarySortField, bool) build() => (LibrarySortField.title, true);
+
+  void setField(LibrarySortField field) => state = (field, state.$2);
+
+  void toggleDirection() => state = (state.$1, !state.$2);
+}
+
+final librarySortProvider =
+    NotifierProvider<LibrarySort, (LibrarySortField, bool)>(LibrarySort.new);
+
+/// Sort [tracks] by [field]. Null metadata sorts last in either direction so
+/// an unanalyzed track never displaces a scanned one at the top of the list.
+List<LibraryTrackSummary> sortLibraryTracks(
+  List<LibraryTrackSummary> tracks,
+  LibrarySortField field, {
+  required bool ascending,
+}) {
+  final indexed = List<LibraryTrackSummary>.of(tracks);
+  indexed.sort((a, b) {
+    final left = _sortKeyFor(a, field);
+    final right = _sortKeyFor(b, field);
+    final byRank = left.$1.compareTo(right.$1);
+    if (byRank != 0) {
+      // Rank is the missing-value marker, and it is never inverted: a track
+      // with no BPM belongs at the bottom in both directions, not floating to
+      // the top when the user flips the sort.
+      return byRank;
+    }
+    final byValue = left.$2.compareTo(right.$2);
+    if (byValue == 0) {
+      // Equal keys keep provider order, so an inactive sort field does not
+      // shuffle rows on every unrelated library update.
+      return 0;
+    }
+    return ascending ? byValue : -byValue;
+  });
+  return indexed;
+}
+
+/// Rank prefix: a known value sorts before a missing one, in both directions.
+const _kSortHasValue = 0;
+
+/// Rank for a missing value. Every missing key shares this rank and an empty
+/// value, so unknowns tie among themselves and settle at the bottom.
+const _kSortMissingValue = 1;
+
+/// Sort key for one field: a rank that separates a known value from a missing
+/// one, and the value itself as a string so one comparison serves text and
+/// numbers alike. A track with no BPM should never outrank a scanned one,
+/// hence the rank in [_kSortHasValue] / [_kSortMissingValue].
+(int rank, String value) _sortKeyFor(
+  LibraryTrackSummary track,
+  LibrarySortField field,
+) => switch (field) {
+  LibrarySortField.title => _textSortKey(trackTitleLabel(track)),
+  LibrarySortField.artist => _textSortKey(track.artist ?? ''),
+  LibrarySortField.key => _textSortKey(track.key ?? ''),
+  LibrarySortField.bpm => _numericSortKey(track.bpm),
+  LibrarySortField.length => _numericSortKey(track.durationMs?.toDouble()),
+};
+
+(int, String) _textSortKey(String? value) {
+  final text = value?.trim().toLowerCase() ?? '';
+  return text.isEmpty ? (_kSortMissingValue, '') : (_kSortHasValue, text);
+}
+
+/// Fixed-width padded numeric key, so `128` does not sort before `90`. A
+/// non-finite or negative value is treated as missing: a NaN from a failed
+/// analysis must not poison the whole ordering. BPM and duration are never
+/// negative, so the sign needs no case.
+(int, String) _numericSortKey(double? value) {
+  if (value == null || !value.isFinite || value < 0) {
+    return (_kSortMissingValue, '');
+  }
+  return (_kSortHasValue, value.round().toString().padLeft(12, '0'));
+}
+
+/// Right-pane rows: collection tracks or drive files, depending on the tab,
+/// ordered by the toolbar sort. Sorting here rather than in the view keeps
+/// list index, provider index and `focusedTrackRowIndexProvider` in agreement,
+/// so MIDI "load focused row" targets the row the user is looking at.
 final libraryTableTracksProvider =
     Provider<AsyncValue<List<LibraryTrackSummary>>>((ref) {
-      switch (ref.watch(librarySourceTabProvider)) {
-        case LibrarySourceTab.collections:
-          return ref.watch(filteredTracksProvider);
-        case LibrarySourceTab.drive:
-          return ref.watch(driveTableTracksProvider);
-        case LibrarySourceTab.history:
-          return const AsyncData([]);
-      }
+      // Explicit type, not inferred: the switch mixes three AsyncValue
+      // sources, and without it the history arm's empty literal degrades the
+      // whole expression to Object/dynamic.
+      final AsyncValue<List<LibraryTrackSummary>> source = switch (ref.watch(
+        librarySourceTabProvider,
+      )) {
+        LibrarySourceTab.collections => ref.watch(filteredTracksProvider),
+        LibrarySourceTab.drive => ref.watch(driveTableTracksProvider),
+        LibrarySourceTab.history => const AsyncData([]),
+      };
+      final (field, ascending) = ref.watch(librarySortProvider);
+      return source.whenData(
+        (tracks) => sortLibraryTracks(tracks, field, ascending: ascending),
+      );
     });
