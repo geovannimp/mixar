@@ -494,40 +494,32 @@ Widget buildTrackListMenuBody({
     groups: [
       MixarMenuGroup(
         children: [
-          MixarMenuItem(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 4,
-                children: [
-                  const Text('Load to deck'),
-                  Row(
-                    spacing: 4,
-                    children: [
-                      _LoadDeckChip(
-                        letter: 'A',
-                        color: FaderColors.a.grip,
-                        enabled: engineRunning && payload != null,
-                        onPress: () {
-                          dismiss();
-                          load(0);
-                        },
-                      ),
-                      _LoadDeckChip(
-                        letter: 'B',
-                        color: FaderColors.b.grip,
-                        enabled: engineRunning && payload != null,
-                        onPress: () {
-                          dismiss();
-                          load(1);
-                        },
-                      ),
-                    ],
-                  ),
-                ],
+          const MixarMenuLabel(child: Text('Load to deck')),
+          MixarMenuSegments(
+            segments: [
+              MixarMenuSegment(
+                label: 'A',
+                color: FaderColors.a.grip,
+                semanticsLabel: 'Load to A',
+                onPress: engineRunning && payload != null
+                    ? () {
+                        dismiss();
+                        load(0);
+                      }
+                    : null,
               ),
-            ),
+              MixarMenuSegment(
+                label: 'B',
+                color: FaderColors.b.grip,
+                semanticsLabel: 'Load to B',
+                onPress: engineRunning && payload != null
+                    ? () {
+                        dismiss();
+                        load(1);
+                      }
+                    : null,
+              ),
+            ],
           ),
         ],
       ),
@@ -703,40 +695,6 @@ class _RowContextMenu extends StatelessWidget {
         onSecondaryTapDown: (details) => handle.showAt(details.globalPosition),
         onLongPressStart: (details) => handle.showAt(details.globalPosition),
         child: child,
-      ),
-    );
-  }
-}
-
-class _LoadDeckChip extends StatelessWidget {
-  const new({
-    required this.letter,
-    required this.color,
-    required this.enabled,
-    required this.onPress,
-  });
-
-  final String letter;
-  final Color color;
-  final bool enabled;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Expanded(
-      child: AppButton(
-        semanticsLabel: 'Load to $letter',
-        onPress: enabled ? onPress : null,
-        variant: .ghost,
-        size: .xs,
-        child: Text(
-          letter,
-          style: theme.typography.body.xs.copyWith(
-            fontWeight: FontWeight.w700,
-            color: enabled ? color : color.withValues(alpha: 0.4),
-          ),
-        ),
       ),
     );
   }

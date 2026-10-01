@@ -3,6 +3,9 @@ import 'package:gui_flutter/shell/m_divider.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
+export 'package:gui_flutter/shell/mixar_menu_segments.dart'
+    show MixarMenuSegment, MixarMenuSegments;
+
 /// Shared panel chrome for Mixar menus and content popovers.
 ///
 /// Fixed [minWidth] — Anchor overlays get viewport-max constraints, so a
@@ -76,6 +79,31 @@ class MixarMenuGroup extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
+    );
+  }
+}
+
+/// Static, non-interactive menu row (section header / disabled label).
+///
+/// Unlike [MixarMenuItem] this never wraps in an interactive widget, so it is
+/// not announced as a button and stays in normal reading order. Use it for
+/// labels like "Load to deck" that head a group of actions.
+class MixarMenuLabel extends StatelessWidget {
+  const new({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: DefaultTextStyle(
+        style: theme.typography.body.sm.copyWith(
+          color: theme.colors.mutedForeground,
+        ),
+        child: child,
+      ),
     );
   }
 }
