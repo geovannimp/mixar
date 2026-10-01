@@ -9,6 +9,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -16,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 import 'package:riverpod/src/framework.dart';
 
+import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -58,17 +60,6 @@ void main() {
       ),
     );
     await tester.pump();
-  }
-
-  /// The border of a decorated header row, failing readably (rather than
-  /// crashing on a cast) if its decoration is no longer a bordered box.
-  Border bottomBorderOf(WidgetTester tester, Finder finder) {
-    final box = tester.widget<DecoratedBox>(finder);
-    final decoration = box.decoration;
-    expect(decoration, isA<BoxDecoration>());
-    final border = (decoration as BoxDecoration).border;
-    expect(border, isA<Border>());
-    return border! as Border;
   }
 
   testWidgets('LibraryPanel builds MultiPane split', (tester) async {
@@ -119,14 +110,37 @@ void main() {
     // Both header rows draw the same bottom border, so the rule reads as one
     // continuous line across the split.
     expect(
-      bottomBorderOf(tester, tabBar).bottom.color,
-      bottomBorderOf(tester, toolbar).bottom.color,
+      borderOf(tester, tabBar).bottom.color,
+      borderOf(tester, toolbar).bottom.color,
       reason: 'the tabs and topbar bottom borders must match',
     );
     expect(
-      bottomBorderOf(tester, toolbar).bottom.width,
+      borderOf(tester, toolbar).bottom.width,
       MixarThemeData.dark().style.borderWidth,
       reason: 'the toolbar border uses the theme hairline width',
     );
+  });
+
+  testWidgets('the filter band darkens while the field is focused', (
+    tester,
+  ) async {
+    await pumpSized(tester, child: const LibraryPanel());
+    await tester.pumpAndSettle();
+
+    final theme = MixarThemeData.dark();
+    Finder band({required bool focused}) => find.byWidgetPredicate(
+      (w) =>
+          w is ColoredBox &&
+          w.color == libraryToolbarFieldColor(theme, focused: focused),
+    );
+
+    expect(band(focused: false), findsOneWidget);
+    expect(band(focused: true), findsNothing);
+
+    await tester.tap(find.byType(MixarInput));
+    await tester.pumpAndSettle();
+
+    expect(band(focused: true), findsOneWidget);
+    expect(band(focused: false), findsNothing);
   });
 }

@@ -4,6 +4,7 @@ import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -143,16 +144,9 @@ void main() {
     expect(tester.getCenter(indicator).dx, greaterThan(midX));
   });
 
-  /// The tab bar's border, failing readably if the bar is not a bordered box
-  /// (rather than crashing on a cast).
-  Border barBorder(WidgetTester tester) {
-    final box = tester.widget<DecoratedBox>(find.byKey(kMTabBarKey));
-    final decoration = box.decoration;
-    expect(decoration, isA<BoxDecoration>());
-    final border = (decoration as BoxDecoration).border;
-    expect(border, isA<Border>());
-    return border! as Border;
-  }
+  /// The tab bar's border.
+  Border barBorder(WidgetTester tester) =>
+      borderOf(tester, find.byKey(kMTabBarKey));
 
   testWidgets('tab bar bottom border follows barBottomBorder', (tester) async {
     final theme = MixarThemeData.dark();

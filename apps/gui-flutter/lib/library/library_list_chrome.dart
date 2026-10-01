@@ -49,15 +49,25 @@ const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 /// [kMTabHeaderMinSize].
 const double kLibraryHeaderHeight = kMTabBarMinHeight;
 
-/// Fill for the toolbar filter field: `secondary` nudged towards `card`, so the
-/// field reads as a subtle darker inset on the toolbar instead of a full panel.
-/// [focused] deepens it a step for a keyboard-focus cue, since the flat field
-/// has no border to light up.
-Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) =>
-    Color.alphaBlend(
-      theme.colors.card.withValues(alpha: focused ? 0.75 : 0.5),
-      theme.colors.secondary,
+/// Fill for the toolbar filter field: the chrome (`secondary`) nudged towards
+/// the panel/list tone so the field reads as a subtle inset rather than a full
+/// panel. The target is brightness-dependent: `card` darkens the dark chrome,
+/// while on the light theme `card` matches the white list surface, so the text
+/// colour is used to darken instead. [focused] deepens the step as a
+/// keyboard-focus cue, since the flat field has no border to light up.
+Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) {
+  final colors = theme.colors;
+  if (colors.brightness == Brightness.dark) {
+    return Color.alphaBlend(
+      colors.card.withValues(alpha: focused ? 0.75 : 0.5),
+      colors.secondary,
     );
+  }
+  return Color.alphaBlend(
+    colors.foreground.withValues(alpha: focused ? 0.12 : 0.06),
+    colors.secondary,
+  );
+}
 
 /// Width for a row's trailing meta at [available] px: its natural size whenever
 /// the row is wide enough, shrinking only once the title would drop below
