@@ -566,9 +566,7 @@ class TrackListRow extends ConsumerWidget {
     );
     final content = DecoratedBox(
       decoration: BoxDecoration(
-        color: focused
-            ? libraryListSelectedRowColor(theme)
-            : theme.colors.secondary,
+        color: focused ? libraryListSelectedRowColor(theme) : theme.colors.card,
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6),

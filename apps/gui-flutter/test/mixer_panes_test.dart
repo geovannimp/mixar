@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/history_providers.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/library_panel.dart';
 import 'package:gui_flutter/mixer/mixer_page.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -14,6 +17,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:panes/panes.dart';
 import 'package:riverpod/src/framework.dart';
 
+import 'support/border_helpers.dart';
 import 'support/mixar_material_app.dart';
 
 void main() {
@@ -70,5 +74,73 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(MultiPane), findsWidgets);
     expect(find.text('Load tracks to see waveforms.'), findsOneWidget);
+  });
+
+  testWidgets('sidebar tabs and the track toolbar share a header height', (
+    tester,
+  ) async {
+    await pumpSized(tester, child: const LibraryPanel());
+    await tester.pumpAndSettle();
+
+    // Both header rows are found by their stable keys, not by a fill colour
+    // that `muted` and `secondary` share.
+    final tabBar = find.byKey(kMTabBarKey);
+    final toolbar = find.byKey(kLibraryToolbarKey);
+    expect(tabBar, findsOneWidget);
+    expect(toolbar, findsOneWidget);
+
+    // Both rows are the shared header height, not merely equal to each other.
+    expect(tester.getSize(tabBar).height, kLibraryHeaderHeight);
+    expect(tester.getSize(toolbar).height, kLibraryHeaderHeight);
+
+    // The filter field's band fills the header up to the bottom border, so
+    // there is no gap above the field and it does not paint over the border.
+    final band = find.byWidgetPredicate(
+      (w) =>
+          w is ColoredBox &&
+          w.color == libraryToolbarFieldColor(MixarThemeData.dark()),
+    );
+    expect(band, findsOneWidget);
+    expect(
+      tester.getSize(band).height,
+      kLibraryHeaderHeight - MixarThemeData.dark().style.borderWidth,
+      reason: 'the field band must fill the header up to the bottom border',
+    );
+
+    // Both header rows draw the same bottom border, so the rule reads as one
+    // continuous line across the split.
+    expect(
+      borderOf(tester, tabBar).bottom.color,
+      borderOf(tester, toolbar).bottom.color,
+      reason: 'the tabs and topbar bottom borders must match',
+    );
+    expect(
+      borderOf(tester, toolbar).bottom.width,
+      MixarThemeData.dark().style.borderWidth,
+      reason: 'the toolbar border uses the theme hairline width',
+    );
+  });
+
+  testWidgets('the filter band darkens while the field is focused', (
+    tester,
+  ) async {
+    await pumpSized(tester, child: const LibraryPanel());
+    await tester.pumpAndSettle();
+
+    final theme = MixarThemeData.dark();
+    Finder band({required bool focused}) => find.byWidgetPredicate(
+      (w) =>
+          w is ColoredBox &&
+          w.color == libraryToolbarFieldColor(theme, focused: focused),
+    );
+
+    expect(band(focused: false), findsOneWidget);
+    expect(band(focused: true), findsNothing);
+
+    await tester.tap(find.byType(MixarInput));
+    await tester.pumpAndSettle();
+
+    expect(band(focused: true), findsOneWidget);
+    expect(band(focused: false), findsNothing);
   });
 }

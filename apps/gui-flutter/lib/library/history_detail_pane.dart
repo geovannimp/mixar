@@ -68,69 +68,54 @@ class HistoryDetailPane extends ConsumerWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 0, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 6, bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: MixarInput(
-                    hint: 'Filter entries…',
-                    onChanged: (value) => ref
-                        .read(historyEntryFilterProvider.notifier)
-                        .set(value),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LibraryPaneToolbar(
+          hint: 'Filter entries…',
+          onChanged: (value) =>
+              ref.read(historyEntryFilterProvider.notifier).set(value),
+          trailing: [
+            LibraryRowDensityButton(density: density),
+            const SizedBox(width: 4),
+            _HistorySessionActionsMenu(sessionId: sessionId, session: session),
+          ],
+        ),
+        Expanded(
+          child: TrackListView<HistoryEntryInfo>(
+            items: entries,
+            // Keep the previous entries on screen while the session reloads,
+            // instead of flashing the loader (the history list's behaviour).
+            skipLoadingOnReload: true,
+            idOf: (entry) => entry.id,
+            payloadOf: (ref, entry) => payloadFromHistoryEntry(entry),
+            rowBuilder: (context, ref, index, entry, density, slot) =>
+                density.isCompact
+                ? _CompactEntryRow(
+                    index: index,
+                    entry: entry,
+                    keyDisplayMode: keyDisplayMode,
+                    keyColorMode: keyColorMode,
+                    actionsSlot: slot,
+                  )
+                : _ComfortableEntryRow(
+                    index: index,
+                    entry: entry,
+                    keyDisplayMode: keyDisplayMode,
+                    keyColorMode: keyColorMode,
+                    actionsSlot: slot,
                   ),
-                ),
-                const SizedBox(width: 6),
-                LibraryRowDensityButton(density: density),
-                const SizedBox(width: 4),
-                _HistorySessionActionsMenu(
-                  sessionId: sessionId,
-                  session: session,
-                ),
-              ],
+            emptyBuilder: (context) => LibraryListMessage(
+              (allEntries != null && allEntries.isEmpty)
+                  ? 'No plays logged in this session'
+                  : 'No matching entries',
+              color: theme.colors.mutedForeground,
             ),
+            errorBuilder: (context, e) =>
+                LibraryListMessage('$e', color: theme.colors.destructive),
           ),
-          Expanded(
-            child: TrackListView<HistoryEntryInfo>(
-              items: entries,
-              // Keep the previous entries on screen while the session reloads,
-              // instead of flashing the loader (the history list's behaviour).
-              skipLoadingOnReload: true,
-              idOf: (entry) => entry.id,
-              payloadOf: (ref, entry) => payloadFromHistoryEntry(entry),
-              rowBuilder: (context, ref, index, entry, density, slot) =>
-                  density.isCompact
-                  ? _CompactEntryRow(
-                      index: index,
-                      entry: entry,
-                      keyDisplayMode: keyDisplayMode,
-                      keyColorMode: keyColorMode,
-                      actionsSlot: slot,
-                    )
-                  : _ComfortableEntryRow(
-                      index: index,
-                      entry: entry,
-                      keyDisplayMode: keyDisplayMode,
-                      keyColorMode: keyColorMode,
-                      actionsSlot: slot,
-                    ),
-              emptyBuilder: (context) => LibraryListMessage(
-                (allEntries != null && allEntries.isEmpty)
-                    ? 'No plays logged in this session'
-                    : 'No matching entries',
-                color: theme.colors.mutedForeground,
-              ),
-              errorBuilder: (context, e) =>
-                  LibraryListMessage('$e', color: theme.colors.destructive),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

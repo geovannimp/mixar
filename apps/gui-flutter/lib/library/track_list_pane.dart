@@ -15,7 +15,6 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_loader.dart';
-import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -72,79 +71,70 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
     final keyDisplayMode = keyModeFromSettings(settings.keyDisplayMode);
     final keyColorMode = keyColorModeFromSettings(settings.keyColorMode);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(6, 0, 0, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: MixarInput(
-                  hint: 'Filter tracks…',
-                  onChanged: (value) =>
-                      ref.read(trackFilterProvider.notifier).set(value),
-                ),
-              ),
-              const SizedBox(width: 6),
-              _SortMenu(),
-              const SizedBox(width: 4),
-              LibraryRowDensityButton(density: density),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: !drive && selectedId == null
-                ? LibraryListMessage(
-                    'Select a collection',
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LibraryPaneToolbar(
+          hint: 'Filter tracks…',
+          onChanged: (value) =>
+              ref.read(trackFilterProvider.notifier).set(value),
+          trailing: [
+            _SortMenu(),
+            const SizedBox(width: 4),
+            LibraryRowDensityButton(density: density),
+          ],
+        ),
+        Expanded(
+          child: !drive && selectedId == null
+              ? LibraryListMessage(
+                  'Select a collection',
+                  color: theme.colors.mutedForeground,
+                )
+              : drive && drivePath == null
+              ? LibraryListMessage(
+                  'Select a drive or folder to browse audio files',
+                  color: theme.colors.mutedForeground,
+                )
+              : TrackListView<LibraryTrackSummary>(
+                  items: tracksAsync,
+                  idOf: (track) => track.id,
+                  payloadOf: _payloadOf,
+                  rowBuilder: (context, ref, index, track, density, slot) =>
+                      density.isCompact
+                      ? _CompactRow(
+                          track: track,
+                          title: trackTitleLabel(track),
+                          keyDisplayMode: keyDisplayMode,
+                          keyColorMode: keyColorMode,
+                          artSize: density.artSize,
+                          actionsSlot: slot,
+                        )
+                      : _ComfortableRow(
+                          track: track,
+                          title: trackTitleLabel(track),
+                          keyDisplayMode: keyDisplayMode,
+                          keyColorMode: keyColorMode,
+                          artSize: density.artSize,
+                          actionsSlot: slot,
+                        ),
+                  emptyBuilder: (context) => LibraryListMessage(
+                    drive ? 'No audio files in this folder' : 'No tracks',
                     color: theme.colors.mutedForeground,
-                  )
-                : drive && drivePath == null
-                ? LibraryListMessage(
-                    'Select a drive or folder to browse audio files',
-                    color: theme.colors.mutedForeground,
-                  )
-                : TrackListView<LibraryTrackSummary>(
-                    items: tracksAsync,
-                    idOf: (track) => track.id,
-                    payloadOf: _payloadOf,
-                    rowBuilder: (context, ref, index, track, density, slot) =>
-                        density.isCompact
-                        ? _CompactRow(
-                            track: track,
-                            title: trackTitleLabel(track),
-                            keyDisplayMode: keyDisplayMode,
-                            keyColorMode: keyColorMode,
-                            artSize: density.artSize,
-                            actionsSlot: slot,
-                          )
-                        : _ComfortableRow(
-                            track: track,
-                            title: trackTitleLabel(track),
-                            keyDisplayMode: keyDisplayMode,
-                            keyColorMode: keyColorMode,
-                            artSize: density.artSize,
-                            actionsSlot: slot,
-                          ),
-                    emptyBuilder: (context) => LibraryListMessage(
-                      drive ? 'No audio files in this folder' : 'No tracks',
-                      color: theme.colors.mutedForeground,
-                    ),
-                    errorBuilder: (context, e) => LibraryListMessage(
-                      'Tracks error: $e',
-                      color: theme.colors.destructive,
-                    ),
-                    extraMenuItems: trackRowExtraMenuItems,
-                    overlayBuilder: (track) =>
-                        _TrackStatusOverlay(trackId: track.id),
-                    dimmedOf: (ref, track) => ref.watch(
-                      sessionTrackDimmedProvider((track.id, track.path)),
-                    ),
-                    onVisibleRange: _prefetchArtwork,
                   ),
-          ),
-        ],
-      ),
+                  errorBuilder: (context, e) => LibraryListMessage(
+                    'Tracks error: $e',
+                    color: theme.colors.destructive,
+                  ),
+                  extraMenuItems: trackRowExtraMenuItems,
+                  overlayBuilder: (track) =>
+                      _TrackStatusOverlay(trackId: track.id),
+                  dimmedOf: (ref, track) => ref.watch(
+                    sessionTrackDimmedProvider((track.id, track.path)),
+                  ),
+                  onVisibleRange: _prefetchArtwork,
+                ),
+        ),
+      ],
     );
   }
 

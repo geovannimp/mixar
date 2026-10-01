@@ -208,14 +208,14 @@ void main() {
     // The first row is focused by default, exactly as the track list behaves.
     expect(container.read(focusedTrackRowIndexProvider), 0);
     expect(rowColor(0), libraryListSelectedRowColor(theme));
-    expect(rowColor(1), theme.colors.secondary);
+    expect(rowColor(1), theme.colors.card);
 
     await tester.tap(find.text('Other Track'));
     await tester.pumpAndSettle();
 
     expect(container.read(focusedTrackRowIndexProvider), 1);
     expect(rowColor(1), libraryListSelectedRowColor(theme));
-    expect(rowColor(0), theme.colors.secondary);
+    expect(rowColor(0), theme.colors.card);
   });
 
   testWidgets('row drag attaches after the engine starts', (tester) async {

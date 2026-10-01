@@ -7,6 +7,8 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/app_tooltip.dart';
+import 'package:gui_flutter/shell/m_tabs.dart';
+import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
@@ -18,11 +20,11 @@ import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 /// Kept out of `track_list_pane.dart` so the history list renders the same
 /// chips and BPM/key group rather than a second, drifting copy.
 
-/// Focused-row fill. Forui neutral dark uses the same hex for `muted` and
-/// `secondary`, so `theme.colors.muted` is invisible on the list surface.
+/// Focused-row fill: the selection tint blended over the list surface so it
+/// reads as a lighter shade of the row rather than a separate grey.
 Color libraryListSelectedRowColor(MixarThemeData theme) => Color.alphaBlend(
   theme.colors.primary.withValues(alpha: 0.14),
-  theme.colors.secondary,
+  theme.colors.card,
 );
 
 /// Horizontal gap between a list row's layout groups.
@@ -35,6 +37,37 @@ const kMinTitleWidth = 64.0;
 /// Width of the trailing actions slot every list row reserves, so the status
 /// overlay keeps its pills clear of the row's menu button.
 const kActionsColumnWidth = 44.0;
+
+/// Identifies the filter/sort toolbar, so a test can compare its height with
+/// the sidebar tab bar's.
+const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
+
+/// Height of the library pane header — the sidebar tab bar and the filter/sort
+/// toolbar — so the two rows line up across the split. Pinned (not a minimum)
+/// so the field band can fill it; equals the tab bar's minimum height
+/// ([kMTabBarMinHeight]) and stays aligned while a tab label stays within
+/// [kMTabHeaderMinSize].
+const double kLibraryHeaderHeight = kMTabBarMinHeight;
+
+/// Fill for the toolbar filter field: the chrome (`secondary`) nudged towards
+/// the panel/list tone so the field reads as a subtle inset rather than a full
+/// panel. The target is brightness-dependent: `card` darkens the dark chrome,
+/// while on the light theme `card` matches the white list surface, so the text
+/// colour is used to darken instead. [focused] deepens the step as a
+/// keyboard-focus cue, since the flat field has no border to light up.
+Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) {
+  final colors = theme.colors;
+  if (colors.brightness == Brightness.dark) {
+    return Color.alphaBlend(
+      colors.card.withValues(alpha: focused ? 0.75 : 0.5),
+      colors.secondary,
+    );
+  }
+  return Color.alphaBlend(
+    colors.foreground.withValues(alpha: focused ? 0.12 : 0.06),
+    colors.secondary,
+  );
+}
 
 /// Width for a row's trailing meta at [available] px: its natural size whenever
 /// the row is wide enough, shrinking only once the title would drop below
@@ -90,10 +123,11 @@ const kMetaPillAreaHeight = 40.0;
 /// Gap between adjacent metadata pills.
 const kMetaPillGap = 6.0;
 
-/// Comfortable metadata pills: subtle chips under the title. `muted` matches
-/// the list surface, so the chip background is invisible there — the horizontal
-/// padding would read as a bare indent, which is why the pill group is hung
-/// left by [kMetaPillInset] so its text lines up with the row title.
+/// Comfortable metadata pills: subtle chips under the title. The chip fill is
+/// the row surface colour (`card`), so its background is invisible on a row —
+/// the horizontal padding would read as a bare indent, which is why the pill
+/// group is hung left by [kMetaPillInset] so its text lines up with the row
+/// title.
 const kMetaPillInset = 8.0;
 const kMetaPillPadding = EdgeInsets.symmetric(
   horizontal: kMetaPillInset,
@@ -121,7 +155,10 @@ class LibraryListMessage extends StatelessWidget {
   }
 }
 
-/// Rounded, bordered surface behind a list pane's rows.
+/// Filled surface behind a list pane's rows.
+///
+/// Flush and borderless: the list fills its pane edge to edge, so the row fill
+/// is all this needs — no radius or border insets it from the panel edges.
 class LibraryListSurface extends StatelessWidget {
   const new({required this.theme, required this.child, super.key});
 
@@ -129,24 +166,111 @@ class LibraryListSurface extends StatelessWidget {
   final Widget child;
 
   @override
+  Widget build(BuildContext context) =>
+      ColoredBox(color: theme.colors.card, child: child);
+}
+
+/// The filter/sort header both library panes share: a header-height bar with a
+/// bottom border, a flat filter field filling it, and the pane's own trailing
+/// controls on the right.
+///
+/// Kept here (rather than copied into both panes) so the header height, border
+/// and field chrome have a single definition and cannot drift.
+class LibraryPaneToolbar extends StatefulWidget {
+  const new({
+    required this.hint,
+    required this.onChanged,
+    required this.trailing,
+    super.key,
+  });
+
+  /// Placeholder for the filter field.
+  final String hint;
+
+  final ValueChanged<String> onChanged;
+
+  /// Controls drawn after the field (sort menu, density toggle, actions).
+  final List<Widget> trailing;
+
+  @override
+  State<LibraryPaneToolbar> createState() => _LibraryPaneToolbarState();
+}
+
+class _LibraryPaneToolbarState extends State<LibraryPaneToolbar> {
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _onFocusChange() => setState(() {});
+
+  @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colors.secondary,
-        borderRadius: theme.style.borderRadius.md,
-      ),
-      child: ClipRRect(
-        borderRadius: theme.style.borderRadius.md,
-        // Foreground: rows paint an opaque `colors.secondary` fill edge to
-        // edge, so a background border sits underneath them and only shows in
-        // the empty area below the last row.
+    final theme = context.theme;
+    // A definite height is what lets the field band fill the header: with an
+    // unbounded max height `Center` shrinks to the field, re-introducing a gap
+    // above it. The clamp covers the whole toolbar — field *and* trailing
+    // controls — so none of them can outgrow the fixed header; the tab bar is
+    // icon-only, so it stays at its own height and the rows keep lining up.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.2,
+      child: SizedBox(
+        height: kLibraryHeaderHeight,
         child: DecoratedBox(
-          position: DecorationPosition.foreground,
+          key: kLibraryToolbarKey,
           decoration: BoxDecoration(
-            borderRadius: theme.style.borderRadius.md,
-            border: Border.all(color: theme.colors.border),
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colors.border,
+                width: theme.style.borderWidth,
+              ),
+            ),
           ),
-          child: child,
+          child: Padding(
+            // Inset by the border width so the band stops above the bottom
+            // border instead of painting over it (`DecoratedBox` does not inset
+            // its child by the border the way `Container` does).
+            padding: EdgeInsets.only(right: 6, bottom: theme.style.borderWidth),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ColoredBox(
+                    color: libraryToolbarFieldColor(
+                      theme,
+                      focused: _focusNode.hasFocus,
+                    ),
+                    // Vertically centred; the field takes the full width
+                    // (`ShadInput`'s row expands), so the visible band and the
+                    // tappable field coincide.
+                    child: Center(
+                      child: MixarInput(
+                        hint: widget.hint,
+                        borderless: true,
+                        focusNode: _focusNode,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        onChanged: widget.onChanged,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                ...widget.trailing,
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -329,7 +453,7 @@ class MetaPill extends StatelessWidget {
             leading != null && innerWidth >= kMetaPillIconMinWidth;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colors.muted,
+            color: theme.colors.card,
             borderRadius: theme.style.borderRadius.pill,
           ),
           child: Padding(
