@@ -77,3 +77,32 @@ tasks:
       - "@group(configs)"
     options:
       runInCI: true
+
+  # npm security audit, run by .github/workflows/audit.yml alongside `cargo audit`.
+  #
+  # Scoped to the whole npm dependency tree even though it lives on the website
+  # project: npm workspaces are hoisted, so there is one root package-lock.json
+  # and `npm audit` run from here reads it (verified — it does not need
+  # node_modules installed, and correctly fails against a poisoned lockfile).
+  # Website is simply the only project with npm deps today; move this task to
+  # whichever project owns package.json if the JS layout changes.
+  #
+  # `cache: false` — the result depends on the registry's advisory database, not
+  # just on inputs, so caching would pin a stale "0 vulnerabilities".
+  #
+  # Inputs are the whole audited surface: the root package.json holds the
+  # `workspaces` globs and the root devDependencies, so a change to it or to a
+  # sibling workspace's package.json affects the audit just as much as this
+  # project's does. Keeping them accurate matters if this task ever runs under
+  # `--affected`.
+  audit:
+    command: "npm"
+    args: ["audit", "--audit-level=high"]
+    toolchain: "node"
+    inputs:
+      - "package.json"
+      - "/package.json"
+      - "/package-lock.json"
+    options:
+      cache: false
+      runInCI: false
