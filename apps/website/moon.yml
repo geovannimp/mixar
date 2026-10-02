@@ -89,12 +89,19 @@ tasks:
   #
   # `cache: false` — the result depends on the registry's advisory database, not
   # just on inputs, so caching would pin a stale "0 vulnerabilities".
+  #
+  # Inputs are the whole audited surface: the root package.json holds the
+  # `workspaces` globs and the root devDependencies, so a change to it or to a
+  # sibling workspace's package.json affects the audit just as much as this
+  # project's does. Keeping them accurate matters if this task ever runs under
+  # `--affected`.
   audit:
     command: "npm"
     args: ["audit", "--audit-level=high"]
     toolchain: "node"
     inputs:
       - "package.json"
+      - "/package.json"
       - "/package-lock.json"
     options:
       cache: false
