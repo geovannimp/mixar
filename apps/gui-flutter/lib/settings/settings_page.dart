@@ -223,7 +223,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         MixarDialogAction(
           label: 'Discard',
           value: _CloseChoice.discard,
-          variant: MixarButtonVariant.ghost,
+          variant: MixarButtonVariant.destructive,
         ),
         MixarDialogAction(label: 'Save', value: _CloseChoice.save),
       ],
