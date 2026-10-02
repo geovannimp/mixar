@@ -17,6 +17,8 @@ jobs:
   cargo-audit:
     name: cargo audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: crates
@@ -40,16 +42,30 @@ jobs:
   #
   # `--audit-level=high` (set in the website moon task) fails the job on high and
   # critical advisories; moderate/low stay informational, mirroring how
-  # cargo-audit treats warnings. Needs no `npm ci` — `npm audit` reads the
-  # committed package-lock.json, so untrusted install scripts never run here.
+  # cargo-audit treats warnings.
   npm-audit:
     name: npm audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v7
 
       - name: Setup toolchains
         uses: ./.github/actions/setup-toolchains
 
+      # `--ignore-scripts` so a pull_request run never executes install scripts:
+      # PR-controlled package.json can add one, and on a branch inside this repo
+      # the token is not fork-exempt. This still populates
+      # node_modules/.bin/moon, which the task runner below needs.
+      #
+      # `npm audit` itself only reads the committed package-lock.json, so the
+      # audit result does not depend on any of this being installed.
+      - name: Install npm dependencies
+        run: npm ci --ignore-scripts
+
+      # `--no-install` keeps this pinned to the version in devDependencies; bare
+      # `npx moon` fails here (the package is published as @moonrepo/cli) and
+      # would otherwise fall back to an unpinned registry download.
       - name: Run security audit
-        run: npx moon run website:audit
+        run: npx --no-install moon run website:audit
