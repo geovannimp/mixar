@@ -107,21 +107,34 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
-    // Force the cover to decode so its intrinsic size participates in layout.
-    await tester.runAsync(() async {
-      await precacheImage(
-        MemoryImage(bytes),
-        tester.element(find.byType(DeckTrackInfo)),
-      );
-    });
-    await tester.pumpAndSettle();
+    final overflows = <String>[];
+    // Scoped to the pumps that can overflow; restored in a finally so the
+    // process-global handler cannot leak into another test.
+    final previous = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final text = details.toString();
+      if (text.contains('overflowed')) overflows.add(text);
+      // Always forward: a handler that swallows an error leaves flutter_test's
+      // bookkeeping inconsistent.
+      previous?.call(details);
+    };
+    try {
+      await tester.pump();
+      // Force the cover to decode so its intrinsic size participates in layout.
+      await tester.runAsync(() async {
+        await precacheImage(
+          MemoryImage(bytes),
+          tester.element(find.byType(DeckTrackInfo)),
+        );
+      });
+      await tester.pumpAndSettle();
+    } finally {
+      FlutterError.onError = previous;
+    }
 
-    // No RenderFlex overflow (the bug) and the card fits the deck slot.
-    expect(tester.takeException(), isNull);
-    expect(
-      tester.getSize(find.byType(DeckTrackInfo)).height,
-      lessThanOrEqualTo(390),
-    );
+    // The cover is a fixed 64px square, so its intrinsic size cannot expand the
+    // card (the regression rendered it at the image's 1500px intrinsic size).
+    expect(tester.getSize(find.byType(Image)), const Size(64, 64));
+    expect(overflows, isEmpty, reason: 'deck card overflowed: $overflows');
   });
 }
