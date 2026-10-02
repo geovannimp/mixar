@@ -23,6 +23,9 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+/// Square cover thumbnail size in the deck track-info card.
+const _artworkThumbSize = 64.0;
+
 /// Artwork + title/artist/key stacked over remaining time and overview.
 class DeckTrackInfo extends ConsumerWidget {
   const new({
@@ -76,8 +79,10 @@ class DeckTrackInfo extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: .stretch,
               children: [
-                AspectRatio(
-                  aspectRatio: 1,
+                // Square cover. Fixed size so a large decoded image's intrinsic
+                // size cannot expand the row (previously the card overflowed).
+                SizedBox.square(
+                  dimension: _artworkThumbSize,
                   child: _ArtworkThumb(bytes: artwork, hasTrack: hasTrack),
                 ),
                 const MDivider(axis: .vertical, padding: .zero),
