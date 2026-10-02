@@ -19,12 +19,19 @@ const RECV_TIMEOUT: Duration = Duration::from_millis(100);
 pub struct LibraryWorker {
     shutdown: Arc<AtomicBool>,
     handle: Option<JoinHandle<()>>,
+    stem_handle: Option<JoinHandle<()>>,
 }
 
 impl Drop for LibraryWorker {
     fn drop(&mut self) {
         self.shutdown.store(true, Ordering::Relaxed);
         if let Some(handle) = self.handle.take() {
+            let _ = handle.join();
+        }
+        // Join the serial stem thread too so a mid-shutdown Demucs pass finishes
+        // writing its cache instead of leaving a partial file. No active job in
+        // the common case means this returns immediately.
+        if let Some(handle) = self.stem_handle.take() {
             let _ = handle.join();
         }
     }
@@ -56,9 +63,39 @@ pub fn spawn_library_worker(library: Arc<Mutex<LibraryManager>>) -> crate::Resul
         .map_err(|_| LibraryError::Io(std::io::Error::other("library worker failed to start")))?
         .map_err(|e| LibraryError::Io(std::io::Error::other(e)))?;
 
+    // Serial stem-job thread: one Demucs/ONNX pass at a time. Bulk stem queues
+    // (collection-wide "generate stems") would otherwise spawn one thread per
+    // cmd and OOM.
+    let (stem_tx, stem_rx) = std::sync::mpsc::channel::<String>();
+    {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.buses()
+            .ok_or_else(|| LibraryError::Backend {
+                backend: "library",
+                message: "library buses not attached; call set_buses before spawn_library_worker"
+                    .into(),
+            })?
+            .set_stem_queue(stem_tx);
+    }
+    let stem_library = Arc::clone(&library);
+    let stem_buses = {
+        let lib = library.lock().unwrap_or_else(|e| e.into_inner());
+        lib.buses().ok_or_else(|| LibraryError::Backend {
+            backend: "library",
+            message: "library buses not attached; call set_buses before spawn_library_worker"
+                .into(),
+        })?
+    };
+    let stem_shutdown = Arc::clone(&shutdown);
+    let stem_handle = thread::Builder::new()
+        .name("library-stems".into())
+        .spawn(move || stem_thread_loop(stem_rx, stem_library, stem_buses, stem_shutdown))
+        .map_err(|e| LibraryError::Io(std::io::Error::other(e.to_string())))?;
+
     Ok(LibraryWorker {
         shutdown,
         handle: Some(handle),
+        stem_handle: Some(stem_handle),
     })
 }
 
@@ -330,8 +367,8 @@ fn handle_generate_stems(
         }
     };
 
-    // Publish the queued phase before spawning so the UI shows a loader even if
-    // the job turns out to be a no-op against an existing cache.
+    // Publish the queued phase before enqueueing so the UI shows a loader even
+    // if the job turns out to be a no-op against an existing cache.
     let _ = publish_evt(
         &evt_bus,
         &revision,
@@ -343,82 +380,109 @@ fn handle_generate_stems(
             fraction: None,
         },
     );
-    spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track_id);
+    if !buses.queue_stem(track_id.clone()) {
+        // No serial queue installed (worker spawned without stem thread, e.g. in
+        // some unit-test harnesses): fall back to a one-off thread so the job
+        // still runs.
+        spawn_stem_ensure_job(Arc::clone(library), buses.clone(), track_id);
+    }
 }
 
-fn spawn_stem_ensure_job(
-    library: Arc<Mutex<LibraryManager>>,
-    buses: LibraryBuses,
-    track_id: String,
-) {
+/// Single stem job: decode/Demucs off the library mutex, then report ready/failed.
+fn run_stem_ensure_job(library: &Arc<Mutex<LibraryManager>>, buses: &LibraryBuses, track_id: &str) {
     let stems_root = buses.stems_root();
     let models_root = buses.models_root();
     let format = buses.stems_format();
     let evt_bus = buses.evt_bus();
     let revision = buses.revision_arc();
+    let track_id_for_cb = track_id.to_string();
+    let evt_bus_cb = evt_bus.clone();
+    let revision_cb = Arc::clone(&revision);
+    let progress: crate::StemProgressFn = Arc::new(move |phase, fraction| {
+        let _ = publish_evt(
+            &evt_bus_cb,
+            &revision_cb,
+            Origin::Track(track_id_for_cb.clone()),
+            Kind::TrackProgress,
+            EvtBody::TrackProgress {
+                track_id: track_id_for_cb.clone(),
+                phase: phase.to_string(),
+                fraction,
+            },
+        );
+    });
+    let result = crate::ensure_track_stems_with_progress(
+        library,
+        &TrackId::new(track_id),
+        &stems_root,
+        &models_root,
+        &format,
+        Some(progress),
+    );
+    match result {
+        Ok(()) => {
+            let _ = publish_evt(
+                &evt_bus,
+                &revision,
+                Origin::Track(track_id.to_string()),
+                Kind::TrackProgress,
+                EvtBody::TrackProgress {
+                    track_id: track_id.to_string(),
+                    phase: "stems_ready".into(),
+                    fraction: Some(1.0),
+                },
+            );
+        }
+        Err(err) => {
+            let message = err.to_string();
+            let _ = publish_evt(
+                &evt_bus,
+                &revision,
+                Origin::Track(track_id.to_string()),
+                Kind::TrackProgress,
+                EvtBody::TrackProgress {
+                    track_id: track_id.to_string(),
+                    phase: "stems_failed".into(),
+                    fraction: None,
+                },
+            );
+            publish_error(
+                &evt_bus,
+                &revision,
+                Origin::Track(track_id.to_string()),
+                message,
+                Some(track_id.to_string()),
+            );
+        }
+    }
+}
+
+/// Drain the serial stem queue one job at a time.
+fn stem_thread_loop(
+    rx: std::sync::mpsc::Receiver<String>,
+    library: Arc<Mutex<LibraryManager>>,
+    buses: LibraryBuses,
+    shutdown: Arc<AtomicBool>,
+) {
+    while !shutdown.load(Ordering::Relaxed) {
+        match rx.recv_timeout(RECV_TIMEOUT) {
+            Ok(track_id) => run_stem_ensure_job(&library, &buses, &track_id),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+}
+
+/// Fallback one-off stem thread for contexts without the serial queue.
+fn spawn_stem_ensure_job(
+    library: Arc<Mutex<LibraryManager>>,
+    buses: LibraryBuses,
+    track_id: String,
+) {
     let _ = thread::Builder::new()
         .name(format!("stems-ensure-{track_id}"))
         .spawn(move || {
-            let track_id_for_cb = track_id.clone();
-            let evt_bus_cb = evt_bus.clone();
-            let revision_cb = Arc::clone(&revision);
-            let progress: crate::StemProgressFn = Arc::new(move |phase, fraction| {
-                let _ = publish_evt(
-                    &evt_bus_cb,
-                    &revision_cb,
-                    Origin::Track(track_id_for_cb.clone()),
-                    Kind::TrackProgress,
-                    EvtBody::TrackProgress {
-                        track_id: track_id_for_cb.clone(),
-                        phase: phase.to_string(),
-                        fraction,
-                    },
-                );
-            });
-            let result = crate::ensure_track_stems_with_progress(
-                &library,
-                &TrackId::new(track_id.clone()),
-                &stems_root,
-                &models_root,
-                &format,
-                Some(progress),
-            );
-            match result {
-                Ok(()) => {
-                    let _ = publish_evt(
-                        &evt_bus,
-                        &revision,
-                        Origin::Track(track_id.clone()),
-                        Kind::TrackProgress,
-                        EvtBody::TrackProgress {
-                            track_id: track_id.clone(),
-                            phase: "stems_ready".into(),
-                            fraction: Some(1.0),
-                        },
-                    );
-                }
-                Err(err) => {
-                    let message = err.to_string();
-                    let _ = publish_evt(
-                        &evt_bus,
-                        &revision,
-                        Origin::Track(track_id.clone()),
-                        Kind::TrackProgress,
-                        EvtBody::TrackProgress {
-                            track_id: track_id.clone(),
-                            phase: "stems_failed".into(),
-                            fraction: None,
-                        },
-                    );
-                    publish_error(
-                        &evt_bus,
-                        &revision,
-                        Origin::Track(track_id.clone()),
-                        message,
-                        Some(track_id),
-                    );
-                }
-            }
+            run_stem_ensure_job(&library, &buses, &track_id);
         });
 }
 

@@ -37,6 +37,12 @@ pub struct LibraryBuses {
     stems_format: Arc<Mutex<String>>,
     stems_root: Arc<Mutex<std::path::PathBuf>>,
     models_root: Arc<Mutex<std::path::PathBuf>>,
+    /// Serial stem-job queue. `GenerateStems` cmds enqueue a track id here and a
+    /// single dedicated thread drains them one at a time — Demucs/ONNX passes
+    /// are memory-heavy, so the old spawn-a-thread-per-cmd could OOM on bulk
+    /// queues. Installed by [`crate::spawn_library_worker`]; `None` before that
+    /// (cmd handlers fall back to a one-off thread).
+    stem_queue: Arc<Mutex<Option<std::sync::mpsc::Sender<String>>>>,
 }
 
 impl LibraryBuses {
@@ -51,6 +57,7 @@ impl LibraryBuses {
             stems_format: Arc::new(Mutex::new(String::from("opus"))),
             stems_root: Arc::new(Mutex::new(std::path::PathBuf::from("stems"))),
             models_root: Arc::new(Mutex::new(std::path::PathBuf::from("models"))),
+            stem_queue: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -137,6 +144,21 @@ impl LibraryBuses {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
+    }
+
+    /// Install the serial stem-job queue sender (called by the worker spawn).
+    pub(crate) fn set_stem_queue(&self, tx: std::sync::mpsc::Sender<String>) {
+        *self.stem_queue.lock().unwrap_or_else(|e| e.into_inner()) = Some(tx);
+    }
+
+    /// Enqueue a stem job. Returns false when no serial queue is installed.
+    pub(crate) fn queue_stem(&self, track_id: String) -> bool {
+        self.stem_queue
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .as_ref()
+            .map(|tx| tx.send(track_id).is_ok())
+            .unwrap_or(false)
     }
 
     /// Monotonic revision bumped when discrete library state changes.

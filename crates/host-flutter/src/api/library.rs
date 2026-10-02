@@ -123,6 +123,15 @@ pub struct AddFolderCollectionResult {
     pub failed: u32,
 }
 
+/// Result of queueing collection-wide analysis onto the library cmd bus.
+#[derive(Clone, Debug)]
+pub struct AnalyzeCollectionResult {
+    /// Analysis target ids, in bus publish order (already marked analyzing by the caller).
+    pub queued_track_ids: Vec<String>,
+    /// Stem job ids, in bus publish order (caller marks them generating).
+    pub stem_track_ids: Vec<String>,
+}
+
 /// Path lookup hit: original request path + resolved track summary.
 #[derive(Clone, Debug)]
 pub struct ResolvedLibraryTrack {
@@ -527,6 +536,78 @@ impl LibraryTransport {
         self.buses
             .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
             .map_err(|e| e.to_string())
+    }
+
+    /// Bulk analysis for a collection, fanned out onto the library cmd bus.
+    ///
+    /// Resolves the target set server-side with the non-force skip rule (tracks
+    /// that already carry BPM/key or have an analysis row are skipped), then
+    /// publishes one [`CmdBody::AnalyzeTrack`] per target — the same MessagePack
+    /// bus path as single-track analyze, so per-track `TrackProgress` /
+    /// `TrackAnalyzed` events flow unchanged. With `generate_stems`, a
+    /// [`CmdBody::GenerateStems`] is queued for every file track (stem cache
+    /// state is independent of BPM/tags; the serial stem queue no-ops on valid
+    /// caches, including native `.stem.mp4` files). Returns the queued analysis
+    /// ids so the UI can mark them analyzing up front.
+    pub fn analyze_collection(
+        &self,
+        collection_id: String,
+        force: bool,
+        generate_stems: bool,
+    ) -> Result<AnalyzeCollectionResult, String> {
+        let collection_id = CollectionId::new(collection_id);
+        let (analyze_ids, stem_ids): (Vec<String>, Vec<String>) = {
+            let lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            let analyze = lib
+                .collection_analyze_targets(&collection_id, force)
+                .map_err(|e| e.to_string())?;
+            let stems = if generate_stems {
+                lib.collection_file_track_ids(&collection_id)
+                    .map_err(|e| e.to_string())?
+            } else {
+                Vec::new()
+            };
+            (
+                analyze
+                    .into_iter()
+                    .map(|id| id.as_str().to_string())
+                    .collect(),
+                stems
+                    .into_iter()
+                    .map(|id| id.as_str().to_string())
+                    .collect(),
+            )
+        };
+
+        // Stems first: the serial stem thread then works in parallel with the
+        // cmd worker draining the analysis queue, and `stems_queued` phases
+        // land early instead of waiting behind every analysis.
+        for track_id in &stem_ids {
+            let bytes = encode_cmd_body(&CmdBody::GenerateStems {
+                track_id: track_id.clone(),
+            })
+            .map_err(|e| e.to_string())?;
+            self.buses
+                .publish_cmd(Origin::Library, Kind::GenerateStems, bytes)
+                .map_err(|e| e.to_string())?;
+        }
+        for track_id in &analyze_ids {
+            let bytes = encode_cmd_body(&CmdBody::AnalyzeTrack {
+                track_id: track_id.clone(),
+                force,
+            })
+            .map_err(|e| e.to_string())?;
+            self.buses
+                .publish_cmd(Origin::Library, Kind::AnalyzeTrack, bytes)
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(AnalyzeCollectionResult {
+            queued_track_ids: analyze_ids,
+            stem_track_ids: stem_ids,
+        })
     }
 
     /// L0 overview peaks from the library DB (generates overview when missing).

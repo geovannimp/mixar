@@ -62,3 +62,34 @@ fn open_in_memory_lists_empty() {
     let transport = LibraryTransport::open_in_memory().unwrap();
     assert!(transport.list_collections().unwrap().is_empty());
 }
+
+#[test]
+fn analyze_collection_queues_targets_onto_bus() {
+    let dir = tempfile::tempdir().unwrap();
+    write_minimal_wav(&dir.path().join("a.wav"));
+    write_minimal_wav(&dir.path().join("b.wav"));
+
+    let db = dir.path().join("library.db");
+    let transport = LibraryTransport::open(db.to_string_lossy().into_owned()).unwrap();
+    let added = transport
+        .add_folder_collection(
+            dir.path().to_string_lossy().into_owned(),
+            true,
+            Some("Batch".into()),
+        )
+        .unwrap();
+    assert_eq!(added.added, 2);
+
+    // Synchronous fan-out: one AnalyzeTrack per target, no stems requested.
+    let result = transport
+        .analyze_collection(added.collection.id.clone(), false, false)
+        .unwrap();
+    assert_eq!(result.queued_track_ids.len(), 2);
+    assert!(result.stem_track_ids.is_empty());
+
+    // Force re-includes every file track regardless of worker progress.
+    let forced = transport
+        .analyze_collection(added.collection.id.clone(), true, false)
+        .unwrap();
+    assert_eq!(forced.queued_track_ids.len(), 2);
+}

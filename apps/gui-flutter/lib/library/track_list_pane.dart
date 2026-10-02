@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/artwork_cache.dart';
+import 'package:gui_flutter/library/collection_actions_menu.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_providers.dart';
 import 'package:gui_flutter/library/library_list_chrome.dart';
@@ -82,6 +83,12 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
             _SortMenu(),
             const SizedBox(width: 4),
             LibraryRowDensityButton(density: density),
+            // Collection actions in the topbar, mirroring the history session
+            // actions menu. Hidden outside the collections tab.
+            if (!drive) ...[
+              const SizedBox(width: 4),
+              const _ActiveCollectionActions(),
+            ],
           ],
         ),
         Expanded(
@@ -162,6 +169,32 @@ class _TrackListPaneState extends ConsumerState<TrackListPane> {
       return;
     }
     ref.read(artworkCacheProvider.notifier).ensureLoaded(visible);
+  }
+}
+
+/// Topbar collection actions for the active collection (hidden until the
+/// collections list resolves, mirroring the history toolbar behaviour of
+/// showing session actions only with a session selected).
+class _ActiveCollectionActions extends ConsumerWidget {
+  const new();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = ref.watch(activeCollectionIdProvider);
+    final collections = ref.watch(collectionsProvider).asData?.value;
+    LibraryCollectionSummary? active;
+    if (id != null && collections != null) {
+      for (final collection in collections) {
+        if (collection.id == id) {
+          active = collection;
+          break;
+        }
+      }
+    }
+    if (active == null) {
+      return const SizedBox.shrink();
+    }
+    return CollectionActionsMenu(collection: active);
   }
 }
 

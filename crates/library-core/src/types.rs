@@ -138,6 +138,29 @@ pub struct TrackMetadata {
     pub loudness_lufs: Option<f64>,
 }
 
+impl TrackMetadata {
+    /// Whether a bulk analyze pass should include this track.
+    ///
+    /// The non-force rule for collection-wide analysis: skip a track that already
+    /// carries BPM or a key (from file tags or an earlier run) and one that has an
+    /// analysis row, so re-running a batch is cheap and never overwrites curated
+    /// tags. `already_analyzed` is the `track_analysis` row presence for this
+    /// track — BPM/key alone cannot tell an analyzed track from a tagged one.
+    ///
+    /// Force analysis ignores all of this (the bulk dialog's force option).
+    pub fn needs_analysis(&self, already_analyzed: bool) -> bool {
+        if already_analyzed {
+            return false;
+        }
+        // Trimmed like `needs_playback_analysis`: a blank key tag is not a key.
+        self.bpm.is_none()
+            && !self
+                .key
+                .as_deref()
+                .is_some_and(|key| !key.trim().is_empty())
+    }
+}
+
 /// Kind of collection in the library.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -372,4 +395,34 @@ pub struct ScanReport {
     pub failed: usize,
     /// Per-path failure messages.
     pub errors: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn needs_analysis_truth_table() {
+        // Empty metadata needs analysis.
+        assert!(TrackMetadata::default().needs_analysis(false));
+        // Already-analyzed tracks are skipped even with empty tags.
+        assert!(!TrackMetadata::default().needs_analysis(true));
+        // Tag BPM or key skips the track.
+        assert!(!TrackMetadata {
+            bpm: Some(128.0),
+            ..TrackMetadata::default()
+        }
+        .needs_analysis(false));
+        assert!(!TrackMetadata {
+            key: Some("Am".into()),
+            ..TrackMetadata::default()
+        }
+        .needs_analysis(false));
+        // A blank key tag is not a key.
+        assert!(TrackMetadata {
+            key: Some("   ".into()),
+            ..TrackMetadata::default()
+        }
+        .needs_analysis(false));
+    }
 }

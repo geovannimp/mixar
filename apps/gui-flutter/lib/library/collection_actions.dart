@@ -49,3 +49,42 @@ void selectCreatedCollection(
   ref.read(selectedCollectionIdProvider.notifier).set(collection.id);
   ref.read(librarySourceTabProvider.notifier).set(LibrarySourceTab.collections);
 }
+
+/// Queue collection-wide analysis onto the library cmd bus (one `AnalyzeTrack`
+/// per target, plus `GenerateStems` when requested). Marks the queued ids
+/// analyzing/generating up front so rows show progress pills immediately; the
+/// worker's per-track events clear them as jobs finish.
+Future<void> analyzeCollectionAction(
+  WidgetRef ref,
+  String collectionId, {
+  required bool force,
+  required bool generateStems,
+}) async {
+  ref.read(libraryMessageProvider.notifier).clear();
+  try {
+    final transport = await ref.read(libraryTransportProvider.future);
+    final result = await transport.analyzeCollection(
+      collectionId: collectionId,
+      force: force,
+      generateStems: generateStems,
+    );
+    final analyzing = ref.read(analyzingTrackIdsProvider.notifier);
+    result.queuedTrackIds.forEach(analyzing.add);
+    final stems = ref.read(stemGeneratingTrackIdsProvider.notifier);
+    for (final id in result.stemTrackIds) {
+      stems.setGenerating(id, true);
+    }
+    final queued = result.queuedTrackIds.length;
+    final stemCount = result.stemTrackIds.length;
+    ref
+        .read(libraryMessageProvider.notifier)
+        .setNotice(
+          queued == 0 && stemCount == 0
+              ? 'Everything is already analyzed.'
+              : 'Queued $queued for analysis'
+                    '${generateStems ? ' + $stemCount for stems' : ''}.',
+        );
+  } catch (e) {
+    ref.read(libraryMessageProvider.notifier).setError('$e');
+  }
+}
