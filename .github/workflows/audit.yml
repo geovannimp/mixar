@@ -14,7 +14,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  audit:
+  cargo-audit:
     name: cargo audit
     runs-on: ubuntu-latest
     defaults:
@@ -33,3 +33,23 @@ jobs:
 
       - name: Run security audit
         run: cargo audit
+
+  # npm audit for the JS toolchain (website / npm workspaces), matching the
+  # cargo job's fail-on-vulnerability policy. Runs via moon so a new npm project
+  # is covered by adding the task, without editing this workflow.
+  #
+  # `--audit-level=high` (set in the website moon task) fails the job on high and
+  # critical advisories; moderate/low stay informational, mirroring how
+  # cargo-audit treats warnings. Needs no `npm ci` — `npm audit` reads the
+  # committed package-lock.json, so untrusted install scripts never run here.
+  npm-audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup toolchains
+        uses: ./.github/actions/setup-toolchains
+
+      - name: Run security audit
+        run: npx moon run website:audit
