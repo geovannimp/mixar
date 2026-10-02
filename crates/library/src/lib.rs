@@ -1117,6 +1117,46 @@ impl LibraryManager {
             .collect())
     }
 
+    /// Track ids in a collection selected for bulk analysis.
+    ///
+    /// With `force == false` (the dialog default) this applies the
+    /// [`TrackMetadata::needs_analysis`] rule — tracks that already carry BPM/key
+    /// from tags or an earlier run, and tracks with a `track_analysis` row, are
+    /// skipped so re-running a batch is cheap and never overwrites curated tags.
+    /// With `force == true` every file track is returned. Stream tracks and
+    /// playlist entries whose track row is missing are always skipped.
+    pub fn collection_analyze_targets(
+        &self,
+        collection_id: &CollectionId,
+        force: bool,
+    ) -> Result<Vec<TrackId>> {
+        let sources = self.list_collection_tracks(collection_id)?;
+        let mut targets = Vec::new();
+        for source in &sources {
+            let file = match source.file() {
+                Some(file) => file,
+                None => continue,
+            };
+            if !force {
+                let analyzed = self.store().count_track_analysis(source.id())? > 0;
+                if !source.metadata().needs_analysis(analyzed) {
+                    continue;
+                }
+            }
+            targets.push(file.id.clone());
+        }
+        Ok(targets)
+    }
+
+    /// File track ids in a collection (streams and missing playlist rows skipped).
+    pub fn collection_file_track_ids(&self, collection_id: &CollectionId) -> Result<Vec<TrackId>> {
+        let sources = self.list_collection_tracks(collection_id)?;
+        Ok(sources
+            .iter()
+            .filter_map(|source| source.file().map(|file| file.id.clone()))
+            .collect())
+    }
+
     fn sync_one_collection(&mut self, collection: &Collection) -> Result<ScanReport> {
         match collection.collection_type() {
             CollectionType::Folder => self.sync_folder(collection),
@@ -2740,6 +2780,78 @@ mod tests {
 
         lib.delete_collection(&folder.id).unwrap();
         assert!(lib.get_track(&track_id).unwrap().is_some());
+    }
+
+    #[test]
+    fn collection_analyze_targets_skips_tagged_and_analyzed() {
+        let dir = tempfile::tempdir().unwrap();
+        write_minimal_wav(&dir.path().join("plain.wav"));
+        write_minimal_wav(&dir.path().join("tagged.wav"));
+        write_minimal_wav(&dir.path().join("done.wav"));
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
+        lib.sync_collection(Some(&folder.id)).unwrap();
+
+        // Stamp BPM on one track (as file tags would) and an analysis row on another.
+        for track in lib.list_collection_tracks(&folder.id).unwrap() {
+            let path = track.file().unwrap().path().to_path_buf();
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == "tagged.wav" {
+                let mut metadata = track.metadata().clone();
+                metadata.bpm = Some(128.0);
+                lib.store()
+                    .upsert_file_track(track.id(), &path, &metadata, "now")
+                    .unwrap();
+            }
+        }
+        let done_id = lib
+            .list_collection_tracks(&folder.id)
+            .unwrap()
+            .into_iter()
+            .find(|t| {
+                t.file().is_some_and(|f| {
+                    f.path().file_name().and_then(|n| n.to_str()) == Some("done.wav")
+                })
+            })
+            .unwrap()
+            .id()
+            .clone();
+        #[cfg(feature = "analysis")]
+        crate::analysis::upsert_track_analysis(
+            &lib.db,
+            &done_id,
+            &analyzer::TrackAnalysis {
+                bpm: None,
+                key: None,
+                beat_grid: None,
+                loudness_lufs: Some(-14.0),
+                metadata: analyzer::AnalysisRunMetadata {
+                    backend: "test".into(),
+                    backend_version: "1".into(),
+                    analyzed_at: "now".into(),
+                    sample_rate: 8000,
+                    duration_analyzed_ms: 2,
+                },
+            },
+        )
+        .unwrap();
+
+        let mut targets = lib
+            .collection_analyze_targets(&folder.id, false)
+            .unwrap()
+            .into_iter()
+            .map(|id| id.as_str().to_string())
+            .collect::<Vec<_>>();
+        targets.sort();
+        assert_eq!(targets.len(), 1);
+        assert!(targets[0].ends_with("plain.wav"), "{targets:?}");
+
+        // Force re-includes every file track.
+        let forced = lib.collection_analyze_targets(&folder.id, true).unwrap();
+        assert_eq!(forced.len(), 3);
     }
 
     #[test]

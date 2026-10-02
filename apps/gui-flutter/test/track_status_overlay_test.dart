@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/library/track_list_pane.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
@@ -260,7 +261,12 @@ void main() {
         .set(track.id, 'stems_separate', 0.3);
     await tester.pump();
 
-    await tester.tap(find.byIcon(LucideIcons.ellipsisVertical).first);
+    await tester.tap(
+      find.descendant(
+        of: rowAt(0),
+        matching: find.byIcon(LucideIcons.ellipsisVertical),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Generate stems'), findsOneWidget);
 
@@ -275,6 +281,23 @@ void main() {
         .setGenerating(track.id, false);
     await tester.pump();
     expect(find.text('Generate stems'), findsOneWidget);
+  });
+
+  testWidgets('topbar shows collection actions for the active collection', (
+    tester,
+  ) async {
+    await pumpTable(tester);
+    // Scope away from the rows: the topbar collection menu uses the same ⋯
+    // icon (mirrors the history session actions menu).
+    await tester.tap(
+      find.descendant(
+        of: find.byType(LibraryPaneToolbar),
+        matching: find.byIcon(LucideIcons.ellipsisVertical),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Browse in Drive'), findsOneWidget);
+    expect(find.text('Analyze tracks…'), findsOneWidget);
   });
 
   testWidgets('analysis pills render before stem pills', (tester) async {

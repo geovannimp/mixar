@@ -209,6 +209,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnalysisDurationSetting dco_decode_analysis_duration_setting(dynamic raw);
 
   @protected
+  AnalyzeCollectionResult dco_decode_analyze_collection_result(dynamic raw);
+
+  @protected
   AppSettings dco_decode_app_settings(dynamic raw);
 
   @protected
@@ -733,6 +736,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   AnalysisDurationSetting sse_decode_analysis_duration_setting(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  AnalyzeCollectionResult sse_decode_analyze_collection_result(
     SseDeserializer deserializer,
   );
 
@@ -1369,6 +1377,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_analysis_duration_setting(
     AnalysisDurationSetting self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_analyze_collection_result(
+    AnalyzeCollectionResult self,
     SseSerializer serializer,
   );
 

@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
@@ -28,6 +28,23 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<LibraryCollectionSummary> addPlaylistCollection({
     required String name,
     required bool sortable,
+  });
+
+  /// Bulk analysis for a collection, fanned out onto the library cmd bus.
+  ///
+  /// Resolves the target set server-side with the non-force skip rule (tracks
+  /// that already carry BPM/key or have an analysis row are skipped), then
+  /// publishes one [`CmdBody::AnalyzeTrack`] per target — the same MessagePack
+  /// bus path as single-track analyze, so per-track `TrackProgress` /
+  /// `TrackAnalyzed` events flow unchanged. With `generate_stems`, a
+  /// [`CmdBody::GenerateStems`] is queued for every file track (stem cache
+  /// state is independent of BPM/tags; the serial stem queue no-ops on valid
+  /// caches, including native `.stem.mp4` files). Returns the queued analysis
+  /// ids so the UI can mark them analyzing up front.
+  Future<AnalyzeCollectionResult> analyzeCollection({
+    required String collectionId,
+    required bool force,
+    required bool generateStems,
   });
 
   /// Queue analyze for a track via the library cmd bus only (worker emits evt).
@@ -219,6 +236,31 @@ class AddFolderCollectionResult {
           updated == other.updated &&
           skipped == other.skipped &&
           failed == other.failed;
+}
+
+/// Result of queueing collection-wide analysis onto the library cmd bus.
+class AnalyzeCollectionResult {
+  /// Analysis target ids, in bus publish order (already marked analyzing by the caller).
+  final List<String> queuedTrackIds;
+
+  /// Stem job ids, in bus publish order (caller marks them generating).
+  final List<String> stemTrackIds;
+
+  const AnalyzeCollectionResult({
+    required this.queuedTrackIds,
+    required this.stemTrackIds,
+  });
+
+  @override
+  int get hashCode => queuedTrackIds.hashCode ^ stemTrackIds.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnalyzeCollectionResult &&
+          runtimeType == other.runtimeType &&
+          queuedTrackIds == other.queuedTrackIds &&
+          stemTrackIds == other.stemTrackIds;
 }
 
 /// Beat-grid overlay data (beat times in seconds).
