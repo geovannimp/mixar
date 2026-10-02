@@ -133,6 +133,9 @@ class LegacyMaterialScope extends StatelessWidget {
           modalBarrierColor: legacy.Colors.black54,
           sabGradientColor: scheme.surface,
           hasSabGradient: false,
+          // Keep the sheet surface flat: the M3 default tint is the scheme's
+          // `primary`, which would render the dialog background green.
+          surfaceTintColor: legacy.Colors.transparent,
         ),
       ],
     );

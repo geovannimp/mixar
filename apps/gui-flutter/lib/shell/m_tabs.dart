@@ -209,7 +209,7 @@ class _TabBar extends StatelessWidget {
                     child: DecoratedBox(
                       key: const ValueKey('m-tabs-indicator'),
                       decoration: BoxDecoration(
-                        color: theme.colors.background,
+                        color: theme.colors.primaryTint,
                         borderRadius: theme.style.borderRadius.md,
                       ),
                     ),
@@ -274,7 +274,7 @@ class _TabHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = selected
-        ? theme.colors.foreground
+        ? theme.colors.primaryDim
         : theme.colors.mutedForeground;
 
     Widget header = MTappable(
@@ -283,7 +283,7 @@ class _TabHeader extends StatelessWidget {
       builder: (context, state) {
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: paintSelected && selected ? theme.colors.background : null,
+            color: paintSelected && selected ? theme.colors.primaryTint : null,
             borderRadius: theme.style.borderRadius.md,
           ),
           child: ConstrainedBox(

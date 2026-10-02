@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-/// Mixar color tokens (Forui-neutral visual parity).
+/// Mixar color tokens aligned with the website palette.
 @immutable
 class MixarColors {
-  const new({
+  const MixarColors({
     required this.brightness,
     required this.background,
     required this.foreground,
@@ -16,6 +16,8 @@ class MixarColors {
     required this.secondaryForeground,
     required this.muted,
     required this.mutedForeground,
+    required this.accent,
+    required this.accentForeground,
     required this.destructive,
     required this.destructiveForeground,
     required this.card,
@@ -25,38 +27,42 @@ class MixarColors {
     this.disabledOpacity = 0.5,
   });
 
-  /// Desktop light — values from Forui `FColors.neutralLight`.
+  /// Desktop light — values from website `global.css` light theme.
   static const light = MixarColors(
     brightness: Brightness.light,
-    background: Color(0xFFFFFFFF),
-    foreground: Color(0xFF0A0A0A),
-    primary: Color(0xFF171717),
-    primaryForeground: Color(0xFFFAFAFA),
-    secondary: Color(0xFFF5F5F5),
+    background: Color(0xFFFAFAFA),
+    foreground: Color(0xFF18181B),
+    primary: Color(0xFF16A34A),
+    primaryForeground: Color(0xFFFFFFFF),
+    secondary: Color(0xFFF4F4F5),
     secondaryForeground: Color(0xFF171717),
-    muted: Color(0xFFF5F5F5),
-    mutedForeground: Color(0xFF737373),
+    muted: Color(0xFFF4F4F5),
+    mutedForeground: Color(0xFF52525B),
+    accent: Color(0xFF0F766E),
+    accentForeground: Color(0xFFFFFFFF),
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
-    border: Color(0xFFE5E5E5),
+    border: Color(0x14000000),
   );
 
-  /// Desktop dark — values from Forui `FColors.neutralDark`.
+  /// Desktop dark — values from website `global.css` dark theme.
   static const dark = MixarColors(
     brightness: Brightness.dark,
-    background: Color(0xFF0A0A0A),
-    foreground: Color(0xFFFAFAFA),
-    primary: Color(0xFFE5E5E5),
-    primaryForeground: Color(0xFF171717),
-    secondary: Color(0xFF262626),
+    background: Color(0xFF09090B),
+    foreground: Color(0xFFF4F4F5),
+    primary: Color(0xFF4ADE80),
+    primaryForeground: Color(0xFF09090B),
+    secondary: Color(0xFF121216),
     secondaryForeground: Color(0xFFFAFAFA),
-    muted: Color(0xFF262626),
-    mutedForeground: Color(0xFFA1A1A1),
+    muted: Color(0xFF121216),
+    mutedForeground: Color(0xFFA1A1AA),
+    accent: Color(0xFF2DD4BF),
+    accentForeground: Color(0xFF09090B),
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
-    card: Color(0xFF171717),
-    border: Color(0x1AFFFFFF),
+    card: Color(0xFF18181C),
+    border: Color(0x14FFFFFF),
   );
 
   final Brightness brightness;
@@ -68,6 +74,8 @@ class MixarColors {
   final Color secondaryForeground;
   final Color muted;
   final Color mutedForeground;
+  final Color accent;
+  final Color accentForeground;
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
@@ -75,6 +83,16 @@ class MixarColors {
   final double hoverLighten;
   final double hoverDarken;
   final double disabledOpacity;
+
+  /// Brand green dimmed toward the page background: a calmer green for filled
+  /// accents (knob value arcs, play icon, selected-tab icon) that keeps the hue
+  /// without the neon glow of raw [primary] in the dark theme.
+  Color get primaryDim =>
+      Color.alphaBlend(background.withValues(alpha: 0.45), primary);
+
+  /// Brand green at low opacity: a subtle tint for filled surfaces (play
+  /// button, selected tab) that reads as green without a solid accent block.
+  Color get primaryTint => primary.withValues(alpha: 0.12);
 
   /// Hovered variant (Forui `FColors.hover` algorithm).
   Color hover(Color color) {

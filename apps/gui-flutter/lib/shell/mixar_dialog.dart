@@ -21,10 +21,27 @@ class MixarDialogAction<T> {
 }
 
 WoltModalType mixarModalTypeBuilder(BuildContext context) {
+  final theme = context.theme;
+  final side = BorderSide(
+    color: theme.colors.border,
+    width: theme.style.borderWidth,
+  );
   final width = MediaQuery.sizeOf(context).width;
+  // A hairline border on the sheet shape so the dialog reads as a panel instead
+  // of blending into the dimmed backdrop.
   return width < mixarDialogBreakpoint
-      ? WoltModalType.bottomSheet()
-      : WoltModalType.dialog();
+      ? WoltBottomSheetType(
+          shapeBorder: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            side: side,
+          ),
+        )
+      : WoltDialogType(
+          shapeBorder: RoundedRectangleBorder(
+            borderRadius: const BorderRadius.all(Radius.circular(16)),
+            side: side,
+          ),
+        );
 }
 
 Future<T?> _showMixarModal<T>({

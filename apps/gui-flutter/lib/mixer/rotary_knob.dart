@@ -141,7 +141,7 @@ class _RotaryKnobState extends State<RotaryKnob> {
       center: widget.center,
     );
     final labelColor = widget.accentColor ?? theme.colors.mutedForeground;
-    final ringColor = widget.ringColor ?? theme.colors.primary;
+    final ringColor = widget.ringColor ?? theme.colors.primaryDim;
     final opacity = widget.disabled ? 0.45 : 1.0;
 
     return Opacity(
@@ -208,7 +208,7 @@ class _RotaryKnobState extends State<RotaryKnob> {
                   fillColor: ringColor,
                   faceColor: Color.lerp(
                     theme.colors.secondary,
-                    theme.colors.primary,
+                    theme.colors.foreground,
                     0.28,
                   )!,
                   tickColor: theme.colors.foreground,

@@ -50,21 +50,18 @@ const kLibraryToolbarKey = ValueKey<String>('libraryToolbar');
 const double kLibraryHeaderHeight = kMTabBarMinHeight;
 
 /// Fill for the toolbar filter field: the chrome (`secondary`) nudged towards
-/// the panel/list tone so the field reads as a subtle inset rather than a full
-/// panel. The target is brightness-dependent: `card` darkens the dark chrome,
-/// while on the light theme `card` matches the white list surface, so the text
-/// colour is used to darken instead. [focused] deepens the step as a
-/// keyboard-focus cue, since the flat field has no border to light up.
+/// the text colour so the field reads as a subtle inset rather than a full
+/// panel. The target is brightness-dependent: on the light theme the text
+/// colour darkens the chrome, while on the dark theme it lightens it — the dark
+/// step is larger because `secondary` sits close to the page background there.
+/// [focused] deepens the step as a keyboard-focus cue, since the flat field has
+/// no border to light up.
 Color libraryToolbarFieldColor(MixarThemeData theme, {bool focused = false}) {
   final colors = theme.colors;
-  if (colors.brightness == Brightness.dark) {
-    return Color.alphaBlend(
-      colors.card.withValues(alpha: focused ? 0.75 : 0.5),
-      colors.secondary,
-    );
-  }
+  final dark = colors.brightness == Brightness.dark;
+  final alpha = focused ? (dark ? 0.16 : 0.12) : (dark ? 0.10 : 0.06);
   return Color.alphaBlend(
-    colors.foreground.withValues(alpha: focused ? 0.12 : 0.06),
+    colors.foreground.withValues(alpha: alpha),
     colors.secondary,
   );
 }

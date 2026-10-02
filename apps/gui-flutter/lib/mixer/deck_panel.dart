@@ -195,18 +195,24 @@ class _DeckPlayButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = context.theme;
     final playing = ref.watch(deckPlayingProvider(deckId));
     final playLabel = playing ? 'Pause' : 'Play';
     return AppTooltip(
       tip: playLabel,
       child: MixerButton(
+        variant: .secondary,
+        backgroundColor: theme.colors.primaryTint,
         onPress: disabled
             ? null
             : () {
                 unawaited(_togglePlay(context, ref, deckId));
               },
         semanticsLabel: playLabel,
-        child: Icon(playing ? LucideIcons.pause600 : LucideIcons.play600),
+        child: Icon(
+          playing ? LucideIcons.pause600 : LucideIcons.play600,
+          color: theme.colors.primaryDim,
+        ),
       ),
     );
   }

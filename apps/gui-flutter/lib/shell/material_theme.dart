@@ -39,6 +39,9 @@ ThemeData materialUiThemeFromMixar(
       onError: c.destructiveForeground,
       surface: c.background,
       onSurface: c.foreground,
+      // Neutral tint: the M3 default is `primary`, which would wash elevated
+      // Material surfaces (the modal/dialog sheet) with the brand green.
+      surfaceTint: c.background,
       secondaryContainer: c.muted,
       onSecondaryContainer: c.mutedForeground,
     ),
