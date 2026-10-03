@@ -17,11 +17,12 @@ class MixarColors {
     required this.muted,
     required this.mutedForeground,
     required this.accent,
-    required this.accentForeground,
     required this.destructive,
     required this.destructiveForeground,
     required this.card,
     required this.border,
+    required this.selection,
+    required this.selectionForeground,
     this.hoverLighten = 0.075,
     this.hoverDarken = 0.05,
     this.disabledOpacity = 0.5,
@@ -39,7 +40,9 @@ class MixarColors {
     muted: Color(0xFFF4F4F5),
     mutedForeground: Color(0xFF52525B),
     accent: Color(0xFF0F766E),
-    accentForeground: Color(0xFFFFFFFF),
+    // Solid brand-green selection fill keeps dark ink legible.
+    selection: Color(0xFF16A34A),
+    selectionForeground: Color(0xFF09090B),
     destructive: Color(0xFFE7000B),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFFFFFFFF),
@@ -58,7 +61,11 @@ class MixarColors {
     muted: Color(0xFF121216),
     mutedForeground: Color(0xFFA1A1AA),
     accent: Color(0xFF2DD4BF),
-    accentForeground: Color(0xFF09090B),
+    // Low-opacity brand wash: reads as a calm green highlight in a menu or
+    // select without the neon glow of a solid `primary` block. Foreground is
+    // the theme's regular text colour, which stays legible over the tint.
+    selection: Color(0x294ADE80),
+    selectionForeground: Color(0xFFF4F4F5),
     destructive: Color(0xFFFF6467),
     destructiveForeground: Color(0xFFFAFAFA),
     card: Color(0xFF18181C),
@@ -75,11 +82,17 @@ class MixarColors {
   final Color muted;
   final Color mutedForeground;
   final Color accent;
-  final Color accentForeground;
   final Color destructive;
   final Color destructiveForeground;
   final Color card;
   final Color border;
+
+  /// Fill for an active/hovered menu row, option row, or tab: a brand-green
+  /// wash that stays legible under [selectionForeground].
+  final Color selection;
+
+  /// Text/icon colour drawn over [selection].
+  final Color selectionForeground;
   final double hoverLighten;
   final double hoverDarken;
   final double disabledOpacity;

@@ -58,6 +58,29 @@ void main() {
     expect(tester.getSize(panel).width, 200);
   });
 
+  testWidgets('MixarMenuPanel clips row fills to its rounded border', (
+    tester,
+  ) async {
+    // A full-bleed hover fill must not square off the panel's rounded corner.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(MixarThemeData.dark()),
+        builder: mixarMaterialAppBuilder(MixarThemeData.dark()),
+        home: const Scaffold(
+          body: Center(child: MixarMenuPanel(child: Text('Analyze'))),
+        ),
+      ),
+    );
+
+    final clip = tester.widget<ClipRRect>(
+      find.descendant(
+        of: find.byType(MixarMenuPanel),
+        matching: find.byType(ClipRRect),
+      ),
+    );
+    expect(clip.borderRadius, MixarThemeData.dark().style.borderRadius.md);
+  });
+
   testWidgets('MixarMenuAnchor dismisses on outside tap', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(

@@ -30,13 +30,18 @@ class MixarMenuPanel extends StatelessWidget {
             width: theme.style.borderWidth,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: DefaultTextStyle(
-            style: theme.typography.body.sm.copyWith(
-              color: theme.colors.foreground,
+        // Clip rows to the rounded border, or an edge row's hover fill squares
+        // off the corner and bleeds past the panel outline.
+        child: ClipRRect(
+          borderRadius: theme.style.borderRadius.md,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: DefaultTextStyle(
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.foreground,
+              ),
+              child: child,
             ),
-            child: child,
           ),
         ),
       ),
@@ -153,7 +158,7 @@ class MixarMenuItem extends StatelessWidget {
       onPress: enabled ? onPress : null,
       builder: (context, state) {
         final paint = state.active
-            ? theme.colors.secondary
+            ? theme.colors.selection
             : const Color(0x00000000);
         return ColoredBox(color: paint, child: content);
       },

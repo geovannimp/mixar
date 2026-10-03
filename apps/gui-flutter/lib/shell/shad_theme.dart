@@ -23,7 +23,7 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
       muted: c.muted,
       mutedForeground: c.mutedForeground,
       accent: c.accent,
-      accentForeground: c.accentForeground,
+      accentForeground: c.selectionForeground,
       destructive: c.destructive,
       destructiveForeground: c.destructiveForeground,
       border: c.border,
@@ -33,5 +33,16 @@ ShadThemeData shadThemeFromMixar(MixarThemeData theme) {
     ),
     textTheme: ShadTextTheme(family: MixarFonts.outfit),
     radius: theme.style.borderRadius.md,
+    // Shad's stock option theme fills a selected/hovered row with `accent`, a
+    // solid teal block that glares against the dark menu. Use the quiet Mixar
+    // selection wash and keep the row text in Mixar's foreground.
+    optionTheme: ShadOptionTheme(
+      hoveredBackgroundColor: c.selection,
+      selectedBackgroundColor: c.selection,
+      selectedTextStyle: theme.typography.body.sm.copyWith(
+        color: c.selectionForeground,
+      ),
+      selectedIconColor: c.selectionForeground,
+    ),
   );
 }
