@@ -105,7 +105,7 @@ class _Segment extends StatelessWidget {
         // a disabled segment never paints the highlight.
         return ColoredBox(
           color: state.active
-              ? theme.colors.secondary
+              ? theme.colors.selection
               : const Color(0x00000000),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),

@@ -260,7 +260,7 @@ void main() {
 
       expect(
         segmentPaint(tester, 'A'),
-        isNot(theme.colors.secondary),
+        isNot(theme.colors.selection),
         reason: 'a disabled segment must not paint the hover highlight',
       );
     });
@@ -286,7 +286,7 @@ void main() {
       await gesture.moveTo(tester.getCenter(find.text('A')));
       await tester.pumpAndSettle();
 
-      expect(segmentPaint(tester, 'A'), theme.colors.secondary);
+      expect(segmentPaint(tester, 'A'), theme.colors.selection);
     });
 
     testWidgets('an empty segment list paints nothing', (tester) async {
