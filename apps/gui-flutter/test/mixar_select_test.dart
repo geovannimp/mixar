@@ -53,6 +53,11 @@ void main() {
               (c.decoration! as BoxDecoration).color != null,
         )
         .toList();
+    expect(
+      containers,
+      isNotEmpty,
+      reason: 'no decorated option row found for "$label"',
+    );
     final decoration = containers.first.decoration! as BoxDecoration;
     return decoration.color!;
   }
@@ -93,6 +98,14 @@ void main() {
     await gesture.addPointer(location: Offset.zero);
     addTearDown(gesture.removePointer);
     await tester.pump();
+
+    // Baseline: 'high' is neither selected nor hovered, so it must not carry
+    // the tint before the pointer lands on it.
+    expect(
+      optionFill(tester, 'high'),
+      isNot(theme.colors.selection),
+      reason: 'a non-selected, non-hovered option must stay untinted',
+    );
 
     await gesture.moveTo(tester.getCenter(find.text('high')));
     await tester.pumpAndSettle();
