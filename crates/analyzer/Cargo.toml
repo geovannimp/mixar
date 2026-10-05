@@ -8,7 +8,7 @@ description = "Offline audio analysis for Mixar (decode + default backend)"
 
 [dependencies]
 analyzer-core = { path = "../analyzer-core" }
-analyzer-stratum = { path = "../analyzer-stratum" }
+analyzer-qmdsp = { path = "../analyzer-qmdsp" }
 codec = { path = "../codec" }
 anyhow.workspace = true
 ebur128 = "0.1"

@@ -1,0 +1,297 @@
+//! Post-process a raw detected beat list into a clean constant-tempo grid.
+//!
+//! Backends return whatever beats they detected: noisy onsets (stratum), a
+//! near-grid (rosa/beat-this), sometimes the wrong tempo octave (half/double),
+//! and often a fractional BPM that drifts against the rest of the world.
+//!
+//! [`snap_grid`] turns that into what a DJ tool actually wants:
+//!
+//! 1. take the backend's reported tempo (falling back to the median interval),
+//! 2. fold it into a canonical range by octaves (undo half/double-time),
+//! 3. round it to `SnapConfig::decimals` decimal places,
+//! 4. re-anchor a constant grid to best fit the detected beats (Mixxx-style
+//!    phase adjustment).
+//!
+//! This mirrors what Mixxx does when it reduces the QM detector's beats to a
+//! constant `BeatGrid`. It cannot recover a wrong metrical family (e.g. a 3:2
+//! lock); that needs a better detector.
+
+use crate::config::SnapConfig;
+use crate::result::{BeatGridAnalysis, TrackAnalysis};
+
+/// Rewrite `track`'s beat grid in place. No-op when disabled, when there is no
+/// grid, or when there are too few beats to estimate a tempo.
+pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
+    if !cfg.enabled {
+        return;
+    }
+    let Some(grid) = track.beat_grid.as_ref() else {
+        return;
+    };
+    if grid.beats.len() < cfg.min_beats {
+        return;
+    }
+
+    // Prefer the backend's own tempo estimate; fall back to the median interval
+    // (the beat list can be noisier than the reported BPM, e.g. stratum).
+    let mut bpm = match track.bpm.as_ref().map(|b| b.bpm) {
+        Some(bpm) if bpm.is_finite() && bpm > 0.0 => bpm,
+        _ => {
+            let Some(period) = median_period(&grid.beats) else {
+                return;
+            };
+            60.0 / period
+        }
+    };
+    if !bpm.is_finite() || bpm <= 0.0 {
+        return;
+    }
+
+    // Fold into the canonical range by octaves (undo half/double-time).
+    let min_bpm = cfg.min_bpm.max(1.0);
+    let max_bpm = cfg.max_bpm.max(min_bpm + 1.0);
+    while bpm < min_bpm {
+        bpm *= 2.0;
+    }
+    while bpm >= max_bpm {
+        bpm /= 2.0;
+    }
+
+    // Round to the configured number of decimal places.
+    let snapped = round_to_decimals(bpm, cfg.decimals);
+    if !snapped.is_finite() || snapped <= 0.0 {
+        return;
+    }
+    let snapped_period = 60.0 / snapped;
+
+    // Best-fit anchor (Mixxx `adjustPhase`).
+    let anchor = fit_anchor(&grid.beats, snapped_period);
+
+    let first = f64::from(grid.beats[0]);
+    let last = f64::from(*grid.beats.last().unwrap());
+    let k0 = ((first - anchor) / snapped_period).floor() as i64;
+    let k1 = ((last - anchor) / snapped_period).ceil() as i64;
+
+    // Downbeat phase: the bar position the detected downbeats agree on.
+    let phase = downbeat_phase(grid, snapped_period, anchor);
+
+    let mut beats: Vec<f32> = Vec::with_capacity((k1 - k0 + 1).max(0) as usize);
+    let mut downbeats: Vec<f32> = Vec::new();
+    for k in k0..=k1 {
+        let t = anchor + k as f64 * snapped_period;
+        if t < 0.0 {
+            continue;
+        }
+        let t = t as f32;
+        beats.push(t);
+        if k.rem_euclid(4) == phase as i64 {
+            downbeats.push(t);
+        }
+    }
+    if beats.is_empty() {
+        return;
+    }
+
+    // Keep the backend's own stability — recomputing it against the changed
+    // period would be dominated by the tiny BPM edit over a full track.
+    let stability = grid.grid_stability;
+
+    track.beat_grid = Some(BeatGridAnalysis {
+        beats,
+        bars: downbeats.clone(),
+        downbeats,
+        grid_stability: stability,
+    });
+    if let Some(bpm) = track.bpm.as_mut() {
+        bpm.bpm = snapped;
+    }
+}
+
+/// Round to `decimals` decimal places (Rust's formatter uses round-half-to-even,
+/// so e.g. `124.25 -> 124.2` and `124.05 -> 124.0`).
+fn round_to_decimals(x: f64, decimals: u8) -> f64 {
+    format!("{:.*}", decimals as usize, x)
+        .parse::<f64>()
+        .unwrap_or(x)
+}
+
+fn median_period(beats: &[f32]) -> Option<f64> {
+    let mut intervals: Vec<f64> = beats
+        .windows(2)
+        .map(|w| f64::from(w[1] - w[0]))
+        .filter(|d| *d > 0.0)
+        .collect();
+    if intervals.is_empty() {
+        return None;
+    }
+    intervals.sort_by(f64::total_cmp);
+    let median = intervals[intervals.len() / 2];
+    (median > 0.0 && median.is_finite()).then_some(median)
+}
+
+/// Best-fit phase anchor for `period`: first beat shifted by the mean residual
+/// of the inlier beats (±25 ms), falling back to the median residual.
+fn fit_anchor(beats: &[f32], period: f64) -> f64 {
+    let first = f64::from(beats[0]);
+    let mut residuals: Vec<f64> = beats
+        .iter()
+        .map(|&b| {
+            let b = f64::from(b);
+            let k = ((b - first) / period).round();
+            b - (first + k * period)
+        })
+        .collect();
+    let inliers: Vec<f64> = residuals
+        .iter()
+        .copied()
+        .filter(|r| r.abs() <= 0.025)
+        .collect();
+    if inliers.is_empty() {
+        residuals.sort_by(f64::total_cmp);
+        first + residuals[residuals.len() / 2]
+    } else {
+        first + inliers.iter().sum::<f64>() / inliers.len() as f64
+    }
+}
+
+fn downbeat_phase(grid: &BeatGridAnalysis, period: f64, anchor: f64) -> usize {
+    if grid.downbeats.is_empty() {
+        return 0;
+    }
+    let mut counts = [0usize; 4];
+    for &db in &grid.downbeats {
+        let k = ((f64::from(db) - anchor) / period).round() as i64;
+        counts[k.rem_euclid(4) as usize] += 1;
+    }
+    let mut best = 0;
+    for (i, &c) in counts.iter().enumerate() {
+        if c > counts[best] {
+            best = i;
+        }
+    }
+    best
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::result::{AnalysisRunMetadata, BpmAnalysis};
+
+    fn track_with(beats: Vec<f32>, bpm: f64) -> TrackAnalysis {
+        TrackAnalysis {
+            bpm: Some(BpmAnalysis {
+                bpm,
+                confidence: 0.9,
+            }),
+            key: None,
+            beat_grid: Some(BeatGridAnalysis {
+                beats,
+                bars: vec![],
+                downbeats: vec![],
+                grid_stability: 0.0,
+            }),
+            loudness_lufs: None,
+            metadata: AnalysisRunMetadata {
+                backend: "test".into(),
+                backend_version: "0".into(),
+                analyzed_at: "0".into(),
+                sample_rate: 44100,
+                duration_analyzed_ms: 0,
+            },
+        }
+    }
+
+    #[test]
+    fn snaps_half_time_into_canonical_range() {
+        // 48 BPM detected for a 96 BPM track → fold ×2, snap to 96.
+        let beats: Vec<f32> = (0..64).map(|i| i as f32 * 1.25).collect();
+        let mut track = track_with(beats, 48.0);
+        snap_grid(&mut track, &SnapConfig::default());
+        let bpm = track.bpm.as_ref().unwrap().bpm;
+        assert!((bpm - 96.0).abs() < 1e-9, "got {bpm}");
+    }
+
+    #[test]
+    fn produces_a_constant_grid() {
+        // Slightly noisy 120 BPM with a phase offset (symmetric jitter → median
+        // interval is exactly 0.5 s).
+        let period = 0.5_f32;
+        let beats: Vec<f32> = (0..100)
+            .map(|i| {
+                let jitter = if i % 3 == 0 { 0.004 } else { 0.0 };
+                0.13 + i as f32 * period + jitter
+            })
+            .collect();
+        let mut track = track_with(beats, 120.0);
+        snap_grid(&mut track, &SnapConfig::default());
+        let grid = track.beat_grid.as_ref().unwrap();
+        assert!((track.bpm.as_ref().unwrap().bpm - 120.0).abs() < 1e-9);
+        let diffs: Vec<f32> = grid.beats.windows(2).map(|w| w[1] - w[0]).collect();
+        let worst = diffs.iter().fold(0.0f32, |a, d| a.max((d - 0.5).abs()));
+        assert!(worst < 1e-4, "grid not constant: {worst}");
+        assert!(
+            (grid.beats[0] - 0.13).abs() < 0.01,
+            "anchor drifted: {}",
+            grid.beats[0]
+        );
+    }
+
+    #[test]
+    fn reported_bpm_wins_over_noisy_beats() {
+        // Beat intervals imply ~94 BPM, but the backend reports 81 (the truth);
+        // snap follows the reported BPM and rebuilds a clean 81 BPM grid.
+        let beats: Vec<f32> = (0..11).map(|i| i as f32 * 0.64).collect();
+        let mut track = track_with(beats, 81.0);
+        snap_grid(&mut track, &SnapConfig::default());
+        assert!((track.bpm.as_ref().unwrap().bpm - 81.0).abs() < 1e-9);
+        let grid = track.beat_grid.as_ref().unwrap();
+        let period = 60.0 / 81.0;
+        let diffs: Vec<f64> = grid
+            .beats
+            .windows(2)
+            .map(|w| f64::from(w[1] - w[0]))
+            .collect();
+        let worst = diffs.iter().fold(0.0f64, |a, d| a.max((d - period).abs()));
+        assert!(worst < 1e-4, "grid not constant: {worst}");
+    }
+
+    #[test]
+    fn rounds_bpm_to_configured_decimals() {
+        // Rust's float formatter rounds half to even: 124.25 -> 124.2, 124.05 -> 124.0.
+        assert!((round_to_decimals(124.25, 1) - 124.2).abs() < 1e-9);
+        assert!((round_to_decimals(124.05, 1) - 124.0).abs() < 1e-9);
+        assert!((round_to_decimals(124.5, 0) - 124.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rounds_bpm_and_rebuilds_grid() {
+        // 124.25 BPM detected → 124.2, and the grid period uses the rounded BPM.
+        let period = 60.0_f64 / 124.25;
+        let beats: Vec<f32> = (0..64).map(|i| (0.2 + i as f64 * period) as f32).collect();
+        let mut track = track_with(beats, 124.25);
+        snap_grid(&mut track, &SnapConfig::default());
+        assert!((track.bpm.as_ref().unwrap().bpm - 124.2).abs() < 1e-9);
+        let grid = track.beat_grid.as_ref().unwrap();
+        let out_period = 60.0 / 124.2;
+        let worst = grid
+            .beats
+            .windows(2)
+            .map(|w| f64::from(w[1] - w[0]))
+            .fold(0.0f64, |a, d| a.max((d - out_period).abs()));
+        assert!(worst < 1e-4, "grid period not rebuilt: {worst}");
+    }
+
+    #[test]
+    fn disabled_is_a_no_op() {
+        let beats: Vec<f32> = (0..16).map(|i| i as f32 * 1.25).collect();
+        let mut track = track_with(beats.clone(), 48.0);
+        snap_grid(
+            &mut track,
+            &SnapConfig {
+                enabled: false,
+                ..Default::default()
+            },
+        );
+        assert_eq!(track.beat_grid.as_ref().unwrap().beats, beats);
+    }
+}

@@ -1,0 +1,20 @@
+[package]
+name = "analyzer-probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Diagnostic spike: compare Mixar analysis backends on the same audio"
+
+[[bin]]
+name = "analyzer-probe"
+path = "src/main.rs"
+
+[dependencies]
+analyzer = { path = "../analyzer" }
+analyzer-rosa = { path = "../analyzer-rosa" }
+analyzer-beatthis = { path = "../analyzer-beatthis" }
+analyzer-qmdsp = { path = "../analyzer-qmdsp" }
+analyzer-qmdsp-ffi = { path = "../analyzer-qmdsp-ffi" }
+analyzer-stratum = { path = "../analyzer-stratum" }
+anyhow.workspace = true

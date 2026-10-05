@@ -1,0 +1,13 @@
+[package]
+name = "analyzer-qmdsp-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "FFI oracle wrapping Mixxx's qm-dsp (beats + key) via a C++ shim"
+
+[build-dependencies]
+cc = "1"
+
+[dependencies]
+analyzer-core = { path = "../analyzer-core" }

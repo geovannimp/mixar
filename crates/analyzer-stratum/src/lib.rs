@@ -67,8 +67,12 @@ impl AudioAnalyzer for StratumAnalyzer {
         };
 
         if config.targets.bpm {
+            // Derive BPM from the beat grid with Mixxx's BeatUtils, like the qmdsp
+            // backend, so the probe compares detectors on equal footing.
+            let derived =
+                analyzer_core::calculate_bpm_from_seconds(&result.beat_grid.beats, sample_rate);
             track.bpm = Some(BpmAnalysis {
-                bpm: f64::from(result.bpm),
+                bpm: derived.unwrap_or_else(|| f64::from(result.bpm)),
                 confidence: result.bpm_confidence,
             });
         }

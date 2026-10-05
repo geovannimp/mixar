@@ -96,6 +96,13 @@ Import / analyze_track
 
 ## 5 — Backend Evaluation
 
+> **Update (implementation):** the shipped default is now the **pure-Rust
+> qm-dsp port** (`analyzer-qmdsp`: complex-domain onset + `TempoTrackV2` for
+> beats, `GetKeyMode` for key), chosen for its accuracy on the internal
+> benchmark pack. The stratum-dsp evaluation below remains the Phase-1
+> baseline, and the `analyzer-stratum` crate is kept for benchmarking via
+> `analyzer-probe`. `analyzer` no longer depends on `analyzer-stratum`.
+
 ### 5.1 Recommended primary: [stratum-dsp](https://docs.rs/stratum-dsp/latest/stratum_dsp/) 1.x
 
 Pure Rust, DJ-oriented, zero FFI in default build. MIT OR Apache-2.0.
@@ -222,6 +229,25 @@ TrackAnalysis (backend-neutral)
 - **Sample format:** `f32` normalized ±1.0.
 - **Duration cap:** configurable (default: full track; tests use 30–60 s clips).
 - **Sample rate:** pass through native rate when supported; otherwise resample via existing `resampler` crate to 44.1 kHz (stratum-dsp default assumption).
+
+### Grid snapping (post-process)
+
+Backends return raw detected beats; before results leave the `analyzer` facade
+(and before `library` persists them), `analyzer_core::snap_grid` reduces the grid
+to what a DJ tool wants:
+
+1. estimate the period robustly (median inter-beat interval),
+2. fold the tempo into a canonical range (`SnapConfig::min_bpm..max_bpm`, default
+   70–140 BPM) to undo half/double-time,
+3. round it to `SnapConfig::decimals` decimal places (default 1; `0` = whole BPM),
+4. re-anchor a constant grid to best fit the detected beats (Mixxx-style phase
+   adjustment: mean residual of the beats within ±25 ms).
+
+Configure via `AnalysisConfig::snap` (`enabled`, `min_bpm`, `max_bpm`, `decimals`,
+`min_beats`); set `snap.enabled = false` to keep the raw beat list (e.g. for
+backend comparisons). This mirrors Mixxx's constant-`BeatGrid` reduction (rounded
+BPM + anchor). It cannot recover a wrong metrical family (dotted/triplet) — that
+needs a better detector.
 
 ---
 

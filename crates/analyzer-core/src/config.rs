@@ -93,6 +93,36 @@ mod duration_mode_tests {
     }
 }
 
+/// Grid snapping: reduce a raw detected beat list to a clean constant-tempo grid.
+///
+/// See [`crate::snap_grid`]. Fold range `[min_bpm, max_bpm)` undoes half/double
+/// time; `tolerance_bpm` controls integer-vs-half-BPM snapping.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SnapConfig {
+    /// Enable snapping in the analyzer facade.
+    pub enabled: bool,
+    /// Lower bound of the canonical tempo range (BPM).
+    pub min_bpm: f64,
+    /// Upper bound of the canonical tempo range (BPM), exclusive.
+    pub max_bpm: f64,
+    /// Decimal places to round the snapped BPM to (0 = whole BPM).
+    pub decimals: u8,
+    /// Minimum number of beats required before snapping.
+    pub min_beats: usize,
+}
+
+impl Default for SnapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            min_bpm: 70.0,
+            max_bpm: 140.0,
+            decimals: 1,
+            min_beats: 4,
+        }
+    }
+}
+
 /// Parameters for an offline analysis run.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AnalysisConfig {
@@ -106,6 +136,9 @@ pub struct AnalysisConfig {
     pub max_duration_ms: Option<i32>,
     /// Preferred analysis sample rate (`None` = native or backend default).
     pub sample_rate: Option<u32>,
+    /// Reduce raw beats to a clean constant grid.
+    #[serde(default)]
+    pub snap: SnapConfig,
 }
 
 impl Default for AnalysisConfig {
@@ -116,6 +149,7 @@ impl Default for AnalysisConfig {
             min_key_confidence: 0.5,
             max_duration_ms: None,
             sample_rate: None,
+            snap: SnapConfig::default(),
         }
     }
 }
