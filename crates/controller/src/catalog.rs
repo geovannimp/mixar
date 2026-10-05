@@ -187,6 +187,71 @@ const DECK_LEAVES: &[&str] = &[
     "trigger_sampler",
 ];
 
+/// Boolean feedback signals a `[outputs.*]` binding may name (`signal = "…"`).
+///
+/// The session resolves these against [`crate::action::ControlSnapshot`];
+/// `pad_<mode>_<n>` folds the deck pad mode into the per-slot state so only the
+/// active pad bank is ever lit.
+const DECK_SIGNALS: &[&str] = &[
+    "playing",
+    "cue_hold",
+    "sync",
+    "quantize",
+    "headphone_cue",
+    "track_loaded",
+    "loop_active",
+    "shift_held",
+    "pad_mode_hot_cue",
+    "pad_mode_loop_roll",
+    "pad_mode_beat_jump",
+    "pad_mode_sampler",
+    "pad_mode_stems",
+];
+
+const MASTER_SIGNALS: &[&str] = &["master_cue"];
+
+/// Per-slot pad-bank signal prefixes (1-based `pad_<mode>_<n>`).
+const PAD_SLOT_PREFIXES: &[&str] = &[
+    "pad_hot_cue_",
+    "pad_loop_",
+    "pad_beat_jump_",
+    "pad_sampler_",
+    "pad_stems_",
+];
+
+/// Physical performance pads per deck.
+pub const PAD_SLOT_COUNT: usize = 8;
+
+/// Loop-roll pad slots backed by saved loops.
+pub const LOOP_SLOT_COUNT: usize = 8;
+
+/// `true` when `name` is a signal this section can resolve.
+pub fn is_known_signal(section: &str, name: &str) -> bool {
+    if section == "master" {
+        return MASTER_SIGNALS.contains(&name);
+    }
+    if crate::device::deck_index(section).is_none() {
+        return false;
+    }
+    if DECK_SIGNALS.contains(&name) {
+        return true;
+    }
+    if numbered_suffix(name, "hot_cue_").is_some_and(|n| n <= crate::HOT_CUE_SLOT_COUNT) {
+        return true;
+    }
+    if numbered_suffix(name, "loop_slot_").is_some_and(|n| n <= LOOP_SLOT_COUNT) {
+        return true;
+    }
+    PAD_SLOT_PREFIXES
+        .iter()
+        .any(|prefix| numbered_suffix(name, prefix).is_some_and(|n| n <= PAD_SLOT_COUNT))
+}
+
+/// Parse the 1-based slot number in `"<prefix><n>"`.
+fn numbered_suffix(name: &str, prefix: &str) -> Option<usize> {
+    name.strip_prefix(prefix)?.parse::<usize>().ok()
+}
+
 const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
 
 const ENGINE_LEAVES: &[&str] = &["start_engine"];

@@ -3,6 +3,8 @@
 # Pad banks use distinct notes per hardware mode; map.toml binds each bank to a named pad leaf.
 # Mode buttons still set engine pad_mode so the UI follows the hardware page.
 # Ref: https://github.com/mixxxdj/mixxx/blob/main/res/controllers/Pioneer-DDJ-400.midi.xml
+# LED / pad-lamp addresses come from the Pioneer MIDI list (MIDI-OUT column):
+# https://downloads.support.alphatheta.com/software_info/dj-controllers/DDJ-400/DDJ-400_MIDI_Message_List_E1.pdf
 
 schema_version = 1
 id = "pioneer.ddj-400"
@@ -96,14 +98,113 @@ cue_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction 
 sync_led = { type = "note", channel = 1, note = 0x58, velocity = 0x7F, direction = "out" }
 pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction = "out" }
 vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
-hot_cue_1_led = { type = "note", channel = 8, note = 0x00, velocity = 0x7F, direction = "out" }
-hot_cue_2_led = { type = "note", channel = 8, note = 0x01, velocity = 0x7F, direction = "out" }
-hot_cue_3_led = { type = "note", channel = 8, note = 0x02, velocity = 0x7F, direction = "out" }
-hot_cue_4_led = { type = "note", channel = 8, note = 0x03, velocity = 0x7F, direction = "out" }
-hot_cue_5_led = { type = "note", channel = 8, note = 0x04, velocity = 0x7F, direction = "out" }
-hot_cue_6_led = { type = "note", channel = 8, note = 0x05, velocity = 0x7F, direction = "out" }
-hot_cue_7_led = { type = "note", channel = 8, note = 0x06, velocity = 0x7F, direction = "out" }
-hot_cue_8_led = { type = "note", channel = 8, note = 0x07, velocity = 0x7F, direction = "out" }
+
+# --- Feedback (MIDI-OUT) ---------------------------------------------------------
+# Button LED addresses follow the Pioneer MIDI-OUT column; the input notes above
+# follow the community input map, so a button can carry a different note in each.
+
+# Loop group: all six lamps track `loop_active` (the unit lights them as a set).
+loop_in_led = { type = "note", channel = 1, note = 0x10, velocity = 0x7F, direction = "out" }
+loop_in_shift_led = { type = "note", channel = 1, note = 0x10, velocity = 0x7F, direction = "out" }
+loop_in_four_beat_led = { type = "note", channel = 1, note = 0x60, velocity = 0x7F, direction = "out" }
+loop_in_long_led = { type = "note", channel = 1, note = 0x4C, velocity = 0x7F, direction = "out" }
+loop_out_led = { type = "note", channel = 1, note = 0x11, velocity = 0x7F, direction = "out" }
+loop_out_shift_led = { type = "note", channel = 1, note = 0x4E, velocity = 0x7F, direction = "out" }
+exit_loop_led = { type = "note", channel = 1, note = 0x4D, velocity = 0x7F, direction = "out" }
+exit_loop_shift_led = { type = "note", channel = 1, note = 0x50, velocity = 0x7F, direction = "out" }
+
+# Declared, not bound: no implemented engine state drives these yet.
+vinyl_led = { type = "note", channel = 1, note = 0x17, velocity = 0x7F, direction = "out" }
+play_shift_led = { type = "note", channel = 1, note = 0x47, velocity = 0x7F, direction = "out" }
+cue_shift_led = { type = "note", channel = 1, note = 0x48, velocity = 0x7F, direction = "out" }
+
+# Quantize (input note 0x68) and the four pad-mode buttons.
+quantize_led = { type = "note", channel = 1, note = 0x68, velocity = 0x7F, direction = "out" }
+pad_mode_hot_cue_led = { type = "note", channel = 1, note = 0x1B, velocity = 0x7F, direction = "out" }
+pad_mode_beat_jump_led = { type = "note", channel = 1, note = 0x20, velocity = 0x7F, direction = "out" }
+pad_mode_sampler_led = { type = "note", channel = 1, note = 0x22, velocity = 0x7F, direction = "out" }
+pad_mode_loop_roll_led = { type = "note", channel = 1, note = 0x6D, velocity = 0x7F, direction = "out" }
+
+# +SHIFT mode indicators: the unit flashes these while SHIFT is held.
+pad_mode_hot_cue_shift_led = { type = "note", channel = 1, note = 0x69, velocity = 0x7F, direction = "out" }
+pad_mode_loop_roll_shift_led = { type = "note", channel = 1, note = 0x1E, velocity = 0x7F, direction = "out" }
+pad_mode_beat_jump_shift_led = { type = "note", channel = 1, note = 0x6B, velocity = 0x7F, direction = "out" }
+pad_mode_sampler_shift_led = { type = "note", channel = 1, note = 0x6F, velocity = 0x7F, direction = "out" }
+
+# Performance-pad LED banks, one note range per hardware page. Only the four
+# pages this mapping can enter (hot cue / beat jump / sampler / beat loop) are
+# bound in map.toml; the rest are declared so a future page can light up.
+hot_cue_pad_led1 = { type = "note", channel = 9, note = 0x00, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led2 = { type = "note", channel = 9, note = 0x01, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led3 = { type = "note", channel = 9, note = 0x02, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led4 = { type = "note", channel = 9, note = 0x03, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led5 = { type = "note", channel = 9, note = 0x04, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led6 = { type = "note", channel = 9, note = 0x05, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led7 = { type = "note", channel = 9, note = 0x06, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led8 = { type = "note", channel = 9, note = 0x07, velocity = 0x7F, direction = "out" }
+
+pad_fx_1_pad_led1 = { type = "note", channel = 8, note = 0x10, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led2 = { type = "note", channel = 8, note = 0x11, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led3 = { type = "note", channel = 8, note = 0x12, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led4 = { type = "note", channel = 8, note = 0x13, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led5 = { type = "note", channel = 8, note = 0x14, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led6 = { type = "note", channel = 8, note = 0x15, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led7 = { type = "note", channel = 8, note = 0x16, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led8 = { type = "note", channel = 8, note = 0x17, velocity = 0x7F, direction = "out" }
+
+beat_jump_pad_led1 = { type = "note", channel = 8, note = 0x20, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led2 = { type = "note", channel = 8, note = 0x21, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led3 = { type = "note", channel = 8, note = 0x22, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led4 = { type = "note", channel = 8, note = 0x23, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led5 = { type = "note", channel = 8, note = 0x24, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led6 = { type = "note", channel = 8, note = 0x25, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led7 = { type = "note", channel = 8, note = 0x26, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led8 = { type = "note", channel = 8, note = 0x27, velocity = 0x7F, direction = "out" }
+
+sampler_pad_led1 = { type = "note", channel = 8, note = 0x30, velocity = 0x7F, direction = "out" }
+sampler_pad_led2 = { type = "note", channel = 8, note = 0x31, velocity = 0x7F, direction = "out" }
+sampler_pad_led3 = { type = "note", channel = 8, note = 0x32, velocity = 0x7F, direction = "out" }
+sampler_pad_led4 = { type = "note", channel = 8, note = 0x33, velocity = 0x7F, direction = "out" }
+sampler_pad_led5 = { type = "note", channel = 8, note = 0x34, velocity = 0x7F, direction = "out" }
+sampler_pad_led6 = { type = "note", channel = 8, note = 0x35, velocity = 0x7F, direction = "out" }
+sampler_pad_led7 = { type = "note", channel = 8, note = 0x36, velocity = 0x7F, direction = "out" }
+sampler_pad_led8 = { type = "note", channel = 8, note = 0x37, velocity = 0x7F, direction = "out" }
+
+keyboard_pad_led1 = { type = "note", channel = 8, note = 0x40, velocity = 0x7F, direction = "out" }
+keyboard_pad_led2 = { type = "note", channel = 8, note = 0x41, velocity = 0x7F, direction = "out" }
+keyboard_pad_led3 = { type = "note", channel = 8, note = 0x42, velocity = 0x7F, direction = "out" }
+keyboard_pad_led4 = { type = "note", channel = 8, note = 0x43, velocity = 0x7F, direction = "out" }
+keyboard_pad_led5 = { type = "note", channel = 8, note = 0x44, velocity = 0x7F, direction = "out" }
+keyboard_pad_led6 = { type = "note", channel = 8, note = 0x45, velocity = 0x7F, direction = "out" }
+keyboard_pad_led7 = { type = "note", channel = 8, note = 0x46, velocity = 0x7F, direction = "out" }
+keyboard_pad_led8 = { type = "note", channel = 8, note = 0x47, velocity = 0x7F, direction = "out" }
+
+pad_fx_2_pad_led1 = { type = "note", channel = 8, note = 0x50, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led2 = { type = "note", channel = 8, note = 0x51, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led3 = { type = "note", channel = 8, note = 0x52, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led4 = { type = "note", channel = 8, note = 0x53, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led5 = { type = "note", channel = 8, note = 0x54, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led6 = { type = "note", channel = 8, note = 0x55, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led7 = { type = "note", channel = 8, note = 0x56, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led8 = { type = "note", channel = 8, note = 0x57, velocity = 0x7F, direction = "out" }
+
+loop_pad_led1 = { type = "note", channel = 8, note = 0x60, velocity = 0x7F, direction = "out" }
+loop_pad_led2 = { type = "note", channel = 8, note = 0x61, velocity = 0x7F, direction = "out" }
+loop_pad_led3 = { type = "note", channel = 8, note = 0x62, velocity = 0x7F, direction = "out" }
+loop_pad_led4 = { type = "note", channel = 8, note = 0x63, velocity = 0x7F, direction = "out" }
+loop_pad_led5 = { type = "note", channel = 8, note = 0x64, velocity = 0x7F, direction = "out" }
+loop_pad_led6 = { type = "note", channel = 8, note = 0x65, velocity = 0x7F, direction = "out" }
+loop_pad_led7 = { type = "note", channel = 8, note = 0x66, velocity = 0x7F, direction = "out" }
+loop_pad_led8 = { type = "note", channel = 8, note = 0x67, velocity = 0x7F, direction = "out" }
+
+key_shift_pad_led1 = { type = "note", channel = 8, note = 0x70, velocity = 0x7F, direction = "out" }
+key_shift_pad_led2 = { type = "note", channel = 8, note = 0x71, velocity = 0x7F, direction = "out" }
+key_shift_pad_led3 = { type = "note", channel = 8, note = 0x72, velocity = 0x7F, direction = "out" }
+key_shift_pad_led4 = { type = "note", channel = 8, note = 0x73, velocity = 0x7F, direction = "out" }
+key_shift_pad_led5 = { type = "note", channel = 8, note = 0x74, velocity = 0x7F, direction = "out" }
+key_shift_pad_led6 = { type = "note", channel = 8, note = 0x75, velocity = 0x7F, direction = "out" }
+key_shift_pad_led7 = { type = "note", channel = 8, note = 0x76, velocity = 0x7F, direction = "out" }
+key_shift_pad_led8 = { type = "note", channel = 8, note = 0x77, velocity = 0x7F, direction = "out" }
 
 [deck_2]
 play_pause = { type = "note", channel = 2, note = 0x0B }
@@ -182,14 +283,113 @@ cue_led = { type = "note", channel = 2, note = 0x0C, velocity = 0x7F, direction 
 sync_led = { type = "note", channel = 2, note = 0x58, velocity = 0x7F, direction = "out" }
 pfl_led = { type = "note", channel = 2, note = 0x54, velocity = 0x7F, direction = "out" }
 vu_meter = { type = "cc", channel = 2, cc = 0x02, direction = "out" }
-hot_cue_1_led = { type = "note", channel = 10, note = 0x00, velocity = 0x7F, direction = "out" }
-hot_cue_2_led = { type = "note", channel = 10, note = 0x01, velocity = 0x7F, direction = "out" }
-hot_cue_3_led = { type = "note", channel = 10, note = 0x02, velocity = 0x7F, direction = "out" }
-hot_cue_4_led = { type = "note", channel = 10, note = 0x03, velocity = 0x7F, direction = "out" }
-hot_cue_5_led = { type = "note", channel = 10, note = 0x04, velocity = 0x7F, direction = "out" }
-hot_cue_6_led = { type = "note", channel = 10, note = 0x05, velocity = 0x7F, direction = "out" }
-hot_cue_7_led = { type = "note", channel = 10, note = 0x06, velocity = 0x7F, direction = "out" }
-hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, direction = "out" }
+
+# --- Feedback (MIDI-OUT) ---------------------------------------------------------
+# Button LED addresses follow the Pioneer MIDI-OUT column; the input notes above
+# follow the community input map, so a button can carry a different note in each.
+
+# Loop group: all six lamps track `loop_active` (the unit lights them as a set).
+loop_in_led = { type = "note", channel = 2, note = 0x10, velocity = 0x7F, direction = "out" }
+loop_in_shift_led = { type = "note", channel = 2, note = 0x10, velocity = 0x7F, direction = "out" }
+loop_in_four_beat_led = { type = "note", channel = 2, note = 0x60, velocity = 0x7F, direction = "out" }
+loop_in_long_led = { type = "note", channel = 2, note = 0x4C, velocity = 0x7F, direction = "out" }
+loop_out_led = { type = "note", channel = 2, note = 0x11, velocity = 0x7F, direction = "out" }
+loop_out_shift_led = { type = "note", channel = 2, note = 0x4E, velocity = 0x7F, direction = "out" }
+exit_loop_led = { type = "note", channel = 2, note = 0x4D, velocity = 0x7F, direction = "out" }
+exit_loop_shift_led = { type = "note", channel = 2, note = 0x50, velocity = 0x7F, direction = "out" }
+
+# Declared, not bound: no implemented engine state drives these yet.
+vinyl_led = { type = "note", channel = 2, note = 0x17, velocity = 0x7F, direction = "out" }
+play_shift_led = { type = "note", channel = 2, note = 0x47, velocity = 0x7F, direction = "out" }
+cue_shift_led = { type = "note", channel = 2, note = 0x48, velocity = 0x7F, direction = "out" }
+
+# Quantize (input note 0x68) and the four pad-mode buttons.
+quantize_led = { type = "note", channel = 2, note = 0x68, velocity = 0x7F, direction = "out" }
+pad_mode_hot_cue_led = { type = "note", channel = 2, note = 0x1B, velocity = 0x7F, direction = "out" }
+pad_mode_beat_jump_led = { type = "note", channel = 2, note = 0x20, velocity = 0x7F, direction = "out" }
+pad_mode_sampler_led = { type = "note", channel = 2, note = 0x22, velocity = 0x7F, direction = "out" }
+pad_mode_loop_roll_led = { type = "note", channel = 2, note = 0x6D, velocity = 0x7F, direction = "out" }
+
+# +SHIFT mode indicators: the unit flashes these while SHIFT is held.
+pad_mode_hot_cue_shift_led = { type = "note", channel = 2, note = 0x69, velocity = 0x7F, direction = "out" }
+pad_mode_loop_roll_shift_led = { type = "note", channel = 2, note = 0x1E, velocity = 0x7F, direction = "out" }
+pad_mode_beat_jump_shift_led = { type = "note", channel = 2, note = 0x6B, velocity = 0x7F, direction = "out" }
+pad_mode_sampler_shift_led = { type = "note", channel = 2, note = 0x6F, velocity = 0x7F, direction = "out" }
+
+# Performance-pad LED banks, one note range per hardware page. Only the four
+# pages this mapping can enter (hot cue / beat jump / sampler / beat loop) are
+# bound in map.toml; the rest are declared so a future page can light up.
+hot_cue_pad_led1 = { type = "note", channel = 11, note = 0x00, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led2 = { type = "note", channel = 11, note = 0x01, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led3 = { type = "note", channel = 11, note = 0x02, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led4 = { type = "note", channel = 11, note = 0x03, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led5 = { type = "note", channel = 11, note = 0x04, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led6 = { type = "note", channel = 11, note = 0x05, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led7 = { type = "note", channel = 11, note = 0x06, velocity = 0x7F, direction = "out" }
+hot_cue_pad_led8 = { type = "note", channel = 11, note = 0x07, velocity = 0x7F, direction = "out" }
+
+pad_fx_1_pad_led1 = { type = "note", channel = 10, note = 0x10, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led2 = { type = "note", channel = 10, note = 0x11, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led3 = { type = "note", channel = 10, note = 0x12, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led4 = { type = "note", channel = 10, note = 0x13, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led5 = { type = "note", channel = 10, note = 0x14, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led6 = { type = "note", channel = 10, note = 0x15, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led7 = { type = "note", channel = 10, note = 0x16, velocity = 0x7F, direction = "out" }
+pad_fx_1_pad_led8 = { type = "note", channel = 10, note = 0x17, velocity = 0x7F, direction = "out" }
+
+beat_jump_pad_led1 = { type = "note", channel = 10, note = 0x20, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led2 = { type = "note", channel = 10, note = 0x21, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led3 = { type = "note", channel = 10, note = 0x22, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led4 = { type = "note", channel = 10, note = 0x23, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led5 = { type = "note", channel = 10, note = 0x24, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led6 = { type = "note", channel = 10, note = 0x25, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led7 = { type = "note", channel = 10, note = 0x26, velocity = 0x7F, direction = "out" }
+beat_jump_pad_led8 = { type = "note", channel = 10, note = 0x27, velocity = 0x7F, direction = "out" }
+
+sampler_pad_led1 = { type = "note", channel = 10, note = 0x30, velocity = 0x7F, direction = "out" }
+sampler_pad_led2 = { type = "note", channel = 10, note = 0x31, velocity = 0x7F, direction = "out" }
+sampler_pad_led3 = { type = "note", channel = 10, note = 0x32, velocity = 0x7F, direction = "out" }
+sampler_pad_led4 = { type = "note", channel = 10, note = 0x33, velocity = 0x7F, direction = "out" }
+sampler_pad_led5 = { type = "note", channel = 10, note = 0x34, velocity = 0x7F, direction = "out" }
+sampler_pad_led6 = { type = "note", channel = 10, note = 0x35, velocity = 0x7F, direction = "out" }
+sampler_pad_led7 = { type = "note", channel = 10, note = 0x36, velocity = 0x7F, direction = "out" }
+sampler_pad_led8 = { type = "note", channel = 10, note = 0x37, velocity = 0x7F, direction = "out" }
+
+keyboard_pad_led1 = { type = "note", channel = 10, note = 0x40, velocity = 0x7F, direction = "out" }
+keyboard_pad_led2 = { type = "note", channel = 10, note = 0x41, velocity = 0x7F, direction = "out" }
+keyboard_pad_led3 = { type = "note", channel = 10, note = 0x42, velocity = 0x7F, direction = "out" }
+keyboard_pad_led4 = { type = "note", channel = 10, note = 0x43, velocity = 0x7F, direction = "out" }
+keyboard_pad_led5 = { type = "note", channel = 10, note = 0x44, velocity = 0x7F, direction = "out" }
+keyboard_pad_led6 = { type = "note", channel = 10, note = 0x45, velocity = 0x7F, direction = "out" }
+keyboard_pad_led7 = { type = "note", channel = 10, note = 0x46, velocity = 0x7F, direction = "out" }
+keyboard_pad_led8 = { type = "note", channel = 10, note = 0x47, velocity = 0x7F, direction = "out" }
+
+pad_fx_2_pad_led1 = { type = "note", channel = 10, note = 0x50, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led2 = { type = "note", channel = 10, note = 0x51, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led3 = { type = "note", channel = 10, note = 0x52, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led4 = { type = "note", channel = 10, note = 0x53, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led5 = { type = "note", channel = 10, note = 0x54, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led6 = { type = "note", channel = 10, note = 0x55, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led7 = { type = "note", channel = 10, note = 0x56, velocity = 0x7F, direction = "out" }
+pad_fx_2_pad_led8 = { type = "note", channel = 10, note = 0x57, velocity = 0x7F, direction = "out" }
+
+loop_pad_led1 = { type = "note", channel = 10, note = 0x60, velocity = 0x7F, direction = "out" }
+loop_pad_led2 = { type = "note", channel = 10, note = 0x61, velocity = 0x7F, direction = "out" }
+loop_pad_led3 = { type = "note", channel = 10, note = 0x62, velocity = 0x7F, direction = "out" }
+loop_pad_led4 = { type = "note", channel = 10, note = 0x63, velocity = 0x7F, direction = "out" }
+loop_pad_led5 = { type = "note", channel = 10, note = 0x64, velocity = 0x7F, direction = "out" }
+loop_pad_led6 = { type = "note", channel = 10, note = 0x65, velocity = 0x7F, direction = "out" }
+loop_pad_led7 = { type = "note", channel = 10, note = 0x66, velocity = 0x7F, direction = "out" }
+loop_pad_led8 = { type = "note", channel = 10, note = 0x67, velocity = 0x7F, direction = "out" }
+
+key_shift_pad_led1 = { type = "note", channel = 10, note = 0x70, velocity = 0x7F, direction = "out" }
+key_shift_pad_led2 = { type = "note", channel = 10, note = 0x71, velocity = 0x7F, direction = "out" }
+key_shift_pad_led3 = { type = "note", channel = 10, note = 0x72, velocity = 0x7F, direction = "out" }
+key_shift_pad_led4 = { type = "note", channel = 10, note = 0x73, velocity = 0x7F, direction = "out" }
+key_shift_pad_led5 = { type = "note", channel = 10, note = 0x74, velocity = 0x7F, direction = "out" }
+key_shift_pad_led6 = { type = "note", channel = 10, note = 0x75, velocity = 0x7F, direction = "out" }
+key_shift_pad_led7 = { type = "note", channel = 10, note = 0x76, velocity = 0x7F, direction = "out" }
+key_shift_pad_led8 = { type = "note", channel = 10, note = 0x77, velocity = 0x7F, direction = "out" }
 
 [master]
 crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
@@ -199,6 +399,14 @@ browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
 # LOAD buttons (Mixxx LoadSelectedTrack): note ch7 / 0x46, 0x47
 load_deck_1 = { type = "note", channel = 7, note = 0x46 }
 load_deck_2 = { type = "note", channel = 7, note = 0x47 }
+
+# --- Feedback (MIDI-OUT) ---------------------------------------------------------
+# MASTER CUE button; the +SHIFT variant is declared but not bound (no engine state).
+master_cue_led = { type = "note", channel = 7, note = 0x63, velocity = 0x7F, direction = "out" }
+master_cue_shift_led = { type = "note", channel = 7, note = 0x78, velocity = 0x7F, direction = "out" }
+# Beat FX ON/OFF (channel 5). Declared for completeness: the engine has no beat FX yet.
+beat_fx_on_led = { type = "note", channel = 5, note = 0x47, velocity = 0x7F, direction = "out" }
+beat_fx_shift_led = { type = "note", channel = 5, note = 0x43, velocity = 0x7F, direction = "out" }
 
 [custom]
 shift_deck1 = { type = "note", channel = 1, note = 0x3F }

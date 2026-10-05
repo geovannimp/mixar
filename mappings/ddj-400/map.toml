@@ -2,6 +2,11 @@
 # Each HW pad note bank → named pad leaf (notes already encode mode).
 # Mode buttons → pad_mode so the UI follows the hardware page.
 # Controllers whose pads keep the same notes across modes should use Deck(_)::pad(n:N).
+#
+# LEDs are declarative: every `[outputs.*]` entry names the `signal` that drives
+# it, so the session re-resolves the whole section on every state change and
+# force-refreshes on attach. Bindings with a `blink` target flash while their
+# signal is true (used for the +SHIFT mode indicators).
 
 schema_version = 1
 
@@ -12,7 +17,6 @@ location = "../../schemas/map.tosd"
 [lifecycle]
 on_init = "on_init"
 idle_heartbeat = "idle_heartbeat"
-on_shutdown = "on_shutdown"
 
 [inputs.deck_1]
 play_pause = "Deck(_)::toggle_play"
@@ -156,29 +160,119 @@ load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
 load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
 
 [outputs.deck_1]
-play_pause = { on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }
-cue = { on = "cue_led", off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
-sync = { on = "sync_led", off = { type = "note", channel = 1, note = 0x58, velocity = 0x00 } }
-headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
-hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 8, note = 0x00, velocity = 0x00 } }
-hot_cue_2 = { on = "hot_cue_2_led", off = { type = "note", channel = 8, note = 0x01, velocity = 0x00 } }
-hot_cue_3 = { on = "hot_cue_3_led", off = { type = "note", channel = 8, note = 0x02, velocity = 0x00 } }
-hot_cue_4 = { on = "hot_cue_4_led", off = { type = "note", channel = 8, note = 0x03, velocity = 0x00 } }
-hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 8, note = 0x04, velocity = 0x00 } }
-hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 8, note = 0x05, velocity = 0x00 } }
-hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 8, note = 0x06, velocity = 0x00 } }
-hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 8, note = 0x07, velocity = 0x00 } }
+play_pause = { signal = "playing", on = "play_led", off = { type = "note", channel = 1, note = 0x0B, velocity = 0x00 } }
+cue = { signal = "cue_hold", on = "cue_led", off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
+sync = { signal = "sync", on = "sync_led", off = { type = "note", channel = 1, note = 0x58, velocity = 0x00 } }
+headphone_cue = { signal = "headphone_cue", on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
+quantize = { signal = "quantize", on = "quantize_led", off = { type = "note", channel = 1, note = 0x68, velocity = 0x00 } }
+loop_in = { signal = "loop_active", on = "loop_in_led", off = { type = "note", channel = 1, note = 0x10, velocity = 0x00 } }
+loop_out = { signal = "loop_active", on = "loop_out_led", off = { type = "note", channel = 1, note = 0x11, velocity = 0x00 } }
+loop_out_shift = { signal = "loop_active", on = "loop_out_shift_led", off = { type = "note", channel = 1, note = 0x4E, velocity = 0x00 } }
+exit_loop = { signal = "loop_active", on = "exit_loop_led", off = { type = "note", channel = 1, note = 0x4D, velocity = 0x00 } }
+exit_loop_shift = { signal = "loop_active", on = "exit_loop_shift_led", off = { type = "note", channel = 1, note = 0x50, velocity = 0x00 } }
+pad_mode_hot_cue = { signal = "pad_mode_hot_cue", on = "pad_mode_hot_cue_led", off = { type = "note", channel = 1, note = 0x1B, velocity = 0x00 } }
+pad_mode_beat_jump = { signal = "pad_mode_beat_jump", on = "pad_mode_beat_jump_led", off = { type = "note", channel = 1, note = 0x20, velocity = 0x00 } }
+pad_mode_sampler = { signal = "pad_mode_sampler", on = "pad_mode_sampler_led", off = { type = "note", channel = 1, note = 0x22, velocity = 0x00 } }
+pad_mode_loop_roll = { signal = "pad_mode_loop_roll", on = "pad_mode_loop_roll_led", off = { type = "note", channel = 1, note = 0x6D, velocity = 0x00 } }
+pad_mode_hot_cue_shift = { signal = "shift_held", blink = "pad_mode_hot_cue_shift_led", on = "pad_mode_hot_cue_shift_led", off = { type = "note", channel = 1, note = 0x69, velocity = 0x00 } }
+pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_shift_led", on = "pad_mode_loop_roll_shift_led", off = { type = "note", channel = 1, note = 0x1E, velocity = 0x00 } }
+pad_mode_beat_jump_shift = { signal = "shift_held", blink = "pad_mode_beat_jump_shift_led", on = "pad_mode_beat_jump_shift_led", off = { type = "note", channel = 1, note = 0x6B, velocity = 0x00 } }
+pad_mode_sampler_shift = { signal = "shift_held", blink = "pad_mode_sampler_shift_led", on = "pad_mode_sampler_shift_led", off = { type = "note", channel = 1, note = 0x6F, velocity = 0x00 } }
+
+# Performance pads. `pad_<mode>_<n>` is mode-gated, so the previous page's
+# bank goes dark as soon as the mode changes.
+pad_bank_hot_cue_1 = { signal = "pad_hot_cue_1", on = "hot_cue_pad_led1", off = { type = "note", channel = 9, note = 0x00, velocity = 0x00 } }
+pad_bank_hot_cue_2 = { signal = "pad_hot_cue_2", on = "hot_cue_pad_led2", off = { type = "note", channel = 9, note = 0x01, velocity = 0x00 } }
+pad_bank_hot_cue_3 = { signal = "pad_hot_cue_3", on = "hot_cue_pad_led3", off = { type = "note", channel = 9, note = 0x02, velocity = 0x00 } }
+pad_bank_hot_cue_4 = { signal = "pad_hot_cue_4", on = "hot_cue_pad_led4", off = { type = "note", channel = 9, note = 0x03, velocity = 0x00 } }
+pad_bank_hot_cue_5 = { signal = "pad_hot_cue_5", on = "hot_cue_pad_led5", off = { type = "note", channel = 9, note = 0x04, velocity = 0x00 } }
+pad_bank_hot_cue_6 = { signal = "pad_hot_cue_6", on = "hot_cue_pad_led6", off = { type = "note", channel = 9, note = 0x05, velocity = 0x00 } }
+pad_bank_hot_cue_7 = { signal = "pad_hot_cue_7", on = "hot_cue_pad_led7", off = { type = "note", channel = 9, note = 0x06, velocity = 0x00 } }
+pad_bank_hot_cue_8 = { signal = "pad_hot_cue_8", on = "hot_cue_pad_led8", off = { type = "note", channel = 9, note = 0x07, velocity = 0x00 } }
+
+pad_bank_beat_jump_1 = { signal = "pad_beat_jump_1", on = "beat_jump_pad_led1", off = { type = "note", channel = 8, note = 0x20, velocity = 0x00 } }
+pad_bank_beat_jump_2 = { signal = "pad_beat_jump_2", on = "beat_jump_pad_led2", off = { type = "note", channel = 8, note = 0x21, velocity = 0x00 } }
+pad_bank_beat_jump_3 = { signal = "pad_beat_jump_3", on = "beat_jump_pad_led3", off = { type = "note", channel = 8, note = 0x22, velocity = 0x00 } }
+pad_bank_beat_jump_4 = { signal = "pad_beat_jump_4", on = "beat_jump_pad_led4", off = { type = "note", channel = 8, note = 0x23, velocity = 0x00 } }
+pad_bank_beat_jump_5 = { signal = "pad_beat_jump_5", on = "beat_jump_pad_led5", off = { type = "note", channel = 8, note = 0x24, velocity = 0x00 } }
+pad_bank_beat_jump_6 = { signal = "pad_beat_jump_6", on = "beat_jump_pad_led6", off = { type = "note", channel = 8, note = 0x25, velocity = 0x00 } }
+pad_bank_beat_jump_7 = { signal = "pad_beat_jump_7", on = "beat_jump_pad_led7", off = { type = "note", channel = 8, note = 0x26, velocity = 0x00 } }
+pad_bank_beat_jump_8 = { signal = "pad_beat_jump_8", on = "beat_jump_pad_led8", off = { type = "note", channel = 8, note = 0x27, velocity = 0x00 } }
+
+pad_bank_sampler_1 = { signal = "pad_sampler_1", on = "sampler_pad_led1", off = { type = "note", channel = 8, note = 0x30, velocity = 0x00 } }
+pad_bank_sampler_2 = { signal = "pad_sampler_2", on = "sampler_pad_led2", off = { type = "note", channel = 8, note = 0x31, velocity = 0x00 } }
+pad_bank_sampler_3 = { signal = "pad_sampler_3", on = "sampler_pad_led3", off = { type = "note", channel = 8, note = 0x32, velocity = 0x00 } }
+pad_bank_sampler_4 = { signal = "pad_sampler_4", on = "sampler_pad_led4", off = { type = "note", channel = 8, note = 0x33, velocity = 0x00 } }
+pad_bank_sampler_5 = { signal = "pad_sampler_5", on = "sampler_pad_led5", off = { type = "note", channel = 8, note = 0x34, velocity = 0x00 } }
+pad_bank_sampler_6 = { signal = "pad_sampler_6", on = "sampler_pad_led6", off = { type = "note", channel = 8, note = 0x35, velocity = 0x00 } }
+pad_bank_sampler_7 = { signal = "pad_sampler_7", on = "sampler_pad_led7", off = { type = "note", channel = 8, note = 0x36, velocity = 0x00 } }
+pad_bank_sampler_8 = { signal = "pad_sampler_8", on = "sampler_pad_led8", off = { type = "note", channel = 8, note = 0x37, velocity = 0x00 } }
+
+pad_bank_loop_1 = { signal = "pad_loop_1", on = "loop_pad_led1", off = { type = "note", channel = 8, note = 0x60, velocity = 0x00 } }
+pad_bank_loop_2 = { signal = "pad_loop_2", on = "loop_pad_led2", off = { type = "note", channel = 8, note = 0x61, velocity = 0x00 } }
+pad_bank_loop_3 = { signal = "pad_loop_3", on = "loop_pad_led3", off = { type = "note", channel = 8, note = 0x62, velocity = 0x00 } }
+pad_bank_loop_4 = { signal = "pad_loop_4", on = "loop_pad_led4", off = { type = "note", channel = 8, note = 0x63, velocity = 0x00 } }
+pad_bank_loop_5 = { signal = "pad_loop_5", on = "loop_pad_led5", off = { type = "note", channel = 8, note = 0x64, velocity = 0x00 } }
+pad_bank_loop_6 = { signal = "pad_loop_6", on = "loop_pad_led6", off = { type = "note", channel = 8, note = 0x65, velocity = 0x00 } }
+pad_bank_loop_7 = { signal = "pad_loop_7", on = "loop_pad_led7", off = { type = "note", channel = 8, note = 0x66, velocity = 0x00 } }
+pad_bank_loop_8 = { signal = "pad_loop_8", on = "loop_pad_led8", off = { type = "note", channel = 8, note = 0x67, velocity = 0x00 } }
 
 [outputs.deck_2]
-play_pause = { on = "play_led", off = { type = "note", channel = 2, note = 0x0B, velocity = 0x00 } }
-cue = { on = "cue_led", off = { type = "note", channel = 2, note = 0x0C, velocity = 0x00 } }
-sync = { on = "sync_led", off = { type = "note", channel = 2, note = 0x58, velocity = 0x00 } }
-headphone_cue = { on = "pfl_led", off = { type = "note", channel = 2, note = 0x54, velocity = 0x00 } }
-hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 10, note = 0x00, velocity = 0x00 } }
-hot_cue_2 = { on = "hot_cue_2_led", off = { type = "note", channel = 10, note = 0x01, velocity = 0x00 } }
-hot_cue_3 = { on = "hot_cue_3_led", off = { type = "note", channel = 10, note = 0x02, velocity = 0x00 } }
-hot_cue_4 = { on = "hot_cue_4_led", off = { type = "note", channel = 10, note = 0x03, velocity = 0x00 } }
-hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 10, note = 0x04, velocity = 0x00 } }
-hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 10, note = 0x05, velocity = 0x00 } }
-hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 10, note = 0x06, velocity = 0x00 } }
-hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 10, note = 0x07, velocity = 0x00 } }
+play_pause = { signal = "playing", on = "play_led", off = { type = "note", channel = 2, note = 0x0B, velocity = 0x00 } }
+cue = { signal = "cue_hold", on = "cue_led", off = { type = "note", channel = 2, note = 0x0C, velocity = 0x00 } }
+sync = { signal = "sync", on = "sync_led", off = { type = "note", channel = 2, note = 0x58, velocity = 0x00 } }
+headphone_cue = { signal = "headphone_cue", on = "pfl_led", off = { type = "note", channel = 2, note = 0x54, velocity = 0x00 } }
+quantize = { signal = "quantize", on = "quantize_led", off = { type = "note", channel = 2, note = 0x68, velocity = 0x00 } }
+loop_in = { signal = "loop_active", on = "loop_in_led", off = { type = "note", channel = 2, note = 0x10, velocity = 0x00 } }
+loop_out = { signal = "loop_active", on = "loop_out_led", off = { type = "note", channel = 2, note = 0x11, velocity = 0x00 } }
+loop_out_shift = { signal = "loop_active", on = "loop_out_shift_led", off = { type = "note", channel = 2, note = 0x4E, velocity = 0x00 } }
+exit_loop = { signal = "loop_active", on = "exit_loop_led", off = { type = "note", channel = 2, note = 0x4D, velocity = 0x00 } }
+exit_loop_shift = { signal = "loop_active", on = "exit_loop_shift_led", off = { type = "note", channel = 2, note = 0x50, velocity = 0x00 } }
+pad_mode_hot_cue = { signal = "pad_mode_hot_cue", on = "pad_mode_hot_cue_led", off = { type = "note", channel = 2, note = 0x1B, velocity = 0x00 } }
+pad_mode_beat_jump = { signal = "pad_mode_beat_jump", on = "pad_mode_beat_jump_led", off = { type = "note", channel = 2, note = 0x20, velocity = 0x00 } }
+pad_mode_sampler = { signal = "pad_mode_sampler", on = "pad_mode_sampler_led", off = { type = "note", channel = 2, note = 0x22, velocity = 0x00 } }
+pad_mode_loop_roll = { signal = "pad_mode_loop_roll", on = "pad_mode_loop_roll_led", off = { type = "note", channel = 2, note = 0x6D, velocity = 0x00 } }
+pad_mode_hot_cue_shift = { signal = "shift_held", blink = "pad_mode_hot_cue_shift_led", on = "pad_mode_hot_cue_shift_led", off = { type = "note", channel = 2, note = 0x69, velocity = 0x00 } }
+pad_mode_loop_roll_shift = { signal = "shift_held", blink = "pad_mode_loop_roll_shift_led", on = "pad_mode_loop_roll_shift_led", off = { type = "note", channel = 2, note = 0x1E, velocity = 0x00 } }
+pad_mode_beat_jump_shift = { signal = "shift_held", blink = "pad_mode_beat_jump_shift_led", on = "pad_mode_beat_jump_shift_led", off = { type = "note", channel = 2, note = 0x6B, velocity = 0x00 } }
+pad_mode_sampler_shift = { signal = "shift_held", blink = "pad_mode_sampler_shift_led", on = "pad_mode_sampler_shift_led", off = { type = "note", channel = 2, note = 0x6F, velocity = 0x00 } }
+
+# Performance pads. `pad_<mode>_<n>` is mode-gated, so the previous page's
+# bank goes dark as soon as the mode changes.
+pad_bank_hot_cue_1 = { signal = "pad_hot_cue_1", on = "hot_cue_pad_led1", off = { type = "note", channel = 11, note = 0x00, velocity = 0x00 } }
+pad_bank_hot_cue_2 = { signal = "pad_hot_cue_2", on = "hot_cue_pad_led2", off = { type = "note", channel = 11, note = 0x01, velocity = 0x00 } }
+pad_bank_hot_cue_3 = { signal = "pad_hot_cue_3", on = "hot_cue_pad_led3", off = { type = "note", channel = 11, note = 0x02, velocity = 0x00 } }
+pad_bank_hot_cue_4 = { signal = "pad_hot_cue_4", on = "hot_cue_pad_led4", off = { type = "note", channel = 11, note = 0x03, velocity = 0x00 } }
+pad_bank_hot_cue_5 = { signal = "pad_hot_cue_5", on = "hot_cue_pad_led5", off = { type = "note", channel = 11, note = 0x04, velocity = 0x00 } }
+pad_bank_hot_cue_6 = { signal = "pad_hot_cue_6", on = "hot_cue_pad_led6", off = { type = "note", channel = 11, note = 0x05, velocity = 0x00 } }
+pad_bank_hot_cue_7 = { signal = "pad_hot_cue_7", on = "hot_cue_pad_led7", off = { type = "note", channel = 11, note = 0x06, velocity = 0x00 } }
+pad_bank_hot_cue_8 = { signal = "pad_hot_cue_8", on = "hot_cue_pad_led8", off = { type = "note", channel = 11, note = 0x07, velocity = 0x00 } }
+
+pad_bank_beat_jump_1 = { signal = "pad_beat_jump_1", on = "beat_jump_pad_led1", off = { type = "note", channel = 10, note = 0x20, velocity = 0x00 } }
+pad_bank_beat_jump_2 = { signal = "pad_beat_jump_2", on = "beat_jump_pad_led2", off = { type = "note", channel = 10, note = 0x21, velocity = 0x00 } }
+pad_bank_beat_jump_3 = { signal = "pad_beat_jump_3", on = "beat_jump_pad_led3", off = { type = "note", channel = 10, note = 0x22, velocity = 0x00 } }
+pad_bank_beat_jump_4 = { signal = "pad_beat_jump_4", on = "beat_jump_pad_led4", off = { type = "note", channel = 10, note = 0x23, velocity = 0x00 } }
+pad_bank_beat_jump_5 = { signal = "pad_beat_jump_5", on = "beat_jump_pad_led5", off = { type = "note", channel = 10, note = 0x24, velocity = 0x00 } }
+pad_bank_beat_jump_6 = { signal = "pad_beat_jump_6", on = "beat_jump_pad_led6", off = { type = "note", channel = 10, note = 0x25, velocity = 0x00 } }
+pad_bank_beat_jump_7 = { signal = "pad_beat_jump_7", on = "beat_jump_pad_led7", off = { type = "note", channel = 10, note = 0x26, velocity = 0x00 } }
+pad_bank_beat_jump_8 = { signal = "pad_beat_jump_8", on = "beat_jump_pad_led8", off = { type = "note", channel = 10, note = 0x27, velocity = 0x00 } }
+
+pad_bank_sampler_1 = { signal = "pad_sampler_1", on = "sampler_pad_led1", off = { type = "note", channel = 10, note = 0x30, velocity = 0x00 } }
+pad_bank_sampler_2 = { signal = "pad_sampler_2", on = "sampler_pad_led2", off = { type = "note", channel = 10, note = 0x31, velocity = 0x00 } }
+pad_bank_sampler_3 = { signal = "pad_sampler_3", on = "sampler_pad_led3", off = { type = "note", channel = 10, note = 0x32, velocity = 0x00 } }
+pad_bank_sampler_4 = { signal = "pad_sampler_4", on = "sampler_pad_led4", off = { type = "note", channel = 10, note = 0x33, velocity = 0x00 } }
+pad_bank_sampler_5 = { signal = "pad_sampler_5", on = "sampler_pad_led5", off = { type = "note", channel = 10, note = 0x34, velocity = 0x00 } }
+pad_bank_sampler_6 = { signal = "pad_sampler_6", on = "sampler_pad_led6", off = { type = "note", channel = 10, note = 0x35, velocity = 0x00 } }
+pad_bank_sampler_7 = { signal = "pad_sampler_7", on = "sampler_pad_led7", off = { type = "note", channel = 10, note = 0x36, velocity = 0x00 } }
+pad_bank_sampler_8 = { signal = "pad_sampler_8", on = "sampler_pad_led8", off = { type = "note", channel = 10, note = 0x37, velocity = 0x00 } }
+
+pad_bank_loop_1 = { signal = "pad_loop_1", on = "loop_pad_led1", off = { type = "note", channel = 10, note = 0x60, velocity = 0x00 } }
+pad_bank_loop_2 = { signal = "pad_loop_2", on = "loop_pad_led2", off = { type = "note", channel = 10, note = 0x61, velocity = 0x00 } }
+pad_bank_loop_3 = { signal = "pad_loop_3", on = "loop_pad_led3", off = { type = "note", channel = 10, note = 0x62, velocity = 0x00 } }
+pad_bank_loop_4 = { signal = "pad_loop_4", on = "loop_pad_led4", off = { type = "note", channel = 10, note = 0x63, velocity = 0x00 } }
+pad_bank_loop_5 = { signal = "pad_loop_5", on = "loop_pad_led5", off = { type = "note", channel = 10, note = 0x64, velocity = 0x00 } }
+pad_bank_loop_6 = { signal = "pad_loop_6", on = "loop_pad_led6", off = { type = "note", channel = 10, note = 0x65, velocity = 0x00 } }
+pad_bank_loop_7 = { signal = "pad_loop_7", on = "loop_pad_led7", off = { type = "note", channel = 10, note = 0x66, velocity = 0x00 } }
+pad_bank_loop_8 = { signal = "pad_loop_8", on = "loop_pad_led8", off = { type = "note", channel = 10, note = 0x67, velocity = 0x00 } }
+[outputs.master]
+master_cue = { signal = "master_cue", on = "master_cue_led", off = { type = "note", channel = 7, note = 0x63, velocity = 0x00 } }
