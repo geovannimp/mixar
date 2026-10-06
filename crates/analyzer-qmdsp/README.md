@@ -4,9 +4,7 @@ A pure-Rust port of the two analyses [Mixxx](https://mixxx.org) runs via
 [qm-dsp](https://github.com/c4dm/qm-dsp): `AnalyzerQueenMaryBeats` (BPM/beat
 grid) and `AnalyzerQueenMaryKey` (musical key). No FFI, no C++ toolchain.
 
-Like the other experimental backends it is only wired into `analyzer-probe`;
-`analyzer-qmdsp-ffi` wraps the real C++ library and exists **only as a
-differential-test oracle** for this port.
+This is Mixar's only analysis backend; the `analyzer` facade uses it by default.
 
 ## What is ported
 
@@ -36,13 +34,15 @@ would not match.
   `medianAverage = 10`, overlap 1, decimation 8; the dominant key is the most
   frequently reported window key.
 
-## Parity
+## Accuracy
 
-`analyzer-probe` runs this crate as `qmdsp` and the C++ shim as `qmdsp-ffi`, so
-they can be compared directly. On the Hercules test pack the two agree exactly
-(BPM, key, beat count identical; beat times within ~0.2 ms) on 11/12 tracks;
-the remaining track differs by one tempo-contour near-tie because `rustfft`
-and kissfft round differently.
+Against file tags on Mixar's 12-track Hercules pack (a C++ qm-dsp reference used
+during development agreed with this port on 11/12 tracks, to within ~0.2 ms per
+beat):
+
+- **BPM** — exact 11/12, within ±1 BPM 11/12 (the one miss is a 3:2 metrical lock)
+- **Key** — exact 5/12, exact-or-relative 10/12
+- **Grid phase** — 27 ms mean vs the embedded Serato grid
 
 ## Licensing
 

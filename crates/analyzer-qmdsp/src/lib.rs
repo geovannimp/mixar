@@ -14,9 +14,8 @@
 //!   `AnalyzerQueenMaryKey`.
 //! - Window framing mirrors Mixxx's `DownmixAndOverlapHelper`.
 //!
-//! `analyzer-qmdsp-ffi` wraps the C++ qm-dsp and exists only as a
-//! differential-test oracle; this crate has no FFI and no C++ toolchain
-//! requirement.
+//! This crate is Mixar's only analysis backend. It has no FFI and no C++
+//! toolchain requirement.
 //!
 //! **Licensing:** a port of qm-dsp (GPL-2.0-or-later) is a derivative work and
 //! stays under Mixar's GPLv3.
