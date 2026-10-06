@@ -1,13 +1,16 @@
 //! Shared types and traits for offline audio analysis.
 
+mod beat_utils;
 mod config;
 mod error;
 mod loudness;
 mod merge;
 mod result;
+mod snap;
 mod traits;
 
-pub use config::{AnalysisConfig, AnalysisDurationMode, AnalysisTargets};
+pub use beat_utils::{calculate_bpm, calculate_bpm_from_seconds, ConstRegion};
+pub use config::{AnalysisConfig, AnalysisDurationMode, AnalysisTargets, SnapConfig};
 pub use error::{AnalyzerError, Result};
 pub use loudness::{
     auto_gain_db, loudness_lufs_from_replaygain_track_gain_db, AUTO_GAIN_CLAMP_DB,
@@ -15,6 +18,7 @@ pub use loudness::{
 };
 pub use merge::{merge_track_metadata, TagMetadata};
 pub use result::{AnalysisRunMetadata, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, TrackAnalysis};
+pub use snap::snap_grid;
 pub use traits::{backend_err, AudioAnalyzer};
 
 #[cfg(test)]

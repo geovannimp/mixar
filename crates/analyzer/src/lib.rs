@@ -1,4 +1,4 @@
-//! Offline audio analysis: decode files to mono PCM and run the default backend.
+//! Offline audio analysis: decode files to mono PCM and run the qm-dsp backend.
 
 mod decode;
 mod loudness;
@@ -8,16 +8,17 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 pub use analyzer_core::{
-    merge_track_metadata, AnalysisConfig, AnalysisRunMetadata, AnalysisTargets, AnalyzerError,
-    AudioAnalyzer, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, Result, TagMetadata, TrackAnalysis,
+    merge_track_metadata, snap_grid, AnalysisConfig, AnalysisRunMetadata, AnalysisTargets,
+    AnalyzerError, AudioAnalyzer, BeatGridAnalysis, BpmAnalysis, KeyAnalysis, Result, SnapConfig,
+    TagMetadata, TrackAnalysis,
 };
-pub use analyzer_stratum::{musical_key_from_stratum, StratumAnalyzer};
+pub use analyzer_qmdsp::QmdspAnalyzer;
 pub use loudness::integrated_lufs_mono;
 
-static DEFAULT_ANALYZER: OnceLock<analyzer_stratum::StratumAnalyzer> = OnceLock::new();
+static DEFAULT_ANALYZER: OnceLock<QmdspAnalyzer> = OnceLock::new();
 
-fn default_analyzer() -> &'static analyzer_stratum::StratumAnalyzer {
-    DEFAULT_ANALYZER.get_or_init(analyzer_stratum::StratumAnalyzer::new)
+fn default_analyzer() -> &'static QmdspAnalyzer {
+    DEFAULT_ANALYZER.get_or_init(QmdspAnalyzer::new)
 }
 
 /// Analyze already-decoded mono PCM (normalized ±1.0).
@@ -33,6 +34,7 @@ pub fn analyze_pcm(
         &processed.samples,
         processed.sample_rate,
     )?);
+    snap_grid(&mut track, &config.snap);
     Ok(track)
 }
 
@@ -56,6 +58,7 @@ pub fn analyze_pcm_with<A: AudioAnalyzer>(
         &processed.samples,
         processed.sample_rate,
     )?);
+    snap_grid(&mut track, &config.snap);
     Ok(track)
 }
 

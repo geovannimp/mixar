@@ -561,7 +561,7 @@ impl LibraryManager {
 
     /// Run Fast analysis when playback fields are missing (BPM, key, loudness).
     ///
-    /// Does not generate waveform peaks. Takes `&Mutex<Self>` so Stratum DSP does
+    /// Does not generate waveform peaks. Takes `&Mutex<Self>` so analysis does
     /// not hold the library lock.
     #[cfg(feature = "analysis")]
     pub fn ensure_track_analysis(library: &Mutex<Self>, id: &TrackId) -> Result<()> {

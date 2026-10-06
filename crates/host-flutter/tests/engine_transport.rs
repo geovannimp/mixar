@@ -11,6 +11,12 @@ fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
 }
 
+/// 6 s of 120 BPM clicks. A steady tone has no detectable beat, so tests that
+/// need a BPM (loop in/out, auto loop) load this instead.
+fn short_beats_fixture() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-beats.wav")
+}
+
 fn null_start_config() -> EngineStartConfig {
     EngineStartConfig {
         backend: "null".into(),
@@ -19,11 +25,24 @@ fn null_start_config() -> EngineStartConfig {
     }
 }
 
-fn load_fixture(transport: &EngineTransport, rx: &engine_core::EvtReceiver, deck_id: u16) {
+fn load_fixture_path(
+    transport: &EngineTransport,
+    rx: &engine_core::EvtReceiver,
+    deck_id: u16,
+    path: PathBuf,
+) {
     transport
-        .load_path(deck_id, short_tone_fixture().to_string_lossy().into_owned())
+        .load_path(deck_id, path.to_string_lossy().into_owned())
         .unwrap();
     recv_kind(rx, Kind::Updated, Duration::from_secs(5));
+}
+
+fn load_fixture(transport: &EngineTransport, rx: &engine_core::EvtReceiver, deck_id: u16) {
+    load_fixture_path(transport, rx, deck_id, short_tone_fixture());
+}
+
+fn load_beat_fixture(transport: &EngineTransport, rx: &engine_core::EvtReceiver, deck_id: u16) {
+    load_fixture_path(transport, rx, deck_id, short_beats_fixture());
 }
 
 fn recv_kind(rx: &engine_core::EvtReceiver, kind: Kind, timeout: Duration) -> engine_core::Evt {
@@ -212,7 +231,7 @@ fn loop_in_after_load_publishes_pending_loop_in() {
     let library = LibraryTransport::open_in_memory().unwrap();
     let transport = EngineTransport::start(&library, null_start_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
-    load_fixture(&transport, &rx, 0);
+    load_beat_fixture(&transport, &rx, 0);
     transport.loop_in(0, 0).unwrap();
     // Load-time ensure analysis supplies BPM when tags omit it.
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
@@ -234,7 +253,7 @@ fn set_auto_loop_after_load_publishes_active_loop() {
     let library = LibraryTransport::open_in_memory().unwrap();
     let transport = EngineTransport::start(&library, null_start_config()).unwrap();
     let rx = transport.subscribe_evt_all().unwrap();
-    load_fixture(&transport, &rx, 0);
+    load_beat_fixture(&transport, &rx, 0);
     transport.set_auto_loop(0, 4.0).unwrap();
     let event = recv_kind(&rx, Kind::Updated, Duration::from_secs(2));
     assert_eq!(*event.origin(), Origin::Deck(0));

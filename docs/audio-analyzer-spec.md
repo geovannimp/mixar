@@ -96,6 +96,13 @@ Import / analyze_track
 
 ## 5 — Backend Evaluation
 
+> **Update (implementation):** the shipped backend is the **pure-Rust qm-dsp
+> port** (`analyzer-qmdsp`: complex-domain onset + `TempoTrackV2` for beats,
+> `GetKeyMode` for key). The legacy `analyzer-stratum`, `analyzer-rosa`,
+> `analyzer-beatthis`, the C++ `analyzer-qmdsp-ffi` oracle, and the
+> `analyzer-probe` comparator were removed. The evaluation below is retained for
+> history.
+
 ### 5.1 Recommended primary: [stratum-dsp](https://docs.rs/stratum-dsp/latest/stratum_dsp/) 1.x
 
 Pure Rust, DJ-oriented, zero FFI in default build. MIT OR Apache-2.0.
@@ -169,8 +176,8 @@ Pure Rust MIR suite (Apache-2.0), part of the OxiMedia workspace.
 ```text
 mixar/
 ├─ analyzer-core/        # Traits, TrackAnalysis types, AnalysisConfig, errors (no I/O)
-├─ analyzer-stratum/     # stratum-dsp backend (default)
-├─ analyzer/             # Thin facade: re-exports core + default backend helpers
+├─ analyzer-qmdsp/       # pure-Rust qm-dsp (Mixxx) beat/key backend (default)
+├─ analyzer/             # Thin facade: re-exports core + backend helpers
 └─ (future) analyzer-oximedia/
 ```
 
@@ -180,9 +187,9 @@ Follows the same pattern as `library-core` / `library` / `library-adapters`: sta
 
 | Crate | May depend on | Must not depend on |
 |-------|---------------|-------------------|
-| `analyzer-core` | `serde`, `thiserror` | `codec`, `symphonia`, `stratum-dsp`, `library`, `engine-dsp` |
-| `analyzer-stratum` | `analyzer-core`, `stratum-dsp` | `library`, `engine-dsp` |
-| `analyzer` | `analyzer-core`, `analyzer-stratum`, `codec` | `engine-dsp` |
+| `analyzer-core` | `serde`, `thiserror` | `codec`, `symphonia`, `analyzer-qmdsp`, `library`, `engine-dsp` |
+| `analyzer-qmdsp` | `analyzer-core`, `rustfft`, `realfft` | `library`, `engine-dsp` |
+| `analyzer` | `analyzer-core`, `analyzer-qmdsp`, `codec` | `engine-dsp` |
 | `library` | `analyzer` (optional feature `analysis`) | direct `stratum-dsp` |
 
 `analyzer` owns the **decode → analyze** orchestration (uses existing `codec` to decode file → mono `f32`). Backends receive PCM only.
@@ -222,6 +229,25 @@ TrackAnalysis (backend-neutral)
 - **Sample format:** `f32` normalized ±1.0.
 - **Duration cap:** configurable (default: full track; tests use 30–60 s clips).
 - **Sample rate:** pass through native rate when supported; otherwise resample via existing `resampler` crate to 44.1 kHz (stratum-dsp default assumption).
+
+### Grid snapping (post-process)
+
+Backends return raw detected beats; before results leave the `analyzer` facade
+(and before `library` persists them), `analyzer_core::snap_grid` reduces the grid
+to what a DJ tool wants:
+
+1. estimate the period robustly (median inter-beat interval),
+2. fold the tempo into a canonical range (`SnapConfig::min_bpm..max_bpm`, default
+   70–140 BPM) to undo half/double-time,
+3. round it to `SnapConfig::decimals` decimal places (default 1; `0` = whole BPM),
+4. re-anchor a constant grid to best fit the detected beats (Mixxx-style phase
+   adjustment: mean residual of the beats within ±25 ms).
+
+Configure via `AnalysisConfig::snap` (`enabled`, `min_bpm`, `max_bpm`, `decimals`,
+`min_beats`); set `snap.enabled = false` to keep the raw beat list (e.g. for
+backend comparisons). This mirrors Mixxx's constant-`BeatGrid` reduction (rounded
+BPM + anchor). It cannot recover a wrong metrical family (dotted/triplet) — that
+needs a better detector.
 
 ---
 
@@ -535,7 +561,7 @@ Mitigations:
 - Serde round-trip for `TrackAnalysis`.
 - Merge policy helpers (tag vs analysis confidence).
 
-### Integration tests (`analyzer-stratum`)
+### Integration tests (`analyzer-qmdsp`)
 
 - Synthetic click track at known BPM (120, 128) — BPM within ±1.
 - Golden-file test: short fixture from `samples/` — snapshot BPM/key/grid ranges (not exact MIK match).
@@ -548,7 +574,7 @@ Mitigations:
 
 ### Acceptance (Phase 1 done when)
 
-- [ ] `cargo test -p analyzer-core -p analyzer-stratum -p analyzer` passes on Linux CI.
+- [ ] `cargo test -p analyzer-core -p analyzer-qmdsp -p analyzer` passes on Linux CI.
 - [ ] `library` with `analysis` feature: `analyze_track` persists BPM, key, and beat grid JSON.
 - [ ] Documented backend choice and confidence merge policy.
 - [ ] No new dependencies on audio callback / producer code paths.
@@ -591,9 +617,9 @@ Mitigations:
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Default backend | stratum-dsp 1.x | Pure Rust, DJ-focused, beat grid, serde; map key to musical for library |
+| Default backend | `analyzer-qmdsp` (pure-Rust qm-dsp) | Mixxx-parity beats + key, no FFI; best accuracy on the internal pack |
 | Key in library | Musical notation only | Single canonical form in DB and `TrackMetadata`; Camelot is UI/adapter concern |
-| Crate split | `analyzer-core` + `analyzer-stratum` + `analyzer` | Stable boundary; swap backends without touching library |
+| Crate split | `analyzer-core` + `analyzer-qmdsp` + `analyzer` | Stable boundary; swap backends without touching library |
 | Decode location | `analyzer` crate uses `codec` | Single decode policy; stratum-dsp does not own file I/O |
 | Playback tempo/key source | Library track metadata | Single source of truth from offline analysis; no live BPM in `engine-dsp` |
 | Tag vs analysis merge | Confidence-based | Respect good vendor tags; override stale/missing |

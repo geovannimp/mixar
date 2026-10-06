@@ -97,7 +97,7 @@ mixar/
 │  ├─ library/            # library manager (canonical writable store)
 │  ├─ library-adapters/   # third-party formats (Rekordbox, Serato, …)
 │  ├─ analyzer-core/      # offline analysis traits and types
-│  ├─ analyzer-stratum/   # stratum-dsp backend
+│  ├─ analyzer-qmdsp/     # pure-Rust qm-dsp (Mixxx) beat/key backend
 │  └─ analyzer/           # decode + analyze_file facade
 ├─ apps/gui-flutter/      # Flutter desktop UI (FRB host: crates/host-flutter)
 └─ samples/               # sample audio for local demos

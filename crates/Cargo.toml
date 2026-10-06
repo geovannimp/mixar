@@ -16,7 +16,7 @@ members = [
     "library",
     "library-adapters",
     "analyzer-core",
-    "analyzer-stratum",
+    "analyzer-qmdsp",
     "analyzer",
     "analyzer-stems",
     "controller",
