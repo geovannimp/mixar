@@ -164,13 +164,20 @@ impl AudioStream for NullStream {
         // there would leave the stream reporting itself as running with no
         // driver thread ever rendering.
         let Some(callback) = self.callback.take() else {
+            // The callback is gone if the previous driver thread panicked (the
+            // stream is then permanently dead) or if it was already consumed.
+            // Keep the diagnostic honest about both.
             return Err(anyhow::anyhow!(
-                "null stream cannot start: audio callback already consumed"
+                "null stream cannot start: audio callback unavailable \
+                 (already consumed, or the previous driver thread panicked)"
             ));
         };
 
         tracing::info!("Starting null audio stream");
-        self.start_time = Some(Instant::now());
+        // `running` is the driver's internal loop flag; the *reported* running
+        // state is `start_time`, set only once the driver exists. `thread::spawn`
+        // panics (rather than returning `Err`) if it cannot create a thread, which
+        // unwinds `start()` instead of leaving a false success behind.
         self.running.store(true, Ordering::Relaxed);
 
         let running = Arc::clone(&self.running);
@@ -207,6 +214,7 @@ impl AudioStream for NullStream {
             }
             callback
         }));
+        self.start_time = Some(Instant::now());
 
         Ok(())
     }

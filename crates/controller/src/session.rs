@@ -123,7 +123,12 @@ impl MappingSession {
     #[doc(hidden)]
     pub fn age_cc_coalesce_for_test(&mut self, key: &str) {
         if let Some(t) = self.cc_last.get_mut(key) {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+            // `checked_sub` avoids a theoretical `Instant` underflow panic right
+            // after process start, on a platform whose monotonic clock begins
+            // near zero.
+            if let Some(aged) = Instant::now().checked_sub(CC_COALESCE + Duration::from_millis(1)) {
+                *t = aged;
+            }
         }
     }
 
