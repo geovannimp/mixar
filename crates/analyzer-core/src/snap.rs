@@ -28,7 +28,7 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     let Some(grid) = track.beat_grid.as_ref() else {
         return;
     };
-    if grid.beats.len() < cfg.min_beats {
+    if grid.beats.is_empty() || grid.beats.len() < cfg.min_beats {
         return;
     }
 
@@ -56,6 +56,9 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     while bpm >= max_bpm {
         bpm /= 2.0;
     }
+    // A window narrower than an octave (`max_bpm < 2 * min_bpm`) can leave `bpm`
+    // below `min_bpm` after folding; clamp so the documented range holds.
+    bpm = bpm.clamp(min_bpm, max_bpm.max(min_bpm));
 
     // Round to the configured number of decimal places.
     let snapped = round_to_decimals(bpm, cfg.decimals);
@@ -71,6 +74,11 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     let last = f64::from(*grid.beats.last().unwrap());
     let k0 = ((first - anchor) / snapped_period).floor() as i64;
     let k1 = ((last - anchor) / snapped_period).ceil() as i64;
+    // Guard against a misconfigured (very high) `max_bpm` producing an enormous grid.
+    const MAX_GRID_BEATS: i64 = 1_000_000;
+    if k1 - k0 + 1 > MAX_GRID_BEATS {
+        return;
+    }
 
     // Downbeat phase: the bar position the detected downbeats agree on.
     let beats_per_bar = grid.beats_per_bar.max(1);
@@ -338,5 +346,35 @@ mod tests {
                 w
             );
         }
+    }
+
+    #[test]
+    fn empty_grid_is_a_no_op_even_with_min_beats_zero() {
+        let mut track = track_with(vec![], 120.0);
+        snap_grid(
+            &mut track,
+            &SnapConfig {
+                min_beats: 0,
+                ..Default::default()
+            },
+        );
+        assert!(track.beat_grid.as_ref().unwrap().beats.is_empty());
+    }
+
+    #[test]
+    fn narrow_fold_window_stays_in_range() {
+        // max_bpm < 2 * min_bpm: no octave fits; the result is clamped into range.
+        let beats: Vec<f32> = (0..64).map(|i| i as f32 * 0.6).collect();
+        let mut track = track_with(beats, 60.0);
+        snap_grid(
+            &mut track,
+            &SnapConfig {
+                min_bpm: 70.0,
+                max_bpm: 100.0,
+                ..Default::default()
+            },
+        );
+        let bpm = track.bpm.as_ref().unwrap().bpm;
+        assert!((70.0..100.0).contains(&bpm), "bpm {bpm} outside [70, 100)");
     }
 }

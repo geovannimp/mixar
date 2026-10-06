@@ -1,7 +1,9 @@
 //! Small numeric helpers ported from qm-dsp's `MathUtilities`.
 //!
 //! Only the handful of routines the beat/key paths actually use are ported; the
-//! arithmetic order matches the C++ so the port tracks Mixxx closely.
+//! arithmetic order matches the C++ so the port tracks Mixxx closely. Helpers
+//! that exist in std (iterator sums/max, `u32::next_power_of_two`) are used
+//! directly; `next_power_of_two` itself only wraps the unsigned std method.
 
 use std::f64::consts::PI;
 
@@ -16,26 +18,13 @@ fn mod_floor(x: f64, y: f64) -> f64 {
     x - y * (x / y).floor()
 }
 
-/// `MathUtilities::isPowerOfTwo`.
-pub fn is_power_of_two(x: i32) -> bool {
-    x >= 1 && (x & (x - 1)) == 0
-}
-
-/// `MathUtilities::nextPowerOfTwo`.
+/// `MathUtilities::nextPowerOfTwo`. Std only provides this for unsigned
+/// integers, so wrap `u32::next_power_of_two` with qm-dsp's `x < 1 → 1` rule.
 pub fn next_power_of_two(x: i32) -> i32 {
-    if is_power_of_two(x) {
-        return x;
-    }
     if x < 1 {
         return 1;
     }
-    let mut x = x;
-    let mut n = 1;
-    while x != 0 {
-        x >>= 1;
-        n <<= 1;
-    }
-    n
+    (x as u32).next_power_of_two() as i32
 }
 
 /// `MathUtilities::mean`.
@@ -43,11 +32,7 @@ pub fn mean(data: &[f64]) -> f64 {
     if data.is_empty() {
         return 0.0;
     }
-    let mut sum = 0.0;
-    for &v in data {
-        sum += v;
-    }
-    sum / data.len() as f64
+    data.iter().sum::<f64>() / data.len() as f64
 }
 
 /// `MathUtilities::mean(data, start, count)` — sequential sum, as in qm-dsp.
@@ -55,60 +40,54 @@ pub fn mean_range(data: &[f64], start: usize, count: usize) -> f64 {
     if count == 0 {
         return 0.0;
     }
-    let mut sum = 0.0;
-    for i in 0..count {
-        sum += data[start + i];
-    }
-    sum / count as f64
+    data[start..start + count].iter().sum::<f64>() / count as f64
 }
 
 /// `MathUtilities::getMax` (array form): running max seeded with `data[0]`,
 /// updated on strict `>`. Returns `(index, max)`. Empty input yields `(0, 0.0)`.
+///
+/// Not `Iterator::max_by`: that returns the *last* maximal element, whereas
+/// qm-dsp keeps the first (strict `>`).
 pub fn get_max_index(data: &[f64]) -> (usize, f64) {
-    let mut max = if data.is_empty() { 0.0 } else { data[0] };
-    let mut index = 0;
-    for (i, &v) in data.iter().enumerate() {
-        if v > max {
-            max = v;
-            index = i;
-        }
-    }
-    (index, max)
+    data.iter().enumerate().fold(
+        (0usize, data.first().copied().unwrap_or(0.0)),
+        |best, (i, &v)| {
+            if v > best.1 {
+                (i, v)
+            } else {
+                best
+            }
+        },
+    )
 }
 
 /// TempoTrackV2's `get_max_val`: max seeded with `0.0` (so all-negative input
-/// yields `0.0`), updated on strict `>`.
+/// yields `0.0`).
 pub fn max_val(data: &[f64]) -> f64 {
-    let mut max = 0.0;
-    for &v in data {
-        if max < v {
-            max = v;
-        }
-    }
-    max
+    data.iter().copied().fold(0.0_f64, f64::max)
 }
 
-/// TempoTrackV2's `get_max_ind`: argmax seeded with `0`, updated on strict `>`.
+/// TempoTrackV2's `get_max_ind`: argmax seeded with `0`; the first index wins on
+/// ties (qm-dsp uses strict `>`), so this is not `Iterator::max_by`.
 pub fn max_ind(data: &[f64]) -> usize {
-    let mut max = 0.0;
-    let mut ind = 0;
-    for (i, &v) in data.iter().enumerate() {
-        if max < v {
-            max = v;
-            ind = i;
-        }
-    }
-    ind
+    data.iter()
+        .enumerate()
+        .fold(
+            (0usize, 0.0_f64),
+            |best, (i, &v)| {
+                if v > best.1 {
+                    (i, v)
+                } else {
+                    best
+                }
+            },
+        )
+        .0
 }
 
 /// In-place unit-max normalisation (`NormaliseUnitMax`).
 pub fn normalise_unit_max(data: &mut [f64]) {
-    let mut max = 0.0;
-    for &v in data.iter() {
-        if v.abs() > max {
-            max = v.abs();
-        }
-    }
+    let max = data.iter().copied().fold(0.0_f64, |m, v| m.max(v.abs()));
     if max != 0.0 {
         for v in data.iter_mut() {
             *v /= max;
@@ -151,6 +130,7 @@ mod tests {
         assert_eq!(next_power_of_two(2208), 4096);
         assert_eq!(next_power_of_two(1024), 1024);
         assert_eq!(next_power_of_two(0), 1);
+        assert_eq!(next_power_of_two(-3), 1);
     }
 
     #[test]
@@ -172,5 +152,13 @@ mod tests {
     #[test]
     fn pitch_a4_is_concert_a() {
         assert!((pitch_frequency(69, 0.0, 440.0) - 440.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn max_helpers_keep_first_index_and_floor_at_zero() {
+        assert_eq!(max_val(&[-1.0, -2.0]), 0.0);
+        assert_eq!(max_ind(&[3.0, 3.0]), 0);
+        assert_eq!(get_max_index(&[3.0, 3.0]), (0, 3.0));
+        assert_eq!(get_max_index(&[]), (0, 0.0));
     }
 }

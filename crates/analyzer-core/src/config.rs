@@ -96,7 +96,7 @@ mod duration_mode_tests {
 /// Grid snapping: reduce a raw detected beat list to a clean constant-tempo grid.
 ///
 /// See [`crate::snap_grid`]. Fold range `[min_bpm, max_bpm)` undoes half/double
-/// time; `tolerance_bpm` controls integer-vs-half-BPM snapping.
+/// time; `decimals` sets how the snapped BPM is rounded.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SnapConfig {
     /// Enable snapping in the analyzer facade.
