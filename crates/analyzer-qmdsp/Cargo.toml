@@ -8,6 +8,8 @@ description = "Pure-Rust port of Mixxx's qm-dsp analysis (beats + key)"
 
 [dependencies]
 analyzer-core = { path = "../analyzer-core" }
+# RFC 3339 `analyzed_at` timestamps (same as `library`).
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 # FFT: rustfft for the complex constant-Q kernel, realfft for the real-input
 # STFT/CQT front ends. Both are pure Rust.
 rustfft = "6"

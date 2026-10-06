@@ -117,6 +117,7 @@ name = "analyzer-qmdsp"
 version = "0.1.0"
 dependencies = [
  "analyzer-core",
+ "chrono",
  "realfft",
  "rustfft",
 ]

@@ -270,14 +270,10 @@ fn beat_regularity(beats: &[f32]) -> f64 {
 }
 
 mod time {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
+    /// RFC 3339 UTC timestamp, e.g. `2026-10-06T00:00:00Z` (matches
+    /// `AnalysisRunMetadata::analyzed_at` and `library`'s history timestamps).
     pub fn now_rfc3339() -> String {
-        let secs = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        format!("{secs}")
+        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
     }
 }
 

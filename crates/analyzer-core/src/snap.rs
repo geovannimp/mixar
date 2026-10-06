@@ -60,11 +60,19 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     // below `min_bpm` after folding; clamp so the documented range holds.
     bpm = bpm.clamp(min_bpm, max_bpm.max(min_bpm));
 
-    // Round to the configured number of decimal places.
+    // Round to the configured number of decimal places. Rounding can push a
+    // folded value back up to (or over) the exclusive upper bound, so fold again
+    // and clamp into `[min_bpm, max_bpm)`.
     let snapped = round_to_decimals(bpm, cfg.decimals);
     if !snapped.is_finite() || snapped <= 0.0 {
         return;
     }
+    let snapped = if snapped >= max_bpm {
+        snapped / 2.0
+    } else {
+        snapped
+    }
+    .max(min_bpm);
     let snapped_period = 60.0 / snapped;
 
     // Best-fit anchor (Mixxx `adjustPhase`).
@@ -117,12 +125,12 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     }
 }
 
-/// Round to `decimals` decimal places (Rust's formatter uses round-half-to-even,
-/// so e.g. `124.25 -> 124.2` and `124.05 -> 124.0`).
+/// Round to `decimals` decimal places, half-to-even (so `124.25 -> 124.2` and
+/// `124.05 -> 124.0`). Matches the previous formatter-based behavior without
+/// the per-call `String` allocation.
 fn round_to_decimals(x: f64, decimals: u8) -> f64 {
-    format!("{:.*}", decimals as usize, x)
-        .parse::<f64>()
-        .unwrap_or(x)
+    let factor = 10f64.powi(i32::from(decimals));
+    (x * factor).round_ties_even() / factor
 }
 
 fn median_period(beats: &[f32]) -> Option<f64> {
@@ -174,6 +182,9 @@ fn downbeat_phase(grid: &BeatGridAnalysis, beats_per_bar: i64) -> i64 {
     }
     let mut counts = vec![0usize; beats_per_bar as usize];
     for &db in &grid.downbeats {
+        if !db.is_finite() {
+            continue;
+        }
         let idx = nearest_beat_index(&grid.beats, db);
         counts[(idx as i64).rem_euclid(beats_per_bar) as usize] += 1;
     }
@@ -376,5 +387,23 @@ mod tests {
         );
         let bpm = track.bpm.as_ref().unwrap().bpm;
         assert!((70.0..100.0).contains(&bpm), "bpm {bpm} outside [70, 100)");
+    }
+
+    #[test]
+    fn rounding_does_not_leave_the_canonical_range() {
+        // 139.96 BPM with decimals=0 rounds to 140 (== max, which is exclusive);
+        // it must fold back into [70, 140).
+        let period = 60.0_f64 / 139.96;
+        let beats: Vec<f32> = (0..64).map(|i| (0.2 + i as f64 * period) as f32).collect();
+        let mut track = track_with(beats, 139.96);
+        snap_grid(
+            &mut track,
+            &SnapConfig {
+                decimals: 0,
+                ..Default::default()
+            },
+        );
+        let bpm = track.bpm.as_ref().unwrap().bpm;
+        assert!((70.0..140.0).contains(&bpm), "bpm {bpm} outside [70, 140)");
     }
 }
