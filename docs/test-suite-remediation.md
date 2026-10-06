@@ -24,20 +24,30 @@ entirely; 423 tests now complete in ~0.01s.
 - [x] P1.1 `CARGO_INCREMENTAL=0` in test/build/lint workflows (the 1.6 GB
       `target/debug/incremental` tree no longer bloats the shared rust-cache entry).
       Kept out of `[profile.dev]` so local incremental builds stay fast.
-- [x] P1.2 Investigated the rust-cache race. Evidence from the run log:
-      restore was a partial match (`full match: false`, 805 MB of a 16 GB target,
-      different env hash) and the save was rejected
-      (`another job may be creating this cache`). **No speculative workflow change
-      made** — the shared-key strategy is a deliberate, documented decision and
-      the exact cause (rust-cache key/pruning) is not determinable from one log.
-      Recommended experiment for the team: bump `prefix-key` to `v1-rust` and give
-      `build.yml` (the `--all-targets --all-features` superset) `save-if`, or accept
-      three cold builds. Documented rather than guessed.
-- [x] P1.3/P1.4 `rust:test-mappings` now actually runs: added a `Check mapping
-      bundles` step to `test.yml` (invoked by name, since `moon run :test` only
-      matches tasks named `test`). moon rejects `..` in `inputs`, so the bundles
-      are additionally validated by the new `crates/controller/tests/map_check.rs`
-      under the normal `test` task.
+- [x] P1.2 Investigated the rust-cache race. **No speculative workflow change
+      made** — the exact cause needs the A/B below, and a wrong change makes cold
+      builds worse. Evidence gathered from this PR's own runs:
+      - one run had a partial restore (`full match: false`, 805 MB of a 16 GB
+        target, different env hash) and its save was rejected with *"another job
+        may be creating this cache"*;
+      - another restored **nothing** (`Cache Rust` 0s);
+      - when the cache did hit, `Run tests` took **103s**; with no cache, **359s**
+        (same commit, same runner) — i.e. the ~5 minutes of variance is entirely
+        cache hit rate, not the tests.
+      Recommended experiment for the team: bump rust-cache `prefix-key` to
+      `v1-rust` (so the three jobs stop reusing each other's feature-set-specific
+      entries) and give `build.yml` (the `--all-targets --all-features` superset)
+      `save-if` so one job owns the write. Measure cold vs warm on both sides.
+- [x] P1.3/P1.4 Mapping validation, two parts:
+      - `rust:test-mappings` had never run in CI (`moon run :test` only matches
+        tasks named `test`, and no workflow runs `moon ci`).
+      - The fix is `crates/controller/tests/map_check.rs`, which runs under the
+        normal `test` task and covers the shipped bundles plus the empty-tree and
+        typo'd-`script` cases. A separate `cargo run --bin map-check` CI step was
+        dropped after measuring ~40s of extra linking for identical coverage.
+      - moon rejects `..` in `inputs` and `mappings/` is outside this project
+        root, so the bundles cannot be a cached input for the moon task; the task
+        is kept for manual use.
 
 ## Phase 2 — Engine correctness
 
