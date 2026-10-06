@@ -175,9 +175,12 @@ impl AudioStream for NullStream {
 
         tracing::info!("Starting null audio stream");
         // `running` is the driver's internal loop flag; the *reported* running
-        // state is `start_time`, set only once the driver exists. `thread::spawn`
-        // panics (rather than returning `Err`) if it cannot create a thread, which
-        // unwinds `start()` instead of leaving a false success behind.
+        // state is `start_time`, set only once the driver exists.
+        //
+        // `thread::spawn` panics (rather than returning `Err`) if it cannot create
+        // a thread. At that point the callback has already been taken, so the
+        // stream is unusable — as with a callback panic, it must be discarded
+        // rather than restarted; `start()` says so explicitly.
         self.running.store(true, Ordering::Relaxed);
 
         let running = Arc::clone(&self.running);
@@ -279,8 +282,9 @@ impl Drop for NullStream {
         // callback and an `Arc<AtomicBool>` and can never touch — or wait on —
         // this stream. The driver also sleeps in bounded slices (`MAX_SLICE`), so
         // teardown is bounded by that slice rather than by the buffer period.
-        // The one residual case is a callback that never returns at all; the
-        // engine's own callback is a lock-free ring pop, so it cannot.
+        // The remaining assumption is the `AudioCallback` contract in
+        // `audio-core`: `render` must be real-time safe and must not block, so it
+        // always returns and the driver always observes the stop flag.
         if self.driver.is_some() {
             let _ = self.stop();
         }

@@ -279,13 +279,20 @@ mod tests {
         let _restore_locale = LocaleGuard::capture();
 
         // Pick the first installed locale that really formats with a comma.
+        let mut installed_but_dot = 0usize;
         let available = COMMA_LOCALES.iter().find_map(|name| {
             let c = std::ffi::CString::new(*name).ok()?;
             let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
             if set.is_null() {
+                // Not installed on this host.
                 return None;
             }
-            format_float(0.5).contains(',').then_some(*name)
+            if format_float(0.5).contains(',') {
+                Some(*name)
+            } else {
+                installed_but_dot += 1;
+                None
+            }
         });
 
         let forced = available.map(|_| {
@@ -294,7 +301,10 @@ mod tests {
         });
 
         let s = forced.unwrap_or_else(|| {
-            panic!("no comma-decimal locale available (tried {COMMA_LOCALES:?})")
+            panic!(
+                "no comma-decimal locale available (tried {COMMA_LOCALES:?}); \
+                 {installed_but_dot} are installed but format with a dot"
+            )
         });
         assert!(
             s.contains('.') && !s.contains(','),

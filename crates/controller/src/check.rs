@@ -67,8 +67,11 @@ fn require_fn(rt: &ScriptRuntime, path: &str, name: &str) -> Result<(), LoadErro
 
 /// Check every immediate subdirectory of `mappings_root`.
 ///
-/// Errors if the root holds no bundle directories at all: a wrong path used to
-/// report "0 bundle(s) ok" and exit successfully, so CI never noticed.
+/// Errors if the root contains no subdirectories at all: a wrong path used to
+/// report "0 bundle(s) ok" and exit 0, so CI never noticed. (A root holding
+/// unrelated subdirectories already fails — each one is reported as a bundle
+/// missing its `device.toml` — so this guard exists purely for the empty or
+/// files-only case.)
 pub fn check_all_mappings(mappings_root: &Path) -> Result<Vec<String>, Vec<(String, LoadError)>> {
     let mut ok = Vec::new();
     let mut err = Vec::new();
@@ -84,7 +87,7 @@ pub fn check_all_mappings(mappings_root: &Path) -> Result<Vec<String>, Vec<(Stri
             )]);
         }
     };
-    let mut bundle_dirs = 0usize;
+    let mut subdirs_seen = 0usize;
     for entry in read {
         let entry = match entry {
             Ok(entry) => entry,
@@ -103,14 +106,14 @@ pub fn check_all_mappings(mappings_root: &Path) -> Result<Vec<String>, Vec<(Stri
         if !path.is_dir() {
             continue;
         }
-        bundle_dirs += 1;
+        subdirs_seen += 1;
         let name = entry.file_name().to_string_lossy().into_owned();
         match check_bundle_dir(&path) {
             Ok(()) => ok.push(name),
             Err(e) => err.push((name, e)),
         }
     }
-    if bundle_dirs == 0 {
+    if subdirs_seen == 0 {
         err.push((
             mappings_root.display().to_string(),
             LoadError::Validation(format!(
