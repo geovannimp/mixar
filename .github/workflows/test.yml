@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LEFTHOOK: '0'
+  # Incremental artifacts are ~1.6 GB of the rust-cache entry and only help a
+  # hot local loop; disable them in CI. Local dev keeps incremental on.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   test:
@@ -43,3 +46,10 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      # The shipped mapping bundles are validated by
+      # `crates/controller/tests/map_check.rs` (`shipped_mappings_are_valid`)
+      # inside the test task above, so no separate `map-check` invocation is
+      # needed here — `cargo run -p controller --bin map-check` costs ~40s of
+      # extra linking on a cold cache for identical coverage. Run it by hand with
+      # `npx moon run rust:test-mappings`.

@@ -1,48 +1,26 @@
 //! Integration: sync/master + speed follow on the cmd/evt bus.
 
+mod common;
+
+use common::{recv_evt_kind, recv_evt_where, source_with_bpm};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, SyncMode};
-use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
+use engine_core::{AudioConfig, EngineConfig, EngineSession};
 use omnibus::Filter;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
-fn recv_evt_kind(
-    sub: &omnibus::BusReceiver<Origin, Kind, std::sync::Arc<[u8]>>,
-    kind: Kind,
-) -> omnibus::Event<Origin, Kind, std::sync::Arc<[u8]>> {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == kind {
-            return (*event).clone();
-        }
-    }
-    panic!("timeout waiting for evt kind {kind:?}");
-}
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
-
-fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
-    AudioSource::File(FileAudioSource::new(
-        TrackId::new(id),
-        short_tone_fixture(),
-        TrackMetadata {
-            bpm: Some(bpm),
-            ..Default::default()
-        },
-    ))
-}
+/// ±25% tempo fader span, wide enough that the 120→100 BPM sync ratio (1.2×)
+/// is reachable instead of saturating the default ±6% fader.
+const TEST_TEMPO_RANGE: f32 = 0.25;
 
 fn null_session_with_synced_decks() -> EngineSession {
     let config = EngineConfig {
         backend: "null".to_string(),
+        audio: Some(AudioConfig {
+            resampler_quality: None,
+            sampler_strip_route: None,
+            default_tempo_range: Some(TEST_TEMPO_RANGE),
+            tempo_range_steps: None,
+            default_key_lock: None,
+        }),
         ..Default::default()
     };
     let session = EngineSession::new(config).expect("session");
@@ -85,8 +63,12 @@ fn toggle_sync_publishes_tempo_mode_and_matched_speed() {
     };
     assert_eq!(id, 1);
     assert_eq!(sync_mode, SyncMode::Tempo);
-    // Master 120 @ center → slave 100 needs 1.2×; ±6% fader saturates.
-    assert!((speed - 0.0).abs() < 0.01, "speed={speed}");
+    // Master 120 BPM at unity → slave 100 BPM needs ratio 1.2×.
+    // playback_ratio_to_norm(1.2, ±0.25) = 0.5 − (1.2−1.0)/0.5 = 0.1.
+    assert!(
+        (speed - 0.1).abs() < 1e-3,
+        "slave should be synced to the master tempo, speed={speed}"
+    );
 }
 
 #[test]
@@ -111,41 +93,36 @@ fn master_speed_change_updates_synced_slave() {
             Origin::Deck(0),
             Kind::SetSpeed,
             encode_cmd_body(&CmdBody::SetSpeed {
-                // Center−ish fast: with ±6%, n=0.125 → ratio ≈ 1.045.
-                speed: 0.125,
+                // Slower than unity: norm 0.8 with ±0.25 → ratio
+                // 1 + (0.5 − 0.8)·0.5 = 0.85, so the slave target
+                // 0.85 × 120/100 = 1.02 stays inside the fader span.
+                speed: 0.8,
                 soft_takeover: false,
             })
             .unwrap(),
         )
         .expect("speed");
 
-    // Master update first, then slave follow.
-    let mut slave_speed = None;
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = evt
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() != Kind::Updated {
-            continue;
-        }
-        let EvtBody::DeckUpdated { id, speed, .. } =
-            decode_evt_body(event.payload()).expect("decode")
-        else {
-            continue;
-        };
-        if id == 1 {
-            slave_speed = Some(speed);
-            break;
-        }
-    }
-    let slave_speed = slave_speed.expect("slave Updated");
-    // Master ~1.045× @ 120 → slave 100 needs ~1.254×; ±6% saturates at 0.
+    // Master update first, then slave follow. Filter on the slave's deck id via
+    // the shared helper so this wait reports timeouts/disconnects identically to
+    // every other receive in the suite.
+    let event = recv_evt_where(&evt, Kind::Updated, |event| {
+        matches!(
+            decode_evt_body(event.payload()),
+            Ok(EvtBody::DeckUpdated { id: 1, .. })
+        )
+    });
+    let EvtBody::DeckUpdated { speed, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    // Master ratio 0.85 → slave needs 0.85 × 120/100 = 1.02×.
+    // playback_ratio_to_norm(1.02, ±0.25) = 0.5 − 0.02/0.5 = 0.46.
+    // Asserting the derived value (not 0.0) means deleting `apply_tempo_sync`
+    // now fails this test.
     assert!(
-        (slave_speed - 0.0).abs() < 0.01,
-        "slave_speed={slave_speed}"
+        (speed - 0.46).abs() < 1e-3,
+        "slave should follow the master's new tempo, slave_speed={speed}"
     );
 }
 

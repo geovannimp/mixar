@@ -118,6 +118,29 @@ impl MappingSession {
         &self.snapshot
     }
 
+    /// Test-only: backdate a CC's coalesce timestamp so its next tick publishes
+    /// immediately, instead of waiting out the ≤60 Hz window with a real sleep.
+    ///
+    /// Gated behind `test-utils` (plus `cfg(test)` for in-crate use) so it is not
+    /// part of the public API of a production build; the `session_input`
+    /// integration test is the only external caller.
+    #[cfg(any(test, feature = "test-utils"))]
+    #[doc(hidden)]
+    pub fn age_cc_coalesce_for_test(&mut self, key: &str) {
+        // Fail loudly on an unknown key: silently leaving the window un-aged
+        // would make the test exercise a real-clock coalesce and pass anyway.
+        let t = self
+            .cc_last
+            .get_mut(key)
+            .unwrap_or_else(|| panic!("age_cc_coalesce_for_test: no coalesce window for `{key}`"));
+        // `checked_sub` guards the theoretical `Instant` underflow in the first
+        // milliseconds of process uptime; if it ever fired, the test would
+        // silently exercise an un-aged window, so fail loudly instead.
+        *t = Instant::now()
+            .checked_sub(CC_COALESCE + Duration::from_millis(1))
+            .expect("Instant underflowed ageing the coalesce window");
+    }
+
     /// LED/toggle-pause and the `trigger_hot_cue` shortcut use these positions.
     /// MIDI `pad n` publishes named press/release; it does not look up cue ms.
     pub fn set_deck_hot_cues(
@@ -723,9 +746,7 @@ mod tests {
         }
 
         // Age coalesce window so the max CC publishes immediately.
-        if let Some(t) = s.cc_last.get_mut("deck_1.tempo") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.tempo");
 
         // CC 127 → inverted → 0.0
         s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
@@ -759,9 +780,7 @@ mod tests {
         );
 
         // Window elapsed → flush publishes the latest (127).
-        if let Some(t) = s.cc_last.get_mut("deck_1.volume") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.volume");
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1].2 {
@@ -793,9 +812,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x22, 67], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1, "relative burst must coalesce by sum");
 
-        if let Some(t) = s.cc_last.get_mut("deck_1.jog_turn") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.jog_turn");
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1].2 {

@@ -164,9 +164,6 @@ fn set_deck_vu_sends_cc_with_mixxx_scale() {
 
 #[test]
 fn browse_relative_cc_publishes_library_navigation() {
-    use std::thread;
-    use std::time::Duration;
-
     let mut s = session();
     let mut bus = CaptureBus {
         cmds: vec![],
@@ -182,8 +179,8 @@ fn browse_relative_cc_publishes_library_navigation() {
         bus.library[0].2,
         library_api::EvtBody::Navigate { delta: 1 }
     ));
-    // Wait out ≤60 Hz coalesce so the next tick publishes alone.
-    thread::sleep(Duration::from_millis(20));
+    // Age the ≤60 Hz coalesce window so the next tick publishes alone.
+    s.age_cc_coalesce_for_test("master.browse");
     // −1
     s.handle_midi(&[0xB6, 0x40, 0x7F], &mut bus, &mut midi);
     assert_eq!(bus.library.len(), 2);

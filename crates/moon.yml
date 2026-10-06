@@ -98,6 +98,14 @@ tasks:
     options:
       runInCI: true
 
+  # Manual / future `moon ci` entry point for the mapping validator. The shipped
+  # bundles are validated in CI by `crates/controller/tests/map_check.rs`
+  # (`shipped_mappings_are_valid`), which runs under the normal `test` task — so
+  # no workflow invokes this task, and invoking it separately costs ~40s of extra
+  # linking on a cold cache for identical coverage.
+  #
+  # moon rejects `..` in `inputs` and `mappings/` lives at the repo root rather
+  # than under this project, so the bundles cannot be a cached input here.
   test-mappings:
     command: 'cargo'
     args:

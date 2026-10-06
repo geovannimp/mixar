@@ -829,6 +829,7 @@ dependencies = [
 name = "controller"
 version = "0.1.0"
 dependencies = [
+ "controller",
  "engine-api",
  "library-api",
  "midir",

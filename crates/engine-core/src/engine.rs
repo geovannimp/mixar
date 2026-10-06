@@ -30,7 +30,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
 
 const NUM_DECKS: usize = 2;
 
@@ -371,12 +370,10 @@ impl Engine {
             );
         });
 
-        const PRODUCER_WARMUP_MS: u64 = 200;
-        thread::sleep(Duration::from_millis(PRODUCER_WARMUP_MS));
-        tracing::info!(
-            "Producer warmup done ({} ms), starting stream(s)",
-            PRODUCER_WARMUP_MS
-        );
+        // No warm-up sleep: `create_device_ring_buffer` already pre-fills the ring
+        // with silence synchronously, and the producer is parked on `filled >=
+        // target_fill` until a device callback drains it. A fixed sleep here only
+        // added startup latency (200 ms per start, ~46 starts in the test suite).
 
         Ok(producer_thread)
     }

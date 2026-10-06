@@ -1,33 +1,12 @@
 //! Integration: sampler trigger/end on the bus.
 
+mod common;
+
+use common::{recv_evt_kind, short_tone_fixture};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
 use engine_core::{EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
-
-fn recv_evt_kind(
-    sub: &omnibus::BusReceiver<Origin, Kind, std::sync::Arc<[u8]>>,
-    kind: Kind,
-) -> omnibus::Event<Origin, Kind, std::sync::Arc<[u8]>> {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == kind {
-            return (*event).clone();
-        }
-    }
-    panic!("timeout waiting for evt kind {kind:?}");
-}
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
 
 fn sample_source() -> AudioSource {
     AudioSource::File(FileAudioSource::new(
@@ -79,6 +58,9 @@ fn trigger_and_end_sampler_roundtrip() {
     else {
         panic!("expected DeckUpdated");
     };
+    // `pad_mode` mirrors engine state (the fixture configured Sampler). The
+    // sampler voice has no wire representation, so this is the strongest check
+    // available: the press produced a deck snapshot still in sampler mode.
     assert_eq!(pad_mode, PadMode::Sampler);
 
     session
@@ -90,7 +72,11 @@ fn trigger_and_end_sampler_roundtrip() {
         .expect("end");
 
     let event = recv_evt_kind(&evt, Kind::Updated);
-    assert_eq!(*event.kind(), Kind::Updated);
+    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated on release");
+    };
+    assert_eq!(pad_mode, PadMode::Sampler);
 }
 
 #[test]
@@ -125,7 +111,15 @@ fn sampler_pad_press_release_without_sampler_mode() {
         )
         .expect("press");
     let event = recv_evt_kind(&evt, Kind::Updated);
-    assert_eq!(*event.kind(), Kind::Updated);
+    // `Kind::SamplerPadPress` is dispatched straight to
+    // `Engine::sampler_pad_press` in `control.rs`; it does not go through the
+    // `pad_mode` router, so this asserts only that the sampler command leaves the
+    // deck's pad mode untouched (it starts, and stays, on the HotCue default).
+    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
+    assert_eq!(pad_mode, PadMode::HotCue);
 
     session
         .publish_cmd(
@@ -135,7 +129,11 @@ fn sampler_pad_press_release_without_sampler_mode() {
         )
         .expect("release");
     let event = recv_evt_kind(&evt, Kind::Updated);
-    assert_eq!(*event.kind(), Kind::Updated);
+    let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated on release");
+    };
+    assert_eq!(pad_mode, PadMode::HotCue);
 
     session
         .publish_cmd(
@@ -165,8 +163,11 @@ fn sampler_pad_press_release_without_sampler_mode() {
     let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
         panic!("expected Error");
     };
+    // Anchor to the slot index as well as the semantic word: a bare
+    // `contains("0")` would match any message carrying a 0 (e.g. a frame count),
+    // while the engine's message is `"Sampler slot {slot} is empty"`.
     assert!(
-        !message.is_empty(),
-        "cleared slot should fail trigger: {message}"
+        message.contains("slot 0") && message.contains("empty"),
+        "cleared slot should fail trigger with an empty-slot error for slot 0, got: {message}"
     );
 }

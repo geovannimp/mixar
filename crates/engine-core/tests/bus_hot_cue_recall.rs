@@ -1,44 +1,11 @@
 //! Integration: trigger hot cue + recall saved loop on the bus.
 
+mod common;
+
+use common::{recv_evt_kind, source_with_bpm};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
-
-fn recv_evt_kind(
-    sub: &omnibus::BusReceiver<Origin, Kind, std::sync::Arc<[u8]>>,
-    kind: Kind,
-) -> omnibus::Event<Origin, Kind, std::sync::Arc<[u8]>> {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == kind {
-            return (*event).clone();
-        }
-    }
-    panic!("timeout waiting for evt kind {kind:?}");
-}
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
-
-fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
-    AudioSource::File(FileAudioSource::new(
-        TrackId::new(id),
-        short_tone_fixture(),
-        TrackMetadata {
-            bpm: Some(bpm),
-            ..Default::default()
-        },
-    ))
-}
 
 fn null_session_loaded() -> EngineSession {
     let config = EngineConfig {

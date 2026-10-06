@@ -13,7 +13,15 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-const RECV_TIMEOUT: Duration = Duration::from_millis(100);
+/// How long each worker blocks (on its cmd bus or its stem queue) before
+/// re-checking the shutdown flag.
+///
+/// This bounds how long `Drop` waits to join an idle worker, and every
+/// `LibraryTransport` drop pays it (15+ per `host-flutter` test run), so it is
+/// kept short. The timeout is a no-op poll in both loops, which differ in how it
+/// is reported: the cmd loop's `omnibus` receiver returns `Ok(None)`, the stem
+/// loop's `std::sync::mpsc` receiver returns `Err(RecvTimeoutError::Timeout)`.
+const RECV_TIMEOUT: Duration = Duration::from_millis(25);
 
 /// Host-owned library cmd worker (JoinHandle must not live inside `Mutex<LibraryManager>`).
 pub struct LibraryWorker {

@@ -27,6 +27,8 @@ pub use device::{
     AudioHints, DeviceFile, SectionName, TomlSchemaRef, SECTION_CUSTOM, SECTION_MASTER,
     SECTION_SAMPLER,
 };
+#[cfg(any(test, feature = "test-utils"))]
+pub use engine::report_script_binding_failure;
 pub use engine::{
     ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,
 };

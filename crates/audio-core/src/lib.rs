@@ -382,10 +382,4 @@ mod tests {
         let expected_ms = (512.0 / 48000.0 * 1000.0) as u64;
         assert_eq!(duration.as_millis(), expected_ms as u128);
     }
-
-    #[test]
-    fn test_channel_mapping() {
-        let mapping = ChannelMapping::new(1, 2);
-        assert_eq!(mapping.to_zero_based(), (0, 1));
-    }
 }

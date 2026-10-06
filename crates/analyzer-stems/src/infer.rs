@@ -355,9 +355,17 @@ mod tests {
         assert_eq!(chunk[4 * 2 + 1], chunk[2 * 2 + 1]);
     }
 
+    /// ONNX source order and Mixar [`crate::STEM_NAMES`] must agree element-wise.
     #[test]
-    fn source_order_maps_onnx_to_mixar() {
-        // ONNX and Mixar STEM_NAMES: drums, bass, other, vocals
-        assert_eq!(SOURCE_ORDER, [0, 1, 2, 3]);
+    fn stem_names_match_onnx_source_order() {
+        const CANONICAL: [&str; SOURCES] = ["drums", "bass", "other", "vocals"];
+        assert_eq!(crate::STEM_NAMES, CANONICAL);
+        for (stem_index, &onnx_src) in SOURCE_ORDER.iter().enumerate() {
+            assert_eq!(
+                crate::STEM_NAMES[stem_index],
+                CANONICAL[onnx_src],
+                "Mixar stem {stem_index} maps to ONNX source {onnx_src}"
+            );
+        }
     }
 }

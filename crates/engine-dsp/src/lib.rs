@@ -142,7 +142,9 @@ impl DspEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use audio_core::LoadedAudio;
     use std::collections::HashMap;
+    use std::sync::Arc;
 
     #[test]
     fn test_dsp_engine_creation() {
@@ -170,12 +172,43 @@ mod tests {
     #[test]
     fn test_dsp_engine_processing() {
         let mut engine = DspEngine::new(48000, 512, 2, "medium", SamplerStripRoute::BeforeStrip);
+
+        // An empty engine only proves silence, so load a tone and play it.
+        let audio = LoadedAudio {
+            samples: vec![0.8f32; 4096 * 2],
+            sample_rate: 48000,
+            channels: 2,
+            source_id: "test.wav".to_string(),
+        };
+        let deck = engine.deck_mut(0).expect("deck 0");
+        deck.load(Arc::new(audio)).expect("load test tone");
+        deck.play().expect("play");
+
         let mut output_buses = HashMap::new();
         output_buses.insert(BusId::new("master"), vec![0.0; 1024]);
         output_buses.insert(BusId::new("cue"), vec![0.0; 1024]);
 
-        // Process some audio
-        let result = engine.process(512, &mut output_buses);
-        assert!(result.is_ok());
+        engine.process(512, &mut output_buses).expect("process");
+
+        let master = &output_buses[&BusId::new("master")];
+        assert!(
+            master.iter().any(|&s| s != 0.0),
+            "master bus should carry the loaded tone"
+        );
+        // This assertion only holds while deck 0 is not PFL'd to the cue bus, so
+        // state that precondition explicitly instead of assuming the default.
+        assert!(
+            !engine
+                .mixer()
+                .channel(0)
+                .expect("deck 0 channel")
+                .headphone_cue(),
+            "test precondition: deck 0 must not be cue-enabled"
+        );
+        let cue_max = output_buses[&BusId::new("cue")]
+            .iter()
+            .map(|&s| s.abs())
+            .fold(0.0_f32, f32::max);
+        assert!(cue_max < 1e-6, "cue should be silent without headphone cue");
     }
 }

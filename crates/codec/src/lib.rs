@@ -364,18 +364,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_opus_sample_if_present() {
+    fn test_fixture_decodes_and_reports_metadata() {
+        // CI-safe synthetic fixture (`samples/README.md`), not a personal download.
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../samples/Palawan by SKIRK  Vlog Music [xXRDR-ycIeo].opus"
+            "/../../samples/fixtures/short-tone.wav"
         );
-        if !std::path::Path::new(path).exists() {
-            return;
-        }
-        let mut decoder = AudioDecoder::from_file(path).expect("opus decode");
+        assert!(
+            std::path::Path::new(path).exists(),
+            "CI fixture missing: {path}"
+        );
+        let mut decoder = AudioDecoder::from_file(path).expect("decode fixture");
+
         let mut buf = vec![0.0; 4096];
-        let n = decoder.read_frames(&mut buf).expect("read opus");
-        assert!(n > 0, "expected decoded samples from opus file");
+        let n = decoder.read_frames(&mut buf).expect("read fixture");
+        assert!(n > 0, "expected decoded samples from fixture");
+
+        // Exercises `AudioDecoder::metadata()` end-to-end (not a struct literal).
+        // `sample_rate` and `channels` come from the file; `bit_depth` is the
+        // decoder's output format — f32 samples, so 32 is a documented constant
+        // (`bit_depth: 32 // We always convert to f32`), not a header field.
+        let metadata = decoder.metadata().expect("metadata");
+        assert_eq!(metadata.sample_rate, 48_000);
+        assert_eq!(metadata.channels, 2);
+        assert_eq!(metadata.bit_depth, 32, "decoded samples are always f32");
     }
 
     #[test]
@@ -384,23 +396,5 @@ mod tests {
         // In a real implementation, we'd create a proper test file
         let result = AudioDecoder::from_file("nonexistent.wav");
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_metadata_structure() {
-        let metadata = AudioMetadata {
-            title: Some("Test Song".to_string()),
-            artist: Some("Test Artist".to_string()),
-            album: Some("Test Album".to_string()),
-            duration: Some(44100),
-            sample_rate: 44100,
-            channels: 2,
-            bit_depth: 32,
-        };
-
-        assert_eq!(metadata.title, Some("Test Song".to_string()));
-        assert_eq!(metadata.artist, Some("Test Artist".to_string()));
-        assert_eq!(metadata.sample_rate, 44100);
-        assert_eq!(metadata.channels, 2);
     }
 }

@@ -11,7 +11,8 @@ use std::time::Duration;
 
 fn write_analysis_wav(path: &Path) {
     let sample_rate = 48_000u32;
-    let duration_secs = 3u32;
+    // The analysis duration mode caps work, so 3 s buys nothing over 1 s here.
+    let duration_secs = 1u32;
     let sample_count = (sample_rate * duration_secs) as usize;
     let mut pcm = Vec::with_capacity(sample_count * 2);
     for index in 0..sample_count {
@@ -68,7 +69,7 @@ fn analyze_track_cmd_emits_track_analyzed_evt() {
         .publish_cmd(Origin::Library, Kind::AnalyzeTrack, body)
         .unwrap();
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
     let event = loop {
         let remaining = deadline.saturating_duration_since(std::time::Instant::now());
         let event = rx

@@ -107,27 +107,46 @@ fn trusted_new_port_does_not_emit_offer() {
     fx.engine
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     let ev = fx.engine.take_events();
-    assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingOffer { .. })),
-        "{ev:?}"
-    );
+    // Trusted auto-attach attempts a real MIDI open, which is unavailable here,
+    // so no MappingAttached can be observed. The meaningful guarantee is that the
+    // trusted path never falls through to an offer. Scope the assertion to offers
+    // rather than requiring `ev.is_empty()`, so an unrelated future event on this
+    // path does not fail the test.
+    let offers = ev
+        .iter()
+        .filter(|e| matches!(e, ControllerEvent::MappingOffer { .. }))
+        .count();
+    assert_eq!(offers, 0, "trusted port must not offer: {ev:?}");
 }
 
 #[test]
-fn multiple_trusted_ids_skip_offers() {
+fn trusted_id_skips_offer_while_untrusted_offers() {
     let mut fx = open_with_two_maps();
-    fx.engine
-        .set_trusted_device_ids(["test.map".into(), "other.map".into()]);
+    fx.engine.set_trusted_device_ids(["test.map".into()]);
     fx.engine.apply_input_ports(HashSet::from([
         "TestDev Port".into(),
         "OtherDev Port".into(),
     ]));
     let ev = fx.engine.take_events();
-    assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingOffer { .. })),
-        "{ev:?}"
+    // Proves the trusted skip is selective: the untrusted sibling still offers,
+    // so a blanket "no offers" regression cannot pass this. Filter to offers
+    // rather than requiring `ev` to hold exactly one element, so an unrelated
+    // future event on this path does not break the test.
+    let offered: Vec<(&str, &str)> = ev
+        .iter()
+        .filter_map(|e| match e {
+            ControllerEvent::MappingOffer {
+                mapping_id,
+                port_name,
+                ..
+            } => Some((mapping_id.as_str(), port_name.as_str())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        offered,
+        vec![("other-map", "OtherDev Port")],
+        "only the untrusted sibling may be offered: {ev:?}"
     );
 }
 
@@ -139,10 +158,21 @@ fn suppressed_trusted_port_skips_auto_attach() {
     fx.engine
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     let ev = fx.engine.take_events();
-    assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingAttached { .. })),
-        "suppressed port must not auto-attach: {ev:?}"
+    // As above, a real attach cannot be observed without a MIDI backend; assert
+    // that suppression produced neither an attach nor an offer (scoped, so an
+    // unrelated future event on this path does not fail the test).
+    let offending = ev
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                ControllerEvent::MappingAttached { .. } | ControllerEvent::MappingOffer { .. }
+            )
+        })
+        .count();
+    assert_eq!(
+        offending, 0,
+        "suppressed port must neither attach nor offer: {ev:?}"
     );
     assert!(fx.engine.pending_offers().is_empty());
 }
