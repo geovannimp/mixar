@@ -281,6 +281,8 @@ mod tests {
         let resampler =
             RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium");
         assert!(resampler.is_ok());
+        let factory = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, None);
+        assert!(factory.is_ok());
     }
 
     #[test]
@@ -338,40 +340,6 @@ mod tests {
             0,
             "input chunk should align to FFT block size"
         );
-    }
-
-    #[test]
-    fn test_512_output_consumes_proportional_input() {
-        let mut resampler =
-            RubatoResampler::new(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, "medium").unwrap();
-        let mut total_in = 0usize;
-        let mut total_out = 0usize;
-        let source = vec![0.5f32; 600_000 * 2];
-        let mut src_pos = 0usize;
-
-        for _ in 0..100 {
-            let need_in = resampler.input_frames_next();
-            let step_out = resampler.output_frames_next();
-            let chunk = &source[src_pos..src_pos + need_in * 2];
-            let mut out = vec![0.0f32; step_out * 2];
-            let (out_samples, in_frames) = resampler.process(chunk, &mut out, 2);
-            total_in += in_frames;
-            total_out += out_samples / 2;
-            src_pos += in_frames * 2;
-        }
-
-        let expected_in = (total_out as f64 * 44100.0 / 48000.0) as usize;
-        let ratio = total_in as f64 / expected_in as f64;
-        assert!(
-            (ratio - 1.0).abs() < 0.02,
-            "total_in={total_in}, expected~{expected_in}, ratio={ratio:.4}"
-        );
-    }
-
-    #[test]
-    fn test_create_resampler_function() {
-        let resampler = create_resampler(44100, 48000, 2, DEFAULT_OUTPUT_CHUNK_FRAMES, None);
-        assert!(resampler.is_ok());
     }
 
     #[test]

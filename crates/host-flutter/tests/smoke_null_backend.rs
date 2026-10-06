@@ -16,5 +16,7 @@ fn list_backends_includes_null_and_auto() {
 fn list_null_devices() {
     let backend = AudioBackendTransport::open("null".into()).unwrap();
     let devices = backend.list_output_devices().unwrap();
-    assert!(!devices.is_empty());
+    assert_eq!(devices.len(), 1);
+    assert_eq!(devices[0].name, "Null Audio Device");
+    assert!(devices[0].is_default);
 }

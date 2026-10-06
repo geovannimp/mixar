@@ -118,6 +118,15 @@ impl MappingSession {
         &self.snapshot
     }
 
+    /// Test-only: backdate a CC's coalesce timestamp so its next tick publishes
+    /// immediately, instead of waiting out the ≤60 Hz window with a real sleep.
+    #[doc(hidden)]
+    pub fn age_cc_coalesce_for_test(&mut self, key: &str) {
+        if let Some(t) = self.cc_last.get_mut(key) {
+            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
+        }
+    }
+
     /// LED/toggle-pause and the `trigger_hot_cue` shortcut use these positions.
     /// MIDI `pad n` publishes named press/release; it does not look up cue ms.
     pub fn set_deck_hot_cues(

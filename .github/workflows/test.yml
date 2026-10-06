@@ -9,6 +9,9 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LEFTHOOK: '0'
+  # Incremental artifacts are ~1.6 GB of the rust-cache entry and only help a
+  # hot local loop; disable them in CI. Local dev keeps incremental on.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   test:
@@ -43,3 +46,9 @@ jobs:
 
       - name: Run tests
         run: npm run test
+
+      # `moon run :test` only matches tasks named `test`, so `rust:test-mappings`
+      # (which validates the shipped mapping bundles) was never scheduled. Invoke
+      # it by name, mirroring the website typecheck step in lint.yml.
+      - name: Check mapping bundles
+        run: npx moon run rust:test-mappings

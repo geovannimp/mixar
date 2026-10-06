@@ -9,6 +9,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   LEFTHOOK: '0'
+  # See test.yml: incremental artifacts bloat the shared rust-cache entry.
+  CARGO_INCREMENTAL: '0'
 
 jobs:
   lint:

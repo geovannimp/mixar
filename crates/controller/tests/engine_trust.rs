@@ -107,26 +107,33 @@ fn trusted_new_port_does_not_emit_offer() {
     fx.engine
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     let ev = fx.engine.take_events();
-    assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingOffer { .. })),
-        "{ev:?}"
-    );
+    // Trusted auto-attach attempts a real MIDI open, which is unavailable here,
+    // so no MappingAttached can be observed. The meaningful guarantee is that the
+    // trusted path never falls through to an offer: unlike the untrusted control
+    // test, a regression would populate `ev` with a MappingOffer.
+    assert!(ev.is_empty(), "trusted port must not offer: {ev:?}");
 }
 
 #[test]
-fn multiple_trusted_ids_skip_offers() {
+fn trusted_id_skips_offer_while_untrusted_offers() {
     let mut fx = open_with_two_maps();
-    fx.engine
-        .set_trusted_device_ids(["test.map".into(), "other.map".into()]);
+    fx.engine.set_trusted_device_ids(["test.map".into()]);
     fx.engine.apply_input_ports(HashSet::from([
         "TestDev Port".into(),
         "OtherDev Port".into(),
     ]));
     let ev = fx.engine.take_events();
+    // Proves the trusted skip is selective: the untrusted sibling still offers,
+    // so a blanket "no offers" regression cannot pass this.
     assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingOffer { .. })),
+        matches!(
+            &ev[..],
+            [ControllerEvent::MappingOffer {
+                mapping_id,
+                port_name,
+                ..
+            }] if mapping_id == "other-map" && port_name == "OtherDev Port"
+        ),
         "{ev:?}"
     );
 }
@@ -139,11 +146,9 @@ fn suppressed_trusted_port_skips_auto_attach() {
     fx.engine
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     let ev = fx.engine.take_events();
-    assert!(
-        ev.iter()
-            .all(|e| !matches!(e, ControllerEvent::MappingAttached { .. })),
-        "suppressed port must not auto-attach: {ev:?}"
-    );
+    // As above, a real attach cannot be observed without a MIDI backend; assert
+    // that suppression produced no events and no pending offer.
+    assert!(ev.is_empty(), "suppressed port must not attach: {ev:?}");
     assert!(fx.engine.pending_offers().is_empty());
 }
 

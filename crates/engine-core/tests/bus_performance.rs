@@ -1,45 +1,12 @@
 //! Integration: performance cmds (cue / loop / beat jump / unload) on the bus.
 
+mod common;
+
+use common::{recv_evt_kind, short_tone_fixture, source_with_bpm};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
-
-fn recv_evt_kind(
-    sub: &omnibus::BusReceiver<Origin, Kind, std::sync::Arc<[u8]>>,
-    kind: Kind,
-) -> omnibus::Event<Origin, Kind, std::sync::Arc<[u8]>> {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
-            Ok(Some(event)) => event,
-            Ok(None) => continue,
-            Err(error) => panic!("recv: {error}"),
-        };
-        if *event.kind() == kind {
-            return (*event).clone();
-        }
-    }
-    panic!("timeout waiting for evt kind {kind:?}");
-}
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
-
-fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
-    AudioSource::File(FileAudioSource::new(
-        TrackId::new(id),
-        short_tone_fixture(),
-        TrackMetadata {
-            bpm: Some(bpm),
-            ..Default::default()
-        },
-    ))
-}
 
 fn encode_loop_in(position_ms: i32) -> Vec<u8> {
     encode_cmd_body(&CmdBody::LoopIn { position_ms }).unwrap()
@@ -195,7 +162,16 @@ fn set_quantize_and_cue_point_roundtrip() {
             encode_cmd_body(&CmdBody::BeatJump { beats: 1.0 }).unwrap(),
         )
         .expect("jump");
-    let _ = recv_evt_kind(&evt, Kind::Updated);
+    let jumped = recv_evt_kind(&evt, Kind::Updated);
+    let EvtBody::DeckUpdated { position_ms, .. } =
+        decode_evt_body(jumped.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated after beat jump");
+    };
+    // Quantize is off, so no snapping: 1 beat at 120 BPM = 60/120 s = 500 ms,
+    // jumped forward from position 0. (A seek is not clamped to the 0.25 s
+    // fixture length — see `DspDeck::seek_ms_inner`.)
+    assert_eq!(position_ms, Some(500));
 }
 
 #[test]
@@ -571,7 +547,14 @@ fn loop_in_clamps_position_to_media_range() {
         panic!("expected DeckUpdated");
     };
     let duration = duration_ms.expect("duration");
-    assert_eq!(pending_loop_in_ms, Some(duration));
+    // Pin the fixture length instead of comparing two fields of the same event
+    // (a bug that truncated both to the same wrong value would have passed).
+    assert_eq!(duration, 250, "short-tone.wav is a 0.25 s fixture");
+    assert_eq!(
+        pending_loop_in_ms,
+        Some(250),
+        "loop-in past the media end clamps to the fixture end"
+    );
 }
 
 #[test]
@@ -649,7 +632,10 @@ fn unload_clears_duration() {
         panic!("expected DeckUpdated");
     };
     assert!(duration_ms.is_none());
-    assert!(cue_point_ms.is_none() || cue_point_ms == Some(0));
+    assert_eq!(
+        cue_point_ms, None,
+        "unload must clear the cue point along with the track"
+    );
     assert!(active_loop.is_none());
     assert!(pending_loop_in_ms.is_none());
 }

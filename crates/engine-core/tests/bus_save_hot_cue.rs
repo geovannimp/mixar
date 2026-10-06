@@ -39,10 +39,13 @@ fn recv_lib_kind(sub: &library::EvtReceiver, kind: LibKind) -> library::Evt {
     let deadline = Instant::now() + Duration::from_secs(5);
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = sub
-            .recv_timeout(remaining.min(Duration::from_millis(50)))
-            .expect("recv")
-            .expect("event");
+        let event = match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
+            Ok(Some(event)) => event,
+            // `recv_timeout` returns Ok(None) on timeout; keep waiting for the
+            // deadline instead of panicking on the first miss.
+            Ok(None) => continue,
+            Err(error) => panic!("library evt bus: {error}"),
+        };
         if *event.kind() == kind {
             return (*event).clone();
         }
@@ -216,14 +219,14 @@ fn hot_cue_pad_press_saves_then_triggers() {
             Ok(())
         })
         .expect("seek 0");
-    let drain_until = Instant::now() + Duration::from_millis(500);
+    let drain_until = Instant::now() + Duration::from_secs(2);
+    // The control thread ticks every 33 ms, so the quiet window must exceed that.
+    // A 20 ms window could break during a normal gap while the seek-to-0 Updated
+    // was still in flight, and the read below would then latch that stale
+    // snapshot (playing == false, position 0).
+    let quiet = Duration::from_millis(150);
     while Instant::now() < drain_until {
-        if evt
-            .recv_timeout(Duration::from_millis(20))
-            .ok()
-            .flatten()
-            .is_none()
-        {
+        if evt.recv_timeout(quiet).ok().flatten().is_none() {
             break;
         }
     }
@@ -240,22 +243,29 @@ fn hot_cue_pad_press_saves_then_triggers() {
         )
         .expect("trigger press");
 
-    let event = loop {
-        let event = evt
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == Kind::Updated {
-            break event;
+    // Match on the trigger's effect (the deck starts playing), not on `Kind`
+    // alone, so a stale pre-trigger `Updated` cannot satisfy the assertion.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    let (position_ms, playing) = loop {
+        assert!(
+            Instant::now() < deadline,
+            "timeout waiting for the trigger's DeckUpdated"
+        );
+        let event = match evt.recv_timeout(Duration::from_millis(50)) {
+            Ok(Some(event)) if *event.kind() == Kind::Updated => event,
+            Ok(Some(_)) | Ok(None) => continue,
+            Err(error) => panic!("evt bus: {error}"),
+        };
+        if let EngineEvtBody::DeckUpdated {
+            position_ms,
+            playing,
+            ..
+        } = decode_engine_evt(event.payload()).expect("decode")
+        {
+            if playing {
+                break (position_ms, playing);
+            }
         }
-    };
-    let EngineEvtBody::DeckUpdated {
-        position_ms,
-        playing,
-        ..
-    } = decode_engine_evt(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
     };
     assert_eq!(position_ms, Some(500));
     assert!(playing);
@@ -392,13 +402,13 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         )
         .expect("trigger");
 
+    let deadline = Instant::now() + Duration::from_secs(2);
     let event = loop {
-        let event = evt
-            .recv_timeout(Duration::from_secs(2))
-            .expect("recv")
-            .expect("event");
-        if *event.kind() == Kind::Updated {
-            break event;
+        assert!(Instant::now() < deadline, "timeout waiting for DeckUpdated");
+        match evt.recv_timeout(Duration::from_millis(50)) {
+            Ok(Some(event)) if *event.kind() == Kind::Updated => break event,
+            Ok(Some(_)) | Ok(None) => {}
+            Err(error) => panic!("evt bus: {error}"),
         }
     };
     let EngineEvtBody::DeckUpdated {

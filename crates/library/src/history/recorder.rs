@@ -872,7 +872,6 @@ mod tests {
     fn ending_play_sets_ended_at_and_played_duration() {
         let mut fx = fixture(fast_settings());
         commit_play(&mut fx, 0, "/music/a.flac");
-        std::thread::sleep(Duration::from_millis(5));
         end_play(&mut fx, 0, "/music/a.flac");
 
         let session_id = fx.recorder.active_session_id().expect("active").to_string();
@@ -882,7 +881,10 @@ mod tests {
             .expect("entries");
         assert_eq!(entries.len(), 1);
         assert!(entries[0].ended_at.is_some());
-        assert!(entries[0].played_duration_ms.unwrap_or(0) >= 0);
+        // `utc_now_rfc3339()` is second-granular, so a sub-second play rounds to
+        // 0 ms rather than a fixed value. Assert the field is populated at all
+        // (the old `unwrap_or(0) >= 0` could not fail).
+        assert!(entries[0].played_duration_ms.is_some());
     }
 
     /// AC3: below duration or effective output → no entry.

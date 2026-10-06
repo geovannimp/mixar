@@ -1,30 +1,12 @@
 //! Vinyl jog while paused must publish Position so UI playhead/time track live.
 
+mod common;
+
+use common::{recv_evt_kind, short_tone_fixture};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource};
 use omnibus::Filter;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
-
-fn recv_evt_kind(
-    sub: &omnibus::BusReceiver<Origin, Kind, std::sync::Arc<[u8]>>,
-    kind: Kind,
-) -> omnibus::Event<Origin, Kind, std::sync::Arc<[u8]>> {
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
-            Ok(Some(event)) if *event.kind() == kind => return (*event).clone(),
-            Ok(Some(_)) | Ok(None) | Err(_) => {}
-        }
-    }
-    panic!("timeout waiting for evt kind {kind:?}");
-}
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
 
 #[test]
 fn paused_vinyl_jog_touch_publishes_position_before_release() {
@@ -83,5 +65,12 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
     else {
         panic!("expected Position");
     };
-    assert!(position_ms >= 0);
+    // Contract under test: a Position evt is emitted at all while the deck is
+    // jog-touched (`recv_evt_kind` panics on timeout) and carries a playhead
+    // inside the 0.25 s fixture. The wheel's rate math is asserted separately by
+    // engine-dsp's `paused_vinyl_jog_advances_position_ms`, which owns it.
+    assert!(
+        (0..=250).contains(&position_ms),
+        "Position must be within the 250 ms fixture, got {position_ms}"
+    );
 }

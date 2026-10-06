@@ -28,7 +28,8 @@ pub use device::{
     SECTION_SAMPLER,
 };
 pub use engine::{
-    ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo, EngineError, MappingInfo,
+    report_script_binding_failure, ControllerEngine, ControllerEvent, DeviceDirection, DeviceInfo,
+    EngineError, MappingInfo,
 };
 pub use error::{LoadError, MidiPortError, RuntimeError};
 pub use map_file::{

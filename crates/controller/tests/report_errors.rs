@@ -1,8 +1,46 @@
 //! Controller diagnostics: discarded MIDI/Rhai errors must reach tracing.
 
+use std::io::{self, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use engine_api::{CmdBody, Kind, Origin};
+use tracing_subscriber::fmt::MakeWriter;
+
+/// In-memory log sink; mirrors the harness used by `src/engine.rs` tests.
+#[derive(Clone, Default)]
+struct Capture(Arc<Mutex<Vec<u8>>>);
+
+impl Write for Capture {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(buf);
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> MakeWriter<'a> for Capture {
+    type Writer = Capture;
+    fn make_writer(&'a self) -> Self::Writer {
+        self.clone()
+    }
+}
+
+/// Run `f` under a subscriber that records formatted events; return the log.
+fn with_capture(f: impl FnOnce()) -> String {
+    let buf = Capture::default();
+    let store = Arc::clone(&buf.0);
+    let subscriber = tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_writer(buf)
+        .with_ansi(false)
+        .finish();
+    tracing::subscriber::with_default(subscriber, f);
+    let bytes = store.lock().unwrap().clone();
+    String::from_utf8(bytes).unwrap()
+}
 
 struct CaptureBus;
 impl controller::ActionPublish for CaptureBus {
@@ -28,11 +66,7 @@ fn on_init_script_error_is_returned() {
     let mut bus = CaptureBus;
     let mut midi = NullMidi;
     let err = s.on_init(&mut bus, &mut midi).unwrap_err();
-    assert!(
-        err.to_string().contains("missing_pc_mode_sysex")
-            || err.to_string().contains("Variable not found"),
-        "{err}"
-    );
+    assert!(err.to_string().contains("missing_pc_mode_sysex"), "{err}");
 }
 
 #[test]
@@ -43,11 +77,7 @@ fn idle_heartbeat_script_error_is_returned() {
     let mut bus = CaptureBus;
     let mut midi = NullMidi;
     let err = s.idle_heartbeat(&mut bus, &mut midi).unwrap_err();
-    assert!(
-        err.to_string().contains("missing_heartbeat_const")
-            || err.to_string().contains("Variable not found"),
-        "{err}"
-    );
+    assert!(err.to_string().contains("missing_heartbeat_const"), "{err}");
 }
 
 #[test]
@@ -64,8 +94,26 @@ fn named_script_binding_failure_is_reported() {
     assert_eq!(fail.alias, "play_pause");
     assert_eq!(fail.script_fn, "boom");
     assert!(
-        fail.error.contains("missing_binding_const") || fail.error.contains("Variable not found"),
+        fail.error.contains("missing_binding_const"),
         "{}",
         fail.error
     );
+}
+
+#[test]
+fn script_binding_failure_reaches_tracing() {
+    let b = controller::load_bundle(Path::new("tests/fixtures/script-fail")).unwrap();
+    let mut s = controller::MappingSession::from_bundle(b).unwrap();
+    let mut bus = CaptureBus;
+    let mut midi = NullMidi;
+    // Drive the same failing binding; the host logs the returned failure.
+    let fail = s
+        .handle_midi(&[0x90, 0x0B, 0x7F], &mut bus, &mut midi)
+        .expect("script binding failure");
+    let log = with_capture(|| {
+        controller::report_script_binding_failure("test-map", "test.map", "TestDev Port", &fail);
+    });
+    assert!(log.contains("script binding failed"), "{log}");
+    assert!(log.contains("deck_1"), "{log}");
+    assert!(log.contains("missing_binding_const"), "{log}");
 }

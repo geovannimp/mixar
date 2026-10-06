@@ -1,11 +1,14 @@
 //! Null audio backend for testing and CI
 //!
-//! This backend provides a deterministic, non-blocking implementation
-//! of the AudioBackend trait that simulates audio timing without
-//! requiring actual audio hardware.
+//! Simulates audio timing without requiring actual audio hardware: every opened
+//! stream runs a paced driver thread that invokes the engine's audio callback
+//! once per buffer duration, exactly like a real sound card. Without that
+//! pacing the DSP producer parks forever on the pre-filled ring buffer (see
+//! `producer_thread_loop` in `engine-core`), so no deck playhead would advance.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
@@ -14,8 +17,6 @@ use audio_core::{AudioBackend, AudioCallback, AudioStream, DeviceId, DeviceInfo,
 /// Null audio backend implementation
 #[derive(Debug)]
 pub struct NullBackend {
-    /// Whether the backend is currently running
-    running: Arc<AtomicBool>,
     /// Current buffer size (can be negotiated)
     buffer_size: Arc<AtomicU32>,
 }
@@ -24,7 +25,6 @@ impl NullBackend {
     /// Create a new null backend
     pub fn new() -> Self {
         Self {
-            running: Arc::new(AtomicBool::new(false)),
             buffer_size: Arc::new(AtomicU32::new(512)), // Default buffer size
         }
     }
@@ -89,7 +89,6 @@ impl AudioBackend for NullBackend {
             params.clone(),
             negotiated_size,
             callback,
-            self.running.clone(),
         )))
     }
 }
@@ -100,12 +99,14 @@ struct NullStream {
     params: StreamParams,
     /// Negotiated buffer size
     negotiated_buffer_size: u32,
-    /// Audio callback
-    callback: Box<dyn AudioCallback>,
-    /// Running state
+    /// Audio callback. Moved into the driver thread while the stream runs.
+    callback: Option<Box<dyn AudioCallback>>,
+    /// Per-stream running flag (one driver thread per stream).
     running: Arc<AtomicBool>,
     /// Start time for latency calculation
     start_time: Option<Instant>,
+    /// Paced driver thread; returns the callback when it exits.
+    driver: Option<JoinHandle<Box<dyn AudioCallback>>>,
 }
 
 impl NullStream {
@@ -113,48 +114,52 @@ impl NullStream {
         params: StreamParams,
         negotiated_buffer_size: u32,
         callback: Box<dyn AudioCallback>,
-        running: Arc<AtomicBool>,
     ) -> Self {
         Self {
             params,
             negotiated_buffer_size,
-            callback,
-            running,
+            callback: Some(callback),
+            running: Arc::new(AtomicBool::new(false)),
             start_time: None,
+            driver: None,
         }
-    }
-
-    /// Simulate audio processing by calling the callback
-    fn process_audio(&mut self) -> Result<()> {
-        let frames = self.negotiated_buffer_size;
-        let channels = self.params.channels as usize;
-        let buffer_size = frames as usize * channels;
-
-        // Create a buffer for the callback to fill
-        let mut buffer = vec![0.0; buffer_size];
-
-        // Call the audio callback
-        self.callback
-            .render(&mut buffer, frames, self.params.sample_rate);
-
-        // In a real backend, we would send this to the audio device
-        // For null backend, we just log that we processed the audio
-        tracing::debug!(
-            "Processed {} frames of audio ({} samples)",
-            frames,
-            buffer_size
-        );
-
-        Ok(())
     }
 }
 
 impl AudioStream for NullStream {
     fn start(&mut self) -> Result<()> {
+        if self.driver.is_some() {
+            // Already running.
+            return Ok(());
+        }
+
         tracing::info!("Starting null audio stream");
-        self.running.store(true, Ordering::Relaxed);
         self.start_time = Some(Instant::now());
-        self.process_audio()?;
+        self.running.store(true, Ordering::Relaxed);
+
+        let Some(callback) = self.callback.take() else {
+            return Ok(());
+        };
+
+        let running = Arc::clone(&self.running);
+        let params = self.params.clone();
+        let frames = self.negotiated_buffer_size;
+        // One callback per buffer duration, like a real sound card. This is what
+        // paces the engine's producer thread and advances deck playheads.
+        let tick = Duration::from_secs_f64(frames as f64 / params.sample_rate.max(1) as f64);
+
+        self.driver = Some(thread::spawn(move || {
+            let mut callback = callback;
+            let channels = params.channels.max(1) as usize;
+            let mut buffer = vec![0.0; frames as usize * channels];
+            while running.load(Ordering::Relaxed) {
+                buffer.fill(0.0);
+                callback.render(&mut buffer, frames, params.sample_rate);
+                thread::sleep(tick);
+            }
+            callback
+        }));
+
         Ok(())
     }
 
@@ -162,6 +167,12 @@ impl AudioStream for NullStream {
         tracing::info!("Stopping null audio stream");
         self.running.store(false, Ordering::Relaxed);
         self.start_time = None;
+        if let Some(driver) = self.driver.take() {
+            match driver.join() {
+                Ok(callback) => self.callback = Some(callback),
+                Err(_) => tracing::error!("Null audio driver thread panicked"),
+            }
+        }
         Ok(())
     }
 
@@ -187,6 +198,16 @@ impl AudioStream for NullStream {
     }
 }
 
+impl Drop for NullStream {
+    fn drop(&mut self) {
+        // A stream dropped while running (e.g. a failed engine start) must not
+        // leak its driver thread.
+        if self.driver.is_some() {
+            let _ = self.stop();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,12 +222,17 @@ mod tests {
     }
 
     impl TestCallback {
-        fn new(sample_rate: u32) -> Self {
-            Self {
-                phase: 0.0,
-                sample_rate,
-                frames_processed: Arc::new(AtomicU32::new(0)),
-            }
+        /// Returns the callback plus a handle to its "frames rendered" counter.
+        fn new(sample_rate: u32) -> (Self, Arc<AtomicU32>) {
+            let frames_processed = Arc::new(AtomicU32::new(0));
+            (
+                Self {
+                    phase: 0.0,
+                    sample_rate,
+                    frames_processed: Arc::clone(&frames_processed),
+                },
+                frames_processed,
+            )
         }
     }
 
@@ -280,7 +306,7 @@ mod tests {
             .next()
             .unwrap();
         let params = StreamParams::new(48000, 2, 512, false);
-        let callback = Box::new(TestCallback::new(48000));
+        let callback = Box::new(TestCallback::new(48000).0);
 
         let mut stream = backend
             .open_output_stream(&device.id, &params, callback)
@@ -311,18 +337,34 @@ mod tests {
             .next()
             .unwrap();
         let params = StreamParams::new(48000, 2, 256, false);
-        let callback = Box::new(TestCallback::new(48000));
+        let (callback, frames_processed) = TestCallback::new(48000);
 
         let mut stream = backend
-            .open_output_stream(&device.id, &params, callback)
+            .open_output_stream(&device.id, &params, Box::new(callback))
             .unwrap();
+
+        // Before start the driver is idle, so nothing is rendered.
+        assert_eq!(frames_processed.load(Ordering::Relaxed), 0);
+
         stream.start().unwrap();
+        // The paced driver renders on a real-time cadence; 256 frames @ 48 kHz is
+        // ~5.3 ms per callback, so a few tens of ms is several callbacks.
+        std::thread::sleep(Duration::from_millis(60));
+        let rendered = frames_processed.load(Ordering::Relaxed);
+        assert!(
+            rendered >= 256,
+            "driver should have rendered at least one buffer, got {rendered} frames"
+        );
 
-        // Process some audio (simulated by starting the stream)
-        // In a real implementation, the stream would process audio automatically
-
-        // Verify the callback was called
-        assert_eq!(stream.actual_buffer_size(), Some(256));
+        // Stopping must park the driver: no further frames are rendered.
+        stream.stop().unwrap();
+        let after_stop = frames_processed.load(Ordering::Relaxed);
+        std::thread::sleep(Duration::from_millis(30));
+        assert_eq!(
+            frames_processed.load(Ordering::Relaxed),
+            after_stop,
+            "driver kept rendering after stop()"
+        );
     }
 
     #[test]
@@ -337,7 +379,7 @@ mod tests {
             .next()
             .unwrap();
         let params = StreamParams::new(48000, 2, 0, false); // Request 0 to use backend default
-        let callback = Box::new(TestCallback::new(48000));
+        let callback = Box::new(TestCallback::new(48000).0);
 
         let mut stream = backend
             .open_output_stream(&device.id, &params, callback)

@@ -12,7 +12,7 @@ use thiserror::Error;
 use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
-use crate::session::{ActionPublish, MappingSession, MidiOut};
+use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
 use engine_api::PadMode;
 
 #[derive(Debug, Error)]
@@ -148,6 +148,28 @@ pub(crate) fn report_midi_send(
             });
         }
     }
+}
+
+/// Log a script binding failure with its attach identity.
+///
+/// Extracted so the `pump` paths and log-capture tests share one message.
+#[doc(hidden)]
+pub fn report_script_binding_failure(
+    mapping_id: &str,
+    device_id: &str,
+    port_name: &str,
+    fail: &ScriptBindingFailure,
+) {
+    tracing::warn!(
+        mapping_id,
+        device_id,
+        port_name,
+        section = %fail.section,
+        alias = %fail.alias,
+        script_fn = %fail.script_fn,
+        error = %fail.error,
+        "script binding failed"
+    );
 }
 
 impl Attached {
@@ -779,15 +801,11 @@ impl ControllerEngine {
                             attached.session.handle_midi(&bytes, bus, &mut sink)
                         };
                         if let Some(fail) = fail {
-                            tracing::warn!(
-                                mapping_id = %attached.mapping_id,
-                                device_id = %attached.device_id,
-                                port_name = %port_name,
-                                section = %fail.section,
-                                alias = %fail.alias,
-                                script_fn = %fail.script_fn,
-                                error = %fail.error,
-                                "script binding failed"
+                            report_script_binding_failure(
+                                &attached.mapping_id,
+                                &attached.device_id,
+                                &port_name,
+                                &fail,
                             );
                         }
                     }
@@ -814,15 +832,11 @@ impl ControllerEngine {
                 (flush_fails, heartbeat)
             };
             for fail in flush_fails {
-                tracing::warn!(
-                    mapping_id = %attached.mapping_id,
-                    device_id = %attached.device_id,
-                    port_name = %port_name,
-                    section = %fail.section,
-                    alias = %fail.alias,
-                    script_fn = %fail.script_fn,
-                    error = %fail.error,
-                    "script binding failed"
+                report_script_binding_failure(
+                    &attached.mapping_id,
+                    &attached.device_id,
+                    &port_name,
+                    &fail,
                 );
             }
             attached.report_lifecycle_result(&port_name, "idle_heartbeat", heartbeat);

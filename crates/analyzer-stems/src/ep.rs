@@ -132,12 +132,16 @@ mod tests {
 
     fn with_force_ep<R>(value: Option<&str>, f: impl FnOnce() -> R) -> R {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var_os(FORCE_EP_ENV);
         match value {
             Some(v) => std::env::set_var(FORCE_EP_ENV, v),
             None => std::env::remove_var(FORCE_EP_ENV),
         }
         let out = f();
-        std::env::remove_var(FORCE_EP_ENV);
+        match prev {
+            Some(v) => std::env::set_var(FORCE_EP_ENV, v),
+            None => std::env::remove_var(FORCE_EP_ENV),
+        }
         out
     }
 
@@ -187,10 +191,20 @@ mod tests {
     #[cfg(all(feature = "webgpu", unix))]
     #[test]
     fn force_c_numeric_locale_makes_printf_use_dot() {
-        unsafe {
-            let pt = std::ffi::CString::new("pt_BR.UTF-8").unwrap();
-            libc::setlocale(libc::LC_NUMERIC, pt.as_ptr());
-        }
+        // LC_NUMERIC is process-global C state, so serialize with the other
+        // env-mutating tests and restore whatever locale was active.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let previous = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
+        assert!(!previous.is_null(), "LC_NUMERIC query failed");
+        let previous = unsafe { std::ffi::CStr::from_ptr(previous) }.to_owned();
+
+        let pt = std::ffi::CString::new("pt_BR.UTF-8").unwrap();
+        let set = unsafe { libc::setlocale(libc::LC_NUMERIC, pt.as_ptr()) };
+        assert!(
+            !set.is_null(),
+            "pt_BR.UTF-8 locale unavailable; cannot exercise locale-sensitive printf"
+        );
+
         force_c_numeric_locale();
         let mut buf = [0 as libc::c_char; 64];
         unsafe {
@@ -199,6 +213,12 @@ mod tests {
         let s = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
             .to_string_lossy()
             .into_owned();
+
+        // Restore before asserting so a failure leaves the process clean.
+        unsafe {
+            libc::setlocale(libc::LC_NUMERIC, previous.as_ptr());
+        }
+
         assert!(
             s.contains('.') && !s.contains(','),
             "expected C-locale float, got {s:?}"

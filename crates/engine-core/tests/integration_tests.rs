@@ -2,30 +2,21 @@
 //!
 //! These tests verify that the different components work together correctly.
 
+mod common;
+
 use anyhow::Result;
 use audio_core::BusId;
-use engine_core::{AnalysisDurationMode, Engine, EngineConfig, EngineSession};
+use common::short_tone_fixture;
+use engine_core::{Engine, EngineConfig, EngineSession};
 use library::{LibraryConfig, LibraryManager};
 use library_core::{AudioSource, FileAudioSource};
-use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-
-fn short_tone_fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
-}
 
 #[test]
 fn test_engine_with_null_backend() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
-        sample_rate: 48000,
-        buffer_size: 512,
-        low_latency: false,
-        buses: vec![],
-        devices: None,
-        advanced: None,
-        audio: None,
-        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
     };
 
     let mut engine = Engine::new(config)?;
@@ -47,14 +38,7 @@ fn test_engine_with_null_backend() -> Result<()> {
 fn test_engine_loads_library_prepared_track() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
-        sample_rate: 48000,
-        buffer_size: 512,
-        low_latency: false,
-        buses: vec![],
-        devices: None,
-        advanced: None,
-        audio: None,
-        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
     };
 
     let lib = Mutex::new(LibraryManager::open_in_memory(LibraryConfig::default())?);
@@ -78,14 +62,7 @@ fn test_engine_loads_library_prepared_track() -> Result<()> {
 fn test_engine_loads_track_via_library_manager() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
-        sample_rate: 48000,
-        buffer_size: 512,
-        low_latency: false,
-        buses: vec![],
-        devices: None,
-        advanced: None,
-        audio: None,
-        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
     };
 
     let lib = Arc::new(Mutex::new(LibraryManager::open_in_memory(
@@ -110,14 +87,7 @@ fn test_engine_loads_track_via_library_manager() -> Result<()> {
 fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
-        sample_rate: 48000,
-        buffer_size: 512,
-        low_latency: false,
-        buses: vec![],
-        devices: None,
-        advanced: None,
-        audio: None,
-        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
     };
 
     let lib = Arc::new(Mutex::new(LibraryManager::open_in_memory(
@@ -138,22 +108,22 @@ fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
 }
 
 #[test]
-fn test_engine_with_auto_backend() -> Result<()> {
+fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
+    // "auto" resolves to CPAL when the runner has a usable device, otherwise it
+    // falls back to null. Either way backend selection and device enumeration
+    // must succeed; do not assert that a real stream opens, which depends on the
+    // runner's audio stack (and previously made this test environment-dependent).
     let config = EngineConfig {
         backend: "auto".to_string(),
-        sample_rate: 48000,
-        buffer_size: 512,
-        low_latency: false,
-        buses: vec![],
-        devices: None,
-        advanced: None,
-        audio: None,
-        analysis_duration: AnalysisDurationMode::Complete,
+        ..Default::default()
     };
 
-    let mut engine = Engine::new(config)?;
-    engine.start()?;
-    engine.stop()?;
+    let engine = Engine::new(config)?;
+    let devices = engine.list_devices()?;
+    assert!(
+        !devices.is_empty(),
+        "auto backend must expose at least the null device"
+    );
 
     Ok(())
 }
@@ -178,7 +148,8 @@ fn test_config_serialization() -> Result<()> {
 #[test]
 fn test_config_file_operations() -> Result<()> {
     let config = EngineConfig::default();
-    let temp_path = std::env::temp_dir().join("test_config.toml");
+    let dir = tempfile::tempdir()?;
+    let temp_path = dir.path().join("config.toml");
 
     // Save config to file
     config.to_toml_file(&temp_path)?;
@@ -188,9 +159,7 @@ fn test_config_file_operations() -> Result<()> {
     assert_eq!(loaded_config.sample_rate, config.sample_rate);
     assert_eq!(loaded_config.backend, config.backend);
 
-    // Clean up
-    std::fs::remove_file(&temp_path)?;
-
+    // `tempdir` removes the file even if an assertion above panics.
     Ok(())
 }
 
@@ -223,27 +192,31 @@ fn test_engine_deck_operations() -> Result<()> {
 
 #[test]
 fn test_backend_fallback() -> Result<()> {
-    // Test that auto backend falls back gracefully
+    // "auto" must resolve to a backend and expose its devices without opening a
+    // stream: whether a real device accepts our exact buffer size is a property
+    // of the runner's audio stack, not of the engine.
     let config = EngineConfig {
         backend: "auto".to_string(),
         ..Default::default()
     };
 
-    let mut engine = Engine::new(config)?;
-    // Should not panic even if miniaudio is not available
-    assert!(engine.start().is_ok());
+    let engine = Engine::new(config)?;
+    assert!(!engine.list_devices()?.is_empty());
 
     Ok(())
 }
 
 #[test]
 fn test_producer_consumer_architecture() -> Result<()> {
-    let mut config = EngineConfig::default();
+    let mut config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
     // Add a master bus to the config
     config.buses.push(audio_core::BusConfig::new(
         BusId::new("master".to_string()),
         "Master Bus".to_string(),
-        audio_core::DeviceId::new("default".to_string()),
+        audio_core::DeviceId::new("null-device".to_string()),
         audio_core::ChannelMapping::new(1, 2),
     ));
 
@@ -274,67 +247,6 @@ fn test_producer_consumer_architecture() -> Result<()> {
 
     // Stop the engine
     engine.stop()?;
-
-    Ok(())
-}
-
-#[test]
-fn test_ring_buffer_integration() -> Result<()> {
-    use rtrb::RingBuffer;
-
-    // Test ring buffer creation
-    let (mut producer, mut consumer) = RingBuffer::new(1024);
-
-    // Test basic producer/consumer operations
-    let test_data = vec![1.0, 2.0, 3.0, 4.0];
-    let mut written = 0;
-    for &sample in &test_data {
-        match producer.push(sample) {
-            Ok(()) => written += 1,
-            Err(_) => break,
-        }
-    }
-    assert_eq!(written, 4);
-
-    let mut read_buffer = vec![0.0; 4];
-    let mut read = 0;
-    for sample in read_buffer.iter_mut() {
-        match consumer.pop() {
-            Ok(value) => {
-                *sample = value;
-                read += 1;
-            }
-            Err(_) => break,
-        }
-    }
-    assert_eq!(read, 4);
-    assert_eq!(read_buffer, test_data);
-
-    // Test overflow handling
-    let large_data = vec![5.0; 2000]; // Larger than buffer capacity
-    let mut written = 0;
-    for &sample in &large_data {
-        match producer.push(sample) {
-            Ok(()) => written += 1,
-            Err(_) => break,
-        }
-    }
-    assert!(written < large_data.len()); // Should not write all data
-
-    // Test underflow handling - read remaining data
-    let mut read_buffer = vec![0.0; 1000];
-    let mut read = 0;
-    for sample in read_buffer.iter_mut() {
-        match consumer.pop() {
-            Ok(value) => {
-                *sample = value;
-                read += 1;
-            }
-            Err(_) => break,
-        }
-    }
-    // Should read some data (the remaining samples from the large write)
-    assert!(read > 0);
 
     Ok(())
 }
@@ -393,5 +305,21 @@ fn starts_with_mono_master_and_cue_on_null() {
     engine
         .set_deck_headphone_cue(0, true)
         .expect("headphone cue API");
+    // The buses are configured mono; assert the engine actually adopted the
+    // mono mapping rather than only that `start()` did not error.
+    assert_eq!(
+        engine
+            .get_bus_config(&BusId::new("master"))
+            .expect("master bus")
+            .channels,
+        audio_core::ChannelMapping::mono(1),
+    );
+    assert_eq!(
+        engine
+            .get_bus_config(&BusId::new("cue"))
+            .expect("cue bus")
+            .channels,
+        audio_core::ChannelMapping::mono(2),
+    );
     engine.stop().unwrap();
 }

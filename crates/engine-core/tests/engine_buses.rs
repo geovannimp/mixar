@@ -1,6 +1,9 @@
 //! Engine + EngineBuses without EngineSession.
 
-use engine_api::{encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
+mod common;
+
+use common::recv_evt_kind;
+use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{spawn_engine_worker, Engine, EngineBuses, EngineConfig};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -45,18 +48,15 @@ fn spawn_worker_play_empty_deck_emits_error() {
         .publish_cmd(Origin::Deck(0), Kind::Play, body)
         .unwrap();
 
-    let deadline = std::time::Instant::now() + Duration::from_secs(2);
-    loop {
-        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-        let event = rx
-            .recv_timeout(remaining.max(Duration::from_millis(1)))
-            .expect("evt bus alive")
-            .expect("Error evt");
-        if *event.kind() == Kind::Error {
-            break;
-        }
-        if std::time::Instant::now() >= deadline {
-            panic!("timeout waiting for Error evt, last was {:?}", event.kind());
-        }
-    }
+    // `recv_evt_kind` handles `Ok(None)` timeouts correctly; the previous hand
+    // rolled loop used `remaining.max(1ms)` and `.expect("Error evt")`, which
+    // panicked on the first timeout instead of waiting out the deadline.
+    let event = recv_evt_kind(&rx, Kind::Error);
+    let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("Error body") else {
+        panic!("expected Error body");
+    };
+    assert!(
+        !message.trim().is_empty(),
+        "play on an empty deck must explain the failure"
+    );
 }
