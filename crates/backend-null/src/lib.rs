@@ -3,8 +3,8 @@
 //! Simulates audio timing without requiring actual audio hardware: every opened
 //! stream runs a paced driver thread that invokes the engine's audio callback
 //! once per buffer duration, exactly like a real sound card. Without that
-//! pacing the DSP producer parks forever on the pre-filled ring buffer (see
-//! `producer_thread_loop` in `engine-core`), so no deck playhead would advance.
+//! pacing the engine's DSP producer thread parks forever on the pre-filled ring
+//! buffer, so no deck playhead would ever advance.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;

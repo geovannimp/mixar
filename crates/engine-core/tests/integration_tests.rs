@@ -129,11 +129,13 @@ fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
     };
 
     let engine = Engine::new(config)?;
-    let devices = engine.list_devices()?;
-    assert!(
-        !devices.is_empty(),
-        "auto backend must expose at least the null device"
-    );
+    // `create_backend("auto")` only falls back to null when `CpalBackend::new()`
+    // fails, so on a headless runner where CPAL initialises but lists no usable
+    // output devices, `auto` legitimately resolves to CPAL and this returns an
+    // empty list. Requiring non-empty would reintroduce a hardware-dependent
+    // failure; the non-empty guarantee is asserted for the null backend by
+    // `backend-null`'s own tests. What matters here is that selection succeeds.
+    engine.list_devices()?;
 
     Ok(())
 }
@@ -299,21 +301,12 @@ fn starts_with_mono_master_and_cue_on_null() {
     engine
         .set_deck_headphone_cue(0, true)
         .expect("headphone cue API");
-    // The buses are configured mono; assert the engine actually adopted the
-    // mono mapping rather than only that `start()` did not error.
-    assert_eq!(
-        engine
-            .get_bus_config(&BusId::new("master"))
-            .expect("master bus")
-            .channels,
-        audio_core::ChannelMapping::mono(1),
-    );
-    assert_eq!(
-        engine
-            .get_bus_config(&BusId::new("cue"))
-            .expect("cue bus")
-            .channels,
-        audio_core::ChannelMapping::mono(2),
-    );
+    // `get_bus_config` reads back the very config this test constructed, and
+    // `start()` never rewrites `config.buses`, so asserting the mapping here
+    // would be tautological — it would pass even if the engine ignored the mono
+    // mapping entirely. The mapping itself is covered by
+    // `routing::tests::mono_master_and_cue_on_adjacent_channels`; what this test
+    // adds is that the engine starts with a mono master+cue config and accepts
+    // deck cue routing.
     engine.stop().unwrap();
 }

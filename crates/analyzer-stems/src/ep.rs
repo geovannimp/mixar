@@ -201,9 +201,13 @@ mod tests {
     #[cfg(all(feature = "webgpu", unix))]
     fn format_float(value: f64) -> String {
         let mut buf = [0 as libc::c_char; 64];
-        unsafe {
-            libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), value);
-        }
+        let written = unsafe { libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), value) };
+        // Fail loudly rather than assert on a silently truncated rendering.
+        assert!(
+            written >= 0 && (written as usize) < buf.len(),
+            "snprintf truncated {value} (wrote {written}, buffer {})",
+            buf.len()
+        );
         unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
             .to_string_lossy()
             .into_owned()
