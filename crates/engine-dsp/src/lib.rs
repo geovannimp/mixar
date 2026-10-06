@@ -195,6 +195,16 @@ mod tests {
             master.iter().any(|&s| s != 0.0),
             "master bus should carry the loaded tone"
         );
+        // This assertion only holds while deck 0 is not PFL'd to the cue bus, so
+        // state that precondition explicitly instead of assuming the default.
+        assert!(
+            !engine
+                .mixer()
+                .channel(0)
+                .expect("deck 0 channel")
+                .headphone_cue(),
+            "test precondition: deck 0 must not be cue-enabled"
+        );
         let cue_max = output_buses[&BusId::new("cue")]
             .iter()
             .map(|&s| s.abs())

@@ -226,8 +226,12 @@ fn hot_cue_pad_press_saves_then_triggers() {
     // snapshot (playing == false, position 0).
     let quiet = Duration::from_millis(150);
     while Instant::now() < drain_until {
-        if evt.recv_timeout(quiet).ok().flatten().is_none() {
-            break;
+        match evt.recv_timeout(quiet) {
+            // Quiet window elapsed: nothing else was queued.
+            Ok(None) => break,
+            Ok(Some(_)) => {}
+            // Do not read a disconnected bus as "quiet".
+            Err(error) => panic!("evt bus: {error}"),
         }
     }
 
@@ -402,26 +406,37 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
         )
         .expect("trigger");
 
+    // Match on the trigger's effect (the deck starts playing), not on `Kind`
+    // alone, so a stale pre-trigger `DeckUpdated` (playing == false, position 0)
+    // buffered on the bus cannot satisfy the assertions below — the same hazard
+    // the twin test above documents.
     let deadline = Instant::now() + Duration::from_secs(2);
-    let event = loop {
-        assert!(Instant::now() < deadline, "timeout waiting for DeckUpdated");
-        match evt.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(event)) if *event.kind() == Kind::Updated => break event,
-            Ok(Some(_)) | Ok(None) => {}
+    let (position_ms, hot_cues) = loop {
+        assert!(
+            Instant::now() < deadline,
+            "timeout waiting for the trigger's DeckUpdated"
+        );
+        let event = match evt.recv_timeout(Duration::from_millis(50)) {
+            Ok(Some(event)) => event,
+            Ok(None) => continue,
             Err(error) => panic!("evt bus: {error}"),
+        };
+        if *event.kind() != Kind::Updated {
+            continue;
+        }
+        if let EngineEvtBody::DeckUpdated {
+            position_ms,
+            playing,
+            hot_cues,
+            ..
+        } = decode_engine_evt(event.payload()).expect("decode")
+        {
+            if playing {
+                break (position_ms, hot_cues);
+            }
         }
     };
-    let EngineEvtBody::DeckUpdated {
-        position_ms,
-        playing,
-        hot_cues,
-        ..
-    } = decode_engine_evt(event.payload()).expect("decode")
-    else {
-        panic!("expected DeckUpdated");
-    };
     assert_eq!(position_ms, Some(500));
-    assert!(playing);
     assert_eq!(hot_cues.len(), 1);
     assert_eq!(hot_cues[0].position_ms, 500);
 }

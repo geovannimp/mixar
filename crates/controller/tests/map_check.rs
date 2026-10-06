@@ -58,11 +58,15 @@ fn typo_in_script_binding_is_rejected() {
     // point it at a function the script does not define.
     let map = bundle.join("map.toml");
     let text = fs::read_to_string(&map).expect("read map.toml");
-    let text = text.replace(
+    let rewritten = text.replace(
         "play_pause = \"Deck(_)::toggle_play\"",
         "play_pause = { script = \"totally_missing_fn\" }",
     );
-    fs::write(&map, text).expect("write map.toml");
+    assert_ne!(
+        rewritten, text,
+        "fixture map.toml no longer contains the expected play_pause line; update this test"
+    );
+    fs::write(&map, rewritten).expect("write map.toml");
 
     let err = controller::check_bundle_dir(&bundle)
         .expect_err("a script binding naming a missing function must be rejected");

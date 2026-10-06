@@ -7,7 +7,7 @@ mod common;
 use anyhow::Result;
 use audio_core::BusId;
 use common::short_tone_fixture;
-use engine_core::{Engine, EngineConfig, EngineSession};
+use engine_core::{AnalysisDurationMode, Engine, EngineConfig, EngineSession};
 use library::{LibraryConfig, LibraryManager};
 use library_core::{AudioSource, FileAudioSource};
 use std::sync::{Arc, Mutex};
@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 fn test_engine_with_null_backend() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
+        analysis_duration: AnalysisDurationMode::Complete,
         ..Default::default()
     };
 
@@ -38,6 +39,7 @@ fn test_engine_with_null_backend() -> Result<()> {
 fn test_engine_loads_library_prepared_track() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
+        analysis_duration: AnalysisDurationMode::Complete,
         ..Default::default()
     };
 
@@ -62,6 +64,7 @@ fn test_engine_loads_library_prepared_track() -> Result<()> {
 fn test_engine_loads_track_via_library_manager() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
+        analysis_duration: AnalysisDurationMode::Complete,
         ..Default::default()
     };
 
@@ -87,6 +90,7 @@ fn test_engine_loads_track_via_library_manager() -> Result<()> {
 fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
     let config = EngineConfig {
         backend: "null".to_string(),
+        analysis_duration: AnalysisDurationMode::Complete,
         ..Default::default()
     };
 
@@ -111,8 +115,14 @@ fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
 fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
     // "auto" resolves to CPAL when the runner has a usable device, otherwise it
     // falls back to null. Either way backend selection and device enumeration
-    // must succeed; do not assert that a real stream opens, which depends on the
-    // runner's audio stack (and previously made this test environment-dependent).
+    // must succeed.
+    //
+    // Deliberately does not `start()`/`stop()`: whether a real device accepts
+    // this exact buffer size is a property of the runner's audio stack (the
+    // previous version of this test passed on CI and failed on any machine with
+    // a sound card: "Device callback size is 1024 frames but 512 frames were
+    // configured"). Device-open behaviour is covered by `backend-cpal`'s own
+    // tests; the fallback decision is covered here and by `create_backend`.
     let config = EngineConfig {
         backend: "auto".to_string(),
         ..Default::default()
@@ -187,22 +197,6 @@ fn test_engine_deck_operations() -> Result<()> {
     assert!(engine.play(2).is_err());
 
     engine.stop()?;
-    Ok(())
-}
-
-#[test]
-fn test_backend_fallback() -> Result<()> {
-    // "auto" must resolve to a backend and expose its devices without opening a
-    // stream: whether a real device accepts our exact buffer size is a property
-    // of the runner's audio stack, not of the engine.
-    let config = EngineConfig {
-        backend: "auto".to_string(),
-        ..Default::default()
-    };
-
-    let engine = Engine::new(config)?;
-    assert!(!engine.list_devices()?.is_empty());
-
     Ok(())
 }
 

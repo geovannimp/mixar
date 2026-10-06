@@ -76,12 +76,15 @@ impl AudioBackend for NullBackend {
             params.frames_per_buffer
         );
 
-        // Negotiate buffer size - use requested size or our default
+        // Negotiate buffer size - use requested size or our default. Clamp to at
+        // least 1 frame: a zero size would give the driver a zero-length period
+        // (a busy-spinning thread) and a zero-frame render buffer.
         let negotiated_size = if params.frames_per_buffer > 0 {
             params.frames_per_buffer
         } else {
             self.buffer_size()
-        };
+        }
+        .max(1);
 
         self.buffer_size.store(negotiated_size, Ordering::Relaxed);
 
@@ -133,16 +136,23 @@ impl AudioStream for NullStream {
             return Ok(());
         }
 
+        // Take the callback before mutating any state. If a previous driver
+        // thread panicked, `stop()` could not restore it, and returning `Ok`
+        // there would leave the stream reporting itself as running with no
+        // driver thread ever rendering.
+        let Some(callback) = self.callback.take() else {
+            return Err(anyhow::anyhow!(
+                "null stream cannot start: audio callback already consumed"
+            ));
+        };
+
         tracing::info!("Starting null audio stream");
         self.start_time = Some(Instant::now());
         self.running.store(true, Ordering::Relaxed);
 
-        let Some(callback) = self.callback.take() else {
-            return Ok(());
-        };
-
         let running = Arc::clone(&self.running);
         let params = self.params.clone();
+        // `open_output_stream` clamps this to >= 1.
         let frames = self.negotiated_buffer_size;
         // One callback per buffer duration, like a real sound card. This is what
         // paces the engine's producer thread and advances deck playheads.
@@ -152,10 +162,24 @@ impl AudioStream for NullStream {
             let mut callback = callback;
             let channels = params.channels.max(1) as usize;
             let mut buffer = vec![0.0; frames as usize * channels];
+            let mut next = Instant::now();
             while running.load(Ordering::Relaxed) {
                 buffer.fill(0.0);
                 callback.render(&mut buffer, frames, params.sample_rate);
-                thread::sleep(tick);
+                // Pace against an absolute deadline so render time does not
+                // accumulate into drift, the way a real device paces on its own
+                // clock.
+                next += tick;
+                match next.checked_duration_since(Instant::now()) {
+                    Some(wait) => thread::sleep(wait),
+                    // Render overran the buffer period. Resync and back off
+                    // instead of spinning a core (same idiom as the engine's
+                    // producer thread).
+                    None => {
+                        next = Instant::now();
+                        thread::sleep(tick / 8);
+                    }
+                }
             }
             callback
         }));
@@ -201,7 +225,9 @@ impl AudioStream for NullStream {
 impl Drop for NullStream {
     fn drop(&mut self) {
         // A stream dropped while running (e.g. a failed engine start) must not
-        // leak its driver thread.
+        // leak its driver thread. The joins in `stop()` cannot deadlock here:
+        // the driver thread owns only the callback and an `Arc<AtomicBool>`, so
+        // it can never touch — or wait on — this stream.
         if self.driver.is_some() {
             let _ = self.stop();
         }
@@ -347,16 +373,21 @@ mod tests {
         assert_eq!(frames_processed.load(Ordering::Relaxed), 0);
 
         stream.start().unwrap();
-        // The paced driver renders on a real-time cadence; 256 frames @ 48 kHz is
-        // ~5.3 ms per callback, so a few tens of ms is several callbacks.
-        std::thread::sleep(Duration::from_millis(60));
-        let rendered = frames_processed.load(Ordering::Relaxed);
-        assert!(
-            rendered >= 256,
-            "driver should have rendered at least one buffer, got {rendered} frames"
-        );
+        // The paced driver renders on a real-time cadence (256 frames @ 48 kHz is
+        // ~5.3 ms per callback). Poll with a generous deadline rather than sleeping
+        // a fixed window, so a loaded CI runner cannot flake this.
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while frames_processed.load(Ordering::Relaxed) < 256 {
+            assert!(
+                Instant::now() < deadline,
+                "driver rendered {} frames, expected >= 256",
+                frames_processed.load(Ordering::Relaxed)
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
 
-        // Stopping must park the driver: no further frames are rendered.
+        // `stop()` joins the driver thread, so nothing can be in flight once it
+        // returns: the count must be frozen.
         stream.stop().unwrap();
         let after_stop = frames_processed.load(Ordering::Relaxed);
         std::thread::sleep(Duration::from_millis(30));

@@ -131,18 +131,26 @@ mod tests {
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn with_force_ep<R>(value: Option<&str>, f: impl FnOnce() -> R) -> R {
+        /// Restores the previous env value even if `f` panics.
+        struct Restore(Option<std::ffi::OsString>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                match self.0.take() {
+                    Some(v) => std::env::set_var(FORCE_EP_ENV, v),
+                    None => std::env::remove_var(FORCE_EP_ENV),
+                }
+            }
+        }
+
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let prev = std::env::var_os(FORCE_EP_ENV);
+        // Declared after `_guard`, so it drops first (reverse declaration order):
+        // the restore happens while the lock is still held.
+        let _restore = Restore(std::env::var_os(FORCE_EP_ENV));
         match value {
             Some(v) => std::env::set_var(FORCE_EP_ENV, v),
             None => std::env::remove_var(FORCE_EP_ENV),
         }
-        let out = f();
-        match prev {
-            Some(v) => std::env::set_var(FORCE_EP_ENV, v),
-            None => std::env::remove_var(FORCE_EP_ENV),
-        }
-        out
+        f()
     }
 
     #[test]

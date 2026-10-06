@@ -161,8 +161,11 @@ fn sampler_pad_press_release_without_sampler_mode() {
     let EvtBody::Error { message } = decode_evt_body(event.payload()).expect("decode") else {
         panic!("expected Error");
     };
+    // Anchor to the slot index as well as the semantic word: a bare
+    // `contains("0")` would match any message carrying a 0 (e.g. a frame count),
+    // while the engine's message is `"Sampler slot {slot} is empty"`.
     assert!(
-        message.contains("empty") && message.contains("0"),
-        "cleared slot should fail trigger with an empty-slot error, got: {message}"
+        message.contains("slot 0") && message.contains("empty"),
+        "cleared slot should fail trigger with an empty-slot error for slot 0, got: {message}"
     );
 }

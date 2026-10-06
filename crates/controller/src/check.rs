@@ -4,7 +4,6 @@ use std::path::Path;
 
 use crate::bundle::load_bundle;
 use crate::error::LoadError;
-use crate::map_file::{InputBinding, RawBinding};
 use crate::script::ScriptRuntime;
 
 /// Load + validate a bundle directory (including optional Rhai compile).
@@ -41,14 +40,13 @@ pub fn check_bundle_dir(dir: &Path) -> Result<(), LoadError> {
     // Input bindings that name a script function must resolve too. Without this,
     // `map-check` passes and the typo only surfaces as a `ScriptBindingFailure`
     // the first time the control is pressed.
+    //
+    // `bindings_for` is the single Action/Table/List normalization point used by
+    // `MapFile::validate_against`; an `Action` carries no `script`, so it needs
+    // no check here.
     for (section, aliases) in &bundle.map.inputs {
-        for (alias, raw) in aliases {
-            let bindings: &[InputBinding] = match raw {
-                RawBinding::Action(_) => &[],
-                RawBinding::Table(binding) => std::slice::from_ref(binding),
-                RawBinding::List(list) => list,
-            };
-            for (i, binding) in bindings.iter().enumerate() {
+        for alias in aliases.keys() {
+            for (i, binding) in bundle.map.bindings_for(section, alias).iter().enumerate() {
                 if let Some(name) = &binding.script {
                     if !rt.has_fn(name) {
                         return Err(LoadError::Validation(format!(
