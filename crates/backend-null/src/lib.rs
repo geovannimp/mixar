@@ -98,6 +98,21 @@ impl AudioBackend for NullBackend {
         }
         .max(1);
 
+        // Bound the render buffer the driver allocates up front. `frames` and
+        // `channels` arrive from the caller, and an absurd pair (e.g.
+        // `u32::MAX` frames) would abort the driver thread on allocation failure
+        // rather than surfacing a usable error.
+        const MAX_BUFFER_SAMPLES: usize = 1 << 20; // 4 MiB of f32
+        let samples = (negotiated_size as usize).saturating_mul(params.channels as usize);
+        if samples > MAX_BUFFER_SAMPLES {
+            return Err(anyhow::anyhow!(
+                "null backend buffer too large: {} frames x {} channels = {} samples (max {MAX_BUFFER_SAMPLES})",
+                negotiated_size,
+                params.channels,
+                samples
+            ));
+        }
+
         self.buffer_size.store(negotiated_size, Ordering::Relaxed);
 
         Ok(Box::new(NullStream::new(
@@ -176,11 +191,6 @@ impl AudioStream for NullStream {
         tracing::info!("Starting null audio stream");
         // `running` is the driver's internal loop flag; the *reported* running
         // state is `start_time`, set only once the driver exists.
-        //
-        // `thread::spawn` panics (rather than returning `Err`) if it cannot create
-        // a thread. At that point the callback has already been taken, so the
-        // stream is unusable — as with a callback panic, it must be discarded
-        // rather than restarted; `start()` says so explicitly.
         self.running.store(true, Ordering::Relaxed);
 
         let running = Arc::clone(&self.running);
@@ -192,44 +202,61 @@ impl AudioStream for NullStream {
         // paces the engine's producer thread and advances deck playheads.
         let tick = Duration::from_secs_f64(frames as f64 / params.sample_rate as f64);
 
-        self.driver = Some(thread::spawn(move || {
-            let mut callback = callback;
-            let channels = params.channels as usize;
-            let mut buffer = vec![0.0; frames as usize * channels];
-            // Longest a single sleep runs before re-checking the stop flag. Keeps
-            // teardown bounded independently of the negotiated buffer size, so a
-            // large `frames_per_buffer` cannot make `stop()`/`Drop` wait a full
-            // period for the driver to notice.
-            const MAX_SLICE: Duration = Duration::from_millis(10);
-            let mut next = Instant::now();
-            while running.load(Ordering::Relaxed) {
-                buffer.fill(0.0);
-                callback.render(&mut buffer, frames, params.sample_rate);
-                // Pace against an absolute deadline so render time does not
-                // accumulate into drift, the way a real device paces on its own
-                // clock.
-                next += tick;
-                let mut wait = next
-                    .checked_duration_since(Instant::now())
-                    .unwrap_or(Duration::ZERO);
-                if wait.is_zero() {
-                    // Render overran the buffer period. Resync and back off
-                    // instead of spinning a core (same idiom as the engine's
-                    // producer thread).
-                    next = Instant::now();
-                    wait = tick / 8;
+        // `thread::Builder::spawn` returns `Result` (unlike `thread::spawn`, which
+        // panics), so thread-creation failure becomes a normal error. The callback
+        // moved into the closure cannot be recovered, so the stream stays
+        // unusable — but the reported state returns to stopped and the caller
+        // gets a diagnostic instead of a panic.
+        match thread::Builder::new()
+            .name("null-audio-driver".into())
+            .spawn(move || {
+                let mut callback = callback;
+                let channels = params.channels as usize;
+                let mut buffer = vec![0.0; frames as usize * channels];
+                // Longest a single sleep runs before re-checking the stop flag.
+                // Keeps teardown bounded independently of the negotiated buffer
+                // size, so a large `frames_per_buffer` cannot make `stop()`/`Drop`
+                // wait a full period for the driver to notice.
+                const MAX_SLICE: Duration = Duration::from_millis(10);
+                let mut next = Instant::now();
+                while running.load(Ordering::Relaxed) {
+                    buffer.fill(0.0);
+                    callback.render(&mut buffer, frames, params.sample_rate);
+                    // Pace against an absolute deadline so render time does not
+                    // accumulate into drift, the way a real device paces on its own
+                    // clock.
+                    next += tick;
+                    let mut wait = next
+                        .checked_duration_since(Instant::now())
+                        .unwrap_or(Duration::ZERO);
+                    if wait.is_zero() {
+                        // Render overran the buffer period. Resync and back off
+                        // instead of spinning a core (same idiom as the engine's
+                        // producer thread).
+                        next = Instant::now();
+                        wait = tick / 8;
+                    }
+                    while !wait.is_zero() && running.load(Ordering::Relaxed) {
+                        let slice = wait.min(MAX_SLICE);
+                        thread::sleep(slice);
+                        wait = wait.saturating_sub(slice);
+                    }
                 }
-                while !wait.is_zero() && running.load(Ordering::Relaxed) {
-                    let slice = wait.min(MAX_SLICE);
-                    thread::sleep(slice);
-                    wait = wait.saturating_sub(slice);
-                }
+                callback
+            }) {
+            Ok(handle) => {
+                self.driver = Some(handle);
+                self.start_time = Some(Instant::now());
+                Ok(())
             }
-            callback
-        }));
-        self.start_time = Some(Instant::now());
-
-        Ok(())
+            Err(error) => {
+                self.running.store(false, Ordering::Relaxed);
+                self.start_time = None;
+                Err(anyhow::anyhow!(
+                    "null backend could not spawn its driver thread: {error}"
+                ))
+            }
+        }
     }
 
     fn stop(&mut self) -> Result<()> {
@@ -483,6 +510,26 @@ mod tests {
                 )
                 .is_err(),
             "a zero channel count must be rejected at the boundary"
+        );
+    }
+
+    #[test]
+    fn open_rejects_an_absurd_buffer() {
+        let mut backend = NullBackend::new();
+        let device = backend
+            .list_output_devices()
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+
+        // 1 << 20 frames x 2 channels exceeds the 1 << 20 sample cap.
+        let params = StreamParams::new(48_000, 2, 1 << 20, false);
+        assert!(
+            backend
+                .open_output_stream(&device.id, &params, Box::new(TestCallback::new(48_000).0))
+                .is_err(),
+            "a render buffer past MAX_BUFFER_SAMPLES must be rejected, not allocated"
         );
     }
 

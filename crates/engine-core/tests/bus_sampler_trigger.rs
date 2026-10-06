@@ -111,8 +111,10 @@ fn sampler_pad_press_release_without_sampler_mode() {
         )
         .expect("press");
     let event = recv_evt_kind(&evt, Kind::Updated);
-    // No `set_deck_pad_mode` in this fixture, so the deck stays on its default
-    // HotCue pads: the press must NOT have been routed to the sampler.
+    // `Kind::SamplerPadPress` is dispatched straight to
+    // `Engine::sampler_pad_press` in `control.rs`; it does not go through the
+    // `pad_mode` router, so this asserts only that the sampler command leaves the
+    // deck's pad mode untouched (it starts, and stays, on the HotCue default).
     let EvtBody::DeckUpdated { pad_mode, .. } = decode_evt_body(event.payload()).expect("decode")
     else {
         panic!("expected DeckUpdated");
