@@ -9,6 +9,7 @@ When adding a sample, include attribution below if the track is not your own wor
 | File | Notes |
 |------|-------|
 | `fixtures/short-tone.wav` | Synthetic 0.25 s stereo 440 Hz sine at 48 kHz; used by engine integration tests (CI-friendly). |
+| `fixtures/short-beats.wav` | Synthetic 6 s mono 120 BPM click track at 48 kHz; used by engine tests that need a detected BPM (loop in/out, auto loop). |
 
 ## Oneshots
 
