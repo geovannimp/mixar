@@ -40,17 +40,24 @@ pub const RECV_TIMEOUT: Duration = Duration::from_secs(2);
 /// A disconnected bus fails immediately with the real error rather than spinning
 /// until the deadline and reporting a misleading timeout.
 pub fn recv_evt_kind(sub: &TestReceiver, kind: Kind) -> TestEvent {
-    recv_evt_kind_within(sub, kind, RECV_TIMEOUT)
+    recv_evt_where(sub, kind, |_| true)
 }
 
-/// [`recv_evt_kind`] with an explicit deadline.
-pub fn recv_evt_kind_within(sub: &TestReceiver, kind: Kind, timeout: Duration) -> TestEvent {
-    let deadline = Instant::now() + timeout;
+/// [`recv_evt_kind`] restricted to events whose decoded body also satisfies
+/// `pred`. Use this instead of hand-rolling a receive loop when the assertion
+/// depends on a body field (e.g. a specific deck id), so every wait in the suite
+/// reports timeout and disconnect failures identically.
+pub fn recv_evt_where(
+    sub: &TestReceiver,
+    kind: Kind,
+    mut pred: impl FnMut(&TestEvent) -> bool,
+) -> TestEvent {
+    let deadline = Instant::now() + RECV_TIMEOUT;
     while Instant::now() < deadline {
         let remaining = deadline.saturating_duration_since(Instant::now());
         match sub.recv_timeout(remaining.min(Duration::from_millis(50))) {
             Ok(Some(event)) => {
-                if *event.kind() == kind {
+                if *event.kind() == kind && pred(&event) {
                     return (*event).clone();
                 }
             }
@@ -59,7 +66,7 @@ pub fn recv_evt_kind_within(sub: &TestReceiver, kind: Kind, timeout: Duration) -
             Err(error) => panic!("evt bus disconnected while waiting for {kind:?}: {error}"),
         }
     }
-    panic!("timeout waiting for evt kind {kind:?} after {timeout:?}");
+    panic!("timeout waiting for evt kind {kind:?} after {RECV_TIMEOUT:?}");
 }
 
 /// The checked-in, CI-friendly audio fixture.

@@ -196,6 +196,29 @@ mod tests {
         });
     }
 
+    /// Restores the process-global `LC_NUMERIC` on drop, including on unwind.
+    #[cfg(all(feature = "webgpu", unix))]
+    struct LocaleGuard(std::ffi::CString);
+
+    #[cfg(all(feature = "webgpu", unix))]
+    impl LocaleGuard {
+        /// Capture the current locale. Call while holding `ENV_LOCK`.
+        fn capture() -> Self {
+            let current = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
+            assert!(!current.is_null(), "LC_NUMERIC query failed");
+            Self(unsafe { std::ffi::CStr::from_ptr(current) }.to_owned())
+        }
+    }
+
+    #[cfg(all(feature = "webgpu", unix))]
+    impl Drop for LocaleGuard {
+        fn drop(&mut self) {
+            unsafe {
+                libc::setlocale(libc::LC_NUMERIC, self.0.as_ptr());
+            }
+        }
+    }
+
     /// Format `value` with libc `%f` — the same call site the WebGPU/WGSL float
     /// path depends on.
     #[cfg(all(feature = "webgpu", unix))]
@@ -220,8 +243,9 @@ mod tests {
     #[test]
     fn force_c_numeric_locale_keeps_printf_dot() {
         // LC_NUMERIC is process-global C state, so serialize with the other
-        // env-mutating tests.
+        // env-mutating tests. The guard restores it on drop, including on unwind.
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _restore_locale = LocaleGuard::capture();
         force_c_numeric_locale();
         let s = format_float(0.00001);
         assert!(
@@ -252,9 +276,7 @@ mod tests {
         ];
 
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let previous = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
-        assert!(!previous.is_null(), "LC_NUMERIC query failed");
-        let previous = unsafe { std::ffi::CStr::from_ptr(previous) }.to_owned();
+        let _restore_locale = LocaleGuard::capture();
 
         // Pick the first installed locale that really formats with a comma.
         let available = COMMA_LOCALES.iter().find_map(|name| {
@@ -270,11 +292,6 @@ mod tests {
             force_c_numeric_locale();
             format_float(0.00001)
         });
-
-        // Restore before asserting so a failure leaves the process clean.
-        unsafe {
-            libc::setlocale(libc::LC_NUMERIC, previous.as_ptr());
-        }
 
         let s = forced.unwrap_or_else(|| {
             panic!("no comma-decimal locale available (tried {COMMA_LOCALES:?})")

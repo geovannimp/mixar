@@ -2,11 +2,10 @@
 
 mod common;
 
-use common::{recv_evt_kind, source_with_bpm};
+use common::{recv_evt_kind, recv_evt_where, source_with_bpm};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, SyncMode};
 use engine_core::{AudioConfig, EngineConfig, EngineSession};
 use omnibus::Filter;
-use std::time::{Duration, Instant};
 
 /// ±25% tempo fader span, wide enough that the 120→100 BPM sync ratio (1.2×)
 /// is reachable instead of saturating the default ±6% fader.
@@ -104,38 +103,26 @@ fn master_speed_change_updates_synced_slave() {
         )
         .expect("speed");
 
-    // Master update first, then slave follow.
-    let mut slave_speed = None;
-    let deadline = Instant::now() + Duration::from_secs(2);
-    while Instant::now() < deadline {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let event = match evt.recv_timeout(remaining.min(Duration::from_millis(50))) {
-            Ok(Some(event)) => event,
-            // `recv_timeout` returns Ok(None) on timeout; keep waiting.
-            Ok(None) => continue,
-            Err(error) => panic!("evt bus: {error}"),
-        };
-        if *event.kind() != Kind::Updated {
-            continue;
-        }
-        let EvtBody::DeckUpdated { id, speed, .. } =
-            decode_evt_body(event.payload()).expect("decode")
-        else {
-            continue;
-        };
-        if id == 1 {
-            slave_speed = Some(speed);
-            break;
-        }
-    }
-    let slave_speed = slave_speed.expect("slave Updated");
+    // Master update first, then slave follow. Filter on the slave's deck id via
+    // the shared helper so this wait reports timeouts/disconnects identically to
+    // every other receive in the suite.
+    let event = recv_evt_where(&evt, Kind::Updated, |event| {
+        matches!(
+            decode_evt_body(event.payload()),
+            Ok(EvtBody::DeckUpdated { id: 1, .. })
+        )
+    });
+    let EvtBody::DeckUpdated { speed, .. } = decode_evt_body(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
+    };
     // Master ratio 0.85 → slave needs 0.85 × 120/100 = 1.02×.
     // playback_ratio_to_norm(1.02, ±0.25) = 0.5 − 0.02/0.5 = 0.46.
     // Asserting the derived value (not 0.0) means deleting `apply_tempo_sync`
     // now fails this test.
     assert!(
-        (slave_speed - 0.46).abs() < 1e-3,
-        "slave should follow the master's new tempo, slave_speed={slave_speed}"
+        (speed - 0.46).abs() < 1e-3,
+        "slave should follow the master's new tempo, slave_speed={speed}"
     );
 }
 

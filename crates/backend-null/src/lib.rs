@@ -109,6 +109,13 @@ impl AudioBackend for NullBackend {
 }
 
 /// Null audio stream implementation
+///
+/// Lifecycle contract: the stream is driven by a background thread that calls the
+/// engine's audio callback once per buffer duration. If that callback panics the
+/// driver thread exits, the callback is unrecoverable, and the stream is
+/// permanently dead: `stop()` reports the panic, a later `start()` fails with
+/// "audio callback already consumed", and `Drop` cannot clean up further. That is
+/// deliberate — a panic in the audio callback cannot be retried safely.
 struct NullStream {
     /// Stream parameters
     params: StreamParams,
@@ -143,9 +150,13 @@ impl NullStream {
 
 impl AudioStream for NullStream {
     fn start(&mut self) -> Result<()> {
-        if self.driver.is_some() {
-            // Already running.
-            return Ok(());
+        if let Some(driver) = &self.driver {
+            // `is_finished` catches the case where the driver thread exited on its
+            // own because its callback panicked: the handle is still present, but
+            // nothing is rendering, so reporting "already running" would be a lie.
+            if !driver.is_finished() {
+                return Ok(());
+            }
         }
 
         // Take the callback before mutating any state. If a previous driver

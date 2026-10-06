@@ -113,28 +113,31 @@ fn test_engine_session_loads_track_via_shared_library_manager() -> Result<()> {
 
 #[test]
 fn test_engine_with_auto_backend_selects_a_usable_backend() -> Result<()> {
-    // "auto" resolves to CPAL when the runner has a usable device, otherwise it
-    // falls back to null. Either way backend selection and device enumeration
-    // must succeed.
+    // "auto" must resolve to a concrete backend: CPAL when it initialises,
+    // otherwise the null fallback. Assert the resolution itself — deterministic —
+    // rather than that a real device opens.
     //
     // Deliberately does not `start()`/`stop()`: whether a real device accepts
     // this exact buffer size is a property of the runner's audio stack (the
     // previous version of this test passed on CI and failed on any machine with
     // a sound card: "Device callback size is 1024 frames but 512 frames were
-    // configured"). Device-open behaviour is covered by `backend-cpal`'s own
-    // tests; the fallback decision is covered here and by `create_backend`.
-    let config = EngineConfig {
+    // configured"). Device-open behaviour is covered by `backend-cpal`'s tests.
+    let backend = engine_core::AudioBackend::new("auto")?;
+    assert!(
+        matches!(backend.name(), "cpal" | "null"),
+        "auto must resolve to cpal or fall back to null, got `{}`",
+        backend.name()
+    );
+
+    // The engine must also accept the same config and enumerate devices without
+    // error. A headless runner where CPAL initialises but lists no usable output
+    // devices legitimately returns an empty list, so only the call is required to
+    // succeed; the non-empty guarantee for the null backend is asserted by
+    // `backend-null`'s own tests.
+    let engine = Engine::new(EngineConfig {
         backend: "auto".to_string(),
         ..Default::default()
-    };
-
-    let engine = Engine::new(config)?;
-    // `create_backend("auto")` only falls back to null when `CpalBackend::new()`
-    // fails, so on a headless runner where CPAL initialises but lists no usable
-    // output devices, `auto` legitimately resolves to CPAL and this returns an
-    // empty list. Requiring non-empty would reintroduce a hardware-dependent
-    // failure; the non-empty guarantee is asserted for the null backend by
-    // `backend-null`'s own tests. What matters here is that selection succeeds.
+    })?;
     engine.list_devices()?;
 
     Ok(())
