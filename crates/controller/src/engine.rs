@@ -152,12 +152,11 @@ pub(crate) fn report_midi_send(
 
 /// Log a script binding failure with its attach identity.
 ///
-/// Shared by the two `pump` call sites (so the message and its fields stay in one
-/// place) and by the `report_errors` integration test, which captures the log to
-/// assert the emitted line. This is production logging, not a test hook, so it
-/// cannot be `#[cfg(test)]`- or feature-gated.
-#[doc(hidden)]
-pub fn report_script_binding_failure(
+/// Shared by the two `pump` call sites so the message and its fields live in one
+/// place. Private to the crate: `report_script_binding_failure` below is the
+/// `test-utils`-gated seam that lets the `report_errors` integration test capture
+/// this exact line without widening the public API.
+pub(crate) fn log_script_binding_failure(
     mapping_id: &str,
     device_id: &str,
     port_name: &str,
@@ -173,6 +172,20 @@ pub fn report_script_binding_failure(
         error = %fail.error,
         "script binding failed"
     );
+}
+
+/// Test seam: call the production logger so an integration test can assert the
+/// emitted line. Gated behind `test-utils` (plus `cfg(test)` for in-crate use),
+/// so it is absent from the public API of a production build.
+#[cfg(any(test, feature = "test-utils"))]
+#[doc(hidden)]
+pub fn report_script_binding_failure(
+    mapping_id: &str,
+    device_id: &str,
+    port_name: &str,
+    fail: &ScriptBindingFailure,
+) {
+    log_script_binding_failure(mapping_id, device_id, port_name, fail);
 }
 
 impl Attached {
@@ -804,7 +817,7 @@ impl ControllerEngine {
                             attached.session.handle_midi(&bytes, bus, &mut sink)
                         };
                         if let Some(fail) = fail {
-                            report_script_binding_failure(
+                            log_script_binding_failure(
                                 &attached.mapping_id,
                                 &attached.device_id,
                                 &port_name,
@@ -835,7 +848,7 @@ impl ControllerEngine {
                 (flush_fails, heartbeat)
             };
             for fail in flush_fails {
-                report_script_binding_failure(
+                log_script_binding_failure(
                     &attached.mapping_id,
                     &attached.device_id,
                     &port_name,

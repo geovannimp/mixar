@@ -27,7 +27,12 @@ rhai = { version = "1.21", default-features = false, features = ["std", "sync"] 
 # Exposes test-only hooks to this crate's own integration tests. Integration
 # tests are separate crates and cannot see `pub(crate)`, so without a feature
 # these hooks would have to be unconditionally `pub`. Enabled only via the self
-# dev-dependency below; never enable it in a production build.
+# dev-dependency below.
+#
+# Fragility note: "absent from production builds" relies on the workspace staying
+# on `resolver = "2"` (see crates/Cargo.toml) AND on no crate ever listing
+# `features = ["test-utils"]` on a normal `[dependencies]` entry. Either change
+# would compile the test hooks into production artifacts.
 test-utils = []
 
 [dev-dependencies]

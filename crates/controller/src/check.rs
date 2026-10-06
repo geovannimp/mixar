@@ -29,11 +29,7 @@ pub fn check_bundle_dir(dir: &Path) -> Result<(), LoadError> {
         ),
     ] {
         if let Some(name) = name {
-            if !rt.has_fn(name) {
-                return Err(LoadError::Validation(format!(
-                    "lifecycle.{key}: function `{name}` not found in script.rhai"
-                )));
-            }
+            require_fn(&rt, &format!("lifecycle.{key}"), name)?;
         }
     }
 
@@ -48,17 +44,25 @@ pub fn check_bundle_dir(dir: &Path) -> Result<(), LoadError> {
         for alias in aliases.keys() {
             for (i, binding) in bundle.map.bindings_for(section, alias).iter().enumerate() {
                 if let Some(name) = &binding.script {
-                    if !rt.has_fn(name) {
-                        return Err(LoadError::Validation(format!(
-                            "inputs.{section}.{alias}[{i}]: script function `{name}` not found in script.rhai"
-                        )));
-                    }
+                    require_fn(&rt, &format!("inputs.{section}.{alias}[{i}]"), name)?;
                 }
             }
         }
     }
 
     Ok(())
+}
+
+/// Reject a lifecycle hook or input binding that names a function `script.rhai`
+/// does not define. `path` is the human-readable location used in the error.
+fn require_fn(rt: &ScriptRuntime, path: &str, name: &str) -> Result<(), LoadError> {
+    if rt.has_fn(name) {
+        Ok(())
+    } else {
+        Err(LoadError::Validation(format!(
+            "{path}: script function `{name}` not found in script.rhai"
+        )))
+    }
 }
 
 /// Check every immediate subdirectory of `mappings_root`.
