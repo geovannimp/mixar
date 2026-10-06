@@ -132,6 +132,9 @@ docs/superpowers/
 # moon
 .moon/cache
 
+# CodeGraph index
+.codegraph/
+
 # Impeccable runtime (skill lives in .agents/skills/impeccable/)
 .impeccable/live/
 .impeccable/config.local.json
