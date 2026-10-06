@@ -204,6 +204,10 @@ mod tests {
     impl LocaleGuard {
         /// Capture the current locale. Call while holding `ENV_LOCK`.
         fn capture() -> Self {
+            // SAFETY: `setlocale(LC_NUMERIC, NULL)` is the query form — it does
+            // not modify process state. The returned pointer is owned by libc and
+            // valid only until the next `setlocale`, so it is copied immediately
+            // into a `CString` before any further `setlocale` call.
             let current = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
             assert!(!current.is_null(), "LC_NUMERIC query failed");
             Self(unsafe { std::ffi::CStr::from_ptr(current) }.to_owned())
@@ -213,6 +217,9 @@ mod tests {
     #[cfg(all(feature = "webgpu", unix))]
     impl Drop for LocaleGuard {
         fn drop(&mut self) {
+            // SAFETY: `self.0` is an owned `CString` that outlives the call, so
+            // the `*const c_char` passed to `setlocale` is valid for its duration.
+            // This is process-global mutation, serialized by `ENV_LOCK`.
             unsafe {
                 libc::setlocale(libc::LC_NUMERIC, self.0.as_ptr());
             }
@@ -224,6 +231,8 @@ mod tests {
     #[cfg(all(feature = "webgpu", unix))]
     fn format_float(value: f64) -> String {
         let mut buf = [0 as libc::c_char; 64];
+        // SAFETY: `buf` is a valid writable array of `buf.len()` bytes and the
+        // format string is a static NUL-terminated literal taking one `f64`.
         let written = unsafe { libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), value) };
         // Fail loudly rather than assert on a silently truncated rendering.
         assert!(
@@ -231,6 +240,8 @@ mod tests {
             "snprintf truncated {value} (wrote {written}, buffer {})",
             buf.len()
         );
+        // SAFETY: `snprintf` NUL-terminates whenever the buffer size is non-zero
+        // (asserted above), and `buf` outlives the call.
         unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
             .to_string_lossy()
             .into_owned()
@@ -259,6 +270,8 @@ mod tests {
             let Ok(c) = std::ffi::CString::new(*name) else {
                 return false;
             };
+            // SAFETY: `c` is an owned `CString` that outlives the call. Mutates
+            // process-global `LC_NUMERIC`, serialized by `ENV_LOCK`.
             let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
             if set.is_null() {
                 return false; // not installed on this host

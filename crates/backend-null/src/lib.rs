@@ -103,7 +103,7 @@ impl AudioBackend for NullBackend {
         // `u32::MAX` frames) would abort the driver thread on allocation failure
         // rather than surfacing a usable error.
         const MAX_BUFFER_SAMPLES: usize = 1 << 20; // 4 MiB of f32
-        let samples = (negotiated_size as usize).saturating_mul(params.channels as usize);
+        let samples = buffer_samples(negotiated_size, params.channels);
         if samples > MAX_BUFFER_SAMPLES {
             return Err(anyhow::anyhow!(
                 "null backend buffer too large: {} frames x {} channels = {} samples (max {MAX_BUFFER_SAMPLES})",
@@ -121,6 +121,14 @@ impl AudioBackend for NullBackend {
             callback,
         )))
     }
+}
+
+/// Render-buffer size in samples for a negotiated frame count and channel count.
+///
+/// `saturating_mul` so an absurd frame/channel pair cannot overflow the size
+/// computation; the result is range-checked in `open_output_stream`.
+fn buffer_samples(frames: u32, channels: u16) -> usize {
+    (frames as usize).saturating_mul(channels as usize)
 }
 
 /// Null audio stream implementation
@@ -166,12 +174,20 @@ impl NullStream {
 impl AudioStream for NullStream {
     fn start(&mut self) -> Result<()> {
         if let Some(driver) = &self.driver {
-            // `is_finished` catches the case where the driver thread exited on its
-            // own because its callback panicked: the handle is still present, but
-            // nothing is rendering, so reporting "already running" would be a lie.
             if !driver.is_finished() {
                 return Ok(());
             }
+            // The driver exited on its own because its callback panicked — it never
+            // went through `stop()`. Reap the handle and clear the reported state
+            // so the stream stops claiming to be running; otherwise
+            // `actual_latency()` would keep reporting a live stream and the
+            // `callback.take()` below would error against stale state. (It errors
+            // either way, which is correct: the configured stream is gone.)
+            if let Some(finished) = self.driver.take() {
+                let _ = finished.join();
+            }
+            self.running.store(false, Ordering::Relaxed);
+            self.start_time = None;
         }
 
         // Take the callback before mutating any state. If a previous driver
@@ -211,8 +227,7 @@ impl AudioStream for NullStream {
             .name("null-audio-driver".into())
             .spawn(move || {
                 let mut callback = callback;
-                let channels = params.channels as usize;
-                let mut buffer = vec![0.0; frames as usize * channels];
+                let mut buffer = vec![0.0; buffer_samples(frames, params.channels)];
                 // Longest a single sleep runs before re-checking the stop flag.
                 // Keeps teardown bounded independently of the negotiated buffer
                 // size, so a large `frames_per_buffer` cannot make `stop()`/`Drop`

@@ -18,9 +18,9 @@ use std::time::Duration;
 ///
 /// This bounds how long `Drop` waits to join an idle worker, and every
 /// `LibraryTransport` drop pays it (15+ per `host-flutter` test run), so it is
-/// kept short. The timeout itself is a no-op poll: the cmd loop resumes on
-/// `RecvTimeoutError::Timeout` and the stem loop on `Err(Timeout)`, so both just
-/// re-test `shutdown`.
+/// kept short. The timeout is a no-op poll in both loops, which differ in how it
+/// is reported: the cmd loop's `omnibus` receiver returns `Ok(None)`, the stem
+/// loop's `std::sync::mpsc` receiver returns `Err(RecvTimeoutError::Timeout)`.
 const RECV_TIMEOUT: Duration = Duration::from_millis(25);
 
 /// Host-owned library cmd worker (JoinHandle must not live inside `Mutex<LibraryManager>`).
