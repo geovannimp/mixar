@@ -138,6 +138,7 @@ fn build_kernel(
     SparseKernel { is, js, real, imag }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct ChromagramConfig {
     pub fs: f64,
     pub min: f64,
@@ -164,6 +165,10 @@ pub struct Chromagram {
 
 impl Chromagram {
     pub fn new(cfg: ChromagramConfig) -> Self {
+        debug_assert!(
+            cfg.fs > 0.0 && cfg.min > 0.0 && cfg.max > cfg.min,
+            "invalid chromagram config: {cfg:?}"
+        );
         let octaves = (cfg.max / cfg.min).log2();
         let fmax = cfg.min * 2f64.powf(octaves.ceil());
         let cq = ConstantQ::new(cfg.fs, cfg.min, fmax, cfg.bpo, cfg.cq_thresh);
@@ -192,6 +197,7 @@ impl Chromagram {
     /// Process one frame of `frame_size` time-domain samples; returns the
     /// `bpo`-length chroma vector.
     pub fn process(&mut self, data: &[f64]) -> &[f64] {
+        debug_assert_eq!(data.len(), self.frame_size, "chromagram frame length");
         for i in 0..self.frame_size {
             self.windowbuf[i] = data[i] * self.window[i];
         }

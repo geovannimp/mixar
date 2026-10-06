@@ -60,19 +60,14 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     // below `min_bpm` after folding; clamp so the documented range holds.
     bpm = bpm.clamp(min_bpm, max_bpm.max(min_bpm));
 
-    // Round to the configured number of decimal places. Rounding can push a
-    // folded value back up to (or over) the exclusive upper bound, so fold again
-    // and clamp into `[min_bpm, max_bpm)`.
+    // Round to the configured number of decimal places. Rounding can land on the
+    // exclusive upper bound; clamp rather than fold, since folding here would
+    // drop the track an octave (e.g. a true 139.96 BPM → 70).
     let snapped = round_to_decimals(bpm, cfg.decimals);
     if !snapped.is_finite() || snapped <= 0.0 {
         return;
     }
-    let snapped = if snapped >= max_bpm {
-        snapped / 2.0
-    } else {
-        snapped
-    }
-    .max(min_bpm);
+    let snapped = snapped.clamp(min_bpm, max_bpm);
     let snapped_period = 60.0 / snapped;
 
     // Best-fit anchor (Mixxx `adjustPhase`).
@@ -143,8 +138,21 @@ fn median_period(beats: &[f32]) -> Option<f64> {
         return None;
     }
     intervals.sort_by(f64::total_cmp);
-    let median = intervals[intervals.len() / 2];
+    let median = median_sorted(&intervals);
     (median > 0.0 && median.is_finite()).then_some(median)
+}
+
+/// Median of an ascending slice (mean of the two middle values when even).
+fn median_sorted(sorted: &[f64]) -> f64 {
+    let n = sorted.len();
+    if n == 0 {
+        return 0.0;
+    }
+    if n % 2 == 1 {
+        sorted[n / 2]
+    } else {
+        (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+    }
 }
 
 /// Best-fit phase anchor for `period`: first beat shifted by the mean residual
@@ -166,7 +174,7 @@ fn fit_anchor(beats: &[f32], period: f64) -> f64 {
         .collect();
     if inliers.is_empty() {
         residuals.sort_by(f64::total_cmp);
-        first + residuals[residuals.len() / 2]
+        first + median_sorted(&residuals)
     } else {
         first + inliers.iter().sum::<f64>() / inliers.len() as f64
     }
@@ -415,5 +423,23 @@ mod tests {
                 .0;
             assert_eq!(idx % 4, 1, "snapped downbeat {db} maps to raw index {idx}");
         }
+    }
+
+    #[test]
+    fn rounding_does_not_drop_an_octave_on_the_upper_bound() {
+        // 139.96 BPM with decimals=0 rounds to 140 (== max, the exclusive upper
+        // bound). It must stay near the detected tempo, not fold down to ~70.
+        let period = 60.0_f64 / 139.96;
+        let beats: Vec<f32> = (0..64).map(|i| (0.2 + i as f64 * period) as f32).collect();
+        let mut track = track_with(beats, 139.96);
+        snap_grid(
+            &mut track,
+            &SnapConfig {
+                decimals: 0,
+                ..Default::default()
+            },
+        );
+        let bpm = track.bpm.as_ref().unwrap().bpm;
+        assert!((bpm - 140.0).abs() < 1e-9, "bpm {bpm} dropped an octave");
     }
 }
