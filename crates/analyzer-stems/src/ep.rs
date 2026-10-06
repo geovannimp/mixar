@@ -188,37 +188,85 @@ mod tests {
         });
     }
 
+    /// Format `value` with libc `%f` — the same call site the WebGPU/WGSL float
+    /// path depends on.
+    #[cfg(all(feature = "webgpu", unix))]
+    fn format_float(value: f64) -> String {
+        let mut buf = [0 as libc::c_char; 64];
+        unsafe {
+            libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), value);
+        }
+        unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// Production requirement: after `force_c_numeric_locale`, printf always uses
+    /// a dot. This holds no matter which locales the host has installed, so it is
+    /// safe to run on CI.
     #[cfg(all(feature = "webgpu", unix))]
     #[test]
-    fn force_c_numeric_locale_makes_printf_use_dot() {
+    fn force_c_numeric_locale_keeps_printf_dot() {
         // LC_NUMERIC is process-global C state, so serialize with the other
-        // env-mutating tests and restore whatever locale was active.
+        // env-mutating tests.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        force_c_numeric_locale();
+        let s = format_float(0.00001);
+        assert!(
+            s.contains('.') && !s.contains(','),
+            "force_c_numeric_locale must format with a dot, got {s:?}"
+        );
+    }
+
+    /// Stronger check: with a comma-decimal locale *active*, forcing the C locale
+    /// must still switch printf to a dot.
+    ///
+    /// Ignored by default because GitHub's `ubuntu-latest` image ships no
+    /// comma-decimal locale, so the precondition cannot be created there. Run it
+    /// explicitly with `cargo test -p analyzer-stems -- --ignored`.
+    #[cfg(all(feature = "webgpu", unix))]
+    #[test]
+    #[ignore = "needs a comma-decimal locale (e.g. pt_BR.UTF-8); not installed on ubuntu-latest"]
+    fn force_c_numeric_locale_overrides_comma_locale() {
+        const COMMA_LOCALES: &[&str] = &[
+            "pt_BR.UTF-8",
+            "pt_BR.utf8",
+            "de_DE.UTF-8",
+            "de_DE.utf8",
+            "fr_FR.UTF-8",
+            "fr_FR.utf8",
+            "es_ES.UTF-8",
+            "it_IT.UTF-8",
+        ];
+
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let previous = unsafe { libc::setlocale(libc::LC_NUMERIC, std::ptr::null()) };
         assert!(!previous.is_null(), "LC_NUMERIC query failed");
         let previous = unsafe { std::ffi::CStr::from_ptr(previous) }.to_owned();
 
-        let pt = std::ffi::CString::new("pt_BR.UTF-8").unwrap();
-        let set = unsafe { libc::setlocale(libc::LC_NUMERIC, pt.as_ptr()) };
-        assert!(
-            !set.is_null(),
-            "pt_BR.UTF-8 locale unavailable; cannot exercise locale-sensitive printf"
-        );
+        // Pick the first installed locale that really formats with a comma.
+        let available = COMMA_LOCALES.iter().find_map(|name| {
+            let c = std::ffi::CString::new(*name).ok()?;
+            let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
+            if set.is_null() {
+                return None;
+            }
+            format_float(0.5).contains(',').then_some(*name)
+        });
 
-        force_c_numeric_locale();
-        let mut buf = [0 as libc::c_char; 64];
-        unsafe {
-            libc::snprintf(buf.as_mut_ptr(), buf.len(), c"%f".as_ptr(), 0.00001f64);
-        }
-        let s = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr()) }
-            .to_string_lossy()
-            .into_owned();
+        let forced = available.map(|_| {
+            force_c_numeric_locale();
+            format_float(0.00001)
+        });
 
         // Restore before asserting so a failure leaves the process clean.
         unsafe {
             libc::setlocale(libc::LC_NUMERIC, previous.as_ptr());
         }
 
+        let s = forced.unwrap_or_else(|| {
+            panic!("no comma-decimal locale available (tried {COMMA_LOCALES:?})")
+        });
         assert!(
             s.contains('.') && !s.contains(','),
             "expected C-locale float, got {s:?}"
