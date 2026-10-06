@@ -76,6 +76,18 @@ impl AudioBackend for NullBackend {
             params.frames_per_buffer
         );
 
+        // Sample rate and channel count are not negotiable here. Reject invalid
+        // values at the boundary rather than clamping them inside the driver,
+        // where a `sample_rate == 0` would silently produce a bogus period and a
+        // `channels == 0` a frame/channel-count mismatch with the callback.
+        if params.sample_rate == 0 || params.channels == 0 {
+            return Err(anyhow::anyhow!(
+                "null backend requires a positive sample rate and channel count (got {} Hz, {} ch)",
+                params.sample_rate,
+                params.channels
+            ));
+        }
+
         // Negotiate buffer size - use requested size or our default. Clamp to at
         // least 1 frame: a zero size would give the driver a zero-length period
         // (a busy-spinning thread) and a zero-frame render buffer.
@@ -152,15 +164,16 @@ impl AudioStream for NullStream {
 
         let running = Arc::clone(&self.running);
         let params = self.params.clone();
-        // `open_output_stream` clamps this to >= 1.
+        // `open_output_stream` rejects a zero sample rate / channel count and
+        // clamps this to >= 1, so the period can never be zero.
         let frames = self.negotiated_buffer_size;
         // One callback per buffer duration, like a real sound card. This is what
         // paces the engine's producer thread and advances deck playheads.
-        let tick = Duration::from_secs_f64(frames as f64 / params.sample_rate.max(1) as f64);
+        let tick = Duration::from_secs_f64(frames as f64 / params.sample_rate as f64);
 
         self.driver = Some(thread::spawn(move || {
             let mut callback = callback;
-            let channels = params.channels.max(1) as usize;
+            let channels = params.channels as usize;
             let mut buffer = vec![0.0; frames as usize * channels];
             let mut next = Instant::now();
             while running.load(Ordering::Relaxed) {
@@ -194,7 +207,13 @@ impl AudioStream for NullStream {
         if let Some(driver) = self.driver.take() {
             match driver.join() {
                 Ok(callback) => self.callback = Some(callback),
-                Err(_) => tracing::error!("Null audio driver thread panicked"),
+                // The callback panicked mid-render, so it cannot be recovered and
+                // the stream is now dead. Teardown above has already run; surface
+                // the panic instead of returning `Ok` and hiding it.
+                Err(_) => {
+                    tracing::error!("Null audio driver thread panicked; stream is dead");
+                    return Err(anyhow::anyhow!("null audio driver thread panicked"));
+                }
             }
         }
         Ok(())
@@ -395,6 +414,37 @@ mod tests {
             frames_processed.load(Ordering::Relaxed),
             after_stop,
             "driver kept rendering after stop()"
+        );
+    }
+
+    #[test]
+    fn open_rejects_zero_sample_rate_and_channels() {
+        let mut backend = NullBackend::new();
+        let device = backend
+            .list_output_devices()
+            .unwrap()
+            .into_iter()
+            .next()
+            .unwrap();
+
+        let zero_rate = StreamParams::new(0, 2, 512, false);
+        assert!(
+            backend
+                .open_output_stream(&device.id, &zero_rate, Box::new(TestCallback::new(48000).0))
+                .is_err(),
+            "a zero sample rate must be rejected at the boundary"
+        );
+
+        let zero_channels = StreamParams::new(48000, 0, 512, false);
+        assert!(
+            backend
+                .open_output_stream(
+                    &device.id,
+                    &zero_channels,
+                    Box::new(TestCallback::new(48000).0)
+                )
+                .is_err(),
+            "a zero channel count must be rejected at the boundary"
         );
     }
 

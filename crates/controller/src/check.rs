@@ -41,9 +41,9 @@ pub fn check_bundle_dir(dir: &Path) -> Result<(), LoadError> {
     // `map-check` passes and the typo only surfaces as a `ScriptBindingFailure`
     // the first time the control is pressed.
     //
-    // `bindings_for` is the single Action/Table/List normalization point used by
-    // `MapFile::validate_against`; an `Action` carries no `script`, so it needs
-    // no check here.
+    // `bindings_for` is the single Action/Table/List normalization point, shared
+    // with `MapFile::validate_against`; an `Action` carries no `script`, so it
+    // needs no check here.
     for (section, aliases) in &bundle.map.inputs {
         for alias in aliases.keys() {
             for (i, binding) in bundle.map.bindings_for(section, alias).iter().enumerate() {

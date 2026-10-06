@@ -129,17 +129,24 @@ fn trusted_id_skips_offer_while_untrusted_offers() {
     ]));
     let ev = fx.engine.take_events();
     // Proves the trusted skip is selective: the untrusted sibling still offers,
-    // so a blanket "no offers" regression cannot pass this.
-    assert!(
-        matches!(
-            &ev[..],
-            [ControllerEvent::MappingOffer {
+    // so a blanket "no offers" regression cannot pass this. Filter to offers
+    // rather than requiring `ev` to hold exactly one element, so an unrelated
+    // future event on this path does not break the test.
+    let offered: Vec<(&str, &str)> = ev
+        .iter()
+        .filter_map(|e| match e {
+            ControllerEvent::MappingOffer {
                 mapping_id,
                 port_name,
                 ..
-            }] if mapping_id == "other-map" && port_name == "OtherDev Port"
-        ),
-        "{ev:?}"
+            } => Some((mapping_id.as_str(), port_name.as_str())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        offered,
+        vec![("other-map", "OtherDev Port")],
+        "only the untrusted sibling may be offered: {ev:?}"
     );
 }
 

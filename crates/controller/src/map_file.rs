@@ -220,7 +220,7 @@ impl MapFile {
                         .into(),
                 ));
             }
-            for (alias, raw) in aliases {
+            for alias in aliases.keys() {
                 if !is_closed_input_alias(section, alias) {
                     return Err(LoadError::Validation(format!(
                         "inputs.{section}.{alias}: not in closed catalog for `{section}`"
@@ -231,12 +231,8 @@ impl MapFile {
                         "inputs.{section}.{alias}: no matching endpoint in device.toml"
                     )));
                 }
-                let bindings = match raw {
-                    RawBinding::Action(a) => vec![InputBinding::from_action(a)],
-                    RawBinding::Table(t) => vec![t.clone()],
-                    RawBinding::List(list) => list.clone(),
-                };
-                for (i, b) in bindings.iter().enumerate() {
+                // `bindings_for` is the single Action/Table/List normalization point.
+                for (i, b) in self.bindings_for(section, alias).iter().enumerate() {
                     let path = format!("inputs.{section}.{alias}[{i}]");
                     b.validate(&path)?;
                     if let (Some(ep), Some(action)) = (device.endpoint(section, alias), &b.action) {

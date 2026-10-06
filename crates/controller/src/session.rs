@@ -732,9 +732,7 @@ mod tests {
         }
 
         // Age coalesce window so the max CC publishes immediately.
-        if let Some(t) = s.cc_last.get_mut("deck_1.tempo") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.tempo");
 
         // CC 127 → inverted → 0.0
         s.handle_midi(&[0xB0, 0x14, 127], &mut bus, &mut NullMidi);
@@ -768,9 +766,7 @@ mod tests {
         );
 
         // Window elapsed → flush publishes the latest (127).
-        if let Some(t) = s.cc_last.get_mut("deck_1.volume") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.volume");
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1].2 {
@@ -802,9 +798,7 @@ mod tests {
         s.handle_midi(&[0xB0, 0x22, 67], &mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 1, "relative burst must coalesce by sum");
 
-        if let Some(t) = s.cc_last.get_mut("deck_1.jog_turn") {
-            *t = Instant::now() - CC_COALESCE - Duration::from_millis(1);
-        }
+        s.age_cc_coalesce_for_test("deck_1.jog_turn");
         s.flush_coalesced(&mut bus, &mut NullMidi);
         assert_eq!(bus.cmds.len(), 2);
         match &bus.cmds[1].2 {
