@@ -193,6 +193,11 @@ impl AudioStream for NullStream {
             let mut callback = callback;
             let channels = params.channels as usize;
             let mut buffer = vec![0.0; frames as usize * channels];
+            // Longest a single sleep runs before re-checking the stop flag. Keeps
+            // teardown bounded independently of the negotiated buffer size, so a
+            // large `frames_per_buffer` cannot make `stop()`/`Drop` wait a full
+            // period for the driver to notice.
+            const MAX_SLICE: Duration = Duration::from_millis(10);
             let mut next = Instant::now();
             while running.load(Ordering::Relaxed) {
                 buffer.fill(0.0);
@@ -201,15 +206,20 @@ impl AudioStream for NullStream {
                 // accumulate into drift, the way a real device paces on its own
                 // clock.
                 next += tick;
-                match next.checked_duration_since(Instant::now()) {
-                    Some(wait) => thread::sleep(wait),
+                let mut wait = next
+                    .checked_duration_since(Instant::now())
+                    .unwrap_or(Duration::ZERO);
+                if wait.is_zero() {
                     // Render overran the buffer period. Resync and back off
                     // instead of spinning a core (same idiom as the engine's
                     // producer thread).
-                    None => {
-                        next = Instant::now();
-                        thread::sleep(tick / 8);
-                    }
+                    next = Instant::now();
+                    wait = tick / 8;
+                }
+                while !wait.is_zero() && running.load(Ordering::Relaxed) {
+                    let slice = wait.min(MAX_SLICE);
+                    thread::sleep(slice);
+                    wait = wait.saturating_sub(slice);
                 }
             }
             callback
@@ -263,9 +273,14 @@ impl AudioStream for NullStream {
 impl Drop for NullStream {
     fn drop(&mut self) {
         // A stream dropped while running (e.g. a failed engine start) must not
-        // leak its driver thread. The joins in `stop()` cannot deadlock here:
-        // the driver thread owns only the callback and an `Arc<AtomicBool>`, so
-        // it can never touch — or wait on — this stream.
+        // leak its driver thread.
+        //
+        // Joining in `Drop` cannot deadlock here: the driver owns only the
+        // callback and an `Arc<AtomicBool>` and can never touch — or wait on —
+        // this stream. The driver also sleeps in bounded slices (`MAX_SLICE`), so
+        // teardown is bounded by that slice rather than by the buffer period.
+        // The one residual case is a callback that never returns at all; the
+        // engine's own callback is a lock-free ring pop, so it cannot.
         if self.driver.is_some() {
             let _ = self.stop();
         }

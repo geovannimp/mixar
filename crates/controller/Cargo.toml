@@ -23,6 +23,17 @@ tracing = { workspace = true }
 midir = { git = "https://github.com/Boddlnagg/midir", rev = "e5a60b5" }
 rhai = { version = "1.21", default-features = false, features = ["std", "sync"] }
 
+[features]
+# Exposes test-only hooks to this crate's own integration tests. Integration
+# tests are separate crates and cannot see `pub(crate)`, so without a feature
+# these hooks would have to be unconditionally `pub`. Enabled only via the self
+# dev-dependency below; never enable it in a production build.
+test-utils = []
+
 [dev-dependencies]
 tempfile = "3"
 tracing-subscriber = { workspace = true }
+# Self dev-dependency so `tests/*` link the lib built with `test-utils` (the
+# supported Cargo pattern for exposing test-only API to integration tests).
+controller = { path = ".", features = ["test-utils"] }
+

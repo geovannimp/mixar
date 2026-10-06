@@ -152,7 +152,10 @@ pub(crate) fn report_midi_send(
 
 /// Log a script binding failure with its attach identity.
 ///
-/// Extracted so the `pump` paths and log-capture tests share one message.
+/// Shared by the two `pump` call sites (so the message and its fields stay in one
+/// place) and by the `report_errors` integration test, which captures the log to
+/// assert the emitted line. This is production logging, not a test hook, so it
+/// cannot be `#[cfg(test)]`- or feature-gated.
 #[doc(hidden)]
 pub fn report_script_binding_failure(
     mapping_id: &str,

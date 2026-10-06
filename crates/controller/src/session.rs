@@ -120,15 +120,20 @@ impl MappingSession {
 
     /// Test-only: backdate a CC's coalesce timestamp so its next tick publishes
     /// immediately, instead of waiting out the ≤60 Hz window with a real sleep.
+    ///
+    /// Gated behind `test-utils` (plus `cfg(test)` for in-crate use) so it is not
+    /// part of the public API of a production build; the `session_input`
+    /// integration test is the only external caller.
+    #[cfg(any(test, feature = "test-utils"))]
     #[doc(hidden)]
     pub fn age_cc_coalesce_for_test(&mut self, key: &str) {
         if let Some(t) = self.cc_last.get_mut(key) {
-            // `checked_sub` avoids a theoretical `Instant` underflow panic right
-            // after process start, on a platform whose monotonic clock begins
-            // near zero.
-            if let Some(aged) = Instant::now().checked_sub(CC_COALESCE + Duration::from_millis(1)) {
-                *t = aged;
-            }
+            // `checked_sub` guards the theoretical `Instant` underflow in the
+            // first milliseconds of process uptime; if it ever fired, the test
+            // would silently exercise an un-aged window, so fail loudly instead.
+            *t = Instant::now()
+                .checked_sub(CC_COALESCE + Duration::from_millis(1))
+                .expect("Instant underflowed ageing the coalesce window");
         }
     }
 
