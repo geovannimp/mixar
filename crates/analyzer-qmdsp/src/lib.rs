@@ -78,8 +78,13 @@ impl AudioAnalyzer for QmdspAnalyzer {
         if samples.is_empty() {
             return Err(AnalyzerError::Analysis("empty audio buffer".into()));
         }
+        if sample_rate == 0 {
+            return Err(AnalyzerError::Analysis(
+                "sample rate must be greater than 0".into(),
+            ));
+        }
 
-        let sr = sample_rate.max(1);
+        let sr = sample_rate;
         let y: Vec<f64> = samples.iter().map(|&s| f64::from(s)).collect();
 
         let need_beats = config.targets.bpm || config.targets.beat_grid;
@@ -213,6 +218,11 @@ fn detect_key(y: &[f64], sample_rate: u32) -> i32 {
 }
 
 /// Map a Mixxx `GetKeyMode` index (1..12 major, 13..24 minor) to notation.
+///
+/// Mixxx's `GetKeyMode` returns only the key index — there is no per-key score —
+/// so `confidence`/`clarity` are reported as `0.0`. That is a sentinel for
+/// "unknown", not "low confidence"; `merge_track_metadata` therefore keeps a
+/// tag key when one is present and only fills from analysis when it is missing.
 fn key_from_index(index: i32) -> Option<KeyAnalysis> {
     if !(1..=24).contains(&index) {
         return None;

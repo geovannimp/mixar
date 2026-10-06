@@ -215,14 +215,13 @@ impl Chromagram {
         for v in self.chroma.iter_mut() {
             *v = 0.0;
         }
-        let octaves = self.uk / self.bpo;
-        for octave in 0..octaves {
-            let first = octave * self.bpo;
-            for i in 0..self.bpo {
-                let r = self.cq_re[first + i];
-                let im = self.cq_im[first + i];
-                self.chroma[i] += (r * r + im * im).sqrt();
-            }
+        // Fold every CQ bin into its pitch class. Iterating all bins (rather than
+        // whole octaves) keeps a partial trailing octave instead of dropping it,
+        // though `GetKeyMode` sizes the range so `uk % bpo == 0`.
+        for bin in 0..self.uk {
+            let r = self.cq_re[bin];
+            let im = self.cq_im[bin];
+            self.chroma[bin % self.bpo] += (r * r + im * im).sqrt();
         }
         normalise_unit_max(&mut self.chroma);
         &self.chroma

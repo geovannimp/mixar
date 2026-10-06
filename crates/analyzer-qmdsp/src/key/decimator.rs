@@ -96,6 +96,11 @@ impl Decimator {
 
     /// Filter `input_len` samples and write `input_len / factor` samples.
     pub fn process(&mut self, src: &[f64], dst: &mut [f64]) {
+        debug_assert_eq!(src.len(), self.input_len, "decimator input length mismatch");
+        debug_assert!(
+            dst.len() >= self.output_len,
+            "decimator output buffer too small"
+        );
         if self.factor == 1 {
             dst[..self.output_len].copy_from_slice(&src[..self.output_len]);
             return;

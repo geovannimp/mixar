@@ -31,8 +31,13 @@ impl RealFft {
     }
 
     /// Forward transform of `input` (length `n`); fills `re`/`im` with the
-    /// `n/2 + 1` non-redundant bins.
+    /// `n/2 + 1` non-redundant bins. `re`/`im` must be at least `n/2 + 1` long.
     pub fn forward(&mut self, input: &mut [f64], re: &mut [f64], im: &mut [f64]) {
+        debug_assert_eq!(input.len(), self.fft.len(), "real FFT input length");
+        debug_assert!(
+            re.len() >= self.output.len() && im.len() >= self.output.len(),
+            "real FFT output buffers too small"
+        );
         self.fft
             .process_with_scratch(input, &mut self.output, &mut self.scratch)
             .expect("realfft: buffer length mismatch");
@@ -62,8 +67,15 @@ impl ComplexFft {
         }
     }
 
-    /// Forward transform of a complex signal; writes all `n` bins.
+    /// Forward transform of a complex signal; writes all `n` bins. `re`, `im`,
+    /// `out_re` and `out_im` must each be `n` long.
     pub fn forward(&mut self, re: &[f64], im: &[f64], out_re: &mut [f64], out_im: &mut [f64]) {
+        debug_assert_eq!(re.len(), self.buffer.len(), "complex FFT input length");
+        debug_assert_eq!(im.len(), self.buffer.len(), "complex FFT input length");
+        debug_assert!(
+            out_re.len() >= self.buffer.len() && out_im.len() >= self.buffer.len(),
+            "complex FFT output buffers too small"
+        );
         for (i, slot) in self.buffer.iter_mut().enumerate() {
             *slot = Complex::new(re[i], im[i]);
         }

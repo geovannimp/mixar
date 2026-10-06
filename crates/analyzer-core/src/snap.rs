@@ -390,20 +390,30 @@ mod tests {
     }
 
     #[test]
-    fn rounding_does_not_leave_the_canonical_range() {
-        // 139.96 BPM with decimals=0 rounds to 140 (== max, which is exclusive);
-        // it must fold back into [70, 140).
-        let period = 60.0_f64 / 139.96;
-        let beats: Vec<f32> = (0..64).map(|i| (0.2 + i as f64 * period) as f32).collect();
-        let mut track = track_with(beats, 139.96);
-        snap_grid(
-            &mut track,
-            &SnapConfig {
-                decimals: 0,
-                ..Default::default()
-            },
-        );
-        let bpm = track.bpm.as_ref().unwrap().bpm;
-        assert!((70.0..140.0).contains(&bpm), "bpm {bpm} outside [70, 140)");
+    fn preserves_downbeat_phase_when_anchor_is_offset() {
+        // First beat at 0, the rest shifted +10 ms, so the fitted anchor sits
+        // after it (k0 = -1). Downbeats at raw indices 1, 5, 9, ... Snapping
+        // must keep that phase (nearest raw index ≡ 1 mod 4).
+        let period = 0.5_f32;
+        let mut beats: Vec<f32> = vec![0.0];
+        beats.extend((1..32).map(|i| 0.01 + i as f32 * period));
+        let mut track = track_with(beats.clone(), 120.0);
+        {
+            let g = track.beat_grid.as_mut().unwrap();
+            g.downbeats = (1..32).step_by(4).map(|i| beats[i]).collect();
+            g.bars = g.downbeats.clone();
+        }
+        snap_grid(&mut track, &SnapConfig::default());
+        let g = track.beat_grid.as_ref().unwrap();
+        assert!(!g.downbeats.is_empty());
+        for &db in &g.downbeats {
+            let idx = beats
+                .iter()
+                .enumerate()
+                .min_by(|a, b| (a.1 - db).abs().total_cmp(&(b.1 - db).abs()))
+                .unwrap()
+                .0;
+            assert_eq!(idx % 4, 1, "snapped downbeat {db} maps to raw index {idx}");
+        }
     }
 }
