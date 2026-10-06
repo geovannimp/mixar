@@ -113,7 +113,10 @@ pub fn check_all_mappings(mappings_root: &Path) -> Result<Vec<String>, Vec<(Stri
             Err(e) => err.push((name, e)),
         }
     }
-    if subdirs_seen == 0 {
+    // Only when nothing was considered at all. If every entry failed to read, the
+    // real I/O error is already in `err`; adding this would misreport the cause
+    // as an empty root.
+    if subdirs_seen == 0 && err.is_empty() {
         err.push((
             mappings_root.display().to_string(),
             LoadError::Validation(format!(

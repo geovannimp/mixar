@@ -127,14 +127,18 @@ impl MappingSession {
     #[cfg(any(test, feature = "test-utils"))]
     #[doc(hidden)]
     pub fn age_cc_coalesce_for_test(&mut self, key: &str) {
-        if let Some(t) = self.cc_last.get_mut(key) {
-            // `checked_sub` guards the theoretical `Instant` underflow in the
-            // first milliseconds of process uptime; if it ever fired, the test
-            // would silently exercise an un-aged window, so fail loudly instead.
-            *t = Instant::now()
-                .checked_sub(CC_COALESCE + Duration::from_millis(1))
-                .expect("Instant underflowed ageing the coalesce window");
-        }
+        // Fail loudly on an unknown key: silently leaving the window un-aged
+        // would make the test exercise a real-clock coalesce and pass anyway.
+        let t = self
+            .cc_last
+            .get_mut(key)
+            .unwrap_or_else(|| panic!("age_cc_coalesce_for_test: no coalesce window for `{key}`"));
+        // `checked_sub` guards the theoretical `Instant` underflow in the first
+        // milliseconds of process uptime; if it ever fired, the test would
+        // silently exercise an un-aged window, so fail loudly instead.
+        *t = Instant::now()
+            .checked_sub(CC_COALESCE + Duration::from_millis(1))
+            .expect("Instant underflowed ageing the coalesce window");
     }
 
     /// LED/toggle-pause and the `trigger_hot_cue` shortcut use these positions.

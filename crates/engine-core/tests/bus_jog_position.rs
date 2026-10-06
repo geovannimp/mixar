@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture};
+use common::{recv_evt_kind, short_tone_fixture, SHORT_TONE_LEN_MS};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource};
@@ -70,7 +70,7 @@ fn paused_vinyl_jog_touch_publishes_position_before_release() {
     // inside the 0.25 s fixture. The wheel's rate math is asserted separately by
     // engine-dsp's `paused_vinyl_jog_advances_position_ms`, which owns it.
     assert!(
-        (0..=250).contains(&position_ms),
-        "Position must be within the 250 ms fixture, got {position_ms}"
+        (0..=SHORT_TONE_LEN_MS).contains(&position_ms),
+        "Position must be within the {SHORT_TONE_LEN_MS} ms fixture, got {position_ms}"
     );
 }

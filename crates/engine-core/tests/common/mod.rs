@@ -74,6 +74,13 @@ pub fn short_tone_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../samples/fixtures/short-tone.wav")
 }
 
+/// Length of [`short_tone_fixture`] in milliseconds.
+///
+/// Keep in sync with `samples/fixtures/short-tone.wav` (documented as 0.25 s in
+/// `samples/README.md`). Tests that depend on the fixture duration assert
+/// against this so the number lives in one place.
+pub const SHORT_TONE_LEN_MS: i32 = 250;
+
 /// A file source backed by [`short_tone_fixture`] carrying `bpm` metadata.
 pub fn source_with_bpm(id: &str, bpm: f64) -> AudioSource {
     AudioSource::File(FileAudioSource::new(

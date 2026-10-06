@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{recv_evt_kind, short_tone_fixture, source_with_bpm};
+use common::{recv_evt_kind, short_tone_fixture, source_with_bpm, SHORT_TONE_LEN_MS};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
 use engine_core::{EngineConfig, EngineSession};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
@@ -549,10 +549,10 @@ fn loop_in_clamps_position_to_media_range() {
     let duration = duration_ms.expect("duration");
     // Pin the fixture length instead of comparing two fields of the same event
     // (a bug that truncated both to the same wrong value would have passed).
-    assert_eq!(duration, 250, "short-tone.wav is a 0.25 s fixture");
+    assert_eq!(duration, SHORT_TONE_LEN_MS, "fixture length");
     assert_eq!(
         pending_loop_in_ms,
-        Some(250),
+        Some(SHORT_TONE_LEN_MS),
         "loop-in past the media end clamps to the fixture end"
     );
 }

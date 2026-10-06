@@ -236,9 +236,48 @@ mod tests {
             .into_owned()
     }
 
+    /// Candidate comma-decimal locales, most likely first.
+    #[cfg(all(feature = "webgpu", unix))]
+    const COMMA_LOCALES: &[&str] = &[
+        "pt_BR.UTF-8",
+        "pt_BR.utf8",
+        "de_DE.UTF-8",
+        "de_DE.utf8",
+        "fr_FR.UTF-8",
+        "fr_FR.utf8",
+        "es_ES.UTF-8",
+        "it_IT.UTF-8",
+    ];
+
+    /// Activate the first installed comma-decimal locale and return its name, or
+    /// `None` when the host has none (e.g. `ubuntu-latest`). Also reports how many
+    /// candidates were installed but turned out to use a dot.
+    #[cfg(all(feature = "webgpu", unix))]
+    fn install_first_comma_locale() -> (Option<&'static str>, usize) {
+        let mut installed_but_dot = 0usize;
+        let found = COMMA_LOCALES.iter().copied().find(|name| {
+            let Ok(c) = std::ffi::CString::new(*name) else {
+                return false;
+            };
+            let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
+            if set.is_null() {
+                return false; // not installed on this host
+            }
+            if format_float(0.5).contains(',') {
+                true
+            } else {
+                installed_but_dot += 1;
+                false
+            }
+        });
+        (found, installed_but_dot)
+    }
+
     /// Production requirement: after `force_c_numeric_locale`, printf always uses
-    /// a dot. This holds no matter which locales the host has installed, so it is
-    /// safe to run on CI.
+    /// a dot. This holds regardless of the host's locales, so it is safe on CI;
+    /// where a comma-decimal locale exists it is established first, so the default
+    /// run really exercises the override rather than trivially satisfying the
+    /// assertion on a dot-emitting host.
     #[cfg(all(feature = "webgpu", unix))]
     #[test]
     fn force_c_numeric_locale_keeps_printf_dot() {
@@ -246,11 +285,22 @@ mod tests {
         // env-mutating tests. The guard restores it on drop, including on unwind.
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _restore_locale = LocaleGuard::capture();
+
+        let (comma_locale, _) = install_first_comma_locale();
+        let before = format_float(0.5);
+        if let Some(name) = comma_locale {
+            assert!(
+                before.contains(','),
+                "expected {name} to format with a comma, got {before:?}"
+            );
+        }
+
         force_c_numeric_locale();
         let s = format_float(0.00001);
         assert!(
             s.contains('.') && !s.contains(','),
-            "force_c_numeric_locale must format with a dot, got {s:?}"
+            "force_c_numeric_locale must format with a dot, got {s:?} \
+             (precondition comma locale: {comma_locale:?}, before: {before:?})"
         );
     }
 
@@ -264,37 +314,10 @@ mod tests {
     #[test]
     #[ignore = "needs a comma-decimal locale (e.g. pt_BR.UTF-8); not installed on ubuntu-latest"]
     fn force_c_numeric_locale_overrides_comma_locale() {
-        const COMMA_LOCALES: &[&str] = &[
-            "pt_BR.UTF-8",
-            "pt_BR.utf8",
-            "de_DE.UTF-8",
-            "de_DE.utf8",
-            "fr_FR.UTF-8",
-            "fr_FR.utf8",
-            "es_ES.UTF-8",
-            "it_IT.UTF-8",
-        ];
-
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _restore_locale = LocaleGuard::capture();
 
-        // Pick the first installed locale that really formats with a comma.
-        let mut installed_but_dot = 0usize;
-        let available = COMMA_LOCALES.iter().find_map(|name| {
-            let c = std::ffi::CString::new(*name).ok()?;
-            let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
-            if set.is_null() {
-                // Not installed on this host.
-                return None;
-            }
-            if format_float(0.5).contains(',') {
-                Some(*name)
-            } else {
-                installed_but_dot += 1;
-                None
-            }
-        });
-
+        let (available, installed_but_dot) = install_first_comma_locale();
         let forced = available.map(|_| {
             force_c_numeric_locale();
             format_float(0.00001)
