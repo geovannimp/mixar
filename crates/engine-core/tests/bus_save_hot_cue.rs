@@ -1,5 +1,8 @@
 //! SaveHotCue on engine bus snaps then persists via library evt.
 
+mod common;
+
+use common::recv_evt_where;
 use engine_api::{
     decode_evt_body as decode_engine_evt, encode_cmd_body, CmdBody, EvtBody as EngineEvtBody, Kind,
     Origin,
@@ -249,27 +252,20 @@ fn hot_cue_pad_press_saves_then_triggers() {
 
     // Match on the trigger's effect (the deck starts playing), not on `Kind`
     // alone, so a stale pre-trigger `Updated` cannot satisfy the assertion.
-    let deadline = Instant::now() + Duration::from_secs(2);
-    let (position_ms, playing) = loop {
-        assert!(
-            Instant::now() < deadline,
-            "timeout waiting for the trigger's DeckUpdated"
-        );
-        let event = match evt.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(event)) if *event.kind() == Kind::Updated => event,
-            Ok(Some(_)) | Ok(None) => continue,
-            Err(error) => panic!("evt bus: {error}"),
-        };
-        if let EngineEvtBody::DeckUpdated {
-            position_ms,
-            playing,
-            ..
-        } = decode_engine_evt(event.payload()).expect("decode")
-        {
-            if playing {
-                break (position_ms, playing);
-            }
-        }
+    // `recv_evt_where` owns the deadline/poll/disconnect handling.
+    let event = recv_evt_where(&evt, Kind::Updated, |event| {
+        matches!(
+            decode_engine_evt(event.payload()),
+            Ok(EngineEvtBody::DeckUpdated { playing: true, .. })
+        )
+    });
+    let EngineEvtBody::DeckUpdated {
+        position_ms,
+        playing,
+        ..
+    } = decode_engine_evt(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
     };
     assert_eq!(position_ms, Some(500));
     assert!(playing);
@@ -410,31 +406,19 @@ fn hot_cue_pad_press_triggers_hydrated_cues_after_reload() {
     // alone, so a stale pre-trigger `DeckUpdated` (playing == false, position 0)
     // buffered on the bus cannot satisfy the assertions below — the same hazard
     // the twin test above documents.
-    let deadline = Instant::now() + Duration::from_secs(2);
-    let (position_ms, hot_cues) = loop {
-        assert!(
-            Instant::now() < deadline,
-            "timeout waiting for the trigger's DeckUpdated"
-        );
-        let event = match evt.recv_timeout(Duration::from_millis(50)) {
-            Ok(Some(event)) => event,
-            Ok(None) => continue,
-            Err(error) => panic!("evt bus: {error}"),
-        };
-        if *event.kind() != Kind::Updated {
-            continue;
-        }
-        if let EngineEvtBody::DeckUpdated {
-            position_ms,
-            playing,
-            hot_cues,
-            ..
-        } = decode_engine_evt(event.payload()).expect("decode")
-        {
-            if playing {
-                break (position_ms, hot_cues);
-            }
-        }
+    let event = recv_evt_where(&evt, Kind::Updated, |event| {
+        matches!(
+            decode_engine_evt(event.payload()),
+            Ok(EngineEvtBody::DeckUpdated { playing: true, .. })
+        )
+    });
+    let EngineEvtBody::DeckUpdated {
+        position_ms,
+        hot_cues,
+        ..
+    } = decode_engine_evt(event.payload()).expect("decode")
+    else {
+        panic!("expected DeckUpdated");
     };
     assert_eq!(position_ms, Some(500));
     assert_eq!(hot_cues.len(), 1);

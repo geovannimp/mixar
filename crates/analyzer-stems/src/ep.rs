@@ -257,7 +257,9 @@ mod tests {
         "fr_FR.UTF-8",
         "fr_FR.utf8",
         "es_ES.UTF-8",
+        "es_ES.utf8",
         "it_IT.UTF-8",
+        "it_IT.utf8",
     ];
 
     /// Activate the first installed comma-decimal locale and return its name, or
@@ -266,24 +268,22 @@ mod tests {
     #[cfg(all(feature = "webgpu", unix))]
     fn install_first_comma_locale() -> (Option<&'static str>, usize) {
         let mut installed_but_dot = 0usize;
-        let found = COMMA_LOCALES.iter().copied().find(|name| {
+        for name in COMMA_LOCALES {
             let Ok(c) = std::ffi::CString::new(*name) else {
-                return false;
+                continue;
             };
             // SAFETY: `c` is an owned `CString` that outlives the call. Mutates
             // process-global `LC_NUMERIC`, serialized by `ENV_LOCK`.
             let set = unsafe { libc::setlocale(libc::LC_NUMERIC, c.as_ptr()) };
             if set.is_null() {
-                return false; // not installed on this host
+                continue; // not installed on this host
             }
             if format_float(0.5).contains(',') {
-                true
-            } else {
-                installed_but_dot += 1;
-                false
+                return (Some(name), installed_but_dot);
             }
-        });
-        (found, installed_but_dot)
+            installed_but_dot += 1;
+        }
+        (None, installed_but_dot)
     }
 
     /// Production requirement: after `force_c_numeric_locale`, printf always uses

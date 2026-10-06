@@ -381,10 +381,13 @@ mod tests {
         assert!(n > 0, "expected decoded samples from fixture");
 
         // Exercises `AudioDecoder::metadata()` end-to-end (not a struct literal).
+        // `sample_rate` and `channels` come from the file; `bit_depth` is the
+        // decoder's output format — f32 samples, so 32 is a documented constant
+        // (`bit_depth: 32 // We always convert to f32`), not a header field.
         let metadata = decoder.metadata().expect("metadata");
         assert_eq!(metadata.sample_rate, 48_000);
         assert_eq!(metadata.channels, 2);
-        assert_eq!(metadata.bit_depth, 32);
+        assert_eq!(metadata.bit_depth, 32, "decoded samples are always f32");
     }
 
     #[test]
