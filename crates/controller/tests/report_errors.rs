@@ -39,7 +39,9 @@ fn with_capture(f: impl FnOnce()) -> String {
         .finish();
     tracing::subscriber::with_default(subscriber, f);
     let bytes = store.lock().unwrap().clone();
-    String::from_utf8(bytes).unwrap()
+    // Lossy rather than `from_utf8(..).unwrap()`: a non-UTF-8 capture should not
+    // panic the test harness.
+    String::from_utf8_lossy(&bytes).into_owned()
 }
 
 struct CaptureBus;

@@ -109,9 +109,14 @@ fn trusted_new_port_does_not_emit_offer() {
     let ev = fx.engine.take_events();
     // Trusted auto-attach attempts a real MIDI open, which is unavailable here,
     // so no MappingAttached can be observed. The meaningful guarantee is that the
-    // trusted path never falls through to an offer: unlike the untrusted control
-    // test, a regression would populate `ev` with a MappingOffer.
-    assert!(ev.is_empty(), "trusted port must not offer: {ev:?}");
+    // trusted path never falls through to an offer. Scope the assertion to offers
+    // rather than requiring `ev.is_empty()`, so an unrelated future event on this
+    // path does not fail the test.
+    let offers = ev
+        .iter()
+        .filter(|e| matches!(e, ControllerEvent::MappingOffer { .. }))
+        .count();
+    assert_eq!(offers, 0, "trusted port must not offer: {ev:?}");
 }
 
 #[test]
@@ -147,8 +152,21 @@ fn suppressed_trusted_port_skips_auto_attach() {
         .apply_input_ports(HashSet::from(["TestDev Port".into()]));
     let ev = fx.engine.take_events();
     // As above, a real attach cannot be observed without a MIDI backend; assert
-    // that suppression produced no events and no pending offer.
-    assert!(ev.is_empty(), "suppressed port must not attach: {ev:?}");
+    // that suppression produced neither an attach nor an offer (scoped, so an
+    // unrelated future event on this path does not fail the test).
+    let offending = ev
+        .iter()
+        .filter(|e| {
+            matches!(
+                e,
+                ControllerEvent::MappingAttached { .. } | ControllerEvent::MappingOffer { .. }
+            )
+        })
+        .count();
+    assert_eq!(
+        offending, 0,
+        "suppressed port must neither attach nor offer: {ev:?}"
+    );
     assert!(fx.engine.pending_offers().is_empty());
 }
 
