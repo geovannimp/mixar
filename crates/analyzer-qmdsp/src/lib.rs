@@ -24,6 +24,7 @@
 // indices (kept for parity/readability) and full-precision coefficient literals.
 #![allow(clippy::needless_range_loop, clippy::excessive_precision)]
 
+mod downbeat;
 mod fft;
 mod key;
 mod math;
@@ -41,6 +42,8 @@ use analyzer_core::{
 const STEP_SECS: f64 = 0.01161;
 /// Mixxx's `kMaximumBinSizeHz` (max analysis window frequency).
 const MAXIMUM_BIN_SIZE_HZ: u32 = 50;
+/// Assumed meter. Stored on the grid; a future meter estimator will replace it.
+const BEATS_PER_BAR: u8 = 4;
 
 const NOTE_NAMES: [&str; 12] = [
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -85,6 +88,11 @@ impl AudioAnalyzer for QmdspAnalyzer {
         } else {
             Vec::new()
         };
+        let downbeats = if config.targets.beat_grid && beats.len() >= 2 {
+            downbeat::detect_downbeats(&y, sr, &beats, BEATS_PER_BAR)
+        } else {
+            Vec::new()
+        };
         let key_index = if config.targets.key {
             detect_key(&y, sr)
         } else {
@@ -121,9 +129,10 @@ impl AudioAnalyzer for QmdspAnalyzer {
         if config.targets.beat_grid {
             track.beat_grid = Some(BeatGridAnalysis {
                 beats,
-                bars: Vec::new(),
-                downbeats: Vec::new(),
+                bars: downbeats.clone(),
+                downbeats,
                 grid_stability: regularity as f32,
+                beats_per_bar: BEATS_PER_BAR,
             });
         }
 

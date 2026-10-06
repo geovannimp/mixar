@@ -73,7 +73,8 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
     let k1 = ((last - anchor) / snapped_period).ceil() as i64;
 
     // Downbeat phase: the bar position the detected downbeats agree on.
-    let phase = downbeat_phase(grid, snapped_period, anchor);
+    let beats_per_bar = grid.beats_per_bar.max(1);
+    let phase = downbeat_phase(grid, i64::from(beats_per_bar));
 
     let mut beats: Vec<f32> = Vec::with_capacity((k1 - k0 + 1).max(0) as usize);
     let mut downbeats: Vec<f32> = Vec::new();
@@ -84,7 +85,7 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
         }
         let t = t as f32;
         beats.push(t);
-        if k.rem_euclid(4) == phase as i64 {
+        if k.rem_euclid(i64::from(beats_per_bar)) == phase {
             downbeats.push(t);
         }
     }
@@ -101,6 +102,7 @@ pub fn snap_grid(track: &mut TrackAnalysis, cfg: &SnapConfig) {
         bars: downbeats.clone(),
         downbeats,
         grid_stability: stability,
+        beats_per_bar,
     });
     if let Some(bpm) = track.bpm.as_mut() {
         bpm.bpm = snapped;
@@ -154,22 +156,44 @@ fn fit_anchor(beats: &[f32], period: f64) -> f64 {
     }
 }
 
-fn downbeat_phase(grid: &BeatGridAnalysis, period: f64, anchor: f64) -> usize {
-    if grid.downbeats.is_empty() {
+/// Bar phase of the detected downbeats: locate each downbeat's position in the
+/// backend's *own* beat list and take the most common index `mod beats_per_bar`.
+/// Matching by nearest beat (rather than a period estimate) keeps the phase
+/// stable when the raw beats and the snapped BPM differ.
+fn downbeat_phase(grid: &BeatGridAnalysis, beats_per_bar: i64) -> i64 {
+    if grid.downbeats.is_empty() || grid.beats.is_empty() {
         return 0;
     }
-    let mut counts = [0usize; 4];
+    let mut counts = vec![0usize; beats_per_bar as usize];
     for &db in &grid.downbeats {
-        let k = ((f64::from(db) - anchor) / period).round() as i64;
-        counts[k.rem_euclid(4) as usize] += 1;
+        let idx = nearest_beat_index(&grid.beats, db);
+        counts[(idx as i64).rem_euclid(beats_per_bar) as usize] += 1;
     }
-    let mut best = 0;
+    let mut best = 0usize;
     for (i, &c) in counts.iter().enumerate() {
         if c > counts[best] {
             best = i;
         }
     }
-    best
+    best as i64
+}
+
+/// Index of the beat in sorted `beats` (seconds) nearest to `t`.
+fn nearest_beat_index(beats: &[f32], t: f32) -> usize {
+    match beats.binary_search_by(|b| b.partial_cmp(&t).unwrap_or(std::cmp::Ordering::Equal)) {
+        Ok(i) => i,
+        Err(i) => {
+            if i == 0 {
+                0
+            } else if i >= beats.len() {
+                beats.len() - 1
+            } else if (beats[i] - t).abs() < (t - beats[i - 1]).abs() {
+                i
+            } else {
+                i - 1
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -189,6 +213,7 @@ mod tests {
                 bars: vec![],
                 downbeats: vec![],
                 grid_stability: 0.0,
+                beats_per_bar: 4,
             }),
             loudness_lufs: None,
             metadata: AnalysisRunMetadata {
@@ -293,5 +318,25 @@ mod tests {
             },
         );
         assert_eq!(track.beat_grid.as_ref().unwrap().beats, beats);
+    }
+
+    #[test]
+    fn honors_beats_per_bar() {
+        // 3/4 grid: bars fall every 3 beats, not every 4.
+        let period = 0.5_f32;
+        let beats: Vec<f32> = (0..30).map(|i| i as f32 * period).collect();
+        let mut track = track_with(beats, 120.0);
+        track.beat_grid.as_mut().unwrap().beats_per_bar = 3;
+        snap_grid(&mut track, &SnapConfig::default());
+        let grid = track.beat_grid.as_ref().unwrap();
+        assert_eq!(grid.beats_per_bar, 3);
+        assert!(grid.downbeats.len() >= 3);
+        for w in grid.downbeats.windows(2) {
+            assert!(
+                (w[1] - w[0] - 3.0 * period).abs() < 1e-4,
+                "downbeat spacing wrong: {:?}",
+                w
+            );
+        }
     }
 }

@@ -210,6 +210,8 @@ pub struct BeatGridSnapshot {
     pub downbeats: Vec<f32>,
     /// Analyzed BPM when available (for even visual grids).
     pub bpm: Option<f64>,
+    /// Beats per bar (meter). Defaults to 4 until a meter estimator sets it.
+    pub beats_per_bar: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,6 +219,13 @@ pub(crate) struct BeatGridJson {
     beats: Vec<f32>,
     bars: Vec<f32>,
     downbeats: Vec<f32>,
+    #[serde(default = "default_beats_per_bar")]
+    beats_per_bar: u8,
+}
+
+/// Serde default for [`BeatGridJson::beats_per_bar`] (older rows lack the field).
+fn default_beats_per_bar() -> u8 {
+    4
 }
 
 /// ponytail: constant-tempo grid only. Manual edits assume even spacing; variable-tempo
@@ -253,6 +262,7 @@ pub(crate) fn generate_even_beat_grid(
         beats,
         bars,
         downbeats,
+        beats_per_bar: 4,
     }
 }
 
@@ -296,6 +306,7 @@ pub(crate) fn save_track_beat_grid(
         bars: grid.bars,
         downbeats: grid.downbeats,
         bpm: Some(bpm),
+        beats_per_bar: grid.beats_per_bar,
     })
 }
 
@@ -322,6 +333,7 @@ pub(crate) fn get_track_beat_grid(db: &Db, track_id: &TrackId) -> Result<Option<
         bars: grid.bars,
         downbeats: grid.downbeats,
         bpm: row.bpm,
+        beats_per_bar: grid.beats_per_bar,
     }))
 }
 
