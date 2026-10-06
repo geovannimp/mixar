@@ -98,15 +98,14 @@ tasks:
     options:
       runInCI: true
 
-  # Invoked by name from .github/workflows/test.yml (`npm run test` → `moon run
-  # :test` only matches tasks literally named `test`, and no workflow runs
-  # `moon ci`, so `runInCI` alone would never schedule this).
+  # Manual / future `moon ci` entry point for the mapping validator. The shipped
+  # bundles are validated in CI by `crates/controller/tests/map_check.rs`
+  # (`shipped_mappings_are_valid`), which runs under the normal `test` task — so
+  # no workflow invokes this task, and invoking it separately costs ~40s of extra
+  # linking on a cold cache for identical coverage.
   #
-  # moon rejects `..` in `inputs`, and `mappings/` lives at the repo root rather
-  # than under this project, so the bundles cannot be a cached input here. They
-  # are instead validated by `crates/controller/tests/map_check.rs`
-  # (`shipped_mappings_are_valid`) under the normal `test` task, and by this task
-  # when CI invokes it by name.
+  # moon rejects `..` in `inputs` and `mappings/` lives at the repo root rather
+  # than under this project, so the bundles cannot be a cached input here.
   test-mappings:
     command: 'cargo'
     args:

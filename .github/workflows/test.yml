@@ -47,8 +47,9 @@ jobs:
       - name: Run tests
         run: npm run test
 
-      # `moon run :test` only matches tasks named `test`, so `rust:test-mappings`
-      # (which validates the shipped mapping bundles) was never scheduled. Invoke
-      # it by name, mirroring the website typecheck step in lint.yml.
-      - name: Check mapping bundles
-        run: npx moon run rust:test-mappings
+      # The shipped mapping bundles are validated by
+      # `crates/controller/tests/map_check.rs` (`shipped_mappings_are_valid`)
+      # inside the test task above, so no separate `map-check` invocation is
+      # needed here — `cargo run -p controller --bin map-check` costs ~40s of
+      # extra linking on a cold cache for identical coverage. Run it by hand with
+      # `npx moon run rust:test-mappings`.
