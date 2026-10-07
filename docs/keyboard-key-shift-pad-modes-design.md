@@ -142,18 +142,29 @@ the selection is UI-visible and persists for the deck session only.
 
 ## Controller (DDJ-400)
 
+Note: the declarative `signal` LED routing and `DeckFeedback` struct from
+#300 are **not on this branch** (that work is unmerged). This follows the
+existing snapshot + `apply_output_signal` mechanism instead.
+
 - `catalog.rs`: `PAD_MODES` += `keyboard`, `key_shift`; new leaves
   `keyboard_pad`, `keyboard_scale`, `key_shift_pad`, `key_shift_reset`.
-- `action.rs`: mode buttons → `SetPadMode`; named pad leaves →
-  mode-specific kinds; shift banks → scale select / reset.
-- `device.toml`: mode buttons `pad_mode_keyboard` (`0x69`), `pad_mode_key_shift`
-  (`0x6F`) on `deck_1`/`deck_2`; keyboard pads `ch 8/10 notes 0x40–0x47`
-  (press) and `ch 9/11` (scale); key-shift pads `ch 8/10 notes 0x70–0x77`
-  (press) and `ch 9/11` (reset); pad/mode LEDs with mode-gated
-  `signal` bindings.
-- `map.toml`: bind the above to the new actions.
-- `session.rs`: `set_deck_pad_mode` refreshes the new banks; `DeckFeedback`
-  carries `key_shift` / `keyboard_scale` for LED + fresh-attach replay.
+- `action.rs`: mode buttons → `SetPadMode`; `keyboard_pad` → mode-specific
+  press/release kinds; `key_shift_pad` likewise; `keyboard_scale` →
+  `SetKeyboardScale`; `key_shift_reset` → `SetKeyShift { semitones: 0.0 }`.
+- `device.toml`: mode buttons `pad_mode_keyboard` (`0x69`),
+  `pad_mode_key_shift` (`0x6F`) on `deck_1`/`deck_2`; keyboard pads
+  `ch 8/10 notes 0x40–0x47` (press) and `ch 9/11` (scale); key-shift pads
+  `ch 8/10 notes 0x70–0x77` (press) and `ch 9/11` (reset); matching out-only
+  `_led` aliases for the mode buttons and both banks.
+- `map.toml`: bind the above actions and `[outputs.deck_N]` LED targets.
+- `session.rs`: extend `set_deck_pad_mode` (force-refresh the new banks, like
+  `refresh_hot_cue_leds`); add `set_deck_key_shift` / `set_deck_keyboard_scale`
+  that mirror the value and light the matching pad LED; handle
+  `CmdBody::SetKeyShift` / `SetKeyboardScale` in the local-mirror match.
+- `crates/controller/src/engine.rs` + `crates/host-flutter/src/api/controller.rs`:
+  add `set_deck_key_shift` to `ControllerEngine`; in `apply_engine_mirror`
+  read `key_shift` / `keyboard_scale` from `DeckUpdated`/`EngineStatus` and
+  mirror them (fresh-attach replay already runs through `EngineStatus`).
 - Update `docs/ddj-400-hardware-checklist.md` (remove the two "waiting on"
   rows, document bindings).
 
