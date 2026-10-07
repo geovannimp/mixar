@@ -17,6 +17,7 @@ import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -35,7 +36,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   AppSettings? _baseline;
   var _busy = false;
   String? _error;
-  var _saved = false;
 
   bool _isDirty(AppSettings draft, AppSettings baseline) =>
       appSettingsDirty(draft, baseline);
@@ -107,24 +107,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               color: theme.colors.mutedForeground,
                             ),
                           ),
-                          if (_error != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: theme.typography.body.sm.copyWith(
-                                color: theme.colors.destructive,
-                              ),
-                            ),
-                          ],
-                          if (_saved && _error == null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Settings saved.',
-                              style: theme.typography.body.sm.copyWith(
-                                color: theme.colors.primary,
-                              ),
-                            ),
-                          ],
                         ],
                       ),
                     ),
@@ -155,10 +137,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         child: _SettingsSectionPanel(
                           section: _section,
                           draft: draft,
-                          onChanged: (next) => setState(() {
-                            _draft = next;
-                            _saved = false;
-                          }),
+                          onChanged: (next) => setState(() => _draft = next),
                         ),
                       ),
                     ),
@@ -176,7 +155,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     setState(() {
       _busy = true;
       _error = null;
-      _saved = false;
     });
     try {
       final result = await saveAppSettings(ref, draft);
@@ -191,12 +169,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       setState(() {
         _draft = result.saved;
         _baseline = result.saved;
-        _saved = result.applyError == null;
         _error = result.applyError;
       });
+      if (result.applyError != null) {
+        showMixarToast(
+          context: context,
+          title: const Text('Settings saved, but not applied'),
+          description: Text(result.applyError!),
+          variant: MixarToastVariant.destructive,
+        );
+      } else {
+        showMixarToast(context: context, title: const Text('Settings saved'));
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _error = '$e');
+        showMixarToast(
+          context: context,
+          title: const Text('Save failed'),
+          description: Text('$e'),
+          variant: MixarToastVariant.destructive,
+        );
       }
     } finally {
       if (mounted) {
