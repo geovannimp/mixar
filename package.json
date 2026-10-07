@@ -27,5 +27,8 @@
   },
   "allowScripts": {
     "lefthook": true
+  },
+  "overrides": {
+    "katex": "^0.18.2"
   }
 }
