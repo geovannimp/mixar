@@ -98,7 +98,9 @@ class _SettingsControllersPanelState
                         ? null
                         : () => _run(() async {
                             await transport.updateAllMappings();
-                            ref.invalidate(controllerMappingsProvider);
+                            if (mounted) {
+                              ref.invalidate(controllerMappingsProvider);
+                            }
                           }),
                     child: const Text('Update All'),
                   ),
@@ -144,7 +146,9 @@ class _SettingsControllersPanelState
                             await transport!.updateMapping(
                               mappingId: rows[i].id,
                             );
-                            ref.invalidate(controllerMappingsProvider);
+                            if (mounted) {
+                              ref.invalidate(controllerMappingsProvider);
+                            }
                           }),
                         ),
                       ],

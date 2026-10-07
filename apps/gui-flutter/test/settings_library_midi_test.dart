@@ -5,7 +5,6 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -140,7 +139,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(MixarSwitch).first);
+    // Negative path: no stored version and no update → no badge and no chip.
+    expect(find.text('Update available'), findsNothing);
+    expect(find.text('v1.0.0'), findsNothing);
+    await tester.tap(find.text('Trust'));
     await tester.pumpAndSettle();
     expect(changed?.trustedControllerDeviceIds, ['pioneer.ddj-400']);
   }, semanticsEnabled: false);
