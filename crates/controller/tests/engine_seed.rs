@@ -186,6 +186,31 @@ fn no_update_when_shipped_unversioned() {
     assert!(!list[0].update_available);
 }
 
+/// A present-but-unparsable installed version is never flagged (no guess).
+#[test]
+fn no_update_when_installed_version_unparsable() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.0.0"),
+    );
+    write_bundle(
+        &app.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("not-a-version"),
+    );
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].version.as_deref(), Some("not-a-version"));
+    assert!(!list[0].update_available);
+}
+
 /// Updating an outdated mapping clears the flag (installed becomes shipped version).
 #[test]
 fn update_mapping_clears_update_available() {

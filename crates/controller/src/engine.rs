@@ -500,7 +500,9 @@ impl ControllerEngine {
 
     /// Cache each shipped bundle's `mapping_version` for update detection.
     ///
-    /// Missing dir / unreadable bundles are skipped (version unknown → no update flag).
+    /// Reads only `device.toml` per shipped bundle (not a full [`load_bundle`])
+    /// since only the version is needed. Missing dir / unreadable bundles are
+    /// skipped (version unknown → no update flag).
     fn rescan_shipped_versions(&mut self) {
         self.shipped_versions.clear();
         let Ok(entries) = fs::read_dir(&self.shipped_mappings_dir) else {
@@ -511,25 +513,30 @@ impl ControllerEngine {
                 continue;
             }
             let id = entry.file_name().to_string_lossy().into_owned();
-            let version = load_bundle(&entry.path())
-                .ok()
-                .and_then(|bundle| bundle.device.mapping_version);
-            self.shipped_versions.insert(id, version);
+            self.shipped_versions
+                .insert(id, read_mapping_version(&entry.path()));
         }
     }
 
     /// True when shipped ships a strictly newer `mapping_version` than installed.
     ///
-    /// An installed bundle with no/invalid version counts as updateable when the
-    /// shipped bundle declares one (covers bundles predating versioning).
+    /// Distinguishes an *absent* version (legacy bundle predating versioning →
+    /// updateable once shipped declares one) from a *present but unparsable*
+    /// version (unknown ordering → never flag, so local bundles are not
+    /// overwritten on a guess).
     fn is_update_available(&self, id: &str, installed: Option<&str>) -> bool {
         let Some(shipped) = self.shipped_versions.get(id).and_then(|v| v.as_deref()) else {
             return false;
         };
-        match (parse_version(shipped), installed.and_then(parse_version)) {
-            (Some(shipped), Some(installed)) => version_is_newer(&shipped, &installed),
-            (Some(_), None) => true,
-            (None, _) => false,
+        let Some(shipped) = parse_version(shipped) else {
+            return false;
+        };
+        match installed {
+            None => true,
+            Some(installed) => match parse_version(installed) {
+                Some(installed) => version_is_newer(&shipped, &installed),
+                None => false,
+            },
         }
     }
 
@@ -1101,6 +1108,20 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), EngineError> {
         }
     }
     Ok(())
+}
+
+/// Read only the `mapping_version` from a bundle's `device.toml`.
+///
+/// Cheaper than [`load_bundle`] (skips `map.toml`, `script.rhai`, and
+/// cross-file validation), which matters when scanning many shipped bundles
+/// for update detection.
+fn read_mapping_version(dir: &Path) -> Option<String> {
+    let text = fs::read_to_string(dir.join("device.toml")).ok()?;
+    let table: toml::Table = toml::from_str(&text).ok()?;
+    table
+        .get("mapping_version")
+        .and_then(toml::Value::as_str)
+        .map(str::to_owned)
 }
 
 /// Parse a dotted numeric version (`1.2.3`) into comparable components.
