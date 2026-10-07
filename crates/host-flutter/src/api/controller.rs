@@ -37,6 +37,8 @@ pub struct ControllerMappingInfo {
     pub vendor_name: String,
     pub product_name: String,
     pub description: Option<String>,
+    pub version: Option<String>,
+    pub update_available: bool,
     pub midi_name_contains: Vec<String>,
     pub attached: bool,
 }
@@ -308,6 +310,8 @@ fn mapping_info(info: MappingInfo) -> ControllerMappingInfo {
         vendor_name: info.vendor_name,
         product_name: info.product_name,
         description: info.description,
+        version: info.version,
+        update_available: info.update_available,
         midi_name_contains: info.midi_name_contains,
         attached: info.attached,
     }

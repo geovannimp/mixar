@@ -124,6 +124,8 @@ class ControllerMappingInfo {
   final String vendorName;
   final String productName;
   final String? description;
+  final String? version;
+  final bool updateAvailable;
   final List<String> midiNameContains;
   final bool attached;
 
@@ -133,6 +135,8 @@ class ControllerMappingInfo {
     required this.vendorName,
     required this.productName,
     this.description,
+    this.version,
+    required this.updateAvailable,
     required this.midiNameContains,
     required this.attached,
   });
@@ -144,6 +148,8 @@ class ControllerMappingInfo {
       vendorName.hashCode ^
       productName.hashCode ^
       description.hashCode ^
+      version.hashCode ^
+      updateAvailable.hashCode ^
       midiNameContains.hashCode ^
       attached.hashCode;
 
@@ -157,6 +163,8 @@ class ControllerMappingInfo {
           vendorName == other.vendorName &&
           productName == other.productName &&
           description == other.description &&
+          version == other.version &&
+          updateAvailable == other.updateAvailable &&
           midiNameContains == other.midiNameContains &&
           attached == other.attached;
 }

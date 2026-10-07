@@ -51,6 +51,8 @@ pub struct DeviceFile {
     #[serde(default)]
     pub midi_name_contains: Vec<String>,
     #[serde(default)]
+    pub mapping_version: Option<String>,
+    #[serde(default)]
     pub audio: AudioHints,
     /// Editor schema pointer; never used after deserialize.
     /// Populated in [`Self::parse`] after peeling `[toml-schema]` off the table

@@ -43,6 +43,11 @@ pub struct MappingInfo {
     pub product_name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Installed bundle `mapping_version` (absent when the bundle predates versioning).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Shipped catalog ships a strictly newer `mapping_version` than app data.
+    pub update_available: bool,
     pub midi_name_contains: Vec<String>,
     pub attached: bool,
 }
@@ -273,6 +278,7 @@ struct CatalogEntry {
     vendor_name: String,
     product_name: String,
     description: Option<String>,
+    mapping_version: Option<String>,
     usb_vid: Option<u16>,
     usb_pid: Option<u16>,
     midi_name_contains: Vec<String>,
@@ -286,6 +292,10 @@ impl CatalogEntry {
             .collect::<Vec<_>>()
             .join(" ")
     }
+    /// Installed mapping bundle version, for update detection.
+    pub fn mapping_version(&self) -> Option<&str> {
+        self.mapping_version.as_deref()
+    }
 }
 
 /// Glue midir + app-data mapping bundles for a host (Tauri / WASM).
@@ -296,8 +306,10 @@ pub struct ControllerEngine {
     app_name: String,
     app_dir: PathBuf,
     shipped_mappings_dir: PathBuf,
-    /// mapping folder id → cached device identity + path
+    /// mapping folder id → cached device identity + path + version
     catalog: HashMap<String, CatalogEntry>,
+    /// mapping folder id → shipped bundle `mapping_version` (for update detection)
+    shipped_versions: HashMap<String, Option<String>>,
     known_input_ports: HashSet<String>,
     /// Ports already event-emitted this appearance (cleared when port disappears).
     offered_ports: HashSet<String>,
@@ -332,6 +344,7 @@ impl ControllerEngine {
             app_dir: app_mappings_dir.into(),
             shipped_mappings_dir: shipped_mappings_dir.into(),
             catalog: HashMap::new(),
+            shipped_versions: HashMap::new(),
             known_input_ports: HashSet::new(),
             offered_ports: HashSet::new(),
             trusted_device_ids: HashSet::new(),
@@ -448,6 +461,7 @@ impl ControllerEngine {
 
     pub fn rescan_catalog(&mut self) -> Result<(), EngineError> {
         self.catalog.clear();
+        self.rescan_shipped_versions();
         fs::create_dir_all(&self.app_dir)?;
         if !self.app_dir.is_dir() {
             return Ok(());
@@ -469,6 +483,7 @@ impl ControllerEngine {
                             vendor_name: bundle.device.vendor_name,
                             product_name: bundle.device.product_name,
                             description: bundle.device.description,
+                            mapping_version: bundle.device.mapping_version.clone(),
                             usb_vid: bundle.device.usb_vid,
                             usb_pid: bundle.device.usb_pid,
                             midi_name_contains: bundle.device.midi_name_contains,
@@ -483,6 +498,41 @@ impl ControllerEngine {
         Ok(())
     }
 
+    /// Cache each shipped bundle's `mapping_version` for update detection.
+    ///
+    /// Missing dir / unreadable bundles are skipped (version unknown → no update flag).
+    fn rescan_shipped_versions(&mut self) {
+        self.shipped_versions.clear();
+        let Ok(entries) = fs::read_dir(&self.shipped_mappings_dir) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let id = entry.file_name().to_string_lossy().into_owned();
+            let version = load_bundle(&entry.path())
+                .ok()
+                .and_then(|bundle| bundle.device.mapping_version);
+            self.shipped_versions.insert(id, version);
+        }
+    }
+
+    /// True when shipped ships a strictly newer `mapping_version` than installed.
+    ///
+    /// An installed bundle with no/invalid version counts as updateable when the
+    /// shipped bundle declares one (covers bundles predating versioning).
+    fn is_update_available(&self, id: &str, installed: Option<&str>) -> bool {
+        let Some(shipped) = self.shipped_versions.get(id).and_then(|v| v.as_deref()) else {
+            return false;
+        };
+        match (parse_version(shipped), installed.and_then(parse_version)) {
+            (Some(shipped), Some(installed)) => version_is_newer(&shipped, &installed),
+            (Some(_), None) => true,
+            (None, _) => false,
+        }
+    }
+
     pub fn list_mappings(&self) -> Result<Vec<MappingInfo>, EngineError> {
         let mut out: Vec<MappingInfo> = self
             .catalog
@@ -493,6 +543,8 @@ impl ControllerEngine {
                 vendor_name: entry.vendor_name.clone(),
                 product_name: entry.product_name.clone(),
                 description: entry.description.clone(),
+                version: entry.mapping_version().map(str::to_owned),
+                update_available: self.is_update_available(id, entry.mapping_version()),
                 midi_name_contains: entry.midi_name_contains.clone(),
                 attached: self.attached.values().any(|a| a.mapping_id == *id),
             })
@@ -1051,6 +1103,34 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), EngineError> {
     Ok(())
 }
 
+/// Parse a dotted numeric version (`1.2.3`) into comparable components.
+///
+/// Returns `None` for empty/non-numeric input so unknown versions are never
+/// treated as newer/older than each other.
+fn parse_version(version: &str) -> Option<Vec<u64>> {
+    let version = version.trim();
+    if version.is_empty() {
+        return None;
+    }
+    version
+        .split('.')
+        .map(|part| part.parse::<u64>().ok())
+        .collect()
+}
+
+/// Strictly-newer check, zero-padding the shorter version (`1.2` == `1.2.0`).
+fn version_is_newer(shipped: &[u64], installed: &[u64]) -> bool {
+    let len = shipped.len().max(installed.len());
+    for i in 0..len {
+        let a = shipped.get(i).copied().unwrap_or(0);
+        let b = installed.get(i).copied().unwrap_or(0);
+        if a != b {
+            return a > b;
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1177,5 +1257,26 @@ mod tests {
         });
         assert!(recover.contains("midi send recovered"), "{recover}");
         assert!(!attached_gate.is_failing());
+    }
+
+    #[test]
+    fn parse_version_rejects_empty_and_non_numeric() {
+        assert_eq!(parse_version("1.2.3"), Some(vec![1, 2, 3]));
+        assert_eq!(parse_version(" 1.0 "), Some(vec![1, 0]));
+        assert_eq!(parse_version(""), None);
+        assert_eq!(parse_version("1.x"), None);
+        assert_eq!(parse_version("v1"), None);
+    }
+
+    #[test]
+    fn version_is_newer_compares_numerically_with_padding() {
+        assert!(version_is_newer(&[1, 2, 0], &[1, 1, 9]));
+        assert!(version_is_newer(&[2], &[1, 9, 9]));
+        // Trailing zeros are equal, not newer.
+        assert!(!version_is_newer(&[1, 2, 0], &[1, 2]));
+        assert!(!version_is_newer(&[1, 2], &[1, 2, 0]));
+        assert!(!version_is_newer(&[1, 0, 0], &[1, 0, 0]));
+        // Numeric, not lexicographic: 10 > 9.
+        assert!(version_is_newer(&[10], &[9]));
     }
 }

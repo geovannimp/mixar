@@ -90,6 +90,10 @@ type = "array"
 arraytype = "string"
 optional = true
 
+[elements.mapping_version]
+type = "string"
+optional = true
+
 [elements.audio]
 typeof = "types.audio_hints"
 optional = true
