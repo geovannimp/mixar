@@ -1,0 +1,355 @@
+---
+/**
+ * Static architecture diagram — Flutter UI and MIDI hardware reach three FFI
+ * transports, which exchange cmd/evt over a MessagePack bus with the Engine and
+ * Library Rust domains.
+ *
+ * Redrawn from the Mermaid source with the Diagram Design skill; the inline SVG
+ * is theme-aware through the `.architecture-diagram` tokens in `global.css`.
+ * No client-side rendering.
+ */
+---
+
+<div class="architecture-diagram">
+  <svg
+    viewBox="0 0 960 600"
+    xmlns="http://www.w3.org/2000/svg"
+    role="img"
+    aria-labelledby="mixar-architecture-title mixar-architecture-desc"
+  >
+    <title id="mixar-architecture-title">Mixar architecture</title>
+    <desc id="mixar-architecture-desc"
+      >The Flutter UI and MIDI hardware reach three FFI transports over FRB; the
+      transports exchange commands and events over a MessagePack bus with the
+      Engine and Library Rust domains.</desc
+    >
+    <defs>
+      <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"
+        ><polygon points="0 0, 8 3, 0 6" fill="var(--muted)"></polygon
+      ></marker>
+      <marker id="arrow-back" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"
+        ><polygon points="8 0, 0 3, 8 6" fill="var(--muted)"></polygon
+      ></marker>
+    </defs>
+
+    <rect width="100%" height="100%" fill="var(--paper)"></rect>
+
+    <!-- Zone: host-flutter (drawn before arrows and nodes) -->
+    <rect
+      x="100"
+      y="128"
+      width="760"
+      height="144"
+      rx="8"
+      fill="var(--zone-fill)"
+      stroke="var(--zone-border)"
+      stroke-width="0.8"></rect>
+    <rect x="116" y="132" width="96" height="12" rx="2" fill="var(--paper)"></rect>
+    <text
+      x="164"
+      y="141"
+      fill="var(--zone-label)"
+      font-size="7"
+      class="dg-mono"
+      text-anchor="middle"
+      letter-spacing="0.14em">HOST-FLUTTER</text
+    >
+
+    <!-- Arrows (behind the boxes) -->
+    <!-- UI -> transports (FRB) -->
+    <path
+      d="M390,104 V132 Q390,140 382,140 H248 Q240,140 240,148 V176"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <path
+      d="M480,104 V176"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <path
+      d="M570,104 V132 Q570,140 578,140 H712 Q720,140 720,148 V176"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <!-- MIDI -> controller transport (down the outside, then left into the right edge) -->
+    <path
+      d="M850,104 V196 Q850,204 842,204 H820"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <!-- transports -> bus (cmd/evt) -->
+    <path
+      d="M240,232 V260 Q240,268 248,268 H384 Q392,268 392,276 V316"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <line
+      x1="480"
+      y1="232"
+      x2="480"
+      y2="316"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></line>
+    <path
+      d="M720,232 V260 Q720,268 712,268 H576 Q568,268 568,276 V316"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <!-- bus -> domains (cmd/evt) -->
+    <path
+      d="M420,396 V412 Q420,420 412,420 H388 Q380,420 380,428 V452"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+    <path
+      d="M540,396 V412 Q540,420 548,420 H692 Q700,420 700,428 V452"
+      fill="none"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></path>
+
+    <!-- Arrow labels (opaque masks, 6-10px off the stroke) -->
+    <rect x="396" y="112" width="36" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="414" y="121" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">FRB</text>
+
+    <rect x="486" y="112" width="36" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="504" y="121" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">FRB</text>
+
+    <rect x="576" y="112" width="36" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="594" y="121" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">FRB</text>
+
+    <rect x="804" y="144" width="40" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="824" y="153" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">MIDI</text>
+
+    <rect x="294" y="250" width="44" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="316" y="259" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CMD/EVT</text>
+
+    <rect x="486" y="268" width="48" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="510" y="277" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CMD/EVT</text>
+
+    <rect x="622" y="250" width="44" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="644" y="259" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CMD/EVT</text>
+
+    <rect x="326" y="428" width="48" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="350" y="437" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CMD/EVT</text>
+
+    <rect x="598" y="402" width="44" height="12" rx="2" fill="var(--paper)"></rect>
+    <text x="620" y="411" fill="var(--muted)" font-size="8" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CMD/EVT</text>
+
+    <!-- Node: Flutter UI -->
+    <rect x="300" y="48" width="360" height="56" rx="6" fill="var(--paper)"></rect>
+    <rect
+      x="300"
+      y="48"
+      width="360"
+      height="56"
+      rx="6"
+      fill="var(--input-fill)"
+      stroke="var(--soft)"
+      stroke-width="1"></rect>
+    <rect
+      x="308"
+      y="54"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-soft)"
+      stroke-width="0.8"></rect>
+    <text x="323" y="63" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">APP</text>
+    <text x="480" y="74" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">Flutter UI</text>
+    <text x="480" y="90" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">gui-flutter</text>
+
+    <!-- Node: MIDI Hardware -->
+    <rect x="700" y="48" width="180" height="56" rx="6" fill="var(--paper)"></rect>
+    <rect
+      x="700"
+      y="48"
+      width="180"
+      height="56"
+      rx="6"
+      fill="var(--external-fill)"
+      stroke="var(--external-stroke)"
+      stroke-width="1"></rect>
+    <rect
+      x="708"
+      y="54"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--external-stroke)"
+      stroke-width="0.8"></rect>
+    <text x="723" y="63" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">EXT</text>
+    <text x="790" y="74" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">MIDI Hardware</text>
+    <text x="790" y="90" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">external device</text>
+
+    <!-- Node: EngineTransport -->
+    <rect x="140" y="176" width="200" height="56" rx="6" fill="var(--paper)"></rect>
+    <rect x="140" y="176" width="200" height="56" rx="6" fill="var(--card)" stroke="var(--ink)" stroke-width="1"></rect>
+    <rect
+      x="148"
+      y="182"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-ink)"
+      stroke-width="0.8"></rect>
+    <text x="163" y="191" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">BRG</text>
+    <text x="240" y="202" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">EngineTransport</text>
+    <text x="240" y="218" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">engine bridge</text>
+
+    <!-- Node: LibraryTransport -->
+    <rect x="380" y="176" width="200" height="56" rx="6" fill="var(--paper)"></rect>
+    <rect x="380" y="176" width="200" height="56" rx="6" fill="var(--card)" stroke="var(--ink)" stroke-width="1"></rect>
+    <rect
+      x="388"
+      y="182"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-ink)"
+      stroke-width="0.8"></rect>
+    <text x="403" y="191" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">BRG</text>
+    <text x="480" y="202" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">LibraryTransport</text>
+    <text x="480" y="218" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">library bridge</text>
+
+    <!-- Node: ControllerTransport -->
+    <rect x="620" y="176" width="200" height="56" rx="6" fill="var(--paper)"></rect>
+    <rect x="620" y="176" width="200" height="56" rx="6" fill="var(--card)" stroke="var(--ink)" stroke-width="1"></rect>
+    <rect
+      x="628"
+      y="182"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-ink)"
+      stroke-width="0.8"></rect>
+    <text x="643" y="191" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">BRG</text>
+    <text x="720" y="202" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">ControllerTransport</text>
+    <text x="720" y="218" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">controller</text>
+
+    <!-- Node: MessagePack bus (focal) -->
+    <rect x="300" y="316" width="360" height="80" rx="6" fill="var(--paper)"></rect>
+    <rect
+      x="300"
+      y="316"
+      width="360"
+      height="80"
+      rx="6"
+      fill="var(--accent-tint)"
+      stroke="var(--accent)"
+      stroke-width="1"></rect>
+    <rect
+      x="308"
+      y="322"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-accent)"
+      stroke-width="0.8"></rect>
+    <text x="323" y="331" fill="var(--accent)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">BUS</text>
+    <text x="480" y="352" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">MessagePack bus</text>
+    <text x="480" y="370" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">engine-api · library-api</text>
+
+    <!-- Node: Engine -->
+    <rect x="240" y="452" width="280" height="72" rx="6" fill="var(--paper)"></rect>
+    <rect
+      x="240"
+      y="452"
+      width="280"
+      height="72"
+      rx="6"
+      fill="var(--store-fill)"
+      stroke="var(--muted)"
+      stroke-width="1"></rect>
+    <rect
+      x="248"
+      y="458"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-ink)"
+      stroke-width="0.8"></rect>
+    <text x="263" y="467" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">CORE</text>
+    <text x="380" y="484" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">Engine</text>
+    <text x="380" y="502" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">engine-core · engine-dsp</text>
+
+    <!-- Node: Library -->
+    <rect x="560" y="452" width="280" height="72" rx="6" fill="var(--paper)"></rect>
+    <rect
+      x="560"
+      y="452"
+      width="280"
+      height="72"
+      rx="6"
+      fill="var(--store-fill)"
+      stroke="var(--muted)"
+      stroke-width="1"></rect>
+    <rect
+      x="568"
+      y="458"
+      width="30"
+      height="12"
+      rx="2"
+      fill="transparent"
+      stroke="var(--tagstroke-ink)"
+      stroke-width="0.8"></rect>
+    <text x="583" y="467" fill="var(--soft)" font-size="7" class="dg-mono" text-anchor="middle" letter-spacing="0.08em">LIB</text>
+    <text x="700" y="484" fill="var(--ink)" font-size="12" font-weight="600" class="dg-name" text-anchor="middle">Library</text>
+    <text x="700" y="502" fill="var(--muted)" font-size="9" class="dg-mono" text-anchor="middle">library-core · analyzer</text>
+
+    <!-- Legend strip -->
+    <line x1="40" y1="552" x2="920" y2="552" stroke="var(--rule)" stroke-width="0.8"></line>
+    <text x="40" y="568" fill="var(--muted)" font-size="8" class="dg-mono" letter-spacing="0.18em">LEGEND</text>
+
+    <rect x="40" y="584" width="14" height="10" rx="2" fill="var(--accent-tint)" stroke="var(--accent)" stroke-width="1"></rect>
+    <text x="62" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">Focal hub</text>
+
+    <rect x="190" y="584" width="14" height="10" rx="2" fill="var(--card)" stroke="var(--ink)" stroke-width="1"></rect>
+    <text x="212" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">Transport</text>
+
+    <rect x="340" y="584" width="14" height="10" rx="2" fill="var(--store-fill)" stroke="var(--muted)" stroke-width="1"></rect>
+    <text x="362" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">Rust domain</text>
+
+    <rect x="490" y="584" width="14" height="10" rx="2" fill="var(--input-fill)" stroke="var(--soft)" stroke-width="1"></rect>
+    <text x="512" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">App / UI</text>
+
+    <rect x="640" y="584" width="14" height="10" rx="2" fill="var(--external-fill)" stroke="var(--external-stroke)" stroke-width="1"></rect>
+    <text x="662" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">External</text>
+
+    <line
+      x1="790"
+      y1="589"
+      x2="826"
+      y2="589"
+      stroke="var(--muted)"
+      stroke-width="1.2"
+      marker-start="url(#arrow-back)"
+      marker-end="url(#arrow)"></line>
+    <text x="834" y="592" fill="var(--muted)" font-size="8.5" class="dg-name">cmd/evt</text>
+  </svg>
+</div>

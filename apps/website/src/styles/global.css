@@ -127,9 +127,47 @@
   }
 
   .architecture-diagram {
-    --diagram-deck-a-fill: color-mix(in srgb, var(--deck-a) 14%, var(--bg-card));
-    --diagram-deck-b-fill: color-mix(in srgb, var(--deck-b) 14%, var(--bg-card));
-    --diagram-accent-fill: color-mix(in srgb, var(--accent) 16%, var(--bg-card));
+    /* Diagram Design tokens mapped onto the Mixar website design system. */
+    --paper: var(--bg-card);
+    --card: var(--bg-card);
+    --ink: var(--text);
+    --muted: var(--text-muted);
+    --soft: var(--text-muted);
+    /* --accent is inherited from the theme. Remapping it here as
+       `var(--accent)` would be a self-referential cycle, which the spec
+       resolves to invalid — taking every accent stroke/fill with it. */
+    --accent-tint: var(--accent-dim);
+    --zone-fill: color-mix(in srgb, var(--text) 2%, transparent);
+    --zone-border: color-mix(in srgb, var(--text) 10%, transparent);
+    --zone-label: color-mix(in srgb, var(--text) 40%, transparent);
+    --rule: var(--border);
+    --input-fill: color-mix(in srgb, var(--text-muted) 10%, transparent);
+    --external-fill: color-mix(in srgb, var(--text) 3%, transparent);
+    --external-stroke: color-mix(in srgb, var(--text) 30%, transparent);
+    --store-fill: color-mix(in srgb, var(--text) 5%, transparent);
+    --tagstroke-ink: color-mix(in srgb, var(--text) 40%, transparent);
+    --tagstroke-soft: color-mix(in srgb, var(--text-muted) 40%, transparent);
+    --tagstroke-accent: color-mix(in srgb, var(--accent) 50%, transparent);
+
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  /* min-width == the doc-inline viewBox width, so the 12px type ramp is never
+     silently scaled down; the wrapper scrolls on a narrow screen instead. */
+  .architecture-diagram svg {
+    display: block;
+    width: 100%;
+    min-width: 960px;
+    height: auto;
+  }
+
+  .architecture-diagram .dg-name {
+    font-family: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .architecture-diagram .dg-mono {
+    font-family: "Noto Sans Mono Variable", ui-monospace, monospace;
   }
 }
 
@@ -170,5 +208,17 @@
 
   [data-stem-disc][data-playing="true"] {
     animation: stem-disc-spin 12s linear infinite;
+  }
+}
+
+/* Paper has no scrollbar, so the local scroller would clip instead of scroll.
+   Let the diagram scale down to the sheet: smaller but whole beats cut off. */
+@media print {
+  .architecture-diagram {
+    overflow-x: visible;
+  }
+
+  .architecture-diagram svg {
+    min-width: 0;
   }
 }
