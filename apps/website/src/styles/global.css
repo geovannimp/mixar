@@ -133,9 +133,10 @@
     --ink: var(--text);
     --muted: var(--text-muted);
     --soft: var(--text-muted);
-    --accent: var(--accent);
+    /* --accent is inherited from the theme. Remapping it here as
+       `var(--accent)` would be a self-referential cycle, which the spec
+       resolves to invalid — taking every accent stroke/fill with it. */
     --accent-tint: var(--accent-dim);
-    --link: var(--deck-b);
     --zone-fill: color-mix(in srgb, var(--text) 2%, transparent);
     --zone-border: color-mix(in srgb, var(--text) 10%, transparent);
     --zone-label: color-mix(in srgb, var(--text) 40%, transparent);
