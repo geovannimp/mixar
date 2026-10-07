@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart'
+    show MetaPill, kMetaPillGap, kMetaPillInset;
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -34,12 +36,15 @@ class ControllerMappingRow extends StatelessWidget {
       mapping.productName,
     ].where((s) => s.isNotEmpty).join(' ');
     final version = mapping.version;
-    final meta = [
-      mapping.id,
-      mapping.deviceId,
-      if (version != null) 'v$version',
-      if (attached) 'attached',
-    ].join(' · ');
+    // Metadata as the library track row's chips: id, device id, version, and
+    // an accent "Attached" state. Hung left by the pill inset so the chip text
+    // lines up with the title above it.
+    final metaPills = <Widget>[
+      MetaPill(text: mapping.id),
+      MetaPill(text: mapping.deviceId),
+      if (version != null) MetaPill(text: 'v$version'),
+      if (attached) MetaPill(text: 'Attached', textColor: theme.colors.primary),
+    ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -59,14 +64,15 @@ class ControllerMappingRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  meta,
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
+                if (metaPills.isNotEmpty)
+                  Transform.translate(
+                    offset: const Offset(-kMetaPillInset, 0),
+                    child: Wrap(
+                      spacing: kMetaPillGap,
+                      runSpacing: kMetaPillGap,
+                      children: metaPills,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
               ],
             ),
           ),
