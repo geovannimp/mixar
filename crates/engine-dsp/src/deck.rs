@@ -387,11 +387,12 @@ impl Deck {
         stretch::semitones_to_pitch(self.key_shift_semitones)
     }
 
-    /// Set the key-shift offset in semitones: clamps to `-12..=12`, non-finite → 0,
-    /// and resets stretcher state so the new pitch takes effect cleanly.
+    /// Set the key-shift offset in semitones: clamps to `-16..=16` (covers the
+    /// pentatonic table's `+16`), non-finite → 0, and resets stretcher state so the
+    /// new pitch takes effect cleanly.
     pub fn set_key_shift_semitones(&mut self, semitones: f32) -> Result<()> {
         let s = if semitones.is_finite() {
-            semitones.clamp(-12.0, 12.0)
+            semitones.clamp(-16.0, 16.0)
         } else {
             0.0
         };
@@ -1444,7 +1445,7 @@ mod tests {
         deck.set_key_shift_semitones(f32::NAN).unwrap();
         assert_eq!(deck.key_shift_semitones(), 0.0);
         deck.set_key_shift_semitones(120.0).unwrap();
-        assert_eq!(deck.key_shift_semitones(), 12.0);
+        assert_eq!(deck.key_shift_semitones(), 16.0);
     }
 
     /// Four identical audible stems attached to a fresh deck, with `key_shift` set.

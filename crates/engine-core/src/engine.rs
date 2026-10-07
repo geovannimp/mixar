@@ -761,10 +761,10 @@ impl Engine {
         deck.set_key_lock(enabled)
     }
 
-    /// Set the session key-shift offset in semitones (`-12..=12`; clamps, non-finite → 0).
+    /// Set the session key-shift offset in semitones (`-16..=16`; clamps, non-finite → 0).
     pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
         let s = if semitones.is_finite() {
-            semitones.clamp(-12.0, 12.0)
+            semitones.clamp(-16.0, 16.0)
         } else {
             0.0
         };

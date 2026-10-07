@@ -106,7 +106,7 @@ class DeckPadsPanel extends StatelessWidget {
             ],
           ),
         ),
-        Expanded(child: _modeBody()),
+        Expanded(child: _modeBody(context)),
       ],
     );
 
@@ -124,7 +124,7 @@ class DeckPadsPanel extends StatelessWidget {
     );
   }
 
-  Widget _modeBody() {
+  Widget _modeBody(BuildContext context) {
     return switch (padMode) {
       PadMode.hotCue => HotCuePads(
         hotCues: hotCues,
@@ -163,10 +163,28 @@ class DeckPadsPanel extends StatelessWidget {
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
       ),
-      // Keyboard / Key Shift grids land with the pad-mode UI task; the modes
-      // are not in `kPadModes` yet, so these arms are unreachable.
-      PadMode.keyboard || PadMode.keyShift => const SizedBox.shrink(),
+      PadMode.keyboard => _fallbackBody(context, 'Keyboard'),
+      PadMode.keyShift => _fallbackBody(context, 'Key Shift'),
     };
+  }
+
+  /// Non-blank placeholder until the Keyboard/Key Shift grids land (Task 5).
+  ///
+  /// The engine can already report these modes (Task 3 vocabulary),
+  /// so render something legible rather than an empty body.
+  Widget _fallbackBody(BuildContext context, String label) {
+    final theme = context.theme;
+    return Center(
+      child: Text(
+        label.toUpperCase(),
+        textAlign: TextAlign.center,
+        style: theme.typography.body.xs.copyWith(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          color: theme.colors.mutedForeground,
+        ),
+      ),
+    );
   }
 }
 

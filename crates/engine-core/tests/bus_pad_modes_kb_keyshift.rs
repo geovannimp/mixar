@@ -177,6 +177,35 @@ fn keyboard_pad_sets_scale_degree_then_release_clears() {
 }
 
 #[test]
+fn keyboard_pentatonic_top_slot_is_not_clamped() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    publish(
+        &session,
+        Kind::SetKeyboardScale,
+        &CmdBody::SetKeyboardScale {
+            scale: KeyboardScale::Pentatonic,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+
+    // Pentatonic slot 7 = +16 semitones; the clamp must reach it.
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 7,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 16.0).abs() < 1e-6);
+}
+
+#[test]
 fn keyboard_scale_tables_match_spec() {
     assert_eq!(
         keyboard_scale_degrees(KeyboardScale::Major),
