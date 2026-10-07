@@ -13,7 +13,7 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
-use engine_api::PadMode;
+use engine_api::{KeyboardScale, PadMode};
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -962,6 +962,38 @@ impl ControllerEngine {
                 send_gate: &mut attached.send_gate,
             };
             attached.session.set_deck_pad_mode(deck, mode, &mut sink);
+        }
+    }
+
+    /// Mirror engine key shift so the Keyboard / Key Shift pad LEDs follow state.
+    pub fn set_deck_key_shift(&mut self, deck: u16, semitones: f32) {
+        for (port_name, attached) in self.attached.iter_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
+            };
+            attached
+                .session
+                .set_deck_key_shift(deck, semitones, &mut sink);
+        }
+    }
+
+    /// Mirror engine keyboard scale so the Keyboard pad LEDs follow state.
+    pub fn set_deck_keyboard_scale(&mut self, deck: u16, scale: KeyboardScale) {
+        for (port_name, attached) in self.attached.iter_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
+            };
+            attached
+                .session
+                .set_deck_keyboard_scale(deck, scale, &mut sink);
         }
     }
 

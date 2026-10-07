@@ -560,7 +560,7 @@ git commit -m "feat(deck): Keyboard and Key Shift pad modes (#298)"
 - Consumes: Task 3 leaves; `EvtBody::DeckUpdated { key_shift, keyboard_scale, .. }`.
 - Produces: `MappingSession::set_deck_key_shift(deck: u16, semitones: f32, midi: &mut impl MidiOut)`; `ControllerEngine::set_deck_key_shift(deck: u16, semitones: f32)`.
 
-- [ ] **Step 1: Write the failing controller test**
+- [x] **Step 1: Write the failing controller test**
 
 `crates/controller/tests/ddj400_kb_keyshift.rs`: load the shipped `mappings/ddj-400` bundle into a `MappingSession` with a fake `MidiOut` capturing bytes (follow `session_output.rs`); then
 
@@ -585,12 +585,12 @@ fn mode_buttons_set_pad_mode() {
 }
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cargo --manifest-path crates/Cargo.toml test -p controller --test ddj400_kb_keyshift`
 Expected: FAIL — bundle load validation (missing aliases / validation errors).
 
-- [ ] **Step 3: Add device + map bindings**
+- [x] **Step 3: Add device + map bindings**
 
 `crates/controller/src/catalog.rs` (closed vocabularies — bundle load rejects
 anything not registered here):
@@ -609,7 +609,7 @@ anything not registered here):
 - Inputs: mode buttons → `Deck(_)::pad_mode(mode:keyboard)` / `Deck(_)::pad_mode(mode:key_shift)`; `keyboard_pad_N` → `Deck(_)::keyboard_pad(n:N)`; `keyboard_scale_1..3` → `Deck(_)::keyboard_scale(mode:major|minor|pentatonic)`; `key_shift_pad_N` → `Deck(_)::key_shift_pad(n:N)`; `key_shift_reset_N` → `Deck(_)::key_shift_reset`.
 - Outputs: `key_shift_pad_N = { on = "key_shift_pad_N_led", off = { inline note … velocity = 0x00 } }`; `pad_mode_keyboard` / `pad_mode_key_shift` mode LEDs; `keyboard_pad_N` LEDs (light while the pad's degree is active / momentary).
 
-- [ ] **Step 4: Implement session LED + host mirror**
+- [x] **Step 4: Implement session LED + host mirror**
 
 `session.rs`:
 - `set_deck_pad_mode`: when mode is `Keyboard` or `KeyShift`, force-refresh that bank's LEDs from the mirrored state instead of `refresh_hot_cue_leds`.
@@ -621,13 +621,13 @@ anything not registered here):
 
 `crates/host-flutter/src/api/controller.rs`: in `apply_engine_mirror`'s `DeckUpdated` and `EngineStatus` arms, read `key_shift` / `keyboard_scale` and call the new `ControllerEngine` methods.
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `cargo --manifest-path crates/Cargo.toml test -p controller`
 Expected: PASS, including `ddj400_kb_keyshift`.
 Then validate the shipped bundle parses: `cargo --manifest-path crates/Cargo.toml test -p controller --test integration_fake_port` (or the bundle-load test) — PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add mappings/ddj-400 crates/controller crates/host-flutter docs/ddj-400-hardware-checklist.md

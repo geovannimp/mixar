@@ -50,6 +50,8 @@ pad_mode_hot_cue = { type = "note", channel = 1, note = 0x1B }
 pad_mode_loop_roll = { type = "note", channel = 1, note = 0x6D }
 pad_mode_beat_jump = { type = "note", channel = 1, note = 0x20 }
 pad_mode_sampler = { type = "note", channel = 1, note = 0x22 }
+pad_mode_keyboard = { type = "note", channel = 1, note = 0x69 }
+pad_mode_key_shift = { type = "note", channel = 1, note = 0x6F }
 
 hot_cue_1 = { type = "note", channel = 8, note = 0x00 }
 hot_cue_2 = { type = "note", channel = 8, note = 0x01 }
@@ -92,6 +94,33 @@ sampler_pad_5 = { type = "note", channel = 8, note = 0x34 }
 sampler_pad_6 = { type = "note", channel = 8, note = 0x35 }
 sampler_pad_7 = { type = "note", channel = 8, note = 0x36 }
 sampler_pad_8 = { type = "note", channel = 8, note = 0x37 }
+keyboard_pad_1 = { type = "note", channel = 8, note = 0x40 }
+keyboard_pad_2 = { type = "note", channel = 8, note = 0x41 }
+keyboard_pad_3 = { type = "note", channel = 8, note = 0x42 }
+keyboard_pad_4 = { type = "note", channel = 8, note = 0x43 }
+keyboard_pad_5 = { type = "note", channel = 8, note = 0x44 }
+keyboard_pad_6 = { type = "note", channel = 8, note = 0x45 }
+keyboard_pad_7 = { type = "note", channel = 8, note = 0x46 }
+keyboard_pad_8 = { type = "note", channel = 8, note = 0x47 }
+keyboard_scale_1 = { type = "note", channel = 9, note = 0x40 }
+keyboard_scale_2 = { type = "note", channel = 9, note = 0x41 }
+keyboard_scale_3 = { type = "note", channel = 9, note = 0x42 }
+key_shift_pad_1 = { type = "note", channel = 8, note = 0x70 }
+key_shift_pad_2 = { type = "note", channel = 8, note = 0x71 }
+key_shift_pad_3 = { type = "note", channel = 8, note = 0x72 }
+key_shift_pad_4 = { type = "note", channel = 8, note = 0x73 }
+key_shift_pad_5 = { type = "note", channel = 8, note = 0x74 }
+key_shift_pad_6 = { type = "note", channel = 8, note = 0x75 }
+key_shift_pad_7 = { type = "note", channel = 8, note = 0x76 }
+key_shift_pad_8 = { type = "note", channel = 8, note = 0x77 }
+key_shift_reset_1 = { type = "note", channel = 9, note = 0x70 }
+key_shift_reset_2 = { type = "note", channel = 9, note = 0x71 }
+key_shift_reset_3 = { type = "note", channel = 9, note = 0x72 }
+key_shift_reset_4 = { type = "note", channel = 9, note = 0x73 }
+key_shift_reset_5 = { type = "note", channel = 9, note = 0x74 }
+key_shift_reset_6 = { type = "note", channel = 9, note = 0x75 }
+key_shift_reset_7 = { type = "note", channel = 9, note = 0x76 }
+key_shift_reset_8 = { type = "note", channel = 9, note = 0x77 }
 play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
 cue_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
 sync_led = { type = "note", channel = 1, note = 0x58, velocity = 0x7F, direction = "out" }
@@ -105,6 +134,24 @@ hot_cue_5_led = { type = "note", channel = 8, note = 0x04, velocity = 0x7F, dire
 hot_cue_6_led = { type = "note", channel = 8, note = 0x05, velocity = 0x7F, direction = "out" }
 hot_cue_7_led = { type = "note", channel = 8, note = 0x06, velocity = 0x7F, direction = "out" }
 hot_cue_8_led = { type = "note", channel = 8, note = 0x07, velocity = 0x7F, direction = "out" }
+pad_mode_keyboard_led = { type = "note", channel = 1, note = 0x69, velocity = 0x7F, direction = "out" }
+pad_mode_key_shift_led = { type = "note", channel = 1, note = 0x6F, velocity = 0x7F, direction = "out" }
+keyboard_pad_1_led = { type = "note", channel = 8, note = 0x40, velocity = 0x7F, direction = "out" }
+keyboard_pad_2_led = { type = "note", channel = 8, note = 0x41, velocity = 0x7F, direction = "out" }
+keyboard_pad_3_led = { type = "note", channel = 8, note = 0x42, velocity = 0x7F, direction = "out" }
+keyboard_pad_4_led = { type = "note", channel = 8, note = 0x43, velocity = 0x7F, direction = "out" }
+keyboard_pad_5_led = { type = "note", channel = 8, note = 0x44, velocity = 0x7F, direction = "out" }
+keyboard_pad_6_led = { type = "note", channel = 8, note = 0x45, velocity = 0x7F, direction = "out" }
+keyboard_pad_7_led = { type = "note", channel = 8, note = 0x46, velocity = 0x7F, direction = "out" }
+keyboard_pad_8_led = { type = "note", channel = 8, note = 0x47, velocity = 0x7F, direction = "out" }
+key_shift_pad_1_led = { type = "note", channel = 8, note = 0x70, velocity = 0x7F, direction = "out" }
+key_shift_pad_2_led = { type = "note", channel = 8, note = 0x71, velocity = 0x7F, direction = "out" }
+key_shift_pad_3_led = { type = "note", channel = 8, note = 0x72, velocity = 0x7F, direction = "out" }
+key_shift_pad_4_led = { type = "note", channel = 8, note = 0x73, velocity = 0x7F, direction = "out" }
+key_shift_pad_5_led = { type = "note", channel = 8, note = 0x74, velocity = 0x7F, direction = "out" }
+key_shift_pad_6_led = { type = "note", channel = 8, note = 0x75, velocity = 0x7F, direction = "out" }
+key_shift_pad_7_led = { type = "note", channel = 8, note = 0x76, velocity = 0x7F, direction = "out" }
+key_shift_pad_8_led = { type = "note", channel = 8, note = 0x77, velocity = 0x7F, direction = "out" }
 
 [deck_2]
 play_pause = { type = "note", channel = 2, note = 0x0B }
@@ -136,6 +183,8 @@ pad_mode_hot_cue = { type = "note", channel = 2, note = 0x1B }
 pad_mode_loop_roll = { type = "note", channel = 2, note = 0x6D }
 pad_mode_beat_jump = { type = "note", channel = 2, note = 0x20 }
 pad_mode_sampler = { type = "note", channel = 2, note = 0x22 }
+pad_mode_keyboard = { type = "note", channel = 2, note = 0x69 }
+pad_mode_key_shift = { type = "note", channel = 2, note = 0x6F }
 
 hot_cue_1 = { type = "note", channel = 10, note = 0x00 }
 hot_cue_2 = { type = "note", channel = 10, note = 0x01 }
@@ -178,6 +227,33 @@ sampler_pad_5 = { type = "note", channel = 10, note = 0x34 }
 sampler_pad_6 = { type = "note", channel = 10, note = 0x35 }
 sampler_pad_7 = { type = "note", channel = 10, note = 0x36 }
 sampler_pad_8 = { type = "note", channel = 10, note = 0x37 }
+keyboard_pad_1 = { type = "note", channel = 10, note = 0x40 }
+keyboard_pad_2 = { type = "note", channel = 10, note = 0x41 }
+keyboard_pad_3 = { type = "note", channel = 10, note = 0x42 }
+keyboard_pad_4 = { type = "note", channel = 10, note = 0x43 }
+keyboard_pad_5 = { type = "note", channel = 10, note = 0x44 }
+keyboard_pad_6 = { type = "note", channel = 10, note = 0x45 }
+keyboard_pad_7 = { type = "note", channel = 10, note = 0x46 }
+keyboard_pad_8 = { type = "note", channel = 10, note = 0x47 }
+keyboard_scale_1 = { type = "note", channel = 11, note = 0x40 }
+keyboard_scale_2 = { type = "note", channel = 11, note = 0x41 }
+keyboard_scale_3 = { type = "note", channel = 11, note = 0x42 }
+key_shift_pad_1 = { type = "note", channel = 10, note = 0x70 }
+key_shift_pad_2 = { type = "note", channel = 10, note = 0x71 }
+key_shift_pad_3 = { type = "note", channel = 10, note = 0x72 }
+key_shift_pad_4 = { type = "note", channel = 10, note = 0x73 }
+key_shift_pad_5 = { type = "note", channel = 10, note = 0x74 }
+key_shift_pad_6 = { type = "note", channel = 10, note = 0x75 }
+key_shift_pad_7 = { type = "note", channel = 10, note = 0x76 }
+key_shift_pad_8 = { type = "note", channel = 10, note = 0x77 }
+key_shift_reset_1 = { type = "note", channel = 11, note = 0x70 }
+key_shift_reset_2 = { type = "note", channel = 11, note = 0x71 }
+key_shift_reset_3 = { type = "note", channel = 11, note = 0x72 }
+key_shift_reset_4 = { type = "note", channel = 11, note = 0x73 }
+key_shift_reset_5 = { type = "note", channel = 11, note = 0x74 }
+key_shift_reset_6 = { type = "note", channel = 11, note = 0x75 }
+key_shift_reset_7 = { type = "note", channel = 11, note = 0x76 }
+key_shift_reset_8 = { type = "note", channel = 11, note = 0x77 }
 play_led = { type = "note", channel = 2, note = 0x0B, velocity = 0x7F, direction = "out" }
 cue_led = { type = "note", channel = 2, note = 0x0C, velocity = 0x7F, direction = "out" }
 sync_led = { type = "note", channel = 2, note = 0x58, velocity = 0x7F, direction = "out" }
@@ -191,6 +267,24 @@ hot_cue_5_led = { type = "note", channel = 10, note = 0x04, velocity = 0x7F, dir
 hot_cue_6_led = { type = "note", channel = 10, note = 0x05, velocity = 0x7F, direction = "out" }
 hot_cue_7_led = { type = "note", channel = 10, note = 0x06, velocity = 0x7F, direction = "out" }
 hot_cue_8_led = { type = "note", channel = 10, note = 0x07, velocity = 0x7F, direction = "out" }
+pad_mode_keyboard_led = { type = "note", channel = 2, note = 0x69, velocity = 0x7F, direction = "out" }
+pad_mode_key_shift_led = { type = "note", channel = 2, note = 0x6F, velocity = 0x7F, direction = "out" }
+keyboard_pad_1_led = { type = "note", channel = 10, note = 0x40, velocity = 0x7F, direction = "out" }
+keyboard_pad_2_led = { type = "note", channel = 10, note = 0x41, velocity = 0x7F, direction = "out" }
+keyboard_pad_3_led = { type = "note", channel = 10, note = 0x42, velocity = 0x7F, direction = "out" }
+keyboard_pad_4_led = { type = "note", channel = 10, note = 0x43, velocity = 0x7F, direction = "out" }
+keyboard_pad_5_led = { type = "note", channel = 10, note = 0x44, velocity = 0x7F, direction = "out" }
+keyboard_pad_6_led = { type = "note", channel = 10, note = 0x45, velocity = 0x7F, direction = "out" }
+keyboard_pad_7_led = { type = "note", channel = 10, note = 0x46, velocity = 0x7F, direction = "out" }
+keyboard_pad_8_led = { type = "note", channel = 10, note = 0x47, velocity = 0x7F, direction = "out" }
+key_shift_pad_1_led = { type = "note", channel = 10, note = 0x70, velocity = 0x7F, direction = "out" }
+key_shift_pad_2_led = { type = "note", channel = 10, note = 0x71, velocity = 0x7F, direction = "out" }
+key_shift_pad_3_led = { type = "note", channel = 10, note = 0x72, velocity = 0x7F, direction = "out" }
+key_shift_pad_4_led = { type = "note", channel = 10, note = 0x73, velocity = 0x7F, direction = "out" }
+key_shift_pad_5_led = { type = "note", channel = 10, note = 0x74, velocity = 0x7F, direction = "out" }
+key_shift_pad_6_led = { type = "note", channel = 10, note = 0x75, velocity = 0x7F, direction = "out" }
+key_shift_pad_7_led = { type = "note", channel = 10, note = 0x76, velocity = 0x7F, direction = "out" }
+key_shift_pad_8_led = { type = "note", channel = 10, note = 0x77, velocity = 0x7F, direction = "out" }
 
 [master]
 crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }

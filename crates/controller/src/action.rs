@@ -25,6 +25,10 @@ pub struct ControlSnapshot {
     pub headphone_cue: [bool; 4],
     pub quantize: [bool; 4],
     pub pad_mode: [PadMode; 4],
+    /// Session key-shift offset in semitones (Keyboard / Key Shift pad modes).
+    pub key_shift: [f32; 4],
+    /// Keyboard pad scale (Keyboard pad mode labels / LED bank).
+    pub keyboard_scale: [KeyboardScale; 4],
     pub crossfader: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
@@ -49,6 +53,8 @@ impl Default for ControlSnapshot {
             headphone_cue: [false; 4],
             quantize: [false; 4],
             pad_mode: [PadMode::HotCue; 4],
+            key_shift: [0.0; 4],
+            keyboard_scale: [KeyboardScale::Major; 4],
             crossfader: 0.5,
             cue_mix: 0.5,
             master_cue: false,

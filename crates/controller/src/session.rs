@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::{CmdBody, KeyboardScale, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
@@ -17,6 +17,24 @@ use crate::script::{ScriptHost, ScriptRuntime};
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
+
+/// Key Shift pad semitone offsets for slots 0..=7.
+///
+/// Mirrors `engine_core::KEY_SHIFT_PAD_SEMITONES`. `controller` deliberately does
+/// not depend on the audio engine, so keep this in sync with
+/// `crates/engine-core/src/pads.rs` (same duplication pattern as
+/// `DEFAULT_TEMPO_RANGE` in `action.rs`).
+const KEY_SHIFT_PAD_SEMITONES: [i8; 8] = [0, 1, 2, 3, -4, -3, -2, -1];
+
+/// Keyboard pad scale degrees for slots 0..=7.
+/// Mirrors `engine_core::keyboard_scale_degrees`.
+fn keyboard_scale_degrees(scale: KeyboardScale) -> [u8; 8] {
+    match scale {
+        KeyboardScale::Major => [0, 2, 4, 5, 7, 9, 11, 12],
+        KeyboardScale::Minor => [0, 2, 3, 5, 7, 8, 10, 12],
+        KeyboardScale::Pentatonic => [0, 2, 4, 7, 9, 12, 14, 16],
+    }
+}
 
 /// Snapshot / LED array slot for a deck origin (defense if an OOR index slips past load).
 fn deck_slot(d: u16) -> usize {
@@ -164,8 +182,79 @@ impl MappingSession {
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
         self.snapshot.pad_mode[i] = mode;
-        if mode == PadMode::HotCue {
-            self.refresh_hot_cue_leds(deck, midi);
+        let section = format!("deck_{}", deck + 1);
+        // Mode-page LEDs: force-resend so a page switch always repaints.
+        self.output_state
+            .remove(&format!("{section}.pad_mode_keyboard"));
+        self.output_state
+            .remove(&format!("{section}.pad_mode_key_shift"));
+        self.apply_output_signal(
+            &section,
+            "pad_mode_keyboard",
+            mode == PadMode::Keyboard,
+            midi,
+        );
+        self.apply_output_signal(
+            &section,
+            "pad_mode_key_shift",
+            mode == PadMode::KeyShift,
+            midi,
+        );
+        match mode {
+            PadMode::HotCue => self.refresh_hot_cue_leds(deck, midi),
+            PadMode::Keyboard | PadMode::KeyShift => self.refresh_key_shift_leds(deck, midi),
+            _ => {}
+        }
+    }
+
+    /// Mirror engine key shift; light the matching Keyboard / Key Shift pad LED.
+    pub fn set_deck_key_shift(&mut self, deck: u16, semitones: f32, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        self.snapshot.key_shift[i] = semitones;
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine keyboard scale (Keyboard pad bank labels / LEDs).
+    pub fn set_deck_keyboard_scale(
+        &mut self,
+        deck: u16,
+        scale: KeyboardScale,
+        midi: &mut impl MidiOut,
+    ) {
+        let i = (deck as usize).min(3);
+        self.snapshot.keyboard_scale[i] = scale;
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Re-send the Keyboard or Key Shift pad-bank LEDs for the deck's current mode.
+    ///
+    /// Key Shift: exactly the pad whose semitone offset matches is lit. Keyboard:
+    /// exactly the pad whose scale degree matches is lit. Others clear. Like
+    /// [`Self::refresh_hot_cue_leds`], each signal is force-resent (HW often
+    /// clears pad LEDs on page switch).
+    pub fn refresh_key_shift_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        let section = format!("deck_{}", deck + 1);
+        let shift = self.snapshot.key_shift[i];
+        match self.snapshot.pad_mode[i] {
+            PadMode::KeyShift => {
+                for n in 1..=KEY_SHIFT_PAD_SEMITONES.len() {
+                    let alias = format!("key_shift_pad_{n}");
+                    let active = f32::from(KEY_SHIFT_PAD_SEMITONES[n - 1]) == shift;
+                    self.output_state.remove(&format!("{section}.{alias}"));
+                    self.apply_output_signal(&section, &alias, active, midi);
+                }
+            }
+            PadMode::Keyboard => {
+                let degrees = keyboard_scale_degrees(self.snapshot.keyboard_scale[i]);
+                for n in 1..=degrees.len() {
+                    let alias = format!("keyboard_pad_{n}");
+                    let active = f32::from(degrees[n - 1]) == shift;
+                    self.output_state.remove(&format!("{section}.{alias}"));
+                    self.apply_output_signal(&section, &alias, active, midi);
+                }
+            }
+            _ => {}
         }
     }
 
@@ -538,11 +627,17 @@ impl MappingSession {
                 match body {
                     CmdBody::SetPadMode { mode } => {
                         if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.pad_mode[i] = *mode;
-                            if *mode == PadMode::HotCue {
-                                self.refresh_hot_cue_leds(d, midi);
-                            }
+                            self.set_deck_pad_mode(d, *mode, midi);
+                        }
+                    }
+                    CmdBody::SetKeyShift { semitones } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_key_shift(d, *semitones, midi);
+                        }
+                    }
+                    CmdBody::SetKeyboardScale { scale } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_keyboard_scale(d, *scale, midi);
                         }
                     }
                     CmdBody::SetTempoRange { tempo_range } => {
