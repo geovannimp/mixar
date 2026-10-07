@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/library/library_list_chrome.dart'
-    show MetaPill, kMetaPillGap, kMetaPillInset;
+    show MetaPill, kMetaPillGap;
 import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -79,13 +79,10 @@ class ControllerMappingRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 if (metaPills.isNotEmpty)
-                  Transform.translate(
-                    offset: const Offset(-kMetaPillInset, 0),
-                    child: Wrap(
-                      spacing: kMetaPillGap,
-                      runSpacing: kMetaPillGap,
-                      children: metaPills,
-                    ),
+                  Wrap(
+                    spacing: kMetaPillGap,
+                    runSpacing: kMetaPillGap,
+                    children: metaPills,
                   ),
               ],
             ),
