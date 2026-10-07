@@ -498,7 +498,7 @@ Expected: FAIL — new variants unresolved.
 - `control.rs`: dispatch the four new kinds to the handlers (`CmdOutcome::DeckUpdated`).
 
 `controller`:
-- `catalog.rs`: `PAD_MODES` add `"keyboard" | "key_shift"`; add leaves `keyboard_pad`, `keyboard_scale`, `key_shift_pad`, `key_shift_reset` to the valid-args match (`keyboard_pad`/`key_shift_pad` take `n` like the others; `keyboard_scale` takes `mode` in `major|minor|pentatonic`; `key_shift_reset` takes no args).
+- `catalog.rs`: `PAD_MODES` add `"keyboard" | "key_shift"`; `DECK_LEAVES` add `keyboard_pad`, `keyboard_scale`, `key_shift_pad`, `key_shift_reset`; `validate_leaf_args`: `keyboard_pad`/`key_shift_pad` take `n` like the other pad leaves; `keyboard_scale` takes `mode` in `major|minor|pentatonic`; `key_shift_reset` takes no args.
 - `action.rs`: `pad_mode` match adds `"keyboard" => PadMode::Keyboard, "key_shift" => PadMode::KeyShift`; `resolve_pad_slot` adds `Keyboard` → named press/release kinds, `KeyShift` → named press/release; `"keyboard_scale"` → `CmdBody::SetKeyboardScale`; `"key_shift_reset"` → `CmdBody::SetKeyShift { semitones: 0.0 }`.
 
 - [ ] **Step 4: Run to verify pass**
@@ -591,6 +591,14 @@ Run: `cargo --manifest-path crates/Cargo.toml test -p controller --test ddj400_k
 Expected: FAIL — bundle load validation (missing aliases / validation errors).
 
 - [ ] **Step 3: Add device + map bindings**
+
+`crates/controller/src/catalog.rs` (closed vocabularies — bundle load rejects
+anything not registered here):
+- `DECK_ALIASES`: add `pad_mode_keyboard`, `pad_mode_key_shift`,
+  `keyboard_pad_1..8`, `keyboard_scale_1..3`, `key_shift_pad_1..8`,
+  `key_shift_reset_1..8`.
+- `numbered_deck_alias` `PREFIXES`: add `keyboard_pad_`, `keyboard_scale_`,
+  `key_shift_pad_`, `key_shift_reset_`.
 
 `device.toml` for **each** of `deck_1`/`deck_2`:
 - Inputs: `pad_mode_keyboard` (deck channel, `note = 0x69`), `pad_mode_key_shift` (`note = 0x6F`); `keyboard_pad_1..8` (pad channel, `0x40..0x47`), `keyboard_scale_1..3` (pad channel + 1, `0x40..0x42`), `key_shift_pad_1..8` (pad channel, `0x70..0x77`), `key_shift_reset_1..8` (pad channel + 1, `0x70..0x77`).
