@@ -33,8 +33,13 @@ class ControllerMappingRow extends StatelessWidget {
       mapping.vendorName,
       mapping.productName,
     ].where((s) => s.isNotEmpty).join(' ');
-    final meta =
-        '${mapping.id} · ${mapping.deviceId}${attached ? ' · attached' : ''}';
+    final version = mapping.version;
+    final meta = [
+      mapping.id,
+      mapping.deviceId,
+      if (version != null) 'v$version',
+      if (attached) 'attached',
+    ].join(' · ');
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -65,6 +70,14 @@ class ControllerMappingRow extends StatelessWidget {
               ],
             ),
           ),
+          if (mapping.updateAvailable)
+            Text(
+              'Update available',
+              style: theme.typography.body.xs.copyWith(
+                color: theme.colors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           AppButton(
             variant: .outline,
             size: .sm,
@@ -72,51 +85,67 @@ class ControllerMappingRow extends StatelessWidget {
             onPress: attachBusy ? null : onUpdate,
             child: const Text('Update'),
           ),
-          Column(
+          Row(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+            spacing: 12,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  const Text('Trust', style: TextStyle(fontSize: 11)),
-                  SizedBox(
-                    height: 23,
-                    child: FittedBox(
-                      child: MixarSwitch(
-                        value: trusted,
-                        enabled: !trustBusy,
-                        semanticsLabel: 'Trust device $name',
-                        onChanged: trustBusy ? null : onToggleTrust,
-                      ),
-                    ),
-                  ),
-                ],
+              _LabeledSwitch(
+                label: 'Trust',
+                value: trusted,
+                enabled: !trustBusy,
+                semanticsLabel: 'Trust device $name',
+                onChanged: onToggleTrust,
               ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  const Text('Attach', style: TextStyle(fontSize: 11)),
-                  SizedBox(
-                    height: 23,
-                    child: FittedBox(
-                      child: MixarSwitch(
-                        value: attached,
-                        enabled: !attachBusy,
-                        semanticsLabel: 'Enable $name',
-                        onChanged: attachBusy ? null : onToggleAttach,
-                      ),
-                    ),
-                  ),
-                ],
+              _LabeledSwitch(
+                label: 'Attach',
+                value: attached,
+                enabled: !attachBusy,
+                semanticsLabel: 'Enable $name',
+                onChanged: onToggleAttach,
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Compact `label + switch` pair for the mapping row's trailing controls.
+class _LabeledSwitch extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.semanticsLabel,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final bool enabled;
+  final String semanticsLabel;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 6,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11)),
+        SizedBox(
+          height: 23,
+          child: FittedBox(
+            child: MixarSwitch(
+              value: value,
+              enabled: enabled,
+              semanticsLabel: semanticsLabel,
+              onChanged: enabled ? onChanged : null,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

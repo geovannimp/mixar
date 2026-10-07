@@ -59,7 +59,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('MIDI PORTS'), findsOneWidget);
+    expect(find.text('MIDI ports'), findsOneWidget);
     expect(find.text('No MIDI ports detected.'), findsOneWidget);
   }, semanticsEnabled: false);
 
@@ -98,8 +98,12 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('input DDJ-400 → pioneer-ddj-400'), findsOneWidget);
-    expect(find.text('output Virtual Out'), findsOneWidget);
+    expect(find.text('IN'), findsOneWidget);
+    expect(find.text('OUT'), findsOneWidget);
+    expect(find.text('DDJ-400'), findsOneWidget);
+    expect(find.text('→ pioneer-ddj-400'), findsOneWidget);
+    expect(find.text('Virtual Out'), findsOneWidget);
+    expect(find.text('No mapping'), findsOneWidget);
   }, semanticsEnabled: false);
 
   testWidgets('controllers trust toggle updates draft trusted ids', (
@@ -110,6 +114,7 @@ void main() {
       deviceId: 'pioneer.ddj-400',
       vendorName: 'Pioneer',
       productName: 'DDJ-400',
+      updateAvailable: false,
       midiNameContains: ['DDJ-400'],
       attached: false,
     );
@@ -138,5 +143,46 @@ void main() {
     await tester.tap(find.byType(MixarSwitch).first);
     await tester.pumpAndSettle();
     expect(changed?.trustedControllerDeviceIds, ['pioneer.ddj-400']);
+  }, semanticsEnabled: false);
+
+  testWidgets('controllers mapping row shows version and update badge', (
+    tester,
+  ) async {
+    const mapping = ControllerMappingInfo(
+      id: 'ddj-400',
+      deviceId: 'pioneer.ddj-400',
+      vendorName: 'Pioneer',
+      productName: 'DDJ-400',
+      version: '1.0.0',
+      updateAvailable: true,
+      midiNameContains: ['DDJ-400'],
+      attached: false,
+    );
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          controllerTransportProvider.overrideWith((ref) async => null),
+          controllerMappingsProvider.overrideWith((ref) async => [mapping]),
+          controllerDevicesProvider.overrideWith((ref) async => const []),
+        ],
+        child: MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: Scaffold(
+            body: SettingsControllersPanel(
+              draft: defaultAppSettings(),
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Update available'), findsOneWidget);
+    expect(find.text('Update'), findsOneWidget);
+    expect(find.text('Trust'), findsOneWidget);
+    expect(find.text('Attach'), findsOneWidget);
+    expect(find.textContaining('v1.0.0'), findsOneWidget);
   }, semanticsEnabled: false);
 }
