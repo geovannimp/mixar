@@ -14,6 +14,9 @@ pub trait TimeStretcher: Send {
     /// Set playback tempo rate (`1.0` = original; `>1` = faster). Pitch stays locked.
     fn set_tempo_rate(&mut self, rate: f64);
 
+    /// Set pitch multiplier (`1.0` = original; `2.0` = +1 octave). Tempo is held.
+    fn set_pitch_factor(&mut self, _factor: f64) {}
+
     /// Frames of silence / pad before real audio (may be zero).
     fn preferred_start_pad(&self) -> usize;
 
@@ -47,6 +50,11 @@ pub struct StretchPullStats {
     pub source_frames_fed: usize,
     /// Output frames written.
     pub out_frames: usize,
+}
+
+/// Semitone offset → pitch multiplier (`2^(semitones/12)`).
+pub fn semitones_to_pitch(semitones: f32) -> f64 {
+    f64::from(semitones).mul_add(1.0 / 12.0, 0.0).exp2()
 }
 
 /// Create the default realtime stretcher ([`timestretch`] WideKeylock profile).
