@@ -5,13 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
+import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
 import 'package:gui_flutter/src/rust/api/library.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart'
+    show KeyDisplayModeSetting;
 
 /// Watches engine/library providers and publishes named pad press/release cmds.
 class DeckPadsHost extends ConsumerStatefulWidget {
@@ -131,6 +135,23 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         : (banks.isNotEmpty ? banks.first.id : null);
     final slots = _slotsFromChrome(
       ref.watch(deckSamplerSlotsProvider(widget.deckId)),
+    );
+    final keyShiftSemitones = ref
+        .watch(deckKeyShiftProvider(widget.deckId))
+        .round();
+    final keyboardScale = ref.watch(deckKeyboardScaleProvider(widget.deckId));
+    final rawKey = ref.watch(deckLibraryTrackProvider(widget.deckId))?.key;
+    final keyMode = keyModeFromSettings(
+      ref
+          .watch(appSettingsProvider)
+          .maybeWhen(
+            data: (s) => s.keyDisplayMode,
+            orElse: () => KeyDisplayModeSetting.musical,
+          ),
+    );
+    final resultKey = formatDeckKey(
+      transposeKey(rawKey, keyShiftSemitones),
+      keyMode,
     );
 
     return DeckPadsPanel(
@@ -254,6 +275,39 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
               slot: slot,
               shift: false,
             ),
+          ),
+        );
+      },
+      keyShiftSemitones: keyShiftSemitones,
+      keyboardScale: keyboardScale,
+      resultKey: resultKey,
+      onKeyShiftPress: (slot) {
+        unawaited(
+          _run(
+            (engine) => engine.keyShiftPadPress(
+              deckId: widget.deckId,
+              slot: slot,
+              shift: shiftKeyPressed(),
+            ),
+          ),
+        );
+      },
+      onKeyboardPress: (slot) {
+        unawaited(
+          _run(
+            (engine) => engine.keyboardPadPress(
+              deckId: widget.deckId,
+              slot: slot,
+              shift: shiftKeyPressed(),
+            ),
+          ),
+        );
+      },
+      onKeyboardRelease: (slot) {
+        unawaited(
+          _run(
+            (engine) =>
+                engine.keyboardPadRelease(deckId: widget.deckId, slot: slot),
           ),
         );
       },

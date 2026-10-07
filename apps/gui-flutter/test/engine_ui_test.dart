@@ -417,5 +417,21 @@ void main() {
       expect(snap.stemsReadyFor(1), isFalse);
       expect(snap.stemMuteFor(1), [false, false, false, false]);
     });
+
+    test('updated evt carries key shift and scale', () {
+      final snap = applyEngineEvt(
+        EngineUiSnapshot.empty,
+        const EngineEvt(
+          kind: EngineEvtKind.updated,
+          deckId: 0,
+          keyShift: 2,
+          keyboardScale: KeyboardScale.minor,
+        ),
+      );
+      expect(snap.keyShiftFor(0), 2);
+      expect(snap.keyboardScaleFor(0), KeyboardScale.minor);
+      expect(snap.keyShiftFor(1), 0);
+      expect(snap.keyboardScaleFor(1), KeyboardScale.major);
+    });
   });
 }

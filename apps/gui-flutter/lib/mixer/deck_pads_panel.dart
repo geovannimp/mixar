@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/mixer/pads/key_shift_pads.dart';
+import 'package:gui_flutter/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/pads/stems_pads.dart';
@@ -26,6 +28,9 @@ class DeckPadsPanel extends StatelessWidget {
     required this.onSamplerRelease,
     required this.onSelectBank,
     required this.onSaveBank,
+    required this.onKeyShiftPress,
+    required this.onKeyboardPress,
+    required this.onKeyboardRelease,
     this.activeBankId,
     this.onSamplerAssign,
     this.stemMute = const [false, false, false, false],
@@ -33,6 +38,9 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemsReady = false,
     this.stemsGenerating = false,
     this.onStemsPress,
+    this.keyShiftSemitones = 0,
+    this.keyboardScale = KeyboardScale.major,
+    this.resultKey,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
@@ -61,6 +69,15 @@ class DeckPadsPanel extends StatelessWidget {
   final bool stemsReady;
   final bool stemsGenerating;
   final ValueChanged<int>? onStemsPress;
+  final ValueChanged<int> onKeyShiftPress;
+  final ValueChanged<int> onKeyboardPress;
+  final ValueChanged<int> onKeyboardRelease;
+  final int keyShiftSemitones;
+  final KeyboardScale keyboardScale;
+
+  /// Resulting key (analyzed key + session shift) shown read-only above the
+  /// Keyboard / Key Shift grids; never persisted.
+  final String? resultKey;
   final bool hasTrack;
   final bool disabled;
   final bool bordered;
@@ -163,27 +180,57 @@ class DeckPadsPanel extends StatelessWidget {
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
       ),
-      PadMode.keyboard => _fallbackBody(context, 'Keyboard'),
-      PadMode.keyShift => _fallbackBody(context, 'Key Shift'),
+      PadMode.keyboard => _keyedBody(
+        context,
+        KeyboardPads(
+          scale: keyboardScale,
+          disabled: _controlsDisabled,
+          onPress: onKeyboardPress,
+          onRelease: onKeyboardRelease,
+        ),
+      ),
+      PadMode.keyShift => _keyedBody(
+        context,
+        KeyShiftPads(
+          activeSemitones: keyShiftSemitones,
+          disabled: _controlsDisabled,
+          onPress: onKeyShiftPress,
+        ),
+      ),
     };
   }
 
-  /// Non-blank placeholder until the Keyboard/Key Shift grids land (Task 5).
-  ///
-  /// The engine can already report these modes (Task 3 vocabulary),
-  /// so render something legible rather than an empty body.
-  Widget _fallbackBody(BuildContext context, String label) {
+  /// Keyboard / Key Shift body with a small read-only resulting-key header.
+  Widget _keyedBody(BuildContext context, Widget child) {
     final theme = context.theme;
-    return Center(
-      child: Text(
-        label.toUpperCase(),
-        textAlign: TextAlign.center,
-        style: theme.typography.body.xs.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-          color: theme.colors.mutedForeground,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'KEY',
+                style: theme.typography.body.xs.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+              Text(
+                resultKey ?? '—',
+                style: theme.typography.body.xs.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colors.foreground,
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+        Expanded(child: child),
+      ],
     );
   }
 }

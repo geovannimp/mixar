@@ -10,19 +10,67 @@ void main() {
       PadMode.beatJump,
       PadMode.sampler,
       PadMode.stems,
+      PadMode.keyboard,
+      PadMode.keyShift,
     ]);
     expect(padModeShortLabel(PadMode.hotCue), 'Cue');
     expect(padModeShortLabel(PadMode.loopRoll), 'Roll');
     expect(padModeShortLabel(PadMode.beatJump), 'Jump');
     expect(padModeShortLabel(PadMode.sampler), 'Sample');
     expect(padModeShortLabel(PadMode.stems), 'Stems');
+    expect(padModeShortLabel(PadMode.keyboard), 'Keys');
+    expect(padModeShortLabel(PadMode.keyShift), 'Shift');
+  });
+
+  test('cycle includes keyboard and key shift', () {
+    expect(cyclePadMode(PadMode.stems, 1), PadMode.keyboard);
+    expect(cyclePadMode(PadMode.keyboard, 1), PadMode.keyShift);
+    expect(cyclePadMode(PadMode.keyShift, 1), PadMode.hotCue);
+  });
+
+  test('key shift pad semitones and scale degrees match engine', () {
+    expect(kKeyShiftPadSemitones, [0, 1, 2, 3, -4, -3, -2, -1]);
+    expect(kKeyboardScaleDegrees[KeyboardScale.major], [
+      0,
+      2,
+      4,
+      5,
+      7,
+      9,
+      11,
+      12,
+    ]);
+    expect(kKeyboardScaleDegrees[KeyboardScale.minor], [
+      0,
+      2,
+      3,
+      5,
+      7,
+      8,
+      10,
+      12,
+    ]);
+    expect(kKeyboardScaleDegrees[KeyboardScale.pentatonic], [
+      0,
+      2,
+      4,
+      7,
+      9,
+      12,
+      14,
+      16,
+    ]);
+    expect(keyboardScaleShortLabel(KeyboardScale.major), 'Major');
+    expect(keyboardScaleShortLabel(KeyboardScale.minor), 'Minor');
+    expect(keyboardScaleShortLabel(KeyboardScale.pentatonic), 'Penta');
   });
 
   test('cyclePadMode wraps', () {
     expect(cyclePadMode(PadMode.hotCue, 1), PadMode.loopRoll);
     expect(cyclePadMode(PadMode.sampler, 1), PadMode.stems);
-    expect(cyclePadMode(PadMode.stems, 1), PadMode.hotCue);
-    expect(cyclePadMode(PadMode.hotCue, -1), PadMode.stems);
+    expect(cyclePadMode(PadMode.stems, 1), PadMode.keyboard);
+    expect(cyclePadMode(PadMode.keyShift, 1), PadMode.hotCue);
+    expect(cyclePadMode(PadMode.hotCue, -1), PadMode.keyShift);
   });
 
   test('beat tables match Tauri', () {

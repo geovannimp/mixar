@@ -31,6 +31,17 @@ void main() {
     expect(colorForKey('F', KeyColorMode.absolute), isNotNull);
   });
 
+  test('transposeKey shifts musical and camelot keys', () {
+    expect(transposeKey('C', 2), 'D');
+    expect(transposeKey('Am', 2), 'Bm');
+    expect(transposeKey('C', -1), 'B');
+    expect(transposeKey('F#', 1), 'G');
+    expect(transposeKey('8B', 1), 'C#');
+    expect(transposeKey(null, 2), isNull);
+    expect(transposeKey('  ', 2), isNull);
+    expect(transposeKey('unknown', 2), isNull);
+  });
+
   test('harmonic mode matches Rekordbox-style playing-deck reference', () {
     const ref = '2A';
 

@@ -255,6 +255,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KeyboardScale dco_decode_box_autoadd_keyboard_scale(dynamic raw);
+
+  @protected
   LibraryTrackSummary dco_decode_box_autoadd_library_track_summary(dynamic raw);
 
   @protected
@@ -357,6 +360,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   KeyDisplayModeSetting dco_decode_key_display_mode_setting(dynamic raw);
+
+  @protected
+  KeyboardScale dco_decode_keyboard_scale(dynamic raw);
 
   @protected
   LibraryAnalysisDurationSetting dco_decode_library_analysis_duration_setting(
@@ -484,6 +490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
+
+  @protected
+  KeyboardScale? dco_decode_opt_box_autoadd_keyboard_scale(dynamic raw);
 
   @protected
   LibraryTrackSummary? dco_decode_opt_box_autoadd_library_track_summary(
@@ -800,6 +809,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KeyboardScale sse_decode_box_autoadd_keyboard_scale(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LibraryTrackSummary sse_decode_box_autoadd_library_track_summary(
     SseDeserializer deserializer,
   );
@@ -928,6 +942,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KeyDisplayModeSetting sse_decode_key_display_mode_setting(
     SseDeserializer deserializer,
   );
+
+  @protected
+  KeyboardScale sse_decode_keyboard_scale(SseDeserializer deserializer);
 
   @protected
   LibraryAnalysisDurationSetting sse_decode_library_analysis_duration_setting(
@@ -1087,6 +1104,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
+
+  @protected
+  KeyboardScale? sse_decode_opt_box_autoadd_keyboard_scale(
+    SseDeserializer deserializer,
+  );
 
   @protected
   LibraryTrackSummary? sse_decode_opt_box_autoadd_library_track_summary(
@@ -1462,6 +1484,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_keyboard_scale(
+    KeyboardScale self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_library_track_summary(
     LibraryTrackSummary self,
     SseSerializer serializer,
@@ -1619,6 +1647,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     KeyDisplayModeSetting self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_keyboard_scale(KeyboardScale self, SseSerializer serializer);
 
   @protected
   void sse_encode_library_analysis_duration_setting(
@@ -1815,6 +1846,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_i_64(
     PlatformInt64? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_keyboard_scale(
+    KeyboardScale? self,
     SseSerializer serializer,
   );
 

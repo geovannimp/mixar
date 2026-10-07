@@ -327,6 +327,18 @@ final ProviderFamily<bool, int> deckKeyLockProvider =
           ref.watch(engineUiProvider.select((s) => s.keyLockFor(deckId))),
     );
 
+final ProviderFamily<double, int> deckKeyShiftProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyShiftFor(deckId))),
+    );
+
+final ProviderFamily<KeyboardScale, int> deckKeyboardScaleProvider =
+    Provider.family<KeyboardScale, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyboardScaleFor(deckId))),
+    );
+
 final ProviderFamily<SyncMode, int> deckSyncModeProvider =
     Provider.family<SyncMode, int>(
       (ref, deckId) =>

@@ -76,6 +76,24 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> jogTurn({required int deckId, required int delta});
 
+  /// Key Shift pad press; `shift` resets the deck to `0.0` semitones.
+  Future<void> keyShiftPadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> keyShiftPadRelease({required int deckId, required int slot});
+
+  /// Keyboard pad press; `shift` plays the upper octave / accent.
+  Future<void> keyboardPadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> keyboardPadRelease({required int deckId, required int slot});
+
   /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadLibraryTrack({required int deckId, required String trackId});
 
@@ -159,6 +177,15 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Key lock / master tempo (time-stretch; pitch held).
   Future<void> setKeyLock({required int deckId, required bool enabled});
+
+  /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+  Future<void> setKeyShift({required int deckId, required double semitones});
+
+  /// Musical scale for the Keyboard pad mode.
+  Future<void> setKeyboardScale({
+    required int deckId,
+    required KeyboardScale scale,
+  });
 
   /// Master cue (headphones hear master).
   Future<void> setMasterCue({required bool enabled});
@@ -269,6 +296,12 @@ class EngineEvt {
   final double? speed;
   final double? tempoRange;
   final bool? keyLock;
+
+  /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+  final double? keyShift;
+
+  /// Musical scale for the Keyboard pad mode.
+  final KeyboardScale? keyboardScale;
   final PadMode? padMode;
   final SyncMode? syncMode;
   final int? masterDeck;
@@ -342,6 +375,8 @@ class EngineEvt {
     this.speed,
     this.tempoRange,
     this.keyLock,
+    this.keyShift,
+    this.keyboardScale,
     this.padMode,
     this.syncMode,
     this.masterDeck,
@@ -393,6 +428,8 @@ class EngineEvt {
       speed.hashCode ^
       tempoRange.hashCode ^
       keyLock.hashCode ^
+      keyShift.hashCode ^
+      keyboardScale.hashCode ^
       padMode.hashCode ^
       syncMode.hashCode ^
       masterDeck.hashCode ^
@@ -446,6 +483,8 @@ class EngineEvt {
           speed == other.speed &&
           tempoRange == other.tempoRange &&
           keyLock == other.keyLock &&
+          keyShift == other.keyShift &&
+          keyboardScale == other.keyboardScale &&
           padMode == other.padMode &&
           syncMode == other.syncMode &&
           masterDeck == other.masterDeck &&
@@ -500,6 +539,9 @@ class EngineStartConfig {
 
 /// EQ band for [`EngineTransport::set_eq_band`].
 enum EqBand { low, mid, high }
+
+/// Musical scale for the Keyboard pad mode.
+enum KeyboardScale { major, minor, pentatonic }
 
 /// Output device summary for the Flutter settings / smoke UI.
 class OutputDevice {
