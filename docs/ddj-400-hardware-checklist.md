@@ -1,10 +1,10 @@
 # DDJ-400 hardware checklist
 
 Manual pass for the shipped `mappings/ddj-400` bundle. LEDs are driven from the
-mapping session's snapshot via `apply_output_signal` (see the header comment in
-`map.toml`); `crates/controller/tests/ddj400_kb_keyshift.rs` pins the exact MIDI
-bytes for the Keyboard / Key Shift banks, so this checklist is about what the
-unit *does* with them.
+mapping session's snapshot via `apply_output_signal`
+(`crates/controller/src/session.rs`); `crates/controller/tests/ddj400_kb_keyshift.rs`
+pins the exact MIDI bytes for the Keyboard / Key Shift banks, so this checklist
+is about what the unit *does* with them.
 
 ## Setup
 
@@ -16,12 +16,13 @@ unit *does* with them.
 
 ## Attach / detach / reconnect
 
-- [ ] On attach, the app replays engine state (`EngineStatus`) so PLAY / CUE /
-      SYNC / PFL, the active pad page and the Keyboard / Key Shift pad lamp match
-      the engine without touching the unit.
+- [ ] On attach, the app replays engine state (`EngineStatus`) so the active pad
+      page, hot-cue LEDs, and the Keyboard / Key Shift pad lamp match the engine
+      without touching the unit. (Transport lamps are not replayed here; see the
+      transport section.)
 - [ ] On detach (Settings → Detach, or unplug), all lamps go dark within a moment.
-- [ ] Unplug and replug while a track is playing: after re-attach the lamps match
-      engine state again.
+- [ ] Unplug and replug while a track is playing: after re-attach the pad / mode
+      lamps match engine state again.
 
 ## Deck transport (repeat per deck)
 
