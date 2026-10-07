@@ -424,6 +424,8 @@ class MetaPill extends StatelessWidget {
     required this.text,
     this.leading,
     this.textColor,
+    this.backgroundColor,
+    this.borderColor,
     this.fontWeight = FontWeight.w500,
     super.key,
   });
@@ -435,6 +437,14 @@ class MetaPill extends StatelessWidget {
 
   /// Overrides the muted default, used by the key pill for its key colour.
   final Color? textColor;
+
+  /// Overrides the default row-surface fill. Set this (with [borderColor]) when
+  /// the pill sits on a `card` surface, where the default `card` fill would be
+  /// invisible.
+  final Color? backgroundColor;
+
+  /// Optional hairline border drawn around the chip.
+  final Color? borderColor;
   final FontWeight fontWeight;
 
   @override
@@ -450,8 +460,11 @@ class MetaPill extends StatelessWidget {
             leading != null && innerWidth >= kMetaPillIconMinWidth;
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colors.card,
+            color: backgroundColor ?? theme.colors.card,
             borderRadius: theme.style.borderRadius.pill,
+            border: borderColor == null
+                ? null
+                : Border.all(color: borderColor!),
           ),
           child: Padding(
             padding: kMetaPillPadding,

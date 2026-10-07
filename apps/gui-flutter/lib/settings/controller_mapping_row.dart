@@ -37,13 +37,27 @@ class ControllerMappingRow extends StatelessWidget {
     ].where((s) => s.isNotEmpty).join(' ');
     final version = mapping.version;
     // Metadata as the library track row's chips: id, device id, version, and
-    // an accent "Attached" state. Hung left by the pill inset so the chip text
-    // lines up with the title above it.
+    // an accent "Attached" state. The pill's default fill is the row surface
+    // (`card`), which is invisible on this settings card, so use the page
+    // background fill + border (matching the library's status pill).
+    MetaPill chip(String text, {Color? textColor, FontWeight? fontWeight}) =>
+        MetaPill(
+          text: text,
+          textColor: textColor,
+          fontWeight: fontWeight ?? FontWeight.w500,
+          backgroundColor: theme.colors.background,
+          borderColor: theme.colors.border,
+        );
     final metaPills = <Widget>[
-      MetaPill(text: mapping.id),
-      MetaPill(text: mapping.deviceId),
-      if (version != null) MetaPill(text: 'v$version'),
-      if (attached) MetaPill(text: 'Attached', textColor: theme.colors.primary),
+      chip(mapping.id),
+      chip(mapping.deviceId),
+      if (version != null) chip('v$version'),
+      if (attached)
+        chip(
+          'Attached',
+          textColor: theme.colors.primary,
+          fontWeight: FontWeight.w600,
+        ),
     ];
 
     return Padding(
