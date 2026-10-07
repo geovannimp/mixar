@@ -395,6 +395,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeatJumpPadRelease, CmdBody::BeatJumpPadRelease { .. })
         | (Kind::SamplerPadPress, CmdBody::SamplerPadPress { .. })
         | (Kind::SamplerPadRelease, CmdBody::SamplerPadRelease { .. })
+        | (Kind::KeyboardPadPress, CmdBody::KeyboardPadPress { .. })
+        | (Kind::KeyboardPadRelease, CmdBody::KeyboardPadRelease { .. })
+        | (Kind::KeyShiftPadPress, CmdBody::KeyShiftPadPress { .. })
+        | (Kind::KeyShiftPadRelease, CmdBody::KeyShiftPadRelease { .. })
         | (Kind::AssignSampler, CmdBody::AssignSampler { .. })
         | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
         | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
@@ -827,6 +831,36 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.sampler_pad_release(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyboardPadPress => {
+            let CmdBody::KeyboardPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.keyboard_pad_press(deck_id, slot, shift)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyboardPadRelease => {
+            let CmdBody::KeyboardPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.keyboard_pad_release(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyShiftPadPress => {
+            let CmdBody::KeyShiftPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.key_shift_pad_press(deck_id, slot, shift)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyShiftPadRelease => {
+            let CmdBody::KeyShiftPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.key_shift_pad_release(deck_id, slot)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::AssignSampler => {

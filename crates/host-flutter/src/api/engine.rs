@@ -142,6 +142,8 @@ pub enum PadMode {
     BeatJump,
     Sampler,
     Stems,
+    Keyboard,
+    KeyShift,
 }
 
 impl From<PadMode> for engine_api::PadMode {
@@ -152,6 +154,8 @@ impl From<PadMode> for engine_api::PadMode {
             PadMode::BeatJump => Self::BeatJump,
             PadMode::Sampler => Self::Sampler,
             PadMode::Stems => Self::Stems,
+            PadMode::Keyboard => Self::Keyboard,
+            PadMode::KeyShift => Self::KeyShift,
         }
     }
 }
@@ -164,6 +168,8 @@ impl From<engine_api::PadMode> for PadMode {
             engine_api::PadMode::BeatJump => Self::BeatJump,
             engine_api::PadMode::Sampler => Self::Sampler,
             engine_api::PadMode::Stems => Self::Stems,
+            engine_api::PadMode::Keyboard => Self::Keyboard,
+            engine_api::PadMode::KeyShift => Self::KeyShift,
         }
     }
 }

@@ -185,6 +185,10 @@ const DECK_LEAVES: &[&str] = &[
     "beat_jump_pad",
     "sampler_pad",
     "trigger_sampler",
+    "keyboard_pad",
+    "keyboard_scale",
+    "key_shift_pad",
+    "key_shift_reset",
 ];
 
 const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
@@ -193,7 +197,18 @@ const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
 const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_prev", "load_to_deck"];
 
-const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler", "stems"];
+const PAD_MODES: &[&str] = &[
+    "hot_cue",
+    "loop_roll",
+    "beat_jump",
+    "sampler",
+    "stems",
+    "keyboard",
+    "key_shift",
+];
+
+/// Keyboard scale names accepted by `keyboard_scale(mode:…)`.
+const KEYBOARD_SCALES: &[&str] = &["major", "minor", "pentatonic"];
 
 /// Validate leaf-specific named args (after parse).
 pub fn validate_leaf_args(
@@ -201,7 +216,8 @@ pub fn validate_leaf_args(
     args: &crate::action_id::ActionArgs,
 ) -> Result<(), LoadError> {
     match leaf {
-        "pad" | "hot_cue_pad" | "loop_roll_pad" | "beat_jump_pad" | "sampler_pad" => {
+        "pad" | "hot_cue_pad" | "loop_roll_pad" | "beat_jump_pad" | "sampler_pad"
+        | "keyboard_pad" | "key_shift_pad" => {
             args.expect_keys_exactly(&["n"])?;
             let n = args.require_int("n")?;
             if n < 1 {
@@ -250,6 +266,16 @@ pub fn validate_leaf_args(
             let mode = args.require_ident("mode")?;
             if !PAD_MODES.contains(&mode) {
                 return Err(LoadError::Validation(format!("unknown pad_mode `{mode}`")));
+            }
+            Ok(())
+        }
+        "keyboard_scale" => {
+            args.expect_keys_exactly(&["mode"])?;
+            let mode = args.require_ident("mode")?;
+            if !KEYBOARD_SCALES.contains(&mode) {
+                return Err(LoadError::Validation(format!(
+                    "unknown keyboard scale `{mode}`"
+                )));
             }
             Ok(())
         }

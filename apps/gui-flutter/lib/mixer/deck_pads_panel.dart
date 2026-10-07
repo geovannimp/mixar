@@ -163,6 +163,9 @@ class DeckPadsPanel extends StatelessWidget {
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
       ),
+      // Keyboard / Key Shift grids land with the pad-mode UI task; the modes
+      // are not in `kPadModes` yet, so these arms are unreachable.
+      PadMode.keyboard || PadMode.keyShift => const SizedBox.shrink(),
     };
   }
 }

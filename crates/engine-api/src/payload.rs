@@ -45,6 +45,8 @@ pub enum PadMode {
     BeatJump,
     Sampler,
     Stems,
+    Keyboard,
+    KeyShift,
 }
 
 /// Musical scale used by the Keyboard pad mode's note bank.
@@ -344,6 +346,22 @@ pub enum CmdBody {
         shift: bool,
     },
     SamplerPadRelease {
+        slot: u8,
+    },
+    KeyboardPadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    KeyboardPadRelease {
+        slot: u8,
+    },
+    KeyShiftPadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    KeyShiftPadRelease {
         slot: u8,
     },
     TriggerHotCue {

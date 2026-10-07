@@ -1489,6 +1489,8 @@ impl Engine {
             PadMode::BeatJump => self.beat_jump_pad_press(deck_id, slot),
             PadMode::Sampler => self.sampler_pad_press(deck_id, slot, shift),
             PadMode::Stems => self.stems_pad_press(deck_id, slot),
+            PadMode::Keyboard => self.keyboard_pad_press(deck_id, slot, shift),
+            PadMode::KeyShift => self.key_shift_pad_press(deck_id, slot, shift),
         }
     }
 
@@ -1499,6 +1501,8 @@ impl Engine {
             PadMode::BeatJump => self.beat_jump_pad_release(deck_id, slot),
             PadMode::Sampler => self.sampler_pad_release(deck_id, slot),
             PadMode::Stems => Ok(()),
+            PadMode::Keyboard => self.keyboard_pad_release(deck_id, slot),
+            PadMode::KeyShift => self.key_shift_pad_release(deck_id, slot),
         }
     }
 
@@ -1571,6 +1575,70 @@ impl Engine {
 
     pub fn sampler_pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
         self.end_sampler(deck_id, slot as usize)
+    }
+
+    /// Key Shift pad: press latches the pad's semitone offset (re-press clears);
+    /// `shift` resets to `0.0`.
+    pub fn key_shift_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        if usize::from(slot) >= crate::pads::KEY_SHIFT_PAD_SEMITONES.len() {
+            return Err(anyhow::anyhow!("Key shift pad slot must be 0..=7."));
+        }
+        if shift {
+            return self.set_deck_key_shift(deck_id, 0.0);
+        }
+        let target = f32::from(crate::pads::KEY_SHIFT_PAD_SEMITONES[usize::from(slot)]);
+        let current = self
+            .deck_control
+            .get(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?
+            .key_shift_semitones;
+        let next = if current == target { 0.0 } else { target };
+        self.set_deck_key_shift(deck_id, next)
+    }
+
+    pub fn key_shift_pad_release(&mut self, _deck_id: usize, _slot: u8) -> Result<()> {
+        Ok(())
+    }
+
+    /// Keyboard pad: press seeks to the cue and plays at the pad's scale-degree
+    /// pitch offset (momentary); `shift` selects the scale by slot.
+    pub fn keyboard_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
+        if usize::from(slot) >= 8 {
+            return Err(anyhow::anyhow!("Keyboard pad slot must be 0..=7."));
+        }
+        if shift {
+            let scale = match slot {
+                0 => KeyboardScale::Major,
+                1 => KeyboardScale::Minor,
+                2 => KeyboardScale::Pentatonic,
+                _ => return Ok(()),
+            };
+            return self.set_deck_keyboard_scale(deck_id, scale);
+        }
+        let (scale, hot_cues) = {
+            let control = self
+                .deck_control
+                .get(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            (control.keyboard_scale, control.hot_cues)
+        };
+        let semitones =
+            f32::from(crate::pads::keyboard_scale_degrees(scale)[usize::from(slot).min(7)]);
+        self.set_deck_key_shift(deck_id, semitones)?;
+
+        // Start playback at the first filled hot cue, else the deck cue point.
+        let cue = hot_cues
+            .iter()
+            .find_map(|position| *position)
+            .or_else(|| self.deck_transport_state(deck_id).and_then(|(cue, _)| cue));
+        match cue {
+            Some(position_ms) => self.trigger_deck_hot_cue(deck_id, position_ms),
+            None => self.play(deck_id),
+        }
+    }
+
+    pub fn keyboard_pad_release(&mut self, deck_id: usize, _slot: u8) -> Result<()> {
+        self.set_deck_key_shift(deck_id, 0.0)
     }
 
     fn publish_library_cmd(

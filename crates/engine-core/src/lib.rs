@@ -31,5 +31,6 @@ pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library::PreparedTrackPlayback;
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
+pub use pads::{keyboard_scale_degrees, KEY_SHIFT_PAD_SEMITONES};
 pub use session::EngineSession;
 pub use transport::TransportEvent;

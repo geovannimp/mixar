@@ -538,7 +538,7 @@ class OutputDevice {
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-enum PadMode { hotCue, loopRoll, beatJump, sampler, stems }
+enum PadMode { hotCue, loopRoll, beatJump, sampler, stems, keyboard, keyShift }
 
 /// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
 class SamplerSlotChrome {

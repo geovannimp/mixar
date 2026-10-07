@@ -1,7 +1,21 @@
 //! Pad slot tables shared by press/release cmd handlers and tests.
 
+use engine_api::KeyboardScale;
+
 /// Library `track_hot_cue.slot_index` allows 0..=15; engine cache matches that.
 pub(crate) const HOT_CUE_SLOT_COUNT: usize = 16;
+
+/// Key Shift pad semitone offsets for slots 0..=7 (Rekordbox/DDJ-FLX4 octave span).
+pub const KEY_SHIFT_PAD_SEMITONES: [i8; 8] = [0, 1, 2, 3, -4, -3, -2, -1];
+
+/// Keyboard pad scale degrees (semitones from the analyzed root) for slots 0..=7.
+pub fn keyboard_scale_degrees(scale: KeyboardScale) -> [u8; 8] {
+    match scale {
+        KeyboardScale::Major => [0, 2, 4, 5, 7, 9, 11, 12],
+        KeyboardScale::Minor => [0, 2, 3, 5, 7, 8, 10, 12],
+        KeyboardScale::Pentatonic => [0, 2, 4, 7, 9, 12, 14, 16],
+    }
+}
 
 /// Loop-roll beat lengths for slots 0..=7 (Flutter / Tauri grids).
 pub const LOOP_ROLL_PAD_BEATS: [f32; 8] = [

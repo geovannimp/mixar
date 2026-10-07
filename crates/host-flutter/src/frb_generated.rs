@@ -8001,6 +8001,8 @@ impl SseDecode for crate::api::engine::PadMode {
             2 => crate::api::engine::PadMode::BeatJump,
             3 => crate::api::engine::PadMode::Sampler,
             4 => crate::api::engine::PadMode::Stems,
+            5 => crate::api::engine::PadMode::Keyboard,
+            6 => crate::api::engine::PadMode::KeyShift,
             _ => unreachable!("Invalid variant for PadMode: {}", inner),
         };
     }
@@ -10002,6 +10004,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::engine::PadMode {
             Self::BeatJump => 2.into_dart(),
             Self::Sampler => 3.into_dart(),
             Self::Stems => 4.into_dart(),
+            Self::Keyboard => 5.into_dart(),
+            Self::KeyShift => 6.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -11503,6 +11507,8 @@ impl SseEncode for crate::api::engine::PadMode {
                 crate::api::engine::PadMode::BeatJump => 2,
                 crate::api::engine::PadMode::Sampler => 3,
                 crate::api::engine::PadMode::Stems => 4,
+                crate::api::engine::PadMode::Keyboard => 5,
+                crate::api::engine::PadMode::KeyShift => 6,
                 _ => {
                     unimplemented!("");
                 }

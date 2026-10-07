@@ -1,6 +1,6 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode};
+use engine_api::{CmdBody, JogMode, KeyboardScale, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
@@ -483,6 +483,8 @@ pub fn resolve_action(
                 "beat_jump" => PadMode::BeatJump,
                 "sampler" => PadMode::Sampler,
                 "stems" => PadMode::Stems,
+                "keyboard" => PadMode::Keyboard,
+                "key_shift" => PadMode::KeyShift,
                 _ => return None,
             };
             Some(engine_cmd(
@@ -511,6 +513,34 @@ pub fn resolve_action(
         "loop_roll_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::LoopRoll),
         "beat_jump_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::BeatJump),
         "sampler_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::Sampler),
+        "keyboard_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::Keyboard),
+        "key_shift_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::KeyShift),
+        "keyboard_scale" => {
+            if !active {
+                return None;
+            }
+            let scale = match args.require_ident("mode").ok()? {
+                "major" => KeyboardScale::Major,
+                "minor" => KeyboardScale::Minor,
+                "pentatonic" => KeyboardScale::Pentatonic,
+                _ => return None,
+            };
+            Some(engine_cmd(
+                origin,
+                Kind::SetKeyboardScale,
+                CmdBody::SetKeyboardScale { scale },
+            ))
+        }
+        "key_shift_reset" => {
+            if !active {
+                return None;
+            }
+            Some(engine_cmd(
+                origin,
+                Kind::SetKeyShift,
+                CmdBody::SetKeyShift { semitones: 0.0 },
+            ))
+        }
         "trigger_sampler" => {
             let slot = args.require_int("slot").ok()?;
             if slot < 1 {
@@ -616,6 +646,36 @@ fn resolve_pad_slot(origin: Origin, slot: u8, active: bool, mode: PadMode) -> Op
                     origin,
                     Kind::PadRelease,
                     CmdBody::PadRelease { slot },
+                ))
+            }
+        }
+        PadMode::Keyboard => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyboardPadPress,
+                    CmdBody::KeyboardPadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyboardPadRelease,
+                    CmdBody::KeyboardPadRelease { slot },
+                ))
+            }
+        }
+        PadMode::KeyShift => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyShiftPadPress,
+                    CmdBody::KeyShiftPadPress { slot, shift: false },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyShiftPadRelease,
+                    CmdBody::KeyShiftPadRelease { slot },
                 ))
             }
         }
@@ -1255,5 +1315,63 @@ mod tests {
             &snap
         )
         .is_none());
+    }
+
+    #[test]
+    fn key_shift_pad_resolves_to_named_kind() {
+        let snap = ControlSnapshot::default();
+        let a = resolve_action(
+            "Deck(_)::key_shift_pad(n:2)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            a,
+            RoutedAction::EngineCmd {
+                kind: Kind::KeyShiftPadPress,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn keyboard_scale_and_reset_resolve() {
+        let snap = ControlSnapshot::default();
+        let scale = resolve_action(
+            "Deck(_)::keyboard_scale(mode:minor)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            scale,
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetKeyboardScale { .. },
+                ..
+            }
+        ));
+        let reset = resolve_action(
+            "Deck(_)::key_shift_reset",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            reset,
+            RoutedAction::EngineCmd {
+                body: CmdBody::SetKeyShift { semitones },
+                ..
+            } if semitones == 0.0
+        ));
     }
 }

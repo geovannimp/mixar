@@ -44,6 +44,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     PadMode.beatJump => rust.PadMode.beatJump,
     PadMode.sampler => rust.PadMode.sampler,
     PadMode.stems => rust.PadMode.stems,
+    PadMode.keyboard => rust.PadMode.keyboard,
+    PadMode.keyShift => rust.PadMode.keyShift,
   };
 
   Future<bool> _run(

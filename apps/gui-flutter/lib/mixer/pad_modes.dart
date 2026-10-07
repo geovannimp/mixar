@@ -42,6 +42,8 @@ String padModeShortLabel(PadMode mode) => switch (mode) {
   PadMode.beatJump => 'Jump',
   PadMode.sampler => 'Sample',
   PadMode.stems => 'Stems',
+  PadMode.keyboard => 'Keys',
+  PadMode.keyShift => 'Shift',
 };
 
 PadMode cyclePadMode(PadMode mode, int direction) {
