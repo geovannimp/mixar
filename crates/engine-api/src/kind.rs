@@ -14,6 +14,8 @@ pub enum Kind {
     SetSpeed,
     SetTempoRange,
     SetKeyLock,
+    SetKeyShift,
+    SetKeyboardScale,
     SetFilter,
     SetGainTrim,
     SetHeadphoneCue,

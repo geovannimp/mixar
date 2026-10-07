@@ -1477,7 +1477,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::{DeckEq, EngineStatus, JogMode, PadMode, SamplerStatus};
+    use engine_api::{DeckEq, EngineStatus, JogMode, KeyboardScale, PadMode, SamplerStatus};
 
     fn recv_mapped(origin: Origin, kind: Kind, body: EvtBody) -> Vec<EngineEvt> {
         let buses = EngineBuses::new();
@@ -1509,6 +1509,8 @@ mod tests {
             speed: 0.5,
             tempo_range: 0.08,
             key_lock: false,
+            key_shift: 0.0,
+            keyboard_scale: KeyboardScale::Major,
             eq: DeckEq {
                 low: 0.5,
                 mid: 0.5,

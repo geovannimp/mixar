@@ -47,6 +47,16 @@ pub enum PadMode {
     Stems,
 }
 
+/// Musical scale used by the Keyboard pad mode's note bank.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyboardScale {
+    #[default]
+    Major,
+    Minor,
+    Pentatonic,
+}
+
 /// Jog platter policy for top (touched) or outer (untouched) turns.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -137,6 +147,12 @@ pub struct DeckSnapshot {
     /// Key lock (time-stretch); tempo changes without pitch when true.
     #[serde(default)]
     pub key_lock: bool,
+    /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+    #[serde(default)]
+    pub key_shift: f32,
+    /// Musical scale used by the Keyboard pad mode.
+    #[serde(default)]
+    pub keyboard_scale: KeyboardScale,
     pub eq: DeckEq,
     /// Filter knob `0..1` (center `0.5` = flat).
     pub filter: f32,
@@ -228,6 +244,14 @@ pub enum CmdBody {
     /// Key lock / master tempo (time-stretch; pitch held).
     SetKeyLock {
         enabled: bool,
+    },
+    /// Session key-shift offset in semitones (`-12..=12`).
+    SetKeyShift {
+        semitones: f32,
+    },
+    /// Musical scale for the Keyboard pad mode.
+    SetKeyboardScale {
+        scale: KeyboardScale,
     },
     SetFilter {
         /// Filter knob `0..1`.
@@ -409,6 +433,12 @@ pub enum EvtBody {
         tempo_range: f32,
         #[serde(default)]
         key_lock: bool,
+        /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+        #[serde(default)]
+        key_shift: f32,
+        /// Musical scale used by the Keyboard pad mode.
+        #[serde(default)]
+        keyboard_scale: KeyboardScale,
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,

@@ -16,8 +16,8 @@ pub use kind::Kind;
 pub use origin::Origin;
 pub use payload::{
     CmdBody, DeckEq, DeckHotCue, DeckSavedLoop, DeckSnapshot, EngineStatus, EqBand, EvtBody,
-    JogMode, LoopRegion, PadMode, SamplerBankInfo, SamplerPlayMode, SamplerSlotInfo, SamplerStatus,
-    SyncMode,
+    JogMode, KeyboardScale, LoopRegion, PadMode, SamplerBankInfo, SamplerPlayMode, SamplerSlotInfo,
+    SamplerStatus, SyncMode,
 };
 pub use wire::{
     decode_cmd_body, decode_evt_body, decode_wire, encode_cmd_body, encode_evt_body, encode_wire,

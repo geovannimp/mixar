@@ -1,7 +1,7 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
 use crate::pads::HOT_CUE_SLOT_COUNT;
-use engine_api::{LoopRegion, PadMode, SyncMode};
+use engine_api::{KeyboardScale, LoopRegion, PadMode, SyncMode};
 use library_core::TrackId;
 
 #[derive(Clone, Debug, Default)]
@@ -27,6 +27,10 @@ pub(crate) struct DeckControlState {
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
     /// Library sampler bank currently loaded onto this deck's pads.
     pub active_sampler_bank_id: Option<String>,
+    /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+    pub key_shift_semitones: f32,
+    /// Musical scale used by the Keyboard pad mode.
+    pub keyboard_scale: KeyboardScale,
 }
 
 impl DeckControlState {
@@ -43,6 +47,8 @@ impl DeckControlState {
         self.key = None;
         self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
+        self.key_shift_semitones = 0.0;
+        self.keyboard_scale = KeyboardScale::Major;
     }
 
     pub fn apply_source_load(&mut self, source: &library_core::AudioSource, track_id: TrackId) {

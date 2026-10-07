@@ -17,8 +17,8 @@ use audio_core::{
     Sample, StreamParams,
 };
 use engine_api::{
-    DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, Kind, LoopRegion, Origin, PadMode,
-    SamplerStatus, SyncMode,
+    DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, KeyboardScale, Kind, LoopRegion,
+    Origin, PadMode, SamplerStatus, SyncMode,
 };
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
@@ -759,6 +759,39 @@ impl Engine {
             .deck_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
         deck.set_key_lock(enabled)
+    }
+
+    /// Set the session key-shift offset in semitones (`-12..=12`; clamps, non-finite → 0).
+    pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
+        let s = if semitones.is_finite() {
+            semitones.clamp(-12.0, 12.0)
+        } else {
+            0.0
+        };
+        {
+            let control = self
+                .deck_control
+                .get_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            control.key_shift_semitones = s;
+        }
+        if let Some(dsp_engine) = self.dsp_engine.as_ref() {
+            let mut dsp = dsp_engine.lock().unwrap();
+            if let Some(deck) = dsp.deck_mut(deck_id) {
+                deck.set_key_shift_semitones(s)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Set the musical scale used by the Keyboard pad mode for a deck.
+    pub fn set_deck_keyboard_scale(&mut self, deck_id: usize, scale: KeyboardScale) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.keyboard_scale = scale;
+        Ok(())
     }
 
     /// Enable/disable slip mode for a deck.
@@ -2137,6 +2170,8 @@ fn deck_snapshot_from_dsp(
         speed: deck.speed(),
         tempo_range: deck.tempo_range(),
         key_lock: deck.key_lock(),
+        key_shift: control.key_shift_semitones,
+        keyboard_scale: control.keyboard_scale,
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),

@@ -219,6 +219,8 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         speed: snap.speed,
         tempo_range: snap.tempo_range,
         key_lock: snap.key_lock,
+        key_shift: snap.key_shift,
+        keyboard_scale: snap.keyboard_scale,
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
@@ -365,6 +367,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
         | (Kind::SetTempoRange, CmdBody::SetTempoRange { .. })
         | (Kind::SetKeyLock, CmdBody::SetKeyLock { .. })
+        | (Kind::SetKeyShift, CmdBody::SetKeyShift { .. })
+        | (Kind::SetKeyboardScale, CmdBody::SetKeyboardScale { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
@@ -545,6 +549,20 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.set_deck_key_lock(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyShift => {
+            let CmdBody::SetKeyShift { semitones } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_key_shift(deck_id, semitones)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyboardScale => {
+            let CmdBody::SetKeyboardScale { scale } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_keyboard_scale(deck_id, scale)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetFilter => {
