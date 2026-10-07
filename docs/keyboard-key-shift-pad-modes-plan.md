@@ -17,7 +17,7 @@
 - Key shift and keyboard scale are **session-only**; never write `track_*` rows or library key corrections.
 - `P == 1.0` must bypass the pitch resampler (bit-identical to today).
 - Engine pad slots are zero-based `0..7`; UI/DDJ-400 pads are `1..8`.
-- Pitch is `2^(semitones/12)`; clamp semitones to `-12..=+12` and reject non-finite (treat as 0).
+- Pitch is `2^(semitones/12)`; clamp semitones to `-16..=+16` (covers the pentatonic `+16`) and reject non-finite (treat as 0).
 - Engine + controller are the source of truth; any input path (UI, MIDI, tests) publishes the same cmd.
 - Pre-commit hook runs rustfmt/clippy for `.rs` and `dart format`/`flutter analyze` for `.dart`; do not bypass.
 
@@ -249,7 +249,7 @@ fn key_shift_clamps_and_rejects_non_finite() {
     deck.set_key_shift_semitones(f32::NAN).unwrap();
     assert_eq!(deck.key_shift_semitones(), 0.0);
     deck.set_key_shift_semitones(120.0).unwrap();
-    assert_eq!(deck.key_shift_semitones(), 12.0);
+    assert_eq!(deck.key_shift_semitones(), 16.0);
 }
 
 #[test]
@@ -297,7 +297,7 @@ pub fn pitch_factor(&self) -> f64 {
     stretch::semitones_to_pitch(self.key_shift_semitones)
 }
 pub fn set_key_shift_semitones(&mut self, semitones: f32) -> Result<()> {
-    let s = if semitones.is_finite() { semitones.clamp(-12.0, 12.0) } else { 0.0 };
+    let s = if semitones.is_finite() { semitones.clamp(-16.0, 16.0) } else { 0.0 };
     if (s - self.key_shift_semitones).abs() < f32::EPSILON { return Ok(()); }
     self.key_shift_semitones = s;
     self.reset_stretcher_state();
@@ -397,7 +397,7 @@ Then fix every literal construction site the new fields break — grep for `Deck
 
 ```rust
 pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
-    let s = if semitones.is_finite() { semitones.clamp(-12.0, 12.0) } else { 0.0 };
+    let s = if semitones.is_finite() { semitones.clamp(-16.0, 16.0) } else { 0.0 };
     let control = self.deck_control.get_mut(deck_id)
         .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
     control.key_shift_semitones = s;

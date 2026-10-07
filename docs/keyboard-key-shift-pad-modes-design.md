@@ -60,6 +60,10 @@ correct; only the *number* of source frames fed per callback changes.
 
 `P == 1.0` bypasses the resampler entirely (bit-identical to today).
 
+Semitone offsets are clamped to `-16..=+16` (covers the pentatonic table's
+`+16`; the resulting pitch factor `[0.396, 2.52]` stays well inside the
+resampler's documented `[0.25, 4.0]`). Non-finite input maps to `0`.
+
 ## Pad layouts
 
 Engine slots are zero-based `0..7`; UI/DDJ-400 pads are `1..8`.
