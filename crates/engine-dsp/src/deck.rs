@@ -104,7 +104,7 @@ pub struct Deck {
     stretcher: Option<Box<dyn TimeStretcher>>,
     /// Last process used stretch path (reset stretcher when leaving it).
     stretch_active: bool,
-    /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass resampler).
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass resampler).
     key_shift_semitones: f32,
     /// Active loop region in source frames (inclusive start, exclusive end).
     loop_region: Option<(f64, f64)>,
@@ -377,7 +377,7 @@ impl Deck {
         Ok(())
     }
 
-    /// Current key-shift offset in semitones (`-12..=12`; `0` = bypass).
+    /// Current key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub fn key_shift_semitones(&self) -> f32 {
         self.key_shift_semitones
     }
@@ -814,10 +814,6 @@ impl Deck {
         }
     }
 
-    fn wants_key_lock_stretch(&self) -> bool {
-        self.key_lock && !self.jog_driving_audio()
-    }
-
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
     pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
         self.position_frames = 0;
@@ -831,6 +827,8 @@ impl Deck {
         self.stems = None;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        // Session-only key shift must not leak onto a newly loaded track.
+        self.key_shift_semitones = 0.0;
         self.create_resampler()?;
         if self.key_lock {
             self.ensure_stretcher()?;
@@ -1010,8 +1008,11 @@ impl Deck {
             let source_rate = loaded.sample_rate;
             // Stems bypass key-lock stretch; keep stretch_active in sync with the path we take.
             // Key shift forces the stretch path even with stems so stems still pitch-shift.
-            let want_stretch = self.key_shift_semitones != 0.0
-                || (self.wants_key_lock_stretch() && self.stems.is_none());
+            // Key shift and key lock both yield to the vinyl/interpolated path
+            // while the jog drives audio, so a latched shift never blocks
+            // scratching.
+            let want_stretch = !self.jog_driving_audio()
+                && (self.key_shift_semitones != 0.0 || (self.key_lock && self.stems.is_none()));
             if self.stretch_active && !want_stretch {
                 self.reset_stretcher_state();
             }
@@ -1510,6 +1511,17 @@ mod tests {
     }
 
     #[test]
+    fn load_resets_key_shift() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(5.0).unwrap();
+        // Loading a second track must clear the session-only shift so it never
+        // inherits a stale offset.
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        assert_eq!(deck.key_shift_semitones(), 0.0);
+    }
+
+    #[test]
     fn seek_ms_allows_negative_playhead() {
         let mut deck = new_deck(CHUNK);
         load_test_samples(&mut deck, vec![0.0f32; CHUNK * 2], ENGINE_RATE);
@@ -1956,6 +1968,39 @@ mod tests {
         // Vinyl jog path still runs (does not panic / stall) while key lock stays on.
         assert!(deck.key_lock());
         assert!(deck.position_frames() != before || deck.jog_rate() != 1.0);
+    }
+
+    #[test]
+    fn key_shift_falls_back_to_vinyl_while_jog_driving() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.4f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(2.0).unwrap();
+        deck.play().unwrap();
+        for _ in 0..8 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(deck.stretch_active, "key shift should stretch at rest");
+
+        deck.set_jog_touch(true);
+        deck.jog_turn(20);
+        assert!(deck.jog_driving_audio());
+        let before = deck.position_frames();
+        let out = deck.process(CHUNK).unwrap().to_vec();
+        // A latched shift must not block scratching: the vinyl path runs and
+        // the playhead moves (no panic / stall).
+        assert!(
+            !deck.stretch_active,
+            "jog must leave the key-shift stretch path"
+        );
+        assert!(
+            deck.position_frames() != before || deck.jog_rate() != 1.0,
+            "vinyl jog should drive the playhead"
+        );
+        assert!(
+            out.iter().any(|s| s.abs() > 0.0),
+            "scratching must produce audio, not silence"
+        );
+        assert!((deck.key_shift_semitones() - 2.0).abs() < f32::EPSILON);
     }
 
     #[test]

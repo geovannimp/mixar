@@ -99,3 +99,47 @@ fn unload_resets_key_shift_and_scale() {
     assert_eq!(snap.key_shift, 0.0);
     assert_eq!(snap.keyboard_scale, KeyboardScale::Major);
 }
+
+#[test]
+fn load_resets_key_shift_and_scale() {
+    let session = null_session_with_loaded_deck();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyShift,
+            encode_cmd_body(&CmdBody::SetKeyShift { semitones: 12.0 }).unwrap(),
+        )
+        .unwrap();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyboardScale,
+            encode_cmd_body(&CmdBody::SetKeyboardScale {
+                scale: KeyboardScale::Pentatonic,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+    // Loading a second track must not inherit the session shift/scale.
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    TrackId::new("keyshift2.wav"),
+                    short_tone_fixture(),
+                    TrackMetadata {
+                        bpm: Some(120.0),
+                        ..Default::default()
+                    },
+                )),
+            )
+        })
+        .expect("load second");
+    let snap = session
+        .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
+        .expect("snapshot call");
+    assert_eq!(snap.key_shift, 0.0);
+    assert_eq!(snap.keyboard_scale, KeyboardScale::Major);
+}

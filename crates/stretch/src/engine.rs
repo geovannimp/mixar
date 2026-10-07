@@ -52,6 +52,8 @@ pub struct TimestretchStretcher {
     carry: Vec<Sample>,
     /// Drained prefix length of `carry`, in samples.
     carry_head: usize,
+    /// Capacity (samples) reserved for `carry` so the audio callback never grows it.
+    carry_capacity: usize,
 }
 
 impl TimestretchStretcher {
@@ -82,6 +84,11 @@ impl TimestretchStretcher {
         // One shared windowed-sinc prototype for both channels.
         let table = SincInterpTable::new_stream_default();
 
+        // Pre-size `carry` so `pull_pitched` never reallocates inside the audio
+        // callback. Worst case is the pitch-down overshoot (kernel half-span up
+        // to 80 at the 0.25 pitch floor) plus a couple of output buffers.
+        let carry_capacity = (max_block.saturating_mul(3).saturating_add(1024)).saturating_mul(2);
+
         Ok(Self {
             sample_rate,
             controller: handles.controller,
@@ -98,8 +105,9 @@ impl TimestretchStretcher {
             scratch_r: Vec::new(),
             resampled_l: Vec::new(),
             resampled_r: Vec::new(),
-            carry: Vec::new(),
+            carry: Vec::with_capacity(carry_capacity),
             carry_head: 0,
+            carry_capacity,
         })
     }
 
@@ -271,6 +279,7 @@ impl TimeStretcher for TimestretchStretcher {
         self.resampler_r.set_step_anchor(factor);
         self.carry.clear();
         self.carry_head = 0;
+        self.carry.reserve(self.carry_capacity);
         self.controller.set_tempo_rate(self.engine_tempo());
     }
 
@@ -296,6 +305,7 @@ impl TimeStretcher for TimestretchStretcher {
         self.resampler_r.set_step_anchor(self.pitch);
         self.carry.clear();
         self.carry_head = 0;
+        self.carry.reserve(self.carry_capacity);
     }
 
     fn pull_interleaved(

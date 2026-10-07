@@ -1601,7 +1601,9 @@ impl Engine {
     }
 
     /// Keyboard pad: press seeks to the cue and plays at the pad's scale-degree
-    /// pitch offset (momentary); `shift` selects the scale by slot.
+    /// pitch offset (momentary); `shift` selects the scale by slot. The offset
+    /// latched before the Keyboard bank was entered is remembered and restored
+    /// when the last held pad releases.
     pub fn keyboard_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
         if usize::from(slot) >= 8 {
             return Err(anyhow::anyhow!("Keyboard pad slot must be 0..=7."));
@@ -1615,15 +1617,32 @@ impl Engine {
             };
             return self.set_deck_keyboard_scale(deck_id, scale);
         }
-        let (scale, hot_cues) = {
+        let slot_i = usize::from(slot);
+        let (scale, hot_cues, first_press, current_shift) = {
             let control = self
                 .deck_control
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            (control.keyboard_scale, control.hot_cues)
+            (
+                control.keyboard_scale,
+                control.hot_cues,
+                !control.keyboard_held.iter().any(|held| *held),
+                control.key_shift_semitones,
+            )
         };
-        let semitones =
-            f32::from(crate::pads::keyboard_scale_degrees(scale)[usize::from(slot).min(7)]);
+        let semitones = f32::from(crate::pads::keyboard_scale_degrees(scale)[slot_i.min(7)]);
+        {
+            let control = self
+                .deck_control
+                .get_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            if first_press {
+                // Snapshot whatever was latched (e.g. a Key Shift pad) so the
+                // momentary Keyboard bank can put it back on release.
+                control.keyboard_restore_semitones = Some(current_shift);
+            }
+            control.keyboard_held[slot_i] = true;
+        }
         self.set_deck_key_shift(deck_id, semitones)?;
 
         // Start playback at the first filled hot cue, else the deck cue point.
@@ -1637,8 +1656,33 @@ impl Engine {
         }
     }
 
-    pub fn keyboard_pad_release(&mut self, deck_id: usize, _slot: u8) -> Result<()> {
-        self.set_deck_key_shift(deck_id, 0.0)
+    /// Keyboard pad release: momentary. Fall back to another held pad's degree,
+    /// else restore the offset latched before the Keyboard bank was entered. A
+    /// release for a pad that was never held (e.g. the Keyboard scale-select
+    /// bank) is a no-op so it cannot clobber a latched Key Shift.
+    pub fn keyboard_pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        let slot_i = usize::from(slot);
+        let target = {
+            let control = self
+                .deck_control
+                .get_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            let was_held = control.keyboard_held.get(slot_i).copied().unwrap_or(false);
+            if was_held {
+                control.keyboard_held[slot_i] = false;
+            }
+            match control.keyboard_held.iter().position(|held| *held) {
+                Some(index) => Some(f32::from(
+                    crate::pads::keyboard_scale_degrees(control.keyboard_scale)[index.min(7)],
+                )),
+                None if was_held => Some(control.keyboard_restore_semitones.take().unwrap_or(0.0)),
+                None => None,
+            }
+        };
+        match target {
+            Some(semitones) => self.set_deck_key_shift(deck_id, semitones),
+            None => Ok(()),
+        }
     }
 
     fn publish_library_cmd(

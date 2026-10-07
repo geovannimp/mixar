@@ -206,6 +206,165 @@ fn keyboard_pentatonic_top_slot_is_not_clamped() {
 }
 
 #[test]
+fn keyboard_release_restores_latched_key_shift() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Latch Key Shift +2 (slot 2).
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 2,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
+
+    // Keyboard mode: pressing a pad applies a momentary degree and remembers the latch.
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 4,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
+
+    // Releasing the Keyboard pad must restore the latched +2, not wipe it to 0.
+    publish(
+        &session,
+        Kind::KeyboardPadRelease,
+        &CmdBody::KeyboardPadRelease { slot: 4 },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
+}
+
+#[test]
+fn keyboard_two_held_pads_fall_back_then_restore() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Latch Key Shift +2, then enter Keyboard mode.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 2,
+            shift: false,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+
+    // Hold slot 4 (degree 7), then slot 2 (degree 4).
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 4,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 2,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 4.0).abs() < 1e-6);
+
+    // Release the newer pad: fall back to the still-held pad's degree.
+    publish(
+        &session,
+        Kind::KeyboardPadRelease,
+        &CmdBody::KeyboardPadRelease { slot: 2 },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
+
+    // Release the last pad: restore the pre-Keyboard latch.
+    publish(
+        &session,
+        Kind::KeyboardPadRelease,
+        &CmdBody::KeyboardPadRelease { slot: 4 },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
+}
+
+#[test]
+fn keyboard_scale_select_release_does_not_clear_latch() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 2,
+            shift: false,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+
+    // Shift+press selects the scale (no note held); its release must be a no-op.
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 0,
+            shift: true,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyboardPadRelease,
+        &CmdBody::KeyboardPadRelease { slot: 0 },
+    );
+
+    let snap = session
+        .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
+        .expect("snapshot call");
+    assert!((snap.key_shift - 2.0).abs() < 1e-6);
+}
+
+#[test]
 fn keyboard_scale_tables_match_spec() {
     assert_eq!(
         keyboard_scale_degrees(KeyboardScale::Major),

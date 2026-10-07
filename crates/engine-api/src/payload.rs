@@ -149,7 +149,7 @@ pub struct DeckSnapshot {
     /// Key lock (time-stretch); tempo changes without pitch when true.
     #[serde(default)]
     pub key_lock: bool,
-    /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     #[serde(default)]
     pub key_shift: f32,
     /// Musical scale used by the Keyboard pad mode.
@@ -247,7 +247,7 @@ pub enum CmdBody {
     SetKeyLock {
         enabled: bool,
     },
-    /// Session key-shift offset in semitones (`-12..=12`).
+    /// Session key-shift offset in semitones (`-16..=16`).
     SetKeyShift {
         semitones: f32,
     },
@@ -451,7 +451,7 @@ pub enum EvtBody {
         tempo_range: f32,
         #[serde(default)]
         key_lock: bool,
-        /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+        /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
         #[serde(default)]
         key_shift: f32,
         /// Musical scale used by the Keyboard pad mode.

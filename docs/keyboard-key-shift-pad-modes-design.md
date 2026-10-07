@@ -1,7 +1,7 @@
 # Keyboard & Key Shift pad modes — design (#298)
 
 **Date:** 2026-10-07
-**Status:** Awaiting owner review
+**Status:** Shipped (2026-10-07)
 **Issue:** [geovannimp/mixar#298](https://github.com/geovannimp/mixar/issues/298)
 **Related:** deck-spec §5.4 (P4 key shift), §5.5/§5.10 (pad modes); `docs/stems-pad-mode-design.md` (same pad-mode pattern); #300 (DDJ-400 LED pages)
 

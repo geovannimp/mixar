@@ -27,10 +27,15 @@ pub(crate) struct DeckControlState {
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
     /// Library sampler bank currently loaded onto this deck's pads.
     pub active_sampler_bank_id: Option<String>,
-    /// Session key-shift offset in semitones (`-12..=12`; `0` = bypass).
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift_semitones: f32,
     /// Musical scale used by the Keyboard pad mode.
     pub keyboard_scale: KeyboardScale,
+    /// Key-shift offset latched before the first Keyboard pad press, restored on
+    /// the last Keyboard pad release (Keyboard is momentary, not destructive).
+    pub keyboard_restore_semitones: Option<f32>,
+    /// Which Keyboard pads are currently held (momentary note bank).
+    pub keyboard_held: [bool; 8],
 }
 
 impl DeckControlState {
@@ -49,6 +54,8 @@ impl DeckControlState {
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
         self.key_shift_semitones = 0.0;
         self.keyboard_scale = KeyboardScale::Major;
+        self.keyboard_restore_semitones = None;
+        self.keyboard_held = [false; 8];
     }
 
     pub fn apply_source_load(&mut self, source: &library_core::AudioSource, track_id: TrackId) {
@@ -73,6 +80,11 @@ impl DeckControlState {
         self.key = non_empty_opt(metadata.key.clone());
         self.isrc = non_empty_opt(metadata.isrc.clone());
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
+        // A newly loaded track must not inherit a stale session shift/scale.
+        self.key_shift_semitones = 0.0;
+        self.keyboard_scale = KeyboardScale::Major;
+        self.keyboard_restore_semitones = None;
+        self.keyboard_held = [false; 8];
     }
 }
 
