@@ -6767,6 +6767,8 @@ impl SseDecode for crate::api::controller::ControllerMappingInfo {
         let mut var_vendorName = <String>::sse_decode(deserializer);
         let mut var_productName = <String>::sse_decode(deserializer);
         let mut var_description = <Option<String>>::sse_decode(deserializer);
+        let mut var_version = <Option<String>>::sse_decode(deserializer);
+        let mut var_updateAvailable = <bool>::sse_decode(deserializer);
         let mut var_midiNameContains = <Vec<String>>::sse_decode(deserializer);
         let mut var_attached = <bool>::sse_decode(deserializer);
         return crate::api::controller::ControllerMappingInfo {
@@ -6775,6 +6777,8 @@ impl SseDecode for crate::api::controller::ControllerMappingInfo {
             vendor_name: var_vendorName,
             product_name: var_productName,
             description: var_description,
+            version: var_version,
+            update_available: var_updateAvailable,
             midi_name_contains: var_midiNameContains,
             attached: var_attached,
         };
@@ -9170,6 +9174,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::controller::ControllerMapping
             self.vendor_name.into_into_dart().into_dart(),
             self.product_name.into_into_dart().into_dart(),
             self.description.into_into_dart().into_dart(),
+            self.version.into_into_dart().into_dart(),
+            self.update_available.into_into_dart().into_dart(),
             self.midi_name_contains.into_into_dart().into_dart(),
             self.attached.into_into_dart().into_dart(),
         ]
@@ -10400,6 +10406,8 @@ impl SseEncode for crate::api::controller::ControllerMappingInfo {
         <String>::sse_encode(self.vendor_name, serializer);
         <String>::sse_encode(self.product_name, serializer);
         <Option<String>>::sse_encode(self.description, serializer);
+        <Option<String>>::sse_encode(self.version, serializer);
+        <bool>::sse_encode(self.update_available, serializer);
         <Vec<String>>::sse_encode(self.midi_name_contains, serializer);
         <bool>::sse_encode(self.attached, serializer);
     }

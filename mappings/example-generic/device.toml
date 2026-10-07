@@ -2,6 +2,7 @@ schema_version = 1
 id = "example.generic"
 vendor_name = "Example"
 product_name = "Generic Controller"
+mapping_version = "1.0.0"
 midi_name_contains = ["Example Generic"]
 
 [toml-schema]

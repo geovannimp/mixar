@@ -6,7 +6,14 @@ use std::path::PathBuf;
 use controller::ControllerEngine;
 
 fn write_minimal_bundle(dir: &PathBuf, id: &str, product_name: &str) {
+    write_bundle(dir, id, product_name, None);
+}
+
+fn write_bundle(dir: &PathBuf, id: &str, product_name: &str, version: Option<&str>) {
     fs::create_dir_all(dir).unwrap();
+    let version_line = version
+        .map(|v| format!("mapping_version = \"{v}\"\n"))
+        .unwrap_or_default();
     fs::write(
         dir.join("device.toml"),
         format!(
@@ -14,7 +21,7 @@ fn write_minimal_bundle(dir: &PathBuf, id: &str, product_name: &str) {
 id = "{id}"
 vendor_name = "Test"
 product_name = "{product_name}"
-midi_name_contains = ["TestDev"]
+{version_line}midi_name_contains = ["TestDev"]
 
 [toml-schema]
 version = "1.0.0"
@@ -79,4 +86,183 @@ fn update_mapping_overwrites_app_data() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].id, "test-map");
     assert_eq!(list[0].product_name, "Updated Map");
+}
+
+/// Shipped version newer than installed → `update_available`.
+#[test]
+fn update_available_when_shipped_is_newer() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.1.0"),
+    );
+    write_bundle(&app.join("test-map"), "test.map", "Test Map", Some("1.0.0"));
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].version.as_deref(), Some("1.0.0"));
+    assert!(list[0].update_available);
+}
+
+/// Equal versions → no update, even if other bundle fields differ.
+#[test]
+fn no_update_when_versions_match() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Shipped Name",
+        Some("1.0.0"),
+    );
+    write_bundle(
+        &app.join("test-map"),
+        "test.map",
+        "Local Name",
+        Some("1.0.0"),
+    );
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].product_name, "Local Name");
+    assert!(!list[0].update_available);
+}
+
+/// Installed newer than shipped (e.g. a local dev bundle) → no downgrade.
+#[test]
+fn no_update_when_installed_is_newer() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.0.0"),
+    );
+    write_bundle(&app.join("test-map"), "test.map", "Test Map", Some("2.0.0"));
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert!(!list[0].update_available);
+}
+
+/// A legacy installed bundle with no version is updateable once shipped declares one.
+#[test]
+fn update_available_for_unversioned_installed() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.0.0"),
+    );
+    write_minimal_bundle(&app.join("test-map"), "test.map", "Test Map");
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].version, None);
+    assert!(list[0].update_available);
+}
+
+/// Unversioned shipped bundle → nothing to compare, never flagged.
+#[test]
+fn no_update_when_shipped_unversioned() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_minimal_bundle(&shipped.join("test-map"), "test.map", "Test Map");
+    write_minimal_bundle(&app.join("test-map"), "test.map", "Test Map");
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert!(!list[0].update_available);
+}
+
+/// A present-but-unparsable installed version is never flagged (no guess).
+#[test]
+fn no_update_when_installed_version_unparsable() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.0.0"),
+    );
+    write_bundle(
+        &app.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("not-a-version"),
+    );
+
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].version.as_deref(), Some("not-a-version"));
+    assert!(!list[0].update_available);
+}
+
+/// Semver-style suffixes order rather than being ignored.
+#[test]
+fn update_available_orders_semver_suffixes() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3"),
+    );
+    write_bundle(
+        &app.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3-beta"),
+    );
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    assert!(engine.list_mappings().unwrap()[0].update_available);
+
+    // Reverse: a release is not older than its pre-release.
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3-beta"),
+    );
+    write_bundle(&app.join("test-map"), "test.map", "Test Map", Some("1.2.3"));
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    assert!(!engine.list_mappings().unwrap()[0].update_available);
+}
+
+/// Updating an outdated mapping clears the flag (installed becomes shipped version).
+#[test]
+fn update_mapping_clears_update_available() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.1.0"),
+    );
+    write_bundle(&app.join("test-map"), "test.map", "Test Map", Some("1.0.0"));
+
+    let mut engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    assert!(engine.list_mappings().unwrap()[0].update_available);
+
+    engine.update_mapping("test-map").unwrap();
+    let list = engine.list_mappings().unwrap();
+    assert_eq!(list[0].version.as_deref(), Some("1.1.0"));
+    assert!(!list[0].update_available);
 }

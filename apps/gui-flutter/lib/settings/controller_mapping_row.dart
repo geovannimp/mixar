@@ -1,8 +1,13 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/library/library_list_chrome.dart'
+    show MetaPill, kMetaPillGap;
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
+
+/// Below this row width the trailing controls drop under the mapping title
+/// instead of competing with it for horizontal space.
+const _kStackBreakpoint = 480.0;
 
 class ControllerMappingRow extends StatelessWidget {
   const new({
@@ -33,90 +38,141 @@ class ControllerMappingRow extends StatelessWidget {
       mapping.vendorName,
       mapping.productName,
     ].where((s) => s.isNotEmpty).join(' ');
-    final meta =
-        '${mapping.id} · ${mapping.deviceId}${attached ? ' · attached' : ''}';
+    final version = mapping.version;
+    // Metadata as the library track row's chips: id, device id, version, and
+    // an accent "Attached" state. The pill's default fill is the row surface
+    // (`card`), which is invisible on this settings card, so use the page
+    // background fill + border (matching the library's status pill).
+    MetaPill chip(String text, {Color? textColor, FontWeight? fontWeight}) =>
+        MetaPill(
+          text: text,
+          textColor: textColor,
+          fontWeight: fontWeight ?? FontWeight.w500,
+          backgroundColor: theme.colors.background,
+          borderColor: theme.colors.border,
+        );
+    final metaPills = <Widget>[
+      chip(mapping.id),
+      chip(mapping.deviceId),
+      if (version != null) chip('v$version'),
+      if (attached)
+        chip(
+          'Attached',
+          textColor: theme.colors.primary,
+          fontWeight: FontWeight.w600,
+        ),
+    ];
+
+    final leading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 2,
+      children: [
+        Text(
+          name,
+          style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.w600),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        if (metaPills.isNotEmpty)
+          Wrap(
+            spacing: kMetaPillGap,
+            runSpacing: kMetaPillGap,
+            children: metaPills,
+          ),
+      ],
+    );
+
+    final trailing = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (mapping.updateAvailable)
+          Text(
+            'Update available',
+            style: theme.typography.body.xs.copyWith(
+              color: theme.colors.primary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        AppButton(
+          variant: .outline,
+          size: .sm,
+          mainAxisSize: .min,
+          onPress: attachBusy ? null : onUpdate,
+          child: const Text('Update'),
+        ),
+        _ToggleButton(
+          label: 'Trust',
+          on: trusted,
+          enabled: !trustBusy,
+          semanticsLabel: 'Trust device $name',
+          onPress: () => onToggleTrust(!trusted),
+        ),
+        _ToggleButton(
+          label: 'Attach',
+          on: attached,
+          enabled: !attachBusy,
+          semanticsLabel: 'Enable $name',
+          onPress: () => onToggleAttach(!attached),
+        ),
+      ],
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        spacing: 12,
-        children: [
-          Expanded(
-            child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Stack on narrow panes so the intrinsically-sized controls can wrap
+          // instead of overflowing the row.
+          if (constraints.maxWidth < _kStackBreakpoint) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 2,
-              children: [
-                Text(
-                  name,
-                  style: theme.typography.body.sm.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  meta,
-                  style: theme.typography.body.xs.copyWith(
-                    color: theme.colors.mutedForeground,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          AppButton(
-            variant: .outline,
-            size: .sm,
-            mainAxisSize: .min,
-            onPress: attachBusy ? null : onUpdate,
-            child: const Text('Update'),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
+              spacing: 8,
+              children: [leading, trailing],
+            );
+          }
+          return Row(
+            spacing: 12,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  const Text('Trust', style: TextStyle(fontSize: 11)),
-                  SizedBox(
-                    height: 23,
-                    child: FittedBox(
-                      child: MixarSwitch(
-                        value: trusted,
-                        enabled: !trustBusy,
-                        semanticsLabel: 'Trust device $name',
-                        onChanged: trustBusy ? null : onToggleTrust,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  const Text('Attach', style: TextStyle(fontSize: 11)),
-                  SizedBox(
-                    height: 23,
-                    child: FittedBox(
-                      child: MixarSwitch(
-                        value: attached,
-                        enabled: !attachBusy,
-                        semanticsLabel: 'Enable $name',
-                        onChanged: attachBusy ? null : onToggleAttach,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              Expanded(child: leading),
+              trailing,
             ],
-          ),
-        ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// Latched outline button for Trust / Attach (deck-panel toggle styling).
+class _ToggleButton extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.on,
+    required this.enabled,
+    required this.semanticsLabel,
+    required this.onPress,
+  });
+
+  final String label;
+  final bool on;
+  final bool enabled;
+  final String semanticsLabel;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return AppButton(
+      variant: .outline,
+      size: .sm,
+      mainAxisSize: .min,
+      selected: on,
+      backgroundColor: on ? theme.colors.primaryTint : null,
+      onPress: enabled ? onPress : null,
+      semanticsLabel: semanticsLabel,
+      child: Text(label),
     );
   }
 }

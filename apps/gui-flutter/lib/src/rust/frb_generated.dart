@@ -6045,16 +6045,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ControllerMappingInfo dco_decode_controller_mapping_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 7)
-      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return ControllerMappingInfo(
       id: dco_decode_String(arr[0]),
       deviceId: dco_decode_String(arr[1]),
       vendorName: dco_decode_String(arr[2]),
       productName: dco_decode_String(arr[3]),
       description: dco_decode_opt_String(arr[4]),
-      midiNameContains: dco_decode_list_String(arr[5]),
-      attached: dco_decode_bool(arr[6]),
+      version: dco_decode_opt_String(arr[5]),
+      updateAvailable: dco_decode_bool(arr[6]),
+      midiNameContains: dco_decode_list_String(arr[7]),
+      attached: dco_decode_bool(arr[8]),
     );
   }
 
@@ -7480,6 +7482,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_vendorName = sse_decode_String(deserializer);
     var var_productName = sse_decode_String(deserializer);
     var var_description = sse_decode_opt_String(deserializer);
+    var var_version = sse_decode_opt_String(deserializer);
+    var var_updateAvailable = sse_decode_bool(deserializer);
     var var_midiNameContains = sse_decode_list_String(deserializer);
     var var_attached = sse_decode_bool(deserializer);
     return ControllerMappingInfo(
@@ -7488,6 +7492,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       vendorName: var_vendorName,
       productName: var_productName,
       description: var_description,
+      version: var_version,
+      updateAvailable: var_updateAvailable,
       midiNameContains: var_midiNameContains,
       attached: var_attached,
     );
@@ -9279,6 +9285,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.vendorName, serializer);
     sse_encode_String(self.productName, serializer);
     sse_encode_opt_String(self.description, serializer);
+    sse_encode_opt_String(self.version, serializer);
+    sse_encode_bool(self.updateAvailable, serializer);
     sse_encode_list_String(self.midiNameContains, serializer);
     sse_encode_bool(self.attached, serializer);
   }
