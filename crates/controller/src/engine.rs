@@ -308,8 +308,8 @@ pub struct ControllerEngine {
     shipped_mappings_dir: PathBuf,
     /// mapping folder id → cached device identity + path + version
     catalog: HashMap<String, CatalogEntry>,
-    /// mapping folder id → shipped bundle `mapping_version` (for update detection)
-    shipped_versions: HashMap<String, Option<String>>,
+    /// mapping folder id → parsed shipped `mapping_version` (for update detection)
+    shipped_versions: HashMap<String, Option<ParsedVersion>>,
     known_input_ports: HashSet<String>,
     /// Ports already event-emitted this appearance (cleared when port disappears).
     offered_ports: HashSet<String>,
@@ -513,8 +513,10 @@ impl ControllerEngine {
                 continue;
             }
             let id = entry.file_name().to_string_lossy().into_owned();
-            self.shipped_versions
-                .insert(id, read_mapping_version(&entry.path()));
+            let version = read_mapping_version(&entry.path())
+                .as_deref()
+                .and_then(parse_version);
+            self.shipped_versions.insert(id, version);
         }
     }
 
@@ -525,16 +527,13 @@ impl ControllerEngine {
     /// version (unknown ordering → never flag, so local bundles are not
     /// overwritten on a guess).
     fn is_update_available(&self, id: &str, installed: Option<&str>) -> bool {
-        let Some(shipped) = self.shipped_versions.get(id).and_then(|v| v.as_deref()) else {
-            return false;
-        };
-        let Some(shipped) = parse_version(shipped) else {
+        let Some(Some(shipped)) = self.shipped_versions.get(id) else {
             return false;
         };
         match installed {
             None => true,
             Some(installed) => match parse_version(installed) {
-                Some(installed) => version_is_newer(&shipped, &installed),
+                Some(installed) => version_is_newer(shipped, &installed),
                 None => false,
             },
         }
@@ -1124,32 +1123,50 @@ fn read_mapping_version(dir: &Path) -> Option<String> {
         .map(str::to_owned)
 }
 
-/// Parse a dotted numeric version (`1.2.3`) into comparable components.
+/// A dotted numeric version with semver pre-release precedence.
+///
+/// `mapping_version` is authored as `MAJOR[.MINOR[.PATCH…]]`. An optional
+/// leading `v`, `+build` metadata, and a `-pre-release` suffix are tolerated so
+/// a non-bare version still orders instead of being silently ignored.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ParsedVersion {
+    /// Numeric components, trailing zeros trimmed (`1.2.0` == `1.2`).
+    core: Vec<u64>,
+    /// `true` for a plain release. Ordered after `core`, so a release outranks
+    /// its own pre-releases (`1.2.3` > `1.2.3-beta`).
+    release: bool,
+}
+
+/// Parse a dotted numeric version (`1.2.3`) into a comparable value.
 ///
 /// Returns `None` for empty/non-numeric input so unknown versions are never
 /// treated as newer/older than each other.
-fn parse_version(version: &str) -> Option<Vec<u64>> {
+fn parse_version(version: &str) -> Option<ParsedVersion> {
     let version = version.trim();
+    let version = version.strip_prefix('v').unwrap_or(version);
     if version.is_empty() {
         return None;
     }
-    version
+    // `+build` metadata is ignored; a `-pre-release` sorts below the release.
+    let without_build = version.split('+').next().unwrap_or(version);
+    let (core, release) = match without_build.split_once('-') {
+        Some((core, pre)) if !pre.is_empty() => (core, false),
+        _ => (without_build, true),
+    };
+    let mut core: Vec<u64> = core
         .split('.')
         .map(|part| part.parse::<u64>().ok())
-        .collect()
+        .collect::<Option<Vec<_>>>()?;
+    // Trim trailing zeros so `1.2` and `1.2.0` compare equal.
+    while core.len() > 1 && core.last() == Some(&0) {
+        core.pop();
+    }
+    Some(ParsedVersion { core, release })
 }
 
-/// Strictly-newer check, zero-padding the shorter version (`1.2` == `1.2.0`).
-fn version_is_newer(shipped: &[u64], installed: &[u64]) -> bool {
-    let len = shipped.len().max(installed.len());
-    for i in 0..len {
-        let a = shipped.get(i).copied().unwrap_or(0);
-        let b = installed.get(i).copied().unwrap_or(0);
-        if a != b {
-            return a > b;
-        }
-    }
-    false
+/// Strictly-newer check (`1.2.3` > `1.2.3-beta` > `1.2.2`).
+fn version_is_newer(shipped: &ParsedVersion, installed: &ParsedVersion) -> bool {
+    shipped > installed
 }
 
 #[cfg(test)]
@@ -1280,24 +1297,58 @@ mod tests {
         assert!(!attached_gate.is_failing());
     }
 
-    #[test]
-    fn parse_version_rejects_empty_and_non_numeric() {
-        assert_eq!(parse_version("1.2.3"), Some(vec![1, 2, 3]));
-        assert_eq!(parse_version(" 1.0 "), Some(vec![1, 0]));
-        assert_eq!(parse_version(""), None);
-        assert_eq!(parse_version("1.x"), None);
-        assert_eq!(parse_version("v1"), None);
+    fn parsed(core: &[u64], release: bool) -> ParsedVersion {
+        ParsedVersion {
+            core: core.to_vec(),
+            release,
+        }
     }
 
     #[test]
-    fn version_is_newer_compares_numerically_with_padding() {
-        assert!(version_is_newer(&[1, 2, 0], &[1, 1, 9]));
-        assert!(version_is_newer(&[2], &[1, 9, 9]));
-        // Trailing zeros are equal, not newer.
-        assert!(!version_is_newer(&[1, 2, 0], &[1, 2]));
-        assert!(!version_is_newer(&[1, 2], &[1, 2, 0]));
-        assert!(!version_is_newer(&[1, 0, 0], &[1, 0, 0]));
+    fn parse_version_handles_prefix_suffix_and_padding() {
+        assert_eq!(parse_version("1.2.3"), Some(parsed(&[1, 2, 3], true)));
+        assert_eq!(parse_version(" v1.2.0 "), Some(parsed(&[1, 2], true)));
+        assert_eq!(
+            parse_version("1.2.3-beta.1"),
+            Some(parsed(&[1, 2, 3], false))
+        );
+        assert_eq!(
+            parse_version("1.2.3+build.5"),
+            Some(parsed(&[1, 2, 3], true))
+        );
+        assert_eq!(parse_version("1.0.0"), Some(parsed(&[1], true)));
+        // Trailing zeros are equivalent, not distinct.
+        assert_eq!(parse_version("1.2"), parse_version("1.2.0"));
+        assert_eq!(parse_version(""), None);
+        assert_eq!(parse_version("v"), None);
+        assert_eq!(parse_version("1.x"), None);
+    }
+
+    #[test]
+    fn version_is_newer_orders_releases_and_pre_releases() {
+        assert!(version_is_newer(
+            &parsed(&[1, 2, 0], true),
+            &parsed(&[1, 1, 9], true)
+        ));
+        assert!(version_is_newer(
+            &parsed(&[2], true),
+            &parsed(&[1, 9, 9], true)
+        ));
         // Numeric, not lexicographic: 10 > 9.
-        assert!(version_is_newer(&[10], &[9]));
+        assert!(version_is_newer(&parsed(&[10], true), &parsed(&[9], true)));
+        // A release outranks its own pre-release, and not the reverse.
+        assert!(version_is_newer(
+            &parsed(&[1, 2, 3], true),
+            &parsed(&[1, 2, 3], false)
+        ));
+        assert!(!version_is_newer(
+            &parsed(&[1, 2, 3], false),
+            &parsed(&[1, 2, 3], true)
+        ));
+        // Equal versions are not newer.
+        assert!(!version_is_newer(
+            &parsed(&[1, 2], true),
+            &parsed(&[1, 2], true)
+        ));
     }
 }

@@ -211,6 +211,39 @@ fn no_update_when_installed_version_unparsable() {
     assert!(!list[0].update_available);
 }
 
+/// Semver-style suffixes order rather than being ignored.
+#[test]
+fn update_available_orders_semver_suffixes() {
+    let root = tempfile::tempdir().unwrap();
+    let shipped = root.path().join("shipped");
+    let app = root.path().join("app");
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3"),
+    );
+    write_bundle(
+        &app.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3-beta"),
+    );
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    assert!(engine.list_mappings().unwrap()[0].update_available);
+
+    // Reverse: a release is not older than its pre-release.
+    write_bundle(
+        &shipped.join("test-map"),
+        "test.map",
+        "Test Map",
+        Some("1.2.3-beta"),
+    );
+    write_bundle(&app.join("test-map"), "test.map", "Test Map", Some("1.2.3"));
+    let engine = ControllerEngine::open("test", &app, &shipped).unwrap();
+    assert!(!engine.list_mappings().unwrap()[0].update_available);
+}
+
 /// Updating an outdated mapping clears the flag (installed becomes shipped version).
 #[test]
 fn update_mapping_clears_update_available() {
