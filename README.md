@@ -92,11 +92,11 @@ engine.play(0)?;
 
 - [Technical spec](docs/tech-spec.md) — crates, threading, config, backends
 - [Deck spec](docs/deck-spec.md) — deck UI, mixer, pads, data model
-- [Set history](docs/history-spec.md) — session logging, XSPF storage, export, OBS live output
-- [Logging](docs/logging.md) — log files and verbosity
+- [Set history](https://mixar.top/docs/developers/history) — session logging, XSPF storage, export, OBS live output
+- [Logging](DEVELOPER.md#application-logging) — log files and verbosity
 - [Waveforms](docs/dj-waveform-spec.md) and [analyzer](docs/audio-analyzer-spec.md)
 
-For external tools (e.g. OBS text sources), watch the active session file under `{appSupport}/history/*.xspf` — see [history-spec §11](docs/history-spec.md#11--live-output-obs).
+For external tools (e.g. OBS text sources), watch the active session file under `{appSupport}/history/*.xspf` — see [Live output & export](https://mixar.top/docs/developers/history/live-and-export#live-output-obs).
 
 ## Cutting a release
 

@@ -70,7 +70,7 @@ A modular Rust audio engine with runtime-selectable backends (CPAL/PipeWire on L
 | Technical architecture | `docs/tech-spec.md` |
 | Deck UI roadmap & data model | `docs/deck-spec.md` |
 | Waveform & analyzer specs | `docs/dj-waveform-spec.md`, `docs/audio-analyzer-spec.md` |
-| Set history spec | `docs/history-spec.md` |
+| Set history docs | `apps/website/src/content/docs/developers/history/` |
 | Sample audio | `samples/` |
 | CI / build badge | GitHub Actions on `main` |
 
