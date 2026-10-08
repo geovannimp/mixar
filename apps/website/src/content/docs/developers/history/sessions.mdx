@@ -1,0 +1,64 @@
+---
+title: "Sessions"
+description: "Session lifecycle, identity, restart behavior, and manual new/resume controls."
+section: "Set History"
+order: 3
+---
+
+## Lifecycle
+
+```text
+                    ┌─────────────────────────────────────┐
+                    │  Session A (2026-…Z.xspf)           │
+  qualifying play ─►│  append / update track entries      │
+                    └──────────────┬──────────────────────┘
+                                   │
+         no active deck output     │
+         idle ≥ timeout             │     manual "New session"
+         OR manual close            │     OR app exit
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │  Session A closed                   │
+                    │  next qualifying play → Session B   │
+                    └─────────────────────────────────────┘
+```
+
+1. **Start** — first committed entry when no active session exists.
+2. **Active** — XSPF receives appends and `ended_at` updates.
+3. **Idle** — no deck in qualifying play → idle clock runs.
+4. **Close** — idle timeout, manual new session, or app shutdown policy.
+5. **Continue** — qualifying play before idle timeout → same session (idle clock reset).
+
+## Session identity
+
+```text
+{appSupport}/history/2026-08-27T143022Z.xspf
+```
+
+- Filename: UTC session start `YYYY-MM-DDTHHMMSSZ.xspf` (sortable; immutable).
+- `<playlist><title>`: default local label, e.g. `2026-08-27 14:30`.
+- User rename: updates `<title>` + `history_sessions.title`; filename unchanged.
+
+## App restart
+
+On launch, if an **unclosed** session exists and `now − last_activity_at < history_session_idle_minutes`:
+
+- Show dialog: **Restore session** vs **Start new session**.
+- **Restore** — resume appending to the same XSPF; idle clock reset.
+- **Start new** — mark previous session `closed`, next qualifying play creates a new file.
+
+If `now − last_activity_at ≥ history_session_idle_minutes`:
+
+- Auto-close the previous session (set `ended_at` on open entries, `closed=true`).
+- No prompt; next play starts a new session.
+
+`last_activity_at` is persisted in session XSPF extension metadata and `history_sessions`.
+
+## Manual session control
+
+| Action | Behavior |
+|--------|----------|
+| **New session** | Close current session immediately; next qualifying play creates a new XSPF. Requires at least one entry in the current session. |
+| **Resume session** | Reopen the most recent **closed** session as active (`closed=false`); continue appending to its XSPF. **Only available while no successor session has been created** — i.e. after a session closes (idle, manual new session, or “Start new” on restart) and **before** the next session file exists on disk. Hidden/disabled once a new XSPF is created or any entry is committed to a successor. Does **not** merge two non-empty sessions. |
+
+Typical flow: idle closes Session A → user selects **Resume session** before playing again → Session A reopens → same gig log continues. If the user plays first, Session B is created and Resume is no longer offered.

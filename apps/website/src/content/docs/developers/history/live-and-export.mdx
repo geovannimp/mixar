@@ -1,0 +1,35 @@
+---
+title: "Live output & export"
+description: "Reading the live session from OBS or other tools, and the derived CSV, M3U8, and TXT export formats."
+section: "Set History"
+order: 6
+---
+
+## Live output (OBS)
+
+There is no separate now-playing file. External tools (OBS text source, scripts) watch the **active session XSPF** — the most recently modified `.xspf` in `{appSupport}/history/`, or the file referenced by the open `history_sessions` row where `closed = 0`.
+
+Recommended integration pattern:
+
+- Poll the active XSPF on an interval.
+- Parse the last `<track>` with a committed entry; display `creator - title`.
+- Optionally show elapsed time from `started_at`.
+
+Document the path in user-facing help; no Mixar-specific OBS plugin is required for MVP.
+
+## Export (derived formats)
+
+Export writes a **copy**; canonical XSPF is unchanged.
+
+| Format | Use case |
+|--------|----------|
+| **XSPF** | On disk; reveal / copy |
+| **CSV** | Spreadsheets, venue / licensing workflows |
+| **M3U8** | Other players / tools |
+| **Plain TXT** | Mixcloud / SoundCloud setlists |
+
+CSV columns:
+
+```text
+position, started_at, ended_at, played_duration_ms, deck, title, artist, album, bpm, key, isrc, file_path, track_id
+```

@@ -1,0 +1,60 @@
+---
+title: "Overview"
+description: "How Mixar records set history — what is logged, where sessions live, and how the pieces fit together."
+section: "Set History"
+order: 1
+---
+
+Mixar records **what was played, on which deck, when it started, and when it ended** during a performance session. Each session is persisted as a **live-updated XSPF file** under app support storage. Re-playing the same track in one set **appends a new entry**. **Sampler** playback is **never** logged. All **main deck channels** (2 today, **4 in Phase 5**) are logged.
+
+A play is logged only after **minimum effective output** and **minimum play duration** thresholds are met (both configurable). **Effective output** combines deck channel fader and **crossfader** gain. **Preview (PFL)** is ignored.
+
+Session boundaries:
+
+- **Idle split** — when no deck meets the [“active output” condition](/docs/developers/history/logging-rules#active-output-idle-timer) for longer than `history_session_idle_minutes` (default **5**), the session closes.
+- **Manual** — the user can start a new session or **resume** the previous one while no successor session exists yet. See [Manual session control](/docs/developers/history/sessions#manual-session-control).
+
+On app restart, if the last session is still inside the idle window, the user is **prompted** to restore it or start fresh.
+
+History is Phase 5 library/workflow polish — adjacent to collections and export, not a deck performance control.
+
+## Data flow & ownership
+
+```text
+ Engine ──► DeckUpdated evt ──► History recorder
+                                      │
+          ┌───────────────────────────┼───────────────────────────┐
+          ▼                           ▼                           ▼
+   history/*.xspf            history_sessions              HistorySessionUpdated evt
+          │                           │
+          └──────────► LibraryTransport / Flutter UI ◄──────┘
+```
+
+| Layer | Responsibility |
+|-------|----------------|
+| `host-flutter` (`HistoryWorker`) | Engine evt subscription, qualifying-play tick, FRB list/get/export/rename/manual session |
+| `library::history` | Qualifying-play gates, idle timeout, XSPF R/W, session index, derived export |
+| `library` | Session merge/join, save-as-playlist |
+| `gui-flutter` | History browser, restore prompt, settings |
+
+Use **`LibraryTransport`** (or `HistoryTransport` if the API grows). No raw FRB from widgets.
+
+## References
+
+### Formats
+
+| Resource | URL |
+|----------|-----|
+| XSPF specification | https://www.xspf.org/ |
+
+### This repository
+
+| Resource | Path |
+|----------|------|
+| Collections model | `docs/tech-spec.md` §10 |
+| Engine events | `crates/engine-api/src/payload.rs` |
+| Track entity | `crates/library/src/entity/tracks.rs` |
+| App settings | `crates/host-flutter/src/api/settings.rs` |
+| Phase 5 roadmap | `docs/deck-spec.md` §10 |
+
+See also [GitHub issue #52](https://github.com/geovannimp/mixar/issues/52).

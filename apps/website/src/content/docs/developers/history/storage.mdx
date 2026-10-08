@@ -1,0 +1,108 @@
+---
+title: "Storage & metadata"
+description: "XSPF canonical format, the session index in library.db, write durability, and ISRC track metadata."
+section: "Set History"
+order: 4
+---
+
+## Canonical format (XSPF)
+
+- **MIME type:** `application/xspf+xml`
+- **Encoding:** UTF-8
+- **Namespace:** `http://xspf.org/ns/0/`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<playlist version="1" xmlns="http://xspf.org/ns/0/">
+  <title>2026-08-27 14:30</title>
+  <creator>Mixar</creator>
+  <date>2026-08-27</date>
+  <info>Mixar performance session</info>
+  <extension application="https://mixar.app/ns/history/1">
+    <session id="uuid"
+             started_at="2026-08-27T14:30:22Z"
+             last_activity_at="2026-08-27T16:05:01Z"
+             closed="false"/>
+  </extension>
+  <trackList>
+    <track>
+      <location>file:///home/me/Music/track.flac</location>
+      <title>Track Title</title>
+      <creator>Artist</creator>
+      <album>Album</album>
+      <duration>360</duration>
+      <extension application="https://mixar.app/ns/history/1">
+        <entry id="uuid"
+               deck="1"
+               track_id="…"
+               started_at="2026-08-27T14:31:05Z"
+               ended_at="2026-08-27T14:36:12Z"
+               played_duration_ms="307000"
+               bpm="128.0"
+               key="Am"
+               isrc="USXXX1234567"/>
+      </extension>
+    </track>
+  </trackList>
+</playlist>
+```
+
+The **Mixar extension namespace** (`https://mixar.app/ns/history/1`) holds deck, timestamps, library id, BPM/key/ISRC snapshots. Standard XSPF fields stay populated for third-party readers.
+
+Committed entries may be **updated in place** when `ended_at` is set (same `<entry id="…">`).
+
+## Session index (`library.db`)
+
+XSPF is the source of truth for entries. The index exists for fast UI listing:
+
+```sql
+CREATE TABLE history_sessions (
+  id               TEXT PRIMARY KEY,
+  xspf_path        TEXT NOT NULL UNIQUE,
+  title            TEXT NOT NULL,
+  started_at       TEXT NOT NULL,
+  last_activity_at TEXT NOT NULL,
+  closed           INTEGER NOT NULL DEFAULT 0,
+  entry_count      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_history_sessions_started ON history_sessions(started_at DESC);
+```
+
+**`CollectionType::History`:** not used for auto-recorded sessions. Reserved for possible future **manual import** of external history files into the library. Auto sessions use `history_sessions` + the dedicated History UI only.
+
+## Write durability
+
+1. Mutate in-memory model.
+2. Write `{path}.tmp`.
+3. Atomic rename → `{path}.xspf`.
+4. Commit `history_sessions` update.
+
+<Callout type="note">
+Full-file rewrite per commit/update; acceptable for typical set sizes (&lt;500 entries).
+</Callout>
+
+## Storage location
+
+```text
+{getApplicationSupportDirectory()}/history/*.xspf
+```
+
+Same app-support root as `library.db` and `settings.json` (app id `top.mixar.app`).
+
+## Track metadata (ISRC)
+
+```sql
+-- via sea-orm entity sync
+ALTER TABLE tracks ADD COLUMN isrc TEXT;
+CREATE INDEX idx_tracks_isrc ON tracks(isrc);
+```
+
+| Concern | Rule |
+|---------|------|
+| **Import / scan** | Read ISRC from file tags via `lofty` when present |
+| **History entry** | Snapshot `tracks.isrc` at commit time into XSPF extension |
+| **Library UI** | **Track detail only** — not a library table column |
+| **Manual edit** | Editable in track detail panel |
+
+Later (non-blocking): `label`, `catalog_number` for PPL-style exports.

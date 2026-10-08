@@ -1,0 +1,40 @@
+---
+title: "Library & settings"
+description: "The History view, session actions, and the settings keys that control logging behavior."
+section: "Set History"
+order: 5
+---
+
+## History view
+
+- Sidebar **History**, ordered by `started_at` desc.
+- Row: title, date, entry count, span (`first started_at` → `last ended_at`).
+- Detail: `#`, `started_at`, `ended_at`, duration, deck, title, artist, BPM, key, ISRC (read-only snapshot).
+- Detail rows are selectable and can be dragged onto a deck like library tracks; the logged snapshot itself stays read-only.
+
+## Actions
+
+| Action | Behavior |
+|--------|----------|
+| **Rename session** | XSPF `<title>` + index |
+| **New session** / **Resume session** | See [Manual session control](/docs/developers/history/sessions#manual-session-control) |
+| **Export…** | See [Export](/docs/developers/history/live-and-export#export-derived-formats) |
+| **Save as playlist** | Sortable `Playlist` via `collection_entries` |
+| **Delete session** | Remove XSPF + index row (confirm) |
+| **Reveal in folder** | Opens `history/` in file manager |
+
+## Settings
+
+Add to `settings.json` / `AppSettings`:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `history_enabled` | `bool` | `true` | Master toggle |
+| `history_session_idle_minutes` | `u32` | `5` | Idle timeout before auto-close / new session |
+| `history_min_play_seconds` | `u32` | `5` | Minimum qualifying duration before entry is committed |
+| `history_min_deck_volume` | `f32` | `0.05` | Minimum **effective** output (`deck.volume × crossfader_gain`) for qualifying play |
+| `dim_played_tracks` | `bool` | `true` | Dim library/drive rows present in the open history session |
+
+UI: Settings → Library panel (`dim_played_tracks`); other history keys live under Settings → Session.
+
+When `history_enabled == false`, no entries or session files are written; idle/manual session UI is hidden or disabled; played-track dimming is off regardless of `dim_played_tracks`.
