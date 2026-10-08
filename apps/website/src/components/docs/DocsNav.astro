@@ -1,0 +1,52 @@
+---
+import type { DocCategory } from "../../lib/docs";
+import { docPath } from "../../lib/docs";
+
+interface Props {
+  categories: DocCategory[];
+  currentId: string;
+}
+
+const { categories, currentId } = Astro.props;
+const visible = categories.filter((category) => category.topics.length > 0);
+---
+
+<nav aria-label="Documentation" class="text-[0.9375rem]">
+  {
+    visible.map((category) => (
+      <div class="mb-8 last:mb-0">
+        <p class="mb-3 text-[0.75rem] font-semibold uppercase tracking-wider text-accent">
+          {category.name}
+        </p>
+        {category.topics.map((topic) => (
+          <div class="mb-5 last:mb-0">
+            <p class="mb-2 font-serif text-[0.8125rem] font-semibold uppercase tracking-wide text-muted">
+              {topic.name}
+            </p>
+            <ul class="m-0 list-none border-l border-border p-0">
+              {topic.entries.map((entry) => {
+                const current = entry.id === currentId;
+                return (
+                  <li class="m-0">
+                    <a
+                      href={docPath(entry.id)}
+                      aria-current={current ? "page" : undefined}
+                      class:list={[
+                        "-ml-px block border-l-2 py-1.5 pl-3 leading-snug transition",
+                        current
+                          ? "border-accent font-semibold text-fg"
+                          : "border-transparent text-muted hover:border-border-hover hover:text-fg",
+                      ]}
+                    >
+                      {entry.data.title}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    ))
+  }
+</nav>

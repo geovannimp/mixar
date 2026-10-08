@@ -1,0 +1,173 @@
+---
+title: "Validation & errors"
+description: "Validate mapping bundles with map-check, understand common errors, and contribute a mapping."
+section: "MIDI Mappings"
+order: 6
+---
+
+`map-check` is the controller crate's static validator. It loads and checks a mapping bundle **without any hardware**, so you can catch a bad `device.toml` / `map.toml` / `script.rhai` before launching the app. The same checks run in CI over every shipped bundle.
+
+## Run map-check
+
+Run it from `crates/` with Cargo:
+
+```bash
+cargo run -p controller --bin map-check -- --all ../mappings
+```
+
+Other accepted forms:
+
+```bash
+# One bundle directory
+cargo run -p controller --bin map-check -- ../mappings/ddj-400
+
+# A bundle id, resolved under ../mappings/ (then mappings/)
+cargo run -p controller --bin map-check -- ddj-400
+```
+
+- `--all [root]` checks every immediate subdirectory of `root`. The root defaults to `../mappings` when omitted.
+- `<bundle-dir>` checks a single directory.
+- `<id>` is resolved as `../mappings/<id>`, falling back to `mappings/<id>`.
+
+On success each bundle prints one `ok` line, followed by a count:
+
+```text
+ok  ddj-400
+1 bundle(s) ok
+```
+
+A single-directory run prints the path instead of the id:
+
+```text
+ok  ../mappings/ddj-400
+```
+
+On failure the failure lines go to stderr and the process exits non-zero:
+
+```text
+ERR ddj-400: inputs.deck_1.volume: no matching endpoint in device.toml
+```
+
+- Exit `0` when everything passes, `1` when any bundle fails, `2` for a usage error (no arguments prints the usage text).
+- With `--all`, a failure prints `ERR <id>: <reason>` for each bad bundle and nothing is reported as `ok`.
+
+<Callout type="tip" title="Run it first">
+`map-check` needs no controller and no running engine. Make it the first thing you run after editing a bundle, and keep it green before opening a pull request.
+</Callout>
+
+## What it validates
+
+The checks span the whole bundle.
+
+**Bundle layout**
+- Both `device.toml` and `map.toml` must exist. A missing file is reported as `missing required file ...` with its full path.
+- Both files must parse as TOML and declare `schema_version = 1`. Any other version fails with `unsupported schema_version <n> (expected 1)`.
+
+**`device.toml`**
+- Section names must be one of `master`, `sampler`, `custom`, or `deck_N`.
+- A `deck_N` index must be in the v1 range `1..=4`.
+- Every alias must be snake_case.
+- Every endpoint must have a valid shape (see the endpoint rules below).
+- Two input-eligible endpoints may not claim the same MIDI identity. Overlap is rejected as an `input MIDI clash`.
+
+**`map.toml` inputs**
+- Each alias must be in the closed input catalog for its section.
+- Each alias must have a matching endpoint in `device.toml`.
+- Each binding must name exactly one of `action` or `script`.
+- A named `action` must be a known action id.
+- A named `modifier` must exist in `device.toml` (and be written as `custom.*`).
+- A relative CC endpoint must be paired with a relative action, and vice versa. Relative control is only for `jog_turn` and `navigate`.
+- A `script` binding requires `script.rhai` to be present.
+
+**`map.toml` outputs**
+- A watch key must be in the closed catalog for its section (except under `custom`).
+- Each `on` / `off` target must either resolve to an alias in `device.toml` or be a valid inline endpoint.
+
+**Lifecycle and `script.rhai`**
+- Declaring any `[lifecycle]` hook requires a `script.rhai` in the bundle.
+- Every function named by a lifecycle hook (`on_init`, `on_shutdown`, `idle_heartbeat`) must be defined in `script.rhai`.
+- Every function named by an input binding's `script` must be defined in `script.rhai`.
+- `script.rhai` must compile; a syntax error is reported as `script compile error: ...`.
+
+Endpoint shape rules, applied to device endpoints, inline output targets, and alias/inline output resolution:
+
+| Rule | Error when violated |
+| --- | --- |
+| `channel` is `1..=16` | `channel must be 1..=16, got <n>` |
+| `type = "note"` carries `note` | `note message requires note` |
+| `type = "cc"` carries a 7-bit `cc` | `cc message requires cc` / `type=cc expects cc = <u8>; use type=cc14 for msb/lsb` |
+| `type = "cc14"` carries `{ msb, lsb }` and `msb != lsb` | `cc14 requires cc = { msb = …, lsb = … }` / `cc14 msb and lsb must differ` |
+| `relative` is set only on `type = "cc"` | `relative is only valid on type=cc (7-bit)` |
+
+<Callout type="warning" title="Relative CCs">
+`relative = "BINARY_OFFSET" | "TWOS_COMPLEMENT" | "SIGN_MAGNITUDE"` turns 7-bit CC values into signed tick deltas. It is invalid on `note` and `cc14` endpoints, and the bound action must be a relative action. In practice that means `jog_turn` (jog wheels) and `navigate` (browse/select encoders) — a plain absolute fader must have no `relative`.
+</Callout>
+
+## Common errors
+
+Messages below use the real shapes, with `...` standing in for a path or bundle id.
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| `missing required file .../device.toml` | bundle has no `device.toml` | add the file |
+| `missing required file .../map.toml` | bundle has no `map.toml` | add the file |
+| `failed to parse ...: ...` | invalid TOML or a wrong field type | fix the TOML around the reported line |
+| `unsupported schema_version <n> (expected 1)` | missing or wrong `schema_version` | set `schema_version = 1` in both files |
+| `unknown device section 'deck_5'` | section isn't `master` / `sampler` / `custom` / `deck_N` | rename it to a valid section |
+| `deck index 5 out of v1 range 1..=4` | a `deck_N` section with `N > 4` | use `deck_1`…`deck_4` |
+| `deck_1.volumeTrim: alias must be snake_case` | alias has capitals or dashes | rename to `volume_trim` |
+| `note message requires note` | `type = "note"` without `note` | add `note = 0x..` |
+| `cc message requires cc` | `type = "cc"` without `cc` | add `cc = 0x..` |
+| `cc14 requires cc = { msb = …, lsb = … }` | `type = "cc14"` without `cc` | add the `msb`/`lsb` pair |
+| `type=cc expects cc = <u8>; use type=cc14 for msb/lsb` | `msb`/`lsb` used on `type = "cc"` | switch to `type = "cc14"` |
+| `cc14 msb and lsb must differ` | `msb` and `lsb` are equal | pick two different CC numbers |
+| `relative is only valid on type=cc (7-bit)` | `relative` set on `note` or `cc14` | use `type = "cc"` for relative controls |
+| `channel must be 1..=16, got 0` | channel out of range | use `1..=16` |
+| `input MIDI clash: 'deck_1.play_pause' and 'deck_2.play_pause' share the same type/channel/note\|cc` | two inputs claim the same MIDI identity | give them different channels / notes / CCs |
+| `inputs.deck_1.foo: not in closed catalog for 'deck_1'` | alias typo or unsupported name | use a catalog alias for the section |
+| `inputs.deck_1.volume: no matching endpoint in device.toml` | input alias absent from that device section | add the endpoint (or remove the input) |
+| `inputs.deck_1.volume[0]: binding needs exactly one of 'action' or 'script'` | binding has both or neither | keep exactly one |
+| `inputs.deck_1.play_pause[0]: unknown action 'Deck(_)::foo'` | action leaf typo or unknown action | use a known action id |
+| `inputs.deck_1.volume[0]: modifier must be 'custom.*', got 'shift'` | modifier isn't namespaced `custom.` | write `custom.shift` |
+| `inputs.deck_1.volume[0]: modifier 'custom.shift' missing from device.toml` | `custom.shift` endpoint not defined | add it under `[custom]` in `device.toml` |
+| `inputs.deck_1.volume[0]: relative CC endpoint mismatch for action 'Deck(_)::set_volume' (set relative = … on device only for jog_turn/navigate)` | relative endpoint/action mismatch | align them: no `relative` for absolute faders |
+| `script 'my_hook' referenced but script.rhai is missing` | a binding names a script but no file ships | add `script.rhai` |
+| `[lifecycle] requires script.rhai in the mapping bundle` | `[lifecycle]` declared without `script.rhai` | add the file or drop the hooks |
+| `lifecycle.on_init: script function 'x' not found in script.rhai` | hook names a missing function | define it in `script.rhai` |
+| `inputs.deck_1.play_pause[0]: script function 'x' not found in script.rhai` | binding names a missing function | define it in `script.rhai` |
+| `script compile error: ...` | Rhai syntax error in `script.rhai` | fix the script |
+| `unknown inputs section 'deck_5'` | `[inputs.…]` uses an invalid section | use a valid section name |
+| `unknown outputs section 'deck_5'` | `[outputs.…]` uses an invalid section | use a valid section name |
+| `outputs.deck_1.foo: watch key not in closed catalog` | output watch key typo | use a catalog alias |
+| `outputs.deck_1.play_pause.on: alias 'foo_led' missing from device.toml` | output target alias not defined | add the LED/endpoint |
+| `no mapping bundle directories found in '...'` | `--all` pointed at an empty or wrong root | pass the real `mappings/` root |
+| `failed to read '...'` | I/O error (missing root, permissions) | fix the path or permissions |
+
+<Callout type="note" title="Extra output-only names are allowed">
+`device.toml` may define extra snake_case aliases beyond the closed input catalog (for example `play_led`, `vu_meter`). Only names used as `[inputs.*]` keys are restricted to the catalog; output targets just have to resolve.
+</Callout>
+
+## Contributing a mapping
+
+Start from the **Controller mapping** issue template (label `enhancement`, title `controller: …`). Fill in:
+
+- **Device** — Product; Vendor / model; MIDI name / USB VID:PID (if known).
+- **References** — the official MIDI chart, manufacturer page, and any Mixxx or other mapping you used.
+- **What's wanted** — transport, mixer, jog, pads, LEDs, relative CC, and which parts are must-haves versus nice-to-haves.
+
+Then add the bundle:
+
+```text
+mappings/<id>/
+  device.toml     # required — identity + endpoints
+  map.toml        # required — inputs, outputs, lifecycle
+  script.rhai     # optional — only if hooks or script bindings are used
+```
+
+Keep `map-check` green; CI runs `check_all_mappings` over `mappings/`, so any bundle that fails validation fails the build. The shipped [`mappings/ddj-400/`](https://github.com/geovannimp/mixar/tree/main/mappings/ddj-400) bundle is the reference to study — it shows note and `cc14` endpoints, relative jog CCs, per-bank pad aliases, LED outputs, and a `script.rhai` with lifecycle hooks. The older `example-generic` template has been retired in favor of these docs.
+
+## Where to look next
+
+- [device.toml](/docs/developers/midi-mappings/device-toml) — identity, sections, and endpoint shape.
+- [map.toml](/docs/developers/midi-mappings/map-toml) — `[inputs]`, `[outputs]`, `[lifecycle]`.
+- [Actions](/docs/developers/midi-mappings/actions) — the action ids you can bind.

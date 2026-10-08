@@ -1,0 +1,223 @@
+---
+title: "device.toml"
+description: "Field-by-field reference for the device.toml half of a Mixar mapping bundle."
+section: "MIDI Mappings"
+order: 2
+---
+
+A mapping bundle has two halves: `device.toml` describes **the hardware** — which MIDI
+messages each physical control sends and receives — and [`map.toml`](/docs/developers/midi-mappings/map-toml)
+binds those controls to engine actions. This page is the complete reference for `device.toml`.
+The alias names you can use as inputs are catalogued in [Actions](/docs/developers/midi-mappings/actions).
+
+A `device.toml` is a TOML file with scalar identity fields, an optional `[audio]` hint
+table, and one table per control section (`[deck_1]`…`[deck_4]`, `[master]`, `[sampler]`,
+`[custom]`). Every section maps a snake_case **alias** to a MIDI **endpoint**.
+
+## Annotated skeleton
+
+```toml
+schema_version = 1                    # required, must be 1
+id = "vendor.product"                 # required, stable bundle id
+vendor_name = "Vendor"                # required display vendor
+product_name = "Product"              # required, must be non-empty
+description = "Optional one-liner"    # optional
+usb_vid = 0x2b73                      # optional hex USB vendor id
+usb_pid = 0x0026                      # optional hex USB product id
+midi_name_contains = ["Product"]      # optional; case-insensitive port-name hints
+mapping_version = "1.0.0"             # optional; version for the Settings update check
+
+[toml-schema]                         # editor metadata ONLY (ignored at runtime)
+version = "1.0.0"
+location = "../../schemas/device.tosd"
+
+[audio]                               # optional; hints for the controller's audio out
+output_name_contains = ["Product"]
+
+[deck_1]                              # alias = { endpoint }
+play_pause = { type = "note", channel = 1, note = 0x0B }
+volume     = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
+jog_turn   = { type = "cc",   channel = 1, cc = 0x22, relative = "BINARY_OFFSET" }
+play_led   = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+
+[deck_2]
+play_pause = { type = "note", channel = 2, note = 0x0B }
+
+# [deck_3] and [deck_4] follow the same shape; deck indices are 1..=4.
+
+[master]
+crossfader = { type = "cc14", channel = 7, cc = { msb = 0x1F, lsb = 0x3F } }
+
+[sampler]
+trigger_1 = { type = "note", channel = 1, note = 0x00 }
+
+[custom]                              # free-form; usable only as modifiers (custom.<alias>)
+shift = { type = "note", channel = 1, note = 0x3F }
+```
+
+## Top-level fields
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `schema_version` | yes | integer | Must be `1`; any other value is rejected. |
+| `id` | yes | string | Non-empty, stable bundle id (e.g. `pioneer.ddj-400`). |
+| `vendor_name` | yes | string | Display vendor. |
+| `product_name` | yes | string | Must be non-empty. |
+| `description` | no | string | Free-form. |
+| `usb_vid` | no | integer | USB vendor id, written hex (e.g. `0x2b73`). |
+| `usb_pid` | no | integer | USB product id, written hex. |
+| `midi_name_contains` | no | array of strings | Case-insensitive port-name substrings used for identity matching. |
+| `mapping_version` | no | string | Optional bundle version, e.g. `"1.0.0"`. Settings compares it with the built-in mapping to show an "Update available" marker. |
+| `[toml-schema]` | no | table | Editor aid only — ignored at runtime. |
+| `[audio]` | no | table | Audio-output hints. |
+| Sections | no | tables | `[deck_1]`…`[deck_4]`, `[master]`, `[sampler]`, `[custom]`. |
+
+The UI offers a device as `"Vendor Product"`; `vendor_name` and `product_name` are joined
+with a space, skipping empty parts.
+
+## `[audio]`
+
+Optional hints used to match the controller's own audio output interface.
+
+| Field | Required | Type | Notes |
+| --- | --- | --- | --- |
+| `output_name_contains` | no | array of strings | Substrings to match against the output device name. |
+
+```toml
+[audio]
+output_name_contains = ["DDJ-400"]
+```
+
+## Sections
+
+Each section is a table of `alias = { endpoint }`. Unknown section keys are rejected.
+
+| Section | Scope |
+| --- | --- |
+| `deck_1` … `deck_4` | Per-deck controls. The deck index must be in `1..=4`. |
+| `master` | Mixer-wide controls: crossfader, cue mix, master cue, browse, load buttons. |
+| `sampler` | Sampler triggers and ends. |
+| `custom` | Free-form aliases, usable **only as modifiers**, referenced as `custom.<alias>`. |
+
+For `deck_*`, `master`, and `sampler`, the alias names of input controls are a **closed
+catalog** — see [Actions](/docs/developers/midi-mappings/actions) for the full list rather than
+duplicating it here. In shape, deck aliases include `play_pause`, `cue`, `sync`,
+`volume`, `gain`, `tempo`, `eq_high`/`eq_mid`/`eq_low`, `filter`, the `jog_*` family,
+`headphone_cue`, `loop_in`/`loop_out`, the `pad_mode_*` selectors, and numbered names such
+as `hot_cue_<n>`, `pad_<n>`, `jump_pad_<n>`, and `sampler_pad_<n>` (any `n` from 1 up;
+the engine rejects slots it cannot use).
+
+Out-only names are not restricted to the catalog: extra aliases for LEDs (`play_led`,
+`cue_led`, `hot_cue_<n>_led`, …) and `vu_meter` are allowed and expected. `[custom]` is
+exempt from the catalog entirely. An extra input-eligible name in these sections is
+accepted by `device.toml` but cannot be used as a `[inputs.*]` key in
+[`map.toml`](/docs/developers/midi-mappings/map-toml), which runs the catalog check.
+
+## Endpoint fields
+
+| Field | Applies to | Required | Type | Notes |
+| --- | --- | --- | --- | --- |
+| `type` | all | yes | string | `"note"`, `"cc"`, or `"cc14"`. |
+| `channel` | all | yes | integer | `1..=16`. |
+| `note` | `note` | yes for `note` | integer | `0..=127`. |
+| `cc` | `cc`, `cc14` | yes | integer or table | A 7-bit number for `cc`; `{ msb = …, lsb = … }` for `cc14`. |
+| `velocity` | `note` (output) | no | integer | `0..=127`; output default is `0x7F` (127). |
+| `value` | `cc` / `cc14` (output) | no | integer | `0..=127`; output default is `0x7F`. |
+| `direction` | all | no | string | `"in"`, `"out"`, or `"inout"`; default `"inout"`. |
+| `relative` | `cc` (7-bit) only | no | string | `"BINARY_OFFSET"`, `"TWOS_COMPLEMENT"`, or `"SIGN_MAGNITUDE"`. |
+
+`direction` decides how the endpoint may be used: `in` and `inout` allow input, `out` and
+`inout` allow output. Only input-eligible endpoints are checked against each other for
+clashes.
+
+## Message types
+
+### `note` — buttons, pads, jog-touch
+
+```toml
+play_pause = { type = "note", channel = 1, note = 0x0B }
+```
+
+An incoming note-on with velocity greater than 0 is active; a note-on with velocity 0 is
+treated as a note-off (and matches the same channel/note). On output, the velocity
+defaults to `0x7F` unless `velocity` is set.
+
+### `cc` — knobs and faders (7-bit)
+
+```toml
+filter = { type = "cc", channel = 1, cc = 0x14 }
+```
+
+`cc` is a single 7-bit controller number. The incoming value maps to a 0..1 control value
+as `value / 127`.
+
+### `cc14` — 14-bit knobs and faders
+
+```toml
+volume = { type = "cc14", channel = 1, cc = { msb = 0x13, lsb = 0x33 } }
+```
+
+`cc14` pairs an MSB and an LSB controller into a single 0..1 value:
+`((msb << 7) | lsb) / 16383`. The `[map.toml]` side binds the alias just once; the session
+pairs the two CC messages. `msb` and `lsb` must differ.
+
+## Relative encoders
+
+Set `relative` on a 7-bit `cc` endpoint to treat its data byte as a signed tick delta
+rather than an absolute value. It is only valid on `type = "cc"`.
+
+| Mode | Decode of data byte `v` (0..127) |
+| --- | --- |
+| `BINARY_OFFSET` | `v - 64`; center is 64 → 0. |
+| `TWOS_COMPLEMENT` | Signed 7-bit: `0 → 0`, `1..63 → +v`, `64..127 → v - 128` (so 127 → -1). |
+| `SIGN_MAGNITUDE` | Bit 6 is the sign, bits 0–5 the magnitude: `0x03 → +3`, `0x43 → -3`. |
+
+```toml
+jog_turn = { type = "cc", channel = 1, cc = 0x22, relative = "BINARY_OFFSET" }
+browse   = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
+```
+
+<Callout type="warning" title="Relative needs a relative action">
+A relative endpoint only makes sense when bound to a relative action such as `jog_turn`
+or `navigate`. See [Actions](/docs/developers/midi-mappings/actions) for which leaves consume tick
+deltas.
+</Callout>
+
+## Identity & matching
+
+A device file is matched against a detected MIDI port if the USB identity matches **or**
+the port name matches:
+
+- **USB.** When both `usb_vid` and `usb_pid` are set, the host must report both and they
+  must be equal. If only one is set, that one must match. If the host cannot read USB ids,
+  the USB path never matches.
+- **Name.** If `midi_name_contains` is non-empty, the match succeeds when any entry is a
+  case-insensitive substring of the port name.
+
+The two paths are OR'd — either is sufficient.
+
+## Validation rules
+
+`device.toml` is validated when loaded; a violation is a load error.
+
+- `schema_version` must equal `1`.
+- `id` must be non-empty; `product_name` must be non-empty.
+- Section keys must be `deck_1`…`deck_4`, `master`, `sampler`, or `custom`; anything else is
+  rejected, and deck indices outside `1..=4` are rejected.
+- Alias names must be **snake_case**: non-empty, first character a lowercase ASCII letter,
+  remaining characters lowercase ASCII letters, digits, or underscores.
+- `note` endpoints require `note`. `cc` requires a 7-bit `cc` (use `cc14` for msb/lsb).
+  `cc14` requires `{ msb = …, lsb = … }` with `msb != lsb`.
+- `channel` must be in `1..=16`; `note`, `velocity`, and `value` must be in `0..=127`.
+- `relative` is rejected on anything other than `type = "cc"` (7-bit).
+- **Input MIDI clash.** Across the whole file, two input-eligible endpoints may not claim
+  the same identity — the same `(channel, note)` for notes, or the same `(channel, cc)` for
+  CCs. A `cc14` endpoint contributes two CC identities (its `msb` and its `lsb`), so both
+  must stay clear of other inputs.
+
+## Editor schema
+
+The `[toml-schema]` table (`version`, `location`) is editor metadata pointing at
+`schemas/device.tosd`; it is peeled off before parsing and never used at runtime. The
+`.tosd` file is the authoritative field list, allowed values, and ranges for
+autocompletion — it mirrors the Rust validation described above.

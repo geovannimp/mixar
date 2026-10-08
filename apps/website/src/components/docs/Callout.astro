@@ -1,0 +1,44 @@
+---
+import { Info, Lightbulb, TriangleAlert } from "@lucide/astro";
+
+interface Props {
+  type?: "note" | "warning" | "tip";
+  title?: string;
+}
+
+const { type = "note", title } = Astro.props;
+
+const config = {
+  note: {
+    icon: Info,
+    label: "Note",
+    wrapper: "border-border bg-bg-elevated",
+    iconClass: "text-muted",
+  },
+  warning: {
+    icon: TriangleAlert,
+    label: "Warning",
+    wrapper: "border-warn/50 bg-warn/10",
+    iconClass: "text-warn",
+  },
+  tip: {
+    icon: Lightbulb,
+    label: "Tip",
+    wrapper: "border-accent/40 bg-accent-dim",
+    iconClass: "text-accent",
+  },
+} as const;
+
+const { icon: Icon, label, wrapper, iconClass } = config[type] ?? config.note;
+const heading = title ?? label;
+---
+
+<aside class:list={["my-6 flex gap-3 rounded-xl border px-4 py-3.5", wrapper]}>
+  <Icon class:list={["mt-0.5 size-5 shrink-0", iconClass]} stroke-width={2} aria-hidden="true" />
+  <div class="min-w-0 text-[0.9375rem] leading-relaxed text-fg">
+    <p class="m-0 font-semibold">{heading}</p>
+    <div class="mt-1 text-muted [&>p]:m-0 [&>p+p]:mt-2">
+      <slot />
+    </div>
+  </div>
+</aside>

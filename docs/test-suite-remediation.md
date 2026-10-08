@@ -141,7 +141,7 @@ entirely; 423 tests now complete in ~0.01s.
 | `flutter analyze --no-fatal-infos` | pass (222 pre-existing infos) |
 | `flutter test` | 338 passed |
 | `npm run test` (`moon run :test`) | 3/3 tasks pass, 19.1s |
-| `moon run rust:test-mappings` | `ok ddj-400`, `ok example-generic` |
+| `moon run rust:test-mappings` | `ok ddj-400` |
 | `map-check --all` on a bundle with a typo'd script fn | `ERR … not found in script.rhai`, exit 1 |
 
 ## Not done / deferred (with reasons)

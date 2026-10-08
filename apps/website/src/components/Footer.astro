@@ -2,7 +2,7 @@
 import { CONTRIBUTING_URL, GITHUB_REPO, QUICK_START_URL } from "../consts";
 
 interface Props {
-  currentPage?: "home" | "developers" | "privacy";
+  currentPage?: "home" | "developers" | "privacy" | "docs";
 }
 
 const { currentPage = "home" } = Astro.props;
@@ -84,6 +84,15 @@ const footerLink =
           </li>
           <li>
             <a class={footerLink} href="/developers">Developer guide</a>
+          </li>
+          <li>
+            <a
+              class={footerLink}
+              href="/docs"
+              aria-current={currentPage === "docs" ? "page" : undefined}
+            >
+              Docs
+            </a>
           </li>
           <li>
             <a

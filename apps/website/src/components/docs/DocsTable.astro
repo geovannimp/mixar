@@ -1,0 +1,12 @@
+---
+// Overrides the HTML `table` element for MDX/Markdown content (registered via
+// `<Content components={{ table }} />`). Wrapping the table in a scroll
+// container lets a wide table scroll on a narrow viewport without
+// `display: block` on the table itself, which would strip its row/column
+// semantics from assistive technology.
+---
+<div class="docs-table-wrap">
+  <table>
+    <slot />
+  </table>
+</div>

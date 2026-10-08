@@ -1,0 +1,219 @@
+---
+title: "map.toml"
+description: "Reference for map.toml: input bindings, modifiers, soft takeover, outputs, and lifecycle."
+section: "MIDI Mappings"
+order: 3
+---
+
+`map.toml` is the behavioral half of a mapping bundle. It binds the controls declared in `device.toml` to engine and library actions, drives device LEDs from watched signals, and names the optional script lifecycle hooks. Everything here is validated against the closed action and alias catalogs, so a name that is not in the catalog is rejected at load time — see [Actions & aliases](/docs/developers/midi-mappings/actions) for the vocabulary and [device.toml](/docs/developers/midi-mappings/device-toml) for the control declarations `map.toml` refers to.
+
+## Overview
+
+A map has one required key (`schema_version`), two optional tables (`[inputs]` and `[outputs]`), and an optional `[lifecycle]` table. Sections are `deck_1` through `deck_4`, `master`, and `sampler`.
+
+```toml
+# map.toml — declares what each device control does.
+schema_version = 1
+
+# Editor-only pointer to the TOML schema. Peeled off before deserialize; ignored at runtime.
+[toml-schema]
+version = "1.0.0"
+location = "../../schemas/map.tosd"
+
+# Optional script hooks. Requires script.rhai in the same mapping bundle.
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+
+# ---- Inputs ---------------------------------------------------------------
+# One table per section: deck_1..deck_4, master, sampler.
+[inputs.deck_1]
+# String form: bind the input alias straight to an action.
+play_pause = "Deck(_)::toggle_play"
+
+# Table form: action + per-binding options.
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+
+# Array form: modifier-selected alternatives (first active modifier wins).
+filter = [
+  { action = "Deck(_)::set_filter", soft_takeover = true },
+  { action = "Deck(_)::set_eq_low", modifier = "custom.shift", soft_takeover = true },
+]
+
+# Relative leaf: the device endpoint must declare `relative = "…"`.
+jog_turn = "Deck(_)::jog_turn"
+
+[inputs.master]
+crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
+
+# ---- Outputs --------------------------------------------------------------
+# Watched signal -> on/off MIDI (typically LEDs).
+[outputs.deck_1]
+play_pause = { on = "pause_led", off = "play_led" }
+cue = { on = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F }, off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
+```
+
+| Key | Required | Notes |
+| --- | --- | --- |
+| `schema_version` | yes | Must be exactly `1`; any other value is a schema error. |
+| `[toml-schema]` | no | Editor aid only. It is removed from the parsed table before deserialize and never consulted at runtime. |
+| `[inputs]` | no | Per-section input bindings. |
+| `[outputs]` | no | Per-section signal-to-MIDI output bindings. |
+| `[lifecycle]` | no | Script hook names; only meaningful with `script.rhai`. |
+
+## `[inputs]` binding forms
+
+`[inputs.<section>]` maps an input alias (the key) to a binding (the value). The section must be `deck_1`..`deck_4`, `master`, or `sampler`. The alias must be in that section's closed catalog and must have a matching endpoint in `device.toml`, or load fails.
+
+A binding has three interchangeable forms:
+
+- **String** — the action id directly:
+  ```toml
+  [inputs.deck_1]
+  play_pause = "Deck(_)::toggle_play"
+  ```
+- **Table** — an action plus options such as `modifier`, `soft_takeover`, `invert`, or a `script` name:
+  ```toml
+  [inputs.deck_1]
+  volume = { action = "Deck(_)::set_volume", soft_takeover = true, invert = false }
+  ```
+- **Array of tables** — alternatives selected at runtime by modifier (see [Modifiers & selection](#modifiers--selection)):
+  ```toml
+  [inputs.deck_1]
+  volume = [
+    { action = "Deck(_)::set_volume", soft_takeover = true },
+    { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },
+  ]
+  ```
+
+The three forms normalize to a list of binding tables internally; a string becomes a single action binding and a table becomes a one-element list.
+
+<Callout type="warning" title="No [inputs.custom]">
+`[inputs.custom]` is rejected. The `custom` section exists only in `device.toml` to declare modifier controls; a custom alias cannot bind a declarative engine action. Use a `custom.<alias>` value in the `modifier` field instead.
+</Callout>
+
+## Binding fields
+
+Every normalized binding table accepts these fields:
+
+| Field | Type | Required | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `action` | string | exactly one of `action`/`script` | — | A qualified action id; must be a known action. See [Actions & aliases](/docs/developers/midi-mappings/actions). |
+| `script` | string | exactly one of `action`/`script` | — | Name of a function in `script.rhai`. The bundle must contain the script file, or load fails. See [Scripting](/docs/developers/midi-mappings/scripts). |
+| `modifier` | string | no | none | Must be `custom.<alias>`; the alias must resolve in `device.toml`. |
+| `soft_takeover` | boolean | no | on for absolute leaves, otherwise off | Explicit value overrides the default. |
+| `invert` | boolean | no | `false` | Flip the normalized value (`1 - norm`), or negate a relative delta. |
+
+Validation requires **exactly one** of `action` or `script` to be present and non-empty: both, or neither, is rejected with `binding needs exactly one of action or script`. A non-empty `script` also requires the bundle to carry `script.rhai`.
+
+## Modifiers & selection
+
+A modifier ties a binding to a control declared under `[custom]` in `device.toml`:
+
+```toml
+[inputs.deck_1]
+filter = [
+  { action = "Deck(_)::set_filter", soft_takeover = true },
+  { action = "Deck(_)::set_eq_low", modifier = "custom.shift", soft_takeover = true },
+]
+```
+
+The `modifier` value must start with `custom.` and the alias must exist in `device.toml`; anything else is a validation error. A modifier is **held** while its `custom.<alias>` control is active: the session adds the modifier when the control reports active and removes it when the control reports inactive.
+
+When an input fires, the binding is selected as follows:
+
+1. The **first** binding whose `modifier` is currently held wins.
+2. Otherwise, the **first** binding with no modifier wins.
+3. If neither matches, the input is ignored.
+
+So order inside the array matters for overlapping modifiers, and the unmodified binding (if any) is the fallback.
+
+## Soft takeover & invert
+
+**Soft takeover** is enabled by default only for the absolute leaves — those that consume a continuous `0..1` value:
+
+`set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed`.
+
+Every other leaf defaults to soft takeover off. An explicit `soft_takeover = true/false` always wins, so you can opt an absolute control out or opt a non-absolute control in.
+
+**Invert** is `false` by default. When `invert = true`, the value is flipped in the dispatch path before the action is resolved:
+
+- absolute → `1 - norm`
+- relative → `-delta`
+
+Use it for controllers whose physical direction is reversed, such as a Pioneer tempo fader:
+
+```toml
+[inputs.deck_1]
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
+```
+
+<Callout type="tip" title="Absolute leaves and soft takeover">
+Because absolute leaves already default to soft takeover, the explicit `soft_takeover = true` you see throughout the stock mappings is documentation as much as configuration — it makes the intent visible at the binding site.
+</Callout>
+
+## Absolute vs relative inputs
+
+Two kinds of value reach a leaf:
+
+- **Absolute** leaves consume a normalized `0..1` value (clamped). A 7-bit CC is normalized from `0..127`; a `cc14` endpoint combines its MSB and LSB into `0..1`. Relative ticks are never coerced into an absolute action — the action simply does not resolve.
+- **Relative** leaves consume a decoded tick delta: `jog_turn` on a deck and `navigate` on `LibraryNavigation`. The `device.toml` endpoint must declare `relative = "…"` so the raw CC is decoded into signed ticks.
+
+This pairing is enforced at load time. A `type = "cc"` endpoint that declares `relative` must be bound to a relative action, and a relative action must be bound to a `relative` endpoint; a mismatch fails `map-check` with a message naming the action and telling you to set `relative` only for `jog_turn`/`navigate`.
+
+### CC14 pairing
+
+A 14-bit control is declared once in `device.toml` as `type = "cc14"` with `cc = { msb = …, lsb = … }` (the two control numbers must differ), then bound once in `map.toml`:
+
+```toml
+[inputs.deck_1]
+tempo = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
+```
+
+The session tracks the MSB and LSB per alias and only publishes once both bytes have been seen, normalizing the pair to `0..1`.
+
+### Rate limiting
+
+Continuous CC input is coalesced to at most 60 Hz so a burst cannot flood the engine. Absolute CC keeps the **latest** value; relative CC **sums** the deltas. Either way the first message publishes immediately and subsequent messages inside the ~16 ms window are held pending, then flushed by the MIDI pump. Notes are edge-triggered and bypass this coalescing: only a transition (press or release) dispatches.
+
+## `[outputs]`
+
+`[outputs.<section>]` watches a closed-catalog signal for the section and emits MIDI when it turns on or off:
+
+```toml
+[outputs.deck_1]
+# Alias target: resolved against device.toml, section-local first.
+play_pause = { on = "pause_led", off = "play_led" }
+
+# Inline endpoint target: no device.toml alias needed.
+cue = { on = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F }, off = { type = "note", channel = 1, note = 0x0C, velocity = 0x00 } }
+```
+
+Each output binding names an `on` target and an `off` target. Both are required, and each target is one of:
+
+- an **alias** resolved against `device.toml` — a section-local bare name, a `section.alias` reference, or a bare name searched across sections;
+- an **inline endpoint** table (`type`, `channel`, and the fields its type requires) serialized directly.
+
+The watched key (the alias in the left column) must be in the section's closed catalog of signals — for example `play_pause`, `cue`, `headphone_cue`, or `hot_cue_<n>`. Outputs are how you light LEDs and drive callbacks.
+
+The last state per watched signal is cached, so the same state is not re-sent: an `on` is followed by an `off`, not by repeated `on` messages. State is deliberately **forced** to re-send after a pad-mode switch, since hardware often clears pad LEDs when the page changes — the session drops the cached value and replays the hot-cue LED state.
+
+## `[lifecycle]`
+
+`[lifecycle]` names functions implemented in `script.rhai`:
+
+```toml
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+```
+
+| Key | When it runs |
+| --- | --- |
+| `on_init` | Called once when the session starts. |
+| `on_shutdown` | Called once when the session shuts down. |
+| `idle_heartbeat` | Called periodically, roughly once per second, and only while no deck is playing. |
+
+All three are optional, but any of them requires the bundle to contain `script.rhai`; otherwise load fails with `[lifecycle] requires script.rhai in the mapping bundle`. Each name must be non-empty. See [Scripting](/docs/developers/midi-mappings/scripts) for the hook signatures and what they can do.
