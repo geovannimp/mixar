@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { docPath, getDocs } from "../../lib/docs";
+import { ArrowRight, BookOpen } from "@lucide/astro";
+
+const { docs, categories } = await getDocs();
+const total = docs.length;
+---
+
+<BaseLayout
+  title="Documentation"
+  description="Mixar documentation for developers and users: MIDI controller mappings, the mapping bundle format, and more."
+  currentPage="docs"
+>
+  <section class="mx-auto max-w-content px-section py-16 lg:py-20">
+    <header class="mb-12 max-w-[52ch]">
+      <BookOpen class="mb-5 size-12 text-accent" stroke-width={1.75} aria-hidden="true" />
+      <h1
+        class="m-0 font-serif text-[clamp(2.25rem,6vw,3.25rem)] font-bold leading-[1.05] tracking-[-0.03em]"
+      >
+        Documentation
+      </h1>
+      <p class="mt-4 text-[1.125rem] leading-relaxed text-muted lg:text-xl">
+        Guides for developers building with and extending Mixar, and for users playing with it.
+        {total} page{total === 1 ? "" : "s"} so far.
+      </p>
+    </header>
+
+    <div class="grid gap-12">
+      {
+        categories.map((category) => (
+          <section>
+            <h2 class="m-0 font-serif text-[1.5rem] font-bold tracking-[-0.02em]">
+              {category.name}
+            </h2>
+            <p class="mt-1 text-[0.9375rem] text-muted">{category.description}</p>
+
+            {category.topics.length > 0 ? (
+              <div class="mt-5 grid gap-6 sm:grid-cols-2">
+                {category.topics.map((topic) => {
+                  const overview = topic.overview;
+                  const count = topic.entries.length;
+                  return (
+                    <a
+                      href={docPath(overview.id)}
+                      class="group flex flex-col rounded-2xl border border-border bg-bg-card p-6 transition hover:border-border-hover hover:bg-accent-dim"
+                    >
+                      <div class="flex items-center justify-between gap-4">
+                        <h3 class="m-0 font-serif text-[1.25rem] font-bold tracking-[-0.02em]">
+                          {topic.name}
+                        </h3>
+                        <ArrowRight
+                          class="size-5 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent"
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <p class="mt-2 text-[0.9375rem] leading-relaxed text-muted">
+                        {overview.data.description}
+                      </p>
+                      <span class="mt-5 text-[0.8125rem] font-medium uppercase tracking-wide text-muted">
+                        {count} page{count === 1 ? "" : "s"}
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <p class="mt-5 rounded-2xl border border-dashed border-border bg-bg-elevated px-6 py-8 text-[0.9375rem] text-muted">
+                {category.empty}
+              </p>
+            )}
+          </section>
+        ))
+      }
+    </div>
+  </section>
+</BaseLayout>

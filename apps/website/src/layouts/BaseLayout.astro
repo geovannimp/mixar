@@ -7,7 +7,7 @@ import { META_NAME, resolvePosthogHost } from "../scripts/analytics";
 interface Props {
   title: string;
   description: string;
-  currentPage?: "home" | "developers" | "privacy";
+  currentPage?: "home" | "developers" | "privacy" | "docs";
 }
 
 const { title, description, currentPage = "home" } = Astro.props;

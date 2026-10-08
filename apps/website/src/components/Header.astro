@@ -3,7 +3,7 @@ import { GITHUB_REPO } from "../consts";
 import { Moon, Sun } from "@lucide/astro";
 
 interface Props {
-  currentPage?: "home" | "developers" | "privacy";
+  currentPage?: "home" | "developers" | "privacy" | "docs";
 }
 
 const { currentPage = "home" } = Astro.props;
@@ -52,6 +52,13 @@ const iconProps = { size: 18, "stroke-width": 2 };
           aria-current={currentPage === "developers" ? "page" : undefined}
         >
           Developers
+        </a>
+        <a
+          class={navLink}
+          href="/docs"
+          aria-current={currentPage === "docs" ? "page" : undefined}
+        >
+          Docs
         </a>
       </div>
       <a

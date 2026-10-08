@@ -1,0 +1,152 @@
+---
+title: "Overview"
+description: "How Mixar MIDI controller mappings are packaged, installed, attached, and validated."
+section: "MIDI Mappings"
+order: 1
+---
+
+## What a mapping is
+
+A mapping teaches Mixar how one specific MIDI controller is wired: which note or CC each physical control sends, what that control should do in the app, and which LEDs to drive back. A mapping is a directory — a **bundle** — not a single file, and the directory name is the **mapping id** used everywhere in the app.
+
+| File | Required | Purpose |
+| --- | --- | --- |
+| `device.toml` | yes | Hardware identity plus one endpoint per physical control |
+| `map.toml` | yes | Binds each control to a Mixar action and (optionally) an LED output |
+| `script.rhai` | no | Optional Rhai script for behavior the declarative bindings cannot express |
+
+Two identities are easy to confuse, so keep them straight:
+
+- The **bundle id** is the folder name (for example `dj-controller`). Settings and the attach/detach controls operate on it.
+- The **`device.toml` `id`** (for example `pioneer.ddj-400`) is the device identity. It is the key used for **Trust**, not the id shown in the Mappings list.
+
+## Bundle layout
+
+Every bundle is a directory containing two required files and one optional file:
+
+```text
+mappings/
+└── dj-controller/          # folder name = mapping id
+    ├── device.toml         # required — identity + control endpoints
+    ├── map.toml            # required — inputs → actions, outputs → LEDs
+    └── script.rhai         # optional — scripted behavior
+```
+
+## How Mixar finds mappings
+
+Mixar reads mappings from **app data**, not from the repository or the app bundle. The path is `{app support}/mappings/<id>/` — on Linux with the app id `top.mixar.app`:
+
+```text
+~/.local/share/top.mixar.app/mappings/
+```
+
+At start-up Mixar scans each subdirectory there and loads every bundle it finds. A bundle needs both `device.toml` and `map.toml`; a directory that fails to load is skipped with a warning and simply does not appear in the app.
+
+**Matching a port to a mapping.** Each live MIDI port is matched to a bundle by `midi_name_contains` (plus the optional USB VID/PID in `device.toml`). A match associates that port with the bundle's mapping id — the id the attach controls operate on.
+
+## Managing mappings in the app
+
+Attaching, trusting, and updating happen in **Settings ▸ Controllers**.
+
+On start-up Mixar **seeds** app data from its built-in mappings: any built-in mapping missing from `{app support}/mappings/` is copied in. An existing folder is never overwritten, so your edits and the mappings you add yourself survive.
+
+The **Mappings** list shows one row per bundle found in app data:
+
+| Control | Effect |
+| --- | --- |
+| Attach / detach toggle | Enables or disables the mapping against its matched live input port. Unavailable while no controller host is running. |
+| Trust toggle | Adds or removes the bundle's `device.toml` id from the trusted list. Saved with settings; the device then auto-enables on connect. |
+| Update | Re-copies this mapping, picking up a newer version if one is available. |
+| Update All (list header) | Re-copies every mapping, picking up newer versions. |
+
+A row shows the bundle's `mapping_version` (for example `v1.0.0`) when it sets one, and flags **Update available** when a built-in mapping ships a newer version. Mappings you add yourself are never flagged.
+
+If a matched device is trusted, Mixar attaches it automatically when it connects. If it is recognized but not trusted, Mixar offers it here; attach and trust it, and later connects auto-attach. Detaching suppresses that port until it is disconnected and reconnected.
+
+<Callout type="tip">
+Do not edit a built-in mapping in place — **Update** overwrites it. To keep changes, copy the folder to a new id and edit that copy instead.
+</Callout>
+
+The **MIDI ports** list shows each detected port as `direction port-name → matched-mapping-id`. The `→ <id>` suffix appears only when the port name matches a bundle; unmatched ports show no arrow. Direction is `input` or `output`. The list refreshes live from attach/detach events. Empty states read "No mappings in app data yet." and "No MIDI ports detected."
+
+## Quick start: a minimal bundle
+
+The smallest useful bundle is one deck's worth of controls. This example maps play/pause, headphone cue (PFL), one hot-cue pad, jog turn, volume with a shift modifier to filter, library browse, and the play/PFL/hot-cue LEDs. Create a folder named `minimal-controller` under `{app support}/mappings/` and drop in these two files.
+
+`device.toml`:
+
+```toml
+schema_version = 1
+id = "example.minimal"
+vendor_name = "Example"
+product_name = "Minimal Controller"
+# Port names containing any of these strings match this bundle.
+midi_name_contains = ["Minimal"]
+
+[toml-schema]
+version = "1.0.0"
+location = "schemas/device.tosd"
+
+[deck_1]
+play_pause = { type = "note", channel = 1, note = 0x0B }
+volume = { type = "cc", channel = 1, cc = 0x13 }
+headphone_cue = { type = "note", channel = 1, note = 0x54 }
+pad_1 = { type = "note", channel = 1, note = 0x2E }
+jog_turn = { type = "cc", channel = 1, cc = 0x22, relative = "BINARY_OFFSET" }
+play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
+pause_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
+pfl_led = { type = "note", channel = 1, note = 0x54, velocity = 0x7F, direction = "out" }
+hot_cue_1_led = { type = "note", channel = 1, note = 0x2E, velocity = 0x7F, direction = "out" }
+vu_meter = { type = "cc", channel = 1, cc = 0x02, direction = "out" }
+
+[master]
+browse = { type = "cc", channel = 7, cc = 0x40, relative = "TWOS_COMPLEMENT" }
+
+[custom]
+shift = { type = "note", channel = 1, note = 0x3F }
+```
+
+`map.toml`:
+
+```toml
+schema_version = 1
+
+[toml-schema]
+version = "1.0.0"
+location = "schemas/map.tosd"
+
+[inputs.deck_1]
+play_pause = "Deck(_)::toggle_play"
+headphone_cue = "Deck(_)::set_headphone_cue"
+pad_1 = "Deck(_)::hot_cue_pad(n:1)"
+jog_turn = "Deck(_)::jog_turn"
+volume = [
+  { action = "Deck(_)::set_volume", soft_takeover = true },
+  { action = "Deck(_)::set_filter", modifier = "custom.shift", soft_takeover = true },
+]
+
+[inputs.master]
+browse = "LibraryNavigation::navigate"
+
+[outputs.deck_1]
+play_pause = { on = "pause_led", off = "play_led" }
+headphone_cue = { on = "pfl_led", off = { type = "note", channel = 1, note = 0x54, velocity = 0x00 } }
+hot_cue_1 = { on = "hot_cue_1_led", off = { type = "note", channel = 1, note = 0x2E, velocity = 0x00 } }
+```
+
+What each part does:
+
+- `device.toml` carries the identity (`id`, `vendor_name`, `product_name`, `midi_name_contains`) and one named endpoint per control: `play_pause`, `headphone_cue`, `pad_1`, `jog_turn`, and so on. Endpoints marked `direction = "out"` are outputs Mixar drives, such as the LEDs and `vu_meter`.
+- `map.toml` binds those endpoints to actions: `Deck(_)::toggle_play`, `Deck(_)::set_headphone_cue`, `Deck(_)::hot_cue_pad(n:1)`, `Deck(_)::jog_turn`. The `_` is the deck placeholder.
+- `volume` is a two-entry list: the default action is `set_volume`, and while the `custom.shift` modifier is held it becomes `set_filter`. Both use `soft_takeover` so the hardware knob and the software value do not fight.
+- `browse` is bound to `LibraryNavigation::navigate` under the master input section.
+- `[outputs.deck_1]` mirrors player state onto the LEDs: play/pause swaps between `pause_led` and `play_led`, and the PFL and hot-cue-1 LEDs follow their controls. An `on` or `off` may name a device endpoint or inline a raw note.
+- The `[toml-schema]` tables are editor hints (schema autocompletion); Mixar ignores them at runtime.
+
+## Where to go next
+
+- [device.toml reference](/docs/developers/midi-mappings/device-toml) — identity fields, sections, endpoint fields, and validation rules.
+- [map.toml reference](/docs/developers/midi-mappings/map-toml) — binding forms, modifiers, soft takeover, outputs, and lifecycle.
+- [Actions & aliases](/docs/developers/midi-mappings/actions) — the action-id grammar and the closed alias catalog.
+- [Scripts](/docs/developers/midi-mappings/scripts) — Rhai hooks for behavior beyond declarative bindings.
+- [Validation](/docs/developers/midi-mappings/validation) — `map-check` and common errors.

@@ -922,15 +922,14 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let path = dir.path().join("settings.json");
         let mut settings = sample_settings();
-        settings.trusted_controller_device_ids =
-            vec!["pioneer.ddj-400".into(), "example.generic".into()];
+        settings.trusted_controller_device_ids = vec!["pioneer.ddj-400".into()];
         write_settings_file(&path, &settings).expect("write");
 
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert_eq!(
             restored.trusted_controller_device_ids,
-            vec!["pioneer.ddj-400".to_string(), "example.generic".to_string()]
+            vec!["pioneer.ddj-400".to_string()]
         );
     }
 

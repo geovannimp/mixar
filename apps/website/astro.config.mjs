@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import mdx from "@astrojs/mdx";
 import tailwindcss from "@tailwindcss/vite";
 import posthogRollup from "@posthog/rollup-plugin";
 
@@ -12,6 +13,19 @@ const uploadSourceMaps = Boolean(posthogApiKey && posthogProjectId);
 export default defineConfig({
   site: "https://mixar.top",
   outDir: "dist",
+  integrations: [mdx()],
+  markdown: {
+    // Dual themes emit both `--shiki-light*` and `--shiki-dark*` custom
+    // properties; the dark set is activated from DocsLayout because Astro does
+    // not inject the `prefers-color-scheme` override itself, and this site
+    // toggles `data-theme` rather than the OS preference.
+    shikiConfig: {
+      themes: { light: "github-light", dark: "github-dark" },
+      // Shiki has no Rhai grammar; Rust highlights its `fn`/`let`/`const`/`//`
+      // syntax closely enough, and the alias avoids a plaintext fallback warning.
+      langAlias: { rhai: "rust" },
+    },
+  },
   vite: {
     plugins: [
       tailwindcss(),

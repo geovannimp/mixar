@@ -1,0 +1,181 @@
+---
+title: "Scripting (Rhai)"
+description: "Lifecycle hooks and script bindings for mapping bundles that declarative actions cannot express."
+section: "MIDI Mappings"
+order: 5
+---
+
+## When to script
+
+Most controls should use the declarative action catalog — a binding like `play_pause = "Deck(_)::toggle_play"` is validated, documented, and needs no code. Reach for a Rhai script only when the catalog cannot express what the hardware needs:
+
+- **Raw SysEx handshakes / initialization.** Forcing a controller into a mode with a vendor SysEx message, or re-asserting it while idle.
+- **Controller-specific behavior.** Per-device quirks such as pad LEDs that only exist for a particular firmware.
+- **Custom engine publishes.** Emitting a command with a payload the declarative actions do not cover.
+
+<Callout type="tip">
+If a declarative action exists for what you are doing, prefer it. Scripts run in a sandbox with CPU limits (see [Limits and error reporting](#limits-and-error-reporting)) and are harder to validate than the catalog.
+</Callout>
+
+## Adding `script.rhai` and `[lifecycle]`
+
+`script.rhai` is optional. It becomes **required** the moment a `[lifecycle]` hook names a function, or an input binding uses `script`:
+
+- A `[lifecycle]` block without a `script.rhai` fails validation with `[lifecycle] requires script.rhai in the mapping bundle`.
+- An input binding that names a `script` without a script file fails with `MissingScript`.
+
+Whenever a hook or binding names a function, that function **must exist**. `map-check` compiles the script and verifies every named function is defined; a typo is reported as:
+
+```text
+lifecycle.on_init: script function `on_init` not found in script.rhai
+inputs.deck_1.play_pause[0]: script function `foo` not found in script.rhai
+```
+
+At runtime a missing hook is silently treated as a no-op — which is exactly why the static check exists.
+
+A bindings file that only uses the null-modifier form needs no script. The `[lifecycle]` names are the function names to call; they may be anything.
+
+## Host function reference
+
+The host functions are registered in a global module, so they are **called flat** — `midi_out([...])`, not `host.midi_out(...)`.
+
+| Function | Purpose | Notes |
+| --- | --- | --- |
+| `midi_out(bytes_array)` | Send raw MIDI bytes to the device output port. | Array of integers; payload capped at **256 bytes**. Non-integer elements are ignored. Over the cap raises `midi_out payload too large`. |
+| `publish(origin, kind, payload)` | Publish an engine command. | See the rules below. |
+| `modifier_active("custom.<alias>")` | `true` while a `[custom]` modifier control is held. | Pass the full `custom.<alias>` name. |
+
+### `publish` arguments
+
+- `origin` — one of `"engine"`, `"mixer"`, `"deck1"` … `"deck4"`.
+- `kind` — one of `"play"`, `"pause"`, `"set_volume"`, `"notice"`, `"error"`.
+- `payload` — a JSON string that is parsed into the command body. An empty string produces an empty body.
+
+An unrecognized `origin` or `kind` falls back to `"engine"` / `"notice"`. If the payload is non-empty but not valid JSON, that publish is skipped and a `script publish payload parse failed` warning is logged.
+
+The `set_volume` example (from the test suite):
+
+```rhai
+fn on_init() {
+    publish("deck1", "set_volume", "{\"type\":\"set_volume\",\"volume\":0.5}");
+}
+```
+
+`deck1` maps to deck index 0, so this calls `set_volume` on the first deck with `volume = 0.5`.
+
+## Lifecycle hooks and scheduling
+
+Lifecycle hook names are configured in `[lifecycle]`; each maps an event to a function name in `script.rhai`:
+
+| Hook | When it runs | MIDI output |
+| --- | --- | --- |
+| `on_init` | When the mapping attaches to a device. | Allowed — receives the real output port. |
+| `on_shutdown` | When the mapping detaches. | Allowed. |
+| `idle_heartbeat` | Roughly once per second, only while **no** deck is playing. | Allowed. |
+
+Hooks take **no arguments** (`fn on_init() { ... }`); they use the host functions for all I/O. A hook that is named but missing from the script is a no-op at runtime, so `map-check` is what catches typos.
+
+`idle_heartbeat` is driven from the MIDI pump, not a timer thread. It fires at most once per second (the first call fires immediately), and it is suppressed while any deck is playing — the host also refuses to schedule it when a deck is active. This makes it a keepalive for controllers that need periodic traffic, without stomping on normal play.
+
+<Callout type="note" title="Hooks are optional">
+Even when `[lifecycle]` is present, only the hooks you actually name are invoked. An absent `[lifecycle]` block means no Rhai hook runs at all, even if `script.rhai` exists.
+</Callout>
+
+## Input script bindings
+
+An input binding may name a script function instead of a declarative action. A binding is **exactly one of** `action` or `script` — supplying both, or neither, is a validation error.
+
+```toml
+[inputs.deck_1]
+play_pause = { script = "on_play_pause" }
+```
+
+The runtime calls:
+
+```rhai
+fn on_play_pause(value_01, active) {
+    // ...
+}
+```
+
+- `value_01` — the normalized `0..1` control value for absolute controls. For relative controls (jog wheels) it is the **integer delta** of the tick, which may be negative.
+- `active` — the button / press state.
+
+<Callout type="warning">
+A script binding runs with a **null MIDI sink**: `midi_out(...)` calls from an input-script function are silently discarded. Publish engine commands instead. Only lifecycle hooks (and `on_init` in particular) are wired to the real output port. Declarative-only options such as `soft_takeover` and `invert` are not applied to script bindings.
+</Callout>
+
+## Globals
+
+Top-level `const` and `let` declarations in `script.rhai` are evaluated once and remain visible inside every hook and input-script call. This is what lets `on_init` and `idle_heartbeat` share a constant SysEx payload:
+
+```rhai
+const PC_MODE_SYSEX = [
+    0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7
+];
+
+fn idle_heartbeat() {
+    midi_out(PC_MODE_SYSEX);
+}
+```
+
+## Limits and error reporting
+
+| Limit | Value | On violation |
+| --- | --- | --- |
+| Operations per call | 50,000 | Raises an error (e.g. an infinite loop ends with an "operations" error). |
+| Expression depth | 64 function / 32 caller | Raises an error. |
+| `midi_out` payload | 256 bytes | Raises `midi_out payload too large`. |
+
+Compile errors are reported by `map-check` (`ScriptCompile`); runtime failures are reported by the host:
+
+- A failed **input script binding** is logged as `script binding failed`, with the mapping id, device id, port name, section, alias, and function.
+- A failed **lifecycle hook** is logged as `controller lifecycle failed` (rate-limited) with the hook name; recovery logs `controller lifecycle recovered`.
+
+## Full DDJ-400 example
+
+The DDJ-400 needs a Pioneer SysEx at startup to stay in PC MIDI mode, plus pad LEDs, so its bundle ships a script. Here is the same shape, trimmed to the essentials:
+
+`mappings/ddj-400/script.rhai`:
+
+```rhai
+// Forcing SysEx so the unit stays in PC MIDI mode.
+const PC_MODE_SYSEX = [
+    0xF0, 0x00, 0x40, 0x05, 0x00, 0x00, 0x02, 0x06, 0x00, 0x03, 0x01, 0xF7
+];
+
+fn on_init() {
+    midi_out(PC_MODE_SYSEX);
+    // Track-loaded pad lights (0x9F note 0/1); harmless if unsupported.
+    midi_out([0x9F, 0x00, 0x7F]);
+    midi_out([0x9F, 0x01, 0x7F]);
+}
+
+// Keepalive while stopped — re-assert PC MIDI mode.
+fn idle_heartbeat() {
+    midi_out(PC_MODE_SYSEX);
+}
+
+fn on_shutdown() {
+    midi_out([0x9F, 0x00, 0x00]);
+    midi_out([0x9F, 0x01, 0x00]);
+}
+```
+
+The matching `map.toml` block:
+
+```toml
+[lifecycle]
+on_init = "on_init"
+idle_heartbeat = "idle_heartbeat"
+on_shutdown = "on_shutdown"
+```
+
+Line by line:
+
+- `PC_MODE_SYSEX` is a top-level `const`, so both `on_init` and `idle_heartbeat` can send the identical message without duplicating it.
+- `on_init` sends the mode SysEx first, then lights the two pad LEDs with note-on messages on the `0x9F` channel.
+- `idle_heartbeat` re-asserts the same SysEx roughly once a second while the decks are stopped, so the unit does not fall out of PC MIDI mode. The host skips it while a deck is playing.
+- `on_shutdown` clears the two LEDs with note-off (`0x00` velocity).
+
+For the action-catalog side of the same bundle, see [map.toml](/docs/developers/midi-mappings/map-toml).

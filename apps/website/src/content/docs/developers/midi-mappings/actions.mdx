@@ -1,0 +1,310 @@
+---
+title: "Actions & aliases"
+description: "The action id grammar, every deck/mixer/engine/library action, and the closed input alias catalog."
+section: "MIDI Mappings"
+order: 4
+---
+
+This page is the reference for the two vocabularies a mapping uses: **action ids** (the value you assign in `map.toml`) and **input aliases** (the keys of an `[inputs.<section>]` table). They are validated against a closed catalog, so anything not listed here is rejected at load time.
+
+## Action id grammar
+
+An action id is:
+
+```text
+<OriginTemplate>::<leaf>
+<OriginTemplate>::<leaf>(key:value,…)
+```
+
+- The origin and leaf are separated by exactly one `::`.
+- Parentheses are only used when the leaf takes named arguments. A no-arg leaf is written **without** `()`.
+- Named args are comma-separated `key:value` pairs.
+
+The parser rejects:
+
+- a missing `::` (action must be `OriginTemplate::leaf`);
+- an empty origin or leaf;
+- more than one `::`;
+- an unclosed argument list;
+- an empty `()` — omit the parentheses for no-arg leaves instead;
+- an empty argument entry (e.g. a trailing comma), a non `key:value` entry, a duplicate key, an invalid key, or an invalid value.
+
+An argument **key** must be a lowercase identifier (ASCII lowercase, digits, `_`, starting with a letter). An argument **value** is one of:
+
+| Value kind | Example | Notes |
+| --- | --- | --- |
+| Integer | `n:3`, `beats:-2` | Signed integers are allowed. |
+| Float | `beats:0.25` | Must be finite. |
+| Identifier | `mode:loop_roll` | Lowercase identifier. |
+
+## Origin templates
+
+| Template | Meaning |
+| --- | --- |
+| `Deck(_)` | Wildcard: inherits the deck of the enclosing `deck_*` section (`deck_1` → deck 0). Only valid inside a `deck_*` section. |
+| `Deck(n)` | An explicit deck, `n` in `0..=3`. |
+| `Mixer` | The mixer origin. |
+| `Engine` | The engine origin. |
+| `LibraryNavigation` | The library navigation origin. |
+
+`Deck(_)` is bound from the section: in `deck_1` it resolves to deck `0`, in `deck_2` to deck `1`, and so on. Using `Deck(_)` in a section that is not `deck_*` (for example `[inputs.master]`) is an error.
+
+```toml
+[inputs.deck_1]
+# Deck(_) is only legal in a deck_* section; here it binds to deck 0.
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+```
+
+A `Deck(n)` origin can be used anywhere, including `master`, to target a fixed deck:
+
+```toml
+[inputs.master]
+load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
+```
+
+## Deck leaves
+
+Deck leaves apply to `Deck(_)` or `Deck(n)` origins. The **button** leaves fire on the active edge (press); the absolute controls take a `0..1` value; relative controls take a device-decoded tick delta.
+
+### Transport
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `toggle_play` | – | Toggle play/pause. |
+| `play` | – | Start playback. |
+| `pause` | – | Pause playback. |
+| `cue` | – | Set the cue point. |
+| `cue_default` | – | Cue **hold**: begins the cue hold on press, ends it on release. |
+| `begin_cue_hold` | – | Begin cue hold (press). |
+| `end_cue_hold` | – | End cue hold (release). |
+| `toggle_sync` | – | Toggle beat sync. |
+| `set_quantize` | – | Toggle quantize. |
+| `cycle_tempo_range` | – | Cycle the tempo range through 6% → 10% → 16% → 25%. |
+
+### Mixer-per-deck
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `set_volume` | – | Absolute volume `0..1`. |
+| `set_filter` | – | Absolute filter `0..1`. |
+| `set_gain` | – | Absolute gain trim `0..1`. |
+| `set_eq_high` | – | Absolute high EQ `0..1`. |
+| `set_eq_mid` | – | Absolute mid EQ `0..1`. |
+| `set_eq_low` | – | Absolute low EQ `0..1`. |
+| `set_speed` | – | Absolute speed/tempo `0..1`. |
+| `set_headphone_cue` | – | Toggle headphone cue (PFL) for the deck. |
+
+### Jog
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `jog_touch` | – | Report platter touch state (press/release). |
+| `jog_turn` | – | Relative jog turn; consumes a decoded tick delta. |
+
+### Hot cues
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `trigger_hot_cue` | `slot:1+` | Trigger the stored cue in `slot`; if the slot is empty, save one there. |
+| `delete_hot_cue` | `slot:1+` | Delete the cue in `slot`. |
+
+Hot-cue slots are counted from 1. The engine keeps 16 slots per deck, and `slot` is the 1-based index into them.
+
+### Loops / beat jump
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `loop_in` | – | Set the loop in point at the current position. |
+| `loop_out` | – | Set the loop out point at the current position. |
+| `exit_loop` | – | Exit the active loop. |
+| `auto_loop` | `beats:>0` | Set an auto-loop of `beats` beats (positive finite, decimals allowed). |
+| `beat_jump` | `beats:≠0` | Jump by `beats` beats (non-zero finite, signed; decimals allowed). |
+
+### Pads
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `pad_mode` | `mode:hot_cue\|loop_roll\|beat_jump\|sampler\|stems` | Select the deck's pad mode. |
+| `pad` | `n:1+` | Publish a **generic** pad press/release; the engine honors the deck's current pad mode. |
+| `hot_cue_pad` | `n:1+` | Force a **hot-cue** pad press/release regardless of the current pad mode. |
+| `loop_roll_pad` | `n:1+` | Force a **loop-roll** pad press/release. |
+| `beat_jump_pad` | `n:1+` | Force a **beat-jump** pad press/release. |
+| `sampler_pad` | `n:1+` | Force a **sampler** pad press/release. |
+| `trigger_sampler` | `slot:1+` | Sampler pad press/release for `slot` (1-based). |
+
+`pad(n)` and the named `*_pad(n)` leaves differ in intent:
+
+- `pad(n)` publishes the generic pad press/release pair and lets the engine apply whatever pad mode the deck is currently in. Use this for controllers whose pad notes stay the same across hardware modes.
+- `hot_cue_pad(n)`, `loop_roll_pad(n)`, `beat_jump_pad(n)` and `sampler_pad(n)` publish the pad event for a **specific** mode. Use these for controllers (e.g. Pioneer) whose pad note banks differ per hardware page, where the note itself already encodes the mode.
+
+The `n` argument is not capped at eight: any `n:1+` is accepted, and numbered aliases (`pad_<n>`, `hot_cue_<n>`, …) likewise accept any `n ≥ 1`.
+
+### Trigger vs. save
+
+`trigger_hot_cue(slot:1+)` is stateful: if the slot already holds a cue it triggers it, and if the slot is empty it saves the current position there instead.
+
+## Mixer, Engine and Library leaves
+
+### Mixer
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `set_crossfader` | – | Absolute crossfader position `0..1`. |
+| `set_cue_mix` | – | Absolute cue-mix blend `0..1`. |
+| `set_master_cue` | – | Toggle master cue. |
+
+### Engine
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `start_engine` | – | Start the engine. |
+
+### LibraryNavigation
+
+| Leaf | Args | Effect |
+| --- | --- | --- |
+| `navigate` | – | Relative browse: consumes a decoded tick delta. |
+| `navigate_next` | – | Move the library selection forward by one. |
+| `navigate_prev` | – | Move the library selection back by one. |
+| `load_to_deck` | `deck:1+` | Load the focused track into deck `deck` (1-based; deck 1 → index 0). |
+
+```toml
+[inputs.master]
+browse = "LibraryNavigation::navigate"
+load_deck_1 = "LibraryNavigation::load_to_deck(deck:1)"
+load_deck_2 = "LibraryNavigation::load_to_deck(deck:2)"
+```
+
+## Named-arg rules
+
+Argument keys are validated per leaf, and a leaf accepts **exactly** the keys listed for it — extra or missing keys are errors. Leaves not listed here take no arguments, and any argument is rejected (`this leaf does not take arguments`).
+
+| Leaf(s) | Required key | Constraint |
+| --- | --- | --- |
+| `pad`, `hot_cue_pad`, `loop_roll_pad`, `beat_jump_pad`, `sampler_pad` | `n` | Integer `≥ 1`. |
+| `trigger_hot_cue`, `delete_hot_cue`, `trigger_sampler` | `slot` | Integer `≥ 1`. |
+| `load_to_deck` | `deck` | Integer `≥ 1` (1-based). |
+| `auto_loop` | `beats` | Positive finite number. |
+| `beat_jump` | `beats` | Non-zero finite number (may be negative). |
+| `pad_mode` | `mode` | One of the five pad modes. |
+| all other leaves | – | Arguments rejected. |
+
+## Absolute vs. relative leaves
+
+Most leaves are **buttons** (edge-triggered on press, or press/release pairs such as `cue_default`, `jog_touch`, `pad`, `trigger_sampler`). Two categories carry a continuous value instead:
+
+| Category | Leaves | Wire value |
+| --- | --- | --- |
+| Absolute | `set_volume`, `set_filter`, `set_gain`, `set_eq_high`, `set_eq_mid`, `set_eq_low`, `set_crossfader`, `set_cue_mix`, `set_speed` | Normalized `0..1`, clamped. |
+| Relative | `jog_turn`, `navigate` | A decoded tick delta from the device's `relative` mode. |
+
+Absolute leaves default to soft-takeover behavior (and can opt out per binding), which is also why they are the ones you typically pair with `soft_takeover = true` in `map.toml`:
+
+```toml
+[inputs.deck_1]
+volume = { action = "Deck(_)::set_volume", soft_takeover = true }
+tempo  = { action = "Deck(_)::set_speed", soft_takeover = true, invert = true }
+```
+
+See [Binding inputs to actions](/docs/developers/midi-mappings/map-toml) for the `[inputs]` binding form and its per-binding options.
+
+<Callout type="note" title="An alias is not an action">
+An input alias is only a name for a physical control. It is the **action id** you assign to it that decides what happens. In `volume = { action = "Deck(_)::set_volume", soft_takeover = true }`, `volume` is the alias and `Deck(_)::set_volume` is the action.
+</Callout>
+
+## Input alias catalog
+
+Aliases are closed per section: only the names below are accepted in `[inputs.<section>]`. They are also what you use as keys in a `device.toml` input map. Numbered aliases accept any `n ≥ 1`.
+
+### `deck_*`
+
+| Alias | Notes |
+| --- | --- |
+| `play_pause` | |
+| `cue` | |
+| `cue_hold` | |
+| `sync` | |
+| `quantize` | |
+| `volume` | Absolute. |
+| `gain` | Absolute. |
+| `tempo` | Absolute speed. |
+| `tempo_range` | |
+| `eq_high` | Absolute. |
+| `eq_mid` | Absolute. |
+| `eq_low` | Absolute. |
+| `filter` | Absolute. |
+| `jog_touch` | |
+| `jog_turn` | Relative. |
+| `jog_side` | |
+| `jog_touch_shift` | |
+| `jog_search` | |
+| `headphone_cue` | |
+| `hot_cue_1` … `hot_cue_8` | Numbered: any `n ≥ 1`. |
+| `delete_hot_cue_1` … `delete_hot_cue_8` | Numbered: any `n ≥ 1`. |
+| `pad_1` … `pad_8` | Numbered: any `n ≥ 1`. |
+| `loop_pad_1` … `loop_pad_8` | Numbered: any `n ≥ 1`. |
+| `jump_pad_1` … `jump_pad_8` | Numbered: any `n ≥ 1`. |
+| `sampler_pad_1` … `sampler_pad_8` | Numbered: any `n ≥ 1`. |
+| `loop_in` | |
+| `loop_out` | |
+| `exit_loop` | |
+| `auto_loop` | |
+| `auto_loop_1`, `auto_loop_2`, `auto_loop_4`, `auto_loop_8`, `auto_loop_16`, `auto_loop_32` | |
+| `beat_jump_fwd`, `beat_jump_back` | |
+| `beat_jump_fwd_1/2/4/8` | |
+| `beat_jump_back_1/2/4/8` | |
+| `pad_mode_hot_cue` | |
+| `pad_mode_loop_roll` | |
+| `pad_mode_beat_jump` | |
+| `pad_mode_sampler` | |
+| `pad_mode_stems` | |
+
+The numbered aliases (`hot_cue_<n>`, `delete_hot_cue_<n>`, `pad_<n>`, `loop_pad_<n>`, `jump_pad_<n>`, `sampler_pad_<n>`) accept any `n ≥ 1`, not just the values shown.
+
+### `master`
+
+| Alias | Notes |
+| --- | --- |
+| `crossfader` | Absolute. |
+| `cue_mix` | Absolute. |
+| `master_cue` | Button. |
+| `browse` | Relative. |
+| `load_deck_1`, `load_deck_2` | |
+| `headphone_cue_1` … `headphone_cue_4` | |
+
+### `sampler`
+
+| Alias | Notes |
+| --- | --- |
+| `trigger_1` … `trigger_8` | |
+| `end_1` … `end_8` | |
+
+### `custom`
+
+Free-form: any alias name is allowed (modifiers only). This is the one section where the alias catalog is not closed.
+
+<Callout type="warning" title="Legacy pad action">
+The alias `pad_1` still exists, but the action bound to it must be the parameterized form `pad(n:1)`. The old parameterless action `Deck(_)::pad_1` is no longer a known action and is rejected at load time.
+</Callout>
+
+## Pad modes
+
+`pad_mode` and `pad_mode_*` aliases select one of exactly five modes:
+
+| Mode | Meaning |
+| --- | --- |
+| `hot_cue` | Hot-cue pads. |
+| `loop_roll` | Loop-roll pads. |
+| `beat_jump` | Beat-jump pads. |
+| `sampler` | Sampler pads. |
+| `stems` | Stems pads. |
+
+```toml
+[inputs.deck_1]
+pad_mode_hot_cue = "Deck(_)::pad_mode(mode:hot_cue)"
+pad_mode_loop_roll = "Deck(_)::pad_mode(mode:loop_roll)"
+pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
+pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
+```
+
+A `pad_mode` value outside these five is rejected. For the pad-note strategy that pairs with these modes, see the deck leaves above and [Binding inputs to actions](/docs/developers/midi-mappings/map-toml).
