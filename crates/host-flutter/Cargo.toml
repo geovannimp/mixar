@@ -18,6 +18,7 @@ controller = { path = "../controller" }
 library = { path = "../library" }
 library-api = { path = "../library-api" }
 library-core = { path = "../library-core" }
+library-adapters = { path = "../library-adapters" }
 resampler = { path = "../resampler" }
 serde = { workspace = true }
 serde_json = "1.0"
@@ -28,6 +29,7 @@ tracing-log = { workspace = true }
 [dev-dependencies]
 lofty = "0.22"
 tempfile = "3.0"
+rusqlite = { version = "0.38", features = ["bundled"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

@@ -452,6 +452,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SavedLoopInfo> dco_decode_list_saved_loop_info(dynamic raw);
 
   @protected
+  MixxxImportPreview dco_decode_mixxx_import_preview(dynamic raw);
+
+  @protected
+  MixxxImportReport dco_decode_mixxx_import_report(dynamic raw);
+
+  @protected
   String? dco_decode_opt_String(dynamic raw);
 
   @protected
@@ -1035,6 +1041,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<SavedLoopInfo> sse_decode_list_saved_loop_info(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MixxxImportPreview sse_decode_mixxx_import_preview(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  MixxxImportReport sse_decode_mixxx_import_report(
     SseDeserializer deserializer,
   );
 
@@ -1748,6 +1764,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_saved_loop_info(
     List<SavedLoopInfo> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mixxx_import_preview(
+    MixxxImportPreview self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_mixxx_import_report(
+    MixxxImportReport self,
     SseSerializer serializer,
   );
 

@@ -18,7 +18,7 @@ use library_api::{
 };
 use library_core::{
     AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
-    Library,
+    Library, Migratable, MigrateOptions,
 };
 
 use crate::frb_generated::StreamSink;
@@ -289,6 +289,50 @@ impl LibraryBusHandle {
     }
 }
 
+/// Summary of a Mixxx database, used to confirm an import.
+#[derive(Clone, Debug)]
+pub struct MixxxImportPreview {
+    pub db_path: String,
+    pub track_count: u32,
+    pub missing_file_count: u32,
+    pub playlist_count: u32,
+    pub crate_count: u32,
+    pub folder_count: u32,
+}
+
+/// Outcome of importing a Mixxx library.
+#[derive(Clone, Debug)]
+pub struct MixxxImportReport {
+    pub tracks_added: u32,
+    pub tracks_updated: u32,
+    pub tracks_missing_files: u32,
+    pub folders_imported: u32,
+    pub playlists_imported: u32,
+    pub crates_imported: u32,
+    pub collections_skipped: u32,
+    pub failed: u32,
+    pub errors: Vec<String>,
+}
+
+/// Default Mixxx database path for the current OS, when it exists.
+pub fn mixxx_default_database_path() -> Option<String> {
+    library_adapters::default_database_path().map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Read-only summary of a Mixxx database, used to confirm an import.
+pub fn mixxx_import_preview(db_path: String) -> Result<MixxxImportPreview, String> {
+    let library = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+    let preview = library.preview();
+    Ok(MixxxImportPreview {
+        db_path,
+        track_count: preview.track_count as u32,
+        missing_file_count: preview.missing_file_count as u32,
+        playlist_count: preview.playlist_count as u32,
+        crate_count: preview.crate_count as u32,
+        folder_count: preview.folder_count as u32,
+    })
+}
+
 /// Host-owned library handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct LibraryTransport {
@@ -491,6 +535,34 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         collection_summary(&lib, collection)
+    }
+
+    /// Import a Mixxx library at `db_path` into this transport's manager.
+    ///
+    /// Reads the Mixxx database outside the manager lock, then migrates into the
+    /// user's one library. Missing files are imported as unavailable tracks.
+    pub fn import_mixxx_library(&self, db_path: String) -> Result<MixxxImportReport, String> {
+        let mixxx = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+        let report = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            mixxx
+                .migrate(&mut *lib, &MigrateOptions::default())
+                .map_err(|e| e.to_string())?
+        };
+        Ok(MixxxImportReport {
+            tracks_added: report.tracks_added as u32,
+            tracks_updated: report.tracks_updated as u32,
+            tracks_missing_files: report.tracks_missing_files as u32,
+            folders_imported: report.folders_imported as u32,
+            playlists_imported: report.playlists_imported as u32,
+            crates_imported: report.crates_imported as u32,
+            collections_skipped: report.collections_skipped as u32,
+            failed: report.failed as u32,
+            errors: report.errors,
+        })
     }
 
     /// Resolve library tracks for the given filesystem paths.
