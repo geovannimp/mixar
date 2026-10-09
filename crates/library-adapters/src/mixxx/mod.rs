@@ -6,18 +6,21 @@
 //! [`library_core::Migratable`] to copy the whole library into the user’s
 //! canonical manager.
 
+mod convert;
 mod schema;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use library_core::{
     camelot_to_musical, AudioSource, Collection, CollectionConfig, CollectionEntry,
-    CollectionEntryId, CollectionId, FileAudioSource, Library, LibraryError, Result, TrackId,
-    TrackMetadata,
+    CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library, LibraryError,
+    Migratable, MigrateOptions, MigrateReport, NewCollection, Result, TrackId, TrackMetadata,
+    WritableLibrary,
 };
 use rusqlite::{Connection, OpenFlags};
 
+use convert::path_under_folder;
 use schema::{backend, LibrarySchema};
 
 /// A track row loaded from the Mixxx `library` table.
@@ -199,7 +202,7 @@ impl Library for MixxxLibrary {
             return Ok(self
                 .tracks
                 .iter()
-                .filter(|track| track.path.starts_with(folder))
+                .filter(|track| path_under_folder(&track.path, folder))
                 .map(|track| self.source(track))
                 .collect());
         }
@@ -239,6 +242,129 @@ impl Library for MixxxLibrary {
                 position: list.sortable.then_some(index as i32),
             })
             .collect())
+    }
+}
+
+impl Migratable for MixxxLibrary {
+    fn migrate(
+        &self,
+        target: &mut dyn WritableLibrary,
+        options: &MigrateOptions,
+    ) -> Result<MigrateReport> {
+        let mut report = MigrateReport::default();
+
+        // Import every loaded track once, remembering the target id per Mixxx id.
+        let mut target_ids: HashMap<i64, TrackId> = HashMap::with_capacity(self.tracks.len());
+        for track in &self.tracks {
+            match target.import_track(&track.path, &track.metadata) {
+                Ok(imported) => {
+                    if imported.created {
+                        report.tracks_added += 1;
+                    } else {
+                        report.tracks_updated += 1;
+                    }
+                    if !track.path.is_file() {
+                        report.tracks_missing_files += 1;
+                    }
+                    target_ids.insert(track.library_id, imported.source.id().clone());
+                }
+                Err(err) => {
+                    report.failed += 1;
+                    report
+                        .errors
+                        .push(format!("{}: {err}", track.path.display()));
+                }
+            }
+        }
+
+        // Seed existing list names so re-running does not duplicate them (and so
+        // two same-named source lists do not both import).
+        let mut existing: HashSet<(String, bool)> = HashSet::new();
+        if options.skip_existing_lists {
+            for collection in target.list_collections()? {
+                if collection.collection_type() == CollectionType::Playlist {
+                    existing.insert((collection.name.trim().to_string(), collection.sortable()));
+                }
+            }
+        }
+
+        if options.include_folders {
+            for (_, path) in &self.folders {
+                if !path.is_dir() {
+                    report.failed += 1;
+                    report
+                        .errors
+                        .push(format!("watched directory missing: {}", path.display()));
+                    continue;
+                }
+                match target.add_collection(&NewCollection::folder(path)) {
+                    Ok(_) => report.folders_imported += 1,
+                    Err(err) => {
+                        report.failed += 1;
+                        report.errors.push(format!("{}: {err}", path.display()));
+                    }
+                }
+            }
+        }
+
+        let mut lists: Vec<(&Collection, &Vec<i64>, bool)> = self
+            .lists
+            .iter()
+            .filter_map(|(id, list)| {
+                self.collections
+                    .iter()
+                    .find(|collection| collection.id.as_str() == id)
+                    .map(|collection| (collection, &list.members, list.sortable))
+            })
+            .collect();
+        lists.sort_by_key(|a| a.0.name.to_lowercase());
+
+        for (collection, members, sortable) in lists {
+            let include = if sortable {
+                options.include_playlists
+            } else {
+                options.include_crates
+            };
+            if !include {
+                continue;
+            }
+
+            let key = (collection.name.trim().to_string(), sortable);
+            if options.skip_existing_lists && !existing.insert(key) {
+                report.collections_skipped += 1;
+                continue;
+            }
+
+            let created = match target
+                .add_collection(&NewCollection::playlist(collection.name.trim(), sortable))
+            {
+                Ok(created) => created,
+                Err(err) => {
+                    report.failed += 1;
+                    report.errors.push(format!("{}: {err}", collection.name));
+                    continue;
+                }
+            };
+
+            for (position, library_id) in members.iter().enumerate() {
+                let Some(track_id) = target_ids.get(library_id) else {
+                    continue;
+                };
+                let position = sortable.then_some(position as i32);
+                if let Err(err) = target.add_collection_entry(&created.id, track_id, position) {
+                    report.failed += 1;
+                    report.errors.push(format!("{}: {err}", collection.name));
+                }
+            }
+
+            if sortable {
+                report.playlists_imported += 1;
+            } else {
+                report.crates_imported += 1;
+            }
+        }
+
+        Ok(report)
     }
 }
 

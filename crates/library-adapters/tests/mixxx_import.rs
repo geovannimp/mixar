@@ -2,8 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
+use library::{LibraryConfig, LibraryManager};
 use library_adapters::MixxxLibrary;
-use library_core::{CollectionType, Library, TrackId};
+use library_core::{CollectionType, Library, Migratable, MigrateOptions, TrackId};
 use rusqlite::{params, Connection};
 
 struct Fixture {
@@ -244,4 +245,72 @@ fn camelot_key_normalized_to_musical() {
         .unwrap()
         .is_none());
     let _ = &fixture.folder;
+}
+
+#[test]
+fn migrate_imports_tracks_lists_and_missing_files() {
+    let fixture = build_fixture();
+    let mixxx = MixxxLibrary::open(&fixture.db_path).unwrap();
+    let mut target = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+
+    let report = mixxx
+        .migrate(&mut target, &MigrateOptions::default())
+        .unwrap();
+    assert_eq!(report.tracks_added, 2);
+    assert_eq!(report.tracks_missing_files, 1);
+    assert_eq!(report.folders_imported, 1);
+    assert_eq!(report.playlists_imported, 1);
+    assert_eq!(report.crates_imported, 1);
+    assert_eq!(report.failed, 0, "errors: {:?}", report.errors);
+
+    let collections = target.list_collections().unwrap();
+    let names: Vec<&str> = collections.iter().map(|c| c.name.as_str()).collect();
+    assert!(names.contains(&"Warmup"));
+    assert!(names.contains(&"Favs"));
+    assert!(
+        !names.contains(&"AutoDJ"),
+        "hidden playlist must not migrate"
+    );
+
+    let warmup = collections.iter().find(|c| c.name == "Warmup").unwrap();
+    let tracks = target.list_collection_tracks(&warmup.id).unwrap();
+    assert_eq!(tracks.len(), 2);
+    assert_eq!(tracks[0].metadata().title.as_deref(), Some("Missing"));
+    assert_eq!(tracks[1].metadata().title.as_deref(), Some("Present"));
+    // The missing-file track is present in the target pool (path recorded).
+    assert!(target.get_track(tracks[0].id()).unwrap().is_some());
+
+    let entries = target.list_collection_entries(&warmup.id).unwrap();
+    assert_eq!(entries[0].position, Some(0));
+    assert_eq!(entries[1].position, Some(1));
+}
+
+#[test]
+fn migrate_is_idempotent_for_lists() {
+    let fixture = build_fixture();
+    let mixxx = MixxxLibrary::open(&fixture.db_path).unwrap();
+    let mut target = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+
+    let first = mixxx
+        .migrate(&mut target, &MigrateOptions::default())
+        .unwrap();
+    assert_eq!(first.playlists_imported, 1);
+    assert_eq!(first.crates_imported, 1);
+
+    let second = mixxx
+        .migrate(&mut target, &MigrateOptions::default())
+        .unwrap();
+    assert_eq!(second.playlists_imported, 0);
+    assert_eq!(second.crates_imported, 0);
+    assert_eq!(second.collections_skipped, 2);
+    assert_eq!(second.tracks_added, 0);
+    assert_eq!(second.tracks_updated, 2);
+
+    let playlists = target
+        .list_collections()
+        .unwrap()
+        .into_iter()
+        .filter(|c| c.collection_type() == CollectionType::Playlist)
+        .collect::<Vec<_>>();
+    assert_eq!(playlists.len(), 2, "no duplicate playlists/crates");
 }
