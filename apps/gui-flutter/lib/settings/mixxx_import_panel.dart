@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
@@ -9,7 +8,22 @@ import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
+/// Path to the user's Mixxx database, or `null` when none is found.
+///
+/// The adapter probes the platform's default Mixxx location; a failure to
+/// resolve (e.g. no host bridge in tests) degrades to "not found" rather than
+/// surfacing an error.
+final mixxxDatabasePathProvider = FutureProvider<String?>((ref) async {
+  try {
+    return await mixxxDefaultDatabasePath();
+  } on Object {
+    return null;
+  }
+});
+
 /// Settings → Library: import tracks, playlists, and crates from Mixxx.
+///
+/// The database is auto-detected; the action stays disabled until one is found.
 class MixxxImportPanel extends ConsumerStatefulWidget {
   const new({super.key});
 
@@ -20,16 +34,7 @@ class MixxxImportPanel extends ConsumerStatefulWidget {
 class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   var _busy = false;
 
-  Future<void> _run() async {
-    var path = await mixxxDefaultDatabasePath();
-    if (!mounted) {
-      return;
-    }
-    path ??= await _pickDatabase();
-    if (path == null || !mounted) {
-      return;
-    }
-
+  Future<void> _run(String path) async {
     final MixxxImportPreview preview;
     try {
       preview = await mixxxImportPreview(dbPath: path);
@@ -90,19 +95,6 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
     }
   }
 
-  Future<String?> _pickDatabase() async {
-    final result = await FilePicker.pickFiles(
-      dialogTitle: 'Select mixxxdb.sqlite',
-      type: FileType.custom,
-      allowedExtensions: const ['sqlite', 'db'],
-    );
-    final files = result?.files;
-    if (files == null || files.isEmpty) {
-      return null;
-    }
-    return files.first.path;
-  }
-
   String _summary(MixxxImportReport report) {
     final imported =
         report.tracksAdded +
@@ -136,6 +128,15 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final database = ref.watch(mixxxDatabasePathProvider);
+    final dbPath = database.asData?.value;
+    final status = dbPath != null
+        ? 'Found: $dbPath'
+        : database.isLoading
+        ? 'Looking for a Mixxx library…'
+        : 'No Mixxx library found on this computer.';
+    final onPress = !_busy && dbPath != null ? () => _run(dbPath) : null;
+
     return SettingsPanel(
       child: Row(
         spacing: 16,
@@ -152,9 +153,15 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
                   ),
                 ),
                 Text(
-                  'Bring tracks, playlists, and crates from a Mixxx '
-                  'mixxxdb.sqlite into your library.',
+                  'Bring tracks, playlists, and crates from your Mixxx '
+                  'library into Mixar.',
                   style: theme.typography.body.sm.copyWith(
+                    color: theme.colors.mutedForeground,
+                  ),
+                ),
+                Text(
+                  status,
+                  style: theme.typography.body.xs.copyWith(
                     color: theme.colors.mutedForeground,
                   ),
                 ),
@@ -163,7 +170,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
           ),
           AppButton(
             size: MixarButtonSize.sm,
-            onPress: _busy ? null : _run,
+            onPress: onPress,
             child: Text(_busy ? 'Importing…' : 'Import from Mixxx library…'),
           ),
         ],

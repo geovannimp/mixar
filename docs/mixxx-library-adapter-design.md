@@ -266,17 +266,17 @@ impl LibraryTransport {
 
 - New `apps/gui-flutter/lib/settings/mixxx_import_panel.dart`
   (`ConsumerStatefulWidget`, modeled on `SettingsStoragePanel`): a
-  `SettingsPanel` with a title, explanation, a primary
-  **"Import from Mixxx library…"** button, and a busy spinner.
-  Flow:
-  1. Ask the host for the default DB path.
-  2. If unavailable, `FilePicker.pickFiles` for `mixxxdb.sqlite`
-     (`allowedExtensions: ['sqlite', 'db']`).
-  3. `mixxxImportPreview` and `showMixarConfirm` showing track / playlist / crate
+  `SettingsPanel` with a title, explanation, a status line, a primary
+  **"Import from Mixxx library…"** button, and a busy state.
+  The Mixxx database is auto-detected via `mixxx_default_database_path`;
+  **the button is disabled until one is found** (no file picker). Flow:
+  1. A `mixxxDatabasePathProvider` resolves the host's default DB path
+     (errors degrade to "not found").
+  2. `mixxxImportPreview` and `showMixarConfirm` showing track / playlist / crate
      / missing-file counts, noting that missing files import as unavailable.
-  4. `importMixxxLibrary`, then `ref.invalidate(collectionsProvider)` and
+  3. `importMixxxLibrary`, then `ref.invalidate(collectionsProvider)` and
      `ref.invalidate(collectionTracksProvider)`.
-  5. `showMixarToast` with a summary, or a destructive toast on failure.
+  4. `showMixarToast` with a summary, or a destructive toast on failure.
 - Insert `const MixxxImportPanel()` into `settings_library_panel.dart`.
 
 Widgets never call raw host invoke/listen; all I/O goes through
