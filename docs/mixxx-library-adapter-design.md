@@ -204,17 +204,25 @@ configured notation; this is documented as lossy.
 
 ### 4.5 `migrate`
 
-1. Load the full Mixxx track index once (`library_id → (path, metadata)`).
-2. Optionally import folders: for each existing watched directory,
-   `target.add_collection(NewCollection::folder(path))`, then import the tracks
-   under that path. Missing directories are skipped and counted.
-3. For each visible playlist (sortable) / crate (unsortable):
+1. Import every loaded track once (`import_track`), remembering its target id;
+   tracks absent from disk are still imported and counted in
+   `tracks_missing_files`.
+2. Optionally register folders: for each existing watched directory,
+   `target.add_collection(NewCollection::folder(path))`. Missing directories are
+   counted as failures. (Folder tracks are already in the pool and resolve by
+   path prefix.)
+3. **Catch-all:** ensure an unsortable playlist named `Mixxx` exists and add
+   every imported track to it. Membership is set-like (the manager upserts), so
+   re-imports merge newly added tracks instead of duplicating or losing them.
+   Since tracks are only reachable through a collection, this guarantees no
+   imported track is orphaned. It is created even when folders, playlists, or
+   crates are excluded.
+4. For each visible playlist (sortable) / crate (unsortable):
    - If `skip_existing_lists` and a target collection with the same trimmed name
      and same `sortable` exists — including one created earlier in this run
      (in-run set seeded from the target) — skip it (`collections_skipped`).
    - Otherwise `add_collection`, then `add_collection_entry` per member in order
      (position for playlists, `None` for crates).
-4. Tracks absent from disk are still imported; `tracks_missing_files` counts them.
 5. Per-item errors are pushed to `errors` and `failed`, never aborting the run.
 6. `import_track` upserts by path, so a track shared by several lists is imported
    once and referenced by each.
@@ -322,3 +330,6 @@ Widgets never call raw host invoke/listen; all I/O goes through
   real directory in the manager).
 - Re-running an import is idempotent at the list level (`skip_existing_lists`);
   tracks upsert by path and folder collections dedupe by path.
+- Every imported track is added to a catch-all unsortable playlist named
+  `Mixxx`, so tracks not named by any Mixxx playlist/crate/folder stay reachable;
+  re-imports merge new tracks into it.

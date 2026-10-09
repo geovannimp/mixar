@@ -126,7 +126,7 @@ fn import_mixxx_library_through_transport() {
         .unwrap();
     assert_eq!(report.tracks_added, 2);
     assert_eq!(report.tracks_missing_files, 1);
-    assert_eq!(report.playlists_imported, 1);
+    assert_eq!(report.playlists_imported, 2);
     assert_eq!(report.crates_imported, 1);
     assert_eq!(report.failed, 0, "errors: {:?}", report.errors);
 

@@ -259,7 +259,7 @@ fn migrate_imports_tracks_lists_and_missing_files() {
     assert_eq!(report.tracks_added, 2);
     assert_eq!(report.tracks_missing_files, 1);
     assert_eq!(report.folders_imported, 1);
-    assert_eq!(report.playlists_imported, 1);
+    assert_eq!(report.playlists_imported, 2);
     assert_eq!(report.crates_imported, 1);
     assert_eq!(report.failed, 0, "errors: {:?}", report.errors);
 
@@ -271,6 +271,20 @@ fn migrate_imports_tracks_lists_and_missing_files() {
         !names.contains(&"AutoDJ"),
         "hidden playlist must not migrate"
     );
+
+    // Every imported track is reachable via the catch-all "Mixxx" collection.
+    let mixxx = collections
+        .iter()
+        .find(|c| c.name == "Mixxx")
+        .expect("catch-all Mixxx collection");
+    let mixxx_tracks = target.list_collection_tracks(&mixxx.id).unwrap();
+    assert_eq!(mixxx_tracks.len(), 2);
+    assert!(mixxx_tracks
+        .iter()
+        .any(|track| track.metadata().title.as_deref() == Some("Missing")));
+    assert!(mixxx_tracks
+        .iter()
+        .any(|track| track.metadata().title.as_deref() == Some("Present")));
 
     let warmup = collections.iter().find(|c| c.name == "Warmup").unwrap();
     let tracks = target.list_collection_tracks(&warmup.id).unwrap();
@@ -309,7 +323,7 @@ fn migrate_is_idempotent_for_lists() {
     let first = mixxx
         .migrate(&mut target, &MigrateOptions::default())
         .unwrap();
-    assert_eq!(first.playlists_imported, 1);
+    assert_eq!(first.playlists_imported, 2);
     assert_eq!(first.crates_imported, 1);
 
     let second = mixxx
@@ -331,7 +345,16 @@ fn migrate_is_idempotent_for_lists() {
         .into_iter()
         .filter(|c| c.collection_type() == CollectionType::Playlist)
         .collect::<Vec<_>>();
-    assert_eq!(playlists.len(), 2, "no duplicate playlists/crates");
+    assert_eq!(playlists.len(), 3, "no duplicate playlists/crates");
+    assert_eq!(
+        playlists.iter().filter(|c| c.name == "Mixxx").count(),
+        1,
+        "the catch-all is reused, not recreated"
+    );
+
+    // Re-running keeps the catch-all complete without duplicating entries.
+    let mixxx = playlists.iter().find(|c| c.name == "Mixxx").unwrap();
+    assert_eq!(target.list_collection_tracks(&mixxx.id).unwrap().len(), 2);
 }
 
 #[test]

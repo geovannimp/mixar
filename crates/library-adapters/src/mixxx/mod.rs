@@ -23,6 +23,9 @@ use rusqlite::{Connection, OpenFlags};
 use convert::path_under_folder;
 use schema::{backend, LibrarySchema};
 
+/// Name of the catch-all collection that holds every imported Mixxx track.
+const CATCH_ALL_NAME: &str = "Mixxx";
+
 /// A track row loaded from the Mixxx `library` table.
 #[derive(Clone, Debug)]
 pub(crate) struct MixxxTrack {
@@ -258,7 +261,8 @@ impl Migratable for MixxxLibrary {
         // idempotent.
         let mut existing_folder_ids: HashSet<String> = HashSet::new();
         let mut existing_lists: HashSet<(String, bool)> = HashSet::new();
-        for collection in target.list_collections()? {
+        let existing_collections = target.list_collections()?;
+        for collection in &existing_collections {
             match collection.collection_type() {
                 CollectionType::Folder => {
                     existing_folder_ids.insert(collection.id.as_str().to_string());
@@ -314,6 +318,43 @@ impl Migratable for MixxxLibrary {
                     Err(err) => {
                         report.failed += 1;
                         report.errors.push(format!("{}: {err}", path.display()));
+                    }
+                }
+            }
+        }
+
+        // Tracks are only reachable through a collection, so every imported
+        // track also goes into a catch-all "Mixxx" playlist (a set, so re-runs
+        // merge instead of duplicating). This is created even when playlists,
+        // crates, or folders are excluded, so nothing is lost.
+        if !target_ids.is_empty() {
+            let catch_all_id: Option<CollectionId> =
+                match existing_collections.iter().find(|collection| {
+                    collection.collection_type() == CollectionType::Playlist
+                        && !collection.sortable()
+                        && collection.name.trim() == CATCH_ALL_NAME
+                }) {
+                    Some(existing) => Some(existing.id.clone()),
+                    None => match target
+                        .add_collection(&NewCollection::playlist(CATCH_ALL_NAME, false))
+                    {
+                        Ok(created) => {
+                            existing_lists.insert((CATCH_ALL_NAME.to_string(), false));
+                            report.playlists_imported += 1;
+                            Some(created.id)
+                        }
+                        Err(err) => {
+                            report.failed += 1;
+                            report.errors.push(format!("{CATCH_ALL_NAME}: {err}"));
+                            None
+                        }
+                    },
+                };
+            if let Some(catch_all_id) = catch_all_id {
+                for track_id in target_ids.values() {
+                    if let Err(err) = target.add_collection_entry(&catch_all_id, track_id, None) {
+                        report.failed += 1;
+                        report.errors.push(format!("{CATCH_ALL_NAME}: {err}"));
                     }
                 }
             }
