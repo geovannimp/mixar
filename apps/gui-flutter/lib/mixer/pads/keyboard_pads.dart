@@ -3,7 +3,7 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart' show DeckHotCue;
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
-import 'package:gui_flutter/mixer/pads/pitch_page_bar.dart';
+import 'package:gui_flutter/mixer/pads/pad_page_pagination.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Keyboard pad mode: eight hold pads playing the semitone [page] relative to
@@ -45,9 +45,9 @@ class KeyboardPads extends StatelessWidget {
         _rootSelector(context),
         Expanded(
           child: PadGrid(
-            bottomChrome: PitchPageBar(
+            bottomChrome: pitchPagePagination(
               page: page,
-              onPrev: onPrevPage,
+              onPrevious: onPrevPage,
               onNext: onNextPage,
               disabled: disabled,
             ),

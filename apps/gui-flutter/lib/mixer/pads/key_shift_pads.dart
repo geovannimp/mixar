@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
-import 'package:gui_flutter/mixer/pads/pitch_page_bar.dart';
+import 'package:gui_flutter/mixer/pads/pad_page_pagination.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Key Shift pad mode: eight latch pads for the semitone [page].
@@ -33,9 +33,9 @@ class KeyShiftPads extends StatelessWidget {
     final theme = context.theme;
     final pads = pitchPage(page);
     return PadGrid(
-      bottomChrome: PitchPageBar(
+      bottomChrome: pitchPagePagination(
         page: page,
-        onPrev: onPrevPage,
+        onPrevious: onPrevPage,
         onNext: onNextPage,
         disabled: disabled,
       ),

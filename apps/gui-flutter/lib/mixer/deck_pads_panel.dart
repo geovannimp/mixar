@@ -221,7 +221,7 @@ class DeckPadsPanel extends StatelessWidget {
   /// Keyboard / Key Shift body with a read-only result key above the grid.
   ///
   /// The semitone page control lives in the grid's bottom chrome
-  /// (`PitchPageBar`), matching the sampler bank bar.
+  /// (`PadPagePagination`), matching the sampler bank bar.
   Widget _keyedBody(BuildContext context, Widget child) {
     final theme = context.theme;
     return Column(
