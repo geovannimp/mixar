@@ -46,7 +46,6 @@ class KeyboardPads extends StatelessWidget {
     final pads = keyboardPage(page);
     return PadGrid(
       bottomChrome: pitchPagePagination(
-        page: page,
         count: kKeyboardPageCount,
         label: keyboardPageRangeLabel(page),
         onPrevious: onPrevPage,

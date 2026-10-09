@@ -34,7 +34,6 @@ class KeyShiftPads extends StatelessWidget {
     final pads = keyShiftPage(page);
     return PadGrid(
       bottomChrome: pitchPagePagination(
-        page: page,
         count: kKeyShiftPageCount,
         label: keyShiftPageRangeLabel(page),
         onPrevious: onPrevPage,

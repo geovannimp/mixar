@@ -109,7 +109,6 @@ class PadPagePagination extends StatelessWidget {
 /// Thin wrapper over [PadPagePagination] with the shared page label and
 /// semantic labels.
 PadPagePagination pitchPagePagination({
-  required int page,
   required int count,
   required String label,
   required VoidCallback onPrevious,
