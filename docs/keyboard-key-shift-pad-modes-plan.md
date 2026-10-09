@@ -3,12 +3,17 @@
 > **Correction (#298, 2026-10-08):** The original plan (below, Tasks 2–6) assumed a
 > per-scale Keyboard model (`major` / `minor` / `pentatonic` degree tables) and a
 > fixed Key Shift layout. That model was wrong for Rekordbox. The shipped model is
-> **chromatic and page-based**: five shared semitone pages, slot 0 = pad 1 = root,
-> page 2 `[0..+7]` default, Keyboard root = the selected hot cue, and no scale
-> state anywhere. Tasks 2, 3, and 5 below are corrected to that model; Task 1
-> (realtime pitch) is unchanged. See `docs/keyboard-key-shift-pad-modes-design.md`
-> for the authoritative page tables (DDJ-400 footnote *6; rekordbox 7 manual
-> p164–165).
+> **chromatic and page-based**: slot 0 = pad 1 = root, page 2 `[0..+7]` default,
+> Keyboard root = the selected hot cue, and no scale state anywhere.
+>
+> **Refinement (#298, 2026-10-09):** the page tables are now split per mode.
+> **Keyboard is 4 pitch-only pages**; **Key Shift is 5** (pages 1–4 shared plus a
+> Reset/Up/Down/Sync utility page). The page bar labels each page by semitone
+> range (`+8…+12`, `0…+7`, `-1…-8`, `-9…-12`, `UTIL`) instead of `PAGE n/5`, and
+> Keyboard's page switch wraps `4 → 1` while Key Shift's wraps `5 → 1`. Tasks 2,
+> 3, and 5 below are corrected to that model; Task 1 (realtime pitch) is
+> unchanged. See `docs/keyboard-key-shift-pad-modes-design.md` for the
+> authoritative page tables (DDJ-400 footnote *6; rekordbox 7 manual p164–165).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -149,7 +154,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
   - `PadMode::Keyboard`, `PadMode::KeyShift`.
   - `Kind::KeyboardPadPress/Release`, `Kind::KeyShiftPadPress/Release`.
   - `Engine::keyboard_pad_press(deck, slot, shift)`, `keyboard_pad_release(deck, slot)`, `key_shift_pad_press(deck, slot, shift)`, `key_shift_pad_release(deck, slot)`.
-  - `PITCH_PAGE_COUNT`, `DEFAULT_PITCH_PAGE`, `PITCH_PAGES`, `PitchPadAction`, `pad_page_action(page, slot)`, `pitch_page_next/prev`.
+  - `KEYBOARD_PAGE_COUNT`, `KEY_SHIFT_PAGE_COUNT`, `DEFAULT_PITCH_PAGE`, the `KEYBOARD_PAGES` / `KEY_SHIFT_PAGES` tables, `PitchPadAction`, `keyboard_page_action(page, slot)` / `key_shift_page_action(page, slot)`, `keyboard_page_next/prev`, `key_shift_page_next/prev`.
 
 - [ ] **Step 1: Write the failing engine-core test.** Build a null session with a loaded track and hot cues; then:
   - page 2 default: `KeyShiftPadPress slot 2 → key_shift == 2.0`; shift slot 6 → page 3; shift slot 7 → page 2.
@@ -161,7 +166,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 - [ ] **Step 2: Run to verify failure** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_pad_modes_kb_keyshift`. Expected: FAIL.
 
 - [ ] **Step 3: Implement pad modes and handlers.**
-  - `pads.rs`: `PITCH_PAGE_COUNT = 5`, `DEFAULT_PITCH_PAGE = 2`, `PitchPadAction { Semitone(i8), KeyReset, SemitoneUp, SemitoneDown, KeySync, None }`, the five `PITCH_PAGES` tables, `pad_page_action`, `pitch_page_next/prev`.
+  - `pads.rs`: `KEYBOARD_PAGE_COUNT = 4`, `KEY_SHIFT_PAGE_COUNT = 5`, `DEFAULT_PITCH_PAGE = 2`, `PitchPadAction { Semitone(i8), KeyReset, SemitoneUp, SemitoneDown, KeySync, None }`, the `KEYBOARD_PAGES` (4, pitch-only) / `KEY_SHIFT_PAGES` (5, with the utility page) tables, `keyboard_page_action` / `key_shift_page_action`, and the per-mode `keyboard_page_next|prev` / `key_shift_page_next|prev`.
   - `engine-core`: `pad_press` dispatches Keyboard/KeyShift; `key_shift_pad_press` applies the page action (shift bank: slot 6 next page, slot 7 prev); `keyboard_pad_press` uses the root hot cue, applies the page semitone (momentary), seeks to the root and plays (shift bank: slots 0–5 delete hot cue, 6/7 switch page); `keyboard_pad_release` gates off (fallback to another held pad, else restore pre-press shift and seek back to the root).
   - `control.rs`: dispatch the four kinds to the handlers (`CmdOutcome::DeckUpdated`).
 
@@ -224,10 +229,10 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 - [ ] **Step 3: Regenerate FRB and wire the Rust host.** `host-flutter/src/api/engine.rs`: add `set_keyboard_root` / `set_keyboard_page` / `set_key_shift_page` transport methods; extend `EngineEvt` and its `DeckUpdated` / `EngineStatus` mapping with `keyboard_page` / `key_shift_page` / `keyboard_root_hot_cue` (following the `key_lock` field). Run `moon run gui-flutter:generate`; confirm the generated Dart has `keyboardPage`/`keyShiftPage`/`keyboardRootHotCue` and no `pitchPage`, plus the two page setters.
 
 - [ ] **Step 4: Implement the Flutter surface.**
-  - `pad_modes.dart`: `kPadModes` includes `keyboard`, `keyShift`; labels `Keys` / `Shift`; `kPitchPageCount` / `kDefaultPitchPage`; the `PitchPad` value type and `kPitchPages` tables; `pitchPage(page)` / `pitchPadLabel(pad)`.
-  - `key_shift_pads.dart`: `KeyShiftPads({ required int page, required int activeSemitones, required ValueChanged<int> onPress, bool disabled })` — 8 pads labelled from `kPitchPages[page-1]`, active highlight on the matching absolute semitone (page-5 specials never highlight).
+  - `pad_modes.dart`: `kPadModes` includes `keyboard`, `keyShift`; labels `Keys` / `Shift`; `kKeyboardPageCount` (4) / `kKeyShiftPageCount` (5) / `kDefaultPitchPage`; the `PitchPad` value type and `kKeyboardPages` / `kKeyShiftPages` tables; `keyboardPage(page)` / `keyShiftPage(page)` / `keyboardPageRangeLabel(page)` / `keyShiftPageRangeLabel(page)` / `pitchPadLabel(pad)`.
+  - `key_shift_pads.dart`: `KeyShiftPads({ required int page, required int activeSemitones, required ValueChanged<int> onPress, bool disabled })` — 8 pads labelled from `kKeyShiftPages[page-1]`, active highlight on the matching absolute semitone (page-5 specials never highlight).
   - `keyboard_pads.dart`: `KeyboardPads({ required int page, required int rootHotCue, required List<DeckHotCue> hotCues, required ValueChanged<int> onSelectRoot, required ValueChanged<int> onPress, required ValueChanged<int> onRelease, bool disabled })` — 8 `HoldPadButton`s plus an 8-chip root selector (empty slots disabled).
-  - `deck_pads_panel.dart`: constructor gains `keyboardPage` / `keyShiftPage`, `keyboardRootHotCue`, `onSelectRoot`, `onPrevPage` / `onNextPage`; the Keyboard grid uses `keyboardPage`, the Key Shift grid uses `keyShiftPage`; a tappable `PAGE n/5` indicator.
+  - `deck_pads_panel.dart`: constructor gains `keyboardPage` / `keyShiftPage`, `keyboardRootHotCue`, `onSelectRoot`, `onPrevPage` / `onNextPage`; the Keyboard grid uses `keyboardPage`, the Key Shift grid uses `keyShiftPage`; a range-labelled page bar (`0…+7`, `UTIL`, …).
   - `deck_pads_host.dart`: `_toEnginePadMode` cases; watch `deckKeyboardPageProvider` / `deckKeyShiftPageProvider` / `deckKeyboardRootProvider`; wire `onSelectRoot` → `setKeyboardRoot` and the page callbacks → `setKeyboardPage` or `setKeyShiftPage` based on the current `padMode`.
   - `engine_ui.dart` / `engine_providers.dart`: `keyboardPages` / `keyShiftPages` / `keyboardRoots` maps + `copyWith` + providers + `applyEngineEvt` handling (mirror the `keyLocks` pattern); each mode's page applies independently.
   - Deck key display: show the resulting key read-only (analyzed key + `keyShiftSemitones`), never persisted.

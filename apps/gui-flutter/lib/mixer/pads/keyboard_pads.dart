@@ -43,10 +43,12 @@ class KeyboardPads extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final pads = pitchPage(page);
+    final pads = keyboardPage(page);
     return PadGrid(
       bottomChrome: pitchPagePagination(
         page: page,
+        count: kKeyboardPageCount,
+        label: keyboardPageRangeLabel(page),
         onPrevious: onPrevPage,
         onNext: onNextPage,
         centerAccessory: _rootChip(context),

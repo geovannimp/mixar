@@ -31,10 +31,12 @@ class KeyShiftPads extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
-    final pads = pitchPage(page);
+    final pads = keyShiftPage(page);
     return PadGrid(
       bottomChrome: pitchPagePagination(
         page: page,
+        count: kKeyShiftPageCount,
+        label: keyShiftPageRangeLabel(page),
         onPrevious: onPrevPage,
         onNext: onNextPage,
         disabled: disabled,

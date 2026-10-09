@@ -26,13 +26,13 @@ non-goal). Key lock only *holds* pitch while tempo changes.
 | Topic | Choice |
 |-------|--------|
 | Pitch DSP | Realtime pitch factor in `crates/stretch`: keylock-stretch at `tempo/pitch` + `StreamingSincResampler` output stage (see math below) |
-| Semitone pages | Both modes share five pages; slot 0 = pad 1 = root. Page 2 `[0..+7]` is the default (DDJ-400 footnote *6; rekordbox 7 manual p164–165) |
+| Semitone pages | Keyboard is 4 pitch-only pages; Key Shift is 5 (pages 1–4 shared + a Reset/Up/Down/Sync utility page). Slot 0 = pad 1 = root; page 2 `[0..+7]` is the default in both (DDJ-400 footnote *6; rekordbox 7 manual p164–165) |
 | Key Shift pads | Press applies the page action and latches it (absolute semitones, RESET, UP, DOWN); SYNC is a no-op |
-| Key Shift page switch | Shift bank (`ch 9/11`) slot 7 → next page, slot 8 → previous page (wrapping); other slots no-op |
+| Key Shift page switch | Shift bank (`ch 9/11`) slot 7 → next page, slot 8 → previous page (wrapping `5 → 1`); other slots no-op |
 | Keyboard root | The selected hot cue (`keyboard_root_hot_cue`, default 0). No scale state exists |
-| Keyboard pads | Five semitone pages relative to the root hot cue; press seeks to the root and applies the page semitone (momentary) |
+| Keyboard pads | Four pitch-only semitone pages relative to the root hot cue; press seeks to the root and applies the page semitone (momentary) |
 | Keyboard release | Gate off: fall back to another held pad's semitone, else restore the pre-press key shift and seek back to the root |
-| Keyboard shift bank | (`ch 9/11`) slots 1–6 delete that hot cue; slot 7 → next page, slot 8 → previous page |
+| Keyboard shift bank | (`ch 9/11`) slots 1–6 delete that hot cue; slot 7 → next page, slot 8 → previous page (wrapping `4 → 1`) |
 | Key lock interaction | Key shift is an additive session offset applied on top of key lock; it never forces key lock on/off and works with key lock at any tempo |
 | Resulting key | UI may *display* the analyzed key transposed by the session shift; it is never persisted |
 | Persistence | Per-deck runtime state only (`Deck` + `DeckControlState`); no `track_*` / `save_hot_cue` side effects |
@@ -69,34 +69,37 @@ Engine slots are zero-based `0..7`; UI/DDJ-400 pads are `1..8`.
 Rekordbox convention: pad 1 top-left, pad 4 top-right, pad 5 bottom-left, pad 8
 bottom-right. `slot 0 = pad 1 = MIDI offset 0 = root`.
 
-Both modes share five semitone pages (DDJ-400 hardware diagram footnote *6;
-rekordbox 7 manual p164–165):
+Both modes are page-based (DDJ-400 hardware diagram footnote *6; rekordbox 7
+manual p164–165). **Keyboard is pitch-only with four pages; Key Shift adds a
+fifth utility page.** The page bar labels each page by its semitone range:
 
-| Page | Slots (pads 1–8) |
-|------|------------------|
-| 1 | +8, +9, +10, +11, +12, —, —, — |
-| 2 (default) | 0, +1, +2, +3, +4, +5, +6, +7 |
-| 3 | −8, −7, −6, −5, −4, −3, −2, −1 |
-| 4 | —, —, —, —, −12, −11, −10, −9 |
-| 5 | RESET, DOWN, −5, −12, SYNC, UP, +7, +12 |
+| Page | Slots (pads 1–8) | Label | Keyboard | Key Shift |
+|------|------------------|-------|:--------:|:---------:|
+| 1 | +8, +9, +10, +11, +12, —, —, — | `+8…+12` | ✓ | ✓ |
+| 2 (default) | 0, +1, +2, +3, +4, +5, +6, +7 | `0…+7` | ✓ | ✓ |
+| 3 | −8, −7, −6, −5, −4, −3, −2, −1 | `-1…-8` | ✓ | ✓ |
+| 4 | —, —, —, —, −12, −11, −10, −9 | `-9…-12` | ✓ | ✓ |
+| 5 | RESET, DOWN, −5, −12, SYNC, UP, +7, +12 | `UTIL` | — | ✓ |
 
 `—` is an empty slot (no-op). Page 5 mixes absolute semitones (`−5`, `−12`,
 `+7`, `+12`) with deck actions: RESET (`key shift = 0`), UP / DOWN (nudge ±1
-semitone), SYNC (unimplemented → no-op).
+semitone), SYNC (unimplemented → no-op). It exists only in Key Shift mode, so
+Keyboard's page switch wraps `4 → 1`.
 
 ### Key Shift (`PadMode::KeyShift`)
 
-Press latches the page action (absolute semitones set the offset, RESET zeroes
-it, UP/DOWN nudge). The shift bank switches pages: slot 6 (`pad 7`) → next page,
-slot 7 (`pad 8`) → previous page, wrapping `5 → 1` and `1 → 5`.
+Five pages. Press latches the page action (absolute semitones set the offset,
+RESET zeroes it, UP/DOWN nudge). The shift bank switches pages: slot 6 (`pad 7`)
+→ next page, slot 7 (`pad 8`) → previous page, wrapping `5 → 1` and `1 → 5`.
 
 ### Keyboard (`PadMode::Keyboard`)
 
-The root is the selected hot cue (`keyboard_root_hot_cue`, default `0`). Press
-seeks to that hot cue, applies the page's semitone offset, and plays
-(momentary). Release gates off: it falls back to another held pad's semitone,
-else restores the pre-press key shift and seeks back to the root. Shift bank
-slots 0–5 delete that hot cue; slots 6/7 switch the page.
+Four pitch-only pages; the utility page does not exist here. The root is the
+selected hot cue (`keyboard_root_hot_cue`, default `0`). Press seeks to that hot
+cue, applies the page's semitone offset, and plays (momentary). Release gates
+off: it falls back to another held pad's semitone, else restores the pre-press
+key shift and seeks back to the root. Shift bank slots 0–5 delete that hot cue;
+slots 6/7 switch the page, wrapping `4 → 1` and `1 → 4`.
 
 There is **no scale state**: the former per-scale degree tables (major/minor/
 pentatonic) were removed in favour of the chromatic page model above.
@@ -141,8 +144,11 @@ pentatonic) were removed in favour of the chromatic page model above.
 
 ### `crates/engine-core`
 
-- `pads.rs`: `PITCH_PAGE_COUNT = 5`, `DEFAULT_PITCH_PAGE = 2`, the five
-  `PITCH_PAGES` tables, `pad_page_action`, `pitch_page_next/prev`.
+- `pads.rs`: `KEYBOARD_PAGE_COUNT = 4`, `KEY_SHIFT_PAGE_COUNT = 5`,
+  `DEFAULT_PITCH_PAGE = 2`, the `KEYBOARD_PAGES` (4) / `KEY_SHIFT_PAGES` (5)
+  tables, `keyboard_page_action` / `key_shift_page_action`, and the per-mode
+  `keyboard_page_next|prev` (wrap `4 → 1`) / `key_shift_page_next|prev` (wrap
+  `5 → 1`).
 - `DeckControlState` gains `key_shift_semitones: f32`, `keyboard_page: u8`,
   `key_shift_page: u8`, `keyboard_root_hot_cue: u8`.
 - `Engine::set_deck_key_shift`, `set_deck_keyboard_page`, `set_deck_key_shift_page`,
@@ -187,13 +193,17 @@ existing snapshot + `apply_output_signal` mechanism instead.
 ## Flutter
 
 - `pad_modes.dart`: `kPadModes` += `keyboard`, `keyShift`; short labels `Keys`
-  / `Shift`; `kPitchPageCount` / `kDefaultPitchPage`; the `PitchPad` value type
-  and `kPitchPages` tables; `pitchPage(page)` / `pitchPadLabel(pad)` helpers.
+  / `Shift`; `kKeyboardPageCount` (4) / `kKeyShiftPageCount` (5) /
+  `kDefaultPitchPage`; the `PitchPad` value type and `kKeyboardPages` /
+  `kKeyShiftPages` tables; `keyboardPage(page)` / `keyShiftPage(page)` /
+  `keyboardPageRangeLabel(page)` / `keyShiftPageRangeLabel(page)` /
+  `pitchPadLabel(pad)` helpers.
 - `deck_pads_host.dart`: `_toEnginePadMode` cases; wire press/release/root/page
-  callbacks; pass real `shift` for the generic pad path.
-- `deck_pads_panel.dart`: two new `_modeBody` grids (page labels; active pad
-  highlight for the latched Key Shift offset; disabled while no track); a small
-  tappable `PAGE n/5` indicator in the Keyboard / Key Shift body.
+  callbacks; pass real `shift` for the generic pad path; prev/next wrap uses the
+  active mode's page count (Keyboard 4, Key Shift 5).
+- `deck_pads_panel.dart`: two new `_modeBody` grids (active pad highlight for the
+  latched Key Shift offset; disabled while no track); a range-labelled page bar
+  (`0…+7`, `UTIL`, …) in the Keyboard / Key Shift body.
 - `pads/keyboard_pads.dart`: page pads plus a compact root hot-cue selector
   (8 chips; empty slots disabled).
 - `pads/key_shift_pads.dart`: page pads with the latched-semitone highlight

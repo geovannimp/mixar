@@ -5,8 +5,9 @@ mod common;
 use common::{recv_evt_kind, short_tone_fixture, TestReceiver};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
 use engine_core::{
-    pad_page_action, pitch_page_next, pitch_page_prev, EngineConfig, EngineSession, PitchPadAction,
-    DEFAULT_PITCH_PAGE, PITCH_PAGE_COUNT,
+    key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
+    keyboard_page_next, keyboard_page_prev, EngineConfig, EngineSession, PitchPadAction,
+    DEFAULT_PITCH_PAGE, KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
 };
 use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
 use library_core::{AudioSource, FileAudioSource, Library, TrackId, TrackMetadata};
@@ -156,11 +157,15 @@ fn deck_position(session: &EngineSession) -> i32 {
 }
 
 #[test]
-fn pad_page_tables_match_rekordbox() {
+fn keyboard_and_key_shift_page_tables_match_rekordbox() {
     use PitchPadAction::{KeyReset, KeySync, None as NoOp, Semitone, SemitoneDown, SemitoneUp};
 
+    // Keyboard is pitch-only: 4 pages, no utility actions.
+    assert_eq!(KEYBOARD_PAGE_COUNT, 4);
     assert_eq!(
-        (0..8).map(|s| pad_page_action(1, s)).collect::<Vec<_>>(),
+        (0..8)
+            .map(|s| keyboard_page_action(1, s))
+            .collect::<Vec<_>>(),
         vec![
             Semitone(8),
             Semitone(9),
@@ -173,7 +178,9 @@ fn pad_page_tables_match_rekordbox() {
         ]
     );
     assert_eq!(
-        (0..8).map(|s| pad_page_action(2, s)).collect::<Vec<_>>(),
+        (0..8)
+            .map(|s| keyboard_page_action(2, s))
+            .collect::<Vec<_>>(),
         vec![
             Semitone(0),
             Semitone(1),
@@ -186,7 +193,9 @@ fn pad_page_tables_match_rekordbox() {
         ]
     );
     assert_eq!(
-        (0..8).map(|s| pad_page_action(3, s)).collect::<Vec<_>>(),
+        (0..8)
+            .map(|s| keyboard_page_action(3, s))
+            .collect::<Vec<_>>(),
         vec![
             Semitone(-8),
             Semitone(-7),
@@ -199,7 +208,9 @@ fn pad_page_tables_match_rekordbox() {
         ]
     );
     assert_eq!(
-        (0..8).map(|s| pad_page_action(4, s)).collect::<Vec<_>>(),
+        (0..8)
+            .map(|s| keyboard_page_action(4, s))
+            .collect::<Vec<_>>(),
         vec![
             NoOp,
             NoOp,
@@ -211,8 +222,33 @@ fn pad_page_tables_match_rekordbox() {
             Semitone(-9)
         ]
     );
+    for page in 1..=KEYBOARD_PAGE_COUNT {
+        for slot in 0..8 {
+            assert!(
+                !matches!(
+                    keyboard_page_action(page, slot),
+                    KeyReset | SemitoneUp | SemitoneDown | KeySync
+                ),
+                "Keyboard page {page} slot {slot} must be pitch-only"
+            );
+        }
+    }
+
+    // Key Shift shares pages 1–4 and adds the utility page as page 5.
+    assert_eq!(KEY_SHIFT_PAGE_COUNT, 5);
+    for page in 1..=4 {
+        for slot in 0..8 {
+            assert_eq!(
+                key_shift_page_action(page, slot),
+                keyboard_page_action(page, slot),
+                "Key Shift page {page} slot {slot} must match Keyboard"
+            );
+        }
+    }
     assert_eq!(
-        (0..8).map(|s| pad_page_action(5, s)).collect::<Vec<_>>(),
+        (0..8)
+            .map(|s| key_shift_page_action(5, s))
+            .collect::<Vec<_>>(),
         vec![
             KeyReset,
             SemitoneDown,
@@ -225,14 +261,21 @@ fn pad_page_tables_match_rekordbox() {
         ]
     );
 
-    // Page wrapping.
-    assert_eq!(pitch_page_next(5), 1);
-    assert_eq!(pitch_page_next(2), 3);
-    assert_eq!(pitch_page_prev(1), PITCH_PAGE_COUNT);
-    assert_eq!(pitch_page_prev(3), 2);
-    // Out-of-range pages clamp into 1..=5.
-    assert_eq!(pad_page_action(0, 0), Semitone(8));
-    assert_eq!(pad_page_action(9, 7), Semitone(12));
+    // Per-mode page wrapping.
+    assert_eq!(keyboard_page_next(4), 1);
+    assert_eq!(keyboard_page_next(2), 3);
+    assert_eq!(keyboard_page_prev(1), KEYBOARD_PAGE_COUNT);
+    assert_eq!(keyboard_page_prev(3), 2);
+    assert_eq!(key_shift_page_next(5), 1);
+    assert_eq!(key_shift_page_next(2), 3);
+    assert_eq!(key_shift_page_prev(1), KEY_SHIFT_PAGE_COUNT);
+    assert_eq!(key_shift_page_prev(3), 2);
+
+    // Out-of-range pages clamp into each mode's own range.
+    assert_eq!(keyboard_page_action(0, 0), Semitone(8));
+    assert_eq!(keyboard_page_action(9, 7), Semitone(-9));
+    assert_eq!(key_shift_page_action(0, 0), Semitone(8));
+    assert_eq!(key_shift_page_action(9, 7), Semitone(12));
     assert_eq!(DEFAULT_PITCH_PAGE, 2);
 }
 
@@ -382,6 +425,17 @@ fn key_shift_shift_bank_switches_page() {
         },
     );
     assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 5);
+
+    // The Key Shift shift-bank page switch wraps at 5 (not 4): 5 → 1.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 6,
+            shift: true,
+        },
+    );
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 1);
 }
 
 #[test]
@@ -442,6 +496,19 @@ fn keyboard_and_key_shift_pages_are_independent() {
     );
     let body = next_deck_updated(&evt);
     assert_eq!(keyboard_page_of(&body), 4);
+    assert_eq!(key_shift_page_of(&body), 2);
+
+    // The Keyboard shift-bank page switch wraps at 4 (not 5).
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 6,
+            shift: true,
+        },
+    );
+    let body = next_deck_updated(&evt);
+    assert_eq!(keyboard_page_of(&body), 1);
     assert_eq!(key_shift_page_of(&body), 2);
 }
 

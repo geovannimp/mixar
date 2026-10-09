@@ -784,13 +784,13 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the Keyboard pad semitone page for a deck (clamped to `1..=5`).
+    /// Set the Keyboard pad semitone page for a deck (clamped to `1..=4`).
     pub fn set_deck_keyboard_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
         let control = self
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
+        control.keyboard_page = page.clamp(1, crate::pads::KEYBOARD_PAGE_COUNT);
         Ok(())
     }
 
@@ -800,7 +800,7 @@ impl Engine {
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.key_shift_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
+        control.key_shift_page = page.clamp(1, crate::pads::KEY_SHIFT_PAGE_COUNT);
         Ok(())
     }
 
@@ -1618,12 +1618,12 @@ impl Engine {
         };
         if shift {
             return match slot {
-                6 => self.set_deck_key_shift_page(deck_id, crate::pads::pitch_page_next(page)),
-                7 => self.set_deck_key_shift_page(deck_id, crate::pads::pitch_page_prev(page)),
+                6 => self.set_deck_key_shift_page(deck_id, crate::pads::key_shift_page_next(page)),
+                7 => self.set_deck_key_shift_page(deck_id, crate::pads::key_shift_page_prev(page)),
                 _ => Ok(()),
             };
         }
-        match crate::pads::pad_page_action(page, slot) {
+        match crate::pads::key_shift_page_action(page, slot) {
             crate::pads::PitchPadAction::Semitone(s) => {
                 self.set_deck_key_shift(deck_id, f32::from(s))
             }
@@ -1654,11 +1654,11 @@ impl Engine {
                 0..=5 => self.delete_deck_hot_cue(deck_id, slot),
                 6 => {
                     let page = self.keyboard_page(deck_id)?;
-                    self.set_deck_keyboard_page(deck_id, crate::pads::pitch_page_next(page))
+                    self.set_deck_keyboard_page(deck_id, crate::pads::keyboard_page_next(page))
                 }
                 7 => {
                     let page = self.keyboard_page(deck_id)?;
-                    self.set_deck_keyboard_page(deck_id, crate::pads::pitch_page_prev(page))
+                    self.set_deck_keyboard_page(deck_id, crate::pads::keyboard_page_prev(page))
                 }
                 _ => Ok(()),
             };
@@ -1680,7 +1680,7 @@ impl Engine {
                     .flatten(),
             )
         };
-        match crate::pads::pad_page_action(page, slot) {
+        match crate::pads::keyboard_page_action(page, slot) {
             crate::pads::PitchPadAction::Semitone(s) => {
                 {
                     let control = self
@@ -1731,7 +1731,7 @@ impl Engine {
                 .enumerate()
                 .filter(|(_, held)| **held)
                 .find_map(|(index, _)| {
-                    match crate::pads::pad_page_action(control.keyboard_page, index as u8) {
+                    match crate::pads::keyboard_page_action(control.keyboard_page, index as u8) {
                         crate::pads::PitchPadAction::Semitone(s) => Some(f32::from(s)),
                         _ => None,
                     }

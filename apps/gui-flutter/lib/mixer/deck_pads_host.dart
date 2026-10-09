@@ -280,7 +280,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       onPrevPage: () {
         final keyShift = padMode == PadMode.keyShift;
         final page = keyShift ? keyShiftPage : keyboardPage;
-        final prev = page <= 1 ? kPitchPageCount : page - 1;
+        final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
+        final prev = page <= 1 ? count : page - 1;
         unawaited(
           _run(
             (engine) => keyShift
@@ -292,7 +293,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       onNextPage: () {
         final keyShift = padMode == PadMode.keyShift;
         final page = keyShift ? keyShiftPage : keyboardPage;
-        final next = page >= kPitchPageCount ? 1 : page + 1;
+        final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
+        final next = page >= count ? 1 : page + 1;
         unawaited(
           _run(
             (engine) => keyShift

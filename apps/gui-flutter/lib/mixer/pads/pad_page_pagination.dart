@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
-import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -111,6 +110,8 @@ class PadPagePagination extends StatelessWidget {
 /// semantic labels.
 PadPagePagination pitchPagePagination({
   required int page,
+  required int count,
+  required String label,
   required VoidCallback onPrevious,
   required VoidCallback onNext,
   Widget? centerAccessory,
@@ -120,8 +121,8 @@ PadPagePagination pitchPagePagination({
   bool disabled = false,
 }) {
   return PadPagePagination(
-    count: kPitchPageCount,
-    label: 'PAGE $page/$kPitchPageCount',
+    count: count,
+    label: label,
     previousSemanticLabel: 'Previous semitone page',
     nextSemanticLabel: 'Next semitone page',
     onPrevious: onPrevious,

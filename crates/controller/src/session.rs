@@ -21,9 +21,9 @@ const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
 /// Absolute semitone for `slot` (`0..=7`) on `page` (`1..=5`), or `None` for a
 /// page action that has no absolute offset (Reset / Up / Down / Sync).
 ///
-/// Mirrors `engine_core::pads::pad_page_action`. `controller` deliberately does
-/// not depend on the audio engine, so keep this in sync with
-/// `crates/engine-core/src/pads.rs` (same duplication pattern as
+/// Mirrors `engine_core::pads::{keyboard_page_action, key_shift_page_action}`.
+/// `controller` deliberately does not depend on the audio engine, so keep this in
+/// sync with `crates/engine-core/src/pads.rs` (same duplication pattern as
 /// `DEFAULT_TEMPO_RANGE` in `action.rs`).
 fn pitch_page_semitone(page: u8, slot: u8) -> Option<i8> {
     #[rustfmt::skip]

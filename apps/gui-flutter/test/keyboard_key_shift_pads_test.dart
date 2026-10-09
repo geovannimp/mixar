@@ -46,7 +46,7 @@ void main() {
           onNextPage: () {},
           onPress: (slot) {
             pressed.add(slot);
-            final semis = pitchPage(kDefaultPitchPage)[slot].semitones;
+            final semis = keyShiftPage(kDefaultPitchPage)[slot].semitones;
             setState(() => active = active == semis ? 0 : semis);
           },
         ),
@@ -216,27 +216,46 @@ void main() {
           onRelease: (_) {},
           onPrevPage: () => setState(() {
             prevs.add(page);
-            page = page <= 1 ? kPitchPageCount : page - 1;
+            page = page <= 1 ? kKeyboardPageCount : page - 1;
           }),
           onNextPage: () => setState(() {
             nexts.add(page);
-            page = page >= kPitchPageCount ? 1 : page + 1;
+            page = page >= kKeyboardPageCount ? 1 : page + 1;
           }),
         ),
       ),
     );
 
-    expect(find.text('PAGE 2/5'), findsOneWidget);
+    expect(find.text('0…+7'), findsOneWidget);
 
     await tester.tap(find.byIcon(LucideIcons.chevronRight));
     await tester.pumpAndSettle();
     expect(nexts, [kDefaultPitchPage]);
-    expect(find.text('PAGE 3/5'), findsOneWidget);
+    expect(find.text('-1…-8'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Previous semitone page'));
     await tester.pumpAndSettle();
     expect(prevs, [3]);
-    expect(find.text('PAGE 2/5'), findsOneWidget);
+    expect(find.text('0…+7'), findsOneWidget);
+  });
+
+  testWidgets('Keyboard page 4 shows its range and never UTIL', (tester) async {
+    await pumpPad(
+      tester,
+      KeyboardPads(
+        page: 4,
+        rootHotCue: 0,
+        hotCues: const [DeckHotCue(slot: 0, positionMs: 1000)],
+        onSelectRoot: (_) {},
+        onPress: (_) {},
+        onRelease: (_) {},
+        onPrevPage: () {},
+        onNextPage: () {},
+      ),
+    );
+
+    expect(find.text('-9…-12'), findsOneWidget);
+    expect(find.text('UTIL'), findsNothing);
   });
 
   testWidgets('KeyShiftPads page bar renders and dispatches prev/next', (
@@ -255,7 +274,7 @@ void main() {
       ),
     );
 
-    expect(find.text('PAGE 1/5'), findsOneWidget);
+    expect(find.text('+8…+12'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('Previous semitone page'));
     await tester.pump();
@@ -263,6 +282,21 @@ void main() {
     await tester.pump();
     expect(prevs, [1]);
     expect(nexts, [1]);
+  });
+
+  testWidgets('KeyShift page 5 shows UTIL', (tester) async {
+    await pumpPad(
+      tester,
+      KeyShiftPads(
+        page: 5,
+        activeSemitones: 0,
+        onPrevPage: () {},
+        onNextPage: () {},
+        onPress: (_) {},
+      ),
+    );
+
+    expect(find.text('UTIL'), findsOneWidget);
   });
 
   testWidgets('page bar buttons do not dispatch when disabled', (tester) async {
