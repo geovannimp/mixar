@@ -93,9 +93,7 @@ pub(crate) fn table_exists(conn: &Connection, name: &str) -> Result<bool> {
 
 pub(crate) fn detect(conn: &Connection) -> Result<LibrarySchema> {
     if !table_exists(conn, "library")? || !table_exists(conn, "track_locations")? {
-        return Err(backend(
-            "not a Mixxx library database (missing library or track_locations)",
-        ));
+        return Err(LibraryError::Unsupported("not a Mixxx library database"));
     }
 
     let mut stmt = conn
@@ -120,7 +118,7 @@ pub(crate) fn detect(conn: &Connection) -> Result<LibrarySchema> {
     }
 
     if !columns.iter().any(|column| column == "location") {
-        return Err(backend("unsupported Mixxx schema (no location column)"));
+        return Err(LibraryError::Unsupported("mixxx schema"));
     }
 
     Ok(LibrarySchema {

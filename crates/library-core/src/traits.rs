@@ -40,6 +40,10 @@ pub trait WritableLibrary: Library {
     /// Unlike a folder scan, the path need not exist on disk: imported libraries
     /// may reference files that are currently moved or absent. Such tracks are
     /// listed and selectable; playback fails until the file returns at the path.
+    ///
+    /// The upsert replaces the row's metadata fields wholesale with the supplied
+    /// [`TrackMetadata`]; callers should pass their complete authoritative
+    /// metadata rather than a partial update.
     fn import_track(&mut self, path: &Path, metadata: &TrackMetadata) -> Result<ImportedTrack>;
 
     /// Re-read tags and/or run DSP analysis for a track and update the pool.

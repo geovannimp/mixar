@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use library_core::{
-    camelot_to_musical, path_under_folder, AudioSource, Collection, CollectionConfig,
+    camelot_to_musical, path_label, path_under_folder, AudioSource, Collection, CollectionConfig,
     CollectionEntry, CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library,
     LibraryError, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, TrackId,
     TrackMetadata, WritableLibrary,
@@ -309,7 +309,7 @@ impl Migratable for MixxxLibrary {
                     report.failed += 1;
                     report
                         .errors
-                        .push(format!("{}: {err}", track.path.display()));
+                        .push(format!("{}: {err}", path_label(&track.path)));
                 }
             }
         }
@@ -320,7 +320,7 @@ impl Migratable for MixxxLibrary {
                     report.failed += 1;
                     report
                         .errors
-                        .push(format!("watched directory missing: {}", path.display()));
+                        .push(format!("watched directory missing: {}", path_label(path)));
                     continue;
                 }
                 match target.add_collection(&NewCollection::folder(path)) {
@@ -333,7 +333,7 @@ impl Migratable for MixxxLibrary {
                     }
                     Err(err) => {
                         report.failed += 1;
-                        report.errors.push(format!("{}: {err}", path.display()));
+                        report.errors.push(format!("{}: {err}", path_label(path)));
                     }
                 }
             }
