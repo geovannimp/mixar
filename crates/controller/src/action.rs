@@ -27,7 +27,7 @@ pub struct ControlSnapshot {
     pub pad_mode: [PadMode; 4],
     /// Session key-shift offset in semitones (Keyboard / Key Shift pad modes).
     pub key_shift: [f32; 4],
-    /// Keyboard pad semitone page (`1..=5`).
+    /// Keyboard pad semitone page (`1..=4`).
     pub keyboard_page: [u8; 4],
     /// Key Shift pad semitone page (`1..=5`).
     pub key_shift_page: [u8; 4],

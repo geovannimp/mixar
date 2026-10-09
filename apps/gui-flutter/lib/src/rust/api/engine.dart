@@ -187,7 +187,7 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Select the Keyboard pad semitone page (1..=4).
   Future<void> setKeyboardPage({required int deckId, required int page});
 
-  /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
+  /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
   Future<void> setKeyboardRoot({required int deckId, required int slot});
 
   /// Master cue (headphones hear master).

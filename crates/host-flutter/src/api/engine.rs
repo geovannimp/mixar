@@ -787,7 +787,7 @@ impl EngineTransport {
         )
     }
 
-    /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
+    /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
     pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),

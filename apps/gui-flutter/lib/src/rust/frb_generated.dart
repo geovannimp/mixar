@@ -11106,7 +11106,7 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         page: page,
       );
 
-  /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
+  /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
   Future<void> setKeyboardRoot({required int deckId, required int slot}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSetKeyboardRoot(
         that: this,

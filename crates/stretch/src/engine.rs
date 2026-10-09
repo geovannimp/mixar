@@ -11,7 +11,9 @@ use std::sync::Arc;
 use crate::{StretchPullStats, TimeStretcher};
 use anyhow::{anyhow, Result};
 use audio_core::Sample;
-use timestretch::core::resample::{SincInterpTable, StreamingSincResampler};
+use timestretch::core::resample::{
+    SincInterpTable, StreamingSincResampler, STREAM_SINC_MAX_HALF_TAPS,
+};
 use timestretch::engine::{
     Engine, EngineConfig, EngineController, EngineProcessor, EngineProfile, SourceProducer,
     MAX_TEMPO_RATE,
@@ -89,6 +91,12 @@ impl TimestretchStretcher {
         // to 80 at the 0.25 pitch floor) plus a couple of output buffers.
         let carry_capacity = (max_block.saturating_mul(3).saturating_add(1024)).saturating_mul(2);
 
+        // `pull_pitched` renders at most `engine_chunk.max(floor)` frames per
+        // iteration, where `floor = half_span + 8` and `half_span` peaks at
+        // `STREAM_SINC_MAX_HALF_TAPS`. Size the scratch buffers for that bound so
+        // they never grow inside the audio callback.
+        let scratch_frames = max_block.max(STREAM_SINC_MAX_HALF_TAPS + 8);
+
         Ok(Self {
             sample_rate,
             controller: handles.controller,
@@ -104,11 +112,11 @@ impl TimestretchStretcher {
             // and the pitch-down floor: `1 / MIN_PITCH_FACTOR` = 4× emission) so
             // steady-state blocks only clear/write in place and never allocate
             // inside the audio callback.
-            scratch: vec![0.0; max_block * 2],
-            scratch_l: vec![0.0; max_block],
-            scratch_r: vec![0.0; max_block],
-            resampled_l: Vec::with_capacity(max_block * 4 + 512),
-            resampled_r: Vec::with_capacity(max_block * 4 + 512),
+            scratch: vec![0.0; scratch_frames * 2],
+            scratch_l: vec![0.0; scratch_frames],
+            scratch_r: vec![0.0; scratch_frames],
+            resampled_l: Vec::with_capacity(scratch_frames * 4 + 512),
+            resampled_r: Vec::with_capacity(scratch_frames * 4 + 512),
             carry: Vec::with_capacity(carry_capacity),
             carry_head: 0,
             carry_capacity,
