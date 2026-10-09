@@ -381,22 +381,77 @@ impl Migratable for MixxxLibrary {
 }
 
 /// Default Mixxx database location for the current OS, when it exists.
+///
+/// Mixxx stores `mixxxdb.sqlite` in a settings directory that varies by
+/// install: native (`~/.mixxx`), Flatpak (`~/.var/app/org.mixxx.Mixxx/.mixxx`),
+/// Snap (`~/snap/mixxx/...`), XDG (`$XDG_DATA_HOME/mixxx`), and the macOS /
+/// Windows equivalents. The first existing candidate wins. `MIXXX_DATABASE`
+/// (a file) and `MIXXX_SETTINGS_PATH` / `MIXXX_SETTINGS_DIR` (a directory)
+/// override the search.
 pub fn default_database_path() -> Option<PathBuf> {
-    let base = if cfg!(target_os = "windows") {
-        std::env::var_os("LOCALAPPDATA")
-            .map(PathBuf::from)
-            .map(|path| path.join("Mixxx"))
+    candidate_database_paths()
+        .into_iter()
+        .find(|path| path.is_file())
+}
+
+fn candidate_database_paths() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(explicit) = nonempty_env("MIXXX_DATABASE") {
+        candidates.push(explicit);
+    }
+    for key in ["MIXXX_SETTINGS_PATH", "MIXXX_SETTINGS_DIR"] {
+        if let Some(dir) = nonempty_env(key) {
+            candidates.push(dir.join("mixxxdb.sqlite"));
+        }
+    }
+
+    let home = nonempty_env("HOME");
+    let xdg_data_home = nonempty_env("XDG_DATA_HOME");
+    let local_app_data = nonempty_env("LOCALAPPDATA");
+    for dir in settings_dirs(
+        home.as_deref(),
+        xdg_data_home.as_deref(),
+        local_app_data.as_deref(),
+    ) {
+        candidates.push(dir.join("mixxxdb.sqlite"));
+    }
+    candidates
+}
+
+fn settings_dirs(
+    home: Option<&Path>,
+    xdg_data_home: Option<&Path>,
+    local_app_data: Option<&Path>,
+) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if cfg!(target_os = "windows") {
+        if let Some(local) = local_app_data {
+            dirs.push(local.join("Mixxx"));
+        }
     } else if cfg!(target_os = "macos") {
-        std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .map(|path| path.join("Library/Application Support/Mixxx"))
+        if let Some(home) = home {
+            dirs.push(home.join("Library/Application Support/Mixxx"));
+        }
     } else {
-        std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .map(|path| path.join(".mixxx"))
-    }?;
-    let database = base.join("mixxxdb.sqlite");
-    database.is_file().then_some(database)
+        if let Some(home) = home {
+            // Native install, then Flatpak and Snap sandboxes.
+            dirs.push(home.join(".mixxx"));
+            dirs.push(home.join(".var/app/org.mixxx.Mixxx/.mixxx"));
+            dirs.push(home.join("snap/mixxx/current/.mixxx"));
+            dirs.push(home.join("snap/mixxx/common/.mixxx"));
+            dirs.push(home.join(".local/share/mixxx"));
+        }
+        if let Some(data) = xdg_data_home {
+            dirs.push(data.join("mixxx"));
+        }
+    }
+    dirs
+}
+
+fn nonempty_env(key: &str) -> Option<PathBuf> {
+    std::env::var_os(key)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
 }
 
 fn parse_track_id(id: &TrackId) -> Option<i64> {
@@ -603,4 +658,20 @@ fn crate_members(conn: &Connection, crate_id: i64) -> Result<Vec<i64>> {
         members.push(row.map_err(|e| backend(format!("read crate track: {e}")))?);
     }
     Ok(members)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn settings_dirs_cover_native_flatpak_and_snap() {
+        let home = Path::new("/home/user");
+        let dirs = settings_dirs(Some(home), Some(Path::new("/home/user/.local/share")), None);
+        assert!(dirs.contains(&home.join(".mixxx")));
+        assert!(dirs.contains(&home.join(".var/app/org.mixxx.Mixxx/.mixxx")));
+        assert!(dirs.contains(&home.join("snap/mixxx/current/.mixxx")));
+        assert!(dirs.contains(&PathBuf::from("/home/user/.local/share/mixxx")));
+    }
 }

@@ -140,6 +140,13 @@ crates/library-adapters/
 - `MixxxLibrary::open(path)` opens with
   `SQLITE_OPEN_READ_ONLY | SQLITE_OPEN_NO_MUTEX` and `PRAGMA query_only = 1`.
   The adapter never writes to the Mixxx database.
+- `default_database_path()` returns the first existing `mixxxdb.sqlite` among the
+  platform settings directories — Linux native `~/.mixxx`, Flatpak
+  `~/.var/app/org.mixxx.Mixxx/.mixxx`, Snap
+  `~/snap/mixxx/{current,common}/.mixxx`, `$XDG_DATA_HOME/mixxx`,
+  `~/.local/share/mixxx`; macOS `~/Library/Application Support/Mixxx`; Windows
+  `%LOCALAPPDATA%\Mixxx`. `MIXXX_DATABASE` (file) and `MIXXX_SETTINGS_PATH` /
+  `MIXXX_SETTINGS_DIR` (directory) override the search.
 - `PRAGMA table_info(library)` is read once. The `location` column type decides
   the join:
   - modern (schema revision ≥ 3): `library.location` is an integer FK →
