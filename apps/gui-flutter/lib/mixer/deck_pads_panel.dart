@@ -8,9 +8,10 @@ import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/pads/stems_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
+import 'package:gui_flutter/shell/mixar_select.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Presentational deck pads panel (mode tabs + per-mode grids).
+/// Presentational deck pads panel (mode select + per-mode grids).
 class DeckPadsPanel extends StatelessWidget {
   const new({
     required this.padMode,
@@ -109,6 +110,14 @@ class DeckPadsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final panelSurface = Color.alphaBlend(
+      theme.colors.background.withValues(alpha: 0.8),
+      theme.colors.card,
+    );
+    final panelBorderColor = Color.alphaBlend(
+      theme.colors.border,
+      panelSurface,
+    );
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,18 +126,24 @@ class DeckPadsPanel extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: theme.colors.border)),
           ),
-          child: Row(
-            children: [
-              for (final mode in kPadModes)
-                Expanded(
-                  child: _PadModeTab(
-                    label: padModeShortLabel(mode),
-                    active: padMode == mode,
-                    disabled: disabled,
-                    onPress: () => onPadMode(mode),
-                  ),
-                ),
-            ],
+          child: MixarSelect<PadMode>(
+            value: padMode,
+            options: kPadModes,
+            labelBuilder: padModeShortLabel,
+            unfocusAfterPointerSelection: true,
+            borderRadius: BorderRadius.only(
+              topRight: theme.style.borderRadius.sm.topRight,
+            ),
+            borderColor: panelBorderColor,
+            // The card frame, header divider and rail already draw these
+            // edges; the selector only strokes the ones it owns.
+            borderSides: const {
+              MixarBorderSide.top,
+              MixarBorderSide.right,
+              MixarBorderSide.bottom,
+            },
+            onChanged: onPadMode,
+            enabled: !disabled,
           ),
         ),
         Expanded(child: _modeBody()),
@@ -142,7 +157,7 @@ class DeckPadsPanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border.all(color: theme.colors.border),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: theme.style.borderRadius.sm,
         color: theme.colors.background.withValues(alpha: 0.8),
       ),
       child: body,
@@ -208,51 +223,5 @@ class DeckPadsPanel extends StatelessWidget {
         onNextPage: onNextPage ?? () {},
       ),
     };
-  }
-}
-
-class _PadModeTab extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.active,
-    required this.onPress,
-    this.disabled = false,
-  });
-
-  final String label;
-  final bool active;
-  final VoidCallback onPress;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final fg = disabled
-        ? theme.colors.mutedForeground.withValues(alpha: 0.45)
-        : active
-        ? theme.colors.foreground
-        : theme.colors.mutedForeground;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: disabled ? null : onPress,
-      child: ColoredBox(
-        color: active
-            ? theme.colors.secondary.withValues(alpha: 0.55)
-            : const Color(0x00000000),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-          child: Text(
-            label.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: theme.typography.body.xs.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-              color: fg,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

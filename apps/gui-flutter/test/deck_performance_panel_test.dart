@@ -58,7 +58,7 @@ void main() {
           tester.getCenter(find.byIcon(LucideIcons.disc3)).dy,
       isTrue,
     );
-    expect(find.text('CUE'), findsOneWidget);
+    expect(find.text('Cue'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
     expect(find.text('Now'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
@@ -67,27 +67,27 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('IN'), findsOneWidget);
     expect(find.text('OUT'), findsOneWidget);
-    expect(find.text('CUE'), findsNothing);
+    expect(find.text('Cue'), findsNothing);
     expect(find.text('Now'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(LucideIcons.audioLines));
     await tester.pumpAndSettle();
     expect(find.text('Now'), findsOneWidget);
-    expect(find.text('CUE'), findsNothing);
+    expect(find.text('Cue'), findsNothing);
     expect(find.text('IN'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
 
     await tester.tap(find.byIcon(LucideIcons.disc3));
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Jog wheel'), findsOneWidget);
-    expect(find.text('CUE'), findsNothing);
+    expect(find.text('Cue'), findsNothing);
     expect(find.text('IN'), findsNothing);
     expect(find.text('Now'), findsNothing);
 
     await tester.tap(find.byIcon(LucideIcons.layoutGrid));
     await tester.pumpAndSettle();
-    expect(find.text('CUE'), findsOneWidget);
+    expect(find.text('Cue'), findsOneWidget);
     expect(find.text('IN'), findsNothing);
     expect(find.text('Now'), findsNothing);
     expect(find.bySemanticsLabel('Jog wheel'), findsNothing);
