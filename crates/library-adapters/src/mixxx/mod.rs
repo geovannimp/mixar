@@ -252,6 +252,7 @@ impl Library for MixxxLibrary {
         Ok(list
             .members
             .iter()
+            .filter(|library_id| self.track_index.contains_key(library_id))
             .enumerate()
             .map(|(index, library_id)| CollectionEntry {
                 id: CollectionEntryId::new(format!("{}:entry:{index}", collection_id)),

@@ -145,7 +145,7 @@ fn build_fixture() -> Fixture {
     conn.execute("INSERT INTO crates (id, name) VALUES (1, 'Favs')", [])
         .unwrap();
     conn.execute(
-        "INSERT INTO crate_tracks (crate_id, track_id) VALUES (1, 1)",
+        "INSERT INTO crate_tracks (crate_id, track_id) VALUES (1, 1), (1, 3)",
         [],
     )
     .unwrap();
@@ -190,6 +190,11 @@ fn lists_visible_collections_and_skips_hidden() {
 
     let crate_collection = collections.iter().find(|c| c.name == "Favs").unwrap();
     assert!(!crate_collection.sortable());
+    // Members pointing at a deleted-from-library track are filtered out.
+    let favs_entries = library
+        .list_collection_entries(&crate_collection.id)
+        .unwrap();
+    assert_eq!(favs_entries.len(), 1);
 
     assert_eq!(library.preview().folder_count, 1);
     assert_eq!(library.preview().playlist_count, 1);
