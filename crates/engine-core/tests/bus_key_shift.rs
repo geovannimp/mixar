@@ -1,4 +1,4 @@
-//! Integration: SetKeyShift / SetPitchPage / SetKeyboardRoot publish on DeckUpdated.
+//! Integration: SetKeyShift / SetKeyboardPage / SetKeyShiftPage / SetKeyboardRoot publish on DeckUpdated.
 
 mod common;
 
@@ -34,7 +34,7 @@ fn null_session_with_loaded_deck() -> EngineSession {
 }
 
 #[test]
-fn set_key_shift_pitch_page_and_root_publish_fields() {
+fn set_key_shift_pages_and_root_publish_fields() {
     let session = null_session_with_loaded_deck();
     let evt = session
         .evt_bus()
@@ -57,15 +57,41 @@ fn set_key_shift_pitch_page_and_root_publish_fields() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetPitchPage,
-            encode_cmd_body(&CmdBody::SetPitchPage { page: 4 }).unwrap(),
+            Kind::SetKeyboardPage,
+            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 4 }).unwrap(),
         )
         .unwrap();
     let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated { pitch_page, .. } = body else {
+    let EvtBody::DeckUpdated {
+        keyboard_page,
+        key_shift_page,
+        ..
+    } = body
+    else {
         panic!("DeckUpdated")
     };
-    assert_eq!(pitch_page, 4);
+    assert_eq!(keyboard_page, 4);
+    // The Key Shift page is untouched by a Keyboard page command.
+    assert_eq!(key_shift_page, DEFAULT_PITCH_PAGE);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyShiftPage,
+            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
+        )
+        .unwrap();
+    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
+    let EvtBody::DeckUpdated {
+        keyboard_page,
+        key_shift_page,
+        ..
+    } = body
+    else {
+        panic!("DeckUpdated")
+    };
+    assert_eq!(keyboard_page, 4);
+    assert_eq!(key_shift_page, 1);
 
     session
         .publish_cmd(
@@ -86,7 +112,7 @@ fn set_key_shift_pitch_page_and_root_publish_fields() {
 }
 
 #[test]
-fn unload_resets_key_shift_page_and_root() {
+fn unload_resets_key_shift_pages_and_root() {
     let session = null_session_with_loaded_deck();
     session
         .publish_cmd(
@@ -98,8 +124,15 @@ fn unload_resets_key_shift_page_and_root() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetPitchPage,
-            encode_cmd_body(&CmdBody::SetPitchPage { page: 4 }).unwrap(),
+            Kind::SetKeyboardPage,
+            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 4 }).unwrap(),
+        )
+        .unwrap();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyShiftPage,
+            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
         )
         .unwrap();
     session
@@ -115,12 +148,13 @@ fn unload_resets_key_shift_page_and_root() {
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert_eq!(snap.key_shift, 0.0);
-    assert_eq!(snap.pitch_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.keyboard_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.key_shift_page, DEFAULT_PITCH_PAGE);
     assert_eq!(snap.keyboard_root_hot_cue, 0);
 }
 
 #[test]
-fn load_resets_key_shift_page_and_root() {
+fn load_resets_key_shift_pages_and_root() {
     let session = null_session_with_loaded_deck();
     session
         .publish_cmd(
@@ -132,8 +166,15 @@ fn load_resets_key_shift_page_and_root() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetPitchPage,
-            encode_cmd_body(&CmdBody::SetPitchPage { page: 5 }).unwrap(),
+            Kind::SetKeyboardPage,
+            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 5 }).unwrap(),
+        )
+        .unwrap();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyShiftPage,
+            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
         )
         .unwrap();
     session
@@ -164,6 +205,7 @@ fn load_resets_key_shift_page_and_root() {
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert_eq!(snap.key_shift, 0.0);
-    assert_eq!(snap.pitch_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.keyboard_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.key_shift_page, DEFAULT_PITCH_PAGE);
     assert_eq!(snap.keyboard_root_hot_cue, 0);
 }

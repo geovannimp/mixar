@@ -34,8 +34,10 @@ pub struct ControlSnapshot {
     pub pad_mode: [PadMode; 4],
     /// Session key-shift offset in semitones (Keyboard / Key Shift pad modes).
     pub key_shift: [f32; 4],
-    /// Keyboard / Key Shift semitone page (`1..=5`).
-    pub pitch_page: [u8; 4],
+    /// Keyboard pad semitone page (`1..=5`).
+    pub keyboard_page: [u8; 4],
+    /// Key Shift pad semitone page (`1..=5`).
+    pub key_shift_page: [u8; 4],
     /// Hot-cue slot used as the Keyboard pad root.
     pub keyboard_root_hot_cue: [u8; 4],
     pub crossfader: f32,
@@ -63,7 +65,8 @@ impl Default for ControlSnapshot {
             quantize: [false; 4],
             pad_mode: [PadMode::HotCue; 4],
             key_shift: [0.0; 4],
-            pitch_page: [DEFAULT_PITCH_PAGE; 4],
+            keyboard_page: [DEFAULT_PITCH_PAGE; 4],
+            key_shift_page: [DEFAULT_PITCH_PAGE; 4],
             keyboard_root_hot_cue: [0; 4],
             crossfader: 0.5,
             cue_mix: 0.5,

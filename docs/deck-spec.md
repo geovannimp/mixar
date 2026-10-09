@@ -158,7 +158,7 @@ DeckState
 ├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
 ├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
 ├── key: display_key, key_shift_semitones, key_lock
-├── pitch_page: 1..5, keyboard_root_hot_cue   -- session-only Keyboard / Key Shift page state
+├── pages: keyboard_page 1..5, key_shift_page 1..5, keyboard_root_hot_cue   -- session-only per-mode Keyboard / Key Shift page state
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
 ├── slip: enabled, shadow_position_ms
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state

@@ -419,22 +419,25 @@ void main() {
       expect(snap.stemMuteFor(1), [false, false, false, false]);
     });
 
-    test('updated evt carries key shift, pitch page and keyboard root', () {
+    test('updated evt carries key shift, per-mode pages and keyboard root', () {
       final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
           keyShift: 2,
-          pitchPage: 5,
+          keyboardPage: 5,
+          keyShiftPage: 3,
           keyboardRootHotCue: 3,
         ),
       );
       expect(snap.keyShiftFor(0), 2);
-      expect(snap.pitchPageFor(0), 5);
+      expect(snap.keyboardPageFor(0), 5);
+      expect(snap.keyShiftPageFor(0), 3);
       expect(snap.keyboardRootFor(0), 3);
       expect(snap.keyShiftFor(1), 0);
-      expect(snap.pitchPageFor(1), kDefaultPitchPage);
+      expect(snap.keyboardPageFor(1), kDefaultPitchPage);
+      expect(snap.keyShiftPageFor(1), kDefaultPitchPage);
       expect(snap.keyboardRootFor(1), 0);
     });
   });

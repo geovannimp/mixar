@@ -108,13 +108,16 @@ pentatonic) were removed in favour of the chromatic page model above.
 - `PadMode::{Keyboard, KeyShift}`.
 - `CmdBody`:
   - `SetKeyShift { semitones: f32 }`
-  - `SetPitchPage { page: u8 }`
+  - `SetKeyboardPage { page: u8 }`
+  - `SetKeyShiftPage { page: u8 }`
   - `SetKeyboardRoot { slot: u8 }`
   - `KeyboardPadPress { slot, shift }` / `KeyboardPadRelease { slot }`
   - `KeyShiftPadPress { slot, shift }` / `KeyShiftPadRelease { slot }`
 - `EvtBody::DeckUpdated` + `DeckSnapshot` gain `#[serde(default)] key_shift: f32`,
-  `#[serde(default = "default_pitch_page")] pitch_page: u8` (default 2), and
-  `#[serde(default)] keyboard_root_hot_cue: u8`.
+  `#[serde(default = "default_pitch_page")] keyboard_page: u8` and
+  `#[serde(default = "default_pitch_page")] key_shift_page: u8` (both default 2),
+  and `#[serde(default)] keyboard_root_hot_cue: u8`. Each pad mode keeps its own
+  page so Keyboard and Key Shift never affect each other.
 
 ### `crates/engine-dsp`
 
@@ -140,13 +143,15 @@ pentatonic) were removed in favour of the chromatic page model above.
 
 - `pads.rs`: `PITCH_PAGE_COUNT = 5`, `DEFAULT_PITCH_PAGE = 2`, the five
   `PITCH_PAGES` tables, `pad_page_action`, `pitch_page_next/prev`.
-- `DeckControlState` gains `key_shift_semitones: f32`, `pitch_page: u8`,
-  `keyboard_root_hot_cue: u8`.
-- `Engine::set_deck_key_shift`, `set_deck_pitch_page`, `set_deck_keyboard_root`,
-  `keyboard_pad_press/release`, `key_shift_pad_press/release`.
+- `DeckControlState` gains `key_shift_semitones: f32`, `keyboard_page: u8`,
+  `key_shift_page: u8`, `keyboard_root_hot_cue: u8`.
+- `Engine::set_deck_key_shift`, `set_deck_keyboard_page`, `set_deck_key_shift_page`,
+  `set_deck_keyboard_root`, `keyboard_pad_press/release`,
+  `key_shift_pad_press/release`.
 - `pad_press`/`pad_release` dispatch the two new modes.
 - Snapshot maps the new fields; `clear_loaded_track` resets key shift to `0`,
-  page to `DEFAULT_PITCH_PAGE`, and root to `0`.
+  both pages to `DEFAULT_PITCH_PAGE`, and root to `0`. A shift-bank page switch
+  advances only the page of the mode being operated.
 
 ## Controller (DDJ-400)
 
@@ -165,13 +170,15 @@ existing snapshot + `apply_output_signal` mechanism instead.
   `_led` aliases for the mode buttons and both banks.
 - `map.toml`: bind the above actions and `[outputs.deck_N]` LED targets.
 - `session.rs`: extend `set_deck_pad_mode` (force-refresh the new banks, like
-  `refresh_hot_cue_leds`); add `set_deck_key_shift` / `set_deck_pitch_page` /
-  `set_deck_keyboard_root` that mirror the value and light the matching pad LED;
-  handle `CmdBody::SetKeyShift` / `SetPitchPage` / `SetKeyboardRoot` in the
-  local-mirror match.
+  `refresh_hot_cue_leds`); add `set_deck_key_shift` / `set_deck_keyboard_page` /
+  `set_deck_key_shift_page` / `set_deck_keyboard_root` that mirror the value and
+  light the matching pad LED (the LED refresh uses the page of the current pad
+  mode); handle `CmdBody::SetKeyShift` / `SetKeyboardPage` / `SetKeyShiftPage` /
+  `SetKeyboardRoot` in the local-mirror match.
 - `crates/controller/src/engine.rs` + `crates/host-flutter/src/api/controller.rs`:
-  add `set_deck_pitch_page` / `set_deck_keyboard_root` to `ControllerEngine`; in
-  `apply_engine_mirror` read `key_shift` / `pitch_page` / `keyboard_root_hot_cue`
+  add `set_deck_keyboard_page` / `set_deck_key_shift_page` /
+  `set_deck_keyboard_root` to `ControllerEngine`; in `apply_engine_mirror` read
+  `key_shift` / `keyboard_page` / `key_shift_page` / `keyboard_root_hot_cue`
   from `DeckUpdated`/`EngineStatus` and mirror them (fresh-attach replay already
   runs through `EngineStatus`).
 - Update `docs/ddj-400-hardware-checklist.md` (remove the two "waiting on"
@@ -191,9 +198,10 @@ existing snapshot + `apply_output_signal` mechanism instead.
   (8 chips; empty slots disabled).
 - `pads/key_shift_pads.dart`: page pads with the latched-semitone highlight
   (page-5 specials never highlight as absolute).
-- `engine_ui.dart` + `engine_providers.dart`: `pitchPages` / `keyboardRoots`
-  maps, `deckPitchPageProvider` / `deckKeyboardRootProvider`, and
-  `applyEngineEvt` handling; a resulting-key display that is read-only.
+- `engine_ui.dart` + `engine_providers.dart`: `keyboardPages` / `keyShiftPages` /
+  `keyboardRoots` maps, `deckKeyboardPageProvider` / `deckKeyShiftPageProvider` /
+  `deckKeyboardRootProvider`, and `applyEngineEvt` handling; a resulting-key
+  display that is read-only.
 - FRB: regenerate `gui-flutter` bindings for the new commands/events.
 
 ## Testing
@@ -202,9 +210,9 @@ existing snapshot + `apply_output_signal` mechanism instead.
 |-------|-------|
 | `stretch` | pitch factor math; sine in → frequency × P; duration unchanged; P=1 bypass; group-delay accounting |
 | `engine-dsp` | `set_key_shift_semitones` shifts output frequency; playhead/tempo independent of pitch; stems + key shift; reset on unload |
-| `engine-core` | `bus_pad_modes_kb_keyshift.rs`: page tables, pad press latch/clear, keyboard momentary gate, page switching, `SetKeyShift`/`SetPitchPage`/`SetKeyboardRoot`, snapshot state-sync, no library writes |
+| `engine-core` | `bus_pad_modes_kb_keyshift.rs`: page tables, pad press latch/clear, keyboard momentary gate, page switching, per-mode page independence, `SetKeyShift`/`SetKeyboardPage`/`SetKeyShiftPage`/`SetKeyboardRoot`, snapshot state-sync, no library writes |
 | `controller` | action resolution for new leaves; `ddj400_feedback` mode-gated LED banks; mode-button → `SetPadMode` |
-| Flutter | `pad_modes_test` page tables/labels; `engine_ui_test` pitchPage/keyboardRoot apply; keyboard/key-shift pad widget tests |
+| Flutter | `pad_modes_test` page tables/labels; `engine_ui_test` keyboardPage/keyShiftPage/keyboardRoot apply; keyboard/key-shift pad widget tests |
 
 ## Out of scope
 

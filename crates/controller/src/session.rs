@@ -221,10 +221,17 @@ impl MappingSession {
         self.refresh_key_shift_leds(deck, midi);
     }
 
-    /// Mirror engine Keyboard / Key Shift semitone page (pad-bank LEDs).
-    pub fn set_deck_pitch_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
+    /// Mirror engine Keyboard pad semitone page (pad-bank LEDs).
+    pub fn set_deck_keyboard_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
-        self.snapshot.pitch_page[i] = page.clamp(1, 5);
+        self.snapshot.keyboard_page[i] = page.clamp(1, 5);
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine Key Shift pad semitone page (pad-bank LEDs).
+    pub fn set_deck_key_shift_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        self.snapshot.key_shift_page[i] = page.clamp(1, 5);
         self.refresh_key_shift_leds(deck, midi);
     }
 
@@ -245,11 +252,15 @@ impl MappingSession {
         let i = (deck as usize).min(3);
         let section = format!("deck_{}", deck + 1);
         let shift = self.snapshot.key_shift[i];
-        let page = self.snapshot.pitch_page[i];
         let alias_prefix = match self.snapshot.pad_mode[i] {
             PadMode::KeyShift => "key_shift_pad",
             PadMode::Keyboard => "keyboard_pad",
             _ => return,
+        };
+        // Each mode has its own page; light the bank of the current mode.
+        let page = match self.snapshot.pad_mode[i] {
+            PadMode::KeyShift => self.snapshot.key_shift_page[i],
+            _ => self.snapshot.keyboard_page[i],
         };
         for n in 1..=8u8 {
             let alias = format!("{alias_prefix}_{n}");
@@ -636,9 +647,14 @@ impl MappingSession {
                             self.set_deck_key_shift(d, *semitones, midi);
                         }
                     }
-                    CmdBody::SetPitchPage { page } => {
+                    CmdBody::SetKeyboardPage { page } => {
                         if let Origin::Deck(d) = *o {
-                            self.set_deck_pitch_page(d, *page, midi);
+                            self.set_deck_keyboard_page(d, *page, midi);
+                        }
+                    }
+                    CmdBody::SetKeyShiftPage { page } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_key_shift_page(d, *page, midi);
                         }
                     }
                     CmdBody::SetKeyboardRoot { slot } => {

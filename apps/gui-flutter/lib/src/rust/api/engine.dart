@@ -181,6 +181,12 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
   Future<void> setKeyShift({required int deckId, required double semitones});
 
+  /// Select the Key Shift pad semitone page (1..=5).
+  Future<void> setKeyShiftPage({required int deckId, required int page});
+
+  /// Select the Keyboard pad semitone page (1..=5).
+  Future<void> setKeyboardPage({required int deckId, required int page});
+
   /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
   Future<void> setKeyboardRoot({required int deckId, required int slot});
 
@@ -191,9 +197,6 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Per-deck pad mode.
   Future<void> setPadMode({required int deckId, required PadMode mode});
-
-  /// Select the Keyboard / Key Shift semitone page (1..=5).
-  Future<void> setPitchPage({required int deckId, required int page});
 
   Future<void> setQuantize({required int deckId, required bool enabled});
 
@@ -300,8 +303,11 @@ class EngineEvt {
   /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
   final double? keyShift;
 
-  /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
-  final int? pitchPage;
+  /// Keyboard pad semitone page (`1..=5`; default 2).
+  final int? keyboardPage;
+
+  /// Key Shift pad semitone page (`1..=5`; default 2).
+  final int? keyShiftPage;
 
   /// Hot-cue slot used as the Keyboard pad root (default 0).
   final int? keyboardRootHotCue;
@@ -379,7 +385,8 @@ class EngineEvt {
     this.tempoRange,
     this.keyLock,
     this.keyShift,
-    this.pitchPage,
+    this.keyboardPage,
+    this.keyShiftPage,
     this.keyboardRootHotCue,
     this.padMode,
     this.syncMode,
@@ -433,7 +440,8 @@ class EngineEvt {
       tempoRange.hashCode ^
       keyLock.hashCode ^
       keyShift.hashCode ^
-      pitchPage.hashCode ^
+      keyboardPage.hashCode ^
+      keyShiftPage.hashCode ^
       keyboardRootHotCue.hashCode ^
       padMode.hashCode ^
       syncMode.hashCode ^
@@ -489,7 +497,8 @@ class EngineEvt {
           tempoRange == other.tempoRange &&
           keyLock == other.keyLock &&
           keyShift == other.keyShift &&
-          pitchPage == other.pitchPage &&
+          keyboardPage == other.keyboardPage &&
+          keyShiftPage == other.keyShiftPage &&
           keyboardRootHotCue == other.keyboardRootHotCue &&
           padMode == other.padMode &&
           syncMode == other.syncMode &&

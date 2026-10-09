@@ -65,7 +65,8 @@ class EngineUiSnapshot {
     this.tempoRanges = const {},
     this.keyLocks = const {},
     this.keyShifts = const {},
-    this.pitchPages = const {},
+    this.keyboardPages = const {},
+    this.keyShiftPages = const {},
     this.keyboardRoots = const {},
     this.padModes = const {},
     this.stemsReady = const {},
@@ -102,7 +103,8 @@ class EngineUiSnapshot {
   final Map<int, double> tempoRanges;
   final Map<int, bool> keyLocks;
   final Map<int, double> keyShifts;
-  final Map<int, int> pitchPages;
+  final Map<int, int> keyboardPages;
+  final Map<int, int> keyShiftPages;
   final Map<int, int> keyboardRoots;
   final Map<int, PadMode> padModes;
   final Map<int, bool> stemsReady;
@@ -136,7 +138,9 @@ class EngineUiSnapshot {
 
   double keyShiftFor(int deckId) => keyShifts[deckId] ?? 0.0;
 
-  int pitchPageFor(int deckId) => pitchPages[deckId] ?? kDefaultPitchPage;
+  int keyboardPageFor(int deckId) => keyboardPages[deckId] ?? kDefaultPitchPage;
+
+  int keyShiftPageFor(int deckId) => keyShiftPages[deckId] ?? kDefaultPitchPage;
 
   int keyboardRootFor(int deckId) => keyboardRoots[deckId] ?? 0;
 
@@ -190,7 +194,8 @@ class EngineUiSnapshot {
     Map<int, double>? tempoRanges,
     Map<int, bool>? keyLocks,
     Map<int, double>? keyShifts,
-    Map<int, int>? pitchPages,
+    Map<int, int>? keyboardPages,
+    Map<int, int>? keyShiftPages,
     Map<int, int>? keyboardRoots,
     Map<int, PadMode>? padModes,
     Map<int, bool>? stemsReady,
@@ -222,7 +227,8 @@ class EngineUiSnapshot {
     tempoRanges: tempoRanges ?? this.tempoRanges,
     keyLocks: keyLocks ?? this.keyLocks,
     keyShifts: keyShifts ?? this.keyShifts,
-    pitchPages: pitchPages ?? this.pitchPages,
+    keyboardPages: keyboardPages ?? this.keyboardPages,
+    keyShiftPages: keyShiftPages ?? this.keyShiftPages,
     keyboardRoots: keyboardRoots ?? this.keyboardRoots,
     padModes: padModes ?? this.padModes,
     stemsReady: stemsReady ?? this.stemsReady,
@@ -298,7 +304,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         nextKeyLocks[id] = evt.keyLock!;
       }
       final nextKeyShifts = Map<int, double>.from(prev.keyShifts);
-      final nextPitchPages = Map<int, int>.from(prev.pitchPages);
+      final nextKeyboardPages = Map<int, int>.from(prev.keyboardPages);
+      final nextKeyShiftPages = Map<int, int>.from(prev.keyShiftPages);
       final nextKeyboardRoots = Map<int, int>.from(prev.keyboardRoots);
       // Key shift is session-only deck state; reset on unload.
       if (unloaded) {
@@ -306,9 +313,13 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
       } else if (evt.keyShift != null) {
         nextKeyShifts[id] = evt.keyShift!;
       }
-      // Page / root mirror the keyLocks pattern: apply whenever authored.
-      if (evt.pitchPage != null) {
-        nextPitchPages[id] = evt.pitchPage!;
+      // Pages / root mirror the keyLocks pattern: apply whenever authored. Each
+      // pad mode keeps its own page, so they never clobber each other.
+      if (evt.keyboardPage != null) {
+        nextKeyboardPages[id] = evt.keyboardPage!;
+      }
+      if (evt.keyShiftPage != null) {
+        nextKeyShiftPages[id] = evt.keyShiftPage!;
       }
       if (evt.keyboardRootHotCue != null) {
         nextKeyboardRoots[id] = evt.keyboardRootHotCue!;
@@ -422,7 +433,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         tempoRanges: nextRanges,
         keyLocks: nextKeyLocks,
         keyShifts: nextKeyShifts,
-        pitchPages: nextPitchPages,
+        keyboardPages: nextKeyboardPages,
+        keyShiftPages: nextKeyShiftPages,
         keyboardRoots: nextKeyboardRoots,
         padModes: nextPadModes,
         syncModes: nextSyncModes,

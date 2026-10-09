@@ -134,11 +134,18 @@ fn key_shift_of(body: &EvtBody) -> f32 {
     *key_shift
 }
 
-fn pitch_page_of(body: &EvtBody) -> u8 {
-    let EvtBody::DeckUpdated { pitch_page, .. } = body else {
+fn keyboard_page_of(body: &EvtBody) -> u8 {
+    let EvtBody::DeckUpdated { keyboard_page, .. } = body else {
         panic!("expected DeckUpdated");
     };
-    *pitch_page
+    *keyboard_page
+}
+
+fn key_shift_page_of(body: &EvtBody) -> u8 {
+    let EvtBody::DeckUpdated { key_shift_page, .. } = body else {
+        panic!("expected DeckUpdated");
+    };
+    *key_shift_page
 }
 
 fn deck_position(session: &EngineSession) -> i32 {
@@ -268,10 +275,10 @@ fn key_shift_default_page_slots_and_page_actions() {
     // Page 3 slot 0 → -8.
     publish(
         &session,
-        Kind::SetPitchPage,
-        &CmdBody::SetPitchPage { page: 3 },
+        Kind::SetKeyShiftPage,
+        &CmdBody::SetKeyShiftPage { page: 3 },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 3);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 3);
     publish(
         &session,
         Kind::KeyShiftPadPress,
@@ -285,10 +292,10 @@ fn key_shift_default_page_slots_and_page_actions() {
     // Page 5: slot 0 → Reset, slot 1 → Down.
     publish(
         &session,
-        Kind::SetPitchPage,
-        &CmdBody::SetPitchPage { page: 5 },
+        Kind::SetKeyShiftPage,
+        &CmdBody::SetKeyShiftPage { page: 5 },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 5);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 5);
     publish(
         &session,
         Kind::SetKeyShift,
@@ -338,7 +345,7 @@ fn key_shift_shift_bank_switches_page() {
             shift: true,
         },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 3);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 3);
     // slot 7 = prev = 2.
     publish(
         &session,
@@ -348,7 +355,7 @@ fn key_shift_shift_bank_switches_page() {
             shift: true,
         },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 2);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 2);
     // Other shift-bank slots are no-ops.
     publish(
         &session,
@@ -358,12 +365,12 @@ fn key_shift_shift_bank_switches_page() {
             shift: true,
         },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 2);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 2);
     // Wrapping from page 1: prev → 5.
     publish(
         &session,
-        Kind::SetPitchPage,
-        &CmdBody::SetPitchPage { page: 1 },
+        Kind::SetKeyShiftPage,
+        &CmdBody::SetKeyShiftPage { page: 1 },
     );
     let _ = next_deck_updated(&evt);
     publish(
@@ -374,7 +381,68 @@ fn key_shift_shift_bank_switches_page() {
             shift: true,
         },
     );
-    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 5);
+    assert_eq!(key_shift_page_of(&next_deck_updated(&evt)), 5);
+}
+
+#[test]
+fn keyboard_and_key_shift_pages_are_independent() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    publish(
+        &session,
+        Kind::SetKeyboardPage,
+        &CmdBody::SetKeyboardPage { page: 3 },
+    );
+    let body = next_deck_updated(&evt);
+    assert_eq!(keyboard_page_of(&body), 3);
+    assert_eq!(key_shift_page_of(&body), DEFAULT_PITCH_PAGE);
+
+    publish(
+        &session,
+        Kind::SetKeyShiftPage,
+        &CmdBody::SetKeyShiftPage { page: 1 },
+    );
+    let body = next_deck_updated(&evt);
+    assert_eq!(keyboard_page_of(&body), 3);
+    assert_eq!(key_shift_page_of(&body), 1);
+
+    // A Key Shift shift-bank page switch advances only the Key Shift page.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 6,
+            shift: true,
+        },
+    );
+    let body = next_deck_updated(&evt);
+    assert_eq!(keyboard_page_of(&body), 3);
+    assert_eq!(key_shift_page_of(&body), 2);
+
+    // A Keyboard shift-bank page switch advances only the Keyboard page.
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 6,
+            shift: true,
+        },
+    );
+    let body = next_deck_updated(&evt);
+    assert_eq!(keyboard_page_of(&body), 4);
+    assert_eq!(key_shift_page_of(&body), 2);
 }
 
 #[test]

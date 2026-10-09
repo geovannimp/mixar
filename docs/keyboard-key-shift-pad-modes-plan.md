@@ -14,7 +14,7 @@
 
 **Goal:** Add realtime key-shift pitch to the engine and expose it as Keyboard and Key Shift performance-pad modes across the engine bus, DDJ-400 mapping, and Flutter UI.
 
-**Architecture:** A realtime pitch factor is added to `crates/stretch` (keylock time-stretch at `tempo/pitch` plus a stateful `StreamingSincResampler` output stage). `engine-dsp` owns per-deck `key_shift_semitones`; `engine-core` exposes `SetKeyShift` / `SetPitchPage` / `SetKeyboardRoot` commands and Keyboard/KeyShift pad handlers with session-only state; the controller binds the DDJ-400 note banks; Flutter renders the page grids plus a root selector.
+**Architecture:** A realtime pitch factor is added to `crates/stretch` (keylock time-stretch at `tempo/pitch` plus a stateful `StreamingSincResampler` output stage). `engine-dsp` owns per-deck `key_shift_semitones`; `engine-core` exposes `SetKeyShift` / `SetKeyboardPage` / `SetKeyShiftPage` / `SetKeyboardRoot` commands and Keyboard/KeyShift pad handlers with session-only state; the controller binds the DDJ-400 note banks; Flutter renders the page grids plus a root selector.
 
 **Tech Stack:** Rust workspace (`cargo --manifest-path crates/Cargo.toml`), `timestretch` 0.14 (`StreamingSincResampler`), engine cmd/evt bus, `flutter_rust_bridge`, Flutter (Shad/Mixar shell).
 
@@ -105,12 +105,12 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 **Interfaces:**
 - Consumes: `stretch::{semitones_to_pitch, TimeStretcher::set_pitch_factor}` (Task 1).
 - Produces:
-  - `CmdBody::SetKeyShift { semitones: f32 }`, `CmdBody::SetPitchPage { page: u8 }`, `CmdBody::SetKeyboardRoot { slot: u8 }`.
-  - `Kind::SetKeyShift`, `Kind::SetPitchPage`, `Kind::SetKeyboardRoot`.
-  - `EvtBody::DeckUpdated` + `DeckSnapshot` fields `key_shift: f32`, `#[serde(default = "default_pitch_page")] pitch_page: u8` (default 2), `#[serde(default)] keyboard_root_hot_cue: u8`.
+  - `CmdBody::SetKeyShift { semitones: f32 }`, `CmdBody::SetKeyboardPage { page: u8 }`, `CmdBody::SetKeyShiftPage { page: u8 }`, `CmdBody::SetKeyboardRoot { slot: u8 }`.
+  - `Kind::SetKeyShift`, `Kind::SetKeyboardPage`, `Kind::SetKeyShiftPage`, `Kind::SetKeyboardRoot`.
+  - `EvtBody::DeckUpdated` + `DeckSnapshot` fields `key_shift: f32`, `#[serde(default = "default_pitch_page")] keyboard_page: u8` (default 2), `#[serde(default = "default_pitch_page")] key_shift_page: u8` (default 2), `#[serde(default)] keyboard_root_hot_cue: u8`.
   - `Deck::set_key_shift_semitones(f32)`, `Deck::key_shift_semitones() -> f32`, `Deck::pitch_factor() -> f64`.
-  - `DeckControlState { key_shift_semitones: f32, pitch_page: u8, keyboard_root_hot_cue: u8 }`.
-  - `Engine::set_deck_key_shift`, `set_deck_pitch_page`, `set_deck_keyboard_root`.
+  - `DeckControlState { key_shift_semitones: f32, keyboard_page: u8, key_shift_page: u8, keyboard_root_hot_cue: u8 }`.
+  - `Engine::set_deck_key_shift`, `set_deck_keyboard_page`, `set_deck_key_shift_page`, `set_deck_keyboard_root`.
 
 - [ ] **Step 1: Write the failing engine-dsp tests** (`key_shift_changes_pitch_not_tempo`, `key_shift_zero_matches_unset_output`, `key_shift_clamps_and_rejects_non_finite`, `key_shift_with_stems_keeps_stem_audio`, `key_shift_resets_on_unload`). Use a zero-crossing `estimate_frequency` helper.
 
@@ -120,13 +120,13 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 - [ ] **Step 4: Run to verify pass** — `cargo --manifest-path crates/Cargo.toml test -p engine-dsp key_shift`. Expected: PASS.
 
-- [ ] **Step 5: Write the failing engine-core bus test** (`crates/engine-core/tests/bus_key_shift.rs`): publish `SetKeyShift`, `SetPitchPage`, `SetKeyboardRoot` and assert the `DeckUpdated` fields; assert `unload` resets key shift to `0.0`, page to `2`, root to `0`.
+- [ ] **Step 5: Write the failing engine-core bus test** (`crates/engine-core/tests/bus_key_shift.rs`): publish `SetKeyShift`, `SetKeyboardPage`, `SetKeyShiftPage`, `SetKeyboardRoot` and assert the `DeckUpdated` fields; assert `unload` resets key shift to `0.0`, both pages to `2`, root to `0`.
 
 - [ ] **Step 6: Run to verify failure** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_key_shift`. Expected: FAIL (new variants unresolved).
 
-- [ ] **Step 7: Implement the `engine-api` surface.** In `payload.rs`: add `default_pitch_page()` (returns `2`); add the three `CmdBody` variants; add `#[serde(default)] key_shift: f32`, `#[serde(default = "default_pitch_page")] pitch_page: u8`, `#[serde(default)] keyboard_root_hot_cue: u8` to `DeckSnapshot` and `EvtBody::DeckUpdated`. In `kind.rs`: add the three kinds. Fix every literal `DeckSnapshot {` / `DeckUpdated {` construction site.
+- [ ] **Step 7: Implement the `engine-api` surface.** In `payload.rs`: add `default_pitch_page()` (returns `2`); add the four `CmdBody` variants; add `#[serde(default)] key_shift: f32`, `#[serde(default = "default_pitch_page")] keyboard_page: u8`, `#[serde(default = "default_pitch_page")] key_shift_page: u8`, `#[serde(default)] keyboard_root_hot_cue: u8` to `DeckSnapshot` and `EvtBody::DeckUpdated`. In `kind.rs`: add the four kinds. Fix every literal `DeckSnapshot {` / `DeckUpdated {` construction site.
 
-- [ ] **Step 8: Implement `engine-core` state, commands, snapshot.** `DeckControlState`: add `key_shift_semitones: f32`, `pitch_page: u8`, `keyboard_root_hot_cue: u8`; reset in `clear_loaded_track` (key shift `0`, page `DEFAULT_PITCH_PAGE`, root `0`). Add the three `Engine` setters (clamp page to `1..=PITCH_PAGE_COUNT`). `deck_snapshot_from_dsp` forwards the fields; `deck_snapshot_to_evt` forwards them; `control.rs` dispatch validates and handles the three kinds returning `CmdOutcome::DeckUpdated(deck_id)`.
+- [ ] **Step 8: Implement `engine-core` state, commands, snapshot.** `DeckControlState`: add `key_shift_semitones: f32`, `keyboard_page: u8`, `key_shift_page: u8`, `keyboard_root_hot_cue: u8`; reset in `clear_loaded_track` (key shift `0`, both pages `DEFAULT_PITCH_PAGE`, root `0`). Add the four `Engine` setters (clamp pages to `1..=PITCH_PAGE_COUNT`). `deck_snapshot_from_dsp` forwards the fields; `deck_snapshot_to_evt` forwards them; `control.rs` dispatch validates and handles the four kinds returning `CmdOutcome::DeckUpdated(deck_id)`. Keyboard and Key Shift keep independent pages; a shift-bank page switch advances only the mode being operated.
 
 - [ ] **Step 9: Run to verify pass** — `cargo --manifest-path crates/Cargo.toml test -p engine-core --test bus_key_shift`, then `-p engine-dsp -p engine-api -p engine-core`. Expected: PASS.
 
@@ -144,7 +144,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 - Test: `crates/controller/src/action.rs` (`#[cfg(test)] mod tests`)
 
 **Interfaces:**
-- Consumes: Task 2 (`set_deck_key_shift`, `set_deck_pitch_page`, `set_deck_keyboard_root`, `DeckControlState`).
+- Consumes: Task 2 (`set_deck_key_shift`, `set_deck_keyboard_page`, `set_deck_key_shift_page`, `set_deck_keyboard_root`, `DeckControlState`).
 - Produces:
   - `PadMode::Keyboard`, `PadMode::KeyShift`.
   - `Kind::KeyboardPadPress/Release`, `Kind::KeyShiftPadPress/Release`.
@@ -180,13 +180,13 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 **Files:**
 - Modify: `mappings/ddj-400/device.toml`, `mappings/ddj-400/map.toml`
 - Modify: `crates/controller/src/session.rs`, `crates/controller/src/engine.rs`
-- Modify: `crates/host-flutter/src/api/controller.rs` (mirror `key_shift` / `pitch_page` / `keyboard_root_hot_cue`)
+- Modify: `crates/host-flutter/src/api/controller.rs` (mirror `key_shift` / `keyboard_page` / `key_shift_page` / `keyboard_root_hot_cue`)
 - Modify: `docs/ddj-400-hardware-checklist.md`
 - Test: `crates/controller/tests/ddj400_kb_keyshift.rs`
 
 **Interfaces:**
-- Consumes: Task 3 leaves; `EvtBody::DeckUpdated { key_shift, pitch_page, keyboard_root_hot_cue, .. }`.
-- Produces: `MappingSession::set_deck_key_shift` / `set_deck_pitch_page` / `set_deck_keyboard_root`; matching `ControllerEngine` methods.
+- Consumes: Task 3 leaves; `EvtBody::DeckUpdated { key_shift, keyboard_page, key_shift_page, keyboard_root_hot_cue, .. }`.
+- Produces: `MappingSession::set_deck_key_shift` / `set_deck_keyboard_page` / `set_deck_key_shift_page` / `set_deck_keyboard_root`; matching `ControllerEngine` methods.
 
 - [x] **Step 1: Write the failing controller test** (`ddj400_kb_keyshift.rs`): load the shipped bundle with a fake `MidiOut`; assert mode buttons dispatch `SetPadMode`, pad banks dispatch the named press kinds, and the shift bank switches pages.
 
@@ -194,7 +194,7 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 - [x] **Step 3: Add device + map bindings.** `catalog.rs`: register `pad_mode_keyboard`, `pad_mode_key_shift`, `keyboard_pad_1..8`, `key_shift_pad_1..8`, and the shift-bank page/delete aliases. `device.toml` / `map.toml`: bind the mode buttons (`0x69`, `0x6F`), the pad banks (`0x40–0x47`, `0x70–0x77`) and their shift banks (pad channel + 1), plus the `_led` aliases.
 
-- [x] **Step 4: Implement session LED + host mirror.** `session.rs`: force-refresh the Keyboard / Key Shift banks on mode switch; add `set_deck_key_shift` / `set_deck_pitch_page` / `set_deck_keyboard_root` (mirror + pad LED via `apply_output_signal`); handle `CmdBody::SetKeyShift` / `SetPitchPage` / `SetKeyboardRoot` in the local-mirror match. `controller/src/engine.rs` exposes the three methods. `host-flutter/src/api/controller.rs` reads the three fields from `DeckUpdated` / `EngineStatus` and mirrors them.
+- [x] **Step 4: Implement session LED + host mirror.** `session.rs`: force-refresh the Keyboard / Key Shift banks on mode switch; add `set_deck_key_shift` / `set_deck_keyboard_page` / `set_deck_key_shift_page` / `set_deck_keyboard_root` (mirror + pad LED via `apply_output_signal`; the LED refresh uses the page of the current pad mode); handle `CmdBody::SetKeyShift` / `SetKeyboardPage` / `SetKeyShiftPage` / `SetKeyboardRoot` in the local-mirror match. `controller/src/engine.rs` exposes the four methods. `host-flutter/src/api/controller.rs` reads the four fields from `DeckUpdated` / `EngineStatus` and mirrors them.
 
 - [x] **Step 5: Run to verify pass** — `cargo --manifest-path crates/Cargo.toml test -p controller`. Expected: PASS.
 
@@ -215,21 +215,21 @@ Add `fn set_pitch_factor(&mut self, _factor: f64) {}` to `trait TimeStretcher`.
 
 **Interfaces:**
 - Consumes: Task 3/4 engine cmds/evts.
-- Produces (Dart): `PadMode.keyboard`, `PadMode.keyShift`; `EngineEvt.keyShift` (`double?`), `EngineEvt.pitchPage` (`int?`), `EngineEvt.keyboardRootHotCue` (`int?`); `EngineUiSnapshot.pitchPageFor(int)`, `keyboardRootFor(int)`; providers `deckKeyShiftProvider`, `deckPitchPageProvider`, `deckKeyboardRootProvider`; engine methods `setKeyShift`, `setPitchPage`, `setKeyboardRoot`, `keyboardPadPress`, `keyboardPadRelease`, `keyShiftPadPress`, `keyShiftPadRelease`.
+- Produces (Dart): `PadMode.keyboard`, `PadMode.keyShift`; `EngineEvt.keyShift` (`double?`), `EngineEvt.keyboardPage` (`int?`), `EngineEvt.keyShiftPage` (`int?`), `EngineEvt.keyboardRootHotCue` (`int?`); `EngineUiSnapshot.keyboardPageFor(int)`, `keyShiftPageFor(int)`, `keyboardRootFor(int)`; providers `deckKeyShiftProvider`, `deckKeyboardPageProvider`, `deckKeyShiftPageProvider`, `deckKeyboardRootProvider`; engine methods `setKeyShift`, `setKeyboardPage`, `setKeyShiftPage`, `setKeyboardRoot`, `keyboardPadPress`, `keyboardPadRelease`, `keyShiftPadPress`, `keyShiftPadRelease`.
 
-- [ ] **Step 1: Write the failing Dart tests** — page-table equality and `pitchPadLabel` cases (`pad_modes_test`); `pitchPage`/`keyboardRoot` apply from an updated evt (`engine_ui_test`); page-aware pad widget tests plus a root-selector test (`keyboard_key_shift_pads_test`).
+- [ ] **Step 1: Write the failing Dart tests** — page-table equality and `pitchPadLabel` cases (`pad_modes_test`); `keyboardPage`/`keyShiftPage`/`keyboardRoot` apply from an updated evt (`engine_ui_test`); page-aware pad widget tests plus a root-selector test (`keyboard_key_shift_pads_test`).
 
 - [ ] **Step 2: Run to verify failure** — `cd apps/gui-flutter && flutter test test/pad_modes_test.dart test/keyboard_key_shift_pads_test.dart`. Expected: FAIL (undefined `PitchPad` / widget params).
 
-- [ ] **Step 3: Regenerate FRB and wire the Rust host.** `host-flutter/src/api/engine.rs`: add `set_keyboard_root` / `set_pitch_page` transport methods; extend `EngineEvt` and its `DeckUpdated` / `EngineStatus` mapping with `pitch_page` / `keyboard_root_hot_cue` (following the `key_lock` field). Run `moon run gui-flutter:generate`; confirm the generated Dart has `pitchPage`/`keyboardRootHotCue` and none of the removed scale bindings.
+- [ ] **Step 3: Regenerate FRB and wire the Rust host.** `host-flutter/src/api/engine.rs`: add `set_keyboard_root` / `set_keyboard_page` / `set_key_shift_page` transport methods; extend `EngineEvt` and its `DeckUpdated` / `EngineStatus` mapping with `keyboard_page` / `key_shift_page` / `keyboard_root_hot_cue` (following the `key_lock` field). Run `moon run gui-flutter:generate`; confirm the generated Dart has `keyboardPage`/`keyShiftPage`/`keyboardRootHotCue` and no `pitchPage`, plus the two page setters.
 
 - [ ] **Step 4: Implement the Flutter surface.**
   - `pad_modes.dart`: `kPadModes` includes `keyboard`, `keyShift`; labels `Keys` / `Shift`; `kPitchPageCount` / `kDefaultPitchPage`; the `PitchPad` value type and `kPitchPages` tables; `pitchPage(page)` / `pitchPadLabel(pad)`.
   - `key_shift_pads.dart`: `KeyShiftPads({ required int page, required int activeSemitones, required ValueChanged<int> onPress, bool disabled })` — 8 pads labelled from `kPitchPages[page-1]`, active highlight on the matching absolute semitone (page-5 specials never highlight).
   - `keyboard_pads.dart`: `KeyboardPads({ required int page, required int rootHotCue, required List<DeckHotCue> hotCues, required ValueChanged<int> onSelectRoot, required ValueChanged<int> onPress, required ValueChanged<int> onRelease, bool disabled })` — 8 `HoldPadButton`s plus an 8-chip root selector (empty slots disabled).
-  - `deck_pads_panel.dart`: constructor gains `pitchPage`, `keyboardRootHotCue`, `onSelectRoot`, `onCyclePage`; `_modeBody` renders the real grids; a tappable `PAGE n/5` indicator.
-  - `deck_pads_host.dart`: `_toEnginePadMode` cases; watch `deckPitchPageProvider` / `deckKeyboardRootProvider`; wire `onSelectRoot` → `setKeyboardRoot` and `onCyclePage` → `setPitchPage`.
-  - `engine_ui.dart` / `engine_providers.dart`: `pitchPages` / `keyboardRoots` maps + `copyWith` + providers + `applyEngineEvt` handling (mirror the `keyLocks` pattern).
+  - `deck_pads_panel.dart`: constructor gains `keyboardPage` / `keyShiftPage`, `keyboardRootHotCue`, `onSelectRoot`, `onPrevPage` / `onNextPage`; the Keyboard grid uses `keyboardPage`, the Key Shift grid uses `keyShiftPage`; a tappable `PAGE n/5` indicator.
+  - `deck_pads_host.dart`: `_toEnginePadMode` cases; watch `deckKeyboardPageProvider` / `deckKeyShiftPageProvider` / `deckKeyboardRootProvider`; wire `onSelectRoot` → `setKeyboardRoot` and the page callbacks → `setKeyboardPage` or `setKeyShiftPage` based on the current `padMode`.
+  - `engine_ui.dart` / `engine_providers.dart`: `keyboardPages` / `keyShiftPages` / `keyboardRoots` maps + `copyWith` + providers + `applyEngineEvt` handling (mirror the `keyLocks` pattern); each mode's page applies independently.
   - Deck key display: show the resulting key read-only (analyzed key + `keyShiftSemitones`), never persisted.
 
 - [ ] **Step 5: Run to verify pass** — `cd apps/gui-flutter && flutter test test/pad_modes_test.dart test/engine_ui_test.dart test/keyboard_key_shift_pads_test.dart`; then `flutter analyze` — no new issues.

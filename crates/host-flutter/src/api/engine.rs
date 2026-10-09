@@ -321,8 +321,10 @@ pub struct EngineEvt {
     pub key_lock: Option<bool>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift: Option<f32>,
-    /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
-    pub pitch_page: Option<u8>,
+    /// Keyboard pad semitone page (`1..=5`; default 2).
+    pub keyboard_page: Option<u8>,
+    /// Key Shift pad semitone page (`1..=5`; default 2).
+    pub key_shift_page: Option<u8>,
     /// Hot-cue slot used as the Keyboard pad root (default 0).
     pub keyboard_root_hot_cue: Option<u8>,
     pub pad_mode: Option<PadMode>,
@@ -395,7 +397,8 @@ impl EngineEvt {
             tempo_range: None,
             key_lock: None,
             key_shift: None,
-            pitch_page: None,
+            keyboard_page: None,
+            key_shift_page: None,
             keyboard_root_hot_cue: None,
             pad_mode: None,
             sync_mode: None,
@@ -793,12 +796,21 @@ impl EngineTransport {
         )
     }
 
-    /// Select the Keyboard / Key Shift semitone page (1..=5).
-    pub fn set_pitch_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
+    /// Select the Keyboard pad semitone page (1..=5).
+    pub fn set_keyboard_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
-            Kind::SetPitchPage,
-            &CmdBody::SetPitchPage { page },
+            Kind::SetKeyboardPage,
+            &CmdBody::SetKeyboardPage { page },
+        )
+    }
+
+    /// Select the Key Shift pad semitone page (1..=5).
+    pub fn set_key_shift_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyShiftPage,
+            &CmdBody::SetKeyShiftPage { page },
         )
     }
 
@@ -1405,7 +1417,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.tempo_range = Some(snap.tempo_range);
     evt.key_lock = Some(snap.key_lock);
     evt.key_shift = Some(snap.key_shift);
-    evt.pitch_page = Some(snap.pitch_page);
+    evt.keyboard_page = Some(snap.keyboard_page);
+    evt.key_shift_page = Some(snap.key_shift_page);
     evt.keyboard_root_hot_cue = Some(snap.keyboard_root_hot_cue);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
@@ -1461,7 +1474,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             tempo_range,
             key_lock,
             key_shift,
-            pitch_page,
+            keyboard_page,
+            key_shift_page,
             keyboard_root_hot_cue,
             pad_mode,
             sync_mode,
@@ -1498,7 +1512,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.tempo_range = Some(tempo_range);
             evt.key_lock = Some(key_lock);
             evt.key_shift = Some(key_shift);
-            evt.pitch_page = Some(pitch_page);
+            evt.keyboard_page = Some(keyboard_page);
+            evt.key_shift_page = Some(key_shift_page);
             evt.keyboard_root_hot_cue = Some(keyboard_root_hot_cue);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
@@ -1595,7 +1610,8 @@ mod tests {
             tempo_range: 0.08,
             key_lock: false,
             key_shift: 0.0,
-            pitch_page: engine_api::default_pitch_page(),
+            keyboard_page: engine_api::default_pitch_page(),
+            key_shift_page: engine_api::default_pitch_page(),
             keyboard_root_hot_cue: 0,
             eq: DeckEq {
                 low: 0.5,
@@ -1681,13 +1697,15 @@ mod tests {
     }
 
     #[test]
-    fn map_updated_forwards_pitch_page_and_keyboard_root() {
+    fn map_updated_forwards_pages_and_keyboard_root() {
         let mut deck = sample_deck(0, 1.0);
-        deck.pitch_page = 5;
+        deck.keyboard_page = 5;
+        deck.key_shift_page = 3;
         deck.keyboard_root_hot_cue = 3;
         let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
         assert_eq!(mapped.len(), 1);
-        assert_eq!(mapped[0].pitch_page, Some(5));
+        assert_eq!(mapped[0].keyboard_page, Some(5));
+        assert_eq!(mapped[0].key_shift_page, Some(3));
         assert_eq!(mapped[0].keyboard_root_hot_cue, Some(3));
     }
 

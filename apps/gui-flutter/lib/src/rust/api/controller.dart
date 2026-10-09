@@ -9,7 +9,7 @@ import 'library.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `apply_engine_mirror`, `apply_hot_cues`, `apply_key_shift`, `apply_keyboard_root`, `apply_library_mirror`, `apply_pad_mode`, `apply_pitch_page`, `apply_position`, `device_info`, `emit_events`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `map_evt`, `mapping_info`, `mirror_engine_library_to_controller`, `resolve_shipped_mappings`, `spawn_named`, `stop_and_join`
+// These functions are ignored because they are not marked as `pub`: `apply_engine_mirror`, `apply_hot_cues`, `apply_key_shift_page`, `apply_key_shift`, `apply_keyboard_page`, `apply_keyboard_root`, `apply_library_mirror`, `apply_pad_mode`, `apply_position`, `device_info`, `emit_events`, `hot_cue_slots_deck`, `hot_cue_slots_lib`, `map_evt`, `mapping_info`, `mirror_engine_library_to_controller`, `resolve_shipped_mappings`, `spawn_named`, `stop_and_join`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `HostPublish`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `publish_engine`, `publish_library`
 

@@ -39,7 +39,8 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemsGenerating = false,
     this.onStemsPress,
     this.keyShiftSemitones = 0,
-    this.pitchPage = kDefaultPitchPage,
+    this.keyboardPage = kDefaultPitchPage,
+    this.keyShiftPage = kDefaultPitchPage,
     this.keyboardRootHotCue = 0,
     this.onSelectRoot,
     this.onPrevPage,
@@ -76,7 +77,8 @@ class DeckPadsPanel extends StatelessWidget {
   final ValueChanged<int> onKeyboardPress;
   final ValueChanged<int> onKeyboardRelease;
   final int keyShiftSemitones;
-  final int pitchPage;
+  final int keyboardPage;
+  final int keyShiftPage;
   final int keyboardRootHotCue;
   final ValueChanged<int>? onSelectRoot;
 
@@ -187,7 +189,7 @@ class DeckPadsPanel extends StatelessWidget {
         onPress: onStemsPress ?? (_) {},
       ),
       PadMode.keyboard => KeyboardPads(
-        page: pitchPage,
+        page: keyboardPage,
         rootHotCue: keyboardRootHotCue,
         hotCues: hotCues,
         onSelectRoot: onSelectRoot ?? (_) {},
@@ -198,7 +200,7 @@ class DeckPadsPanel extends StatelessWidget {
         onNextPage: onNextPage ?? () {},
       ),
       PadMode.keyShift => KeyShiftPads(
-        page: pitchPage,
+        page: keyShiftPage,
         activeSemitones: keyShiftSemitones,
         disabled: _controlsDisabled,
         onPress: onKeyShiftPress,

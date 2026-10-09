@@ -147,9 +147,12 @@ pub struct DeckSnapshot {
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     #[serde(default)]
     pub key_shift: f32,
-    /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
+    /// Keyboard pad semitone page (`1..=5`; default 2).
     #[serde(default = "default_pitch_page")]
-    pub pitch_page: u8,
+    pub keyboard_page: u8,
+    /// Key Shift pad semitone page (`1..=5`; default 2).
+    #[serde(default = "default_pitch_page")]
+    pub key_shift_page: u8,
     /// Hot-cue slot used as the Keyboard pad root (default 0).
     #[serde(default)]
     pub keyboard_root_hot_cue: u8,
@@ -253,8 +256,12 @@ pub enum CmdBody {
     SetKeyboardRoot {
         slot: u8,
     },
-    /// Keyboard / Key Shift semitone page (`1..=5`).
-    SetPitchPage {
+    /// Keyboard pad semitone page (`1..=5`).
+    SetKeyboardPage {
+        page: u8,
+    },
+    /// Key Shift pad semitone page (`1..=5`).
+    SetKeyShiftPage {
         page: u8,
     },
     SetFilter {
@@ -456,9 +463,12 @@ pub enum EvtBody {
         /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
         #[serde(default)]
         key_shift: f32,
-        /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
+        /// Keyboard pad semitone page (`1..=5`; default 2).
         #[serde(default = "default_pitch_page")]
-        pitch_page: u8,
+        keyboard_page: u8,
+        /// Key Shift pad semitone page (`1..=5`; default 2).
+        #[serde(default = "default_pitch_page")]
+        key_shift_page: u8,
         /// Hot-cue slot used as the Keyboard pad root (default 0).
         #[serde(default)]
         keyboard_root_hot_cue: u8,

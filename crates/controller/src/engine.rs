@@ -981,8 +981,8 @@ impl ControllerEngine {
         }
     }
 
-    /// Mirror engine Keyboard / Key Shift semitone page so pad LEDs follow state.
-    pub fn set_deck_pitch_page(&mut self, deck: u16, page: u8) {
+    /// Mirror engine Keyboard pad semitone page so pad LEDs follow state.
+    pub fn set_deck_keyboard_page(&mut self, deck: u16, page: u8) {
         for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
@@ -991,7 +991,25 @@ impl ControllerEngine {
                 port_name,
                 send_gate: &mut attached.send_gate,
             };
-            attached.session.set_deck_pitch_page(deck, page, &mut sink);
+            attached
+                .session
+                .set_deck_keyboard_page(deck, page, &mut sink);
+        }
+    }
+
+    /// Mirror engine Key Shift pad semitone page so pad LEDs follow state.
+    pub fn set_deck_key_shift_page(&mut self, deck: u16, page: u8) {
+        for (port_name, attached) in self.attached.iter_mut() {
+            let mut sink = MidiSink {
+                out: &mut attached.output,
+                mapping_id: &attached.mapping_id,
+                device_id: &attached.device_id,
+                port_name,
+                send_gate: &mut attached.send_gate,
+            };
+            attached
+                .session
+                .set_deck_key_shift_page(deck, page, &mut sink);
         }
     }
 

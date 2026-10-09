@@ -135,7 +135,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     final keyShiftSemitones = ref
         .watch(deckKeyShiftProvider(widget.deckId))
         .round();
-    final pitchPage = ref.watch(deckPitchPageProvider(widget.deckId));
+    final keyboardPage = ref.watch(deckKeyboardPageProvider(widget.deckId));
+    final keyShiftPage = ref.watch(deckKeyShiftPageProvider(widget.deckId));
     final keyboardRootHotCue = ref.watch(
       deckKeyboardRootProvider(widget.deckId),
     );
@@ -265,7 +266,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         );
       },
       keyShiftSemitones: keyShiftSemitones,
-      pitchPage: pitchPage,
+      keyboardPage: keyboardPage,
+      keyShiftPage: keyShiftPage,
       keyboardRootHotCue: keyboardRootHotCue,
       onSelectRoot: (slot) {
         unawaited(
@@ -276,18 +278,26 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         );
       },
       onPrevPage: () {
-        final prev = pitchPage <= 1 ? kPitchPageCount : pitchPage - 1;
+        final keyShift = padMode == PadMode.keyShift;
+        final page = keyShift ? keyShiftPage : keyboardPage;
+        final prev = page <= 1 ? kPitchPageCount : page - 1;
         unawaited(
           _run(
-            (engine) => engine.setPitchPage(deckId: widget.deckId, page: prev),
+            (engine) => keyShift
+                ? engine.setKeyShiftPage(deckId: widget.deckId, page: prev)
+                : engine.setKeyboardPage(deckId: widget.deckId, page: prev),
           ),
         );
       },
       onNextPage: () {
-        final next = pitchPage >= kPitchPageCount ? 1 : pitchPage + 1;
+        final keyShift = padMode == PadMode.keyShift;
+        final page = keyShift ? keyShiftPage : keyboardPage;
+        final next = page >= kPitchPageCount ? 1 : page + 1;
         unawaited(
           _run(
-            (engine) => engine.setPitchPage(deckId: widget.deckId, page: next),
+            (engine) => keyShift
+                ? engine.setKeyShiftPage(deckId: widget.deckId, page: next)
+                : engine.setKeyboardPage(deckId: widget.deckId, page: next),
           ),
         );
       },

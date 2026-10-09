@@ -784,13 +784,23 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the Keyboard / Key Shift semitone page for a deck (clamped to `1..=5`).
-    pub fn set_deck_pitch_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
+    /// Set the Keyboard pad semitone page for a deck (clamped to `1..=5`).
+    pub fn set_deck_keyboard_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
         let control = self
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.pitch_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
+        control.keyboard_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
+        Ok(())
+    }
+
+    /// Set the Key Shift pad semitone page for a deck (clamped to `1..=5`).
+    pub fn set_deck_key_shift_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.key_shift_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
         Ok(())
     }
 
@@ -1604,12 +1614,12 @@ impl Engine {
                 .deck_control
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            (control.pitch_page, control.key_shift_semitones)
+            (control.key_shift_page, control.key_shift_semitones)
         };
         if shift {
             return match slot {
-                6 => self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_next(page)),
-                7 => self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_prev(page)),
+                6 => self.set_deck_key_shift_page(deck_id, crate::pads::pitch_page_next(page)),
+                7 => self.set_deck_key_shift_page(deck_id, crate::pads::pitch_page_prev(page)),
                 _ => Ok(()),
             };
         }
@@ -1643,12 +1653,12 @@ impl Engine {
             return match slot {
                 0..=5 => self.delete_deck_hot_cue(deck_id, slot),
                 6 => {
-                    let page = self.pitch_page(deck_id)?;
-                    self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_next(page))
+                    let page = self.keyboard_page(deck_id)?;
+                    self.set_deck_keyboard_page(deck_id, crate::pads::pitch_page_next(page))
                 }
                 7 => {
-                    let page = self.pitch_page(deck_id)?;
-                    self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_prev(page))
+                    let page = self.keyboard_page(deck_id)?;
+                    self.set_deck_keyboard_page(deck_id, crate::pads::pitch_page_prev(page))
                 }
                 _ => Ok(()),
             };
@@ -1660,7 +1670,7 @@ impl Engine {
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
             (
-                control.pitch_page,
+                control.keyboard_page,
                 !control.keyboard_held.iter().any(|held| *held),
                 control.key_shift_semitones,
                 control
@@ -1721,7 +1731,7 @@ impl Engine {
                 .enumerate()
                 .filter(|(_, held)| **held)
                 .find_map(|(index, _)| {
-                    match crate::pads::pad_page_action(control.pitch_page, index as u8) {
+                    match crate::pads::pad_page_action(control.keyboard_page, index as u8) {
                         crate::pads::PitchPadAction::Semitone(s) => Some(f32::from(s)),
                         _ => None,
                     }
@@ -1748,10 +1758,10 @@ impl Engine {
         Ok(())
     }
 
-    fn pitch_page(&self, deck_id: usize) -> Result<u8> {
+    fn keyboard_page(&self, deck_id: usize) -> Result<u8> {
         self.deck_control
             .get(deck_id)
-            .map(|control| control.pitch_page)
+            .map(|control| control.keyboard_page)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))
     }
 
@@ -2357,7 +2367,8 @@ fn deck_snapshot_from_dsp(
         tempo_range: deck.tempo_range(),
         key_lock: deck.key_lock(),
         key_shift: control.key_shift_semitones,
-        pitch_page: control.pitch_page,
+        keyboard_page: control.keyboard_page,
+        key_shift_page: control.key_shift_page,
         keyboard_root_hot_cue: control.keyboard_root_hot_cue,
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),

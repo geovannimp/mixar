@@ -29,8 +29,10 @@ pub(crate) struct DeckControlState {
     pub active_sampler_bank_id: Option<String>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift_semitones: f32,
-    /// Keyboard / Key Shift semitone page (`1..=5`).
-    pub pitch_page: u8,
+    /// Keyboard pad semitone page (`1..=5`).
+    pub keyboard_page: u8,
+    /// Key Shift pad semitone page (`1..=5`).
+    pub key_shift_page: u8,
     /// Hot-cue slot used as the Keyboard pad root.
     pub keyboard_root_hot_cue: u8,
     /// Key-shift offset latched before the first Keyboard pad press, restored on
@@ -59,7 +61,8 @@ impl Default for DeckControlState {
             hot_cues: [None; HOT_CUE_SLOT_COUNT],
             active_sampler_bank_id: None,
             key_shift_semitones: 0.0,
-            pitch_page: DEFAULT_PITCH_PAGE,
+            keyboard_page: DEFAULT_PITCH_PAGE,
+            key_shift_page: DEFAULT_PITCH_PAGE,
             keyboard_root_hot_cue: 0,
             keyboard_restore_semitones: None,
             keyboard_held: [false; 8],
@@ -82,7 +85,8 @@ impl DeckControlState {
         self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
         self.key_shift_semitones = 0.0;
-        self.pitch_page = DEFAULT_PITCH_PAGE;
+        self.keyboard_page = DEFAULT_PITCH_PAGE;
+        self.key_shift_page = DEFAULT_PITCH_PAGE;
         self.keyboard_root_hot_cue = 0;
         self.keyboard_restore_semitones = None;
         self.keyboard_held = [false; 8];
@@ -112,7 +116,8 @@ impl DeckControlState {
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
         // A newly loaded track must not inherit a stale session shift/page.
         self.key_shift_semitones = 0.0;
-        self.pitch_page = DEFAULT_PITCH_PAGE;
+        self.keyboard_page = DEFAULT_PITCH_PAGE;
+        self.key_shift_page = DEFAULT_PITCH_PAGE;
         self.keyboard_root_hot_cue = 0;
         self.keyboard_restore_semitones = None;
         self.keyboard_held = [false; 8];

@@ -434,11 +434,18 @@ fn apply_key_shift(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, semitones: f32
     ctrl.set_deck_key_shift(deck, semitones);
 }
 
-fn apply_pitch_page(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, page: u8) {
+fn apply_keyboard_page(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, page: u8) {
     let Ok(mut ctrl) = eng.lock() else {
         return;
     };
-    ctrl.set_deck_pitch_page(deck, page);
+    ctrl.set_deck_keyboard_page(deck, page);
+}
+
+fn apply_key_shift_page(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, page: u8) {
+    let Ok(mut ctrl) = eng.lock() else {
+        return;
+    };
+    ctrl.set_deck_key_shift_page(deck, page);
 }
 
 fn apply_keyboard_root(eng: &Arc<Mutex<ControllerEngine>>, deck: u16, slot: u8) {
@@ -496,7 +503,8 @@ fn apply_engine_mirror(
             track_id,
             pad_mode,
             key_shift,
-            pitch_page,
+            keyboard_page,
+            key_shift_page,
             keyboard_root_hot_cue,
             hot_cues,
             position_ms,
@@ -505,8 +513,9 @@ fn apply_engine_mirror(
             let idx = (id as usize).min(3);
             deck_tracks[idx] = track_id;
             apply_pad_mode(controller, id, pad_mode);
-            // Page before shift so the last LED refresh uses both fresh values.
-            apply_pitch_page(controller, id, pitch_page);
+            // Pages before shift so the last LED refresh uses both fresh values.
+            apply_keyboard_page(controller, id, keyboard_page);
+            apply_key_shift_page(controller, id, key_shift_page);
             apply_keyboard_root(controller, id, keyboard_root_hot_cue);
             apply_key_shift(controller, id, key_shift);
             apply_hot_cues(controller, id, hot_cue_slots_deck(&hot_cues));
@@ -525,8 +534,9 @@ fn apply_engine_mirror(
                 let idx = (deck.id as usize).min(3);
                 deck_tracks[idx] = deck.track_id;
                 apply_pad_mode(controller, deck.id, deck.pad_mode);
-                // Page before shift so the last LED refresh uses both fresh values.
-                apply_pitch_page(controller, deck.id, deck.pitch_page);
+                // Pages before shift so the last LED refresh uses both fresh values.
+                apply_keyboard_page(controller, deck.id, deck.keyboard_page);
+                apply_key_shift_page(controller, deck.id, deck.key_shift_page);
                 apply_keyboard_root(controller, deck.id, deck.keyboard_root_hot_cue);
                 apply_key_shift(controller, deck.id, deck.key_shift);
                 apply_hot_cues(controller, deck.id, hot_cue_slots_deck(&deck.hot_cues));
