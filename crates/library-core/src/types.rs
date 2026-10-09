@@ -439,7 +439,8 @@ pub struct MigrateReport {
     pub playlists_imported: usize,
     /// Unsortable (crate) `Playlist` collections created.
     pub crates_imported: usize,
-    /// Lists skipped because an equivalent one already existed.
+    /// Collections skipped because an equivalent one already existed
+    /// (a folder at the same path, or a list with the same name and kind).
     pub collections_skipped: usize,
     /// Items that failed to import.
     pub failed: usize,

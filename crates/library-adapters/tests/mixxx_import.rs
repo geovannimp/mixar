@@ -283,6 +283,21 @@ fn migrate_imports_tracks_lists_and_missing_files() {
     let entries = target.list_collection_entries(&warmup.id).unwrap();
     assert_eq!(entries[0].position, Some(0));
     assert_eq!(entries[1].position, Some(1));
+
+    // Crate membership is a set (no positions) and the folder tracks a real dir.
+    let favs = collections.iter().find(|c| c.name == "Favs").unwrap();
+    let crate_entries = target.list_collection_entries(&favs.id).unwrap();
+    assert_eq!(crate_entries.len(), 1);
+    assert_eq!(crate_entries[0].position, None);
+
+    let folder = collections
+        .iter()
+        .find(|c| c.collection_type() == CollectionType::Folder)
+        .expect("watched directory imported as a folder");
+    let folder_tracks = target.list_collection_tracks(&folder.id).unwrap();
+    assert!(folder_tracks
+        .iter()
+        .any(|track| track.metadata().title.as_deref() == Some("Present")));
 }
 
 #[test]
@@ -302,7 +317,11 @@ fn migrate_is_idempotent_for_lists() {
         .unwrap();
     assert_eq!(second.playlists_imported, 0);
     assert_eq!(second.crates_imported, 0);
-    assert_eq!(second.collections_skipped, 2);
+    assert_eq!(
+        second.folders_imported, 0,
+        "an already-watched directory is not re-created"
+    );
+    assert_eq!(second.collections_skipped, 3);
     assert_eq!(second.tracks_added, 0);
     assert_eq!(second.tracks_updated, 2);
 
@@ -313,4 +332,46 @@ fn migrate_is_idempotent_for_lists() {
         .filter(|c| c.collection_type() == CollectionType::Playlist)
         .collect::<Vec<_>>();
     assert_eq!(playlists.len(), 2, "no duplicate playlists/crates");
+}
+
+#[test]
+fn reads_legacy_text_location_schema() {
+    // Schema revision < 3 stores the path as text in `library.location` and
+    // joins `track_locations` on `location` rather than `id`.
+    let dir = tempfile::tempdir().unwrap();
+    let present = dir.path().join("legacy.mp3");
+    std::fs::write(&present, b"").unwrap();
+    let db_path = dir.path().join("mixxxdb.sqlite");
+    let conn = Connection::open(&db_path).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE track_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            location varchar(512) UNIQUE, filename varchar(512), directory varchar(512),
+            filesize INTEGER, fs_deleted INTEGER, needs_verification INTEGER
+        );
+        CREATE TABLE library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, artist varchar(48), title varchar(48),
+            location varchar(512), bpm FLOAT, key varchar(16)
+        );",
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO track_locations (id, location) VALUES (1, ?1)",
+        params![present.to_string_lossy()],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO library (id, artist, title, location, bpm, key) VALUES (1, 'A', 'Legacy', ?1, 120.0, 'Am')",
+        params![present.to_string_lossy()],
+    )
+    .unwrap();
+    drop(conn);
+
+    let library = MixxxLibrary::open(&db_path).unwrap();
+    let track = library
+        .get_track(&TrackId::new("mixxx:track:1"))
+        .unwrap()
+        .expect("legacy track resolves");
+    assert_eq!(track.file().unwrap().path(), present.as_path());
+    assert_eq!(track.metadata().title.as_deref(), Some("Legacy"));
 }

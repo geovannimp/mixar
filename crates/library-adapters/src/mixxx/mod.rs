@@ -253,6 +253,23 @@ impl Migratable for MixxxLibrary {
     ) -> Result<MigrateReport> {
         let mut report = MigrateReport::default();
 
+        // Snapshot the target once, before any mutation: folder ids detect
+        // already-registered watched directories, and list names make re-imports
+        // idempotent.
+        let mut existing_folder_ids: HashSet<String> = HashSet::new();
+        let mut existing_lists: HashSet<(String, bool)> = HashSet::new();
+        for collection in target.list_collections()? {
+            match collection.collection_type() {
+                CollectionType::Folder => {
+                    existing_folder_ids.insert(collection.id.as_str().to_string());
+                }
+                CollectionType::Playlist => {
+                    existing_lists
+                        .insert((collection.name.trim().to_string(), collection.sortable()));
+                }
+            }
+        }
+
         // Import every loaded track once, remembering the target id per Mixxx id.
         let mut target_ids: HashMap<i64, TrackId> = HashMap::with_capacity(self.tracks.len());
         for track in &self.tracks {
@@ -277,17 +294,6 @@ impl Migratable for MixxxLibrary {
             }
         }
 
-        // Seed existing list names so re-running does not duplicate them (and so
-        // two same-named source lists do not both import).
-        let mut existing: HashSet<(String, bool)> = HashSet::new();
-        if options.skip_existing_lists {
-            for collection in target.list_collections()? {
-                if collection.collection_type() == CollectionType::Playlist {
-                    existing.insert((collection.name.trim().to_string(), collection.sortable()));
-                }
-            }
-        }
-
         if options.include_folders {
             for (_, path) in &self.folders {
                 if !path.is_dir() {
@@ -298,7 +304,13 @@ impl Migratable for MixxxLibrary {
                     continue;
                 }
                 match target.add_collection(&NewCollection::folder(path)) {
-                    Ok(_) => report.folders_imported += 1,
+                    Ok(created) => {
+                        if existing_folder_ids.insert(created.id.as_str().to_string()) {
+                            report.folders_imported += 1;
+                        } else {
+                            report.collections_skipped += 1;
+                        }
+                    }
                     Err(err) => {
                         report.failed += 1;
                         report.errors.push(format!("{}: {err}", path.display()));
@@ -330,7 +342,7 @@ impl Migratable for MixxxLibrary {
             }
 
             let key = (collection.name.trim().to_string(), sortable);
-            if options.skip_existing_lists && !existing.insert(key) {
+            if options.skip_existing_lists && !existing_lists.insert(key) {
                 report.collections_skipped += 1;
                 continue;
             }
@@ -471,15 +483,19 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
     })
 }
 
-fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
-    let exists: i64 = conn
+fn table_exists(conn: &Connection, name: &str) -> Result<bool> {
+    let count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='directories'",
-            [],
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
+            [name],
             |row| row.get(0),
         )
-        .map_err(|e| backend(format!("inspect directories: {e}")))?;
-    if exists == 0 {
+        .map_err(|e| backend(format!("inspect mixxx schema: {e}")))?;
+    Ok(count > 0)
+}
+
+fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
+    if !table_exists(conn, "directories")? {
         return Ok(Vec::new());
     }
 
@@ -506,6 +522,10 @@ fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
 }
 
 fn load_playlists(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
+    if !table_exists(conn, "Playlists")? {
+        return Ok(Vec::new());
+    }
+
     let mut stmt = conn
         .prepare(
             "SELECT id, name FROM Playlists WHERE COALESCE(hidden, 0) = 0 ORDER BY position, id",
@@ -545,6 +565,10 @@ fn playlist_members(conn: &Connection, playlist_id: i64) -> Result<Vec<i64>> {
 }
 
 fn load_crates(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
+    if !table_exists(conn, "crates")? {
+        return Ok(Vec::new());
+    }
+
     let mut stmt = conn
         .prepare("SELECT id, name FROM crates ORDER BY name, id")
         .map_err(|e| backend(format!("prepare crates query: {e}")))?;
