@@ -585,10 +585,10 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
         artist: clean(row.get("artist")?),
         album: clean(row.get("album")?),
         genre: clean(row.get("genre")?),
-        bpm: bpm.filter(|value| *value > 0.0),
+        bpm: bpm.filter(|value| value.is_finite() && *value > 0.0),
         key: clean(key).map(|key| camelot_to_musical(&key).unwrap_or(key)),
         duration_ms: duration
-            .filter(|value| *value > 0.0)
+            .filter(|value| value.is_finite() && *value > 0.0)
             .map(|value| (value * 1000.0).round().clamp(0.0, i32::MAX as f64) as i32),
         sample_rate: sample_rate
             .filter(|value| *value > 0)
@@ -599,8 +599,10 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
         bitrate_kbps: bitrate
             .filter(|value| *value > 0)
             .map(|value| value.min(u32::MAX as i64) as u32),
+        // Mixxx stores a linear ratio (1.0 = unity). 1.0 means "unset/neutral",
+        // so it maps to `None` rather than a bogus 0 dB gain.
         replaygain_track_gain_db: replaygain
-            .filter(|value| *value > 0.0)
+            .filter(|value| value.is_finite() && *value > 0.0 && *value != 1.0)
             .map(|value| 20.0 * value.log10()),
         ..TrackMetadata::default()
     })
@@ -703,13 +705,13 @@ fn load_crates(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
 }
 
 /// Load all `(owner_id, track_id)` membership rows for a list table in one
-/// query, grouped by owner. `order` is appended verbatim (a trusted static
-/// clause). Returns empty when the table is absent.
+/// query, grouped by owner. `table`, `owner_column`, and `order` are
+/// `&'static str` so the SQL cannot be built from runtime input.
 fn load_memberships(
     conn: &Connection,
-    table: &str,
-    owner_column: &str,
-    order: &str,
+    table: &'static str,
+    owner_column: &'static str,
+    order: &'static str,
 ) -> Result<HashMap<i64, Vec<i64>>> {
     if !schema::table_exists(conn, table)? {
         return Ok(HashMap::new());

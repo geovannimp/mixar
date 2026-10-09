@@ -109,7 +109,7 @@ fn build_fixture() -> Fixture {
     .unwrap();
     conn.execute(
         "INSERT INTO library (id, artist, title, album, genre, duration, bitrate, samplerate, bpm, channels, replaygain, key, location, mixxx_deleted)
-         VALUES (2, NULL, 'Missing', NULL, NULL, 0.0, 0, 0, 0.0, 0, NULL, 'C', 2, 0)",
+         VALUES (2, NULL, 'Missing', NULL, NULL, 0.0, 0, 0, 0.0, 0, 1.0, 'C', 2, 0)",
         [],
     )
     .unwrap();
@@ -242,6 +242,8 @@ fn camelot_key_normalized_to_musical() {
     assert_eq!(missing.metadata().key.as_deref(), Some("C"));
     // bpm 0 in Mixxx means "undefined".
     assert_eq!(missing.metadata().bpm, None);
+    // A replaygain ratio of exactly 1.0 (unity/unset) maps to no gain.
+    assert_eq!(missing.metadata().replaygain_track_gain_db, None);
 
     // A track with mixxx_deleted = 1 is not loaded.
     assert!(library
