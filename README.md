@@ -90,6 +90,7 @@ engine.play(0)?;
 
 ## Documentation
 
+- [User guide — Performance pads](https://mixar.top/docs/users/performance-pads) — hot cues, loop roll, beat jump, sampler, stems, keyboard, key shift
 - [Technical spec](docs/tech-spec.md) — crates, threading, config, backends
 - [Deck spec](docs/deck-spec.md) — deck UI, mixer, pads, data model
 - [Set history](https://mixar.top/docs/developers/history) — session logging, XSPF storage, export, OBS live output

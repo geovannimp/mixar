@@ -1,22 +1,22 @@
 # Stems pad mode — design (#46)
 
 **Date:** 2026-09-20  
-**Status:** Approved for implementation (session gate skipped per owner request)  
+**Status:** Shipped; this document records implementation design
 **Issue:** [geovannimp/mixar#46](https://github.com/geovannimp/mixar/issues/46)
 
 ## Goal (this pass)
 
-Settings-gated offline stem separation → cache under app support → non-blocking deck load → **Stems** pad mode (mute / isolate). No Stem EQ, no Storage UI, no realtime separation in product code.
+Offline stem analysis writes cached four-stem audio and attaches it to decks without blocking playback. Stem EQ, storage UI, and realtime separation are out of scope for this pass.
 
 ## Decisions
 
 | Topic | Choice |
 |-------|--------|
 | Stem set | 4: `vocals`, `drums`, `bass`, `other` (Demucs / issue comment) |
-| Gate | None — stems are always available; generation is a per-track opt-in action |
+| Gate | No settings gate; stem readiness is track-specific and determines whether the Stems pads are enabled |
 | Triggers | Explicit `GenerateStems` action per track, **and** deck prepare/load; never block playback. Analyze never triggers stems |
 | Pads | Enabled only when stems ready for the loaded track |
-| Pad map | UI pads **1–8** = engine slots **0–7**: mute slots 0–3 (pads 1–4), isolate slots 4–7 (pads 5–8) |
+| Pad map | UI pads 1–8 map to zero-based engine/controller slots 0–7; see the [Stems user guide](https://mixar.top/docs/users/performance-pads/stems) for labels and actions |
 | Inference | **pykeio/ort** + Mixxx HTDemucs ONNX via Mixar `ensure_model` / chunk overlap-add; EP cascade (prefer GPU → CPU) — `docs/stems-ort-onnx-design.md` |
 | Input | Interleaved stereo `f32` PCM Mixar already decoded (no second file decode for separation) |
 | Stem files | Single NI `.stem.mp4` under `{app_support}/stems/` — `docs/ni-stem-mp4-cache-design.md` |
@@ -95,30 +95,9 @@ Stale if model/backend changes, fingerprint mismatches, or files missing.
 
 ### Pad mode
 
-Extend `PadMode` with `Stems`.
+Current user-facing Stems pad labels and actions live in the [Stems user guide](https://mixar.top/docs/users/performance-pads/stems). The UI numbers pads 1–8; engine and controller slots are zero-based 0–7.
 
-User-facing pad labels are **1–8**; the engine and controller use **zero-based slots 0–7**.
-Stem indices follow NI order: **drums, bass, other, vocals**.
-
-Pad chrome matches Jump’s two-line layout: action on line 1, stem name on line 2 (`mute` / `solo` + `drums`/`bass`/`other`/`vocal`).
-
-| Engine slot | UI pad | Action |
-|-------------|--------|--------|
-| 0–3 | 1–4 | Toggle mute drums / bass / other / vocals |
-| 4–7 | 5–8 | Set isolate to that stem (press again / same slot clears isolate) |
-
-| Slot | Action | Label line 1 | Label line 2 |
-|------|--------|--------------|--------------|
-| 0 | Mute drums | mute | drums |
-| 1 | Mute bass | mute | bass |
-| 2 | Mute other | mute | other |
-| 3 | Mute vocals | mute | vocal |
-| 4 | Isolate drums | solo | drums |
-| 5 | Isolate bass | solo | bass |
-| 6 | Isolate other | solo | other |
-| 7 | Isolate vocals | solo | vocal |
-
-Controller MIDI: extend pad_mode mapping like Sampler.
+Controller MIDI mappings follow the same pad order.
 
 Progress / analyze vs stems jobs: `docs/stems-analyze-progress-design.md`.
 

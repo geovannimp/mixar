@@ -60,7 +60,7 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 
 ## 2 — Non-goals for MVP
 
-- Semitone key shift / stems (beyond key-lock tempo stretch via `stretch` + timestretch).
+- Semitone key shift (beyond key-lock tempo stretch via `stretch` + timestretch). Stem EQ, realtime stem separation, and stem-cache management UI remain out of scope; offline four-stem separation and Stems pad mute/isolate are implemented — see [deck spec §5.10](deck-spec.md#510-pad-mode-follow-ups).
 - Mixer GUI or UI (library is headless).
 - Telemetry / opt-in data collection.
 - Recording/streaming.
