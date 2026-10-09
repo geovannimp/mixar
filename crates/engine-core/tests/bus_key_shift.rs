@@ -128,7 +128,7 @@ fn pitch_pad_setters_clamp_out_of_range_values() {
         .expect("snapshot call");
     assert_eq!(snap.keyboard_page, KEYBOARD_PAGE_COUNT);
     assert_eq!(snap.key_shift_page, 1);
-    assert_eq!(snap.keyboard_root_hot_cue, 7);
+    assert_eq!(snap.keyboard_root_hot_cue, 15);
     assert_eq!(snap.key_shift, 16.0);
 }
 

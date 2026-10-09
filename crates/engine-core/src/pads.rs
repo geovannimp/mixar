@@ -6,9 +6,6 @@
 
 pub(crate) const HOT_CUE_SLOT_COUNT: usize = 16;
 
-/// Number of Keyboard root hot-cue choices (the eight hot-cue performance pads).
-pub(crate) const KEYBOARD_ROOT_SLOT_COUNT: u8 = 8;
-
 pub use engine_api::pads::{
     key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
     keyboard_page_next, keyboard_page_prev, PitchPadAction, DEFAULT_PITCH_PAGE,

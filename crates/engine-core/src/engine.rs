@@ -810,15 +810,16 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the hot-cue slot used as the Keyboard pad root for a deck (`0..=7`).
+    /// Set the hot-cue slot used as the Keyboard pad root for a deck (`0..=15`).
     ///
-    /// Out-of-range values are clamped.
+    /// The root may be any hot cue in the 16-slot domain; out-of-range values
+    /// are clamped.
     pub fn set_deck_keyboard_root(&mut self, deck_id: usize, slot: u8) -> Result<()> {
         let control = self
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_root_hot_cue = slot.min(crate::pads::KEYBOARD_ROOT_SLOT_COUNT - 1);
+        control.keyboard_root_hot_cue = slot.min((crate::pads::HOT_CUE_SLOT_COUNT - 1) as u8);
         Ok(())
     }
 
