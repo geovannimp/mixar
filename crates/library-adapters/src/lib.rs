@@ -1,20 +1,19 @@
 //! Third-party library adapters for Mixar.
 //!
-//! Each adapter implements [`library_core::Library`] (and optionally
-//! [`library_core::WritableLibrary`]) so external DJ software can be browsed
-//! and imported into the user’s library manager (`library::LibraryManager`).
+//! Each adapter implements [`library_core::Library`] (and [`library_core::Migratable`])
+//! so external DJ software can be browsed and imported into the user’s library
+//! manager (`library::LibraryManager`).
 //!
-//! Adapters are added as modules over time (Rekordbox, Serato, Traktor,
+//! Adapters are added as modules over time (Mixxx, Rekordbox, Serato, Traktor,
 //! VirtualDJ, Engine DJ, …). Enable them via Cargo features when implemented.
 //!
-//! # Planned modules
+//! # Implemented modules
 //!
-//! - `rekordbox` — Rekordbox XML / database
-//! - `serato` — Serato `database V2` and crates
-//! - `traktor` — Traktor `collection.nml`
-//! - `virtualdj` — VirtualDJ lists
-//! - `engine` — Engine DJ / Engine Library
+//! - `mixxx` — read-only view over a Mixxx `mixxxdb.sqlite` and migration into
+//!   the user’s library.
 
-// Future:
-// #[cfg(feature = "rekordbox")]
-// pub mod rekordbox;
+#[cfg(feature = "mixxx")]
+pub mod mixxx;
+
+#[cfg(feature = "mixxx")]
+pub use mixxx::{default_database_path, MixxxLibrary, MixxxPreview};

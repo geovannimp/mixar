@@ -1815,10 +1815,12 @@ dependencies = [
  "flutter_rust_bridge",
  "fs-browser",
  "library",
+ "library-adapters",
  "library-api",
  "library-core",
  "lofty",
  "resampler",
+ "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
@@ -2372,7 +2374,10 @@ dependencies = [
 name = "library-adapters"
 version = "0.1.0"
 dependencies = [
+ "library",
  "library-core",
+ "rusqlite",
+ "tempfile",
 ]
 
 [[package]]

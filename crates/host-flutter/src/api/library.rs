@@ -18,7 +18,7 @@ use library_api::{
 };
 use library_core::{
     AnalysisDurationMode, AudioSource, Collection, CollectionConfig, CollectionId, CollectionType,
-    Library,
+    Library, Migratable, MigrateOptions,
 };
 
 use crate::frb_generated::StreamSink;
@@ -289,6 +289,56 @@ impl LibraryBusHandle {
     }
 }
 
+/// Summary of a Mixxx database, used to confirm an import.
+#[derive(Clone, Debug)]
+pub struct MixxxImportPreview {
+    pub db_path: String,
+    pub track_count: u32,
+    pub missing_file_count: u32,
+    pub playlist_count: u32,
+    pub crate_count: u32,
+    pub folder_count: u32,
+}
+
+/// Outcome of importing a Mixxx library.
+#[derive(Clone, Debug)]
+pub struct MixxxImportReport {
+    pub tracks_added: u32,
+    pub tracks_updated: u32,
+    pub tracks_missing_files: u32,
+    pub folders_imported: u32,
+    pub playlists_imported: u32,
+    pub crates_imported: u32,
+    pub collections_skipped: u32,
+    pub failed: u32,
+    pub errors: Vec<String>,
+}
+
+/// Saturating `usize` → `u32`. Counts are far below `u32::MAX` in practice; a
+/// saturated value is clearer than the wraparound a plain `as` cast would give.
+fn count_u32(value: usize) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
+}
+
+/// Default Mixxx database path for the current OS, when it exists.
+pub fn mixxx_default_database_path() -> Option<String> {
+    library_adapters::default_database_path().map(|path| path.to_string_lossy().into_owned())
+}
+
+/// Read-only summary of a Mixxx database, used to confirm an import.
+pub fn mixxx_import_preview(db_path: String) -> Result<MixxxImportPreview, String> {
+    let library = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+    let preview = library.preview();
+    Ok(MixxxImportPreview {
+        db_path,
+        track_count: count_u32(preview.track_count),
+        missing_file_count: count_u32(preview.missing_file_count),
+        playlist_count: count_u32(preview.playlist_count),
+        crate_count: count_u32(preview.crate_count),
+        folder_count: count_u32(preview.folder_count),
+    })
+}
+
 /// Host-owned library handle exposed to Dart via FRB methods.
 #[flutter_rust_bridge::frb(opaque)]
 pub struct LibraryTransport {
@@ -491,6 +541,34 @@ impl LibraryTransport {
             .lock()
             .map_err(|_| "library lock poisoned".to_string())?;
         collection_summary(&lib, collection)
+    }
+
+    /// Import a Mixxx library at `db_path` into this transport's manager.
+    ///
+    /// Reads the Mixxx database outside the manager lock, then migrates into the
+    /// user's one library. Missing files are imported as unavailable tracks.
+    pub fn import_mixxx_library(&self, db_path: String) -> Result<MixxxImportReport, String> {
+        let mixxx = library_adapters::MixxxLibrary::open(&db_path).map_err(|e| e.to_string())?;
+        let report = {
+            let mut lib = self
+                .library
+                .lock()
+                .map_err(|_| "library lock poisoned".to_string())?;
+            mixxx
+                .migrate(&mut *lib, &MigrateOptions::default())
+                .map_err(|e| e.to_string())?
+        };
+        Ok(MixxxImportReport {
+            tracks_added: count_u32(report.tracks_added),
+            tracks_updated: count_u32(report.tracks_updated),
+            tracks_missing_files: count_u32(report.tracks_missing_files),
+            folders_imported: count_u32(report.folders_imported),
+            playlists_imported: count_u32(report.playlists_imported),
+            crates_imported: count_u32(report.crates_imported),
+            collections_skipped: count_u32(report.collections_skipped),
+            failed: count_u32(report.failed),
+            errors: report.errors,
+        })
     }
 
     /// Resolve library tracks for the given filesystem paths.

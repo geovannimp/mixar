@@ -7,10 +7,18 @@ import '../frb_generated.dart';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
+// These functions are ignored because they are not marked as `pub`: `api_track_summary`, `buses`, `collection_summary`, `count_u32`, `from_manager`, `history_entry_info`, `map_library_evt`, `missing_track_summary`, `pack_peaks`, `reveal_path_in_file_manager`, `track_display_name`, `track_summary`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `EvtForwarder`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `drop`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 // These functions are ignored (category: IgnoreBecauseExplicitAttribute): `cmd_bus`, `from_buses`, `library_arc`, `library_buses`, `subscribe_evt_all`
+
+/// Default Mixxx database path for the current OS, when it exists.
+Future<String?> mixxxDefaultDatabasePath() =>
+    RustLib.instance.api.crateApiLibraryMixxxDefaultDatabasePath();
+
+/// Read-only summary of a Mixxx database, used to confirm an import.
+Future<MixxxImportPreview> mixxxImportPreview({required String dbPath}) =>
+    RustLib.instance.api.crateApiLibraryMixxxImportPreview(dbPath: dbPath);
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<LibraryBusHandle>>
 abstract class LibraryBusHandle implements RustOpaqueInterface {}
@@ -128,6 +136,12 @@ abstract class LibraryTransport implements RustOpaqueInterface {
   Future<List<HistoryEntryInfo>> historySessionEntries({
     required String sessionId,
   });
+
+  /// Import a Mixxx library at `db_path` into this transport's manager.
+  ///
+  /// Reads the Mixxx database outside the manager lock, then migrates into the
+  /// user's one library. Missing files are imported as unavailable tracks.
+  Future<MixxxImportReport> importMixxxLibrary({required String dbPath});
 
   /// List tracks in a collection (artwork left unset — not stored in DB yet).
   Future<List<LibraryTrackSummary>> listCollectionEntries({
@@ -636,6 +650,98 @@ class LibraryTrackSummary {
           path == other.path &&
           isrc == other.isrc &&
           artwork == other.artwork;
+}
+
+/// Summary of a Mixxx database, used to confirm an import.
+class MixxxImportPreview {
+  final String dbPath;
+  final int trackCount;
+  final int missingFileCount;
+  final int playlistCount;
+  final int crateCount;
+  final int folderCount;
+
+  const MixxxImportPreview({
+    required this.dbPath,
+    required this.trackCount,
+    required this.missingFileCount,
+    required this.playlistCount,
+    required this.crateCount,
+    required this.folderCount,
+  });
+
+  @override
+  int get hashCode =>
+      dbPath.hashCode ^
+      trackCount.hashCode ^
+      missingFileCount.hashCode ^
+      playlistCount.hashCode ^
+      crateCount.hashCode ^
+      folderCount.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MixxxImportPreview &&
+          runtimeType == other.runtimeType &&
+          dbPath == other.dbPath &&
+          trackCount == other.trackCount &&
+          missingFileCount == other.missingFileCount &&
+          playlistCount == other.playlistCount &&
+          crateCount == other.crateCount &&
+          folderCount == other.folderCount;
+}
+
+/// Outcome of importing a Mixxx library.
+class MixxxImportReport {
+  final int tracksAdded;
+  final int tracksUpdated;
+  final int tracksMissingFiles;
+  final int foldersImported;
+  final int playlistsImported;
+  final int cratesImported;
+  final int collectionsSkipped;
+  final int failed;
+  final List<String> errors;
+
+  const MixxxImportReport({
+    required this.tracksAdded,
+    required this.tracksUpdated,
+    required this.tracksMissingFiles,
+    required this.foldersImported,
+    required this.playlistsImported,
+    required this.cratesImported,
+    required this.collectionsSkipped,
+    required this.failed,
+    required this.errors,
+  });
+
+  @override
+  int get hashCode =>
+      tracksAdded.hashCode ^
+      tracksUpdated.hashCode ^
+      tracksMissingFiles.hashCode ^
+      foldersImported.hashCode ^
+      playlistsImported.hashCode ^
+      cratesImported.hashCode ^
+      collectionsSkipped.hashCode ^
+      failed.hashCode ^
+      errors.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MixxxImportReport &&
+          runtimeType == other.runtimeType &&
+          tracksAdded == other.tracksAdded &&
+          tracksUpdated == other.tracksUpdated &&
+          tracksMissingFiles == other.tracksMissingFiles &&
+          foldersImported == other.foldersImported &&
+          playlistsImported == other.playlistsImported &&
+          cratesImported == other.cratesImported &&
+          collectionsSkipped == other.collectionsSkipped &&
+          failed == other.failed &&
+          errors == other.errors;
 }
 
 /// Path lookup hit: original request path + resolved track summary.

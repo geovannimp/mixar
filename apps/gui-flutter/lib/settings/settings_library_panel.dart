@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_field.dart';
 import 'package:gui_flutter/settings/settings_widgets.dart';
@@ -174,6 +175,7 @@ class SettingsLibraryPanel extends StatelessWidget {
                 onChanged(copyAppSettings(draft, libraryRowDensity: mode)),
           ),
         ),
+        const MixxxImportPanel(),
       ],
     );
   }

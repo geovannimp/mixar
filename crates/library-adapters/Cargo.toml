@@ -4,11 +4,18 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Third-party library adapters for Mixar (Rekordbox, Serato, …)"
+description = "Third-party library adapters for Mixar (Mixxx, Rekordbox, Serato, …)"
 
 [dependencies]
 library-core = { path = "../library-core" }
+rusqlite = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["mixxx"]
+# Third-party format adapters.
+mixxx = ["dep:rusqlite"]
 # Future: rekordbox = [], serato = [], traktor = [], virtualdj = [], engine = []
+
+[dev-dependencies]
+library = { path = "../library" }
+tempfile = "3.0"
