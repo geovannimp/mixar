@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use analyzer_core::AnalysisDurationMode;
 use serde::{Deserialize, Serialize};
 
+use crate::source::AudioSource;
+
 /// Stable track identifier within a library.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TrackId(pub String);
@@ -395,6 +397,63 @@ pub struct ScanReport {
     pub failed: usize,
     /// Per-path failure messages.
     pub errors: Vec<String>,
+}
+
+/// Options controlling a [`crate::Migratable`] import into a target library.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrateOptions {
+    /// Import watched directories as `Folder` collections.
+    pub include_folders: bool,
+    /// Import playlists as sortable `Playlist` collections.
+    pub include_playlists: bool,
+    /// Import crates as unsortable `Playlist` collections.
+    pub include_crates: bool,
+    /// Skip source lists whose `(name, sortable)` already exists in the target.
+    /// Makes re-running an import idempotent instead of duplicating lists.
+    pub skip_existing_lists: bool,
+}
+
+impl Default for MigrateOptions {
+    fn default() -> Self {
+        Self {
+            include_folders: true,
+            include_playlists: true,
+            include_crates: true,
+            skip_existing_lists: true,
+        }
+    }
+}
+
+/// Result of importing an external library into a target.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MigrateReport {
+    /// Tracks newly inserted into the target pool.
+    pub tracks_added: usize,
+    /// Tracks already present in the target pool and refreshed.
+    pub tracks_updated: usize,
+    /// Imported tracks whose file was absent on disk (counted, still imported).
+    pub tracks_missing_files: usize,
+    /// `Folder` collections created.
+    pub folders_imported: usize,
+    /// Sortable `Playlist` collections created.
+    pub playlists_imported: usize,
+    /// Unsortable (crate) `Playlist` collections created.
+    pub crates_imported: usize,
+    /// Lists skipped because an equivalent one already existed.
+    pub collections_skipped: usize,
+    /// Items that failed to import.
+    pub failed: usize,
+    /// Per-item failure messages.
+    pub errors: Vec<String>,
+}
+
+/// Outcome of [`crate::WritableLibrary::import_track`].
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ImportedTrack {
+    /// The upserted library source.
+    pub source: AudioSource,
+    /// True when the track was newly inserted; false when an existing row was updated.
+    pub created: bool,
 }
 
 #[cfg(test)]

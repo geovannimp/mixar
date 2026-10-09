@@ -21,11 +21,11 @@ pub use key_format::{
     MAJOR_KEYS, MINOR_KEYS,
 };
 pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider};
-pub use traits::{Library, WritableLibrary};
+pub use traits::{Library, Migratable, WritableLibrary};
 pub use types::{
     AnalyzeTrackOptions, Collection, CollectionConfig, CollectionConfigUpdate, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, LibraryConfig, NewCollection, ScanReport,
-    TrackId, TrackMetadata, UpdateCollection,
+    CollectionEntryId, CollectionId, CollectionType, ImportedTrack, LibraryConfig, MigrateOptions,
+    MigrateReport, NewCollection, ScanReport, TrackId, TrackMetadata, UpdateCollection,
 };
 
 #[cfg(test)]

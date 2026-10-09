@@ -1,10 +1,13 @@
 //! Library capability traits.
 
+use std::path::Path;
+
 use crate::error::Result;
 use crate::source::AudioSource;
 use crate::types::{
     AnalyzeTrackOptions, Collection, CollectionEntry, CollectionEntryId, CollectionId,
-    NewCollection, ScanReport, TrackId, UpdateCollection,
+    ImportedTrack, MigrateOptions, MigrateReport, NewCollection, ScanReport, TrackId,
+    TrackMetadata, UpdateCollection,
 };
 
 /// Read-only library manager access.
@@ -32,6 +35,13 @@ pub trait Library: Send + Sync {
 
 /// Mutable library manager operations.
 pub trait WritableLibrary: Library {
+    /// Upsert a file track from explicit metadata.
+    ///
+    /// Unlike a folder scan, the path need not exist on disk: imported libraries
+    /// may reference files that are currently moved or absent. Such tracks are
+    /// listed and selectable; playback fails until the file returns at the path.
+    fn import_track(&mut self, path: &Path, metadata: &TrackMetadata) -> Result<ImportedTrack>;
+
     /// Re-read tags and/or run DSP analysis for a track and update the pool.
     ///
     /// When [`AnalyzeTrackOptions::force`] is false, file tags are kept for BPM/key
@@ -76,4 +86,18 @@ pub trait WritableLibrary: Library {
         collection_id: &CollectionId,
         entry_ids: &[CollectionEntryId],
     ) -> Result<()>;
+}
+
+/// Copy an external library into a target (typically the user's one library).
+///
+/// Adapters implement this alongside [`Library`]; migration writes through the
+/// [`WritableLibrary`] capability so no proprietary-format parser is coupled to
+/// the canonical store.
+pub trait Migratable: Library {
+    /// Copy this library's tracks and collections into `target`.
+    fn migrate(
+        &self,
+        target: &mut dyn WritableLibrary,
+        options: &MigrateOptions,
+    ) -> Result<MigrateReport>;
 }

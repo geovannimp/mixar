@@ -49,9 +49,9 @@ use std::sync::{Arc, Mutex};
 pub use library_core::{
     path_label, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
-    FileAudioSource, Library, LibraryConfig, LibraryError, LoadableAudio, LoadedAudio,
-    NewCollection, Result, ScanReport, StreamAudioSource, StreamProvider, TrackId, TrackMetadata,
-    UpdateCollection, WritableLibrary,
+    FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
+    LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
+    StreamAudioSource, StreamProvider, TrackId, TrackMetadata, UpdateCollection, WritableLibrary,
 };
 
 pub use bus::{Evt, EvtReceiver, LibraryBus, LibraryBuses};
@@ -1635,6 +1635,14 @@ impl Library for LibraryManager {
 }
 
 impl WritableLibrary for LibraryManager {
+    fn import_track(&mut self, path: &Path, metadata: &TrackMetadata) -> Result<ImportedTrack> {
+        let path = normalize_path(path)?;
+        let id = Self::track_id_for(&path);
+        let created = !self.store().track_exists(&id)?;
+        let source = self.upsert_file_source(&path, metadata)?;
+        Ok(ImportedTrack { source, created })
+    }
+
     fn analyze_track(&mut self, id: &TrackId, options: AnalyzeTrackOptions) -> Result<AudioSource> {
         let source = self
             .get_track(id)?
@@ -2070,6 +2078,30 @@ mod tests {
         assert_eq!(track.metadata().title.as_deref(), Some("track"));
         let fetched = lib.get_track(track.id()).unwrap().unwrap();
         assert_eq!(fetched.file().unwrap().path(), track.file().unwrap().path());
+    }
+
+    #[test]
+    fn import_track_inserts_missing_file_track() {
+        let dir = tempfile::tempdir().unwrap();
+        // Deliberately absent: import_track must not require the file on disk.
+        let missing = dir.path().join("gone.flac");
+        let metadata = TrackMetadata {
+            title: Some("Gone".into()),
+            bpm: Some(128.0),
+            ..TrackMetadata::default()
+        };
+
+        let mut lib = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+        let imported = lib.import_track(&missing, &metadata).unwrap();
+        assert!(imported.created, "first import inserts the track");
+        assert_eq!(imported.source.metadata().title.as_deref(), Some("Gone"));
+
+        let fetched = lib.get_track(imported.source.id()).unwrap().unwrap();
+        assert_eq!(fetched.file().unwrap().path(), missing.as_path());
+
+        // Second import of the same path is an update, not a new row.
+        let again = lib.import_track(&missing, &metadata).unwrap();
+        assert!(!again.created, "re-import updates the existing row");
     }
 
     #[test]
