@@ -292,7 +292,15 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      onCyclePage: () {
+      onPrevPage: () {
+        final prev = pitchPage <= 1 ? kPitchPageCount : pitchPage - 1;
+        unawaited(
+          _run(
+            (engine) => engine.setPitchPage(deckId: widget.deckId, page: prev),
+          ),
+        );
+      },
+      onNextPage: () {
         final next = pitchPage >= kPitchPageCount ? 1 : pitchPage + 1;
         unawaited(
           _run(

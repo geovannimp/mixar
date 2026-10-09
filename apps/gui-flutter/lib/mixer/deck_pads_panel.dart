@@ -42,7 +42,8 @@ class DeckPadsPanel extends StatelessWidget {
     this.pitchPage = kDefaultPitchPage,
     this.keyboardRootHotCue = 0,
     this.onSelectRoot,
-    this.onCyclePage,
+    this.onPrevPage,
+    this.onNextPage,
     this.resultKey,
     this.hasTrack = false,
     this.disabled = false,
@@ -80,8 +81,9 @@ class DeckPadsPanel extends StatelessWidget {
   final int keyboardRootHotCue;
   final ValueChanged<int>? onSelectRoot;
 
-  /// Tapping the page indicator cycles to the next semitone page.
-  final VoidCallback? onCyclePage;
+  /// Steps the Keyboard / Key Shift semitone page backward / forward.
+  final VoidCallback? onPrevPage;
+  final VoidCallback? onNextPage;
 
   /// Resulting key (analyzed key + session shift) shown read-only above the
   /// Keyboard / Key Shift grids; never persisted.
@@ -198,6 +200,8 @@ class DeckPadsPanel extends StatelessWidget {
           disabled: _controlsDisabled,
           onPress: onKeyboardPress,
           onRelease: onKeyboardRelease,
+          onPrevPage: onPrevPage ?? () {},
+          onNextPage: onNextPage ?? () {},
         ),
       ),
       PadMode.keyShift => _keyedBody(
@@ -207,12 +211,17 @@ class DeckPadsPanel extends StatelessWidget {
           activeSemitones: keyShiftSemitones,
           disabled: _controlsDisabled,
           onPress: onKeyShiftPress,
+          onPrevPage: onPrevPage ?? () {},
+          onNextPage: onNextPage ?? () {},
         ),
       ),
     };
   }
 
-  /// Keyboard / Key Shift body with a page indicator and read-only result key.
+  /// Keyboard / Key Shift body with a read-only result key above the grid.
+  ///
+  /// The semitone page control lives in the grid's bottom chrome
+  /// (`PitchPageBar`), matching the sampler bank bar.
   Widget _keyedBody(BuildContext context, Widget child) {
     final theme = context.theme;
     return Column(
@@ -221,40 +230,23 @@ class DeckPadsPanel extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onCyclePage,
-                child: Text(
-                  'PAGE $pitchPage/$kPitchPageCount',
-                  style: theme.typography.body.xs.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    color: theme.colors.mutedForeground,
-                  ),
+              Text(
+                'KEY',
+                style: theme.typography.body.xs.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: theme.colors.mutedForeground,
                 ),
               ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'KEY',
-                    style: theme.typography.body.xs.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: theme.colors.mutedForeground,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    resultKey ?? '—',
-                    style: theme.typography.body.xs.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: theme.colors.foreground,
-                    ),
-                  ),
-                ],
+              const SizedBox(width: 6),
+              Text(
+                resultKey ?? '—',
+                style: theme.typography.body.xs.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: theme.colors.foreground,
+                ),
               ),
             ],
           ),

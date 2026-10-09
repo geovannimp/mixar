@@ -3,6 +3,7 @@ import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart' show DeckHotCue;
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/mixer/pads/pitch_page_bar.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
 /// Keyboard pad mode: eight hold pads playing the semitone [page] relative to
@@ -18,6 +19,8 @@ class KeyboardPads extends StatelessWidget {
     required this.onSelectRoot,
     required this.onPress,
     required this.onRelease,
+    required this.onPrevPage,
+    required this.onNextPage,
     this.disabled = false,
     super.key,
   });
@@ -28,31 +31,46 @@ class KeyboardPads extends StatelessWidget {
   final ValueChanged<int> onSelectRoot;
   final ValueChanged<int> onPress;
   final ValueChanged<int> onRelease;
+  final VoidCallback onPrevPage;
+  final VoidCallback onNextPage;
   final bool disabled;
 
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
     final pads = pitchPage(page);
-    return PadGrid(
-      bottomChrome: _rootSelector(context),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (var slot = 0; slot < 8; slot++)
-          () {
-            final pad = pads[slot];
-            return HoldPadButton(
-              disabled: disabled || pad.action == PitchPadAction.none,
-              tooltip: _tooltip(pad),
-              onBegin: () => onPress(slot),
-              onEnd: () => onRelease(slot),
-              child: Text(
-                pitchPadLabel(pad),
-                style: theme.typography.body.sm.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            );
-          }(),
+        _rootSelector(context),
+        Expanded(
+          child: PadGrid(
+            bottomChrome: PitchPageBar(
+              page: page,
+              onPrev: onPrevPage,
+              onNext: onNextPage,
+              disabled: disabled,
+            ),
+            children: [
+              for (var slot = 0; slot < 8; slot++)
+                () {
+                  final pad = pads[slot];
+                  return HoldPadButton(
+                    disabled: disabled || pad.action == PitchPadAction.none,
+                    tooltip: _tooltip(pad),
+                    onBegin: () => onPress(slot),
+                    onEnd: () => onRelease(slot),
+                    child: Text(
+                      pitchPadLabel(pad),
+                      style: theme.typography.body.sm.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  );
+                }(),
+            ],
+          ),
+        ),
       ],
     );
   }

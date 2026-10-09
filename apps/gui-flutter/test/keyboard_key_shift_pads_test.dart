@@ -41,6 +41,8 @@ void main() {
         builder: (context, setState) => KeyShiftPads(
           page: kDefaultPitchPage,
           activeSemitones: active,
+          onPrevPage: () {},
+          onNextPage: () {},
           onPress: (slot) {
             pressed.add(slot);
             final semis = pitchPage(kDefaultPitchPage)[slot].semitones;
@@ -72,7 +74,13 @@ void main() {
   ) async {
     await pumpPad(
       tester,
-      KeyShiftPads(page: 5, activeSemitones: -5, onPress: (_) {}),
+      KeyShiftPads(
+        page: 5,
+        activeSemitones: -5,
+        onPrevPage: () {},
+        onNextPage: () {},
+        onPress: (_) {},
+      ),
     );
 
     for (final label in [
@@ -111,6 +119,8 @@ void main() {
         onSelectRoot: (_) {},
         onPress: presses.add,
         onRelease: releases.add,
+        onPrevPage: () {},
+        onNextPage: () {},
       ),
     );
 
@@ -139,6 +149,8 @@ void main() {
         onSelectRoot: (_) {},
         onPress: (_) {},
         onRelease: (_) {},
+        onPrevPage: () {},
+        onNextPage: () {},
       ),
     );
 
@@ -163,6 +175,8 @@ void main() {
         onSelectRoot: selected.add,
         onPress: (_) {},
         onRelease: (_) {},
+        onPrevPage: () {},
+        onNextPage: () {},
       ),
     );
 
@@ -174,5 +188,94 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('keyboard-root-3')));
     await tester.pump();
     expect(selected, [3]);
+  });
+
+  testWidgets('KeyboardPads page bar renders and dispatches prev/next', (
+    tester,
+  ) async {
+    final prevs = <int>[];
+    final nexts = <int>[];
+    var page = kDefaultPitchPage;
+    await pumpPad(
+      tester,
+      StatefulBuilder(
+        builder: (context, setState) => KeyboardPads(
+          page: page,
+          rootHotCue: 0,
+          hotCues: const [DeckHotCue(slot: 0, positionMs: 1000)],
+          onSelectRoot: (_) {},
+          onPress: (_) {},
+          onRelease: (_) {},
+          onPrevPage: () => setState(() {
+            prevs.add(page);
+            page = page <= 1 ? kPitchPageCount : page - 1;
+          }),
+          onNextPage: () => setState(() {
+            nexts.add(page);
+            page = page >= kPitchPageCount ? 1 : page + 1;
+          }),
+        ),
+      ),
+    );
+
+    expect(find.text('PAGE 2/5'), findsOneWidget);
+
+    await tester.tap(find.text('▶'));
+    await tester.pumpAndSettle();
+    expect(nexts, [kDefaultPitchPage]);
+    expect(find.text('PAGE 3/5'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Previous semitone page'));
+    await tester.pumpAndSettle();
+    expect(prevs, [3]);
+    expect(find.text('PAGE 2/5'), findsOneWidget);
+  });
+
+  testWidgets('KeyShiftPads page bar renders and dispatches prev/next', (
+    tester,
+  ) async {
+    final prevs = <int>[];
+    final nexts = <int>[];
+    await pumpPad(
+      tester,
+      KeyShiftPads(
+        page: 1,
+        activeSemitones: 0,
+        onPrevPage: () => prevs.add(1),
+        onNextPage: () => nexts.add(1),
+        onPress: (_) {},
+      ),
+    );
+
+    expect(find.text('PAGE 1/5'), findsOneWidget);
+
+    await tester.tap(find.bySemanticsLabel('Previous semitone page'));
+    await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Next semitone page'));
+    await tester.pump();
+    expect(prevs, [1]);
+    expect(nexts, [1]);
+  });
+
+  testWidgets('page bar buttons do not dispatch when disabled', (tester) async {
+    var prev = 0;
+    var next = 0;
+    await pumpPad(
+      tester,
+      KeyShiftPads(
+        page: 1,
+        activeSemitones: 0,
+        disabled: true,
+        onPrevPage: () => prev++,
+        onNextPage: () => next++,
+        onPress: (_) {},
+      ),
+    );
+
+    await tester.tap(find.text('◀'), warnIfMissed: false);
+    await tester.tap(find.text('▶'), warnIfMissed: false);
+    await tester.pump();
+    expect(prev, 0);
+    expect(next, 0);
   });
 }
