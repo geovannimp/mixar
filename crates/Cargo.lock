@@ -2372,7 +2372,10 @@ dependencies = [
 name = "library-adapters"
 version = "0.1.0"
 dependencies = [
+ "library",
  "library-core",
+ "rusqlite",
+ "tempfile",
 ]
 
 [[package]]
