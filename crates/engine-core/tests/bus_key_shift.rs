@@ -4,7 +4,7 @@ mod common;
 
 use common::{recv_evt_kind, short_tone_fixture};
 use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession, DEFAULT_PITCH_PAGE};
+use engine_core::{EngineConfig, EngineSession, DEFAULT_PITCH_PAGE, KEYBOARD_PAGE_COUNT};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
 
@@ -112,36 +112,40 @@ fn set_key_shift_pages_and_root_publish_fields() {
 }
 
 #[test]
-fn unload_resets_key_shift_pages_and_root() {
+fn pitch_pad_setters_clamp_out_of_range_values() {
     let session = null_session_with_loaded_deck();
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShift,
-            encode_cmd_body(&CmdBody::SetKeyShift { semitones: 12.0 }).unwrap(),
-        )
-        .unwrap();
+        .with_engine(|engine| {
+            engine.set_deck_keyboard_page(0, 99)?;
+            engine.set_deck_key_shift_page(0, 0)?;
+            engine.set_deck_keyboard_root(0, 99)?;
+            engine.set_deck_key_shift(0, 999.0)?;
+            Ok(())
+        })
+        .expect("set out-of-range");
+    let snap = session
+        .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
+        .expect("snapshot call");
+    assert_eq!(snap.keyboard_page, KEYBOARD_PAGE_COUNT);
+    assert_eq!(snap.key_shift_page, 1);
+    assert_eq!(snap.keyboard_root_hot_cue, 7);
+    assert_eq!(snap.key_shift, 16.0);
+}
+
+#[test]
+fn unload_resets_key_shift_pages_and_root() {
+    let session = null_session_with_loaded_deck();
+    // Set the pitch-pad state synchronously: `publish_cmd` is fire-and-forget, so
+    // bus cmds could otherwise be processed after `unload_deck`.
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardPage,
-            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 4 }).unwrap(),
-        )
-        .unwrap();
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShiftPage,
-            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
-        )
-        .unwrap();
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardRoot,
-            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 3 }).unwrap(),
-        )
-        .unwrap();
+        .with_engine(|engine| {
+            engine.set_deck_key_shift(0, 12.0)?;
+            engine.set_deck_keyboard_page(0, 4)?;
+            engine.set_deck_key_shift_page(0, 1)?;
+            engine.set_deck_keyboard_root(0, 3)?;
+            Ok(())
+        })
+        .expect("set pitch pad state");
 
     session.with_engine(|e| e.unload_deck(0)).expect("unload");
     let snap = session
@@ -156,34 +160,18 @@ fn unload_resets_key_shift_pages_and_root() {
 #[test]
 fn load_resets_key_shift_pages_and_root() {
     let session = null_session_with_loaded_deck();
+    // Set the pitch-pad state synchronously: `publish_cmd` is fire-and-forget, so
+    // bus cmds could otherwise be processed after `load_track` and the assertion
+    // below would see the stale page.
     session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShift,
-            encode_cmd_body(&CmdBody::SetKeyShift { semitones: 12.0 }).unwrap(),
-        )
-        .unwrap();
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardPage,
-            encode_cmd_body(&CmdBody::SetKeyboardPage { page: 5 }).unwrap(),
-        )
-        .unwrap();
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyShiftPage,
-            encode_cmd_body(&CmdBody::SetKeyShiftPage { page: 1 }).unwrap(),
-        )
-        .unwrap();
-    session
-        .publish_cmd(
-            Origin::Deck(0),
-            Kind::SetKeyboardRoot,
-            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 2 }).unwrap(),
-        )
-        .unwrap();
+        .with_engine(|engine| {
+            engine.set_deck_key_shift(0, 12.0)?;
+            engine.set_deck_keyboard_page(0, 4)?;
+            engine.set_deck_key_shift_page(0, 1)?;
+            engine.set_deck_keyboard_root(0, 2)?;
+            Ok(())
+        })
+        .expect("set pitch pad state");
 
     // Loading a second track must not inherit the session shift/page.
     session

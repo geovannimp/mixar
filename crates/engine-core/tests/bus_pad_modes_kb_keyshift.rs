@@ -626,7 +626,8 @@ fn mode_switch_clears_held_keyboard_state() {
     );
     assert!((key_shift_of(&next_deck_updated(&evt)) - 4.0).abs() < 1e-6);
 
-    // Switch mode mid-hold; the held state must be discarded.
+    // Switch mode mid-hold; the held state must be discarded and the pre-press
+    // shift (0, nothing latched) restored rather than left at the pad's +4.
     publish(
         &session,
         Kind::SetPadMode,
@@ -644,8 +645,65 @@ fn mode_switch_clears_held_keyboard_state() {
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert!(
-        (snap.key_shift - 4.0).abs() < 1e-6,
-        "stale release must not clobber the held shift, got {}",
+        snap.key_shift.abs() < 1e-6,
+        "mode switch must restore the pre-press shift, got {}",
+        snap.key_shift
+    );
+}
+
+#[test]
+fn mode_switch_restores_latched_key_shift() {
+    let (session, _library, _dir) = library_session_with_root_hot_cue();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Latch Key Shift +2 (default page 2, slot 2).
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 2,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+
+    // Hold a Keyboard pad (+4) on top of the latch.
+    publish(
+        &session,
+        Kind::KeyboardPadPress,
+        &CmdBody::KeyboardPadPress {
+            slot: 4,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 4.0).abs() < 1e-6);
+
+    // Switching mode mid-hold must restore the latched +2, not 0 and not +4.
+    publish(
+        &session,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::HotCue,
+        },
+    );
+    let _ = next_deck_updated(&evt);
+    let snap = session
+        .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
+        .expect("snapshot call");
+    assert!(
+        (snap.key_shift - 2.0).abs() < 1e-6,
+        "mode switch must restore the latched shift, got {}",
         snap.key_shift
     );
 }

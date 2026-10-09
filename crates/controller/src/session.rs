@@ -3,7 +3,10 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::{
+    key_shift_page_action, keyboard_page_action, CmdBody, Kind, Origin, PadMode, PitchPadAction,
+    KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
+};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
@@ -17,31 +20,6 @@ use crate::script::{ScriptHost, ScriptRuntime};
 const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
-
-/// Absolute semitone for `slot` (`0..=7`) on `page` (`1..=5`), or `None` for a
-/// page action that has no absolute offset (Reset / Up / Down / Sync).
-///
-/// Mirrors `engine_core::pads::{keyboard_page_action, key_shift_page_action}`.
-/// `controller` deliberately does not depend on the audio engine, so keep this in
-/// sync with `crates/engine-core/src/pads.rs` (same duplication pattern as
-/// `DEFAULT_TEMPO_RANGE` in `action.rs`).
-fn pitch_page_semitone(page: u8, slot: u8) -> Option<i8> {
-    #[rustfmt::skip]
-    const PAGES: [[Option<i8>; 8]; 5] = [
-        // PAGE 1
-        [Some(8), Some(9), Some(10), Some(11), Some(12), None, None, None],
-        // PAGE 2 (default)
-        [Some(0), Some(1), Some(2), Some(3), Some(4), Some(5), Some(6), Some(7)],
-        // PAGE 3
-        [Some(-8), Some(-7), Some(-6), Some(-5), Some(-4), Some(-3), Some(-2), Some(-1)],
-        // PAGE 4
-        [None, None, None, None, Some(-12), Some(-11), Some(-10), Some(-9)],
-        // PAGE 5
-        [None, None, Some(-5), Some(-12), None, None, Some(7), Some(12)],
-    ];
-    let page = page.clamp(1, PAGES.len() as u8);
-    PAGES[(page - 1) as usize][slot.min(7) as usize]
-}
 
 /// Snapshot / LED array slot for a deck origin (defense if an OOR index slips past load).
 fn deck_slot(d: u16) -> usize {
@@ -188,6 +166,7 @@ impl MappingSession {
     /// Mirror engine `pad_mode` so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
+        let mode_changed = self.snapshot.pad_mode[i] != mode;
         self.snapshot.pad_mode[i] = mode;
         let section = format!("deck_{}", deck + 1);
         // Mode-page LEDs: force-resend so a page switch always repaints.
@@ -207,6 +186,11 @@ impl MappingSession {
             mode == PadMode::KeyShift,
             midi,
         );
+        // Only repaint the pad bank on an actual mode change: a repeat mirror of
+        // the same mode must not force-resend all eight pad LEDs.
+        if !mode_changed {
+            return;
+        }
         match mode {
             PadMode::HotCue => self.refresh_hot_cue_leds(deck, midi),
             PadMode::Keyboard | PadMode::KeyShift => self.refresh_key_shift_leds(deck, midi),
@@ -217,21 +201,32 @@ impl MappingSession {
     /// Mirror engine key shift; light the matching Keyboard / Key Shift pad LED.
     pub fn set_deck_key_shift(&mut self, deck: u16, semitones: f32, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
+        if self.snapshot.key_shift[i] == semitones {
+            return;
+        }
         self.snapshot.key_shift[i] = semitones;
         self.refresh_key_shift_leds(deck, midi);
     }
 
-    /// Mirror engine Keyboard pad semitone page (pad-bank LEDs).
+    /// Mirror engine Keyboard pad semitone page (`1..=4`; pad-bank LEDs).
     pub fn set_deck_keyboard_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
-        self.snapshot.keyboard_page[i] = page.clamp(1, 5);
+        let page = page.clamp(1, KEYBOARD_PAGE_COUNT);
+        if self.snapshot.keyboard_page[i] == page {
+            return;
+        }
+        self.snapshot.keyboard_page[i] = page;
         self.refresh_key_shift_leds(deck, midi);
     }
 
-    /// Mirror engine Key Shift pad semitone page (pad-bank LEDs).
+    /// Mirror engine Key Shift pad semitone page (`1..=5`; pad-bank LEDs).
     pub fn set_deck_key_shift_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
-        self.snapshot.key_shift_page[i] = page.clamp(1, 5);
+        let page = page.clamp(1, KEY_SHIFT_PAGE_COUNT);
+        if self.snapshot.key_shift_page[i] == page {
+            return;
+        }
+        self.snapshot.key_shift_page[i] = page;
         self.refresh_key_shift_leds(deck, midi);
     }
 
@@ -252,19 +247,20 @@ impl MappingSession {
         let i = (deck as usize).min(3);
         let section = format!("deck_{}", deck + 1);
         let shift = self.snapshot.key_shift[i];
-        let alias_prefix = match self.snapshot.pad_mode[i] {
+        let mode = self.snapshot.pad_mode[i];
+        let alias_prefix = match mode {
             PadMode::KeyShift => "key_shift_pad",
             PadMode::Keyboard => "keyboard_pad",
             _ => return,
         };
-        // Each mode has its own page; light the bank of the current mode.
-        let page = match self.snapshot.pad_mode[i] {
-            PadMode::KeyShift => self.snapshot.key_shift_page[i],
-            _ => self.snapshot.keyboard_page[i],
-        };
-        for n in 1..=8u8 {
-            let alias = format!("{alias_prefix}_{n}");
-            let active = pitch_page_semitone(page, n - 1).is_some_and(|s| f32::from(s) == shift);
+        // Each mode has its own page and table; light the bank of the current mode.
+        let actions: [PitchPadAction; 8] = std::array::from_fn(|slot| match mode {
+            PadMode::KeyShift => key_shift_page_action(self.snapshot.key_shift_page[i], slot as u8),
+            _ => keyboard_page_action(self.snapshot.keyboard_page[i], slot as u8),
+        });
+        for (slot, action) in actions.iter().enumerate() {
+            let alias = format!("{alias_prefix}_{}", slot + 1);
+            let active = matches!(action, PitchPadAction::Semitone(s) if f32::from(*s) == shift);
             self.output_state.remove(&format!("{section}.{alias}"));
             self.apply_output_signal(&section, &alias, active, midi);
         }

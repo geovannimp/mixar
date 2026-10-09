@@ -1,19 +1,12 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode};
+use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode, DEFAULT_PITCH_PAGE};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
 
 /// Library hot-cue slots are 0..=15; MIDI `pad n` and LED cache match that.
 pub const HOT_CUE_SLOT_COUNT: usize = 16;
-
-/// Default Keyboard / Key Shift semitone page.
-///
-/// Mirrors `engine_core::DEFAULT_PITCH_PAGE`; `controller` deliberately does not
-/// depend on the audio engine, so keep this in sync (same duplication pattern as
-/// `DEFAULT_TEMPO_RANGE`).
-pub const DEFAULT_PITCH_PAGE: u8 = 2;
 
 /// Local mirrors for LED + soft-takeover (not MIDI pad routing).
 /// Absolute values are wire `0..1` when present.

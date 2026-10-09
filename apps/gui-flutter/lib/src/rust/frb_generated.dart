@@ -11098,7 +11098,7 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         page: page,
       );
 
-  /// Select the Keyboard pad semitone page (1..=5).
+  /// Select the Keyboard pad semitone page (1..=4).
   Future<void> setKeyboardPage({required int deckId, required int page}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSetKeyboardPage(
         that: this,
@@ -11106,7 +11106,7 @@ class EngineTransportImpl extends RustOpaque implements EngineTransport {
         page: page,
       );
 
-  /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+  /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
   Future<void> setKeyboardRoot({required int deckId, required int slot}) =>
       RustLib.instance.api.crateApiEngineEngineTransportSetKeyboardRoot(
         that: this,

@@ -184,10 +184,10 @@ abstract class EngineTransport implements RustOpaqueInterface {
   /// Select the Key Shift pad semitone page (1..=5).
   Future<void> setKeyShiftPage({required int deckId, required int page});
 
-  /// Select the Keyboard pad semitone page (1..=5).
+  /// Select the Keyboard pad semitone page (1..=4).
   Future<void> setKeyboardPage({required int deckId, required int page});
 
-  /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+  /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
   Future<void> setKeyboardRoot({required int deckId, required int slot});
 
   /// Master cue (headphones hear master).
@@ -303,7 +303,7 @@ class EngineEvt {
   /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
   final double? keyShift;
 
-  /// Keyboard pad semitone page (`1..=5`; default 2).
+  /// Keyboard pad semitone page (`1..=4`; default 2).
   final int? keyboardPage;
 
   /// Key Shift pad semitone page (`1..=5`; default 2).

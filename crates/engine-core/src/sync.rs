@@ -29,7 +29,7 @@ pub(crate) struct DeckControlState {
     pub active_sampler_bank_id: Option<String>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift_semitones: f32,
-    /// Keyboard pad semitone page (`1..=5`).
+    /// Keyboard pad semitone page (`1..=4`).
     pub keyboard_page: u8,
     /// Key Shift pad semitone page (`1..=5`).
     pub key_shift_page: u8,
@@ -44,7 +44,7 @@ pub(crate) struct DeckControlState {
 
 impl Default for DeckControlState {
     fn default() -> Self {
-        Self {
+        let mut state = Self {
             sync_mode: SyncMode::Off,
             bpm: None,
             quantize: false,
@@ -60,17 +60,34 @@ impl Default for DeckControlState {
             isrc: None,
             hot_cues: [None; HOT_CUE_SLOT_COUNT],
             active_sampler_bank_id: None,
+            // Pitch-pad state is initialised by the shared reset below.
             key_shift_semitones: 0.0,
             keyboard_page: DEFAULT_PITCH_PAGE,
             key_shift_page: DEFAULT_PITCH_PAGE,
             keyboard_root_hot_cue: 0,
             keyboard_restore_semitones: None,
             keyboard_held: [false; 8],
-        }
+        };
+        state.reset_pitch_pad_state();
+        state
     }
 }
 
 impl DeckControlState {
+    /// Reset the Keyboard / Key Shift session state shared by `Default`,
+    /// [`Self::clear_loaded_track`], and [`Self::apply_loaded_metadata`].
+    ///
+    /// Keeping the pitch-pad fields in one place avoids drift when a new field is
+    /// added to only one of the three initialisation sites.
+    fn reset_pitch_pad_state(&mut self) {
+        self.key_shift_semitones = 0.0;
+        self.keyboard_page = DEFAULT_PITCH_PAGE;
+        self.key_shift_page = DEFAULT_PITCH_PAGE;
+        self.keyboard_root_hot_cue = 0;
+        self.keyboard_restore_semitones = None;
+        self.keyboard_held = [false; 8];
+    }
+
     pub fn clear_loaded_track(&mut self) {
         self.bpm = None;
         self.sync_mode = SyncMode::Off;
@@ -84,12 +101,7 @@ impl DeckControlState {
         self.key = None;
         self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
-        self.key_shift_semitones = 0.0;
-        self.keyboard_page = DEFAULT_PITCH_PAGE;
-        self.key_shift_page = DEFAULT_PITCH_PAGE;
-        self.keyboard_root_hot_cue = 0;
-        self.keyboard_restore_semitones = None;
-        self.keyboard_held = [false; 8];
+        self.reset_pitch_pad_state();
     }
 
     pub fn apply_source_load(&mut self, source: &library_core::AudioSource, track_id: TrackId) {
@@ -115,12 +127,7 @@ impl DeckControlState {
         self.isrc = non_empty_opt(metadata.isrc.clone());
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
         // A newly loaded track must not inherit a stale session shift/page.
-        self.key_shift_semitones = 0.0;
-        self.keyboard_page = DEFAULT_PITCH_PAGE;
-        self.key_shift_page = DEFAULT_PITCH_PAGE;
-        self.keyboard_root_hot_cue = 0;
-        self.keyboard_restore_semitones = None;
-        self.keyboard_held = [false; 8];
+        self.reset_pitch_pad_state();
     }
 }
 

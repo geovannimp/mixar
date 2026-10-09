@@ -917,31 +917,41 @@ impl ControllerEngine {
         }
     }
 
-    pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
+    /// Build a [`MidiSink`] per attached mapping and invoke `f` with its session.
+    ///
+    /// Centralises the `MidiSink` field wiring so a future field addition is a
+    /// single-site edit rather than a sweep across every mirror setter.
+    fn for_each_attached_sink(
+        &mut self,
+        mut f: impl FnMut(&mut MappingSession, &mut MidiSink<'_>),
+    ) {
         for (port_name, attached) in self.attached.iter_mut() {
+            let Attached {
+                mapping_id,
+                device_id,
+                session,
+                output,
+                send_gate,
+                ..
+            } = attached;
             let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
+                out: output,
+                mapping_id: mapping_id.as_str(),
+                device_id: device_id.as_str(),
+                port_name: port_name.as_str(),
+                send_gate,
             };
-            attached.session.on_deck_playing(deck, playing, &mut sink);
+            f(session, &mut sink);
         }
+    }
+
+    pub fn on_deck_playing(&mut self, deck: u16, playing: bool) {
+        self.for_each_attached_sink(|session, sink| session.on_deck_playing(deck, playing, sink));
     }
 
     /// Mirror library hot cues into attached mappings (pad Trigger vs Save + LEDs).
     pub fn set_deck_hot_cues(&mut self, deck: u16, cues: [Option<i32>; crate::HOT_CUE_SLOT_COUNT]) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached.session.set_deck_hot_cues(deck, cues, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| session.set_deck_hot_cues(deck, cues, sink));
     }
 
     /// Mirror engine playhead for loop In/Out position stamps.
@@ -953,64 +963,28 @@ impl ControllerEngine {
 
     /// Mirror engine pad mode so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached.session.set_deck_pad_mode(deck, mode, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| session.set_deck_pad_mode(deck, mode, sink));
     }
 
     /// Mirror engine key shift so the Keyboard / Key Shift pad LEDs follow state.
     pub fn set_deck_key_shift(&mut self, deck: u16, semitones: f32) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached
-                .session
-                .set_deck_key_shift(deck, semitones, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| {
+            session.set_deck_key_shift(deck, semitones, sink);
+        });
     }
 
     /// Mirror engine Keyboard pad semitone page so pad LEDs follow state.
     pub fn set_deck_keyboard_page(&mut self, deck: u16, page: u8) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached
-                .session
-                .set_deck_keyboard_page(deck, page, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| {
+            session.set_deck_keyboard_page(deck, page, sink);
+        });
     }
 
     /// Mirror engine Key Shift pad semitone page so pad LEDs follow state.
     pub fn set_deck_key_shift_page(&mut self, deck: u16, page: u8) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached
-                .session
-                .set_deck_key_shift_page(deck, page, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| {
+            session.set_deck_key_shift_page(deck, page, sink);
+        });
     }
 
     /// Mirror engine Keyboard pad root hot cue.
@@ -1022,16 +996,7 @@ impl ControllerEngine {
 
     /// Push deck peak level to `vu_meter` MIDI out (no-op if mapping has none).
     pub fn set_deck_vu(&mut self, deck: u16, level: f32) {
-        for (port_name, attached) in self.attached.iter_mut() {
-            let mut sink = MidiSink {
-                out: &mut attached.output,
-                mapping_id: &attached.mapping_id,
-                device_id: &attached.device_id,
-                port_name,
-                send_gate: &mut attached.send_gate,
-            };
-            attached.session.set_deck_vu(deck, level, &mut sink);
-        }
+        self.for_each_attached_sink(|session, sink| session.set_deck_vu(deck, level, sink));
     }
 
     fn match_port(&self, port_name: &str) -> Option<String> {

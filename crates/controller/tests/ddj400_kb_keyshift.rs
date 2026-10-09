@@ -137,6 +137,39 @@ fn key_shift_pad_lights_led_and_reset_clears() {
 }
 
 #[test]
+fn unchanged_mirror_does_not_repaint_pad_leds() {
+    let mut s = session();
+    let mut bus = new_bus();
+    let mut midi = new_midi();
+
+    // Enter Key Shift mode so the bank LEDs are driven.
+    s.handle_midi(&[0x90, 0x6F, 0x7F], &mut bus, &mut midi);
+    midi.frames.clear();
+
+    // The first mirror of +2 repaints the bank.
+    s.set_deck_key_shift(0, 2.0, &mut midi);
+    assert!(!midi.frames.is_empty(), "first mirror must paint the bank");
+    midi.frames.clear();
+
+    // A repeat mirror of the same key shift must do no MIDI work.
+    s.set_deck_key_shift(0, 2.0, &mut midi);
+    assert!(
+        midi.frames.is_empty(),
+        "unchanged key shift repainted: {:?}",
+        midi.frames
+    );
+
+    // Re-mirroring the same pages (default is 2) must also stay silent.
+    s.set_deck_keyboard_page(0, 2, &mut midi);
+    s.set_deck_key_shift_page(0, 2, &mut midi);
+    assert!(
+        midi.frames.is_empty(),
+        "unchanged pages repainted: {:?}",
+        midi.frames
+    );
+}
+
+#[test]
 fn mode_buttons_set_pad_mode() {
     let mut s = session();
     let mut bus = new_bus();

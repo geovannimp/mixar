@@ -761,7 +761,9 @@ impl Engine {
         deck.set_key_lock(enabled)
     }
 
-    /// Set the session key-shift offset in semitones (`-16..=16`; clamps, non-finite → 0).
+    /// Set the session key-shift offset in semitones (`-16..=16`).
+    ///
+    /// Out-of-range values are clamped; non-finite values become `0`.
     pub fn set_deck_key_shift(&mut self, deck_id: usize, semitones: f32) -> Result<()> {
         let s = if semitones.is_finite() {
             semitones.clamp(-16.0, 16.0)
@@ -784,7 +786,9 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the Keyboard pad semitone page for a deck (clamped to `1..=4`).
+    /// Set the Keyboard pad semitone page for a deck (`1..=4`).
+    ///
+    /// Out-of-range values are clamped.
     pub fn set_deck_keyboard_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
         let control = self
             .deck_control
@@ -794,7 +798,9 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the Key Shift pad semitone page for a deck (clamped to `1..=5`).
+    /// Set the Key Shift pad semitone page for a deck (`1..=5`).
+    ///
+    /// Out-of-range values are clamped.
     pub fn set_deck_key_shift_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
         let control = self
             .deck_control
@@ -804,19 +810,15 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the hot-cue slot used as the Keyboard pad root for a deck.
+    /// Set the hot-cue slot used as the Keyboard pad root for a deck (`0..=7`).
+    ///
+    /// Out-of-range values are clamped.
     pub fn set_deck_keyboard_root(&mut self, deck_id: usize, slot: u8) -> Result<()> {
-        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
-            return Err(anyhow::anyhow!(
-                "Keyboard root hot cue must be 0..={}.",
-                crate::pads::HOT_CUE_SLOT_COUNT - 1
-            ));
-        }
         let control = self
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_root_hot_cue = slot;
+        control.keyboard_root_hot_cue = slot.min(crate::pads::KEYBOARD_ROOT_SLOT_COUNT - 1);
         Ok(())
     }
 
@@ -1806,15 +1808,25 @@ impl Engine {
 
     /// Set controller pad mode for a deck (UI mode; no audio side effects).
     pub fn set_deck_pad_mode(&mut self, deck_id: usize, mode: PadMode) -> Result<()> {
-        let control = self
-            .deck_control
-            .get_mut(deck_id)
-            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.pad_mode = mode;
-        // A mid-hold mode switch must not leave stale momentary Keyboard state
-        // that a later release could restore/clobber.
-        control.keyboard_held = [false; 8];
-        control.keyboard_restore_semitones = None;
+        let restore = {
+            let control = self
+                .deck_control
+                .get_mut(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            // A mid-hold mode switch must not leave stale momentary Keyboard
+            // state: the held pad's release is routed to the new mode's release
+            // handler, so restore the pre-press shift now (and update the DSP deck
+            // below) before clearing the held bookkeeping.
+            let held = control.keyboard_held.iter().any(|held| *held);
+            let restore = held.then(|| control.keyboard_restore_semitones.take().unwrap_or(0.0));
+            control.pad_mode = mode;
+            control.keyboard_held = [false; 8];
+            control.keyboard_restore_semitones = None;
+            restore
+        };
+        if let Some(semitones) = restore {
+            self.set_deck_key_shift(deck_id, semitones)?;
+        }
         Ok(())
     }
 

@@ -100,11 +100,15 @@ impl TimestretchStretcher {
             engine_chunk: max_block,
             resampler_l: StreamingSincResampler::new(Arc::clone(&table)),
             resampler_r: StreamingSincResampler::new(table),
-            scratch: Vec::new(),
-            scratch_l: Vec::new(),
-            scratch_r: Vec::new(),
-            resampled_l: Vec::new(),
-            resampled_r: Vec::new(),
+            // Pre-size the realtime scratch buffers (bounded by the engine chunk
+            // and the pitch-down floor: `1 / MIN_PITCH_FACTOR` = 4× emission) so
+            // steady-state blocks only clear/write in place and never allocate
+            // inside the audio callback.
+            scratch: vec![0.0; max_block * 2],
+            scratch_l: vec![0.0; max_block],
+            scratch_r: vec![0.0; max_block],
+            resampled_l: Vec::with_capacity(max_block * 4 + 512),
+            resampled_r: Vec::with_capacity(max_block * 4 + 512),
             carry: Vec::with_capacity(carry_capacity),
             carry_head: 0,
             carry_capacity,
@@ -210,12 +214,19 @@ impl TimestretchStretcher {
             self.resampled_l.reserve(cap);
             self.resampled_r.clear();
             self.resampled_r.reserve(cap);
-            self.resampler_l
+            // Never panic on the audio thread: a resampler error (e.g. capacity
+            // shortfall) stops feeding and the tail below zero-fills the rest.
+            if self
+                .resampler_l
                 .process_into(&self.scratch_l, pitch, &mut self.resampled_l)
-                .expect("resampler output reserved to max pitch-down emission");
-            self.resampler_r
-                .process_into(&self.scratch_r, pitch, &mut self.resampled_r)
-                .expect("resampler output reserved to max pitch-down emission");
+                .is_err()
+                || self
+                    .resampler_r
+                    .process_into(&self.scratch_r, pitch, &mut self.resampled_r)
+                    .is_err()
+            {
+                break;
+            }
 
             let n = self.resampled_l.len().min(self.resampled_r.len());
             for i in 0..n {
@@ -331,5 +342,43 @@ impl TimeStretcher for TimestretchStretcher {
             source_frames_fed,
             out_frames,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAX_BLOCK: usize = 512;
+
+    fn feed_constant(need: usize, buf: &mut [Sample]) -> usize {
+        let frames = need.min(buf.len() / 2);
+        for sample in &mut buf[..frames * 2] {
+            *sample = 0.1;
+        }
+        frames
+    }
+
+    #[test]
+    fn realtime_scratch_buffers_are_pre_sized() {
+        let s = TimestretchStretcher::new(48_000, MAX_BLOCK).expect("stretcher");
+        assert!(s.scratch.capacity() >= MAX_BLOCK * 2);
+        assert!(s.scratch_l.capacity() >= MAX_BLOCK);
+        assert!(s.scratch_r.capacity() >= MAX_BLOCK);
+        assert!(s.resampled_l.capacity() >= MAX_BLOCK * 4 + 512);
+        assert!(s.resampled_r.capacity() >= MAX_BLOCK * 4 + 512);
+    }
+
+    /// Exercises the pitched path at the +4× pitch ceiling: the reservation must
+    /// cover the resampler's maximum emission so `pull_pitched` never hits the
+    /// `BufferOverflow` degradation (and never panics on the audio thread).
+    #[test]
+    fn pitched_pull_at_ceiling_does_not_panic() {
+        let mut s = TimestretchStretcher::new(48_000, MAX_BLOCK).expect("stretcher");
+        s.set_pitch_factor(4.0);
+        let mut out = vec![0.0f32; MAX_BLOCK * 2];
+        let mut feed = feed_constant;
+        let stats = s.pull_interleaved(MAX_BLOCK, &mut out, &mut feed);
+        assert_eq!(stats.out_frames, MAX_BLOCK);
     }
 }

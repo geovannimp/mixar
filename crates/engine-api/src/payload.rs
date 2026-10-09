@@ -147,7 +147,7 @@ pub struct DeckSnapshot {
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     #[serde(default)]
     pub key_shift: f32,
-    /// Keyboard pad semitone page (`1..=5`; default 2).
+    /// Keyboard pad semitone page (`1..=4`; default 2).
     #[serde(default = "default_pitch_page")]
     pub keyboard_page: u8,
     /// Key Shift pad semitone page (`1..=5`; default 2).
@@ -256,7 +256,7 @@ pub enum CmdBody {
     SetKeyboardRoot {
         slot: u8,
     },
-    /// Keyboard pad semitone page (`1..=5`).
+    /// Keyboard pad semitone page (`1..=4`).
     SetKeyboardPage {
         page: u8,
     },
@@ -463,7 +463,7 @@ pub enum EvtBody {
         /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
         #[serde(default)]
         key_shift: f32,
-        /// Keyboard pad semitone page (`1..=5`; default 2).
+        /// Keyboard pad semitone page (`1..=4`; default 2).
         #[serde(default = "default_pitch_page")]
         keyboard_page: u8,
         /// Key Shift pad semitone page (`1..=5`; default 2).

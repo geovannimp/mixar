@@ -321,7 +321,7 @@ pub struct EngineEvt {
     pub key_lock: Option<bool>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift: Option<f32>,
-    /// Keyboard pad semitone page (`1..=5`; default 2).
+    /// Keyboard pad semitone page (`1..=4`; default 2).
     pub keyboard_page: Option<u8>,
     /// Key Shift pad semitone page (`1..=5`; default 2).
     pub key_shift_page: Option<u8>,
@@ -787,7 +787,7 @@ impl EngineTransport {
         )
     }
 
-    /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+    /// Select the hot-cue slot used as the Keyboard pad root (0..=7).
     pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
@@ -796,7 +796,7 @@ impl EngineTransport {
         )
     }
 
-    /// Select the Keyboard pad semitone page (1..=5).
+    /// Select the Keyboard pad semitone page (1..=4).
     pub fn set_keyboard_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
