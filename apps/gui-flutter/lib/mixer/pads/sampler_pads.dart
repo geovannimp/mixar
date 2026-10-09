@@ -8,6 +8,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class SamplerSlot {
@@ -32,7 +33,8 @@ class SamplerBank {
   final String? playMode;
 }
 
-/// Next bank index for ◀/▶ chrome. Falls back to `0` when [activeIndex] is unset.
+/// Next bank index for chevron chrome. Falls back to `0` when [activeIndex] is
+/// unset.
 int cycleSamplerBankIndex({
   required int activeIndex,
   required int direction,
@@ -97,7 +99,7 @@ class SamplerPads extends StatelessWidget {
         child: Row(
           children: [
             _BankChromeButton(
-              glyph: '◀',
+              icon: LucideIcons.chevronLeft,
               semanticLabel: 'Previous sampler bank',
               disabled: disabled || banks.length < 2,
               onPress: () => cycleBank(-1),
@@ -153,13 +155,13 @@ class SamplerPads extends StatelessWidget {
               ),
             ),
             _BankChromeButton(
-              glyph: '▶',
+              icon: LucideIcons.chevronRight,
               semanticLabel: 'Next sampler bank',
               disabled: disabled || banks.length < 2,
               onPress: () => cycleBank(1),
             ),
             _BankChromeButton(
-              glyph: '⚙',
+              icon: LucideIcons.settings,
               semanticLabel: 'Bank settings',
               disabled: disabled || activeBank == null,
               onPress: activeBank == null
@@ -378,13 +380,13 @@ void _performSamplerAssignDrop(
 
 class _BankChromeButton extends StatelessWidget {
   const new({
-    required this.glyph,
+    required this.icon,
     required this.semanticLabel,
     required this.onPress,
     this.disabled = false,
   });
 
-  final String glyph;
+  final IconData icon;
   final String semanticLabel;
   final VoidCallback? onPress;
   final bool disabled;
@@ -403,13 +405,12 @@ class _BankChromeButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: ExcludeSemantics(
-          child: Text(
-            glyph,
-            style: theme.typography.body.xs.copyWith(
-              color: disabled
-                  ? theme.colors.mutedForeground.withValues(alpha: 0.4)
-                  : theme.colors.mutedForeground,
-            ),
+          child: Icon(
+            icon,
+            size: 14,
+            color: disabled
+                ? theme.colors.mutedForeground.withValues(alpha: 0.4)
+                : theme.colors.mutedForeground,
           ),
         ),
       ),

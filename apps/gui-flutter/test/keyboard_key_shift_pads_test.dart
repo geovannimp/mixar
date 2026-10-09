@@ -8,6 +8,7 @@ import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
@@ -220,7 +221,7 @@ void main() {
 
     expect(find.text('PAGE 2/5'), findsOneWidget);
 
-    await tester.tap(find.text('▶'));
+    await tester.tap(find.byIcon(LucideIcons.chevronRight));
     await tester.pumpAndSettle();
     expect(nexts, [kDefaultPitchPage]);
     expect(find.text('PAGE 3/5'), findsOneWidget);
@@ -272,8 +273,11 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('◀'), warnIfMissed: false);
-    await tester.tap(find.text('▶'), warnIfMissed: false);
+    await tester.tap(find.byIcon(LucideIcons.chevronLeft), warnIfMissed: false);
+    await tester.tap(
+      find.byIcon(LucideIcons.chevronRight),
+      warnIfMissed: false,
+    );
     await tester.pump();
     expect(prev, 0);
     expect(next, 0);

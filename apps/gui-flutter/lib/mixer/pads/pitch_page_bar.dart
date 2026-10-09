@@ -2,9 +2,10 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/mixer_button.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Semitone page selector chrome (`◀  PAGE n/5  ▶`) shared by the Keyboard and
-/// Key Shift pad modes, mirroring the sampler bank bar.
+/// Semitone page selector chrome (`chevron  PAGE n/5  chevron`) shared by the
+/// Keyboard and Key Shift pad modes, mirroring the sampler bank bar.
 ///
 /// Sits inside `PadGrid.bottomChrome`; both buttons disable when [disabled] or
 /// when there is only one page ([kPitchPageCount] < 2).
@@ -32,7 +33,7 @@ class PitchPageBar extends StatelessWidget {
       child: Row(
         children: [
           _PageChromeButton(
-            glyph: '◀',
+            icon: LucideIcons.chevronLeft,
             semanticLabel: 'Previous semitone page',
             disabled: buttonsDisabled,
             onPress: onPrev,
@@ -47,7 +48,7 @@ class PitchPageBar extends StatelessWidget {
             ),
           ),
           _PageChromeButton(
-            glyph: '▶',
+            icon: LucideIcons.chevronRight,
             semanticLabel: 'Next semitone page',
             disabled: buttonsDisabled,
             onPress: onNext,
@@ -60,13 +61,13 @@ class PitchPageBar extends StatelessWidget {
 
 class _PageChromeButton extends StatelessWidget {
   const new({
-    required this.glyph,
+    required this.icon,
     required this.semanticLabel,
     required this.onPress,
     this.disabled = false,
   });
 
-  final String glyph;
+  final IconData icon;
   final String semanticLabel;
   final VoidCallback? onPress;
   final bool disabled;
@@ -85,13 +86,12 @@ class _PageChromeButton extends StatelessWidget {
         onPress: disabled ? null : onPress,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: ExcludeSemantics(
-          child: Text(
-            glyph,
-            style: theme.typography.body.xs.copyWith(
-              color: disabled
-                  ? theme.colors.mutedForeground.withValues(alpha: 0.4)
-                  : theme.colors.mutedForeground,
-            ),
+          child: Icon(
+            icon,
+            size: 14,
+            color: disabled
+                ? theme.colors.mutedForeground.withValues(alpha: 0.4)
+                : theme.colors.mutedForeground,
           ),
         ),
       ),
