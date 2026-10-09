@@ -10,15 +10,11 @@ import 'package:gui_flutter/src/rust/api/library.dart';
 
 /// Path to the user's Mixxx database, or `null` when none is found.
 ///
-/// The adapter probes the platform's default Mixxx location; a failure to
-/// resolve (e.g. no host bridge in tests) degrades to "not found" rather than
-/// surfacing an error.
+/// The adapter probes the platform's default Mixxx location. A failed probe
+/// (e.g. no host bridge) surfaces as an error so the UI can distinguish it from
+/// "not installed".
 final mixxxDatabasePathProvider = FutureProvider<String?>((ref) async {
-  try {
-    return await mixxxDefaultDatabasePath();
-  } on Object {
-    return null;
-  }
+  return await mixxxDefaultDatabasePath();
 });
 
 /// Settings → Library: import tracks, playlists, and crates from Mixxx.
@@ -35,46 +31,47 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
   var _busy = false;
 
   Future<void> _run(String path) async {
-    final MixxxImportPreview preview;
-    try {
-      preview = await mixxxImportPreview(dbPath: path);
-    } on Object catch (e) {
-      if (mounted) {
-        _toastError('Could not read Mixxx library', e);
-      }
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-
-    final confirmed = await showMixarConfirm<bool>(
-      context: context,
-      title: 'Import from Mixxx?',
-      body:
-          'This imports tracks, playlists, crates, and watched folders from:\n'
-          '$path\n\n'
-          '${preview.trackCount} tracks '
-          '(${preview.missingFileCount} missing), '
-          '${preview.playlistCount} playlists, '
-          '${preview.crateCount} crates, '
-          '${preview.folderCount} folders.\n\n'
-          'Missing files are imported as unavailable tracks.',
-      actions: const [
-        MixarDialogAction(
-          label: 'Cancel',
-          value: false,
-          variant: MixarButtonVariant.outline,
-        ),
-        MixarDialogAction(label: 'Import', value: true),
-      ],
-    );
-    if (confirmed != true || !mounted) {
-      return;
-    }
-
     setState(() => _busy = true);
     try {
+      final MixxxImportPreview preview;
+      try {
+        preview = await mixxxImportPreview(dbPath: path);
+      } on Object catch (e) {
+        if (mounted) {
+          _toastError('Could not read Mixxx library', e);
+        }
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+
+      final confirmed = await showMixarConfirm<bool>(
+        context: context,
+        title: 'Import from Mixxx?',
+        body:
+            'This imports tracks, playlists, crates, and watched '
+            'folders from:\n'
+            '$path\n\n'
+            '${preview.trackCount} tracks '
+            '(${preview.missingFileCount} missing), '
+            '${preview.playlistCount} playlists, '
+            '${preview.crateCount} crates, '
+            '${preview.folderCount} folders.\n\n'
+            'Missing files are imported as unavailable tracks.',
+        actions: const [
+          MixarDialogAction(
+            label: 'Cancel',
+            value: false,
+            variant: MixarButtonVariant.outline,
+          ),
+          MixarDialogAction(label: 'Import', value: true),
+        ],
+      );
+      if (confirmed != true || !mounted) {
+        return;
+      }
+
       final transport = await ref.read(libraryTransportProvider.future);
       final report = await transport.importMixxxLibrary(dbPath: path);
       ref
@@ -83,7 +80,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       if (!mounted) {
         return;
       }
-      showMixarToast(context: context, title: Text(_summary(report)));
+      _toastReport(report);
     } on Object catch (e) {
       if (mounted) {
         _toastError('Mixxx import failed', e);
@@ -95,25 +92,20 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
     }
   }
 
-  String _summary(MixxxImportReport report) {
-    final imported =
-        report.tracksAdded +
-        report.playlistsImported +
-        report.cratesImported +
-        report.foldersImported;
-    if (imported == 0 && report.collectionsSkipped > 0) {
-      return 'Mixxx library already imported';
+  void _toastReport(MixxxImportReport report) {
+    if (report.failed > 0) {
+      final details = report.errors.take(3).join('\n');
+      showMixarToast(
+        context: context,
+        title: Text('Mixxx import finished with ${report.failed} error(s)'),
+        description: Text(
+          details.isEmpty ? mixxxImportSummary(report) : details,
+        ),
+        variant: MixarToastVariant.destructive,
+      );
+      return;
     }
-    final parts = [
-      if (report.tracksAdded > 0) '${report.tracksAdded} tracks',
-      if (report.playlistsImported > 0) '${report.playlistsImported} playlists',
-      if (report.cratesImported > 0) '${report.cratesImported} crates',
-      if (report.foldersImported > 0) '${report.foldersImported} folders',
-    ];
-    if (parts.isEmpty) {
-      return 'Nothing new to import from Mixxx';
-    }
-    return 'Imported ${parts.join(', ')} from Mixxx';
+    showMixarToast(context: context, title: Text(mixxxImportSummary(report)));
   }
 
   void _toastError(String title, Object error) {
@@ -132,6 +124,8 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
     final dbPath = database.asData?.value;
     final status = dbPath != null
         ? 'Found: $dbPath'
+        : database.hasError
+        ? 'Could not check for a Mixxx library.'
         : database.isLoading
         ? 'Looking for a Mixxx library…'
         : 'No Mixxx library found on this computer.';
@@ -177,4 +171,26 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
       ),
     );
   }
+}
+
+/// One-line result of a Mixxx import, shown in the completion toast.
+String mixxxImportSummary(MixxxImportReport report) {
+  final imported =
+      report.tracksAdded +
+      report.playlistsImported +
+      report.cratesImported +
+      report.foldersImported;
+  if (imported == 0 && report.tracksUpdated == 0) {
+    return report.collectionsSkipped > 0
+        ? 'Mixxx library already imported'
+        : 'Nothing to import from Mixxx';
+  }
+  final parts = [
+    if (report.tracksAdded > 0) '${report.tracksAdded} tracks',
+    if (report.tracksUpdated > 0) '${report.tracksUpdated} updated',
+    if (report.playlistsImported > 0) '${report.playlistsImported} playlists',
+    if (report.cratesImported > 0) '${report.cratesImported} crates',
+    if (report.foldersImported > 0) '${report.foldersImported} folders',
+  ];
+  return 'Imported ${parts.join(', ')} from Mixxx';
 }

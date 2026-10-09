@@ -227,6 +227,9 @@ fn camelot_key_normalized_to_musical() {
         .unwrap();
     assert_eq!(present.metadata().key.as_deref(), Some("Am"));
     assert_eq!(present.metadata().bpm, Some(128.0));
+    // Mixxx stores replaygain as a linear ratio (1.0 = 0 dB).
+    let gain = present.metadata().replaygain_track_gain_db.unwrap();
+    assert!((gain - 20.0 * 1.5f64.log10()).abs() < 1e-6);
     assert_eq!(present.metadata().duration_ms, Some(210_500));
     assert_eq!(present.file().unwrap().path(), fixture.present.as_path());
 
@@ -259,7 +262,7 @@ fn migrate_imports_tracks_lists_and_missing_files() {
     assert_eq!(report.tracks_added, 2);
     assert_eq!(report.tracks_missing_files, 1);
     assert_eq!(report.folders_imported, 1);
-    assert_eq!(report.playlists_imported, 2);
+    assert_eq!(report.playlists_imported, 1);
     assert_eq!(report.crates_imported, 1);
     assert_eq!(report.failed, 0, "errors: {:?}", report.errors);
 
@@ -323,7 +326,7 @@ fn migrate_is_idempotent_for_lists() {
     let first = mixxx
         .migrate(&mut target, &MigrateOptions::default())
         .unwrap();
-    assert_eq!(first.playlists_imported, 2);
+    assert_eq!(first.playlists_imported, 1);
     assert_eq!(first.crates_imported, 1);
 
     let second = mixxx

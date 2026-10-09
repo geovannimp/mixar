@@ -6,21 +6,19 @@
 //! [`library_core::Migratable`] to copy the whole library into the user’s
 //! canonical manager.
 
-mod convert;
 mod schema;
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use library_core::{
-    camelot_to_musical, AudioSource, Collection, CollectionConfig, CollectionEntry,
-    CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library, LibraryError,
-    Migratable, MigrateOptions, MigrateReport, NewCollection, Result, TrackId, TrackMetadata,
-    WritableLibrary,
+    camelot_to_musical, path_under_folder, AudioSource, Collection, CollectionConfig,
+    CollectionEntry, CollectionEntryId, CollectionId, CollectionType, FileAudioSource, Library,
+    LibraryError, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, TrackId,
+    TrackMetadata, WritableLibrary,
 };
 use rusqlite::{Connection, OpenFlags};
 
-use convert::path_under_folder;
 use schema::{backend, LibrarySchema};
 
 /// Name of the catch-all collection that holds every imported Mixxx track.
@@ -32,6 +30,9 @@ pub(crate) struct MixxxTrack {
     pub library_id: i64,
     pub path: PathBuf,
     pub metadata: TrackMetadata,
+    /// File was absent on disk when the library was opened. Computed here so the
+    /// migration's write phase never touches the filesystem.
+    pub missing: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -143,10 +144,7 @@ impl MixxxLibrary {
 
     /// Loaded tracks whose file is currently absent on disk.
     pub fn missing_file_count(&self) -> usize {
-        self.tracks
-            .iter()
-            .filter(|track| !track.path.is_file())
-            .count()
+        self.tracks.iter().filter(|track| track.missing).count()
     }
 
     /// Visible user playlists.
@@ -284,7 +282,7 @@ impl Migratable for MixxxLibrary {
                     } else {
                         report.tracks_updated += 1;
                     }
-                    if !track.path.is_file() {
+                    if track.missing {
                         report.tracks_missing_files += 1;
                     }
                     target_ids.insert(track.library_id, imported.source.id().clone());
@@ -340,7 +338,6 @@ impl Migratable for MixxxLibrary {
                     {
                         Ok(created) => {
                             existing_lists.insert((CATCH_ALL_NAME.to_string(), false));
-                            report.playlists_imported += 1;
                             Some(created.id)
                         }
                         Err(err) => {
@@ -383,7 +380,7 @@ impl Migratable for MixxxLibrary {
             }
 
             let key = (collection.name.trim().to_string(), sortable);
-            if options.skip_existing_lists && !existing_lists.insert(key) {
+            if options.skip_existing_lists && existing_lists.contains(&key) {
                 report.collections_skipped += 1;
                 continue;
             }
@@ -391,7 +388,12 @@ impl Migratable for MixxxLibrary {
             let created = match target
                 .add_collection(&NewCollection::playlist(collection.name.trim(), sortable))
             {
-                Ok(created) => created,
+                Ok(created) => {
+                    // Only remember the list once it exists, so a failed
+                    // add_collection does not suppress a retry later in the run.
+                    existing_lists.insert(key);
+                    created
+                }
                 Err(err) => {
                     report.failed += 1;
                     report.errors.push(format!("{}: {err}", collection.name));
@@ -537,10 +539,13 @@ fn load_tracks(conn: &Connection, schema: &LibrarySchema) -> Result<Vec<MixxxTra
         let Some(path) = path.filter(|path| !path.trim().is_empty()) else {
             continue;
         };
+        let path = PathBuf::from(path);
+        let missing = !path.is_file();
         tracks.push(MixxxTrack {
             library_id,
-            path: PathBuf::from(path),
+            path,
             metadata,
+            missing,
         });
     }
     Ok(tracks)
@@ -579,19 +584,8 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
     })
 }
 
-fn table_exists(conn: &Connection, name: &str) -> Result<bool> {
-    let count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?1",
-            [name],
-            |row| row.get(0),
-        )
-        .map_err(|e| backend(format!("inspect mixxx schema: {e}")))?;
-    Ok(count > 0)
-}
-
 fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
-    if !table_exists(conn, "directories")? {
+    if !schema::table_exists(conn, "directories")? {
         return Ok(Vec::new());
     }
 
@@ -618,7 +612,7 @@ fn load_folders(conn: &Connection) -> Result<Vec<(CollectionId, PathBuf)>> {
 }
 
 fn load_playlists(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
-    if !table_exists(conn, "Playlists")? {
+    if !schema::table_exists(conn, "Playlists")? {
         return Ok(Vec::new());
     }
 
@@ -661,7 +655,7 @@ fn playlist_members(conn: &Connection, playlist_id: i64) -> Result<Vec<i64>> {
 }
 
 fn load_crates(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
-    if !table_exists(conn, "crates")? {
+    if !schema::table_exists(conn, "crates")? {
         return Ok(Vec::new());
     }
 

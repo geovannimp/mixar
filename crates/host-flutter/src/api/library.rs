@@ -314,6 +314,12 @@ pub struct MixxxImportReport {
     pub errors: Vec<String>,
 }
 
+/// Saturating `usize` → `u32`. Counts are far below `u32::MAX` in practice; a
+/// saturated value is clearer than the wraparound a plain `as` cast would give.
+fn count_u32(value: usize) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
+}
+
 /// Default Mixxx database path for the current OS, when it exists.
 pub fn mixxx_default_database_path() -> Option<String> {
     library_adapters::default_database_path().map(|path| path.to_string_lossy().into_owned())
@@ -325,11 +331,11 @@ pub fn mixxx_import_preview(db_path: String) -> Result<MixxxImportPreview, Strin
     let preview = library.preview();
     Ok(MixxxImportPreview {
         db_path,
-        track_count: preview.track_count as u32,
-        missing_file_count: preview.missing_file_count as u32,
-        playlist_count: preview.playlist_count as u32,
-        crate_count: preview.crate_count as u32,
-        folder_count: preview.folder_count as u32,
+        track_count: count_u32(preview.track_count),
+        missing_file_count: count_u32(preview.missing_file_count),
+        playlist_count: count_u32(preview.playlist_count),
+        crate_count: count_u32(preview.crate_count),
+        folder_count: count_u32(preview.folder_count),
     })
 }
 
@@ -553,14 +559,14 @@ impl LibraryTransport {
                 .map_err(|e| e.to_string())?
         };
         Ok(MixxxImportReport {
-            tracks_added: report.tracks_added as u32,
-            tracks_updated: report.tracks_updated as u32,
-            tracks_missing_files: report.tracks_missing_files as u32,
-            folders_imported: report.folders_imported as u32,
-            playlists_imported: report.playlists_imported as u32,
-            crates_imported: report.crates_imported as u32,
-            collections_skipped: report.collections_skipped as u32,
-            failed: report.failed as u32,
+            tracks_added: count_u32(report.tracks_added),
+            tracks_updated: count_u32(report.tracks_updated),
+            tracks_missing_files: count_u32(report.tracks_missing_files),
+            folders_imported: count_u32(report.folders_imported),
+            playlists_imported: count_u32(report.playlists_imported),
+            crates_imported: count_u32(report.crates_imported),
+            collections_skipped: count_u32(report.collections_skipped),
+            failed: count_u32(report.failed),
             errors: report.errors,
         })
     }

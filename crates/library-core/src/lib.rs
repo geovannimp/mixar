@@ -9,6 +9,7 @@
 mod audio_source;
 mod error;
 mod key_format;
+mod path;
 mod source;
 mod traits;
 mod types;
@@ -20,6 +21,7 @@ pub use key_format::{
     camelot_code_to_musical, camelot_to_musical, format_key, musical_to_camelot, KeyDisplayMode,
     MAJOR_KEYS, MINOR_KEYS,
 };
+pub use path::path_under_folder;
 pub use source::{AudioSource, FileAudioSource, StreamAudioSource, StreamProvider};
 pub use traits::{Library, Migratable, WritableLibrary};
 pub use types::{

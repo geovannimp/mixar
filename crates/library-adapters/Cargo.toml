@@ -8,7 +8,7 @@ description = "Third-party library adapters for Mixar (Mixxx, Rekordbox, Serato,
 
 [dependencies]
 library-core = { path = "../library-core" }
-rusqlite = { version = "0.38", features = ["bundled"], optional = true }
+rusqlite = { workspace = true, optional = true }
 
 [features]
 default = ["mixxx"]

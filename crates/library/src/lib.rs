@@ -47,7 +47,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 pub use library_core::{
-    path_label, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
+    path_label, path_under_folder, AnalyzeTrackOptions, AudioSource, Collection, CollectionConfig,
     CollectionConfigUpdate, CollectionEntry, CollectionEntryId, CollectionId, CollectionType,
     FileAudioSource, ImportedTrack, Library, LibraryConfig, LibraryError, LoadableAudio,
     LoadedAudio, Migratable, MigrateOptions, MigrateReport, NewCollection, Result, ScanReport,
@@ -1819,10 +1819,6 @@ impl WritableLibrary for LibraryManager {
         }
         Ok(())
     }
-}
-
-fn path_under_folder(path: &Path, folder: &Path) -> bool {
-    path == folder || path.starts_with(folder.join(""))
 }
 
 fn normalize_path(path: &Path) -> Result<PathBuf> {

@@ -45,6 +45,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 dasp = { version = "0.11", features = ["slice"] }
 dasp_graph = { version = "0.11", default-features = false, features = ["node-sum"] }
 petgraph = "0.5"
+rusqlite = { version = "0.38", features = ["bundled"] }
 
 [profile.release]
 # 3, not "z": "z" disables loop vectorization. See docs/tech-spec.md §13.
