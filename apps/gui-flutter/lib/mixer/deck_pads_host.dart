@@ -5,17 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/deck_pads_panel.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
-import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
-import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/mixar_toast.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' as rust;
 import 'package:gui_flutter/src/rust/api/library.dart';
-import 'package:gui_flutter/src/rust/api/settings.dart'
-    show KeyDisplayModeSetting;
 
 /// Watches engine/library providers and publishes named pad press/release cmds.
 class DeckPadsHost extends ConsumerStatefulWidget {
@@ -142,19 +138,6 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     final pitchPage = ref.watch(deckPitchPageProvider(widget.deckId));
     final keyboardRootHotCue = ref.watch(
       deckKeyboardRootProvider(widget.deckId),
-    );
-    final rawKey = ref.watch(deckLibraryTrackProvider(widget.deckId))?.key;
-    final keyMode = keyModeFromSettings(
-      ref
-          .watch(appSettingsProvider)
-          .maybeWhen(
-            data: (s) => s.keyDisplayMode,
-            orElse: () => KeyDisplayModeSetting.musical,
-          ),
-    );
-    final resultKey = formatDeckKey(
-      transposeKey(rawKey, keyShiftSemitones),
-      keyMode,
     );
 
     return DeckPadsPanel(
@@ -308,7 +291,6 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
           ),
         );
       },
-      resultKey: resultKey,
       onKeyShiftPress: (slot) {
         unawaited(
           _run(

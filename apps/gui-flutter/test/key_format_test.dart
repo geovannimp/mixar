@@ -42,6 +42,22 @@ void main() {
     expect(transposeKey('unknown', 2), isNull);
   });
 
+  test('deckSoundingKeyLabel applies the session key shift', () {
+    expect(deckSoundingKeyLabel('C', 2, KeyDisplayMode.musical), 'D');
+    expect(deckSoundingKeyLabel('Am', -2, KeyDisplayMode.musical), 'Gm');
+    expect(deckSoundingKeyLabel('C', 0, KeyDisplayMode.musical), 'C');
+    expect(deckSoundingKeyLabel('8B', 1, KeyDisplayMode.musical), 'C#');
+    expect(
+      deckSoundingKeyLabel('8B', 1, KeyDisplayMode.camelot),
+      musicalToCamelot('C#'),
+    );
+    expect(deckSoundingKeyLabel(null, 5, KeyDisplayMode.musical), '—');
+    expect(
+      deckSoundingKeyLabel('unknown', 5, KeyDisplayMode.musical),
+      'unknown',
+    );
+  });
+
   test('harmonic mode matches Rekordbox-style playing-deck reference', () {
     const ref = '2A';
 

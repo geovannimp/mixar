@@ -44,7 +44,6 @@ class DeckPadsPanel extends StatelessWidget {
     this.onSelectRoot,
     this.onPrevPage,
     this.onNextPage,
-    this.resultKey,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
@@ -85,9 +84,6 @@ class DeckPadsPanel extends StatelessWidget {
   final VoidCallback? onPrevPage;
   final VoidCallback? onNextPage;
 
-  /// Resulting key (analyzed key + session shift) shown read-only above the
-  /// Keyboard / Key Shift grids; never persisted.
-  final String? resultKey;
   final bool hasTrack;
   final bool disabled;
   final bool bordered;
@@ -190,70 +186,26 @@ class DeckPadsPanel extends StatelessWidget {
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
       ),
-      PadMode.keyboard => _keyedBody(
-        context,
-        KeyboardPads(
-          page: pitchPage,
-          rootHotCue: keyboardRootHotCue,
-          hotCues: hotCues,
-          onSelectRoot: onSelectRoot ?? (_) {},
-          disabled: _controlsDisabled,
-          onPress: onKeyboardPress,
-          onRelease: onKeyboardRelease,
-          onPrevPage: onPrevPage ?? () {},
-          onNextPage: onNextPage ?? () {},
-        ),
+      PadMode.keyboard => KeyboardPads(
+        page: pitchPage,
+        rootHotCue: keyboardRootHotCue,
+        hotCues: hotCues,
+        onSelectRoot: onSelectRoot ?? (_) {},
+        disabled: _controlsDisabled,
+        onPress: onKeyboardPress,
+        onRelease: onKeyboardRelease,
+        onPrevPage: onPrevPage ?? () {},
+        onNextPage: onNextPage ?? () {},
       ),
-      PadMode.keyShift => _keyedBody(
-        context,
-        KeyShiftPads(
-          page: pitchPage,
-          activeSemitones: keyShiftSemitones,
-          disabled: _controlsDisabled,
-          onPress: onKeyShiftPress,
-          onPrevPage: onPrevPage ?? () {},
-          onNextPage: onNextPage ?? () {},
-        ),
+      PadMode.keyShift => KeyShiftPads(
+        page: pitchPage,
+        activeSemitones: keyShiftSemitones,
+        disabled: _controlsDisabled,
+        onPress: onKeyShiftPress,
+        onPrevPage: onPrevPage ?? () {},
+        onNextPage: onNextPage ?? () {},
       ),
     };
-  }
-
-  /// Keyboard / Key Shift body with a read-only result key above the grid.
-  ///
-  /// The semitone page control lives in the grid's bottom chrome
-  /// (`PadPagePagination`), matching the sampler bank bar.
-  Widget _keyedBody(BuildContext context, Widget child) {
-    final theme = context.theme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                'KEY',
-                style: theme.typography.body.xs.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                  color: theme.colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                resultKey ?? '—',
-                style: theme.typography.body.xs.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: theme.colors.foreground,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(child: child),
-      ],
-    );
   }
 }
 

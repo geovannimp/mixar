@@ -236,3 +236,16 @@ String? transposeKey(String? key, int semitones) {
   final index = table.indexOf(shifted);
   return index < 0 ? null : names[index];
 }
+
+/// Deck key label including the session key shift.
+///
+/// Transposes the analyzed [rawKey] by [semitones] before formatting. Falls
+/// back to the analyzed key when it is not a recognized key. Display-only —
+/// the shift is never persisted.
+String deckSoundingKeyLabel(
+  String? rawKey,
+  int semitones,
+  KeyDisplayMode mode,
+) {
+  return formatDeckKey(transposeKey(rawKey, semitones) ?? rawKey, mode);
+}

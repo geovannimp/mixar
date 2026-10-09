@@ -174,12 +174,16 @@ class _DeckKeyLockControl extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final keyLock = ref.watch(deckKeyLockProvider(deckId));
+    final keyShift = ref.watch(deckKeyShiftProvider(deckId)).round();
     final engineRunning = ref.watch(engineRunningProvider);
     final harmonicReference = ref.watch(harmonicReferenceKeyProvider);
-    final key = formatDeckKey(rawKey, keyMode);
+    // Show the sounding key: the analyzed key transposed by the session key
+    // shift. Display-only — never persisted.
+    final soundingKey = transposeKey(rawKey, keyShift) ?? rawKey;
+    final key = deckSoundingKeyLabel(rawKey, keyShift, keyMode);
     final keyColor = hasTrack
         ? colorForKey(
-            rawKey,
+            soundingKey,
             keyColorMode,
             harmonicReferenceKey: harmonicReference,
           )
