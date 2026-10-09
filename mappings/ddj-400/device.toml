@@ -102,9 +102,14 @@ keyboard_pad_5 = { type = "note", channel = 8, note = 0x44 }
 keyboard_pad_6 = { type = "note", channel = 8, note = 0x45 }
 keyboard_pad_7 = { type = "note", channel = 8, note = 0x46 }
 keyboard_pad_8 = { type = "note", channel = 8, note = 0x47 }
-keyboard_scale_1 = { type = "note", channel = 9, note = 0x40 }
-keyboard_scale_2 = { type = "note", channel = 9, note = 0x41 }
-keyboard_scale_3 = { type = "note", channel = 9, note = 0x42 }
+keyboard_shift_pad_1 = { type = "note", channel = 9, note = 0x40 }
+keyboard_shift_pad_2 = { type = "note", channel = 9, note = 0x41 }
+keyboard_shift_pad_3 = { type = "note", channel = 9, note = 0x42 }
+keyboard_shift_pad_4 = { type = "note", channel = 9, note = 0x43 }
+keyboard_shift_pad_5 = { type = "note", channel = 9, note = 0x44 }
+keyboard_shift_pad_6 = { type = "note", channel = 9, note = 0x45 }
+keyboard_shift_pad_7 = { type = "note", channel = 9, note = 0x46 }
+keyboard_shift_pad_8 = { type = "note", channel = 9, note = 0x47 }
 key_shift_pad_1 = { type = "note", channel = 8, note = 0x70 }
 key_shift_pad_2 = { type = "note", channel = 8, note = 0x71 }
 key_shift_pad_3 = { type = "note", channel = 8, note = 0x72 }
@@ -113,14 +118,14 @@ key_shift_pad_5 = { type = "note", channel = 8, note = 0x74 }
 key_shift_pad_6 = { type = "note", channel = 8, note = 0x75 }
 key_shift_pad_7 = { type = "note", channel = 8, note = 0x76 }
 key_shift_pad_8 = { type = "note", channel = 8, note = 0x77 }
-key_shift_reset_1 = { type = "note", channel = 9, note = 0x70 }
-key_shift_reset_2 = { type = "note", channel = 9, note = 0x71 }
-key_shift_reset_3 = { type = "note", channel = 9, note = 0x72 }
-key_shift_reset_4 = { type = "note", channel = 9, note = 0x73 }
-key_shift_reset_5 = { type = "note", channel = 9, note = 0x74 }
-key_shift_reset_6 = { type = "note", channel = 9, note = 0x75 }
-key_shift_reset_7 = { type = "note", channel = 9, note = 0x76 }
-key_shift_reset_8 = { type = "note", channel = 9, note = 0x77 }
+key_shift_shift_pad_1 = { type = "note", channel = 9, note = 0x70 }
+key_shift_shift_pad_2 = { type = "note", channel = 9, note = 0x71 }
+key_shift_shift_pad_3 = { type = "note", channel = 9, note = 0x72 }
+key_shift_shift_pad_4 = { type = "note", channel = 9, note = 0x73 }
+key_shift_shift_pad_5 = { type = "note", channel = 9, note = 0x74 }
+key_shift_shift_pad_6 = { type = "note", channel = 9, note = 0x75 }
+key_shift_shift_pad_7 = { type = "note", channel = 9, note = 0x76 }
+key_shift_shift_pad_8 = { type = "note", channel = 9, note = 0x77 }
 play_led = { type = "note", channel = 1, note = 0x0B, velocity = 0x7F, direction = "out" }
 cue_led = { type = "note", channel = 1, note = 0x0C, velocity = 0x7F, direction = "out" }
 sync_led = { type = "note", channel = 1, note = 0x58, velocity = 0x7F, direction = "out" }
@@ -235,9 +240,14 @@ keyboard_pad_5 = { type = "note", channel = 10, note = 0x44 }
 keyboard_pad_6 = { type = "note", channel = 10, note = 0x45 }
 keyboard_pad_7 = { type = "note", channel = 10, note = 0x46 }
 keyboard_pad_8 = { type = "note", channel = 10, note = 0x47 }
-keyboard_scale_1 = { type = "note", channel = 11, note = 0x40 }
-keyboard_scale_2 = { type = "note", channel = 11, note = 0x41 }
-keyboard_scale_3 = { type = "note", channel = 11, note = 0x42 }
+keyboard_shift_pad_1 = { type = "note", channel = 11, note = 0x40 }
+keyboard_shift_pad_2 = { type = "note", channel = 11, note = 0x41 }
+keyboard_shift_pad_3 = { type = "note", channel = 11, note = 0x42 }
+keyboard_shift_pad_4 = { type = "note", channel = 11, note = 0x43 }
+keyboard_shift_pad_5 = { type = "note", channel = 11, note = 0x44 }
+keyboard_shift_pad_6 = { type = "note", channel = 11, note = 0x45 }
+keyboard_shift_pad_7 = { type = "note", channel = 11, note = 0x46 }
+keyboard_shift_pad_8 = { type = "note", channel = 11, note = 0x47 }
 key_shift_pad_1 = { type = "note", channel = 10, note = 0x70 }
 key_shift_pad_2 = { type = "note", channel = 10, note = 0x71 }
 key_shift_pad_3 = { type = "note", channel = 10, note = 0x72 }
@@ -246,14 +256,14 @@ key_shift_pad_5 = { type = "note", channel = 10, note = 0x74 }
 key_shift_pad_6 = { type = "note", channel = 10, note = 0x75 }
 key_shift_pad_7 = { type = "note", channel = 10, note = 0x76 }
 key_shift_pad_8 = { type = "note", channel = 10, note = 0x77 }
-key_shift_reset_1 = { type = "note", channel = 11, note = 0x70 }
-key_shift_reset_2 = { type = "note", channel = 11, note = 0x71 }
-key_shift_reset_3 = { type = "note", channel = 11, note = 0x72 }
-key_shift_reset_4 = { type = "note", channel = 11, note = 0x73 }
-key_shift_reset_5 = { type = "note", channel = 11, note = 0x74 }
-key_shift_reset_6 = { type = "note", channel = 11, note = 0x75 }
-key_shift_reset_7 = { type = "note", channel = 11, note = 0x76 }
-key_shift_reset_8 = { type = "note", channel = 11, note = 0x77 }
+key_shift_shift_pad_1 = { type = "note", channel = 11, note = 0x70 }
+key_shift_shift_pad_2 = { type = "note", channel = 11, note = 0x71 }
+key_shift_shift_pad_3 = { type = "note", channel = 11, note = 0x72 }
+key_shift_shift_pad_4 = { type = "note", channel = 11, note = 0x73 }
+key_shift_shift_pad_5 = { type = "note", channel = 11, note = 0x74 }
+key_shift_shift_pad_6 = { type = "note", channel = 11, note = 0x75 }
+key_shift_shift_pad_7 = { type = "note", channel = 11, note = 0x76 }
+key_shift_shift_pad_8 = { type = "note", channel = 11, note = 0x77 }
 play_led = { type = "note", channel = 2, note = 0x0B, velocity = 0x7F, direction = "out" }
 cue_led = { type = "note", channel = 2, note = 0x0C, velocity = 0x7F, direction = "out" }
 sync_led = { type = "note", channel = 2, note = 0x58, velocity = 0x7F, direction = "out" }

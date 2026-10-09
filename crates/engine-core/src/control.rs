@@ -220,7 +220,8 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         tempo_range: snap.tempo_range,
         key_lock: snap.key_lock,
         key_shift: snap.key_shift,
-        keyboard_scale: snap.keyboard_scale,
+        pitch_page: snap.pitch_page,
+        keyboard_root_hot_cue: snap.keyboard_root_hot_cue,
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
@@ -368,7 +369,8 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetTempoRange, CmdBody::SetTempoRange { .. })
         | (Kind::SetKeyLock, CmdBody::SetKeyLock { .. })
         | (Kind::SetKeyShift, CmdBody::SetKeyShift { .. })
-        | (Kind::SetKeyboardScale, CmdBody::SetKeyboardScale { .. })
+        | (Kind::SetKeyboardRoot, CmdBody::SetKeyboardRoot { .. })
+        | (Kind::SetPitchPage, CmdBody::SetPitchPage { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
@@ -562,11 +564,18 @@ fn dispatch_deck_cmd(
             eng.set_deck_key_shift(deck_id, semitones)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
-        Kind::SetKeyboardScale => {
-            let CmdBody::SetKeyboardScale { scale } = decode_cmd_body_for(kind, payload)? else {
+        Kind::SetKeyboardRoot => {
+            let CmdBody::SetKeyboardRoot { slot } = decode_cmd_body_for(kind, payload)? else {
                 unreachable!()
             };
-            eng.set_deck_keyboard_scale(deck_id, scale)?;
+            eng.set_deck_keyboard_root(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetPitchPage => {
+            let CmdBody::SetPitchPage { page } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_pitch_page(deck_id, page)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetFilter => {

@@ -1,10 +1,10 @@
-//! Integration: SetKeyShift / SetKeyboardScale publish on DeckUpdated.
+//! Integration: SetKeyShift / SetPitchPage / SetKeyboardRoot publish on DeckUpdated.
 
 mod common;
 
 use common::{recv_evt_kind, short_tone_fixture};
-use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, KeyboardScale, Kind, Origin};
-use engine_core::{EngineConfig, EngineSession};
+use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin};
+use engine_core::{EngineConfig, EngineSession, DEFAULT_PITCH_PAGE};
 use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
 use omnibus::Filter;
 
@@ -34,7 +34,7 @@ fn null_session_with_loaded_deck() -> EngineSession {
 }
 
 #[test]
-fn set_key_shift_and_scale_publish_fields() {
+fn set_key_shift_pitch_page_and_root_publish_fields() {
     let session = null_session_with_loaded_deck();
     let evt = session
         .evt_bus()
@@ -57,22 +57,36 @@ fn set_key_shift_and_scale_publish_fields() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetKeyboardScale,
-            encode_cmd_body(&CmdBody::SetKeyboardScale {
-                scale: KeyboardScale::Minor,
-            })
-            .unwrap(),
+            Kind::SetPitchPage,
+            encode_cmd_body(&CmdBody::SetPitchPage { page: 4 }).unwrap(),
         )
         .unwrap();
     let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
-    let EvtBody::DeckUpdated { keyboard_scale, .. } = body else {
+    let EvtBody::DeckUpdated { pitch_page, .. } = body else {
         panic!("DeckUpdated")
     };
-    assert_eq!(keyboard_scale, KeyboardScale::Minor);
+    assert_eq!(pitch_page, 4);
+
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyboardRoot,
+            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 3 }).unwrap(),
+        )
+        .unwrap();
+    let body = decode_evt_body(recv_evt_kind(&evt, Kind::Updated).payload()).unwrap();
+    let EvtBody::DeckUpdated {
+        keyboard_root_hot_cue,
+        ..
+    } = body
+    else {
+        panic!("DeckUpdated")
+    };
+    assert_eq!(keyboard_root_hot_cue, 3);
 }
 
 #[test]
-fn unload_resets_key_shift_and_scale() {
+fn unload_resets_key_shift_page_and_root() {
     let session = null_session_with_loaded_deck();
     session
         .publish_cmd(
@@ -84,11 +98,15 @@ fn unload_resets_key_shift_and_scale() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetKeyboardScale,
-            encode_cmd_body(&CmdBody::SetKeyboardScale {
-                scale: KeyboardScale::Pentatonic,
-            })
-            .unwrap(),
+            Kind::SetPitchPage,
+            encode_cmd_body(&CmdBody::SetPitchPage { page: 4 }).unwrap(),
+        )
+        .unwrap();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyboardRoot,
+            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 3 }).unwrap(),
         )
         .unwrap();
 
@@ -97,11 +115,12 @@ fn unload_resets_key_shift_and_scale() {
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert_eq!(snap.key_shift, 0.0);
-    assert_eq!(snap.keyboard_scale, KeyboardScale::Major);
+    assert_eq!(snap.pitch_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.keyboard_root_hot_cue, 0);
 }
 
 #[test]
-fn load_resets_key_shift_and_scale() {
+fn load_resets_key_shift_page_and_root() {
     let session = null_session_with_loaded_deck();
     session
         .publish_cmd(
@@ -113,15 +132,19 @@ fn load_resets_key_shift_and_scale() {
     session
         .publish_cmd(
             Origin::Deck(0),
-            Kind::SetKeyboardScale,
-            encode_cmd_body(&CmdBody::SetKeyboardScale {
-                scale: KeyboardScale::Pentatonic,
-            })
-            .unwrap(),
+            Kind::SetPitchPage,
+            encode_cmd_body(&CmdBody::SetPitchPage { page: 5 }).unwrap(),
+        )
+        .unwrap();
+    session
+        .publish_cmd(
+            Origin::Deck(0),
+            Kind::SetKeyboardRoot,
+            encode_cmd_body(&CmdBody::SetKeyboardRoot { slot: 2 }).unwrap(),
         )
         .unwrap();
 
-    // Loading a second track must not inherit the session shift/scale.
+    // Loading a second track must not inherit the session shift/page.
     session
         .with_engine(|engine| {
             engine.load_track(
@@ -141,5 +164,6 @@ fn load_resets_key_shift_and_scale() {
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
     assert_eq!(snap.key_shift, 0.0);
-    assert_eq!(snap.keyboard_scale, KeyboardScale::Major);
+    assert_eq!(snap.pitch_page, DEFAULT_PITCH_PAGE);
+    assert_eq!(snap.keyboard_root_hot_cue, 0);
 }

@@ -17,8 +17,8 @@ use audio_core::{
     Sample, StreamParams,
 };
 use engine_api::{
-    DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, KeyboardScale, Kind, LoopRegion,
-    Origin, PadMode, SamplerStatus, SyncMode,
+    DeckEq, DeckHotCue, DeckSnapshot, EngineStatus, EvtBody, Kind, LoopRegion, Origin, PadMode,
+    SamplerStatus, SyncMode,
 };
 use engine_dsp::DeckEqGains;
 use engine_dsp::DeckState;
@@ -784,13 +784,29 @@ impl Engine {
         Ok(())
     }
 
-    /// Set the musical scale used by the Keyboard pad mode for a deck.
-    pub fn set_deck_keyboard_scale(&mut self, deck_id: usize, scale: KeyboardScale) -> Result<()> {
+    /// Set the Keyboard / Key Shift semitone page for a deck (clamped to `1..=5`).
+    pub fn set_deck_pitch_page(&mut self, deck_id: usize, page: u8) -> Result<()> {
         let control = self
             .deck_control
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-        control.keyboard_scale = scale;
+        control.pitch_page = page.clamp(1, crate::pads::PITCH_PAGE_COUNT);
+        Ok(())
+    }
+
+    /// Set the hot-cue slot used as the Keyboard pad root for a deck.
+    pub fn set_deck_keyboard_root(&mut self, deck_id: usize, slot: u8) -> Result<()> {
+        if usize::from(slot) >= crate::pads::HOT_CUE_SLOT_COUNT {
+            return Err(anyhow::anyhow!(
+                "Keyboard root hot cue must be 0..={}.",
+                crate::pads::HOT_CUE_SLOT_COUNT - 1
+            ));
+        }
+        let control = self
+            .deck_control
+            .get_mut(deck_id)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+        control.keyboard_root_hot_cue = slot;
         Ok(())
     }
 
@@ -1577,91 +1593,119 @@ impl Engine {
         self.end_sampler(deck_id, slot as usize)
     }
 
-    /// Key Shift pad: press latches the pad's semitone offset (re-press clears);
-    /// `shift` resets to `0.0`.
+    /// Key Shift pad: press applies the page action and latches it. `shift` uses
+    /// the shift bank: slot 6 → next page, slot 7 → previous page, else no-op.
     pub fn key_shift_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
-        if usize::from(slot) >= crate::pads::KEY_SHIFT_PAD_SEMITONES.len() {
+        if usize::from(slot) >= 8 {
             return Err(anyhow::anyhow!("Key shift pad slot must be 0..=7."));
         }
+        let (page, current) = {
+            let control = self
+                .deck_control
+                .get(deck_id)
+                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+            (control.pitch_page, control.key_shift_semitones)
+        };
         if shift {
-            return self.set_deck_key_shift(deck_id, 0.0);
+            return match slot {
+                6 => self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_next(page)),
+                7 => self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_prev(page)),
+                _ => Ok(()),
+            };
         }
-        let target = f32::from(crate::pads::KEY_SHIFT_PAD_SEMITONES[usize::from(slot)]);
-        let current = self
-            .deck_control
-            .get(deck_id)
-            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?
-            .key_shift_semitones;
-        let next = if current == target { 0.0 } else { target };
-        self.set_deck_key_shift(deck_id, next)
+        match crate::pads::pad_page_action(page, slot) {
+            crate::pads::PitchPadAction::Semitone(s) => {
+                self.set_deck_key_shift(deck_id, f32::from(s))
+            }
+            crate::pads::PitchPadAction::KeyReset => self.set_deck_key_shift(deck_id, 0.0),
+            crate::pads::PitchPadAction::SemitoneUp => {
+                self.set_deck_key_shift(deck_id, current + 1.0)
+            }
+            crate::pads::PitchPadAction::SemitoneDown => {
+                self.set_deck_key_shift(deck_id, current - 1.0)
+            }
+            crate::pads::PitchPadAction::KeySync | crate::pads::PitchPadAction::None => Ok(()),
+        }
     }
 
     pub fn key_shift_pad_release(&mut self, _deck_id: usize, _slot: u8) -> Result<()> {
         Ok(())
     }
 
-    /// Keyboard pad: press seeks to the cue and plays at the pad's scale-degree
-    /// pitch offset (momentary); `shift` selects the scale by slot. The offset
-    /// latched before the Keyboard bank was entered is remembered and restored
-    /// when the last held pad releases.
+    /// Keyboard pad: the selected hot cue is the root. Press seeks to the root and
+    /// applies the page's semitone offset (momentary/gate); `shift` uses the shift
+    /// bank: slots 0–5 delete that hot cue, slot 6 → next page, slot 7 → previous.
     pub fn keyboard_pad_press(&mut self, deck_id: usize, slot: u8, shift: bool) -> Result<()> {
         if usize::from(slot) >= 8 {
             return Err(anyhow::anyhow!("Keyboard pad slot must be 0..=7."));
         }
         if shift {
-            let scale = match slot {
-                0 => KeyboardScale::Major,
-                1 => KeyboardScale::Minor,
-                2 => KeyboardScale::Pentatonic,
-                _ => return Ok(()),
+            return match slot {
+                0..=5 => self.delete_deck_hot_cue(deck_id, slot),
+                6 => {
+                    let page = self.pitch_page(deck_id)?;
+                    self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_next(page))
+                }
+                7 => {
+                    let page = self.pitch_page(deck_id)?;
+                    self.set_deck_pitch_page(deck_id, crate::pads::pitch_page_prev(page))
+                }
+                _ => Ok(()),
             };
-            return self.set_deck_keyboard_scale(deck_id, scale);
         }
         let slot_i = usize::from(slot);
-        let (scale, hot_cues, first_press, current_shift) = {
+        let (page, first_press, current_shift, root_position) = {
             let control = self
                 .deck_control
                 .get(deck_id)
                 .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
             (
-                control.keyboard_scale,
-                control.hot_cues,
+                control.pitch_page,
                 !control.keyboard_held.iter().any(|held| *held),
                 control.key_shift_semitones,
+                control
+                    .hot_cues
+                    .get(usize::from(control.keyboard_root_hot_cue))
+                    .copied()
+                    .flatten(),
             )
         };
-        let semitones = f32::from(crate::pads::keyboard_scale_degrees(scale)[slot_i.min(7)]);
-        {
-            let control = self
-                .deck_control
-                .get_mut(deck_id)
-                .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
-            if first_press {
-                // Snapshot whatever was latched (e.g. a Key Shift pad) so the
-                // momentary Keyboard bank can put it back on release.
-                control.keyboard_restore_semitones = Some(current_shift);
+        match crate::pads::pad_page_action(page, slot) {
+            crate::pads::PitchPadAction::Semitone(s) => {
+                {
+                    let control = self
+                        .deck_control
+                        .get_mut(deck_id)
+                        .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
+                    if first_press {
+                        // Snapshot whatever was latched (e.g. a Key Shift pad) so
+                        // the momentary Keyboard bank can put it back on release.
+                        control.keyboard_restore_semitones = Some(current_shift);
+                    }
+                    control.keyboard_held[slot_i] = true;
+                }
+                if let Some(position_ms) = root_position {
+                    self.trigger_deck_hot_cue(deck_id, position_ms)?;
+                }
+                self.set_deck_key_shift(deck_id, f32::from(s))
             }
-            control.keyboard_held[slot_i] = true;
-        }
-        self.set_deck_key_shift(deck_id, semitones)?;
-
-        // Start playback at the first filled hot cue, else the deck cue point.
-        let cue = hot_cues
-            .iter()
-            .find_map(|position| *position)
-            .or_else(|| self.deck_transport_state(deck_id).and_then(|(cue, _)| cue));
-        match cue {
-            Some(position_ms) => self.trigger_deck_hot_cue(deck_id, position_ms),
-            None => self.play(deck_id),
+            crate::pads::PitchPadAction::KeyReset => self.set_deck_key_shift(deck_id, 0.0),
+            crate::pads::PitchPadAction::SemitoneUp => {
+                self.set_deck_key_shift(deck_id, current_shift + 1.0)
+            }
+            crate::pads::PitchPadAction::SemitoneDown => {
+                self.set_deck_key_shift(deck_id, current_shift - 1.0)
+            }
+            crate::pads::PitchPadAction::KeySync | crate::pads::PitchPadAction::None => Ok(()),
         }
     }
 
-    /// Keyboard pad release: momentary. Fall back to another held pad's degree,
-    /// else restore the offset latched before the Keyboard bank was entered. A
-    /// release for a pad that was never held (e.g. the Keyboard scale-select
-    /// bank) is a no-op so it cannot clobber a latched Key Shift.
+    /// Keyboard pad release: momentary gate. Fall back to another held pad's page
+    /// semitone, else restore the pre-press key shift and seek back to the root hot
+    /// cue. A release for a pad that was never held is a no-op.
     pub fn keyboard_pad_release(&mut self, deck_id: usize, slot: u8) -> Result<()> {
         let slot_i = usize::from(slot);
+        let mut seek_back: Option<i32> = None;
         let target = {
             let control = self
                 .deck_control
@@ -1671,18 +1715,44 @@ impl Engine {
             if was_held {
                 control.keyboard_held[slot_i] = false;
             }
-            match control.keyboard_held.iter().position(|held| *held) {
-                Some(index) => Some(f32::from(
-                    crate::pads::keyboard_scale_degrees(control.keyboard_scale)[index.min(7)],
-                )),
-                None if was_held => Some(control.keyboard_restore_semitones.take().unwrap_or(0.0)),
-                None => None,
+            let fallback = control
+                .keyboard_held
+                .iter()
+                .enumerate()
+                .filter(|(_, held)| **held)
+                .find_map(|(index, _)| {
+                    match crate::pads::pad_page_action(control.pitch_page, index as u8) {
+                        crate::pads::PitchPadAction::Semitone(s) => Some(f32::from(s)),
+                        _ => None,
+                    }
+                });
+            match (was_held, fallback) {
+                (true, Some(semitones)) => Some(semitones),
+                (true, None) => {
+                    seek_back = control
+                        .hot_cues
+                        .get(usize::from(control.keyboard_root_hot_cue))
+                        .copied()
+                        .flatten();
+                    Some(control.keyboard_restore_semitones.take().unwrap_or(0.0))
+                }
+                (false, _) => None,
             }
         };
-        match target {
-            Some(semitones) => self.set_deck_key_shift(deck_id, semitones),
-            None => Ok(()),
+        if let Some(semitones) = target {
+            self.set_deck_key_shift(deck_id, semitones)?;
         }
+        if let Some(position_ms) = seek_back {
+            self.trigger_deck_hot_cue(deck_id, position_ms)?;
+        }
+        Ok(())
+    }
+
+    fn pitch_page(&self, deck_id: usize) -> Result<u8> {
+        self.deck_control
+            .get(deck_id)
+            .map(|control| control.pitch_page)
+            .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))
     }
 
     fn publish_library_cmd(
@@ -1731,6 +1801,10 @@ impl Engine {
             .get_mut(deck_id)
             .ok_or_else(|| anyhow::anyhow!("Invalid deck ID: {}", deck_id))?;
         control.pad_mode = mode;
+        // A mid-hold mode switch must not leave stale momentary Keyboard state
+        // that a later release could restore/clobber.
+        control.keyboard_held = [false; 8];
+        control.keyboard_restore_semitones = None;
         Ok(())
     }
 
@@ -2283,7 +2357,8 @@ fn deck_snapshot_from_dsp(
         tempo_range: deck.tempo_range(),
         key_lock: deck.key_lock(),
         key_shift: control.key_shift_semitones,
-        keyboard_scale: control.keyboard_scale,
+        pitch_page: control.pitch_page,
+        keyboard_root_hot_cue: control.keyboard_root_hot_cue,
         eq: DeckEq {
             low: crate::control_norm::strip_db_to_norm(eq.low_db),
             mid: crate::control_norm::strip_db_to_norm(eq.mid_db),

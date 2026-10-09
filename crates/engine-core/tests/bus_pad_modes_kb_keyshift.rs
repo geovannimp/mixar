@@ -1,14 +1,18 @@
-//! Integration: Keyboard and Key Shift pad modes publish on DeckUpdated.
+//! Integration: Rekordbox page-based Keyboard and Key Shift pad modes (#298).
 
 mod common;
 
 use common::{recv_evt_kind, short_tone_fixture, TestReceiver};
-use engine_api::{
-    decode_evt_body, encode_cmd_body, CmdBody, EvtBody, KeyboardScale, Kind, Origin, PadMode,
+use engine_api::{decode_evt_body, encode_cmd_body, CmdBody, EvtBody, Kind, Origin, PadMode};
+use engine_core::{
+    pad_page_action, pitch_page_next, pitch_page_prev, EngineConfig, EngineSession, PitchPadAction,
+    DEFAULT_PITCH_PAGE, PITCH_PAGE_COUNT,
 };
-use engine_core::{keyboard_scale_degrees, EngineConfig, EngineSession};
-use library_core::{AudioSource, FileAudioSource, TrackId, TrackMetadata};
+use library::{LibraryConfig, LibrarySession, NewCollection, WritableLibrary};
+use library_core::{AudioSource, FileAudioSource, Library, TrackId, TrackMetadata};
 use omnibus::Filter;
+use std::io::Write;
+use std::path::Path;
 
 fn null_session_with_loaded_deck() -> EngineSession {
     let config = EngineConfig {
@@ -35,6 +39,84 @@ fn null_session_with_loaded_deck() -> EngineSession {
     session
 }
 
+/// A two-second silent WAV so hot cues at 1000 ms are seekable.
+fn write_silence_wav(path: &Path, seconds: u32) {
+    let sample_rate = 48_000u32;
+    let sample_count = sample_rate * seconds;
+    let pcm = vec![0u8; (sample_count * 2) as usize];
+    let data_size = pcm.len() as u32;
+    let file_size = 36 + data_size;
+    let byte_rate = sample_rate * 2;
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(b"RIFF").unwrap();
+    file.write_all(&file_size.to_le_bytes()).unwrap();
+    file.write_all(b"WAVEfmt ").unwrap();
+    file.write_all(&16u32.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&1u16.to_le_bytes()).unwrap();
+    file.write_all(&sample_rate.to_le_bytes()).unwrap();
+    file.write_all(&byte_rate.to_le_bytes()).unwrap();
+    file.write_all(&2u16.to_le_bytes()).unwrap();
+    file.write_all(&16u16.to_le_bytes()).unwrap();
+    file.write_all(b"data").unwrap();
+    file.write_all(&data_size.to_le_bytes()).unwrap();
+    file.write_all(&pcm).unwrap();
+}
+
+/// Library-backed session so hot cues can be saved (needs the library cmd bus).
+/// Returns the session plus its owning `LibrarySession`/temp dir and a 1000 ms hot
+/// cue in slot 0.
+fn library_session_with_root_hot_cue() -> (EngineSession, LibrarySession, tempfile::TempDir) {
+    let dir = tempfile::tempdir().unwrap();
+    let wav = dir.path().join("song.wav");
+    write_silence_wav(&wav, 2);
+
+    let library_session = LibrarySession::open_in_memory(LibraryConfig::default()).unwrap();
+    let track_id = {
+        let library = library_session.library();
+        let mut lib = library.lock().unwrap();
+        let folder = lib
+            .add_collection(&NewCollection::folder(dir.path()))
+            .unwrap();
+        lib.sync_collection(Some(&folder.id)).unwrap();
+        lib.list_collection_tracks(&folder.id).unwrap()[0]
+            .id()
+            .clone()
+    };
+
+    let config = EngineConfig {
+        backend: "null".to_string(),
+        ..Default::default()
+    };
+    let session = EngineSession::new_with_library_bus(
+        config,
+        library_session.library(),
+        library_session.cmd_bus(),
+    )
+    .expect("engine session");
+    session.with_engine(|engine| engine.start()).expect("start");
+    session
+        .with_engine(|engine| {
+            engine.load_track(
+                0,
+                AudioSource::File(FileAudioSource::new(
+                    track_id.clone(),
+                    wav.clone(),
+                    TrackMetadata {
+                        bpm: Some(120.0),
+                        ..Default::default()
+                    },
+                )),
+            )?;
+            engine.seek_deck(0, 1000)?;
+            engine.save_deck_hot_cue(0, 0)?;
+            Ok(())
+        })
+        .expect("load + hot cue");
+
+    (session, library_session, dir)
+}
+
 fn publish(session: &EngineSession, kind: Kind, body: &CmdBody) {
     session
         .publish_cmd(Origin::Deck(0), kind, encode_cmd_body(body).unwrap())
@@ -52,14 +134,108 @@ fn key_shift_of(body: &EvtBody) -> f32 {
     *key_shift
 }
 
+fn pitch_page_of(body: &EvtBody) -> u8 {
+    let EvtBody::DeckUpdated { pitch_page, .. } = body else {
+        panic!("expected DeckUpdated");
+    };
+    *pitch_page
+}
+
+fn deck_position(session: &EngineSession) -> i32 {
+    session
+        .with_engine(|e| Ok(e.deck_playback_ms(0).map(|(pos, _)| pos)))
+        .expect("position call")
+        .expect("loaded deck")
+}
+
 #[test]
-fn key_shift_pad_latches_and_clears() {
+fn pad_page_tables_match_rekordbox() {
+    use PitchPadAction::{KeyReset, KeySync, None as NoOp, Semitone, SemitoneDown, SemitoneUp};
+
+    assert_eq!(
+        (0..8).map(|s| pad_page_action(1, s)).collect::<Vec<_>>(),
+        vec![
+            Semitone(8),
+            Semitone(9),
+            Semitone(10),
+            Semitone(11),
+            Semitone(12),
+            NoOp,
+            NoOp,
+            NoOp
+        ]
+    );
+    assert_eq!(
+        (0..8).map(|s| pad_page_action(2, s)).collect::<Vec<_>>(),
+        vec![
+            Semitone(0),
+            Semitone(1),
+            Semitone(2),
+            Semitone(3),
+            Semitone(4),
+            Semitone(5),
+            Semitone(6),
+            Semitone(7)
+        ]
+    );
+    assert_eq!(
+        (0..8).map(|s| pad_page_action(3, s)).collect::<Vec<_>>(),
+        vec![
+            Semitone(-8),
+            Semitone(-7),
+            Semitone(-6),
+            Semitone(-5),
+            Semitone(-4),
+            Semitone(-3),
+            Semitone(-2),
+            Semitone(-1)
+        ]
+    );
+    assert_eq!(
+        (0..8).map(|s| pad_page_action(4, s)).collect::<Vec<_>>(),
+        vec![
+            NoOp,
+            NoOp,
+            NoOp,
+            NoOp,
+            Semitone(-12),
+            Semitone(-11),
+            Semitone(-10),
+            Semitone(-9)
+        ]
+    );
+    assert_eq!(
+        (0..8).map(|s| pad_page_action(5, s)).collect::<Vec<_>>(),
+        vec![
+            KeyReset,
+            SemitoneDown,
+            Semitone(-5),
+            Semitone(-12),
+            KeySync,
+            SemitoneUp,
+            Semitone(7),
+            Semitone(12)
+        ]
+    );
+
+    // Page wrapping.
+    assert_eq!(pitch_page_next(5), 1);
+    assert_eq!(pitch_page_next(2), 3);
+    assert_eq!(pitch_page_prev(1), PITCH_PAGE_COUNT);
+    assert_eq!(pitch_page_prev(3), 2);
+    // Out-of-range pages clamp into 1..=5.
+    assert_eq!(pad_page_action(0, 0), Semitone(8));
+    assert_eq!(pad_page_action(9, 7), Semitone(12));
+    assert_eq!(DEFAULT_PITCH_PAGE, 2);
+}
+
+#[test]
+fn key_shift_default_page_slots_and_page_actions() {
     let session = null_session_with_loaded_deck();
     let evt = session
         .evt_bus()
         .subscribe(Filter::Any, Filter::Any)
         .expect("sub");
-
     publish(
         &session,
         Kind::SetPadMode,
@@ -67,12 +243,149 @@ fn key_shift_pad_latches_and_clears() {
             mode: PadMode::KeyShift,
         },
     );
-    let EvtBody::DeckUpdated { pad_mode, .. } = next_deck_updated(&evt) else {
-        panic!("DeckUpdated")
-    };
-    assert_eq!(pad_mode, PadMode::KeyShift);
+    let _ = next_deck_updated(&evt);
 
-    // Press latches the pad's semitone offset.
+    // Default page 2: slot 1 → +1, slot 7 → +7.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 1,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 1.0).abs() < 1e-6);
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 7,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
+
+    // Page 3 slot 0 → -8.
+    publish(
+        &session,
+        Kind::SetPitchPage,
+        &CmdBody::SetPitchPage { page: 3 },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 3);
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 0,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) + 8.0).abs() < 1e-6);
+
+    // Page 5: slot 0 → Reset, slot 1 → Down.
+    publish(
+        &session,
+        Kind::SetPitchPage,
+        &CmdBody::SetPitchPage { page: 5 },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 5);
+    publish(
+        &session,
+        Kind::SetKeyShift,
+        &CmdBody::SetKeyShift { semitones: 7.0 },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 0,
+            shift: false,
+        },
+    );
+    assert!(key_shift_of(&next_deck_updated(&evt)).abs() < 1e-6);
+    publish(
+        &session,
+        Kind::SetKeyShift,
+        &CmdBody::SetKeyShift { semitones: 7.0 },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 1,
+            shift: false,
+        },
+    );
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 6.0).abs() < 1e-6);
+}
+
+#[test]
+fn key_shift_shift_bank_switches_page() {
+    let session = null_session_with_loaded_deck();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Default page 2 → slot 6 = next = 3.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 6,
+            shift: true,
+        },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 3);
+    // slot 7 = prev = 2.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 7,
+            shift: true,
+        },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 2);
+    // Other shift-bank slots are no-ops.
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 0,
+            shift: true,
+        },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 2);
+    // Wrapping from page 1: prev → 5.
+    publish(
+        &session,
+        Kind::SetPitchPage,
+        &CmdBody::SetPitchPage { page: 1 },
+    );
+    let _ = next_deck_updated(&evt);
+    publish(
+        &session,
+        Kind::KeyShiftPadPress,
+        &CmdBody::KeyShiftPadPress {
+            slot: 7,
+            shift: true,
+        },
+    );
+    assert_eq!(pitch_page_of(&next_deck_updated(&evt)), 5);
+}
+
+#[test]
+fn keyboard_pad_seeks_to_root_and_restores() {
+    let (session, _library, _dir) = library_session_with_root_hot_cue();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
+    // Latch Key Shift +2 (page 2, slot 2).
     publish(
         &session,
         Kind::KeyShiftPadPress,
@@ -82,59 +395,16 @@ fn key_shift_pad_latches_and_clears() {
         },
     );
     assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
-
-    // Re-press of the active pad clears to 0.
     publish(
         &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 2,
-            shift: false,
-        },
-    );
-    assert!(key_shift_of(&next_deck_updated(&evt)).abs() < 1e-6);
-
-    // Negative offset pad latches -3.0 (slot 5 per KEY_SHIFT_PAD_SEMITONES).
-    publish(
-        &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 5,
-            shift: false,
-        },
-    );
-    assert!((key_shift_of(&next_deck_updated(&evt)) + 3.0).abs() < 1e-6);
-
-    // Shift bank resets to 0.
-    publish(
-        &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 5,
-            shift: true,
-        },
-    );
-    assert!(key_shift_of(&next_deck_updated(&evt)).abs() < 1e-6);
-}
-
-#[test]
-fn keyboard_pad_sets_scale_degree_then_release_clears() {
-    let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    publish(
-        &session,
-        Kind::SetKeyboardScale,
-        &CmdBody::SetKeyboardScale {
-            scale: KeyboardScale::Major,
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::Keyboard,
         },
     );
     let _ = next_deck_updated(&evt);
 
-    // Major degree 4 = 7 semitones.
+    // Default page 2, slot 4 → +4 semitones; seeks to the root hot cue (1000 ms).
     publish(
         &session,
         Kind::KeyboardPadPress,
@@ -143,25 +413,38 @@ fn keyboard_pad_sets_scale_degree_then_release_clears() {
             shift: false,
         },
     );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 4.0).abs() < 1e-6);
+    assert!(
+        deck_position(&session) >= 900,
+        "expected seek to root hot cue, got {}",
+        deck_position(&session)
+    );
 
-    // Release clears the momentary pitch offset.
+    // Move away, then release: gate returns to the root and restores the latch.
+    session
+        .with_engine(|e| e.seek_deck(0, 0))
+        .expect("seek away");
     publish(
         &session,
         Kind::KeyboardPadRelease,
         &CmdBody::KeyboardPadRelease { slot: 4 },
     );
-    assert!(key_shift_of(&next_deck_updated(&evt)).abs() < 1e-6);
-
-    // Shift bank slot 0 selects the major scale (switch away first to observe it).
-    publish(
-        &session,
-        Kind::SetKeyboardScale,
-        &CmdBody::SetKeyboardScale {
-            scale: KeyboardScale::Minor,
-        },
+    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
+    assert!(
+        deck_position(&session) >= 900,
+        "expected gate return to root, got {}",
+        deck_position(&session)
     );
-    let _ = next_deck_updated(&evt);
+}
+
+#[test]
+fn keyboard_shift_bank_deletes_root_hot_cue() {
+    let (session, _library, _dir) = library_session_with_root_hot_cue();
+    let evt = session
+        .evt_bus()
+        .subscribe(Filter::Any, Filter::Any)
+        .expect("sub");
+
     publish(
         &session,
         Kind::KeyboardPadPress,
@@ -170,61 +453,26 @@ fn keyboard_pad_sets_scale_degree_then_release_clears() {
             shift: true,
         },
     );
-    let EvtBody::DeckUpdated { keyboard_scale, .. } = next_deck_updated(&evt) else {
-        panic!("DeckUpdated")
-    };
-    assert_eq!(keyboard_scale, KeyboardScale::Major);
-}
-
-#[test]
-fn keyboard_pentatonic_top_slot_is_not_clamped() {
-    let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    publish(
-        &session,
-        Kind::SetKeyboardScale,
-        &CmdBody::SetKeyboardScale {
-            scale: KeyboardScale::Pentatonic,
-        },
-    );
     let _ = next_deck_updated(&evt);
 
-    // Pentatonic slot 7 = +16 semitones; the clamp must reach it.
-    publish(
-        &session,
-        Kind::KeyboardPadPress,
-        &CmdBody::KeyboardPadPress {
-            slot: 7,
-            shift: false,
-        },
+    let snap = session
+        .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
+        .expect("snapshot call");
+    assert!(
+        snap.hot_cues.is_empty(),
+        "shift+pad 1 must delete hot cue 0, got {:?}",
+        snap.hot_cues
     );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 16.0).abs() < 1e-6);
 }
 
 #[test]
-fn keyboard_release_restores_latched_key_shift() {
-    let session = null_session_with_loaded_deck();
+fn mode_switch_clears_held_keyboard_state() {
+    let (session, _library, _dir) = library_session_with_root_hot_cue();
     let evt = session
         .evt_bus()
         .subscribe(Filter::Any, Filter::Any)
         .expect("sub");
 
-    // Latch Key Shift +2 (slot 2).
-    publish(
-        &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 2,
-            shift: false,
-        },
-    );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
-
-    // Keyboard mode: pressing a pad applies a momentary degree and remembers the latch.
     publish(
         &session,
         Kind::SetPadMode,
@@ -238,144 +486,31 @@ fn keyboard_release_restores_latched_key_shift() {
         Kind::KeyboardPadPress,
         &CmdBody::KeyboardPadPress {
             slot: 4,
-            shift: false,
-        },
-    );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
-
-    // Releasing the Keyboard pad must restore the latched +2, not wipe it to 0.
-    publish(
-        &session,
-        Kind::KeyboardPadRelease,
-        &CmdBody::KeyboardPadRelease { slot: 4 },
-    );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
-}
-
-#[test]
-fn keyboard_two_held_pads_fall_back_then_restore() {
-    let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    // Latch Key Shift +2, then enter Keyboard mode.
-    publish(
-        &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 2,
-            shift: false,
-        },
-    );
-    let _ = next_deck_updated(&evt);
-    publish(
-        &session,
-        Kind::SetPadMode,
-        &CmdBody::SetPadMode {
-            mode: PadMode::Keyboard,
-        },
-    );
-    let _ = next_deck_updated(&evt);
-
-    // Hold slot 4 (degree 7), then slot 2 (degree 4).
-    publish(
-        &session,
-        Kind::KeyboardPadPress,
-        &CmdBody::KeyboardPadPress {
-            slot: 4,
-            shift: false,
-        },
-    );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
-    publish(
-        &session,
-        Kind::KeyboardPadPress,
-        &CmdBody::KeyboardPadPress {
-            slot: 2,
             shift: false,
         },
     );
     assert!((key_shift_of(&next_deck_updated(&evt)) - 4.0).abs() < 1e-6);
 
-    // Release the newer pad: fall back to the still-held pad's degree.
+    // Switch mode mid-hold; the held state must be discarded.
     publish(
         &session,
-        Kind::KeyboardPadRelease,
-        &CmdBody::KeyboardPadRelease { slot: 2 },
+        Kind::SetPadMode,
+        &CmdBody::SetPadMode {
+            mode: PadMode::HotCue,
+        },
     );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 7.0).abs() < 1e-6);
-
-    // Release the last pad: restore the pre-Keyboard latch.
+    let _ = next_deck_updated(&evt);
     publish(
         &session,
         Kind::KeyboardPadRelease,
         &CmdBody::KeyboardPadRelease { slot: 4 },
     );
-    assert!((key_shift_of(&next_deck_updated(&evt)) - 2.0).abs() < 1e-6);
-}
-
-#[test]
-fn keyboard_scale_select_release_does_not_clear_latch() {
-    let session = null_session_with_loaded_deck();
-    let evt = session
-        .evt_bus()
-        .subscribe(Filter::Any, Filter::Any)
-        .expect("sub");
-
-    publish(
-        &session,
-        Kind::KeyShiftPadPress,
-        &CmdBody::KeyShiftPadPress {
-            slot: 2,
-            shift: false,
-        },
-    );
-    let _ = next_deck_updated(&evt);
-    publish(
-        &session,
-        Kind::SetPadMode,
-        &CmdBody::SetPadMode {
-            mode: PadMode::Keyboard,
-        },
-    );
-    let _ = next_deck_updated(&evt);
-
-    // Shift+press selects the scale (no note held); its release must be a no-op.
-    publish(
-        &session,
-        Kind::KeyboardPadPress,
-        &CmdBody::KeyboardPadPress {
-            slot: 0,
-            shift: true,
-        },
-    );
-    let _ = next_deck_updated(&evt);
-    publish(
-        &session,
-        Kind::KeyboardPadRelease,
-        &CmdBody::KeyboardPadRelease { slot: 0 },
-    );
-
     let snap = session
         .with_engine(|e| Ok(e.deck_snapshot(0).expect("snapshot")))
         .expect("snapshot call");
-    assert!((snap.key_shift - 2.0).abs() < 1e-6);
-}
-
-#[test]
-fn keyboard_scale_tables_match_spec() {
-    assert_eq!(
-        keyboard_scale_degrees(KeyboardScale::Major),
-        [0, 2, 4, 5, 7, 9, 11, 12]
-    );
-    assert_eq!(
-        keyboard_scale_degrees(KeyboardScale::Minor),
-        [0, 2, 3, 5, 7, 8, 10, 12]
-    );
-    assert_eq!(
-        keyboard_scale_degrees(KeyboardScale::Pentatonic),
-        [0, 2, 4, 7, 9, 12, 14, 16]
+    assert!(
+        (snap.key_shift - 4.0).abs() < 1e-6,
+        "stale release must not clobber the held shift, got {}",
+        snap.key_shift
     );
 }

@@ -174,7 +174,6 @@ impl From<engine_api::PadMode> for PadMode {
     }
 }
 
-pub use engine_api::KeyboardScale;
 pub use engine_api::SyncMode;
 
 /// Deck sync follow mode (slave → master).
@@ -186,10 +185,12 @@ pub enum _SyncMode {
     Beat,
 }
 
-/// Musical scale for the Keyboard pad mode.
-#[allow(dead_code)] // FRB codegen-only; `EngineEvt.keyboard_scale` is `engine_api::KeyboardScale`.
-#[flutter_rust_bridge::frb(mirror(KeyboardScale))]
-pub enum _KeyboardScale {
+/// Legacy Keyboard pad scale, retained ONLY so the checked-in stale
+/// `frb_generated.rs` bridge keeps compiling after `engine_api::KeyboardScale`
+/// was removed (#298). The field is never populated and the transport method is a
+/// no-op; the follow-up Flutter task regenerates FRB and deletes both.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KeyboardScale {
     Major,
     Minor,
     Pentatonic,
@@ -331,7 +332,8 @@ pub struct EngineEvt {
     pub key_lock: Option<bool>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift: Option<f32>,
-    /// Musical scale for the Keyboard pad mode.
+    /// Legacy Keyboard pad scale; always `None` after #298 (kept for the stale
+    /// generated FRB bridge until the follow-up regen).
     pub keyboard_scale: Option<KeyboardScale>,
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
@@ -791,13 +793,12 @@ impl EngineTransport {
         )
     }
 
-    /// Musical scale for the Keyboard pad mode.
-    pub fn set_keyboard_scale(&self, deck_id: u16, scale: KeyboardScale) -> Result<(), String> {
-        self.publish_body(
-            Origin::Deck(deck_id),
-            Kind::SetKeyboardScale,
-            &CmdBody::SetKeyboardScale { scale },
-        )
+    /// Deprecated no-op shim for the removed `SetKeyboardScale` cmd (#298).
+    ///
+    /// Kept so the checked-in stale `frb_generated.rs` bridge compiles; the
+    /// follow-up Flutter task regenerates FRB and drops the Dart method.
+    pub fn set_keyboard_scale(&self, _deck_id: u16, _scale: KeyboardScale) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
@@ -1403,7 +1404,6 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.tempo_range = Some(snap.tempo_range);
     evt.key_lock = Some(snap.key_lock);
     evt.key_shift = Some(snap.key_shift);
-    evt.keyboard_scale = Some(snap.keyboard_scale);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
@@ -1458,7 +1458,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             tempo_range,
             key_lock,
             key_shift,
-            keyboard_scale,
+            pitch_page: _,
+            keyboard_root_hot_cue: _,
             pad_mode,
             sync_mode,
             active_loop,
@@ -1494,7 +1495,6 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.tempo_range = Some(tempo_range);
             evt.key_lock = Some(key_lock);
             evt.key_shift = Some(key_shift);
-            evt.keyboard_scale = Some(keyboard_scale);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
@@ -1557,7 +1557,7 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use engine_api::{DeckEq, EngineStatus, JogMode, KeyboardScale, PadMode, SamplerStatus};
+    use engine_api::{DeckEq, EngineStatus, JogMode, PadMode, SamplerStatus};
 
     fn recv_mapped(origin: Origin, kind: Kind, body: EvtBody) -> Vec<EngineEvt> {
         let buses = EngineBuses::new();
@@ -1590,7 +1590,8 @@ mod tests {
             tempo_range: 0.08,
             key_lock: false,
             key_shift: 0.0,
-            keyboard_scale: KeyboardScale::Major,
+            pitch_page: engine_api::default_pitch_page(),
+            keyboard_root_hot_cue: 0,
             eq: DeckEq {
                 low: 0.5,
                 mid: 0.5,

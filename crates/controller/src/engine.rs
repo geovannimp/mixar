@@ -13,7 +13,7 @@ use crate::bundle::{load_bundle, MappingBundle};
 use crate::error::{LoadError, RuntimeError};
 use crate::midi::{match_device, MidiIdentity};
 use crate::session::{ActionPublish, MappingSession, MidiOut, ScriptBindingFailure};
-use engine_api::{KeyboardScale, PadMode};
+use engine_api::PadMode;
 
 #[derive(Debug, Error)]
 pub enum EngineError {
@@ -981,8 +981,8 @@ impl ControllerEngine {
         }
     }
 
-    /// Mirror engine keyboard scale so the Keyboard pad LEDs follow state.
-    pub fn set_deck_keyboard_scale(&mut self, deck: u16, scale: KeyboardScale) {
+    /// Mirror engine Keyboard / Key Shift semitone page so pad LEDs follow state.
+    pub fn set_deck_pitch_page(&mut self, deck: u16, page: u8) {
         for (port_name, attached) in self.attached.iter_mut() {
             let mut sink = MidiSink {
                 out: &mut attached.output,
@@ -991,9 +991,14 @@ impl ControllerEngine {
                 port_name,
                 send_gate: &mut attached.send_gate,
             };
-            attached
-                .session
-                .set_deck_keyboard_scale(deck, scale, &mut sink);
+            attached.session.set_deck_pitch_page(deck, page, &mut sink);
+        }
+    }
+
+    /// Mirror engine Keyboard pad root hot cue.
+    pub fn set_deck_keyboard_root(&mut self, deck: u16, slot: u8) {
+        for attached in self.attached.values_mut() {
+            attached.session.set_deck_keyboard_root(deck, slot);
         }
     }
 

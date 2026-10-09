@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use engine_api::{CmdBody, KeyboardScale, Kind, Origin, PadMode};
+use engine_api::{CmdBody, Kind, Origin, PadMode};
 
 struct CaptureBus {
     cmds: Vec<(Origin, Kind, CmdBody)>,
@@ -79,22 +79,26 @@ fn keyboard_and_key_shift_banks_dispatch() {
         }
     ));
 
-    // Shift bank: scale select ch9 note 0x40 → major.
+    // Shift bank: keyboard ch9 note 0x40 → KeyboardPadPress { shift: true }.
     s.handle_midi(&[0x98, 0x40, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::SetKeyboardScale);
+    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyboardPadPress);
     assert!(matches!(
         bus.cmds.last().unwrap().2,
-        CmdBody::SetKeyboardScale {
-            scale: KeyboardScale::Major
+        CmdBody::KeyboardPadPress {
+            slot: 0,
+            shift: true
         }
     ));
 
-    // Shift bank: reset ch9 note 0x70 → SetKeyShift 0.0.
+    // Shift bank: key-shift ch9 note 0x70 → KeyShiftPadPress { shift: true }.
     s.handle_midi(&[0x98, 0x70, 0x7F], &mut bus, &mut midi);
-    assert_eq!(bus.cmds.last().unwrap().1, Kind::SetKeyShift);
+    assert_eq!(bus.cmds.last().unwrap().1, Kind::KeyShiftPadPress);
     assert!(matches!(
         bus.cmds.last().unwrap().2,
-        CmdBody::SetKeyShift { semitones } if semitones == 0.0
+        CmdBody::KeyShiftPadPress {
+            slot: 0,
+            shift: true
+        }
     ));
 }
 

@@ -95,6 +95,29 @@ impl ActionArgs {
         Ok(())
     }
 
+    /// Reject unknown keys while allowing any subset of `allowed` (optional args).
+    pub fn expect_keys_within(&self, allowed: &[&str]) -> Result<(), LoadError> {
+        if let Some(unknown) = self.map.keys().find(|k| !allowed.contains(&k.as_str())) {
+            return Err(LoadError::Validation(format!(
+                "unexpected arg `{unknown}` (allowed: [{}])",
+                allowed.join(", ")
+            )));
+        }
+        Ok(())
+    }
+
+    /// Optional boolean arg (`true`/`false`); `None` when absent.
+    pub fn optional_bool(&self, key: &str) -> Result<Option<bool>, LoadError> {
+        match self.map.get(key) {
+            None => Ok(None),
+            Some(ArgValue::Ident(v)) if v == "true" => Ok(Some(true)),
+            Some(ArgValue::Ident(v)) if v == "false" => Ok(Some(false)),
+            Some(_) => Err(LoadError::Validation(format!(
+                "arg `{key}` must be a bool (`true`/`false`)"
+            ))),
+        }
+    }
+
     pub fn expect_empty(&self) -> Result<(), LoadError> {
         if self.map.is_empty() {
             Ok(())

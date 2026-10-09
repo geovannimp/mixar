@@ -110,9 +110,14 @@ const DECK_ALIASES: &[&str] = &[
     "keyboard_pad_6",
     "keyboard_pad_7",
     "keyboard_pad_8",
-    "keyboard_scale_1",
-    "keyboard_scale_2",
-    "keyboard_scale_3",
+    "keyboard_shift_pad_1",
+    "keyboard_shift_pad_2",
+    "keyboard_shift_pad_3",
+    "keyboard_shift_pad_4",
+    "keyboard_shift_pad_5",
+    "keyboard_shift_pad_6",
+    "keyboard_shift_pad_7",
+    "keyboard_shift_pad_8",
     "key_shift_pad_1",
     "key_shift_pad_2",
     "key_shift_pad_3",
@@ -121,14 +126,14 @@ const DECK_ALIASES: &[&str] = &[
     "key_shift_pad_6",
     "key_shift_pad_7",
     "key_shift_pad_8",
-    "key_shift_reset_1",
-    "key_shift_reset_2",
-    "key_shift_reset_3",
-    "key_shift_reset_4",
-    "key_shift_reset_5",
-    "key_shift_reset_6",
-    "key_shift_reset_7",
-    "key_shift_reset_8",
+    "key_shift_shift_pad_1",
+    "key_shift_shift_pad_2",
+    "key_shift_shift_pad_3",
+    "key_shift_shift_pad_4",
+    "key_shift_shift_pad_5",
+    "key_shift_shift_pad_6",
+    "key_shift_shift_pad_7",
+    "key_shift_shift_pad_8",
 ];
 
 const MASTER_ALIASES: &[&str] = &[
@@ -215,9 +220,7 @@ const DECK_LEAVES: &[&str] = &[
     "sampler_pad",
     "trigger_sampler",
     "keyboard_pad",
-    "keyboard_scale",
     "key_shift_pad",
-    "key_shift_reset",
 ];
 
 const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
@@ -236,21 +239,29 @@ const PAD_MODES: &[&str] = &[
     "key_shift",
 ];
 
-/// Keyboard scale names accepted by `keyboard_scale(mode:…)`.
-const KEYBOARD_SCALES: &[&str] = &["major", "minor", "pentatonic"];
-
 /// Validate leaf-specific named args (after parse).
 pub fn validate_leaf_args(
     leaf: &str,
     args: &crate::action_id::ActionArgs,
 ) -> Result<(), LoadError> {
     match leaf {
-        "pad" | "hot_cue_pad" | "loop_roll_pad" | "beat_jump_pad" | "sampler_pad"
-        | "keyboard_pad" | "key_shift_pad" => {
+        "pad" | "hot_cue_pad" | "loop_roll_pad" | "beat_jump_pad" | "sampler_pad" => {
             args.expect_keys_exactly(&["n"])?;
             let n = args.require_int("n")?;
             if n < 1 {
                 return Err(LoadError::Validation("arg `n` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        // Keyboard / Key Shift pads take an optional `shift` bank selector.
+        "keyboard_pad" | "key_shift_pad" => {
+            args.expect_keys_within(&["n", "shift"])?;
+            let n = args.require_int("n")?;
+            if n < 1 {
+                return Err(LoadError::Validation("arg `n` must be >= 1".into()));
+            }
+            if args.get("shift").is_some() {
+                args.optional_bool("shift")?;
             }
             Ok(())
         }
@@ -295,16 +306,6 @@ pub fn validate_leaf_args(
             let mode = args.require_ident("mode")?;
             if !PAD_MODES.contains(&mode) {
                 return Err(LoadError::Validation(format!("unknown pad_mode `{mode}`")));
-            }
-            Ok(())
-        }
-        "keyboard_scale" => {
-            args.expect_keys_exactly(&["mode"])?;
-            let mode = args.require_ident("mode")?;
-            if !KEYBOARD_SCALES.contains(&mode) {
-                return Err(LoadError::Validation(format!(
-                    "unknown keyboard scale `{mode}`"
-                )));
             }
             Ok(())
         }
@@ -366,9 +367,9 @@ fn numbered_deck_alias(alias: &str) -> bool {
         "jump_pad_",
         "sampler_pad_",
         "keyboard_pad_",
-        "keyboard_scale_",
+        "keyboard_shift_pad_",
         "key_shift_pad_",
-        "key_shift_reset_",
+        "key_shift_shift_pad_",
     ];
     PREFIXES.iter().any(|prefix| {
         alias

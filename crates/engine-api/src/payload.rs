@@ -49,14 +49,9 @@ pub enum PadMode {
     KeyShift,
 }
 
-/// Musical scale used by the Keyboard pad mode's note bank.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum KeyboardScale {
-    #[default]
-    Major,
-    Minor,
-    Pentatonic,
+/// Default Keyboard / Key Shift semitone page (Rekordbox DDJ-400 footnote *6).
+pub fn default_pitch_page() -> u8 {
+    2
 }
 
 /// Jog platter policy for top (touched) or outer (untouched) turns.
@@ -152,9 +147,12 @@ pub struct DeckSnapshot {
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     #[serde(default)]
     pub key_shift: f32,
-    /// Musical scale used by the Keyboard pad mode.
+    /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
+    #[serde(default = "default_pitch_page")]
+    pub pitch_page: u8,
+    /// Hot-cue slot used as the Keyboard pad root (default 0).
     #[serde(default)]
-    pub keyboard_scale: KeyboardScale,
+    pub keyboard_root_hot_cue: u8,
     pub eq: DeckEq,
     /// Filter knob `0..1` (center `0.5` = flat).
     pub filter: f32,
@@ -251,9 +249,13 @@ pub enum CmdBody {
     SetKeyShift {
         semitones: f32,
     },
-    /// Musical scale for the Keyboard pad mode.
-    SetKeyboardScale {
-        scale: KeyboardScale,
+    /// Keyboard pad root: hot-cue slot whose position is the root note.
+    SetKeyboardRoot {
+        slot: u8,
+    },
+    /// Keyboard / Key Shift semitone page (`1..=5`).
+    SetPitchPage {
+        page: u8,
     },
     SetFilter {
         /// Filter knob `0..1`.
@@ -454,9 +456,12 @@ pub enum EvtBody {
         /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
         #[serde(default)]
         key_shift: f32,
-        /// Musical scale used by the Keyboard pad mode.
+        /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
+        #[serde(default = "default_pitch_page")]
+        pitch_page: u8,
+        /// Hot-cue slot used as the Keyboard pad root (default 0).
         #[serde(default)]
-        keyboard_scale: KeyboardScale,
+        keyboard_root_hot_cue: u8,
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,

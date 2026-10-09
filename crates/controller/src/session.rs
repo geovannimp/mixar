@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, KeyboardScale, Kind, Origin, PadMode};
+use engine_api::{CmdBody, Kind, Origin, PadMode};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
@@ -18,22 +18,29 @@ const CC_COALESCE: Duration = Duration::from_nanos(1_000_000_000 / 60);
 /// Script `idle_heartbeat` cadence when no deck is playing.
 const IDLE_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Key Shift pad semitone offsets for slots 0..=7.
+/// Absolute semitone for `slot` (`0..=7`) on `page` (`1..=5`), or `None` for a
+/// page action that has no absolute offset (Reset / Up / Down / Sync).
 ///
-/// Mirrors `engine_core::KEY_SHIFT_PAD_SEMITONES`. `controller` deliberately does
+/// Mirrors `engine_core::pads::pad_page_action`. `controller` deliberately does
 /// not depend on the audio engine, so keep this in sync with
 /// `crates/engine-core/src/pads.rs` (same duplication pattern as
 /// `DEFAULT_TEMPO_RANGE` in `action.rs`).
-const KEY_SHIFT_PAD_SEMITONES: [i8; 8] = [0, 1, 2, 3, -4, -3, -2, -1];
-
-/// Keyboard pad scale degrees for slots 0..=7.
-/// Mirrors `engine_core::keyboard_scale_degrees`.
-fn keyboard_scale_degrees(scale: KeyboardScale) -> [u8; 8] {
-    match scale {
-        KeyboardScale::Major => [0, 2, 4, 5, 7, 9, 11, 12],
-        KeyboardScale::Minor => [0, 2, 3, 5, 7, 8, 10, 12],
-        KeyboardScale::Pentatonic => [0, 2, 4, 7, 9, 12, 14, 16],
-    }
+fn pitch_page_semitone(page: u8, slot: u8) -> Option<i8> {
+    #[rustfmt::skip]
+    const PAGES: [[Option<i8>; 8]; 5] = [
+        // PAGE 1
+        [Some(8), Some(9), Some(10), Some(11), Some(12), None, None, None],
+        // PAGE 2 (default)
+        [Some(0), Some(1), Some(2), Some(3), Some(4), Some(5), Some(6), Some(7)],
+        // PAGE 3
+        [Some(-8), Some(-7), Some(-6), Some(-5), Some(-4), Some(-3), Some(-2), Some(-1)],
+        // PAGE 4
+        [None, None, None, None, Some(-12), Some(-11), Some(-10), Some(-9)],
+        // PAGE 5
+        [None, None, Some(-5), Some(-12), None, None, Some(7), Some(12)],
+    ];
+    let page = page.clamp(1, PAGES.len() as u8);
+    PAGES[(page - 1) as usize][slot.min(7) as usize]
 }
 
 /// Snapshot / LED array slot for a deck origin (defense if an OOR index slips past load).
@@ -214,47 +221,41 @@ impl MappingSession {
         self.refresh_key_shift_leds(deck, midi);
     }
 
-    /// Mirror engine keyboard scale (Keyboard pad bank labels / LEDs).
-    pub fn set_deck_keyboard_scale(
-        &mut self,
-        deck: u16,
-        scale: KeyboardScale,
-        midi: &mut impl MidiOut,
-    ) {
+    /// Mirror engine Keyboard / Key Shift semitone page (pad-bank LEDs).
+    pub fn set_deck_pitch_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
-        self.snapshot.keyboard_scale[i] = scale;
+        self.snapshot.pitch_page[i] = page.clamp(1, 5);
         self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine Keyboard pad root hot cue.
+    pub fn set_deck_keyboard_root(&mut self, deck: u16, slot: u8) {
+        let i = (deck as usize).min(3);
+        self.snapshot.keyboard_root_hot_cue[i] = slot;
     }
 
     /// Re-send the Keyboard or Key Shift pad-bank LEDs for the deck's current mode.
     ///
-    /// Key Shift: exactly the pad whose semitone offset matches is lit. Keyboard:
-    /// exactly the pad whose scale degree matches is lit. Others clear. Like
+    /// Exactly the pad whose page semitone matches the current key shift is lit;
+    /// page-5 action pads (Reset / Up / Down / Sync) have no absolute match, so a
+    /// page with no matching absolute semitone leaves every pad dark. Like
     /// [`Self::refresh_hot_cue_leds`], each signal is force-resent (HW often
     /// clears pad LEDs on page switch).
     pub fn refresh_key_shift_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
         let section = format!("deck_{}", deck + 1);
         let shift = self.snapshot.key_shift[i];
-        match self.snapshot.pad_mode[i] {
-            PadMode::KeyShift => {
-                for n in 1..=KEY_SHIFT_PAD_SEMITONES.len() {
-                    let alias = format!("key_shift_pad_{n}");
-                    let active = f32::from(KEY_SHIFT_PAD_SEMITONES[n - 1]) == shift;
-                    self.output_state.remove(&format!("{section}.{alias}"));
-                    self.apply_output_signal(&section, &alias, active, midi);
-                }
-            }
-            PadMode::Keyboard => {
-                let degrees = keyboard_scale_degrees(self.snapshot.keyboard_scale[i]);
-                for n in 1..=degrees.len() {
-                    let alias = format!("keyboard_pad_{n}");
-                    let active = f32::from(degrees[n - 1]) == shift;
-                    self.output_state.remove(&format!("{section}.{alias}"));
-                    self.apply_output_signal(&section, &alias, active, midi);
-                }
-            }
-            _ => {}
+        let page = self.snapshot.pitch_page[i];
+        let alias_prefix = match self.snapshot.pad_mode[i] {
+            PadMode::KeyShift => "key_shift_pad",
+            PadMode::Keyboard => "keyboard_pad",
+            _ => return,
+        };
+        for n in 1..=8u8 {
+            let alias = format!("{alias_prefix}_{n}");
+            let active = pitch_page_semitone(page, n - 1).is_some_and(|s| f32::from(s) == shift);
+            self.output_state.remove(&format!("{section}.{alias}"));
+            self.apply_output_signal(&section, &alias, active, midi);
         }
     }
 
@@ -635,9 +636,14 @@ impl MappingSession {
                             self.set_deck_key_shift(d, *semitones, midi);
                         }
                     }
-                    CmdBody::SetKeyboardScale { scale } => {
+                    CmdBody::SetPitchPage { page } => {
                         if let Origin::Deck(d) = *o {
-                            self.set_deck_keyboard_scale(d, *scale, midi);
+                            self.set_deck_pitch_page(d, *page, midi);
+                        }
+                    }
+                    CmdBody::SetKeyboardRoot { slot } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_keyboard_root(d, *slot);
                         }
                     }
                     CmdBody::SetTempoRange { tempo_range } => {

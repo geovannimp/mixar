@@ -1,10 +1,10 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
-use crate::pads::HOT_CUE_SLOT_COUNT;
-use engine_api::{KeyboardScale, LoopRegion, PadMode, SyncMode};
+use crate::pads::{DEFAULT_PITCH_PAGE, HOT_CUE_SLOT_COUNT};
+use engine_api::{LoopRegion, PadMode, SyncMode};
 use library_core::TrackId;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub(crate) struct DeckControlState {
     pub sync_mode: SyncMode,
     pub bpm: Option<f64>,
@@ -29,13 +29,42 @@ pub(crate) struct DeckControlState {
     pub active_sampler_bank_id: Option<String>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift_semitones: f32,
-    /// Musical scale used by the Keyboard pad mode.
-    pub keyboard_scale: KeyboardScale,
+    /// Keyboard / Key Shift semitone page (`1..=5`).
+    pub pitch_page: u8,
+    /// Hot-cue slot used as the Keyboard pad root.
+    pub keyboard_root_hot_cue: u8,
     /// Key-shift offset latched before the first Keyboard pad press, restored on
     /// the last Keyboard pad release (Keyboard is momentary, not destructive).
     pub keyboard_restore_semitones: Option<f32>,
     /// Which Keyboard pads are currently held (momentary note bank).
     pub keyboard_held: [bool; 8],
+}
+
+impl Default for DeckControlState {
+    fn default() -> Self {
+        Self {
+            sync_mode: SyncMode::Off,
+            bpm: None,
+            quantize: false,
+            pad_mode: PadMode::HotCue,
+            loop_roll_restore: None,
+            pending_loop_in_ms: None,
+            track_id: None,
+            track_path: None,
+            title: None,
+            artist: None,
+            album: None,
+            key: None,
+            isrc: None,
+            hot_cues: [None; HOT_CUE_SLOT_COUNT],
+            active_sampler_bank_id: None,
+            key_shift_semitones: 0.0,
+            pitch_page: DEFAULT_PITCH_PAGE,
+            keyboard_root_hot_cue: 0,
+            keyboard_restore_semitones: None,
+            keyboard_held: [false; 8],
+        }
+    }
 }
 
 impl DeckControlState {
@@ -53,7 +82,8 @@ impl DeckControlState {
         self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
         self.key_shift_semitones = 0.0;
-        self.keyboard_scale = KeyboardScale::Major;
+        self.pitch_page = DEFAULT_PITCH_PAGE;
+        self.keyboard_root_hot_cue = 0;
         self.keyboard_restore_semitones = None;
         self.keyboard_held = [false; 8];
     }
@@ -80,9 +110,10 @@ impl DeckControlState {
         self.key = non_empty_opt(metadata.key.clone());
         self.isrc = non_empty_opt(metadata.isrc.clone());
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
-        // A newly loaded track must not inherit a stale session shift/scale.
+        // A newly loaded track must not inherit a stale session shift/page.
         self.key_shift_semitones = 0.0;
-        self.keyboard_scale = KeyboardScale::Major;
+        self.pitch_page = DEFAULT_PITCH_PAGE;
+        self.keyboard_root_hot_cue = 0;
         self.keyboard_restore_semitones = None;
         self.keyboard_held = [false; 8];
     }
