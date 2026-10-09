@@ -39,7 +39,10 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemsGenerating = false,
     this.onStemsPress,
     this.keyShiftSemitones = 0,
-    this.keyboardScale = KeyboardScale.major,
+    this.pitchPage = kDefaultPitchPage,
+    this.keyboardRootHotCue = 0,
+    this.onSelectRoot,
+    this.onCyclePage,
     this.resultKey,
     this.hasTrack = false,
     this.disabled = false,
@@ -73,7 +76,12 @@ class DeckPadsPanel extends StatelessWidget {
   final ValueChanged<int> onKeyboardPress;
   final ValueChanged<int> onKeyboardRelease;
   final int keyShiftSemitones;
-  final KeyboardScale keyboardScale;
+  final int pitchPage;
+  final int keyboardRootHotCue;
+  final ValueChanged<int>? onSelectRoot;
+
+  /// Tapping the page indicator cycles to the next semitone page.
+  final VoidCallback? onCyclePage;
 
   /// Resulting key (analyzed key + session shift) shown read-only above the
   /// Keyboard / Key Shift grids; never persisted.
@@ -183,7 +191,10 @@ class DeckPadsPanel extends StatelessWidget {
       PadMode.keyboard => _keyedBody(
         context,
         KeyboardPads(
-          scale: keyboardScale,
+          page: pitchPage,
+          rootHotCue: keyboardRootHotCue,
+          hotCues: hotCues,
+          onSelectRoot: onSelectRoot ?? (_) {},
           disabled: _controlsDisabled,
           onPress: onKeyboardPress,
           onRelease: onKeyboardRelease,
@@ -192,6 +203,7 @@ class DeckPadsPanel extends StatelessWidget {
       PadMode.keyShift => _keyedBody(
         context,
         KeyShiftPads(
+          page: pitchPage,
           activeSemitones: keyShiftSemitones,
           disabled: _controlsDisabled,
           onPress: onKeyShiftPress,
@@ -200,7 +212,7 @@ class DeckPadsPanel extends StatelessWidget {
     };
   }
 
-  /// Keyboard / Key Shift body with a small read-only resulting-key header.
+  /// Keyboard / Key Shift body with a page indicator and read-only result key.
   Widget _keyedBody(BuildContext context, Widget child) {
     final theme = context.theme;
     return Column(
@@ -211,20 +223,38 @@ class DeckPadsPanel extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'KEY',
-                style: theme.typography.body.xs.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                  color: theme.colors.mutedForeground,
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onCyclePage,
+                child: Text(
+                  'PAGE $pitchPage/$kPitchPageCount',
+                  style: theme.typography.body.xs.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    color: theme.colors.mutedForeground,
+                  ),
                 ),
               ),
-              Text(
-                resultKey ?? '—',
-                style: theme.typography.body.xs.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: theme.colors.foreground,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'KEY',
+                    style: theme.typography.body.xs.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: theme.colors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    resultKey ?? '—',
+                    style: theme.typography.body.xs.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colors.foreground,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

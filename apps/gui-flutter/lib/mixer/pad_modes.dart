@@ -1,9 +1,8 @@
+import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter/services.dart';
-import 'package:gui_flutter/src/rust/api/engine.dart'
-    show KeyboardScale, PadMode;
+import 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
 
-export 'package:gui_flutter/src/rust/api/engine.dart'
-    show KeyboardScale, PadMode;
+export 'package:gui_flutter/src/rust/api/engine.dart' show PadMode;
 
 /// Pad mode helpers + Tauri-matching beat tables / labels.
 
@@ -17,16 +16,133 @@ const kPadModes = <PadMode>[
   PadMode.keyShift,
 ];
 
-/// Key Shift pad semitone offsets for slots 0..=7 (matches engine
-/// `KEY_SHIFT_PAD_SEMITONES`).
-const kKeyShiftPadSemitones = <int>[0, 1, 2, 3, -4, -3, -2, -1];
+/// Number of Keyboard / Key Shift semitone pages (Rekordbox DDJ-400 *6).
+const kPitchPageCount = 5;
 
-/// Keyboard pad scale degrees (semitones from the analyzed root) per scale
-/// (matches engine `keyboard_scale_degrees`).
-const kKeyboardScaleDegrees = <KeyboardScale, List<int>>{
-  KeyboardScale.major: [0, 2, 4, 5, 7, 9, 11, 12],
-  KeyboardScale.minor: [0, 2, 3, 5, 7, 8, 10, 12],
-  KeyboardScale.pentatonic: [0, 2, 4, 7, 9, 12, 14, 16],
+/// Default Keyboard / Key Shift page (`[0..+7]`), matching the engine.
+const kDefaultPitchPage = 2;
+
+/// Action a Keyboard or Key Shift pad performs within a semitone page.
+enum PitchPadAction {
+  /// Absolute semitone offset from the root.
+  semitone,
+
+  /// Reset the deck key shift to `0`.
+  keyReset,
+
+  /// Nudge the deck key shift up one semitone.
+  semitoneUp,
+
+  /// Nudge the deck key shift down one semitone.
+  semitoneDown,
+
+  /// Key sync (not implemented → no-op).
+  keySync,
+
+  /// No action.
+  none,
+}
+
+/// One Keyboard / Key Shift page slot: an absolute semitone, a page-5 special,
+/// or an empty slot.
+@immutable
+class PitchPad {
+  const new(this.action, [this.semitones = 0]);
+
+  final PitchPadAction action;
+
+  /// Absolute semitone offset; meaningful only when [action] is
+  /// [PitchPadAction.semitone].
+  final int semitones;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PitchPad &&
+      action == other.action &&
+      semitones == other.semitones;
+
+  @override
+  int get hashCode => Object.hash(action, semitones);
+}
+
+const _none = PitchPad(PitchPadAction.none);
+const _reset = PitchPad(PitchPadAction.keyReset);
+const _up = PitchPad(PitchPadAction.semitoneUp);
+const _down = PitchPad(PitchPadAction.semitoneDown);
+const _sync = PitchPad(PitchPadAction.keySync);
+
+/// Rekordbox DDJ-400 footnote *6 page tables; slot 0 = pad 1 = root.
+const kPitchPages = <List<PitchPad>>[
+  // PAGE 1: [+8, +9, +10, +11, +12, None, None, None]
+  [
+    PitchPad(PitchPadAction.semitone, 8),
+    PitchPad(PitchPadAction.semitone, 9),
+    PitchPad(PitchPadAction.semitone, 10),
+    PitchPad(PitchPadAction.semitone, 11),
+    PitchPad(PitchPadAction.semitone, 12),
+    _none,
+    _none,
+    _none,
+  ],
+  // PAGE 2 (default): [0, +1, +2, +3, +4, +5, +6, +7]
+  [
+    PitchPad(PitchPadAction.semitone),
+    PitchPad(PitchPadAction.semitone, 1),
+    PitchPad(PitchPadAction.semitone, 2),
+    PitchPad(PitchPadAction.semitone, 3),
+    PitchPad(PitchPadAction.semitone, 4),
+    PitchPad(PitchPadAction.semitone, 5),
+    PitchPad(PitchPadAction.semitone, 6),
+    PitchPad(PitchPadAction.semitone, 7),
+  ],
+  // PAGE 3: [-8, -7, -6, -5, -4, -3, -2, -1]
+  [
+    PitchPad(PitchPadAction.semitone, -8),
+    PitchPad(PitchPadAction.semitone, -7),
+    PitchPad(PitchPadAction.semitone, -6),
+    PitchPad(PitchPadAction.semitone, -5),
+    PitchPad(PitchPadAction.semitone, -4),
+    PitchPad(PitchPadAction.semitone, -3),
+    PitchPad(PitchPadAction.semitone, -2),
+    PitchPad(PitchPadAction.semitone, -1),
+  ],
+  // PAGE 4: [None, None, None, None, -12, -11, -10, -9]
+  [
+    _none,
+    _none,
+    _none,
+    _none,
+    PitchPad(PitchPadAction.semitone, -12),
+    PitchPad(PitchPadAction.semitone, -11),
+    PitchPad(PitchPadAction.semitone, -10),
+    PitchPad(PitchPadAction.semitone, -9),
+  ],
+  // PAGE 5: [Reset, Down, -5, -12, Sync, Up, +7, +12]
+  [
+    _reset,
+    _down,
+    PitchPad(PitchPadAction.semitone, -5),
+    PitchPad(PitchPadAction.semitone, -12),
+    _sync,
+    _up,
+    PitchPad(PitchPadAction.semitone, 7),
+    PitchPad(PitchPadAction.semitone, 12),
+  ],
+];
+
+/// Page slots for [page] (`1..=5`), clamped to a valid page.
+List<PitchPad> pitchPage(int page) =>
+    kPitchPages[(page.clamp(1, kPitchPageCount)) - 1];
+
+/// Pad label: `"+4"`, `"0"`, `"-12"`, `"RESET"`, `"UP"`, `"DOWN"`, `"SYNC"`.
+String pitchPadLabel(PitchPad pad) => switch (pad.action) {
+  PitchPadAction.semitone =>
+    pad.semitones > 0 ? '+${pad.semitones}' : '${pad.semitones}',
+  PitchPadAction.keyReset => 'RESET',
+  PitchPadAction.semitoneUp => 'UP',
+  PitchPadAction.semitoneDown => 'DOWN',
+  PitchPadAction.keySync => 'SYNC',
+  PitchPadAction.none => '',
 };
 
 const kLoopRollBeats = <num>[1 / 32, 1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4];
@@ -60,12 +176,6 @@ String padModeShortLabel(PadMode mode) => switch (mode) {
   PadMode.stems => 'Stems',
   PadMode.keyboard => 'Keys',
   PadMode.keyShift => 'Shift',
-};
-
-String keyboardScaleShortLabel(KeyboardScale scale) => switch (scale) {
-  KeyboardScale.major => 'Major',
-  KeyboardScale.minor => 'Minor',
-  KeyboardScale.pentatonic => 'Penta',
 };
 
 PadMode cyclePadMode(PadMode mode, int direction) {

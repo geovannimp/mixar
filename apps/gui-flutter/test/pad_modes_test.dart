@@ -28,41 +28,79 @@ void main() {
     expect(cyclePadMode(PadMode.keyShift, 1), PadMode.hotCue);
   });
 
-  test('key shift pad semitones and scale degrees match engine', () {
-    expect(kKeyShiftPadSemitones, [0, 1, 2, 3, -4, -3, -2, -1]);
-    expect(kKeyboardScaleDegrees[KeyboardScale.major], [
-      0,
-      2,
-      4,
-      5,
-      7,
-      9,
-      11,
-      12,
+  test('pitch pages match the Rekordbox *6 tables', () {
+    expect(kPitchPageCount, 5);
+    expect(kDefaultPitchPage, 2);
+    expect(kPitchPages, const [
+      [
+        PitchPad(PitchPadAction.semitone, 8),
+        PitchPad(PitchPadAction.semitone, 9),
+        PitchPad(PitchPadAction.semitone, 10),
+        PitchPad(PitchPadAction.semitone, 11),
+        PitchPad(PitchPadAction.semitone, 12),
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.none),
+      ],
+      [
+        PitchPad(PitchPadAction.semitone),
+        PitchPad(PitchPadAction.semitone, 1),
+        PitchPad(PitchPadAction.semitone, 2),
+        PitchPad(PitchPadAction.semitone, 3),
+        PitchPad(PitchPadAction.semitone, 4),
+        PitchPad(PitchPadAction.semitone, 5),
+        PitchPad(PitchPadAction.semitone, 6),
+        PitchPad(PitchPadAction.semitone, 7),
+      ],
+      [
+        PitchPad(PitchPadAction.semitone, -8),
+        PitchPad(PitchPadAction.semitone, -7),
+        PitchPad(PitchPadAction.semitone, -6),
+        PitchPad(PitchPadAction.semitone, -5),
+        PitchPad(PitchPadAction.semitone, -4),
+        PitchPad(PitchPadAction.semitone, -3),
+        PitchPad(PitchPadAction.semitone, -2),
+        PitchPad(PitchPadAction.semitone, -1),
+      ],
+      [
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.none),
+        PitchPad(PitchPadAction.semitone, -12),
+        PitchPad(PitchPadAction.semitone, -11),
+        PitchPad(PitchPadAction.semitone, -10),
+        PitchPad(PitchPadAction.semitone, -9),
+      ],
+      [
+        PitchPad(PitchPadAction.keyReset),
+        PitchPad(PitchPadAction.semitoneDown),
+        PitchPad(PitchPadAction.semitone, -5),
+        PitchPad(PitchPadAction.semitone, -12),
+        PitchPad(PitchPadAction.keySync),
+        PitchPad(PitchPadAction.semitoneUp),
+        PitchPad(PitchPadAction.semitone, 7),
+        PitchPad(PitchPadAction.semitone, 12),
+      ],
     ]);
-    expect(kKeyboardScaleDegrees[KeyboardScale.minor], [
-      0,
-      2,
-      3,
-      5,
-      7,
-      8,
-      10,
-      12,
-    ]);
-    expect(kKeyboardScaleDegrees[KeyboardScale.pentatonic], [
-      0,
-      2,
-      4,
-      7,
-      9,
-      12,
-      14,
-      16,
-    ]);
-    expect(keyboardScaleShortLabel(KeyboardScale.major), 'Major');
-    expect(keyboardScaleShortLabel(KeyboardScale.minor), 'Minor');
-    expect(keyboardScaleShortLabel(KeyboardScale.pentatonic), 'Penta');
+  });
+
+  test('pitchPage clamps to a valid page', () {
+    expect(pitchPage(0), kPitchPages[0]);
+    expect(pitchPage(1), kPitchPages[0]);
+    expect(pitchPage(6), kPitchPages[4]);
+    expect(pitchPage(3), kPitchPages[2]);
+  });
+
+  test('pitchPadLabel renders semitones and page-5 specials', () {
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.semitone, 4)), '+4');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.semitone)), '0');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.semitone, -12)), '-12');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.keyReset)), 'RESET');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.semitoneUp)), 'UP');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.semitoneDown)), 'DOWN');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.keySync)), 'SYNC');
+    expect(pitchPadLabel(const PitchPad(PitchPadAction.none)), '');
   });
 
   test('cyclePadMode wraps', () {

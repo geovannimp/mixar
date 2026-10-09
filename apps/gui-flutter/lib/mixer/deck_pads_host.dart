@@ -139,7 +139,10 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     final keyShiftSemitones = ref
         .watch(deckKeyShiftProvider(widget.deckId))
         .round();
-    final keyboardScale = ref.watch(deckKeyboardScaleProvider(widget.deckId));
+    final pitchPage = ref.watch(deckPitchPageProvider(widget.deckId));
+    final keyboardRootHotCue = ref.watch(
+      deckKeyboardRootProvider(widget.deckId),
+    );
     final rawKey = ref.watch(deckLibraryTrackProvider(widget.deckId))?.key;
     final keyMode = keyModeFromSettings(
       ref
@@ -279,7 +282,24 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         );
       },
       keyShiftSemitones: keyShiftSemitones,
-      keyboardScale: keyboardScale,
+      pitchPage: pitchPage,
+      keyboardRootHotCue: keyboardRootHotCue,
+      onSelectRoot: (slot) {
+        unawaited(
+          _run(
+            (engine) =>
+                engine.setKeyboardRoot(deckId: widget.deckId, slot: slot),
+          ),
+        );
+      },
+      onCyclePage: () {
+        final next = pitchPage >= kPitchPageCount ? 1 : pitchPage + 1;
+        unawaited(
+          _run(
+            (engine) => engine.setPitchPage(deckId: widget.deckId, page: next),
+          ),
+        );
+      },
       resultKey: resultKey,
       onKeyShiftPress: (slot) {
         unawaited(

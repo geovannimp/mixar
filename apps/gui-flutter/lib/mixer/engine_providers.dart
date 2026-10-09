@@ -333,10 +333,16 @@ final ProviderFamily<double, int> deckKeyShiftProvider =
           ref.watch(engineUiProvider.select((s) => s.keyShiftFor(deckId))),
     );
 
-final ProviderFamily<KeyboardScale, int> deckKeyboardScaleProvider =
-    Provider.family<KeyboardScale, int>(
+final ProviderFamily<int, int> deckPitchPageProvider =
+    Provider.family<int, int>(
       (ref, deckId) =>
-          ref.watch(engineUiProvider.select((s) => s.keyboardScaleFor(deckId))),
+          ref.watch(engineUiProvider.select((s) => s.pitchPageFor(deckId))),
+    );
+
+final ProviderFamily<int, int> deckKeyboardRootProvider =
+    Provider.family<int, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyboardRootFor(deckId))),
     );
 
 final ProviderFamily<SyncMode, int> deckSyncModeProvider =

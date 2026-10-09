@@ -4,18 +4,21 @@ import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 
-/// Key Shift pad mode: eight latch pads selecting a semitone offset.
+/// Key Shift pad mode: eight latch pads for the semitone [page].
 ///
-/// The engine owns the latch (re-pressing the active pad clears it back to
-/// `0`); this grid only reflects [activeSemitones].
+/// Press latches the page action (absolute semitones, RESET, UP, DOWN); SYNC is
+/// a no-op. This grid only reflects [activeSemitones]; page-5 specials
+/// (RESET/UP/DOWN/SYNC) never highlight as an absolute semitone.
 class KeyShiftPads extends StatelessWidget {
   const new({
+    required this.page,
     required this.activeSemitones,
     required this.onPress,
     this.disabled = false,
     super.key,
   });
 
+  final int page;
   final int activeSemitones;
   final ValueChanged<int> onPress;
   final bool disabled;
@@ -23,20 +26,23 @@ class KeyShiftPads extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.theme;
+    final pads = pitchPage(page);
     return PadGrid(
       children: [
         for (var slot = 0; slot < 8; slot++)
           () {
-            final semitones = kKeyShiftPadSemitones[slot];
-            final active = semitones == activeSemitones;
+            final pad = pads[slot];
+            final active =
+                pad.action == PitchPadAction.semitone &&
+                pad.semitones == activeSemitones;
             return PadButton(
               key: ValueKey('key-shift-pad-$slot${active ? '-active' : ''}'),
-              disabled: disabled,
+              disabled: disabled || pad.action == PitchPadAction.none,
               accentSlot: active ? slot : null,
-              tooltip: 'Key shift ${_formatSemitones(semitones)} semitones',
+              tooltip: _tooltip(pad),
               onPress: () => onPress(slot),
               child: Text(
-                _formatSemitones(semitones),
+                pitchPadLabel(pad),
                 style: theme.typography.body.sm.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
@@ -48,5 +54,11 @@ class KeyShiftPads extends StatelessWidget {
   }
 }
 
-String _formatSemitones(int semitones) =>
-    semitones > 0 ? '+$semitones' : '$semitones';
+String _tooltip(PitchPad pad) => switch (pad.action) {
+  PitchPadAction.semitone => 'Key shift ${pitchPadLabel(pad)} semitones',
+  PitchPadAction.keyReset => 'Reset key shift',
+  PitchPadAction.semitoneUp => 'Key shift up one semitone',
+  PitchPadAction.semitoneDown => 'Key shift down one semitone',
+  PitchPadAction.keySync => 'Key sync',
+  PitchPadAction.none => '',
+};

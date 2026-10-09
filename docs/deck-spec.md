@@ -158,6 +158,7 @@ DeckState
 ├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
 ├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
 ├── key: display_key, key_shift_semitones, key_lock
+├── pitch_page: 1..5, keyboard_root_hot_cue   -- session-only Keyboard / Key Shift page state
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
 ├── slip: enabled, shadow_position_ms
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
@@ -258,12 +259,15 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 
 **Key lock:** Toggle on the track-key ghost control (`lock` / `lock-open`). Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl).
 
-**Key shift (shipped):** Realtime semitone shift, clamped to `-16..=+16`, via the `stretch` pitch factor: keylock-stretch at `tempo/pitch` plus a `timestretch::core::resample::StreamingSincResampler` output stage. It is an additive **session-only** offset layered on top of key lock (never forces key lock on/off) and never mutates the analyzed key or writes to `library.db`. See [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
+**Key shift (shipped):** Realtime semitone shift, clamped to `-16..=+16`, via the `stretch` pitch factor: keylock-stretch at `tempo/pitch` plus a `timestretch::core::resample::StreamingSincResampler` output stage. It is an additive **session-only** offset layered on top of key lock (never forces key lock on/off) and never mutates the analyzed key or writes to `library.db`. Keyboard / Key Shift pads share five semitone pages (default `[0..+7]`); the Keyboard root is the selected hot cue and the pitch page is session-only. See [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
 
 ---
 
 ### 5.5 Controller pads
 
+See the [user guide](https://mixar.top/docs/users/performance-pads) for current pad modes and their controls; this spec does not duplicate their interaction guide.
+
+Controller pads are the primary abstraction: the eight deck buttons carry a selectable `pad_mode` (hot cue, loop roll, beat jump, sampler, stems, keyboard, key shift), each with its own labels and active state. Keyboard and Key Shift shipped in [#298](https://github.com/geovannimp/mixar/issues/298) and are specified in [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
 
 ---
 

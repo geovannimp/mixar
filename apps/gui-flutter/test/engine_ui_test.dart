@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
+import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 
 void main() {
@@ -418,20 +419,23 @@ void main() {
       expect(snap.stemMuteFor(1), [false, false, false, false]);
     });
 
-    test('updated evt carries key shift and scale', () {
+    test('updated evt carries key shift, pitch page and keyboard root', () {
       final snap = applyEngineEvt(
         EngineUiSnapshot.empty,
         const EngineEvt(
           kind: EngineEvtKind.updated,
           deckId: 0,
           keyShift: 2,
-          keyboardScale: KeyboardScale.minor,
+          pitchPage: 5,
+          keyboardRootHotCue: 3,
         ),
       );
       expect(snap.keyShiftFor(0), 2);
-      expect(snap.keyboardScaleFor(0), KeyboardScale.minor);
+      expect(snap.pitchPageFor(0), 5);
+      expect(snap.keyboardRootFor(0), 3);
       expect(snap.keyShiftFor(1), 0);
-      expect(snap.keyboardScaleFor(1), KeyboardScale.major);
+      expect(snap.pitchPageFor(1), kDefaultPitchPage);
+      expect(snap.keyboardRootFor(1), 0);
     });
   });
 }

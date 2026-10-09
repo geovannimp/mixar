@@ -185,17 +185,6 @@ pub enum _SyncMode {
     Beat,
 }
 
-/// Legacy Keyboard pad scale, retained ONLY so the checked-in stale
-/// `frb_generated.rs` bridge keeps compiling after `engine_api::KeyboardScale`
-/// was removed (#298). The field is never populated and the transport method is a
-/// no-op; the follow-up Flutter task regenerates FRB and deletes both.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum KeyboardScale {
-    Major,
-    Minor,
-    Pentatonic,
-}
-
 /// Active loop region for Dart (`engine_api::LoopRegion`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActiveLoopInfo {
@@ -332,9 +321,10 @@ pub struct EngineEvt {
     pub key_lock: Option<bool>,
     /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
     pub key_shift: Option<f32>,
-    /// Legacy Keyboard pad scale; always `None` after #298 (kept for the stale
-    /// generated FRB bridge until the follow-up regen).
-    pub keyboard_scale: Option<KeyboardScale>,
+    /// Keyboard / Key Shift semitone page (`1..=5`; default 2).
+    pub pitch_page: Option<u8>,
+    /// Hot-cue slot used as the Keyboard pad root (default 0).
+    pub keyboard_root_hot_cue: Option<u8>,
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
     pub master_deck: Option<u16>,
@@ -405,7 +395,8 @@ impl EngineEvt {
             tempo_range: None,
             key_lock: None,
             key_shift: None,
-            keyboard_scale: None,
+            pitch_page: None,
+            keyboard_root_hot_cue: None,
             pad_mode: None,
             sync_mode: None,
             master_deck: None,
@@ -793,12 +784,22 @@ impl EngineTransport {
         )
     }
 
-    /// Deprecated no-op shim for the removed `SetKeyboardScale` cmd (#298).
-    ///
-    /// Kept so the checked-in stale `frb_generated.rs` bridge compiles; the
-    /// follow-up Flutter task regenerates FRB and drops the Dart method.
-    pub fn set_keyboard_scale(&self, _deck_id: u16, _scale: KeyboardScale) -> Result<(), String> {
-        Ok(())
+    /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+    pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyboardRoot,
+            &CmdBody::SetKeyboardRoot { slot },
+        )
+    }
+
+    /// Select the Keyboard / Key Shift semitone page (1..=5).
+    pub fn set_pitch_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetPitchPage,
+            &CmdBody::SetPitchPage { page },
+        )
     }
 
     pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
@@ -1404,6 +1405,8 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.tempo_range = Some(snap.tempo_range);
     evt.key_lock = Some(snap.key_lock);
     evt.key_shift = Some(snap.key_shift);
+    evt.pitch_page = Some(snap.pitch_page);
+    evt.keyboard_root_hot_cue = Some(snap.keyboard_root_hot_cue);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
@@ -1458,8 +1461,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             tempo_range,
             key_lock,
             key_shift,
-            pitch_page: _,
-            keyboard_root_hot_cue: _,
+            pitch_page,
+            keyboard_root_hot_cue,
             pad_mode,
             sync_mode,
             active_loop,
@@ -1495,6 +1498,8 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.tempo_range = Some(tempo_range);
             evt.key_lock = Some(key_lock);
             evt.key_shift = Some(key_shift);
+            evt.pitch_page = Some(pitch_page);
+            evt.keyboard_root_hot_cue = Some(keyboard_root_hot_cue);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
@@ -1673,6 +1678,17 @@ mod tests {
             Some([true, false, true, false].as_slice())
         );
         assert_eq!(mapped[0].stem_isolate, Some(1));
+    }
+
+    #[test]
+    fn map_updated_forwards_pitch_page_and_keyboard_root() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.pitch_page = 5;
+        deck.keyboard_root_hot_cue = 3;
+        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
+        assert_eq!(mapped.len(), 1);
+        assert_eq!(mapped[0].pitch_page, Some(5));
+        assert_eq!(mapped[0].keyboard_root_hot_cue, Some(3));
     }
 
     #[test]

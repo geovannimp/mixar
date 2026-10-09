@@ -65,7 +65,8 @@ class EngineUiSnapshot {
     this.tempoRanges = const {},
     this.keyLocks = const {},
     this.keyShifts = const {},
-    this.keyboardScales = const {},
+    this.pitchPages = const {},
+    this.keyboardRoots = const {},
     this.padModes = const {},
     this.stemsReady = const {},
     this.stemMute = const {},
@@ -101,7 +102,8 @@ class EngineUiSnapshot {
   final Map<int, double> tempoRanges;
   final Map<int, bool> keyLocks;
   final Map<int, double> keyShifts;
-  final Map<int, KeyboardScale> keyboardScales;
+  final Map<int, int> pitchPages;
+  final Map<int, int> keyboardRoots;
   final Map<int, PadMode> padModes;
   final Map<int, bool> stemsReady;
   final Map<int, List<bool>> stemMute;
@@ -134,8 +136,9 @@ class EngineUiSnapshot {
 
   double keyShiftFor(int deckId) => keyShifts[deckId] ?? 0.0;
 
-  KeyboardScale keyboardScaleFor(int deckId) =>
-      keyboardScales[deckId] ?? KeyboardScale.major;
+  int pitchPageFor(int deckId) => pitchPages[deckId] ?? kDefaultPitchPage;
+
+  int keyboardRootFor(int deckId) => keyboardRoots[deckId] ?? 0;
 
   PadMode padModeFor(int deckId) => padModes[deckId] ?? PadMode.hotCue;
 
@@ -187,7 +190,8 @@ class EngineUiSnapshot {
     Map<int, double>? tempoRanges,
     Map<int, bool>? keyLocks,
     Map<int, double>? keyShifts,
-    Map<int, KeyboardScale>? keyboardScales,
+    Map<int, int>? pitchPages,
+    Map<int, int>? keyboardRoots,
     Map<int, PadMode>? padModes,
     Map<int, bool>? stemsReady,
     Map<int, List<bool>>? stemMute,
@@ -218,7 +222,8 @@ class EngineUiSnapshot {
     tempoRanges: tempoRanges ?? this.tempoRanges,
     keyLocks: keyLocks ?? this.keyLocks,
     keyShifts: keyShifts ?? this.keyShifts,
-    keyboardScales: keyboardScales ?? this.keyboardScales,
+    pitchPages: pitchPages ?? this.pitchPages,
+    keyboardRoots: keyboardRoots ?? this.keyboardRoots,
     padModes: padModes ?? this.padModes,
     stemsReady: stemsReady ?? this.stemsReady,
     stemMute: stemMute ?? this.stemMute,
@@ -293,20 +298,20 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         nextKeyLocks[id] = evt.keyLock!;
       }
       final nextKeyShifts = Map<int, double>.from(prev.keyShifts);
-      final nextKeyboardScales = Map<int, KeyboardScale>.from(
-        prev.keyboardScales,
-      );
-      // Key shift / scale are session-only deck state; reset on unload.
+      final nextPitchPages = Map<int, int>.from(prev.pitchPages);
+      final nextKeyboardRoots = Map<int, int>.from(prev.keyboardRoots);
+      // Key shift is session-only deck state; reset on unload.
       if (unloaded) {
         nextKeyShifts.remove(id);
-        nextKeyboardScales.remove(id);
-      } else {
-        if (evt.keyShift != null) {
-          nextKeyShifts[id] = evt.keyShift!;
-        }
-        if (evt.keyboardScale != null) {
-          nextKeyboardScales[id] = evt.keyboardScale!;
-        }
+      } else if (evt.keyShift != null) {
+        nextKeyShifts[id] = evt.keyShift!;
+      }
+      // Page / root mirror the keyLocks pattern: apply whenever authored.
+      if (evt.pitchPage != null) {
+        nextPitchPages[id] = evt.pitchPage!;
+      }
+      if (evt.keyboardRootHotCue != null) {
+        nextKeyboardRoots[id] = evt.keyboardRootHotCue!;
       }
       final nextPadModes = Map<int, PadMode>.from(prev.padModes);
       final enginePadMode = evt.padMode;
@@ -417,7 +422,8 @@ EngineUiSnapshot applyEngineEvt(EngineUiSnapshot prev, EngineEvt evt) {
         tempoRanges: nextRanges,
         keyLocks: nextKeyLocks,
         keyShifts: nextKeyShifts,
-        keyboardScales: nextKeyboardScales,
+        pitchPages: nextPitchPages,
+        keyboardRoots: nextKeyboardRoots,
         padModes: nextPadModes,
         syncModes: nextSyncModes,
         activeLoops: nextActiveLoops,

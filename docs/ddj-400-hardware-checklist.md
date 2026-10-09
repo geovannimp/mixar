@@ -42,22 +42,27 @@ is about what the unit *does* with them.
 
 - [ ] Press **KEYBOARD** (note `0x69` on the deck channel): the KEYBOARD page
       lamp lights and the KEY SHIFT page lamp goes dark.
-- [ ] The eight pads (`ch 8/10`, notes `0x40–0x47`) play the deck at ascending
-      scale degrees; the pad whose degree matches the current key shift lights.
-- [ ] Release of a Keyboard pad clears the pitch offset (momentary) and its lamp.
-- [ ] SHIFT + pad 1/2/3 on the scale bank (`ch 9/11`, notes `0x40–0x42`) selects
-      Major / Minor / Pentatonic; the lit pad follows the new scale's degrees.
+- [ ] The eight pads (`ch 8/10`, notes `0x40–0x47`) audition the selected root
+      hot cue at the current semitone page (default page 2 = `[0..+7]`); the
+      pad whose absolute semitone matches the current key shift lights.
+- [ ] Release of a Keyboard pad is momentary: it restores the pre-press key
+      shift and seeks back to the root, and its lamp clears.
+- [ ] SHIFT + pads 1–6 on the shift bank (`ch 9/11`, notes `0x40–0x45`) deletes
+      that hot cue.
+- [ ] SHIFT + pad 7 / pad 8 (`0x46` / `0x47`) switches to the next / previous
+      semitone page, wrapping `5 → 1` and `1 → 5`.
 
 ## Key Shift page
 
 - [ ] Press **KEY SHIFT** (note `0x6F` on the deck channel): the KEY SHIFT page
       lamp lights and the KEYBOARD page lamp goes dark.
-- [ ] The eight pads (`ch 8/10`, notes `0x70–0x77`) latch semitone offsets
-      `[0, +1, +2, +3, -4, -3, -2, -1]`; exactly the matching pad lights.
-- [ ] Re-pressing the active pad clears the offset; the `0` pad (index 1) lights
-      again.
-- [ ] Any reset pad on the shift bank (`ch 9/11`, notes `0x70–0x77`) clears the
-      offset and lights the `0` pad.
+- [ ] The eight pads (`ch 8/10`, notes `0x70–0x77`) latch the current page's
+      action (default page 2 = `[0, +1, +2, +3, +4, +5, +6, +7]`); exactly the
+      pad matching the active absolute semitone lights.
+- [ ] Page 5 mixes `RESET`, `DOWN`, `−5`, `−12`, `SYNC`, `UP`, `+7`, `+12`;
+      RESET zeroes the shift, UP / DOWN nudge by one semitone, SYNC is a no-op.
+- [ ] SHIFT + pad 7 / pad 8 (`ch 9/11`, notes `0x76` / `0x77`) switches to the
+      next / previous semitone page, wrapping `5 → 1` and `1 → 5`.
 - [ ] Pitch changes without changing tempo; key lock stays intact.
 
 ## Master
