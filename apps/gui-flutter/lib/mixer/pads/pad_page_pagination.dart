@@ -113,6 +113,10 @@ PadPagePagination pitchPagePagination({
   required int page,
   required VoidCallback onPrevious,
   required VoidCallback onNext,
+  Widget? centerAccessory,
+  IconData? actionIcon,
+  String? actionSemanticLabel,
+  VoidCallback? onAction,
   bool disabled = false,
 }) {
   return PadPagePagination(
@@ -122,6 +126,10 @@ PadPagePagination pitchPagePagination({
     nextSemanticLabel: 'Next semitone page',
     onPrevious: onPrevious,
     onNext: onNext,
+    centerAccessory: centerAccessory,
+    actionIcon: actionIcon,
+    actionSemanticLabel: actionSemanticLabel,
+    onAction: onAction,
     disabled: disabled,
   );
 }

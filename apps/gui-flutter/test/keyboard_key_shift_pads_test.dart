@@ -160,7 +160,7 @@ void main() {
     }
   });
 
-  testWidgets('KeyboardPads root selector dispatches filled slots only', (
+  testWidgets('KeyboardPads root picker lists only set hot cues', (
     tester,
   ) async {
     final selected = <int>[];
@@ -181,13 +181,20 @@ void main() {
       ),
     );
 
-    // Empty hot-cue slot: disabled, no dispatch.
-    await tester.tap(find.byKey(const ValueKey('keyboard-root-1')));
-    await tester.pump();
-    expect(selected, isEmpty);
+    // The page bar shows the current root.
+    expect(find.text('HC 1'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('keyboard-root-3')));
-    await tester.pump();
+    await tester.tap(find.bySemanticsLabel('Keyboard root hot cue'));
+    await tester.pumpAndSettle();
+
+    // Only hot cues that are set appear in the picker.
+    expect(find.textContaining('Hot cue 1'), findsOneWidget);
+    expect(find.textContaining('Hot cue 4'), findsOneWidget);
+    expect(find.textContaining('Hot cue 2'), findsNothing);
+    expect(find.textContaining('Hot cue 3'), findsNothing);
+
+    await tester.tap(find.textContaining('Hot cue 4'));
+    await tester.pumpAndSettle();
     expect(selected, [3]);
   });
 

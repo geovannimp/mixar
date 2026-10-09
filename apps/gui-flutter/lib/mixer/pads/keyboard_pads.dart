@@ -1,16 +1,21 @@
 import 'package:flutter/widgets.dart';
+import 'package:gui_flutter/mixer/mixer_button.dart';
+import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart' show DeckHotCue;
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
 import 'package:gui_flutter/mixer/pads/pad_page_pagination.dart';
+import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Keyboard pad mode: eight hold pads playing the semitone [page] relative to
 /// the hot-cue root.
 ///
-/// The root is the selected hot cue ([rootHotCue]); a compact chip row lets the
-/// user pick it. Empty hot-cue slots are disabled.
+/// The root is the selected hot cue ([rootHotCue]). The page bar shows the
+/// current root and a settings action opens a picker listing only the hot cues
+/// that are set.
 class KeyboardPads extends StatelessWidget {
   const new({
     required this.page,
@@ -39,108 +44,121 @@ class KeyboardPads extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = context.theme;
     final pads = pitchPage(page);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return PadGrid(
+      bottomChrome: pitchPagePagination(
+        page: page,
+        onPrevious: onPrevPage,
+        onNext: onNextPage,
+        centerAccessory: _rootChip(context),
+        actionIcon: LucideIcons.settings,
+        actionSemanticLabel: 'Keyboard root hot cue',
+        onAction: disabled ? null : () => _chooseRoot(context),
+        disabled: disabled,
+      ),
       children: [
-        _rootSelector(context),
-        Expanded(
-          child: PadGrid(
-            bottomChrome: pitchPagePagination(
-              page: page,
-              onPrevious: onPrevPage,
-              onNext: onNextPage,
-              disabled: disabled,
-            ),
-            children: [
-              for (var slot = 0; slot < 8; slot++)
-                () {
-                  final pad = pads[slot];
-                  return HoldPadButton(
-                    disabled: disabled || pad.action == PitchPadAction.none,
-                    tooltip: _tooltip(pad),
-                    onBegin: () => onPress(slot),
-                    onEnd: () => onRelease(slot),
-                    child: Text(
-                      pitchPadLabel(pad),
-                      style: theme.typography.body.sm.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  );
-                }(),
-            ],
-          ),
-        ),
+        for (var slot = 0; slot < 8; slot++)
+          () {
+            final pad = pads[slot];
+            return HoldPadButton(
+              disabled: disabled || pad.action == PitchPadAction.none,
+              tooltip: _tooltip(pad),
+              onBegin: () => onPress(slot),
+              onEnd: () => onRelease(slot),
+              child: Text(
+                pitchPadLabel(pad),
+                style: theme.typography.body.sm.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }(),
       ],
     );
   }
 
-  Widget _rootSelector(BuildContext context) {
-    final filled = {for (final cue in hotCues) cue.slot};
+  Widget _rootChip(BuildContext context) {
+    final theme = context.theme;
+    final available = hotCues.any((cue) => cue.slot == rootHotCue);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          for (var slot = 0; slot < 8; slot++) ...[
-            if (slot > 0) const SizedBox(width: 4),
-            Expanded(
-              child: _RootChip(
-                key: ValueKey('keyboard-root-$slot'),
-                label: '${slot + 1}',
-                selected: slot == rootHotCue,
-                enabled: !disabled && filled.contains(slot),
-                onTap: () => onSelectRoot(slot),
-              ),
+      padding: const EdgeInsets.only(left: 6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colors.border),
+          borderRadius: BorderRadius.circular(4),
+          color: theme.colors.secondary.withValues(alpha: 0.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          child: Text(
+            available ? 'HC ${rootHotCue + 1}' : 'ROOT —',
+            style: theme.typography.body.xs.copyWith(
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
-}
 
-class _RootChip extends StatelessWidget {
-  const new({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    final fg = !enabled
-        ? theme.colors.mutedForeground.withValues(alpha: 0.45)
-        : theme.colors.foreground;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: enabled ? onTap : null,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colors.secondary.withValues(alpha: 0.7)
-              : const Color(0x00000000),
-          border: Border.all(
-            color: selected ? theme.colors.foreground : theme.colors.border,
+  Future<void> _chooseRoot(BuildContext context) async {
+    final available = [...hotCues]..sort((a, b) => a.slot.compareTo(b.slot));
+    final selected = await showMixarDialog<int>(
+      context: context,
+      builder: (context) {
+        final theme = context.theme;
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: .min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Root hot cue',
+                style: theme.typography.body.md.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                available.isEmpty
+                    ? 'No hot cues are set for this track.'
+                    : 'Keyboard mode plays from the selected hot cue.',
+                style: theme.typography.body.xs.copyWith(
+                  color: theme.colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final cue in available) ...[
+                _cueOption(context, cue),
+                const SizedBox(height: 6),
+              ],
+              const SizedBox(height: 8),
+              MixerButton(
+                variant: .secondary,
+                onPress: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-          borderRadius: theme.style.borderRadius.sm,
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: theme.typography.body.xs.copyWith(
-              fontWeight: FontWeight.w700,
-              color: fg,
-            ),
-          ),
-        ),
+        );
+      },
+    );
+    if (selected != null) {
+      onSelectRoot(selected);
+    }
+  }
+
+  Widget _cueOption(BuildContext context, DeckHotCue cue) {
+    final name = cue.label?.trim();
+    final title = name != null && name.isNotEmpty
+        ? name
+        : 'Hot cue ${cue.slot + 1}';
+    return MixerButton(
+      variant: cue.slot == rootHotCue ? .primary : .secondary,
+      onPress: () => Navigator.of(context).pop(cue.slot),
+      child: Text(
+        '$title · ${formatDeckTimeTenth(cue.positionMs)}',
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
