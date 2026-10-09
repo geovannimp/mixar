@@ -729,12 +729,14 @@ trait WritableLibrary: Library {
 
 ### 10.10 Implementation status and roadmap
 
-**Current code:** `library-core` / `library` implement the §10 model (disk `Folder` collections, `Playlist` + `sortable`, path-prefix folder tracks, M2M `collection_entries`). `library-adapters` is a placeholder.
+**Current code:** `library-core` / `library` implement the §10 model (disk `Folder` collections, `Playlist` + `sortable`, path-prefix folder tracks, M2M `collection_entries`). `library-adapters` ships its first adapter: `mixxx` (see `docs/mixxx-library-adapter-design.md`).
+
+**Implemented adapter — Mixxx:** `library-adapters::mixxx` reads a Mixxx `mixxxdb.sqlite` read-only as a `Library` view and implements `Migratable` to copy tracks, playlists (`sortable: true`), crates (`sortable: false`), and watched directories (`Folder`) into the user’s one library. Tracks use the Mixxx `library` row as authoritative metadata and import even when their file is absent (path recorded, playback unavailable). Hidden playlists (AutoDJ queue, history) are skipped; cue points, beat grids, and `rating`/`color`/`comment` are not imported yet.
 
 **Next implementation steps:**
 
-1. Adapters in `library-adapters` (Rekordbox XML first; flatten virtual playlist folders; crates ↔ `Playlist { sortable: false }`).
-2. DJ metadata (hotcues, beatgrid) on `Track`.
+1. More adapters in `library-adapters` (Rekordbox XML next; flatten virtual playlist folders; crates → `Playlist { sortable: false }`).
+2. DJ metadata (hotcues, beatgrid) on `Track`, and importing them from Mixxx.
 3. Optional tag write-back and CDJ export.
 
 ### 10.11 Design decisions (summary)
