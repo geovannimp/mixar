@@ -74,12 +74,12 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
 
       final transport = await ref.read(libraryTransportProvider.future);
       final report = await transport.importMixxxLibrary(dbPath: path);
-      ref
-        ..invalidate(collectionsProvider)
-        ..invalidate(collectionTracksProvider);
       if (!mounted) {
         return;
       }
+      ref
+        ..invalidate(collectionsProvider)
+        ..invalidate(collectionTracksProvider);
       _toastReport(report);
     } on Object catch (e) {
       if (mounted) {
@@ -180,17 +180,29 @@ String mixxxImportSummary(MixxxImportReport report) {
       report.playlistsImported +
       report.cratesImported +
       report.foldersImported;
-  if (imported == 0 && report.tracksUpdated == 0) {
-    return report.collectionsSkipped > 0
-        ? 'Mixxx library already imported'
-        : 'Nothing to import from Mixxx';
+  final missing = report.tracksMissingFiles > 0
+      ? ' (${report.tracksMissingFiles} missing)'
+      : '';
+  if (imported == 0) {
+    if (report.tracksUpdated == 0) {
+      return report.collectionsSkipped > 0
+          ? 'Mixxx library already imported'
+          : 'Nothing to import from Mixxx';
+    }
+    final updated = _count(report.tracksUpdated, 'track');
+    return 'Updated $updated from Mixxx$missing';
   }
   final parts = [
-    if (report.tracksAdded > 0) '${report.tracksAdded} tracks',
+    if (report.tracksAdded > 0) _count(report.tracksAdded, 'track'),
     if (report.tracksUpdated > 0) '${report.tracksUpdated} updated',
-    if (report.playlistsImported > 0) '${report.playlistsImported} playlists',
-    if (report.cratesImported > 0) '${report.cratesImported} crates',
-    if (report.foldersImported > 0) '${report.foldersImported} folders',
+    if (report.playlistsImported > 0)
+      _count(report.playlistsImported, 'playlist'),
+    if (report.cratesImported > 0) _count(report.cratesImported, 'crate'),
+    if (report.foldersImported > 0) _count(report.foldersImported, 'folder'),
   ];
-  return 'Imported ${parts.join(', ')} from Mixxx';
+  return 'Imported ${parts.join(', ')} from Mixxx$missing';
 }
+
+/// `"1 track"` / `"3 tracks"`.
+String _count(int count, String noun) =>
+    '$count ${count == 1 ? noun : '${noun}s'}';

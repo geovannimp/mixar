@@ -74,8 +74,9 @@ void main() {
     final summary = mixxxImportSummary(report);
     expect(summary, contains('3 tracks'));
     expect(summary, contains('2 updated'));
-    expect(summary, contains('1 playlists'));
-    expect(summary, contains('1 folders'));
+    expect(summary, contains('1 playlist'));
+    expect(summary, contains('1 folder'));
+    expect(summary, contains('1 missing'));
   });
 
   test('summary reports already-imported when only updates/skips', () {
@@ -103,6 +104,6 @@ void main() {
       failed: 0,
       errors: [],
     );
-    expect(mixxxImportSummary(updated), contains('5 updated'));
+    expect(mixxxImportSummary(updated), 'Updated 5 tracks from Mixxx');
   });
 }

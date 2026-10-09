@@ -61,8 +61,12 @@ pub struct MixxxLibrary {
     tracks: Vec<MixxxTrack>,
     track_index: HashMap<i64, usize>,
     collections: Vec<Collection>,
+    /// Collection id → index into `collections`.
+    collection_index: HashMap<String, usize>,
     lists: HashMap<String, MixxxList>,
     folders: Vec<(CollectionId, PathBuf)>,
+    /// Folder collection id → index into `folders`.
+    folder_index: HashMap<String, usize>,
 }
 
 impl MixxxLibrary {
@@ -117,12 +121,25 @@ impl MixxxLibrary {
                 .then_with(|| a.id.as_str().cmp(b.id.as_str()))
         });
 
+        let collection_index = collections
+            .iter()
+            .enumerate()
+            .map(|(index, collection)| (collection.id.as_str().to_string(), index))
+            .collect();
+        let folder_index = folders
+            .iter()
+            .enumerate()
+            .map(|(index, (id, _))| (id.as_str().to_string(), index))
+            .collect();
+
         Ok(Self {
             tracks,
             track_index,
             collections,
+            collection_index,
             lists,
             folders,
+            folder_index,
         })
     }
 
@@ -192,14 +209,14 @@ impl Library for MixxxLibrary {
 
     fn get_collection(&self, id: &CollectionId) -> Result<Option<Collection>> {
         Ok(self
-            .collections
-            .iter()
-            .find(|collection| collection.id == *id)
-            .cloned())
+            .collection_index
+            .get(id.as_str())
+            .map(|index| self.collections[*index].clone()))
     }
 
     fn list_collection_tracks(&self, collection_id: &CollectionId) -> Result<Vec<AudioSource>> {
-        if let Some((_, folder)) = self.folders.iter().find(|(id, _)| id == collection_id) {
+        if let Some(index) = self.folder_index.get(collection_id.as_str()) {
+            let folder = &self.folders[*index].1;
             return Ok(self
                 .tracks
                 .iter()
@@ -224,7 +241,7 @@ impl Library for MixxxLibrary {
         collection_id: &CollectionId,
     ) -> Result<Vec<CollectionEntry>> {
         let Some(list) = self.lists.get(collection_id.as_str()) else {
-            if self.folders.iter().any(|(id, _)| id == collection_id) {
+            if self.folder_index.contains_key(collection_id.as_str()) {
                 return Err(LibraryError::WrongCollectionType {
                     expected: "playlist",
                     got: "folder",
@@ -361,10 +378,9 @@ impl Migratable for MixxxLibrary {
             .lists
             .iter()
             .filter_map(|(id, list)| {
-                self.collections
-                    .iter()
-                    .find(|collection| collection.id.as_str() == id)
-                    .map(|collection| (collection, &list.members, list.sortable))
+                self.collection_index
+                    .get(id)
+                    .map(|index| (&self.collections[*index], &list.members, list.sortable))
             })
             .collect();
         lists.sort_by_key(|a| a.0.name.to_lowercase());
@@ -569,7 +585,7 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
         key: clean(key).map(|key| camelot_to_musical(&key).unwrap_or(key)),
         duration_ms: duration
             .filter(|value| *value > 0.0)
-            .map(|value| (value * 1000.0).round() as i32),
+            .map(|value| (value * 1000.0).round().clamp(0.0, i32::MAX as f64) as i32),
         sample_rate: sample_rate
             .filter(|value| *value > 0)
             .map(|value| value as u32),
@@ -616,6 +632,14 @@ fn load_playlists(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>
         return Ok(Vec::new());
     }
 
+    // One membership query for every playlist, grouped in Rust (avoids N+1).
+    let mut memberships = load_memberships(
+        conn,
+        "PlaylistTracks",
+        "playlist_id",
+        "ORDER BY playlist_id, position, id",
+    )?;
+
     let mut stmt = conn
         .prepare(
             "SELECT id, name FROM Playlists WHERE COALESCE(hidden, 0) = 0 ORDER BY position, id",
@@ -635,29 +659,19 @@ fn load_playlists(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>
             name: name.unwrap_or_default(),
             config: CollectionConfig::Playlist { sortable: true },
         };
-        lists.push((collection, playlist_members(conn, id)?, true));
+        let members = memberships.remove(&id).unwrap_or_default();
+        lists.push((collection, members, true));
     }
     Ok(lists)
-}
-
-fn playlist_members(conn: &Connection, playlist_id: i64) -> Result<Vec<i64>> {
-    let mut stmt = conn
-        .prepare("SELECT track_id FROM PlaylistTracks WHERE playlist_id = ?1 ORDER BY position, id")
-        .map_err(|e| backend(format!("prepare playlist tracks query: {e}")))?;
-    let rows = stmt
-        .query_map([playlist_id], |row| row.get::<_, i64>(0))
-        .map_err(|e| backend(format!("query playlist tracks: {e}")))?;
-    let mut members = Vec::new();
-    for row in rows {
-        members.push(row.map_err(|e| backend(format!("read playlist track: {e}")))?);
-    }
-    Ok(members)
 }
 
 fn load_crates(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
     if !schema::table_exists(conn, "crates")? {
         return Ok(Vec::new());
     }
+
+    let mut memberships =
+        load_memberships(conn, "crate_tracks", "crate_id", "ORDER BY crate_id, rowid")?;
 
     let mut stmt = conn
         .prepare("SELECT id, name FROM crates ORDER BY name, id")
@@ -676,23 +690,37 @@ fn load_crates(conn: &Connection) -> Result<Vec<(Collection, Vec<i64>, bool)>> {
             name: name.unwrap_or_default(),
             config: CollectionConfig::Playlist { sortable: false },
         };
-        lists.push((collection, crate_members(conn, id)?, false));
+        let members = memberships.remove(&id).unwrap_or_default();
+        lists.push((collection, members, false));
     }
     Ok(lists)
 }
 
-fn crate_members(conn: &Connection, crate_id: i64) -> Result<Vec<i64>> {
-    let mut stmt = conn
-        .prepare("SELECT track_id FROM crate_tracks WHERE crate_id = ?1 ORDER BY rowid")
-        .map_err(|e| backend(format!("prepare crate tracks query: {e}")))?;
-    let rows = stmt
-        .query_map([crate_id], |row| row.get::<_, i64>(0))
-        .map_err(|e| backend(format!("query crate tracks: {e}")))?;
-    let mut members = Vec::new();
-    for row in rows {
-        members.push(row.map_err(|e| backend(format!("read crate track: {e}")))?);
+/// Load all `(owner_id, track_id)` membership rows for a list table in one
+/// query, grouped by owner. `order` is appended verbatim (a trusted static
+/// clause). Returns empty when the table is absent.
+fn load_memberships(
+    conn: &Connection,
+    table: &str,
+    owner_column: &str,
+    order: &str,
+) -> Result<HashMap<i64, Vec<i64>>> {
+    if !schema::table_exists(conn, table)? {
+        return Ok(HashMap::new());
     }
-    Ok(members)
+    let sql = format!("SELECT {owner_column}, track_id FROM {table} {order}");
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| backend(format!("prepare {table} query: {e}")))?;
+    let rows = stmt
+        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)))
+        .map_err(|e| backend(format!("query {table}: {e}")))?;
+    let mut memberships: HashMap<i64, Vec<i64>> = HashMap::new();
+    for row in rows {
+        let (owner, track) = row.map_err(|e| backend(format!("read {table} row: {e}")))?;
+        memberships.entry(owner).or_default().push(track);
+    }
+    Ok(memberships)
 }
 
 #[cfg(test)]

@@ -19,7 +19,7 @@ sea-orm-sync = { version = "2.0.0", features = [
     "entity-registry",
     "schema-sync",
 ] }
-rusqlite = { version = "0.38", features = ["bundled"] }
+rusqlite = { workspace = true }
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 uuid = { version = "1", features = ["v4"] }
 analyzer = { path = "../analyzer", optional = true }

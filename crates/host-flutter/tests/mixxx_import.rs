@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use host_flutter::api::library::LibraryTransport;
 use rusqlite::{params, Connection};
 
-fn build_mixxx_db(dir: &Path) -> (PathBuf, PathBuf) {
+fn build_mixxx_db(dir: &Path) -> PathBuf {
     let present = dir.join("present.mp3");
     std::fs::write(&present, b"").unwrap();
     let missing = dir.join("missing.flac");
@@ -102,13 +102,13 @@ fn build_mixxx_db(dir: &Path) -> (PathBuf, PathBuf) {
     )
     .unwrap();
 
-    (db_path, present)
+    db_path
 }
 
 #[test]
 fn import_mixxx_library_through_transport() {
     let dir = tempfile::tempdir().unwrap();
-    let (db_path, _present) = build_mixxx_db(dir.path());
+    let db_path = build_mixxx_db(dir.path());
 
     let transport = LibraryTransport::open_in_memory().unwrap();
 

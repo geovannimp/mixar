@@ -1,4 +1,5 @@
 //! Mixxx adapter tests: read a synthetic `mixxxdb.sqlite`.
+#![cfg(feature = "mixxx")]
 
 use std::path::{Path, PathBuf};
 

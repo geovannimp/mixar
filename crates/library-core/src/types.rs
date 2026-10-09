@@ -449,6 +449,10 @@ pub struct MigrateReport {
 }
 
 /// Outcome of [`crate::WritableLibrary::import_track`].
+///
+/// `source` is the pool entry for the imported path; its file may be absent on
+/// disk (see [`crate::WritableLibrary::import_track`]), in which case it is
+/// listed but not playable. Callers must not assume the file exists.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ImportedTrack {
     /// The upserted library source.
