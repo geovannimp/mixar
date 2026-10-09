@@ -45,6 +45,12 @@ impl LibrarySchema {
     }
 
     /// `SELECT` list for the shared track query, aliasing to fixed names.
+    ///
+    /// `metadata_from_row` (in `mod.rs`) reads these aliases by name, and
+    /// `METADATA_COLUMNS` is the single source both use: every column here is
+    /// also read there. A column missing from the database is emitted as
+    /// `NULL AS <name>` so older databases still resolve every alias; adding an
+    /// entry to one side without the other compiles but fails at runtime.
     pub(crate) fn metadata_select(&self) -> String {
         let mut parts = vec!["l.id AS id".to_string(), "tl.location AS path".to_string()];
         for column in METADATA_COLUMNS {

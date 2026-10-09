@@ -402,3 +402,73 @@ fn reads_legacy_text_location_schema() {
     assert_eq!(track.file().unwrap().path(), present.as_path());
     assert_eq!(track.metadata().title.as_deref(), Some("Legacy"));
 }
+
+#[test]
+fn unnamed_lists_are_not_collapsed_by_dedupe() {
+    let dir = tempfile::tempdir().unwrap();
+    let db_path = dir.path().join("mixxxdb.sqlite");
+    let conn = Connection::open(&db_path).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE track_locations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, location varchar(512) UNIQUE,
+            filename varchar(512), directory varchar(512), filesize INTEGER,
+            fs_deleted INTEGER, needs_verification INTEGER);
+         CREATE TABLE library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, artist varchar(64), title varchar(64),
+            location INTEGER, bpm FLOAT, key varchar(16), mixxx_deleted INTEGER DEFAULT 0);
+         CREATE TABLE Playlists (
+            id INTEGER PRIMARY KEY, name varchar(48), position INTEGER,
+            hidden INTEGER DEFAULT 0 NOT NULL, date_created datetime, date_modified datetime);
+         CREATE TABLE PlaylistTracks (
+            id INTEGER PRIMARY KEY, playlist_id INTEGER, track_id INTEGER, position INTEGER);",
+    )
+    .unwrap();
+    for (id, name) in [(1i64, "a.mp3"), (2i64, "b.mp3")] {
+        conn.execute(
+            "INSERT INTO track_locations (id, location) VALUES (?1, ?2)",
+            params![id, dir.path().join(name).to_string_lossy()],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO library (id, title, location) VALUES (?1, ?2, ?1)",
+            params![id, name],
+        )
+        .unwrap();
+    }
+    conn.execute(
+        "INSERT INTO Playlists (id, name, position, hidden) VALUES (1, NULL, 0, 0), (2, NULL, 1, 0)",
+        [],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO PlaylistTracks (playlist_id, track_id, position) VALUES (1, 1, 0), (2, 2, 0)",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+
+    let mixxx = MixxxLibrary::open(&db_path).unwrap();
+    let mut target = LibraryManager::open_in_memory(LibraryConfig::default()).unwrap();
+    let report = mixxx
+        .migrate(&mut target, &MigrateOptions::default())
+        .unwrap();
+
+    assert_eq!(report.playlists_imported, 2, "both unnamed lists import");
+    assert_eq!(report.collections_skipped, 0);
+
+    let playlists = target
+        .list_collections()
+        .unwrap()
+        .into_iter()
+        .filter(|c| c.collection_type() == CollectionType::Playlist)
+        .collect::<Vec<_>>();
+    // two unnamed source playlists + the catch-all
+    assert_eq!(playlists.len(), 3);
+    assert_eq!(
+        playlists
+            .iter()
+            .filter(|c| c.name.trim().is_empty())
+            .count(),
+        2
+    );
+}

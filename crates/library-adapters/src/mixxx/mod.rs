@@ -395,19 +395,23 @@ impl Migratable for MixxxLibrary {
                 continue;
             }
 
-            let key = (collection.name.trim().to_string(), sortable);
-            if options.skip_existing_lists && existing_lists.contains(&key) {
+            // Dedupe by name+kind, but never collapse unnamed lists: a blank
+            // name is not an identity, so each unnamed list imports.
+            let name = collection.name.trim().to_string();
+            let dedupe = options.skip_existing_lists && !name.is_empty();
+            let key = (name.clone(), sortable);
+            if dedupe && existing_lists.contains(&key) {
                 report.collections_skipped += 1;
                 continue;
             }
 
-            let created = match target
-                .add_collection(&NewCollection::playlist(collection.name.trim(), sortable))
-            {
+            let created = match target.add_collection(&NewCollection::playlist(&name, sortable)) {
                 Ok(created) => {
                     // Only remember the list once it exists, so a failed
                     // add_collection does not suppress a retry later in the run.
-                    existing_lists.insert(key);
+                    if !name.is_empty() {
+                        existing_lists.insert(key);
+                    }
                     created
                 }
                 Err(err) => {
@@ -588,11 +592,13 @@ fn metadata_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrackMetadata>
             .map(|value| (value * 1000.0).round().clamp(0.0, i32::MAX as f64) as i32),
         sample_rate: sample_rate
             .filter(|value| *value > 0)
-            .map(|value| value as u32),
+            .map(|value| value.min(u32::MAX as i64) as u32),
         channels: channels
             .filter(|value| *value > 0)
-            .map(|value| value as u16),
-        bitrate_kbps: bitrate.filter(|value| *value > 0).map(|value| value as u32),
+            .map(|value| value.min(u16::MAX as i64) as u16),
+        bitrate_kbps: bitrate
+            .filter(|value| *value > 0)
+            .map(|value| value.min(u32::MAX as i64) as u32),
         replaygain_track_gain_db: replaygain
             .filter(|value| *value > 0.0)
             .map(|value| 20.0 * value.log10()),

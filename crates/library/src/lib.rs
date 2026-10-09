@@ -1046,12 +1046,21 @@ impl LibraryManager {
 
     fn upsert_file_source(&self, path: &Path, metadata: &TrackMetadata) -> Result<AudioSource> {
         let path = normalize_path(path)?;
-        let id = Self::track_id_for(&path);
+        self.upsert_file_source_normalized(&path, metadata)
+    }
+
+    /// Write a file track for a path that is already normalized.
+    fn upsert_file_source_normalized(
+        &self,
+        path: &Path,
+        metadata: &TrackMetadata,
+    ) -> Result<AudioSource> {
+        let id = Self::track_id_for(path);
         let now = now_stamp();
-        self.store().upsert_file_track(&id, &path, metadata, &now)?;
+        self.store().upsert_file_track(&id, path, metadata, &now)?;
         Ok(AudioSource::File(FileAudioSource::new(
             id,
-            path,
+            path.to_path_buf(),
             metadata.clone(),
         )))
     }
@@ -1639,7 +1648,7 @@ impl WritableLibrary for LibraryManager {
         let path = normalize_path(path)?;
         let id = Self::track_id_for(&path);
         let created = !self.store().track_exists(&id)?;
-        let source = self.upsert_file_source(&path, metadata)?;
+        let source = self.upsert_file_source_normalized(&path, metadata)?;
         Ok(ImportedTrack { source, created })
     }
 
