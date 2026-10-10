@@ -158,7 +158,7 @@ DeckState
 ├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
 ├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
 ├── key: display_key, key_shift_semitones, key_lock
-├── pages: keyboard_page 1..5, key_shift_page 1..5, keyboard_root_hot_cue   -- session-only per-mode Keyboard / Key Shift page state
+├── pages: keyboard_page 1..4, key_shift_page 1..5, keyboard_root_hot_cue   -- session-only per-mode Keyboard / Key Shift page state
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
 ├── slip: enabled, shadow_position_ms
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
@@ -259,7 +259,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 
 **Key lock:** Toggle on the track-key ghost control (`lock` / `lock-open`). Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl).
 
-**Key shift (shipped):** Realtime semitone shift, clamped to `-16..=+16`, via the `stretch` pitch factor: keylock-stretch at `tempo/pitch` plus a `timestretch::core::resample::StreamingSincResampler` output stage. It is an additive **session-only** offset layered on top of key lock (never forces key lock on/off) and never mutates the analyzed key or writes to `library.db`. Keyboard / Key Shift pads share five semitone pages (default `[0..+7]`); the Keyboard root is the selected hot cue and the pitch page is session-only. See [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
+**Key shift (shipped):** Realtime semitone shift, clamped to `-16..=+16`, via the `stretch` pitch factor: keylock-stretch at `tempo/pitch` plus a `timestretch::core::resample::StreamingSincResampler` output stage. It is an additive **session-only** offset layered on top of key lock (never forces key lock on/off) and never mutates the analyzed key or writes to `library.db`. The Keyboard pads use four pitch-only pages and Key Shift five (page 5 is the reset / up / down / sync utility bank), both defaulting to page 2 (`[0..+7]`); the Keyboard root is the selected hot cue and each mode's page is session-only. See [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
 
 ---
 
