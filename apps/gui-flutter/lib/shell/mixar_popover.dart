@@ -161,9 +161,7 @@ class _MixarMenuAnchorState extends State<MixarMenuAnchor> {
   }
 
   _MenuDialogController _dialogController() {
-    return _ownedDialog ??= _MenuDialogController(
-      onOpen: _openMenuDialog,
-    );
+    return _ownedDialog ??= _MenuDialogController(onOpen: _openMenuDialog);
   }
 
   Future<void> _openMenuDialog() async {

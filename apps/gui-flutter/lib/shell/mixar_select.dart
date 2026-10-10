@@ -248,8 +248,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   final pointerSelection = _pointerSelection;
                   _pointerSelection = false;
                   widget.onChanged(next);
-                  if (pointerSelection &&
-                      widget.unfocusAfterPointerSelection) {
+                  if (pointerSelection && widget.unfocusAfterPointerSelection) {
                     scheduleMicrotask(() {
                       if (mounted) {
                         FocusManager.instance.primaryFocus?.unfocus();
