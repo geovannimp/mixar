@@ -1,6 +1,6 @@
 ---
 import type { DocCategory } from "../../lib/docs";
-import { docPath } from "../../lib/docs";
+import { categorySlug, docPath } from "../../lib/docs";
 
 interface Props {
   categories: DocCategory[];
@@ -8,7 +8,11 @@ interface Props {
 }
 
 const { categories, currentId } = Astro.props;
-const visible = categories.filter((category) => category.topics.length > 0);
+const currentCategory = categorySlug(currentId);
+// Only the active audience (Users / Developers) — the other stays on /docs.
+const visible = categories.filter(
+  (category) => category.slug === currentCategory && category.topics.length > 0,
+);
 ---
 
 <nav aria-label="Documentation" class="text-[0.9375rem]">
