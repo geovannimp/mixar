@@ -184,10 +184,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           variant: MixarToastVariant.destructive,
         );
       } else {
-        showMixarToast(
-          context: context,
-          title: Text(l10n.settingsSavedToast),
-        );
+        showMixarToast(context: context, title: Text(l10n.settingsSavedToast));
       }
     } catch (e) {
       if (mounted) {

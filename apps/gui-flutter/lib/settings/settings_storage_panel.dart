@@ -222,7 +222,9 @@ class _SettingsStoragePanelState extends ConsumerState<SettingsStoragePanel> {
                     ),
                   ),
                   Text(
-                    ready ? l10n.settingsStorageUsed(formatStorageBytes(total)) : '…',
+                    ready
+                        ? l10n.settingsStorageUsed(formatStorageBytes(total))
+                        : '…',
                     style: theme.typography.body.sm.copyWith(
                       color: theme.colors.mutedForeground,
                     ),

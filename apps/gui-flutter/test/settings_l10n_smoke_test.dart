@@ -46,10 +46,7 @@ void main() {
         theme: materialUiThemeFromMixar(theme),
         builder: mixarMaterialAppBuilder(theme),
         home: Scaffold(
-          body: SettingsSidebar(
-            active: SettingsSection.ui,
-            onSelect: (_) {},
-          ),
+          body: SettingsSidebar(active: SettingsSection.ui, onSelect: (_) {}),
         ),
       ),
     );

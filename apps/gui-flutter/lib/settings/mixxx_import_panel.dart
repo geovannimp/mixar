@@ -39,10 +39,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
         preview = await mixxxImportPreview(dbPath: path);
       } on Object catch (e) {
         if (mounted) {
-          _toastError(
-            AppLocalizations.of(context)!.mixxxImportReadFailed,
-            e,
-          );
+          _toastError(AppLocalizations.of(context)!.mixxxImportReadFailed, e);
         }
         return;
       }
@@ -172,9 +169,7 @@ class _MixxxImportPanelState extends ConsumerState<MixxxImportPanel> {
           AppButton(
             size: MixarButtonSize.sm,
             onPress: onPress,
-            child: Text(
-              _busy ? l10n.mixxxImporting : l10n.mixxxImportButton,
-            ),
+            child: Text(_busy ? l10n.mixxxImporting : l10n.mixxxImportButton),
           ),
         ],
       ),
