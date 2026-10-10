@@ -82,6 +82,8 @@
   --color-deck-a: var(--deck-a);
   --color-deck-b: var(--deck-b);
   --color-warn: var(--warn);
+  /* Site-wide content measure. Header, footer and every marketing section
+     cap on this, so the docs menu + prose column keeps the same measure. */
   --max-width-content: 70rem;
   --spacing-section: clamp(2rem, 5vw, 4rem);
 }
