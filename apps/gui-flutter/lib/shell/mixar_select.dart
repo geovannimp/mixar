@@ -23,6 +23,7 @@ class _MobileSelectOption extends StatelessWidget {
     required this.selected,
     required this.onPress,
     this.subtitle,
+    super.key,
   });
 
   final String label;
@@ -168,6 +169,7 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: _MobileSelectOption(
+                      key: ValueKey(option),
                       label: widget.labelBuilder(option),
                       subtitle: widget.subtitleBuilder?.call(option),
                       selected: option == widget.value,
