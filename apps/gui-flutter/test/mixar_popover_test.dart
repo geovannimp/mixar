@@ -14,6 +14,7 @@ void main() {
     WidgetTester tester, {
     SelectStyleSetting style = SelectStyleSetting.mobile,
     bool captureController = false,
+    double minWidth = 200,
   }) async {
     final theme = MixarThemeData.dark();
     MixarOverlayController? menuController;
@@ -25,6 +26,7 @@ void main() {
           body: Center(
             child: MixarMenuAnchor(
               style: style,
+              minWidth: minWidth,
               menuBuilder: (context, controller) => MixarMenuBody(
                 groups: [
                   MixarMenuGroup(

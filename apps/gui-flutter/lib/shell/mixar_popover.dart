@@ -254,7 +254,17 @@ class _MenuDialogController extends MixarOverlayController {
     if (_disposed || _open || _dialogFuture != null) return;
     _open = true;
     _notify();
-    final future = onOpen();
+    final Future<void> future;
+    try {
+      future = onOpen();
+    } catch (_) {
+      // Sync failure must not wedge `_open` forever with no route to hide.
+      _open = false;
+      _dialogNavigator = null;
+      _dialogFuture = null;
+      _notify();
+      return;
+    }
     _dialogFuture = future;
     future.whenComplete(() {
       if (!identical(_dialogFuture, future)) return;
@@ -284,12 +294,14 @@ class _MenuDialogController extends MixarOverlayController {
 
   @override
   void dispose() {
-    // Do not nav.pop() here: Wolt modal rebuilds during dispose and looks up
-    // inherited widgets on a deactivated host. Callers should hide first when
-    // possible; late whenComplete callbacks are ignored via [_disposed].
+    // Do not nav.pop() here (sync or post-frame): Wolt rebuilds
+    // `modalTypeBuilder` and looks up MixarTheme on the deactivated host.
+    // Prefer [hide] before tearing the host down; late whenComplete callbacks
+    // are ignored via [_disposed].
     _disposed = true;
     _dialogNavigator = null;
     _open = false;
+    _dialogFuture = null;
     super.dispose();
   }
 
