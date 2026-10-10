@@ -205,9 +205,9 @@ void main() {
       dialogTitle: 'Quality',
     );
 
-    final open = tester.widget<ShadSelect<String>>(
-      find.byType(ShadSelect<String>),
-    ).onPressed;
+    final open = tester
+        .widget<ShadSelect<String>>(find.byType(ShadSelect<String>))
+        .onPressed;
     expect(open, isNotNull);
     // Two opens in the same turn: the second must hit `_isOpening` and no-op
     // (both run synchronously until the first `await showMixarDialog`).
