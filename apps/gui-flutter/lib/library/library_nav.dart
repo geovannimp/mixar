@@ -22,7 +22,7 @@ class LibraryPaneLabel extends StatelessWidget {
   }
 }
 
-/// Full-width sidebar row: left accent, hover/selected fill from the Forui palette.
+/// Full-width sidebar row: left accent, hover/selected fill from MixarTheme colors.
 class LibraryNavRow extends StatelessWidget {
   const new({
     required this.title,
