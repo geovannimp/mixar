@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:gui_flutter/mixer/key_format.dart';
 import 'package:gui_flutter/mixer/waveform/spectral_color.dart';
+import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 WaveformDisplayMode waveformModeFromSettings(WaveformDisplayModeSetting mode) {
@@ -44,6 +45,18 @@ enum LibraryRowDensity {
   LibraryRowDensity get other => this == LibraryRowDensity.compact
       ? LibraryRowDensity.comfortable
       : LibraryRowDensity.compact;
+}
+
+/// Resolve [SelectStyleSetting.auto] from the host OS via [isDesktopWindow].
+///
+/// Never returns [SelectStyleSetting.auto].
+SelectStyleSetting effectiveSelectStyle(SelectStyleSetting setting) {
+  return switch (setting) {
+    SelectStyleSetting.auto =>
+      isDesktopWindow ? SelectStyleSetting.desktop : SelectStyleSetting.mobile,
+    SelectStyleSetting.desktop => SelectStyleSetting.desktop,
+    SelectStyleSetting.mobile => SelectStyleSetting.mobile,
+  };
 }
 
 LibraryRowDensity libraryRowDensityFromSettings(
@@ -106,6 +119,7 @@ AppSettings defaultAppSettings() {
     historyMinPlaySeconds: 5,
     historyMinDeckVolume: 0.05,
     showTooltips: true,
+    selectStyle: SelectStyleSetting.auto,
     dimPlayedTracks: true,
     stemsFormat: 'opus',
   );
@@ -173,6 +187,7 @@ AppSettings copyAppSettings(
   int? historyMinPlaySeconds,
   double? historyMinDeckVolume,
   bool? showTooltips,
+  SelectStyleSetting? selectStyle,
   bool? dimPlayedTracks,
   String? stemsFormat,
 }) {
@@ -210,6 +225,7 @@ AppSettings copyAppSettings(
     historyMinPlaySeconds: historyMinPlaySeconds ?? base.historyMinPlaySeconds,
     historyMinDeckVolume: historyMinDeckVolume ?? base.historyMinDeckVolume,
     showTooltips: showTooltips ?? base.showTooltips,
+    selectStyle: selectStyle ?? base.selectStyle,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
   );
@@ -246,6 +262,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.historyMinPlaySeconds != baseline.historyMinPlaySeconds ||
       draft.historyMinDeckVolume != baseline.historyMinDeckVolume ||
       draft.showTooltips != baseline.showTooltips ||
+      draft.selectStyle != baseline.selectStyle ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
+import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
 
 void main() {
@@ -96,6 +97,42 @@ void main() {
         baseline,
       ),
       isTrue,
+    );
+  });
+
+  test('selectStyle defaults auto and is dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.selectStyle, SelectStyleSetting.auto);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, selectStyle: SelectStyleSetting.mobile),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('effectiveSelectStyle maps auto from isDesktopWindow', () {
+    addTearDown(() => debugOverrideDesktopWindow = null);
+
+    debugOverrideDesktopWindow = true;
+    expect(
+      effectiveSelectStyle(SelectStyleSetting.auto),
+      SelectStyleSetting.desktop,
+    );
+    expect(
+      effectiveSelectStyle(SelectStyleSetting.mobile),
+      SelectStyleSetting.mobile,
+    );
+
+    debugOverrideDesktopWindow = false;
+    expect(
+      effectiveSelectStyle(SelectStyleSetting.auto),
+      SelectStyleSetting.mobile,
+    );
+    expect(
+      effectiveSelectStyle(SelectStyleSetting.desktop),
+      SelectStyleSetting.desktop,
     );
   });
 }
