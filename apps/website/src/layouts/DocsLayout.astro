@@ -22,15 +22,22 @@ const toc = headings.filter((heading) => heading.depth === 2 || heading.depth ==
 const linkClass =
   "flex items-center gap-2 rounded-xl border border-border bg-bg-card px-4 py-3 text-[0.9375rem] transition hover:border-border-hover";
 
-// Full class literals so Tailwind extracts them; the xl template is applied
-// only when the page has a TOC to place in the third column.
+// Full class literals so Tailwind extracts them. The grid is menu + prose
+// only: they share the site-wide content measure, centered like the header.
 const gridClass = "lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-12";
-const gridWithTocClass = "xl:grid-cols-[16rem_minmax(0,1fr)_14rem]";
+// "On this page" is a fixed rail in the viewport's right margin, not a grid
+// column — a third column would eat the content measure (it is 2xl-only for
+// the same reason: below ~1536px the right margin cannot hold a TOC).
+// `50vw + 35rem` is the right edge of the centered 70rem measure, so the rail
+// starts one gap past the prose and takes whatever margin is left, capped at
+// 14rem. Fixed (not sticky) so it survives the prose column's length.
+const tocRailClass =
+  "fixed top-20 left-[calc(50vw+35rem+1rem)] hidden w-[min(14rem,calc(50vw-35rem-2rem))] 2xl:block";
 ---
 
 <BaseLayout title={title} description={description} currentPage="docs">
   <div class="mx-auto max-w-content px-section py-10 lg:py-14">
-    <div class:list={[gridClass, toc.length > 0 && gridWithTocClass]}>
+    <div class={gridClass}>
       <aside class="mb-8 lg:sticky lg:top-20 lg:mb-0 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2">
         <details
           id="docs-nav"
@@ -93,31 +100,31 @@ const gridWithTocClass = "xl:grid-cols-[16rem_minmax(0,1fr)_14rem]";
           }
         </nav>
       </div>
-
-      {
-        toc.length > 0 && (
-          <aside class="hidden xl:block">
-            <nav aria-label="On this page" class="sticky top-20 text-[0.875rem]">
-              <p class="mb-2 font-serif text-[0.8125rem] font-semibold uppercase tracking-wide text-muted">
-                On this page
-              </p>
-              <ul class="m-0 list-none p-0">
-                {toc.map((heading) => (
-                  <li class:list={["m-0", heading.depth === 3 && "pl-3"]}>
-                    <a
-                      class="block py-1 leading-snug text-muted transition hover:text-fg"
-                      href={`#${heading.slug}`}
-                    >
-                      {heading.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </aside>
-        )
-      }
     </div>
+
+    {
+      toc.length > 0 && (
+        <aside class={tocRailClass}>
+          <nav aria-label="On this page" class="text-[0.875rem]">
+            <p class="mb-2 font-serif text-[0.8125rem] font-semibold uppercase tracking-wide text-muted">
+              On this page
+            </p>
+            <ul class="m-0 list-none p-0">
+              {toc.map((heading) => (
+                <li class:list={["m-0", heading.depth === 3 && "pl-3"]}>
+                  <a
+                    class="block py-1 leading-snug text-muted transition hover:text-fg"
+                    href={`#${heading.slug}`}
+                  >
+                    {heading.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+      )
+    }
   </div>
 </BaseLayout>
 
