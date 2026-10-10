@@ -270,7 +270,7 @@ void main() {
 
     Future<void> press(Finder button) async {
       // Deck chrome can sit above the narrow mixer header in the fixed deck
-      // row; drive the Forui button directly so the toggle still verifies.
+      // row; drive the MixerButton directly so the toggle still verifies.
       tester.widget<MixerButton>(button).onPress?.call();
       await tester.pumpAndSettle();
     }

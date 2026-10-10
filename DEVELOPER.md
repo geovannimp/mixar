@@ -7,6 +7,7 @@ Practical notes for people hacking on Mixar itself. See the [website developer d
 ```
 mixar/
 ├─ crates/                # Cargo workspace root (Cargo.toml)
+│  ├─ engine-api/         # shared engine command/event contracts (MessagePack omnibus)
 │  ├─ audio-core/         # shared traits/types: AudioBackend, AudioSource, StreamParams, DeviceId
 │  ├─ backend-null/       # deterministic backend for tests and CI
 │  ├─ backend-miniaudio/  # miniaudio implementation
@@ -27,13 +28,19 @@ mixar/
 │  │  └─ mixer.rs         # process lanes, crossfade-sum, bus routing
 │  ├─ codec/              # decoder wrapper (symphonia)
 │  ├─ resampler/          # resampler trait + rubato impl (pluggable)
+│  ├─ stretch/            # realtime time-stretch for key lock (timestretch)
 │  ├─ library-core/       # Library traits + Collection/Track types
+│  ├─ fs-browser/         # volume listing + directory browse for audio pickers
+│  ├─ library-api/        # shared library transport contracts
 │  ├─ library/            # library manager (canonical writable store)
 │  ├─ library-adapters/   # third-party formats (Mixxx, Rekordbox, …)
 │  ├─ analyzer-core/      # offline analysis traits and types
 │  ├─ analyzer-qmdsp/     # pure-Rust qm-dsp (Mixxx) beat/key backend
-│  └─ analyzer/           # decode + analyze_file facade
-├─ apps/gui-flutter/      # Flutter desktop UI (FRB host: crates/host-flutter)
+│  ├─ analyzer/           # decode + analyze_file facade
+│  ├─ analyzer-stems/     # stem separation pipeline
+│  ├─ controller/         # MIDI / controller mapping host
+│  └─ host-flutter/       # FRB Rust host over engine + library + controller
+├─ apps/gui-flutter/      # Flutter desktop UI (FRB client of crates/host-flutter)
 └─ samples/               # sample audio for local demos
 ```
 
