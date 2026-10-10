@@ -4,7 +4,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
-import 'package:gui_flutter/shell/app_button.dart';
 import 'package:gui_flutter/shell/m_tappable.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -13,6 +12,76 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// Sides of the [MixarSelect] border stroke.
 enum MixarBorderSide { top, right, bottom, left }
+
+/// Full-width left-aligned option row for the mobile select dialog.
+///
+/// Avoids [AppButton]'s centered shrink-wrap layout, which looks wrong with
+/// subtitles and forced primary/selected green contrast issues.
+class _MobileSelectOption extends StatelessWidget {
+  const new({
+    required this.label,
+    required this.selected,
+    required this.onPress,
+    this.subtitle,
+    super.key,
+  });
+
+  final String label;
+  final String? subtitle;
+  final bool selected;
+  final VoidCallback onPress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = context.theme;
+    return MTappable(
+      onPress: onPress,
+      selected: selected,
+      semanticsLabel: subtitle == null ? label : '$label. $subtitle',
+      builder: (context, state) {
+        final fill = state.active ? theme.colors.secondary : theme.colors.card;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: theme.style.borderRadius.md,
+            border: Border.all(
+              color: theme.colors.border,
+              width: theme.style.borderWidth,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  textAlign: TextAlign.start,
+                  style: theme.typography.body.sm.copyWith(
+                    color: theme.colors.foreground,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle!,
+                    textAlign: TextAlign.start,
+                    style: theme.typography.body.xs.copyWith(
+                      color: theme.colors.mutedForeground,
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
 
 /// Mixar select / dropdown over [ShadSelect], or a dialog when mobile style.
 class MixarSelect<T> extends StatefulWidget {
@@ -86,26 +155,11 @@ class _MixarSelectState<T> extends State<MixarSelect<T>> {
               for (final option in widget.options)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 6),
-                  child: AppButton(
-                    variant: option == widget.value
-                        ? MixarButtonVariant.primary
-                        : MixarButtonVariant.outline,
+                  child: _MobileSelectOption(
+                    label: widget.labelBuilder(option),
+                    subtitle: widget.subtitleBuilder?.call(option),
+                    selected: option == widget.value,
                     onPress: () => Navigator.of(dialogContext).pop(option),
-                    child: widget.subtitleBuilder == null
-                        ? Text(widget.labelBuilder(option))
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(widget.labelBuilder(option)),
-                              Text(
-                                widget.subtitleBuilder!(option),
-                                style: theme.typography.body.xs.copyWith(
-                                  color: theme.colors.mutedForeground,
-                                ),
-                              ),
-                            ],
-                          ),
                   ),
                 ),
             ],

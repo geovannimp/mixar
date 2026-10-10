@@ -147,4 +147,50 @@ void main() {
     expect(selected, 'medium');
     expect(find.text('Quality'), findsNothing);
   });
+
+  testWidgets('mobile option subtitles stay left-aligned and muted', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 280,
+              child: MixarSelect<String>(
+                value: 'mobile',
+                options: const ['auto', 'desktop', 'mobile'],
+                labelBuilder: (option) => switch (option) {
+                  'auto' => 'Auto',
+                  'desktop' => 'Desktop',
+                  _ => 'Mobile',
+                },
+                subtitleBuilder: (option) => switch (option) {
+                  'auto' => 'Platform default',
+                  'desktop' => 'Popover dropdown',
+                  _ => 'Dialog picker',
+                },
+                onChanged: (_) {},
+                style: SelectStyleSetting.mobile,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Mobile'));
+    await tester.pumpAndSettle();
+
+    final subtitle = tester.widget<Text>(find.text('Dialog picker'));
+    expect(subtitle.style?.color, theme.colors.mutedForeground);
+    expect(subtitle.textAlign, TextAlign.start);
+
+    final title = tester.widget<Text>(find.text('Mobile').last);
+    expect(title.textAlign, TextAlign.start);
+    expect(title.style?.color, theme.colors.foreground);
+  });
 }
