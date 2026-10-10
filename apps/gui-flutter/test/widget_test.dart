@@ -34,6 +34,7 @@ import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+import 'helpers/collection_tracks_override.dart';
 import 'support/mixar_material_app.dart';
 
 class _HeaderCueEngineUi extends EngineUi {
@@ -143,7 +144,7 @@ void main() {
       ProviderScope(
         overrides: [
           collectionsProvider.overrideWith((ref) async => [collection]),
-          collectionTracksProvider.overrideWith((ref) async {
+          overrideCollectionTracks((ref) async {
             final id = ref.watch(activeCollectionIdProvider);
             return id == collection.id ? [track] : const [];
           }),

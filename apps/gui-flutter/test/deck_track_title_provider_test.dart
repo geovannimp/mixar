@@ -6,6 +6,8 @@ import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
+import 'helpers/collection_tracks_override.dart';
+
 void main() {
   test('deckTrackTitleProvider prefers library title over path stem', () {
     const table = LibraryTrackSummary(
@@ -20,9 +22,7 @@ void main() {
         libraryTableTracksProvider.overrideWith(
           (ref) => const AsyncData([table]),
         ),
-        collectionTracksProvider.overrideWith(
-          (ref) async => const <LibraryTrackSummary>[],
-        ),
+        overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
         driveResolvedByPathProvider.overrideWith(
           (ref) async => const <String, LibraryTrackSummary>{},
         ),
@@ -41,9 +41,7 @@ void main() {
         libraryTableTracksProvider.overrideWith(
           (ref) => const AsyncData(<LibraryTrackSummary>[]),
         ),
-        collectionTracksProvider.overrideWith(
-          (ref) async => const <LibraryTrackSummary>[],
-        ),
+        overrideCollectionTracksValue(const <LibraryTrackSummary>[]),
         driveResolvedByPathProvider.overrideWith(
           (ref) async => const <String, LibraryTrackSummary>{},
         ),

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
+import 'helpers/collection_tracks_override.dart';
+
 LibraryTrackSummary _track({
   required String id,
   required String displayName,
@@ -37,7 +39,7 @@ void main() {
 
   setUp(() async {
     container = ProviderContainer(
-      overrides: [collectionTracksProvider.overrideWith((ref) async => tracks)],
+      overrides: [overrideCollectionTracksValue(tracks)],
     );
     addTearDown(container.dispose);
     await container.read(collectionTracksProvider.future);

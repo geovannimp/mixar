@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/focused_load.dart';
 import 'package:gui_flutter/library/history_refresh.dart';
@@ -49,16 +50,90 @@ final activeCollectionIdProvider = Provider<String?>((ref) {
   return collections.first.id;
 });
 
-final collectionTracksProvider = FutureProvider<List<LibraryTrackSummary>>((
-  ref,
-) async {
-  final id = ref.watch(activeCollectionIdProvider);
-  if (id == null) {
-    return const [];
+/// Collection track rows: SQLite load plus in-memory patch on trackUpdated.
+///
+/// Metadata events patch the loaded list when the row is already present.
+/// Membership/structural changes (missing track payload, or id not in the
+/// list) invalidate and reload. Chatty bursts coalesce to one microtask flush.
+class CollectionTracks extends AsyncNotifier<List<LibraryTrackSummary>> {
+  final Map<String, LibraryTrackSummary> _pendingPatches = {};
+  bool _pendingStructuralInvalidate = false;
+  bool _flushScheduled = false;
+
+  @override
+  Future<List<LibraryTrackSummary>> build() async {
+    final id = ref.watch(activeCollectionIdProvider);
+    if (id == null) {
+      return const [];
+    }
+    final transport = await ref.watch(libraryTransportProvider.future);
+    return transport.listCollectionEntries(collectionId: id);
   }
-  final transport = await ref.watch(libraryTransportProvider.future);
-  return transport.listCollectionEntries(collectionId: id);
-});
+
+  /// Apply a [LibraryEvtKind.trackUpdated] / [LibraryEvtKind.trackAnalyzed] row.
+  void scheduleTrackRowEvent(LibraryTrackSummary? track) {
+    if (track == null) {
+      _pendingStructuralInvalidate = true;
+    } else {
+      final current = state.asData?.value;
+      final inList = current != null && current.any((t) => t.id == track.id);
+      if (inList) {
+        _pendingPatches[track.id] = track;
+      } else {
+        _pendingStructuralInvalidate = true;
+      }
+    }
+    if (_flushScheduled) {
+      return;
+    }
+    _flushScheduled = true;
+    scheduleMicrotask(() {
+      _flushScheduled = false;
+      _flush();
+    });
+  }
+
+  void _flush() {
+    final structural = _pendingStructuralInvalidate;
+    final patches = Map<String, LibraryTrackSummary>.from(_pendingPatches);
+    _pendingStructuralInvalidate = false;
+    _pendingPatches.clear();
+
+    if (structural) {
+      ref
+        ..invalidateSelf()
+        ..invalidate(collectionsProvider);
+      return;
+    }
+    if (patches.isEmpty) {
+      return;
+    }
+    final current = state.asData?.value;
+    if (current == null) {
+      ref
+        ..invalidateSelf()
+        ..invalidate(collectionsProvider);
+      return;
+    }
+    state = AsyncData([for (final t in current) patches[t.id] ?? t]);
+  }
+}
+
+final collectionTracksProvider =
+    AsyncNotifierProvider<CollectionTracks, List<LibraryTrackSummary>>(
+      CollectionTracks.new,
+    );
+
+/// Test override that supplies a custom load while keeping patch/coalesce.
+@visibleForTesting
+class SeededCollectionTracks extends CollectionTracks {
+  SeededCollectionTracks(this._load);
+
+  final Future<List<LibraryTrackSummary>> Function(Ref ref) _load;
+
+  @override
+  Future<List<LibraryTrackSummary>> build() => _load(ref);
+}
 
 class TrackFilter extends Notifier<String> {
   @override
@@ -426,12 +501,20 @@ bool _stemsStillRunning(Ref ref, String trackId) {
   return jobs != null && jobs.any((info) => isStemProgressPhase(info.phase));
 }
 
-void _handleLibraryEvt(Ref ref, LibraryEvt evt) {
+/// Same path as [libraryEventsBootstrapProvider]; exposed for unit tests.
+final libraryEvtDispatchProvider = Provider<void Function(LibraryEvt)>((ref) {
+  return (evt) => handleLibraryEvt(ref, evt);
+});
+
+/// Apply a library egress event to Riverpod state
+/// (list patch/invalidate, progress, …).
+void handleLibraryEvt(Ref ref, LibraryEvt evt) {
   switch (evt.kind) {
     case LibraryEvtKind.trackUpdated:
     case LibraryEvtKind.trackAnalyzed:
-      ref.invalidate(collectionTracksProvider);
-      ref.invalidate(collectionsProvider);
+      ref
+          .read(collectionTracksProvider.notifier)
+          .scheduleTrackRowEvent(evt.track);
       if (evt.kind == LibraryEvtKind.trackAnalyzed) {
         final trackId = evt.trackId ?? evt.track?.id;
         final stemsWaiting =
@@ -539,7 +622,7 @@ final libraryEventsBootstrapProvider = Provider<void>((ref) {
   final transportAsync = ref.watch(libraryTransportProvider);
   if (transportAsync case AsyncData(:final value)) {
     final sub = value.subscribeEvents().listen((evt) {
-      _handleLibraryEvt(ref, evt);
+      handleLibraryEvt(ref, evt);
     });
     ref.onDispose(sub.cancel);
   }
