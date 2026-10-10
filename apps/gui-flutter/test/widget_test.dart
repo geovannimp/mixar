@@ -25,7 +25,6 @@ import 'package:gui_flutter/shell/app_header.dart';
 import 'package:gui_flutter/shell/app_shell.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
 import 'package:gui_flutter/shell/desktop.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_switch.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart';
@@ -153,12 +152,8 @@ void main() {
           ..._settingsOverrides(settings),
           ...extraOverrides,
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: const AppShell(appTitle: 'Mixar'),
         ),
       ),
@@ -326,12 +321,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _settingsOverrides(),
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: const SizedBox(width: 1400, height: 900, child: SettingsPage()),
         ),
       ),

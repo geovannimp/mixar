@@ -4,7 +4,6 @@ import 'package:gui_flutter/settings/settings_controllers_panel.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_library_panel.dart';
 import 'package:gui_flutter/shell/controller_providers.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/controller.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -17,12 +16,8 @@ void main() {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
       ProviderScope(
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: Scaffold(
             body: SingleChildScrollView(
               child: SettingsLibraryPanel(
@@ -48,12 +43,8 @@ void main() {
           controllerTransportProvider.overrideWith((ref) async => null),
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),
@@ -90,12 +81,8 @@ void main() {
             ],
           ),
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),
@@ -135,12 +122,8 @@ void main() {
           controllerMappingsProvider.overrideWith((ref) async => [mapping]),
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),
@@ -180,12 +163,8 @@ void main() {
           controllerMappingsProvider.overrideWith((ref) async => [mapping]),
           controllerDevicesProvider.overrideWith((ref) async => const []),
         ],
-        child: MaterialApp(
-          locale: const Locale('en'),
-          localizationsDelegates: mixarTestLocalizationsDelegates,
-          supportedLocales: mixarTestSupportedLocales,
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
+        child: mixarTestMaterialApp(
+          theme: theme,
           home: Scaffold(
             body: SettingsControllersPanel(
               draft: defaultAppSettings(),

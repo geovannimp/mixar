@@ -99,6 +99,7 @@ void main() {
       isTrue,
     );
   });
+
   test('selectStyle defaults auto and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.selectStyle, SelectStyleSetting.auto);

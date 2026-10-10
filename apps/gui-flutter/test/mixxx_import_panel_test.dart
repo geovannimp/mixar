@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/l10n/app_localizations.dart';
 import 'package:gui_flutter/settings/mixxx_import_panel.dart';
 import 'package:gui_flutter/shell/app_button.dart';
-import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 import 'package:material_ui/material_ui.dart';
@@ -18,12 +17,8 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [mixxxDatabasePathProvider.overrideWith((ref) => path())],
-      child: MaterialApp(
-        locale: const Locale('en'),
-        localizationsDelegates: mixarTestLocalizationsDelegates,
-        supportedLocales: mixarTestSupportedLocales,
-        theme: materialUiThemeFromMixar(theme),
-        builder: mixarMaterialAppBuilder(theme),
+      child: mixarTestMaterialApp(
+        theme: theme,
         home: const Scaffold(body: MixxxImportPanel()),
       ),
     ),
