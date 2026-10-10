@@ -149,6 +149,30 @@ void main() {
     expect(find.text('Quality'), findsNothing);
   });
 
+  testWidgets('mobile style dismiss without selection skips onChanged', (
+    tester,
+  ) async {
+    var changed = false;
+    await pumpSelect(
+      tester,
+      value: 'low',
+      onChanged: (_) => changed = true,
+      style: SelectStyleSetting.mobile,
+      dialogTitle: 'Quality',
+    );
+
+    await tester.tap(find.byType(ShadSelect<String>));
+    await tester.pumpAndSettle();
+    expect(find.text('Quality'), findsOneWidget);
+
+    // Barrier dismiss (same corner tap as mixar_dialog_test).
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quality'), findsNothing);
+    expect(changed, isFalse);
+  });
+
   testWidgets('mobile option subtitles stay left-aligned and muted', (
     tester,
   ) async {

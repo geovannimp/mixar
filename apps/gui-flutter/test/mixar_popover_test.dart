@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
 import 'package:gui_flutter/src/rust/api/settings.dart';
@@ -165,4 +166,55 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Analyze tracks…'), findsNothing);
   });
+
+  testWidgets(
+    'MixarMenuAnchor mobile barrier dismiss clears isShowing',
+    (tester) async {
+      final theme = MixarThemeData.dark();
+      late MixarOverlayController menuController;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: materialUiThemeFromMixar(theme),
+          builder: mixarMaterialAppBuilder(theme),
+          home: Scaffold(
+            body: Center(
+              child: MixarMenuAnchor(
+                style: SelectStyleSetting.mobile,
+                menuBuilder: (context, controller) => MixarMenuBody(
+                  groups: [
+                    MixarMenuGroup(
+                      children: [
+                        MixarMenuItem(
+                          title: const Text('Analyze tracks…'),
+                          onPress: controller.hide,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                childBuilder: (context, controller) {
+                  menuController = controller;
+                  return GestureDetector(
+                    onTap: controller.toggle,
+                    child: const Text('Open menu'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+      expect(menuController.isShowing, isTrue);
+
+      // Barrier dismiss (same corner tap as mixar_dialog_test).
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsNothing);
+      expect(menuController.isShowing, isFalse);
+    },
+  );
 }

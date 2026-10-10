@@ -238,6 +238,10 @@ class _MenuDialogController extends MixarOverlayController {
   NavigatorState? _dialogNavigator;
   var _open = false;
 
+  /// Bumped on each [show]/[hide] so a stale [onOpen] completion cannot clear
+  /// a newer open cycle (e.g. hide → show before the pop animation finishes).
+  var _generation = 0;
+
   @override
   bool get isShowing => _open;
 
@@ -249,19 +253,27 @@ class _MenuDialogController extends MixarOverlayController {
   void show() {
     if (_open) return;
     _open = true;
+    final generation = ++_generation;
     notifyListeners();
-    onOpen().whenComplete(_handleClosed);
+    onOpen().whenComplete(() {
+      if (generation != _generation) return;
+      _handleClosed();
+    });
   }
 
   @override
   void hide() {
     if (!_open) return;
     final nav = _dialogNavigator;
+    // Clear immediately so a follow-up [show] is not dropped while the dialog
+    // is still animating out.
+    _open = false;
+    _dialogNavigator = null;
+    _generation++;
+    notifyListeners();
     if (nav != null && nav.canPop()) {
       nav.pop();
-      return;
     }
-    _handleClosed();
   }
 
   @override
