@@ -167,54 +167,53 @@ void main() {
     expect(find.text('Analyze tracks…'), findsNothing);
   });
 
-  testWidgets(
-    'MixarMenuAnchor mobile barrier dismiss clears isShowing',
-    (tester) async {
-      final theme = MixarThemeData.dark();
-      late MixarOverlayController menuController;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: materialUiThemeFromMixar(theme),
-          builder: mixarMaterialAppBuilder(theme),
-          home: Scaffold(
-            body: Center(
-              child: MixarMenuAnchor(
-                style: SelectStyleSetting.mobile,
-                menuBuilder: (context, controller) => MixarMenuBody(
-                  groups: [
-                    MixarMenuGroup(
-                      children: [
-                        MixarMenuItem(
-                          title: const Text('Analyze tracks…'),
-                          onPress: controller.hide,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                childBuilder: (context, controller) {
-                  menuController = controller;
-                  return GestureDetector(
-                    onTap: controller.toggle,
-                    child: const Text('Open menu'),
-                  );
-                },
+  testWidgets('MixarMenuAnchor mobile barrier dismiss clears isShowing', (
+    tester,
+  ) async {
+    final theme = MixarThemeData.dark();
+    late MixarOverlayController menuController;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: MixarMenuAnchor(
+              style: SelectStyleSetting.mobile,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      MixarMenuItem(
+                        title: const Text('Analyze tracks…'),
+                        onPress: controller.hide,
+                      ),
+                    ],
+                  ),
+                ],
               ),
+              childBuilder: (context, controller) {
+                menuController = controller;
+                return GestureDetector(
+                  onTap: controller.toggle,
+                  child: const Text('Open menu'),
+                );
+              },
             ),
           ),
         ),
-      );
+      ),
+    );
 
-      await tester.tap(find.text('Open menu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Analyze tracks…'), findsOneWidget);
-      expect(menuController.isShowing, isTrue);
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsOneWidget);
+    expect(menuController.isShowing, isTrue);
 
-      // Barrier dismiss (same corner tap as mixar_dialog_test).
-      await tester.tapAt(const Offset(8, 8));
-      await tester.pumpAndSettle();
-      expect(find.text('Analyze tracks…'), findsNothing);
-      expect(menuController.isShowing, isFalse);
-    },
-  );
+    // Barrier dismiss (same corner tap as mixar_dialog_test).
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsNothing);
+    expect(menuController.isShowing, isFalse);
+  });
 }
