@@ -22,7 +22,7 @@ This document defines what a **professional DJ deck** should contain in Mixar, b
   - [5.7 Beat grid & quantize](#57-beat-grid--quantize)
   - [5.8 Mixer channel (per deck)](#58-mixer-channel-per-deck)
   - [5.9 Effects (FX)](#59-effects-fx)
-  - [5.10 Stems & pad modes](#510-stems--pad-modes)
+- [5.10 Pad-mode follow-ups](#510-pad-mode-follow-ups)
   - [5.11 Jog / scratch / vinyl mode](#511-jog--scratch--vinyl-mode)
   - [5.12 Slip mode & advanced transport](#512-slip-mode--advanced-transport)
   - [5.13 Beat jump & navigation](#513-beat-jump--navigation)
@@ -107,7 +107,7 @@ Common expectations across all products:
 | State sync | Partial | FRB `EngineTransport.subscribeEvents` → Riverpod; MIDI host → [#49](https://github.com/geovannimp/mixar/issues/49) |
 | Library UI | Implemented | FRB `LibraryTransport` for tracks / artwork / waveform peaks |
 | FX slots UI | Not implemented | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open — `docs/stems-pad-mode-design.md` |
+| Stems pad mode | Implemented | Offline HTDemucs + pad mute/isolate ([#46](https://github.com/geovannimp/mixar/issues/46)); Stem EQ / Storage / realtime still open |
 | Memory cues | Not implemented | [#44](https://github.com/geovannimp/mixar/issues/44) |
 | Slicer pad mode | Not implemented | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | Not implemented | [#62](https://github.com/geovannimp/mixar/issues/62) |
@@ -128,7 +128,7 @@ Common expectations across all products:
 | Slip mode | Yes |
 | Jog / scratch | Yes |
 | FX insert chain | No → [#250](https://github.com/geovannimp/mixar/issues/250) |
-| Stems | Yes → `PadMode::Stems` + four-stem mix + settings gate + non-blocking attach; Stem EQ / Storage → [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Stems | Yes → four-stem mix, offline generation, non-blocking attach, pad mute/isolate; Stem EQ / Storage UI / realtime separation remain open — [#46](https://github.com/geovannimp/mixar/issues/46) |
 
 ### Library metadata
 
@@ -163,7 +163,7 @@ DeckState
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
 │   └── hot_cue mode → maps to persisted track_hot_cue rows
 ├── fx: filter, slots[3]
-├── stems: { vocal, instrumental, bass, drums, hihat } mute/solo gains
+├── stems: { drums, bass, other, vocals } mute/isolate
 ├── mixer: volume, eq{low,mid,high}, gain_trim_db, cue_enabled
 └── waveform: scroll_window_ms, zoom_level
 ```
@@ -179,7 +179,7 @@ UI layout zones (match competitor ergonomics):
 | **E — Transport row** | P0 | Cue, Play/Pause, Sync, optional Reverse |
 | **F — Tempo column** | P1 | Pitch fader, BPM readout, pitch range |
 | **G — FX / filter** | P2 | Filter knob, 1–3 FX slots |
-| **H — Extended pad modes** | P2 | Sampler + Beat Jump + Stems mute/isolate shipped; Slicer still open (reuse same 8 pads) |
+| **H — Extended pad modes** | P2 | Reuse the controller grid for shipped modes; see the [user guide](https://mixar.top/docs/users/performance-pads). Slicer remains open. |
 | **I — Jog area** | P2 | Jog wheel / platter (touch or drag) |
 
 ---
@@ -262,61 +262,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 
 ### 5.5 Controller pads
 
-The **8 numbered buttons** (slots 1–8) on each deck are **controller pads**, not “hot cue buttons only.” Industry software (especially **Virtual DJ**) reuses the same physical/UI pad grid for **multiple pad modes** selected via a dropdown or cycle control above the grid.
-
-```text
-┌─────────────────────────────────────────┐
-│  [◀]  HOT CUE  [▶]     ← mode selector  │
-├───────┬───────┬───────┬───────┤
-│   1   │   2   │   3   │   4   │  row A
-├───────┼───────┼───────┼───────┤
-│   5   │   6   │   7   │   8   │  row B
-└───────┴───────┴───────┴───────┘
-```
-
-**Default mode:** **Hot Cue** — matches Serato/Rekordbox behavior (shipped).
-
-| ID | Feature | Description | Priority |
-|----|---------|-------------|----------|
-| PD1 | **Pad grid** | Fixed **8 slots** in **2×4** layout (rows 1–4 / 5–8); mirrored per deck (Deck A cues outer-left, Deck B outer-right) | P1 |
-| PD2 | **Pad mode selector** | Dropdown or ◀/▶ cycle above grid (Virtual DJ pattern); shows current mode name | P2 |
-| PD3 | **Per-deck active mode** | `pad_mode` stored in runtime deck state (not per track); MIDI maps to slot + mode | P2 |
-| PD4 | **Mode-specific labels** | Pads show mode labels when set (e.g. Stems: Vocal, Kick; Hot Cue: time or user label) | P2 |
-| PD5 | **Pad active state** | Visual on/off per pad (border highlight, underline color — Virtual DJ stems reference) | P2 |
-| PD6 | **Empty pad affordance** | Unassigned pad shows slot number; assigned pad shows label/color | P1 |
-
-#### Pad modes (target)
-
-| Mode | Pad function | Persistence | Priority |
-|------|--------------|-------------|----------|
-| **Hot Cue** | Jump (or hotcue-loop) to stored point | `track_hot_cue` per slot | **P1 (default)** |
-| **Loop Roll** | Temporary quantized loop while held | — | P2 |
-| **Beat Jump** | Jump forward/back N beats | — | P2 |
-| **Sampler** | Trigger one-shot from library / bank | Named 8-slot banks in `library.db` | P3 |
-| **Stems** | Mute/solo/isolate stem (Vocal, Instru, Bass, Kick, HiHat, …) | Per-session | P3 |
-| **Stems FX** | Stem-aware effect on pad | — | P4 |
-| **Slicer** | Rhythmic slice/repeat | — | P4 |
-
-**Virtual DJ reference (screenshot):** mode **STEMS** maps pads to Vocal, Instru, Bass, Kick, HiHat, Stems FX with colored underlines and toggle borders; **PADS** and **LOOP** appear as vertical side labels flanking the pad/loop areas.
-
-#### Hot Cue mode (default)
-
-When `pad_mode = hot_cue`, pads behave as hot cues:
-
-| ID | Feature | Description | Count | Priority |
-|----|---------|-------------|-------|----------|
-| C1 | **Hot cues** | Instant jump; optional stored loop | 8 (Serato) → 16 (Rekordbox) | P1 |
-| C2 | **Hot cue color** | User-selectable palette | — | P1 |
-| C3 | **Hot cue label** | Short text (e.g. “Drop”, “Intro”) | — | P1 |
-| C4 | **Hot cue set / delete** | Empty pad = set at playhead; shift+click = delete | — | P1 |
-| C5 | **Memory cues** | Non-destructive timeline markers (Rekordbox) | 10 | P2 → [#44](https://github.com/geovannimp/mixar/issues/44) |
-| C6 | **Cue quantize on set/trigger** | Snap to beat grid when quantize on | — | P1 |
-| C7 | **Persist cues in library** | Save per track_id; load on deck load | — | P1 |
-| C8 | **Intelligent / auto cues** | Analysis-suggested cues (Rekordbox 7) | — | P3 → [#62](https://github.com/geovannimp/mixar/issues/62) |
-
-**Interaction model:** numbered 1–8 grid; show time + label when set; green = cue, orange = loop cue (Rekordbox convention). Keyboard shortcuts 1–8 trigger pad in **current mode** (Hot Cue by default).
-
-**Implementation note:** Current Mixar code (`deck_pads_panel.dart`, `track_hot_cue`, `save_hot_cue`) implements **Hot Cue mode only** with mode selector placeholder.
+See the [user guide](https://mixar.top/docs/users/performance-pads) for current pad modes and their controls; this spec does not duplicate their interaction guide.
 
 ---
 
@@ -384,24 +330,14 @@ Currently in center `DeckMixer`; may stay centralized or duplicate mini-strips o
 
 ---
 
-### 5.10 Additional pad modes (Stems, Sampler, …)
+### 5.10 Pad-mode follow-ups
 
-Pad modes beyond **Hot Cue** reuse the same 8-slot grid (§5.5). This section details non–hot-cue modes.
+Current pad-mode controls are documented in the [user guide](https://mixar.top/docs/users/performance-pads). Remaining pad-related work:
 
-| ID | Feature | Description | Priority |
-|----|---------|-------------|----------|
-| S1 | **Stem mute toggles** | Vocal, instrumental, bass, drums, hihat (Virtual DJ Stems mode) | P3 |
-| S2 | **Stem isolation gain** | Per-stem level 0–100% | P3 |
-| S3 | **Sampler pads** | Trigger one-shots from persisted named banks (8 slots) | P3 |
-| S4 | **Slicer / beat repeat** | Chop playing deck into rhythmic slices | P3 |
-| S5 | **Loop roll pad mode** | Beat-quantized temporary loop per pad | P2 |
-| S6 | **Beat jump pad mode** | ±N beats per pad | P2 |
-
-**Dependency:** Offline HTDemucs separation ships via `analyzer-stems` (settings-gated cache under app support). Realtime fallback and Stem EQ remain open — see `docs/stems-pad-mode-design.md`.
-
-**Tracking:** Stems [#46](https://github.com/geovannimp/mixar/issues/46); Slicer [#60](https://github.com/geovannimp/mixar/issues/60). Sampler / Loop Roll / Beat Jump / Stems pad modes are shipped (Stems mute/isolate; EQ later).
-
-**Removed from this section:** pad mode selector and grid layout — defined in §5.5 (controller pads are the primary abstraction).
+| Follow-up | Status |
+|-----------|--------|
+| Stem EQ, storage UI, and realtime separation | Open — [#46](https://github.com/geovannimp/mixar/issues/46) |
+| Slicer pad mode | Not implemented — [#60](https://github.com/geovannimp/mixar/issues/60) |
 
 ---
 
@@ -757,7 +693,6 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | Waveform zoom | [#210](https://github.com/geovannimp/mixar/issues/210) |
 | FX slots / insert chain | [#40](https://github.com/geovannimp/mixar/issues/40), [#250](https://github.com/geovannimp/mixar/issues/250) |
 | Memory cues | [#44](https://github.com/geovannimp/mixar/issues/44) |
-| Stems pad mode | [#46](https://github.com/geovannimp/mixar/issues/46) |
 | Slicer pad mode | [#60](https://github.com/geovannimp/mixar/issues/60) |
 | Intelligent cues | [#62](https://github.com/geovannimp/mixar/issues/62) |
 | MIDI mapping | [#49](https://github.com/geovannimp/mixar/issues/49) |

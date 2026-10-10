@@ -1,0 +1,41 @@
+---
+title: "Stems"
+description: "Mute or isolate individual layers of a track — drums, bass, other, and vocals."
+section: "Performance Pads"
+order: 6
+---
+
+Select the **Stems** tab and the pads control the separated layers of the loaded track: **Drums**, **Bass**, **Other**, and **Vocals**.
+
+## The pads
+
+The top row mutes and unmutes, the bottom row isolates:
+
+| Pads 1–4 | Pads 5–8 |
+| --- | --- |
+| `mute` drums | `solo` drums |
+| `mute` bass | `solo` bass |
+| `mute` other | `solo` other |
+| `mute` vocals | `solo` vocals |
+
+**Mute** — press to silence that layer, press again to bring it back. The pad lights while the layer is muted.
+
+**Isolate** — press to hear only that layer with the other three silenced. Press the same pad again to clear the isolation and return to the mix of muted and unmuted layers.
+
+## Where stems come from
+
+There are two ways a track gets stems.
+
+### NI Stem files
+
+Tracks that already ship as an **NI Stem file** (`.stem.mp4`) need no preparation. Add them to your library like any other track, then load one onto a deck — the four layers are read straight out of the file, so the Stems pads are ready as soon as it loads. **Generate stems** does nothing for these: the layers are already in the file.
+
+### Any other track
+
+Every other track can be separated on demand. From the library, open a track's row menu and choose **Generate stems**. Separation runs in the background and does not interrupt playback, so you can keep working while it finishes.
+
+Separation happens once per track and the result is reused afterwards — including in later sessions, where the pads are ready as soon as you load the track.
+
+## Requirements
+
+For a track that has not been separated yet, the Stems pads stay disabled until separation finishes. The track plays normally in the meantime; the pads simply do nothing. NI Stem files are ready on load, as above.

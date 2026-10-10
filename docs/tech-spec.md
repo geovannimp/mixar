@@ -3,8 +3,7 @@
 ## Table of Contents
 
 - [1 — Project Overview](#1--project-overview)
-- [1 — Objectives (What MVP Must Deliver)](#1--objectives-what-mvp-must-deliver)
-- [2 — Non-goals for MVP](#2--non-goals-for-mvp)
+- [2 — Objectives (What MVP Must Deliver)](#2--objectives-what-mvp-must-deliver)
 - [3 — High-level Architecture](#3--high-level-architecture)
 - [4 — Core Runtime Contracts & APIs](#4--core-runtime-contracts--apis)
   - [4.1 audio-core (Types & Traits)](#41-audio-core-types--traits)
@@ -32,7 +31,7 @@
 - **Primary dev / CI platform:** Linux x86_64
 - **Delivery form:** Rust crate (workspace) + optional static library build
 
-## 1 — Objectives (What MVP Must Deliver)
+## 2 — Objectives (What MVP Must Deliver)
 
 Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 
@@ -57,16 +56,6 @@ Headless Rust library (crate) providing a reusable audio engine for DJ apps.
 - **WASM support** (compile DSP to WASM) with multiple outputs in the browser — future work.
 
 - **Strong maintainability:** small crates, tests, null backend, CI on Linux x86_64, static analysis.
-
-## 2 — Non-goals for MVP
-
-- Semitone key shift / stems (beyond key-lock tempo stretch via `stretch` + timestretch).
-- Mixer GUI or UI (library is headless).
-- Telemetry / opt-in data collection.
-- Recording/streaming.
-- Android/iOS packaging or Raspberry Pi-specific packaging for MVP (architecture supports them later).
-- WASAPI exclusive/ASIO native low-latency backends (target for v2).
-- A dedicated `backend-pipewire` crate (use `backend-cpal` instead).
 
 ## 3 — High-level Architecture
 

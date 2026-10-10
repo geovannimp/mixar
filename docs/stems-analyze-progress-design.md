@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-21  
 **Status:** Approved  
-**Related:** `docs/stems-pad-mode-design.md`, `docs/stems-ort-onnx-design.md`, `docs/ni-stem-mp4-cache-design.md`
+**Related:** `docs/stems-ort-onnx-design.md`, `docs/ni-stem-mp4-cache-design.md`
 
 ## Goal
 
