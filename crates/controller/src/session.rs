@@ -3,7 +3,10 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use engine_api::{CmdBody, Kind, Origin, PadMode};
+use engine_api::{
+    key_shift_page_action, keyboard_page_action, CmdBody, Kind, Origin, PadMode, PitchPadAction,
+    KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
+};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action::{resolve_action, ControlSnapshot, ControlValue, RoutedAction};
@@ -163,9 +166,101 @@ impl MappingSession {
     /// Mirror engine `pad_mode` so MIDI `pad n` matches the UI.
     pub fn set_deck_pad_mode(&mut self, deck: u16, mode: PadMode, midi: &mut impl MidiOut) {
         let i = (deck as usize).min(3);
+        let mode_changed = self.snapshot.pad_mode[i] != mode;
         self.snapshot.pad_mode[i] = mode;
-        if mode == PadMode::HotCue {
-            self.refresh_hot_cue_leds(deck, midi);
+        if !mode_changed {
+            return;
+        }
+        let section = format!("deck_{}", deck + 1);
+        // Mode-page LEDs: force-resend only when the mode actually changes.
+        self.output_state
+            .remove(&format!("{section}.pad_mode_keyboard"));
+        self.output_state
+            .remove(&format!("{section}.pad_mode_key_shift"));
+        self.apply_output_signal(
+            &section,
+            "pad_mode_keyboard",
+            mode == PadMode::Keyboard,
+            midi,
+        );
+        self.apply_output_signal(
+            &section,
+            "pad_mode_key_shift",
+            mode == PadMode::KeyShift,
+            midi,
+        );
+        match mode {
+            PadMode::HotCue => self.refresh_hot_cue_leds(deck, midi),
+            PadMode::Keyboard | PadMode::KeyShift => self.refresh_key_shift_leds(deck, midi),
+            _ => {}
+        }
+    }
+
+    /// Mirror engine key shift; light the matching Keyboard / Key Shift pad LED.
+    pub fn set_deck_key_shift(&mut self, deck: u16, semitones: f32, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        if self.snapshot.key_shift[i] == semitones {
+            return;
+        }
+        self.snapshot.key_shift[i] = semitones;
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine Keyboard pad semitone page (`1..=4`; pad-bank LEDs).
+    pub fn set_deck_keyboard_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        let page = page.clamp(1, KEYBOARD_PAGE_COUNT);
+        if self.snapshot.keyboard_page[i] == page {
+            return;
+        }
+        self.snapshot.keyboard_page[i] = page;
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine Key Shift pad semitone page (`1..=5`; pad-bank LEDs).
+    pub fn set_deck_key_shift_page(&mut self, deck: u16, page: u8, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        let page = page.clamp(1, KEY_SHIFT_PAGE_COUNT);
+        if self.snapshot.key_shift_page[i] == page {
+            return;
+        }
+        self.snapshot.key_shift_page[i] = page;
+        self.refresh_key_shift_leds(deck, midi);
+    }
+
+    /// Mirror engine Keyboard pad root hot cue.
+    pub fn set_deck_keyboard_root(&mut self, deck: u16, slot: u8) {
+        let i = (deck as usize).min(3);
+        self.snapshot.keyboard_root_hot_cue[i] = slot;
+    }
+
+    /// Re-send the Keyboard or Key Shift pad-bank LEDs for the deck's current mode.
+    ///
+    /// Exactly the pad whose page semitone matches the current key shift is lit;
+    /// page-5 action pads (Reset / Up / Down / Sync) have no absolute match, so a
+    /// page with no matching absolute semitone leaves every pad dark. Like
+    /// [`Self::refresh_hot_cue_leds`], each signal is force-resent (HW often
+    /// clears pad LEDs on page switch).
+    pub fn refresh_key_shift_leds(&mut self, deck: u16, midi: &mut impl MidiOut) {
+        let i = (deck as usize).min(3);
+        let section = format!("deck_{}", deck + 1);
+        let shift = self.snapshot.key_shift[i];
+        let mode = self.snapshot.pad_mode[i];
+        let alias_prefix = match mode {
+            PadMode::KeyShift => "key_shift_pad",
+            PadMode::Keyboard => "keyboard_pad",
+            _ => return,
+        };
+        // Each mode has its own page and table; light the bank of the current mode.
+        let actions: [PitchPadAction; 8] = std::array::from_fn(|slot| match mode {
+            PadMode::KeyShift => key_shift_page_action(self.snapshot.key_shift_page[i], slot as u8),
+            _ => keyboard_page_action(self.snapshot.keyboard_page[i], slot as u8),
+        });
+        for (slot, action) in actions.iter().enumerate() {
+            let alias = format!("{alias_prefix}_{}", slot + 1);
+            let active = matches!(action, PitchPadAction::Semitone(s) if (f32::from(*s) - shift).abs() < 0.5);
+            self.output_state.remove(&format!("{section}.{alias}"));
+            self.apply_output_signal(&section, &alias, active, midi);
         }
     }
 
@@ -538,11 +633,27 @@ impl MappingSession {
                 match body {
                     CmdBody::SetPadMode { mode } => {
                         if let Origin::Deck(d) = *o {
-                            let i = deck_slot(d);
-                            self.snapshot.pad_mode[i] = *mode;
-                            if *mode == PadMode::HotCue {
-                                self.refresh_hot_cue_leds(d, midi);
-                            }
+                            self.set_deck_pad_mode(d, *mode, midi);
+                        }
+                    }
+                    CmdBody::SetKeyShift { semitones } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_key_shift(d, *semitones, midi);
+                        }
+                    }
+                    CmdBody::SetKeyboardPage { page } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_keyboard_page(d, *page, midi);
+                        }
+                    }
+                    CmdBody::SetKeyShiftPage { page } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_key_shift_page(d, *page, midi);
+                        }
+                    }
+                    CmdBody::SetKeyboardRoot { slot } => {
+                        if let Origin::Deck(d) = *o {
+                            self.set_deck_keyboard_root(d, *slot);
                         }
                     }
                     CmdBody::SetTempoRange { tempo_range } => {

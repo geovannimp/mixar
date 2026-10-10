@@ -158,6 +158,7 @@ DeckState
 ├── tempo: original_bpm, effective_bpm, pitch_percent, pitch_range
 ├── sync: { off | arm | tempo_sync | beat_sync }, master, key_sync_enabled
 ├── key: display_key, key_shift_semitones, key_lock
+├── pages: keyboard_page 1..4, key_shift_page 1..5, keyboard_root_hot_cue   -- session-only per-mode Keyboard / Key Shift page state
 ├── loop: { inactive | active(in, out, length_beats, rolling) }
 ├── slip: enabled, shadow_position_ms
 ├── pads: { mode, slots[8] }          -- mode selects pad function; slots are mode-specific state
@@ -248,7 +249,7 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 | P1 | **Pitch fader** | Vertical slider; selectable range ±6 / ±10 / ±50 % | Maps to `Deck::set_speed` | P1 |
 | P2 | **Pitch bend buttons** | Momentary ± adjustment | Temporary speed offset | P2 |
 | P3 | **Key lock / Master Tempo** | Change tempo without changing key | [`timestretch`](https://crates.io/crates/timestretch) WideKeylock via `SetKeyLock` | P2 |
-| P4 | **Key shift** | ± semitones independent of tempo | Pitch shift DSP | P3 |
+| P4 | **Key shift** | ± semitones independent of tempo (**shipped**) | Pitch shift DSP — `stretch` pitch factor + `timestretch` `StreamingSincResampler` | P3 |
 | P5 | **Sync (beat)** | Match phase and tempo to master deck | Compare beat grids + positions | P1 |
 | P6 | **Sync (tempo only)** | Match BPM without phase lock | Adjust pitch fader target | P1 |
 | P7 | **Sync (key)** | Harmonic match via key metadata | Key shift or reject incompatible | P2 |
@@ -258,11 +259,15 @@ See [`dj-waveform-spec.md`](dj-waveform-spec.md) for rendering details.
 
 **Key lock:** Toggle on the track-key ghost control (`lock` / `lock-open`). Tempo fader + sync use the pure-Rust [`timestretch`](https://crates.io/crates/timestretch) WideKeylock profile (`SetKeyLock`). With key lock off, pitch fader changes **both** tempo and key (classic vinyl).
 
+**Key shift (shipped):** Realtime semitone shift, clamped to `-16..=+16`, via the `stretch` pitch factor: keylock-stretch at `tempo/pitch` plus a `timestretch::core::resample::StreamingSincResampler` output stage. It is an additive **session-only** offset layered on top of key lock (never forces key lock on/off) and never mutates the analyzed key or writes to `library.db`. The Keyboard pads use four pitch-only pages and Key Shift five (page 5 is the reset / up / down / sync utility bank), both defaulting to page 2 (`[0..+7]`); the Keyboard root is the selected hot cue and each mode's page is session-only. See [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
+
 ---
 
 ### 5.5 Controller pads
 
 See the [user guide](https://mixar.top/docs/users/performance-pads) for current pad modes and their controls; this spec does not duplicate their interaction guide.
+
+Controller pads are the primary abstraction: the eight deck buttons carry a selectable `pad_mode` (hot cue, loop roll, beat jump, sampler, stems, keyboard, key shift), each with its own labels and active state. Keyboard and Key Shift shipped in [#298](https://github.com/geovannimp/mixar/issues/298) and are specified in [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md).
 
 ---
 
@@ -338,6 +343,8 @@ Current pad-mode controls are documented in the [user guide](https://mixar.top/d
 |-----------|--------|
 | Stem EQ, storage UI, and realtime separation | Open — [#46](https://github.com/geovannimp/mixar/issues/46) |
 | Slicer pad mode | Not implemented — [#60](https://github.com/geovannimp/mixar/issues/60) |
+
+Keyboard and Key Shift pad modes are shipped ([#298](https://github.com/geovannimp/mixar/issues/298)); their page tables, root selection, and session-only key shift are specified in [keyboard-key-shift-pad-modes-design.md](keyboard-key-shift-pad-modes-design.md) and described for users in the [user guide](https://mixar.top/docs/users/performance-pads).
 
 ---
 
@@ -700,7 +707,7 @@ Capability checks (not phase gates). GitHub issues own remaining work.
 | Filter/EQ waveform tint (optional) | [#35](https://github.com/geovannimp/mixar/issues/35) |
 | Persist per-track gain corrections | [#39](https://github.com/geovannimp/mixar/issues/39) |
 | Momentary reverse-roll / censor | [#295](https://github.com/geovannimp/mixar/issues/295) |
-| Keyboard / Key Shift pad modes | [#298](https://github.com/geovannimp/mixar/issues/298) |
+| Keyboard / Key Shift pad modes | [#298](https://github.com/geovannimp/mixar/issues/298) — **shipped** ([design](keyboard-key-shift-pad-modes-design.md)) |
 
 ## 11 — References
 

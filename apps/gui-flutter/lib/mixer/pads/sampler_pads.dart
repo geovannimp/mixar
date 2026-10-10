@@ -4,10 +4,12 @@ import 'package:gui_flutter/mixer/pad_format.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/pad_button.dart';
 import 'package:gui_flutter/mixer/pads/pad_grid.dart';
+import 'package:gui_flutter/mixer/pads/pad_page_pagination.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:super_drag_and_drop/super_drag_and_drop.dart';
 
 class SamplerSlot {
@@ -32,7 +34,8 @@ class SamplerBank {
   final String? playMode;
 }
 
-/// Next bank index for ◀/▶ chrome. Falls back to `0` when [activeIndex] is unset.
+/// Next bank index for chevron chrome. Falls back to `0` when [activeIndex] is
+/// unset.
 int cycleSamplerBankIndex({
   required int activeIndex,
   required int direction,
@@ -92,84 +95,46 @@ class SamplerPads extends StatelessWidget {
     }
 
     return PadGrid(
-      bottomChrome: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-        child: Row(
-          children: [
-            _BankChromeButton(
-              glyph: '◀',
-              semanticLabel: 'Previous sampler bank',
-              disabled: disabled || banks.length < 2,
-              onPress: () => cycleBank(-1),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  const Spacer(),
-                  Flexible(
-                    child: Text(
-                      activeBank?.name ?? 'No bank',
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: theme.typography.body.xs.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: effectivePlayMode != kDefaultSamplerPlayMode
-                          ? Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: theme.colors.border,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                  color: theme.colors.secondary.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 1,
-                                  ),
-                                  child: Text(
-                                    effectivePlayMode,
-                                    style: theme.typography.body.xs.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            _BankChromeButton(
-              glyph: '▶',
-              semanticLabel: 'Next sampler bank',
-              disabled: disabled || banks.length < 2,
-              onPress: () => cycleBank(1),
-            ),
-            _BankChromeButton(
-              glyph: '⚙',
-              semanticLabel: 'Bank settings',
-              disabled: disabled || activeBank == null,
-              onPress: activeBank == null
-                  ? null
-                  : () => _openBankConfig(context, activeBank),
-            ),
-          ],
-        ),
+      bottomChrome: PadPagePagination(
+        count: banks.length,
+        label: activeBank?.name ?? 'No bank',
+        previousSemanticLabel: 'Previous sampler bank',
+        nextSemanticLabel: 'Next sampler bank',
+        onPrevious: () => cycleBank(-1),
+        onNext: () => cycleBank(1),
+        centerAccessory: effectivePlayMode != kDefaultSamplerPlayMode
+            ? _playModeChip(theme, effectivePlayMode)
+            : null,
+        actionIcon: LucideIcons.settings,
+        actionSemanticLabel: 'Bank settings',
+        onAction: activeBank == null
+            ? null
+            : () => _openBankConfig(context, activeBank),
+        disabled: disabled,
       ),
       children: [for (var slot = 0; slot < 8; slot++) _slotPad(theme, slot)],
+    );
+  }
+
+  Widget _playModeChip(MixarThemeData theme, String mode) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: theme.colors.border),
+          borderRadius: BorderRadius.circular(4),
+          color: theme.colors.secondary.withValues(alpha: 0.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          child: Text(
+            mode,
+            style: theme.typography.body.xs.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -373,46 +338,5 @@ void _performSamplerAssignDrop(
         }
       });
     }
-  }
-}
-
-class _BankChromeButton extends StatelessWidget {
-  const new({
-    required this.glyph,
-    required this.semanticLabel,
-    required this.onPress,
-    this.disabled = false,
-  });
-
-  final String glyph;
-  final String semanticLabel;
-  final VoidCallback? onPress;
-  final bool disabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.theme;
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      enabled: !disabled,
-      child: MixerButton(
-        variant: .ghost,
-        size: .xs,
-        mainAxisSize: .min,
-        onPress: disabled ? null : onPress,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: ExcludeSemantics(
-          child: Text(
-            glyph,
-            style: theme.typography.body.xs.copyWith(
-              color: disabled
-                  ? theme.colors.mutedForeground.withValues(alpha: 0.4)
-                  : theme.colors.mutedForeground,
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

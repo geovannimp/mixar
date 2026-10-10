@@ -1,10 +1,37 @@
 //! Tempo/beat sync follow helpers for the engine control path.
 
-use crate::pads::HOT_CUE_SLOT_COUNT;
+use crate::pads::{DEFAULT_PITCH_PAGE, HOT_CUE_SLOT_COUNT};
 use engine_api::{LoopRegion, PadMode, SyncMode};
 use library_core::TrackId;
 
-#[derive(Clone, Debug, Default)]
+/// Session Keyboard / Key Shift pad state (pages, root, momentary holds).
+#[derive(Clone, Debug)]
+pub(crate) struct PitchPadState {
+    pub key_shift_semitones: f32,
+    pub keyboard_page: u8,
+    pub key_shift_page: u8,
+    pub keyboard_root_hot_cue: u8,
+    pub keyboard_restore_semitones: Option<f32>,
+    pub keyboard_held: [bool; 8],
+    /// Semitone applied when each pad was pressed (stable across mid-hold page changes).
+    pub keyboard_held_semitones: [Option<f32>; 8],
+}
+
+impl Default for PitchPadState {
+    fn default() -> Self {
+        Self {
+            key_shift_semitones: 0.0,
+            keyboard_page: DEFAULT_PITCH_PAGE,
+            key_shift_page: DEFAULT_PITCH_PAGE,
+            keyboard_root_hot_cue: 0,
+            keyboard_restore_semitones: None,
+            keyboard_held: [false; 8],
+            keyboard_held_semitones: [None; 8],
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct DeckControlState {
     pub sync_mode: SyncMode,
     pub bpm: Option<f64>,
@@ -27,9 +54,42 @@ pub(crate) struct DeckControlState {
     pub hot_cues: [Option<i32>; HOT_CUE_SLOT_COUNT],
     /// Library sampler bank currently loaded onto this deck's pads.
     pub active_sampler_bank_id: Option<String>,
+    pub pitch_pad: PitchPadState,
+}
+
+impl Default for DeckControlState {
+    fn default() -> Self {
+        Self {
+            sync_mode: SyncMode::Off,
+            bpm: None,
+            quantize: false,
+            pad_mode: PadMode::HotCue,
+            loop_roll_restore: None,
+            pending_loop_in_ms: None,
+            track_id: None,
+            track_path: None,
+            title: None,
+            artist: None,
+            album: None,
+            key: None,
+            isrc: None,
+            hot_cues: [None; HOT_CUE_SLOT_COUNT],
+            active_sampler_bank_id: None,
+            pitch_pad: PitchPadState::default(),
+        }
+    }
 }
 
 impl DeckControlState {
+    /// Reset the Keyboard / Key Shift session state shared by `Default`,
+    /// [`Self::clear_loaded_track`], and [`Self::apply_loaded_metadata`].
+    ///
+    /// Keeping the pitch-pad fields in one place avoids drift when a new field is
+    /// added to only one of the three initialisation sites.
+    fn reset_pitch_pad_state(&mut self) {
+        self.pitch_pad = PitchPadState::default();
+    }
+
     pub fn clear_loaded_track(&mut self) {
         self.bpm = None;
         self.sync_mode = SyncMode::Off;
@@ -43,6 +103,7 @@ impl DeckControlState {
         self.key = None;
         self.isrc = None;
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
+        self.reset_pitch_pad_state();
     }
 
     pub fn apply_source_load(&mut self, source: &library_core::AudioSource, track_id: TrackId) {
@@ -67,6 +128,8 @@ impl DeckControlState {
         self.key = non_empty_opt(metadata.key.clone());
         self.isrc = non_empty_opt(metadata.isrc.clone());
         self.hot_cues = [None; HOT_CUE_SLOT_COUNT];
+        // A newly loaded track must not inherit a stale session shift/page.
+        self.reset_pitch_pad_state();
     }
 }
 

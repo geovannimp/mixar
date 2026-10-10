@@ -44,6 +44,8 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
     PadMode.beatJump => rust.PadMode.beatJump,
     PadMode.sampler => rust.PadMode.sampler,
     PadMode.stems => rust.PadMode.stems,
+    PadMode.keyboard => rust.PadMode.keyboard,
+    PadMode.keyShift => rust.PadMode.keyShift,
   };
 
   Future<bool> _run(
@@ -70,6 +72,31 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
       context: context,
       variant: MixarToastVariant.destructive,
       title: Text('$e'),
+    );
+  }
+
+  /// Step the page bar of whichever pad mode owns it, wrapping at both ends.
+  ///
+  /// Keyboard and Key Shift keep independent pages, so only the active mode's
+  /// value moves; [direction] is `-1` for previous and `1` for next.
+  void _stepPage(
+    int direction,
+    PadMode mode,
+    int keyboardPage,
+    int keyShiftPage,
+  ) {
+    final keyShift = mode == PadMode.keyShift;
+    final page = keyShift ? keyShiftPage : keyboardPage;
+    final count = keyShift ? kKeyShiftPageCount : kKeyboardPageCount;
+    final next = direction < 0
+        ? (page <= 1 ? count : page - 1)
+        : (page >= count ? 1 : page + 1);
+    unawaited(
+      _run(
+        (engine) => keyShift
+            ? engine.setKeyShiftPage(deckId: widget.deckId, page: next)
+            : engine.setKeyboardPage(deckId: widget.deckId, page: next),
+      ),
     );
   }
 
@@ -129,6 +156,14 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
         : (banks.isNotEmpty ? banks.first.id : null);
     final slots = _slotsFromChrome(
       ref.watch(deckSamplerSlotsProvider(widget.deckId)),
+    );
+    final keyShiftSemitones = ref
+        .watch(deckKeyShiftProvider(widget.deckId))
+        .round();
+    final keyboardPage = ref.watch(deckKeyboardPageProvider(widget.deckId));
+    final keyShiftPage = ref.watch(deckKeyShiftPageProvider(widget.deckId));
+    final keyboardRootHotCue = ref.watch(
+      deckKeyboardRootProvider(widget.deckId),
     );
 
     return DeckPadsPanel(
@@ -252,6 +287,50 @@ class _DeckPadsHostState extends ConsumerState<DeckPadsHost> {
               slot: slot,
               shift: false,
             ),
+          ),
+        );
+      },
+      keyShiftSemitones: keyShiftSemitones,
+      keyboardPage: keyboardPage,
+      keyShiftPage: keyShiftPage,
+      keyboardRootHotCue: keyboardRootHotCue,
+      onSelectRoot: (slot) {
+        unawaited(
+          _run(
+            (engine) =>
+                engine.setKeyboardRoot(deckId: widget.deckId, slot: slot),
+          ),
+        );
+      },
+      onPrevPage: () => _stepPage(-1, padMode, keyboardPage, keyShiftPage),
+      onNextPage: () => _stepPage(1, padMode, keyboardPage, keyShiftPage),
+      onKeyShiftPress: (slot) {
+        unawaited(
+          _run(
+            (engine) => engine.keyShiftPadPress(
+              deckId: widget.deckId,
+              slot: slot,
+              shift: shiftKeyPressed(),
+            ),
+          ),
+        );
+      },
+      onKeyboardPress: (slot) {
+        unawaited(
+          _run(
+            (engine) => engine.keyboardPadPress(
+              deckId: widget.deckId,
+              slot: slot,
+              shift: shiftKeyPressed(),
+            ),
+          ),
+        );
+      },
+      onKeyboardRelease: (slot) {
+        unawaited(
+          _run(
+            (engine) =>
+                engine.keyboardPadRelease(deckId: widget.deckId, slot: slot),
           ),
         );
       },

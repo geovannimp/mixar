@@ -11,7 +11,7 @@ use resampler::Resampler;
 use std::fmt;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
-use stretch::{create_stretcher, TimeStretcher};
+use stretch::{create_stretcher, TimeStretcher, KEY_SHIFT_SEMITONE_LIMIT};
 
 /// Audio deck state
 #[derive(Debug, Clone, PartialEq)]
@@ -104,6 +104,8 @@ pub struct Deck {
     stretcher: Option<Box<dyn TimeStretcher>>,
     /// Last process used stretch path (reset stretcher when leaving it).
     stretch_active: bool,
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass resampler).
+    key_shift_semitones: f32,
     /// Active loop region in source frames (inclusive start, exclusive end).
     loop_region: Option<(f64, f64)>,
     /// Slip mode: shadow playhead keeps advancing while audible pos is looped/scratched.
@@ -176,6 +178,7 @@ impl Deck {
             key_lock: false,
             stretcher: None,
             stretch_active: false,
+            key_shift_semitones: 0.0,
             loop_region: None,
             slip_enabled: false,
             shadow_position_frac: 0.0,
@@ -369,6 +372,41 @@ impl Deck {
         if enabled {
             self.ensure_stretcher()?;
         }
+        self.reset_stretcher_state();
+        self.stretch_active = false;
+        Ok(())
+    }
+
+    /// Current key-shift offset in semitones (`-16..=16`; `0` = bypass).
+    pub fn key_shift_semitones(&self) -> f32 {
+        self.key_shift_semitones
+    }
+
+    /// Pitch multiplier for the current key-shift offset (`1.0` = unshifted).
+    pub fn pitch_factor(&self) -> f64 {
+        stretch::semitones_to_pitch(self.key_shift_semitones)
+    }
+
+    /// Set the key-shift offset in semitones: clamps to
+    /// [`KEY_SHIFT_SEMITONE_LIMIT`] (`±16`, shared with the engine control layer;
+    /// covers the pentatonic table's `+16`), non-finite → 0, and resets stretcher
+    /// state so the new pitch takes effect cleanly.
+    ///
+    /// The bound is independent of the stretcher's
+    /// [`MIN_PITCH_FACTOR`](stretch::MIN_PITCH_FACTOR)..=
+    /// [`MAX_PITCH_FACTOR`](stretch::MAX_PITCH_FACTOR) range, but the constant is
+    /// chosen so the worst-case pitch factor stays inside it — see
+    /// [`KEY_SHIFT_SEMITONE_LIMIT`].
+    pub fn set_key_shift_semitones(&mut self, semitones: f32) -> Result<()> {
+        let s = if semitones.is_finite() {
+            semitones.clamp(-KEY_SHIFT_SEMITONE_LIMIT, KEY_SHIFT_SEMITONE_LIMIT)
+        } else {
+            0.0
+        };
+        if (s - self.key_shift_semitones).abs() < f32::EPSILON {
+            return Ok(());
+        }
+        self.key_shift_semitones = s;
         self.reset_stretcher_state();
         self.stretch_active = false;
         Ok(())
@@ -653,6 +691,7 @@ impl Deck {
         self.buffer.clear();
         self.stretcher = None;
         self.stretch_active = false;
+        self.key_shift_semitones = 0.0;
         Ok(())
     }
 
@@ -782,10 +821,6 @@ impl Deck {
         }
     }
 
-    fn wants_key_lock_stretch(&self) -> bool {
-        self.key_lock && !self.jog_driving_audio()
-    }
-
     /// Load shared decoded audio. Creates a resampler when the source rate differs from the engine rate.
     pub fn load(&mut self, audio: Arc<LoadedAudio>) -> Result<()> {
         self.position_frames = 0;
@@ -799,6 +834,8 @@ impl Deck {
         self.stems = None;
         self.stem_mute = [false; 4];
         self.stem_isolate = None;
+        // Session-only key shift must not leak onto a newly loaded track.
+        self.key_shift_semitones = 0.0;
         self.create_resampler()?;
         if self.key_lock {
             self.ensure_stretcher()?;
@@ -977,7 +1014,12 @@ impl Deck {
         if let Some(loaded) = self.loaded.clone() {
             let source_rate = loaded.sample_rate;
             // Stems bypass key-lock stretch; keep stretch_active in sync with the path we take.
-            let want_stretch = self.wants_key_lock_stretch() && self.stems.is_none();
+            // Key shift forces the stretch path even with stems so stems still pitch-shift.
+            // Key shift and key lock both yield to the vinyl/interpolated path
+            // while the jog drives audio, so a latched shift never blocks
+            // scratching.
+            let want_stretch = !self.jog_driving_audio()
+                && (self.key_shift_semitones != 0.0 || (self.key_lock && self.stems.is_none()));
             if self.stretch_active && !want_stretch {
                 self.reset_stretcher_state();
             }
@@ -1081,7 +1123,22 @@ impl Deck {
         self.position_frames = self.position_frac.floor() as i64;
     }
 
-    /// Key-lock path: time-stretch at engine rate with pitch held.
+    /// Read one interleaved stereo frame for the stretch feed: stem mix when
+    /// stems are attached (so key shift keeps stems audible), else the main buffer.
+    fn read_frame_at(
+        &self,
+        pos: f64,
+        fallback: &[Sample],
+        main_sample_rate: u32,
+    ) -> (Sample, Sample) {
+        if self.stems.is_some() {
+            self.mix_at_position(pos, fallback, main_sample_rate)
+        } else {
+            interpolate_stereo(fallback, pos)
+        }
+    }
+
+    /// Key-lock path: time-stretch at engine rate with pitch held, plus key shift.
     ///
     /// timestretch tempo_rate is playback speed (`>1` = faster).
     fn play_stretched(&mut self, frames: usize, audio_samples: &[Sample], source_rate: u32) {
@@ -1090,19 +1147,33 @@ impl Deck {
 
         let playback_ratio = f64::from(self.playback_ratio().max(0.01));
         let src_step = f64::from(source_rate) / f64::from(self.sample_rate);
+        let pitch_factor = self.pitch_factor();
 
-        let Some(stretcher) = self.stretcher.as_mut() else {
+        // Move the stretcher and output buffer out of `self` so the feed closure can
+        // borrow `self` for stem mixing (gains + read) while key shift is engaged.
+        let mut stretcher_opt = self.stretcher.take();
+        let Some(stretcher) = stretcher_opt.as_mut() else {
             self.buffer.fill(0.0);
             return;
         };
         stretcher.set_tempo_rate(playback_ratio);
+        stretcher.set_pitch_factor(pitch_factor);
 
         let loop_region = self.loop_region;
         let mut position_frac = self.position_frac;
 
-        let stats = stretcher.pull_interleaved(frames, &mut self.buffer, &mut |need, buf| {
+        let mut out = std::mem::take(&mut self.buffer);
+        out.resize(buffer_size, 0.0);
+
+        let stats = stretcher.pull_interleaved(frames, &mut out, &mut |need, buf| {
             let mut produced = 0usize;
             for i in 0..need {
+                // Smooth stem mute/isolate gains on the stretch path too (the
+                // interpolated path ramps per output frame); `mix_at_position`
+                // reads these gains when stems are attached.
+                if self.stems.is_some() {
+                    self.ramp_stem_gains_one_sample();
+                }
                 if position_frac < 0.0 {
                     buf[i * 2] = 0.0;
                     buf[i * 2 + 1] = 0.0;
@@ -1119,7 +1190,7 @@ impl Deck {
                     continue;
                 }
 
-                let (left, right) = interpolate_stereo(audio_samples, position_frac);
+                let (left, right) = self.read_frame_at(position_frac, audio_samples, source_rate);
                 buf[i * 2] = left;
                 buf[i * 2 + 1] = right;
                 position_frac += src_step;
@@ -1137,6 +1208,8 @@ impl Deck {
             produced
         });
 
+        self.buffer = out;
+        self.stretcher = stretcher_opt;
         self.position_frac = position_frac;
         self.position_frames = self.position_frac.floor() as i64;
         let _ = stats;
@@ -1299,6 +1372,160 @@ mod tests {
             source_id: "test.wav".to_string(),
         };
         deck.load(Arc::new(audio)).unwrap();
+    }
+
+    /// Estimate dominant frequency (Hz) via zero-crossings over the last quarter.
+    fn estimate_frequency(samples: &[f32], sample_rate: u32) -> f64 {
+        let frame_count = samples.len() / 2;
+        let start = frame_count * 3 / 4;
+        let mono: Vec<f32> = (start..frame_count).map(|i| samples[i * 2]).collect();
+        if mono.len() < 2 {
+            return 0.0;
+        }
+        let crossings = mono
+            .windows(2)
+            .filter(|w| (w[0] <= 0.0 && w[1] > 0.0) || (w[0] >= 0.0 && w[1] < 0.0))
+            .count();
+        let secs = mono.len() as f64 / f64::from(sample_rate);
+        crossings as f64 / (2.0 * secs)
+    }
+
+    /// Max per-chunk RMS across `chunks` process calls (covers stretch warm-up).
+    fn max_rms_over(deck: &mut Deck, chunks: usize) -> f32 {
+        let mut rms = 0.0f32;
+        for _ in 0..chunks {
+            let out = deck.process(CHUNK).unwrap();
+            rms = rms.max((out.iter().map(|s| s * s).sum::<f32>() / out.len() as f32).sqrt());
+        }
+        rms
+    }
+
+    #[test]
+    fn key_shift_changes_pitch_not_tempo() {
+        let mut deck = new_deck(CHUNK);
+        // 440 Hz sine at engine rate, 2 s.
+        let n = ENGINE_RATE as usize * 2;
+        let mut samples = vec![0.0f32; n * 2];
+        for i in 0..n {
+            let v =
+                ((i as f64) * 440.0 / f64::from(ENGINE_RATE) * std::f64::consts::TAU).sin() as f32;
+            samples[i * 2] = v;
+            samples[i * 2 + 1] = v;
+        }
+        load_test_samples(&mut deck, samples, ENGINE_RATE);
+        deck.set_key_shift_semitones(12.0).unwrap();
+        deck.play().unwrap();
+        let before = deck.position_frames();
+        let mut out = Vec::new();
+        for _ in 0..64 {
+            out.extend_from_slice(deck.process(CHUNK).unwrap());
+        }
+        // Pitch doubled.
+        let f = estimate_frequency(&out, ENGINE_RATE);
+        assert!((f - 880.0).abs() / 880.0 < 0.05, "got {f}");
+        // Tempo unchanged: ~64 * CHUNK source frames advanced.
+        let advanced = deck.position_frames() - before;
+        assert!((advanced - (64 * CHUNK) as i64).abs() < 2_000);
+    }
+
+    #[test]
+    fn key_shift_zero_matches_unset_output() {
+        let mut a = new_deck(CHUNK);
+        let mut b = new_deck(CHUNK);
+        let n = ENGINE_RATE as usize;
+        let samples: Vec<f32> = (0..n * 2).map(|i| (i as f32 * 0.01).sin()).collect();
+        load_test_samples(&mut a, samples.clone(), ENGINE_RATE);
+        load_test_samples(&mut b, samples, ENGINE_RATE);
+        a.set_key_shift_semitones(0.0).unwrap();
+        a.play().unwrap();
+        b.play().unwrap();
+        for _ in 0..8 {
+            let x = a.process(CHUNK).unwrap().to_vec();
+            let y = b.process(CHUNK).unwrap().to_vec();
+            assert_eq!(x, y);
+        }
+    }
+
+    #[test]
+    fn key_shift_clamps_and_rejects_non_finite() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(f32::NAN).unwrap();
+        assert_eq!(deck.key_shift_semitones(), 0.0);
+        deck.set_key_shift_semitones(120.0).unwrap();
+        assert_eq!(deck.key_shift_semitones(), 16.0);
+    }
+
+    /// Four identical audible stems attached to a fresh deck, with `key_shift` set.
+    fn deck_with_stems(key_shift: f32) -> Deck {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.0; CHUNK * 2 * 8_000], ENGINE_RATE);
+        let stem = Arc::new(LoadedAudio {
+            samples: (0..CHUNK * 2 * 8_000)
+                .map(|i| (i as f32 * 0.02).sin() * 0.5)
+                .collect(),
+            sample_rate: ENGINE_RATE,
+            channels: 2,
+            source_id: "stem.wav".into(),
+        });
+        deck.attach_stems([
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+            Arc::clone(&stem),
+        ]);
+        deck.set_key_shift_semitones(key_shift).unwrap();
+        deck
+    }
+
+    #[test]
+    fn key_shift_with_stems_keeps_stem_audio() {
+        let mut deck = deck_with_stems(2.0);
+        deck.play().unwrap();
+        // The time-stretch engine has a pipeline latency of ~2 chunks, so let it
+        // prime before measuring that stem audio is present.
+        let rms = max_rms_over(&mut deck, 8);
+        assert!(
+            rms > 1e-3,
+            "stems must stay audible under key shift, rms={rms}"
+        );
+    }
+
+    #[test]
+    fn key_shift_stem_isolate_is_audible() {
+        let mut full = deck_with_stems(2.0);
+        full.play().unwrap();
+        let full_rms = max_rms_over(&mut full, 16);
+
+        let mut iso = deck_with_stems(2.0);
+        iso.toggle_stem_isolate(0);
+        iso.play().unwrap();
+        let iso_rms = max_rms_over(&mut iso, 16);
+
+        assert!(
+            iso_rms < full_rms * 0.5,
+            "isolate must lower stem level under key shift: full={full_rms} iso={iso_rms}"
+        );
+    }
+
+    #[test]
+    fn key_shift_resets_on_unload() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(5.0).unwrap();
+        deck.unload().unwrap();
+        assert_eq!(deck.key_shift_semitones(), 0.0);
+    }
+
+    #[test]
+    fn load_resets_key_shift() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(5.0).unwrap();
+        // Loading a second track must clear the session-only shift so it never
+        // inherits a stale offset.
+        load_test_samples(&mut deck, vec![0.1; CHUNK * 2 * 8_000], ENGINE_RATE);
+        assert_eq!(deck.key_shift_semitones(), 0.0);
     }
 
     #[test]
@@ -1748,6 +1975,39 @@ mod tests {
         // Vinyl jog path still runs (does not panic / stall) while key lock stays on.
         assert!(deck.key_lock());
         assert!(deck.position_frames() != before || deck.jog_rate() != 1.0);
+    }
+
+    #[test]
+    fn key_shift_falls_back_to_vinyl_while_jog_driving() {
+        let mut deck = new_deck(CHUNK);
+        load_test_samples(&mut deck, vec![0.4f32; CHUNK * 2 * 8_000], ENGINE_RATE);
+        deck.set_key_shift_semitones(2.0).unwrap();
+        deck.play().unwrap();
+        for _ in 0..8 {
+            deck.process(CHUNK).unwrap();
+        }
+        assert!(deck.stretch_active, "key shift should stretch at rest");
+
+        deck.set_jog_touch(true);
+        deck.jog_turn(20);
+        assert!(deck.jog_driving_audio());
+        let before = deck.position_frames();
+        let out = deck.process(CHUNK).unwrap().to_vec();
+        // A latched shift must not block scratching: the vinyl path runs and
+        // the playhead moves (no panic / stall).
+        assert!(
+            !deck.stretch_active,
+            "jog must leave the key-shift stretch path"
+        );
+        assert!(
+            deck.position_frames() != before || deck.jog_rate() != 1.0,
+            "vinyl jog should drive the playhead"
+        );
+        assert!(
+            out.iter().any(|s| s.abs() > 0.0),
+            "scratching must produce audio, not silence"
+        );
+        assert!((deck.key_shift_semitones() - 2.0).abs() < f32::EPSILON);
     }
 
     #[test]

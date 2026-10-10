@@ -45,6 +45,13 @@ pub enum PadMode {
     BeatJump,
     Sampler,
     Stems,
+    Keyboard,
+    KeyShift,
+}
+
+/// Default Keyboard / Key Shift semitone page (Rekordbox DDJ-400 footnote *6).
+pub fn default_pitch_page() -> u8 {
+    crate::pads::DEFAULT_PITCH_PAGE
 }
 
 /// Jog platter policy for top (touched) or outer (untouched) turns.
@@ -137,6 +144,18 @@ pub struct DeckSnapshot {
     /// Key lock (time-stretch); tempo changes without pitch when true.
     #[serde(default)]
     pub key_lock: bool,
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+    #[serde(default)]
+    pub key_shift: f32,
+    /// Keyboard pad semitone page (`1..=4`; default 2).
+    #[serde(default = "default_pitch_page")]
+    pub keyboard_page: u8,
+    /// Key Shift pad semitone page (`1..=5`; default 2).
+    #[serde(default = "default_pitch_page")]
+    pub key_shift_page: u8,
+    /// Hot-cue slot used as the Keyboard pad root (default 0).
+    #[serde(default)]
+    pub keyboard_root_hot_cue: u8,
     pub eq: DeckEq,
     /// Filter knob `0..1` (center `0.5` = flat).
     pub filter: f32,
@@ -228,6 +247,22 @@ pub enum CmdBody {
     /// Key lock / master tempo (time-stretch; pitch held).
     SetKeyLock {
         enabled: bool,
+    },
+    /// Session key-shift offset in semitones (`-16..=16`).
+    SetKeyShift {
+        semitones: f32,
+    },
+    /// Keyboard pad root: hot-cue slot whose position is the root note.
+    SetKeyboardRoot {
+        slot: u8,
+    },
+    /// Keyboard pad semitone page (`1..=4`).
+    SetKeyboardPage {
+        page: u8,
+    },
+    /// Key Shift pad semitone page (`1..=5`).
+    SetKeyShiftPage {
+        page: u8,
     },
     SetFilter {
         /// Filter knob `0..1`.
@@ -322,6 +357,22 @@ pub enum CmdBody {
     SamplerPadRelease {
         slot: u8,
     },
+    KeyboardPadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    KeyboardPadRelease {
+        slot: u8,
+    },
+    KeyShiftPadPress {
+        slot: u8,
+        #[serde(default)]
+        shift: bool,
+    },
+    KeyShiftPadRelease {
+        slot: u8,
+    },
     TriggerHotCue {
         position_ms: i32,
     },
@@ -409,6 +460,18 @@ pub enum EvtBody {
         tempo_range: f32,
         #[serde(default)]
         key_lock: bool,
+        /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+        #[serde(default)]
+        key_shift: f32,
+        /// Keyboard pad semitone page (`1..=4`; default 2).
+        #[serde(default = "default_pitch_page")]
+        keyboard_page: u8,
+        /// Key Shift pad semitone page (`1..=5`; default 2).
+        #[serde(default = "default_pitch_page")]
+        key_shift_page: u8,
+        /// Hot-cue slot used as the Keyboard pad root (default 0).
+        #[serde(default)]
+        keyboard_root_hot_cue: u8,
         eq: DeckEq,
         filter: f32,
         gain_trim: f32,

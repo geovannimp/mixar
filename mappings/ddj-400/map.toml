@@ -40,6 +40,8 @@ pad_mode_hot_cue = "Deck(_)::pad_mode(mode:hot_cue)"
 pad_mode_loop_roll = "Deck(_)::pad_mode(mode:loop_roll)"
 pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
 pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
+pad_mode_keyboard = "Deck(_)::pad_mode(mode:keyboard)"
+pad_mode_key_shift = "Deck(_)::pad_mode(mode:key_shift)"
 hot_cue_1 = "Deck(_)::hot_cue_pad(n:1)"
 hot_cue_2 = "Deck(_)::hot_cue_pad(n:2)"
 hot_cue_3 = "Deck(_)::hot_cue_pad(n:3)"
@@ -80,6 +82,38 @@ sampler_pad_5 = "Deck(_)::sampler_pad(n:5)"
 sampler_pad_6 = "Deck(_)::sampler_pad(n:6)"
 sampler_pad_7 = "Deck(_)::sampler_pad(n:7)"
 sampler_pad_8 = "Deck(_)::sampler_pad(n:8)"
+keyboard_pad_1 = "Deck(_)::keyboard_pad(n:1)"
+keyboard_pad_2 = "Deck(_)::keyboard_pad(n:2)"
+keyboard_pad_3 = "Deck(_)::keyboard_pad(n:3)"
+keyboard_pad_4 = "Deck(_)::keyboard_pad(n:4)"
+keyboard_pad_5 = "Deck(_)::keyboard_pad(n:5)"
+keyboard_pad_6 = "Deck(_)::keyboard_pad(n:6)"
+keyboard_pad_7 = "Deck(_)::keyboard_pad(n:7)"
+keyboard_pad_8 = "Deck(_)::keyboard_pad(n:8)"
+keyboard_shift_pad_1 = "Deck(_)::keyboard_pad(n:1, shift:true)"
+keyboard_shift_pad_2 = "Deck(_)::keyboard_pad(n:2, shift:true)"
+keyboard_shift_pad_3 = "Deck(_)::keyboard_pad(n:3, shift:true)"
+keyboard_shift_pad_4 = "Deck(_)::keyboard_pad(n:4, shift:true)"
+keyboard_shift_pad_5 = "Deck(_)::keyboard_pad(n:5, shift:true)"
+keyboard_shift_pad_6 = "Deck(_)::keyboard_pad(n:6, shift:true)"
+keyboard_shift_pad_7 = "Deck(_)::keyboard_pad(n:7, shift:true)"
+keyboard_shift_pad_8 = "Deck(_)::keyboard_pad(n:8, shift:true)"
+key_shift_pad_1 = "Deck(_)::key_shift_pad(n:1)"
+key_shift_pad_2 = "Deck(_)::key_shift_pad(n:2)"
+key_shift_pad_3 = "Deck(_)::key_shift_pad(n:3)"
+key_shift_pad_4 = "Deck(_)::key_shift_pad(n:4)"
+key_shift_pad_5 = "Deck(_)::key_shift_pad(n:5)"
+key_shift_pad_6 = "Deck(_)::key_shift_pad(n:6)"
+key_shift_pad_7 = "Deck(_)::key_shift_pad(n:7)"
+key_shift_pad_8 = "Deck(_)::key_shift_pad(n:8)"
+key_shift_shift_pad_1 = "Deck(_)::key_shift_pad(n:1, shift:true)"
+key_shift_shift_pad_2 = "Deck(_)::key_shift_pad(n:2, shift:true)"
+key_shift_shift_pad_3 = "Deck(_)::key_shift_pad(n:3, shift:true)"
+key_shift_shift_pad_4 = "Deck(_)::key_shift_pad(n:4, shift:true)"
+key_shift_shift_pad_5 = "Deck(_)::key_shift_pad(n:5, shift:true)"
+key_shift_shift_pad_6 = "Deck(_)::key_shift_pad(n:6, shift:true)"
+key_shift_shift_pad_7 = "Deck(_)::key_shift_pad(n:7, shift:true)"
+key_shift_shift_pad_8 = "Deck(_)::key_shift_pad(n:8, shift:true)"
 
 [inputs.deck_2]
 play_pause = "Deck(_)::toggle_play"
@@ -107,6 +141,8 @@ pad_mode_hot_cue = "Deck(_)::pad_mode(mode:hot_cue)"
 pad_mode_loop_roll = "Deck(_)::pad_mode(mode:loop_roll)"
 pad_mode_beat_jump = "Deck(_)::pad_mode(mode:beat_jump)"
 pad_mode_sampler = "Deck(_)::pad_mode(mode:sampler)"
+pad_mode_keyboard = "Deck(_)::pad_mode(mode:keyboard)"
+pad_mode_key_shift = "Deck(_)::pad_mode(mode:key_shift)"
 hot_cue_1 = "Deck(_)::hot_cue_pad(n:1)"
 hot_cue_2 = "Deck(_)::hot_cue_pad(n:2)"
 hot_cue_3 = "Deck(_)::hot_cue_pad(n:3)"
@@ -147,6 +183,38 @@ sampler_pad_5 = "Deck(_)::sampler_pad(n:5)"
 sampler_pad_6 = "Deck(_)::sampler_pad(n:6)"
 sampler_pad_7 = "Deck(_)::sampler_pad(n:7)"
 sampler_pad_8 = "Deck(_)::sampler_pad(n:8)"
+keyboard_pad_1 = "Deck(_)::keyboard_pad(n:1)"
+keyboard_pad_2 = "Deck(_)::keyboard_pad(n:2)"
+keyboard_pad_3 = "Deck(_)::keyboard_pad(n:3)"
+keyboard_pad_4 = "Deck(_)::keyboard_pad(n:4)"
+keyboard_pad_5 = "Deck(_)::keyboard_pad(n:5)"
+keyboard_pad_6 = "Deck(_)::keyboard_pad(n:6)"
+keyboard_pad_7 = "Deck(_)::keyboard_pad(n:7)"
+keyboard_pad_8 = "Deck(_)::keyboard_pad(n:8)"
+keyboard_shift_pad_1 = "Deck(_)::keyboard_pad(n:1, shift:true)"
+keyboard_shift_pad_2 = "Deck(_)::keyboard_pad(n:2, shift:true)"
+keyboard_shift_pad_3 = "Deck(_)::keyboard_pad(n:3, shift:true)"
+keyboard_shift_pad_4 = "Deck(_)::keyboard_pad(n:4, shift:true)"
+keyboard_shift_pad_5 = "Deck(_)::keyboard_pad(n:5, shift:true)"
+keyboard_shift_pad_6 = "Deck(_)::keyboard_pad(n:6, shift:true)"
+keyboard_shift_pad_7 = "Deck(_)::keyboard_pad(n:7, shift:true)"
+keyboard_shift_pad_8 = "Deck(_)::keyboard_pad(n:8, shift:true)"
+key_shift_pad_1 = "Deck(_)::key_shift_pad(n:1)"
+key_shift_pad_2 = "Deck(_)::key_shift_pad(n:2)"
+key_shift_pad_3 = "Deck(_)::key_shift_pad(n:3)"
+key_shift_pad_4 = "Deck(_)::key_shift_pad(n:4)"
+key_shift_pad_5 = "Deck(_)::key_shift_pad(n:5)"
+key_shift_pad_6 = "Deck(_)::key_shift_pad(n:6)"
+key_shift_pad_7 = "Deck(_)::key_shift_pad(n:7)"
+key_shift_pad_8 = "Deck(_)::key_shift_pad(n:8)"
+key_shift_shift_pad_1 = "Deck(_)::key_shift_pad(n:1, shift:true)"
+key_shift_shift_pad_2 = "Deck(_)::key_shift_pad(n:2, shift:true)"
+key_shift_shift_pad_3 = "Deck(_)::key_shift_pad(n:3, shift:true)"
+key_shift_shift_pad_4 = "Deck(_)::key_shift_pad(n:4, shift:true)"
+key_shift_shift_pad_5 = "Deck(_)::key_shift_pad(n:5, shift:true)"
+key_shift_shift_pad_6 = "Deck(_)::key_shift_pad(n:6, shift:true)"
+key_shift_shift_pad_7 = "Deck(_)::key_shift_pad(n:7, shift:true)"
+key_shift_shift_pad_8 = "Deck(_)::key_shift_pad(n:8, shift:true)"
 
 [inputs.master]
 crossfader = { action = "Mixer::set_crossfader", soft_takeover = true }
@@ -168,6 +236,24 @@ hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 8, note = 0
 hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 8, note = 0x05, velocity = 0x00 } }
 hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 8, note = 0x06, velocity = 0x00 } }
 hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 8, note = 0x07, velocity = 0x00 } }
+pad_mode_keyboard = { on = "pad_mode_keyboard_led", off = { type = "note", channel = 1, note = 0x69, velocity = 0x00 } }
+pad_mode_key_shift = { on = "pad_mode_key_shift_led", off = { type = "note", channel = 1, note = 0x6F, velocity = 0x00 } }
+keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 8, note = 0x40, velocity = 0x00 } }
+keyboard_pad_2 = { on = "keyboard_pad_2_led", off = { type = "note", channel = 8, note = 0x41, velocity = 0x00 } }
+keyboard_pad_3 = { on = "keyboard_pad_3_led", off = { type = "note", channel = 8, note = 0x42, velocity = 0x00 } }
+keyboard_pad_4 = { on = "keyboard_pad_4_led", off = { type = "note", channel = 8, note = 0x43, velocity = 0x00 } }
+keyboard_pad_5 = { on = "keyboard_pad_5_led", off = { type = "note", channel = 8, note = 0x44, velocity = 0x00 } }
+keyboard_pad_6 = { on = "keyboard_pad_6_led", off = { type = "note", channel = 8, note = 0x45, velocity = 0x00 } }
+keyboard_pad_7 = { on = "keyboard_pad_7_led", off = { type = "note", channel = 8, note = 0x46, velocity = 0x00 } }
+keyboard_pad_8 = { on = "keyboard_pad_8_led", off = { type = "note", channel = 8, note = 0x47, velocity = 0x00 } }
+key_shift_pad_1 = { on = "key_shift_pad_1_led", off = { type = "note", channel = 8, note = 0x70, velocity = 0x00 } }
+key_shift_pad_2 = { on = "key_shift_pad_2_led", off = { type = "note", channel = 8, note = 0x71, velocity = 0x00 } }
+key_shift_pad_3 = { on = "key_shift_pad_3_led", off = { type = "note", channel = 8, note = 0x72, velocity = 0x00 } }
+key_shift_pad_4 = { on = "key_shift_pad_4_led", off = { type = "note", channel = 8, note = 0x73, velocity = 0x00 } }
+key_shift_pad_5 = { on = "key_shift_pad_5_led", off = { type = "note", channel = 8, note = 0x74, velocity = 0x00 } }
+key_shift_pad_6 = { on = "key_shift_pad_6_led", off = { type = "note", channel = 8, note = 0x75, velocity = 0x00 } }
+key_shift_pad_7 = { on = "key_shift_pad_7_led", off = { type = "note", channel = 8, note = 0x76, velocity = 0x00 } }
+key_shift_pad_8 = { on = "key_shift_pad_8_led", off = { type = "note", channel = 8, note = 0x77, velocity = 0x00 } }
 
 [outputs.deck_2]
 play_pause = { on = "play_led", off = { type = "note", channel = 2, note = 0x0B, velocity = 0x00 } }
@@ -182,3 +268,21 @@ hot_cue_5 = { on = "hot_cue_5_led", off = { type = "note", channel = 10, note = 
 hot_cue_6 = { on = "hot_cue_6_led", off = { type = "note", channel = 10, note = 0x05, velocity = 0x00 } }
 hot_cue_7 = { on = "hot_cue_7_led", off = { type = "note", channel = 10, note = 0x06, velocity = 0x00 } }
 hot_cue_8 = { on = "hot_cue_8_led", off = { type = "note", channel = 10, note = 0x07, velocity = 0x00 } }
+pad_mode_keyboard = { on = "pad_mode_keyboard_led", off = { type = "note", channel = 2, note = 0x69, velocity = 0x00 } }
+pad_mode_key_shift = { on = "pad_mode_key_shift_led", off = { type = "note", channel = 2, note = 0x6F, velocity = 0x00 } }
+keyboard_pad_1 = { on = "keyboard_pad_1_led", off = { type = "note", channel = 10, note = 0x40, velocity = 0x00 } }
+keyboard_pad_2 = { on = "keyboard_pad_2_led", off = { type = "note", channel = 10, note = 0x41, velocity = 0x00 } }
+keyboard_pad_3 = { on = "keyboard_pad_3_led", off = { type = "note", channel = 10, note = 0x42, velocity = 0x00 } }
+keyboard_pad_4 = { on = "keyboard_pad_4_led", off = { type = "note", channel = 10, note = 0x43, velocity = 0x00 } }
+keyboard_pad_5 = { on = "keyboard_pad_5_led", off = { type = "note", channel = 10, note = 0x44, velocity = 0x00 } }
+keyboard_pad_6 = { on = "keyboard_pad_6_led", off = { type = "note", channel = 10, note = 0x45, velocity = 0x00 } }
+keyboard_pad_7 = { on = "keyboard_pad_7_led", off = { type = "note", channel = 10, note = 0x46, velocity = 0x00 } }
+keyboard_pad_8 = { on = "keyboard_pad_8_led", off = { type = "note", channel = 10, note = 0x47, velocity = 0x00 } }
+key_shift_pad_1 = { on = "key_shift_pad_1_led", off = { type = "note", channel = 10, note = 0x70, velocity = 0x00 } }
+key_shift_pad_2 = { on = "key_shift_pad_2_led", off = { type = "note", channel = 10, note = 0x71, velocity = 0x00 } }
+key_shift_pad_3 = { on = "key_shift_pad_3_led", off = { type = "note", channel = 10, note = 0x72, velocity = 0x00 } }
+key_shift_pad_4 = { on = "key_shift_pad_4_led", off = { type = "note", channel = 10, note = 0x73, velocity = 0x00 } }
+key_shift_pad_5 = { on = "key_shift_pad_5_led", off = { type = "note", channel = 10, note = 0x74, velocity = 0x00 } }
+key_shift_pad_6 = { on = "key_shift_pad_6_led", off = { type = "note", channel = 10, note = 0x75, velocity = 0x00 } }
+key_shift_pad_7 = { on = "key_shift_pad_7_led", off = { type = "note", channel = 10, note = 0x76, velocity = 0x00 } }
+key_shift_pad_8 = { on = "key_shift_pad_8_led", off = { type = "note", channel = 10, note = 0x77, velocity = 0x00 } }

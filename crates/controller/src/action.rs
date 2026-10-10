@@ -1,6 +1,6 @@
 //! Action string → [`RoutedAction`].
 
-use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode};
+use engine_api::{CmdBody, JogMode, Kind, Origin, PadMode, DEFAULT_PITCH_PAGE};
 use library_api::{EvtBody as LibraryEvtBody, Kind as LibraryKind, Origin as LibraryOrigin};
 
 use crate::action_id::{bind_origin, parse_action_id, BoundOrigin};
@@ -25,6 +25,14 @@ pub struct ControlSnapshot {
     pub headphone_cue: [bool; 4],
     pub quantize: [bool; 4],
     pub pad_mode: [PadMode; 4],
+    /// Session key-shift offset in semitones (Keyboard / Key Shift pad modes).
+    pub key_shift: [f32; 4],
+    /// Keyboard pad semitone page (`1..=4`).
+    pub keyboard_page: [u8; 4],
+    /// Key Shift pad semitone page (`1..=5`).
+    pub key_shift_page: [u8; 4],
+    /// Hot-cue slot used as the Keyboard pad root.
+    pub keyboard_root_hot_cue: [u8; 4],
     pub crossfader: f32,
     pub cue_mix: f32,
     pub master_cue: bool,
@@ -49,6 +57,10 @@ impl Default for ControlSnapshot {
             headphone_cue: [false; 4],
             quantize: [false; 4],
             pad_mode: [PadMode::HotCue; 4],
+            key_shift: [0.0; 4],
+            keyboard_page: [DEFAULT_PITCH_PAGE; 4],
+            key_shift_page: [DEFAULT_PITCH_PAGE; 4],
+            keyboard_root_hot_cue: [0; 4],
             crossfader: 0.5,
             cue_mix: 0.5,
             master_cue: false,
@@ -483,6 +495,8 @@ pub fn resolve_action(
                 "beat_jump" => PadMode::BeatJump,
                 "sampler" => PadMode::Sampler,
                 "stems" => PadMode::Stems,
+                "keyboard" => PadMode::Keyboard,
+                "key_shift" => PadMode::KeyShift,
                 _ => return None,
             };
             Some(engine_cmd(
@@ -507,10 +521,32 @@ pub fn resolve_action(
                 ))
             }
         }
-        "hot_cue_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::HotCue),
-        "loop_roll_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::LoopRoll),
-        "beat_jump_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::BeatJump),
-        "sampler_pad" => resolve_pad_slot(origin, pad_n_slot(&args)?, active, PadMode::Sampler),
+        "hot_cue_pad" => {
+            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::HotCue)
+        }
+        "loop_roll_pad" => {
+            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::LoopRoll)
+        }
+        "beat_jump_pad" => {
+            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::BeatJump)
+        }
+        "sampler_pad" => {
+            resolve_pad_slot(origin, pad_n_slot(&args)?, active, false, PadMode::Sampler)
+        }
+        "keyboard_pad" => resolve_pad_slot(
+            origin,
+            pad_n_slot(&args)?,
+            active,
+            pad_shift(&args)?,
+            PadMode::Keyboard,
+        ),
+        "key_shift_pad" => resolve_pad_slot(
+            origin,
+            pad_n_slot(&args)?,
+            active,
+            pad_shift(&args)?,
+            PadMode::KeyShift,
+        ),
         "trigger_sampler" => {
             let slot = args.require_int("slot").ok()?;
             if slot < 1 {
@@ -540,9 +576,25 @@ fn pad_n_slot(args: &crate::action_id::ActionArgs) -> Option<u8> {
     u8::try_from(n.checked_sub(1)?).ok()
 }
 
+/// Optional `shift` bank selector (defaults to `false` when omitted).
+///
+/// A malformed `shift` arg is treated as a mapping error (returns `None` upstream).
+fn pad_shift(args: &crate::action_id::ActionArgs) -> Option<bool> {
+    match args.optional_bool("shift").ok()? {
+        Some(v) => Some(v),
+        None => Some(false),
+    }
+}
+
 /// Named pad leaves publish the mode-specific press/release pair (Pioneer note banks).
 /// Generic `pad` publishes PadPress / PadRelease instead.
-fn resolve_pad_slot(origin: Origin, slot: u8, active: bool, mode: PadMode) -> Option<RoutedAction> {
+fn resolve_pad_slot(
+    origin: Origin,
+    slot: u8,
+    active: bool,
+    shift: bool,
+    mode: PadMode,
+) -> Option<RoutedAction> {
     match mode {
         PadMode::HotCue => {
             if active {
@@ -616,6 +668,36 @@ fn resolve_pad_slot(origin: Origin, slot: u8, active: bool, mode: PadMode) -> Op
                     origin,
                     Kind::PadRelease,
                     CmdBody::PadRelease { slot },
+                ))
+            }
+        }
+        PadMode::Keyboard => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyboardPadPress,
+                    CmdBody::KeyboardPadPress { slot, shift },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyboardPadRelease,
+                    CmdBody::KeyboardPadRelease { slot },
+                ))
+            }
+        }
+        PadMode::KeyShift => {
+            if active {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyShiftPadPress,
+                    CmdBody::KeyShiftPadPress { slot, shift },
+                ))
+            } else {
+                Some(engine_cmd(
+                    origin,
+                    Kind::KeyShiftPadRelease,
+                    CmdBody::KeyShiftPadRelease { slot },
                 ))
             }
         }
@@ -1255,5 +1337,80 @@ mod tests {
             &snap
         )
         .is_none());
+    }
+
+    #[test]
+    fn key_shift_pad_resolves_to_named_kind() {
+        let snap = ControlSnapshot::default();
+        let a = resolve_action(
+            "Deck(_)::key_shift_pad(n:2)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            a,
+            RoutedAction::EngineCmd {
+                kind: Kind::KeyShiftPadPress,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn keyboard_and_key_shift_shift_bank_resolve() {
+        let snap = ControlSnapshot::default();
+        let keyboard = resolve_action(
+            "Deck(_)::keyboard_pad(n:1, shift:true)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            keyboard,
+            RoutedAction::EngineCmd {
+                body: CmdBody::KeyboardPadPress { shift: true, .. },
+                ..
+            }
+        ));
+        let key_shift = resolve_action(
+            "Deck(_)::key_shift_pad(n:6, shift:true)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            key_shift,
+            RoutedAction::EngineCmd {
+                body: CmdBody::KeyShiftPadPress { shift: true, .. },
+                ..
+            }
+        ));
+        // Without `shift`, the main bank publishes a non-shift press.
+        let plain = resolve_action(
+            "Deck(_)::keyboard_pad(n:1)",
+            "deck_1",
+            ControlValue::Absolute(1.0),
+            true,
+            false,
+            &snap,
+        )
+        .unwrap();
+        assert!(matches!(
+            plain,
+            RoutedAction::EngineCmd {
+                body: CmdBody::KeyboardPadPress { shift: false, .. },
+                ..
+            }
+        ));
     }
 }

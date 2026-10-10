@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:gui_flutter/mixer/pad_modes.dart';
 import 'package:gui_flutter/mixer/pads/beat_jump_pads.dart';
 import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
+import 'package:gui_flutter/mixer/pads/key_shift_pads.dart';
+import 'package:gui_flutter/mixer/pads/keyboard_pads.dart';
 import 'package:gui_flutter/mixer/pads/loop_roll_pads.dart';
 import 'package:gui_flutter/mixer/pads/sampler_pads.dart';
 import 'package:gui_flutter/mixer/pads/stems_pads.dart';
@@ -26,6 +28,9 @@ class DeckPadsPanel extends StatelessWidget {
     required this.onSamplerRelease,
     required this.onSelectBank,
     required this.onSaveBank,
+    required this.onKeyShiftPress,
+    required this.onKeyboardPress,
+    required this.onKeyboardRelease,
     this.activeBankId,
     this.onSamplerAssign,
     this.stemMute = const [false, false, false, false],
@@ -33,6 +38,13 @@ class DeckPadsPanel extends StatelessWidget {
     this.stemsReady = false,
     this.stemsGenerating = false,
     this.onStemsPress,
+    this.keyShiftSemitones = 0,
+    this.keyboardPage = kDefaultPitchPage,
+    this.keyShiftPage = kDefaultPitchPage,
+    this.keyboardRootHotCue = 0,
+    this.onSelectRoot,
+    this.onPrevPage,
+    this.onNextPage,
     this.hasTrack = false,
     this.disabled = false,
     this.bordered = true,
@@ -61,6 +73,19 @@ class DeckPadsPanel extends StatelessWidget {
   final bool stemsReady;
   final bool stemsGenerating;
   final ValueChanged<int>? onStemsPress;
+  final ValueChanged<int> onKeyShiftPress;
+  final ValueChanged<int> onKeyboardPress;
+  final ValueChanged<int> onKeyboardRelease;
+  final int keyShiftSemitones;
+  final int keyboardPage;
+  final int keyShiftPage;
+  final int keyboardRootHotCue;
+  final ValueChanged<int>? onSelectRoot;
+
+  /// Steps the Keyboard / Key Shift semitone page backward / forward.
+  final VoidCallback? onPrevPage;
+  final VoidCallback? onNextPage;
+
   final bool hasTrack;
   final bool disabled;
   final bool bordered;
@@ -162,6 +187,25 @@ class DeckPadsPanel extends StatelessWidget {
         stemsGenerating: stemsGenerating,
         disabled: _controlsDisabled,
         onPress: onStemsPress ?? (_) {},
+      ),
+      PadMode.keyboard => KeyboardPads(
+        page: keyboardPage,
+        rootHotCue: keyboardRootHotCue,
+        hotCues: hotCues,
+        onSelectRoot: onSelectRoot ?? (_) {},
+        disabled: _controlsDisabled,
+        onPress: onKeyboardPress,
+        onRelease: onKeyboardRelease,
+        onPrevPage: onPrevPage ?? () {},
+        onNextPage: onNextPage ?? () {},
+      ),
+      PadMode.keyShift => KeyShiftPads(
+        page: keyShiftPage,
+        activeSemitones: keyShiftSemitones,
+        disabled: _controlsDisabled,
+        onPress: onKeyShiftPress,
+        onPrevPage: onPrevPage ?? () {},
+        onNextPage: onNextPage ?? () {},
       ),
     };
   }

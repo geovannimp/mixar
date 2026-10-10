@@ -200,3 +200,52 @@ String formatDeckKey(String? key, KeyDisplayMode mode) {
   }
   return musicalToCamelot(trimmed) ?? trimmed;
 }
+
+/// Chromatic pitch class (0 = C) for each entry of [kMajorKeys] / [kMinorKeys]
+/// (both are stored in circle-of-fifths order).
+const _majorPitchClasses = <int>[0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5];
+const _minorPitchClasses = <int>[9, 4, 11, 6, 1, 8, 3, 10, 5, 0, 7, 2];
+
+/// Transpose a musical or Camelot key by [semitones], preserving major/minor.
+///
+/// Returns the resulting musical key (e.g. `C` +2 → `D`, `Am` +2 → `Bm`), or
+/// `null` when [key] is empty / not a recognized key. Session-only: never
+/// persisted.
+String? transposeKey(String? key, int semitones) {
+  final trimmed = key?.trim();
+  if (trimmed == null || trimmed.isEmpty) {
+    return null;
+  }
+  final musical = camelotToMusical(trimmed) ?? trimmed;
+  final majorIndex = kMajorKeys.indexOf(musical);
+  final minorIndex = kMinorKeys.indexOf(musical);
+  final bool minor;
+  final int pitch;
+  if (majorIndex >= 0) {
+    minor = false;
+    pitch = _majorPitchClasses[majorIndex];
+  } else if (minorIndex >= 0) {
+    minor = true;
+    pitch = _minorPitchClasses[minorIndex];
+  } else {
+    return null;
+  }
+  final shifted = ((pitch + semitones) % 12 + 12) % 12;
+  final table = minor ? _minorPitchClasses : _majorPitchClasses;
+  final names = minor ? kMinorKeys : kMajorKeys;
+  final index = table.indexOf(shifted);
+  return index < 0 ? null : names[index];
+}
+
+/// Deck key label including the session key shift.
+///
+/// Transposes the analyzed [rawKey] by [semitones] before formatting. Falls
+/// back to the analyzed key when it is not a recognized key. Display-only —
+/// the shift is never persisted.
+String deckSoundingKeyLabel(
+  String? rawKey,
+  int semitones,
+  KeyDisplayMode mode,
+) {
+  return formatDeckKey(transposeKey(rawKey, semitones) ?? rawKey, mode);
+}

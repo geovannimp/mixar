@@ -219,6 +219,10 @@ pub fn deck_snapshot_to_evt(snap: DeckSnapshot) -> EvtBody {
         speed: snap.speed,
         tempo_range: snap.tempo_range,
         key_lock: snap.key_lock,
+        key_shift: snap.key_shift,
+        keyboard_page: snap.keyboard_page,
+        key_shift_page: snap.key_shift_page,
+        keyboard_root_hot_cue: snap.keyboard_root_hot_cue,
         eq: snap.eq,
         filter: snap.filter,
         gain_trim: snap.gain_trim,
@@ -365,6 +369,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::SetSpeed, CmdBody::SetSpeed { .. })
         | (Kind::SetTempoRange, CmdBody::SetTempoRange { .. })
         | (Kind::SetKeyLock, CmdBody::SetKeyLock { .. })
+        | (Kind::SetKeyShift, CmdBody::SetKeyShift { .. })
+        | (Kind::SetKeyboardRoot, CmdBody::SetKeyboardRoot { .. })
+        | (Kind::SetKeyboardPage, CmdBody::SetKeyboardPage { .. })
+        | (Kind::SetKeyShiftPage, CmdBody::SetKeyShiftPage { .. })
         | (Kind::SetFilter, CmdBody::SetFilter { .. })
         | (Kind::SetGainTrim, CmdBody::SetGainTrim { .. })
         | (Kind::SetHeadphoneCue, CmdBody::SetHeadphoneCue { .. })
@@ -391,6 +399,10 @@ fn decode_cmd_body_for(kind: Kind, payload: &[u8]) -> Result<CmdBody> {
         | (Kind::BeatJumpPadRelease, CmdBody::BeatJumpPadRelease { .. })
         | (Kind::SamplerPadPress, CmdBody::SamplerPadPress { .. })
         | (Kind::SamplerPadRelease, CmdBody::SamplerPadRelease { .. })
+        | (Kind::KeyboardPadPress, CmdBody::KeyboardPadPress { .. })
+        | (Kind::KeyboardPadRelease, CmdBody::KeyboardPadRelease { .. })
+        | (Kind::KeyShiftPadPress, CmdBody::KeyShiftPadPress { .. })
+        | (Kind::KeyShiftPadRelease, CmdBody::KeyShiftPadRelease { .. })
         | (Kind::AssignSampler, CmdBody::AssignSampler { .. })
         | (Kind::AssignSamplerTrack, CmdBody::AssignSamplerTrack { .. })
         | (Kind::ClearSampler, CmdBody::ClearSampler { .. })
@@ -545,6 +557,34 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.set_deck_key_lock(deck_id, enabled)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyShift => {
+            let CmdBody::SetKeyShift { semitones } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_key_shift(deck_id, semitones)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyboardRoot => {
+            let CmdBody::SetKeyboardRoot { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_keyboard_root(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyboardPage => {
+            let CmdBody::SetKeyboardPage { page } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_keyboard_page(deck_id, page)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::SetKeyShiftPage => {
+            let CmdBody::SetKeyShiftPage { page } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.set_deck_key_shift_page(deck_id, page)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::SetFilter => {
@@ -809,6 +849,36 @@ fn dispatch_deck_cmd(
                 unreachable!()
             };
             eng.sampler_pad_release(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyboardPadPress => {
+            let CmdBody::KeyboardPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.keyboard_pad_press(deck_id, slot, shift)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyboardPadRelease => {
+            let CmdBody::KeyboardPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.keyboard_pad_release(deck_id, slot)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyShiftPadPress => {
+            let CmdBody::KeyShiftPadPress { slot, shift } = decode_cmd_body_for(kind, payload)?
+            else {
+                unreachable!()
+            };
+            eng.key_shift_pad_press(deck_id, slot, shift)?;
+            Ok(CmdOutcome::DeckUpdated(deck_id))
+        }
+        Kind::KeyShiftPadRelease => {
+            let CmdBody::KeyShiftPadRelease { slot } = decode_cmd_body_for(kind, payload)? else {
+                unreachable!()
+            };
+            eng.key_shift_pad_release(deck_id, slot)?;
             Ok(CmdOutcome::DeckUpdated(deck_id))
         }
         Kind::AssignSampler => {

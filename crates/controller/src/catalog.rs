@@ -100,6 +100,8 @@ const DECK_ALIASES: &[&str] = &[
     "pad_mode_beat_jump",
     "pad_mode_sampler",
     "pad_mode_stems",
+    "pad_mode_keyboard",
+    "pad_mode_key_shift",
 ];
 
 const MASTER_ALIASES: &[&str] = &[
@@ -185,6 +187,8 @@ const DECK_LEAVES: &[&str] = &[
     "beat_jump_pad",
     "sampler_pad",
     "trigger_sampler",
+    "keyboard_pad",
+    "key_shift_pad",
 ];
 
 const MIXER_LEAVES: &[&str] = &["set_crossfader", "set_cue_mix", "set_master_cue"];
@@ -193,7 +197,15 @@ const ENGINE_LEAVES: &[&str] = &["start_engine"];
 
 const LIBRARY_NAV_LEAVES: &[&str] = &["navigate", "navigate_next", "navigate_prev", "load_to_deck"];
 
-const PAD_MODES: &[&str] = &["hot_cue", "loop_roll", "beat_jump", "sampler", "stems"];
+const PAD_MODES: &[&str] = &[
+    "hot_cue",
+    "loop_roll",
+    "beat_jump",
+    "sampler",
+    "stems",
+    "keyboard",
+    "key_shift",
+];
 
 /// Validate leaf-specific named args (after parse).
 pub fn validate_leaf_args(
@@ -206,6 +218,18 @@ pub fn validate_leaf_args(
             let n = args.require_int("n")?;
             if n < 1 {
                 return Err(LoadError::Validation("arg `n` must be >= 1".into()));
+            }
+            Ok(())
+        }
+        // Keyboard / Key Shift pads take an optional `shift` bank selector.
+        "keyboard_pad" | "key_shift_pad" => {
+            args.expect_keys_within(&["n", "shift"])?;
+            let n = args.require_int("n")?;
+            if n < 1 {
+                return Err(LoadError::Validation("arg `n` must be >= 1".into()));
+            }
+            if args.get("shift").is_some() {
+                args.optional_bool("shift")?;
             }
             Ok(())
         }
@@ -310,6 +334,10 @@ fn numbered_deck_alias(alias: &str) -> bool {
         "loop_pad_",
         "jump_pad_",
         "sampler_pad_",
+        "keyboard_pad_",
+        "keyboard_shift_pad_",
+        "key_shift_pad_",
+        "key_shift_shift_pad_",
     ];
     PREFIXES.iter().any(|prefix| {
         alias

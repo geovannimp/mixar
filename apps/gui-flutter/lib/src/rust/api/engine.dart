@@ -76,6 +76,24 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   Future<void> jogTurn({required int deckId, required int delta});
 
+  /// Key Shift pad press; `shift` resets the deck to `0.0` semitones.
+  Future<void> keyShiftPadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> keyShiftPadRelease({required int deckId, required int slot});
+
+  /// Keyboard pad press; `shift` plays the upper octave / accent.
+  Future<void> keyboardPadPress({
+    required int deckId,
+    required int slot,
+    required bool shift,
+  });
+
+  Future<void> keyboardPadRelease({required int deckId, required int slot});
+
   /// Load a library track: prepare outside the engine lock, then `load_prepared_track`.
   Future<void> loadLibraryTrack({required int deckId, required String trackId});
 
@@ -159,6 +177,18 @@ abstract class EngineTransport implements RustOpaqueInterface {
 
   /// Key lock / master tempo (time-stretch; pitch held).
   Future<void> setKeyLock({required int deckId, required bool enabled});
+
+  /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+  Future<void> setKeyShift({required int deckId, required double semitones});
+
+  /// Select the Key Shift pad semitone page (1..=5).
+  Future<void> setKeyShiftPage({required int deckId, required int page});
+
+  /// Select the Keyboard pad semitone page (1..=4).
+  Future<void> setKeyboardPage({required int deckId, required int page});
+
+  /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+  Future<void> setKeyboardRoot({required int deckId, required int slot});
 
   /// Master cue (headphones hear master).
   Future<void> setMasterCue({required bool enabled});
@@ -269,6 +299,18 @@ class EngineEvt {
   final double? speed;
   final double? tempoRange;
   final bool? keyLock;
+
+  /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+  final double? keyShift;
+
+  /// Keyboard pad semitone page (`1..=4`; default 2).
+  final int? keyboardPage;
+
+  /// Key Shift pad semitone page (`1..=5`; default 2).
+  final int? keyShiftPage;
+
+  /// Hot-cue slot used as the Keyboard pad root (default 0).
+  final int? keyboardRootHotCue;
   final PadMode? padMode;
   final SyncMode? syncMode;
   final int? masterDeck;
@@ -342,6 +384,10 @@ class EngineEvt {
     this.speed,
     this.tempoRange,
     this.keyLock,
+    this.keyShift,
+    this.keyboardPage,
+    this.keyShiftPage,
+    this.keyboardRootHotCue,
     this.padMode,
     this.syncMode,
     this.masterDeck,
@@ -393,6 +439,10 @@ class EngineEvt {
       speed.hashCode ^
       tempoRange.hashCode ^
       keyLock.hashCode ^
+      keyShift.hashCode ^
+      keyboardPage.hashCode ^
+      keyShiftPage.hashCode ^
+      keyboardRootHotCue.hashCode ^
       padMode.hashCode ^
       syncMode.hashCode ^
       masterDeck.hashCode ^
@@ -446,6 +496,10 @@ class EngineEvt {
           speed == other.speed &&
           tempoRange == other.tempoRange &&
           keyLock == other.keyLock &&
+          keyShift == other.keyShift &&
+          keyboardPage == other.keyboardPage &&
+          keyShiftPage == other.keyShiftPage &&
+          keyboardRootHotCue == other.keyboardRootHotCue &&
           padMode == other.padMode &&
           syncMode == other.syncMode &&
           masterDeck == other.masterDeck &&
@@ -538,7 +592,7 @@ class OutputDevice {
 }
 
 /// Pad mode for [`EngineTransport::set_pad_mode`] / [`EngineEvt::pad_mode`].
-enum PadMode { hotCue, loopRoll, beatJump, sampler, stems }
+enum PadMode { hotCue, loopRoll, beatJump, sampler, stems, keyboard, keyShift }
 
 /// Pad chrome for one sampler slot (Tauri `SamplerSlotInfo` shape).
 class SamplerSlotChrome {

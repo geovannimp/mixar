@@ -31,5 +31,10 @@ pub use engine::Engine;
 pub use engine_dsp::{SamplerPlayMode, SamplerStripRoute};
 pub use library::PreparedTrackPlayback;
 pub use library_core::{AudioSource, FileAudioSource, TrackId};
+pub use pads::{
+    key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
+    keyboard_page_next, keyboard_page_prev, PitchPadAction, DEFAULT_PITCH_PAGE,
+    KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
+};
 pub use session::EngineSession;
 pub use transport::TransportEvent;

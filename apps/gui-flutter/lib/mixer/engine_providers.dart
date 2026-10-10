@@ -327,6 +327,30 @@ final ProviderFamily<bool, int> deckKeyLockProvider =
           ref.watch(engineUiProvider.select((s) => s.keyLockFor(deckId))),
     );
 
+final ProviderFamily<double, int> deckKeyShiftProvider =
+    Provider.family<double, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyShiftFor(deckId))),
+    );
+
+final ProviderFamily<int, int> deckKeyboardPageProvider =
+    Provider.family<int, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyboardPageFor(deckId))),
+    );
+
+final ProviderFamily<int, int> deckKeyShiftPageProvider =
+    Provider.family<int, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyShiftPageFor(deckId))),
+    );
+
+final ProviderFamily<int, int> deckKeyboardRootProvider =
+    Provider.family<int, int>(
+      (ref, deckId) =>
+          ref.watch(engineUiProvider.select((s) => s.keyboardRootFor(deckId))),
+    );
+
 final ProviderFamily<SyncMode, int> deckSyncModeProvider =
     Provider.family<SyncMode, int>(
       (ref, deckId) =>

@@ -1,7 +1,16 @@
-//! Pad slot tables shared by press/release cmd handlers and tests.
+//! Pad slot tables and helpers.
+//!
+//! The Keyboard / Key Shift semitone tables live in [`engine_api::pads`] so the
+//! controller LED mirror and the engine share one source of truth; they are
+//! re-exported here to keep `engine_core::pads::*` paths working.
 
-/// Library `track_hot_cue.slot_index` allows 0..=15; engine cache matches that.
 pub(crate) const HOT_CUE_SLOT_COUNT: usize = 16;
+
+pub use engine_api::pads::{
+    key_shift_page_action, key_shift_page_next, key_shift_page_prev, keyboard_page_action,
+    keyboard_page_next, keyboard_page_prev, PitchPadAction, DEFAULT_PITCH_PAGE,
+    KEYBOARD_PAGE_COUNT, KEY_SHIFT_PAGE_COUNT,
+};
 
 /// Loop-roll beat lengths for slots 0..=7 (Flutter / Tauri grids).
 pub const LOOP_ROLL_PAD_BEATS: [f32; 8] = [

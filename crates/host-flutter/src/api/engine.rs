@@ -142,6 +142,8 @@ pub enum PadMode {
     BeatJump,
     Sampler,
     Stems,
+    Keyboard,
+    KeyShift,
 }
 
 impl From<PadMode> for engine_api::PadMode {
@@ -152,6 +154,8 @@ impl From<PadMode> for engine_api::PadMode {
             PadMode::BeatJump => Self::BeatJump,
             PadMode::Sampler => Self::Sampler,
             PadMode::Stems => Self::Stems,
+            PadMode::Keyboard => Self::Keyboard,
+            PadMode::KeyShift => Self::KeyShift,
         }
     }
 }
@@ -164,6 +168,8 @@ impl From<engine_api::PadMode> for PadMode {
             engine_api::PadMode::BeatJump => Self::BeatJump,
             engine_api::PadMode::Sampler => Self::Sampler,
             engine_api::PadMode::Stems => Self::Stems,
+            engine_api::PadMode::Keyboard => Self::Keyboard,
+            engine_api::PadMode::KeyShift => Self::KeyShift,
         }
     }
 }
@@ -313,6 +319,14 @@ pub struct EngineEvt {
     pub speed: Option<f32>,
     pub tempo_range: Option<f32>,
     pub key_lock: Option<bool>,
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+    pub key_shift: Option<f32>,
+    /// Keyboard pad semitone page (`1..=4`; default 2).
+    pub keyboard_page: Option<u8>,
+    /// Key Shift pad semitone page (`1..=5`; default 2).
+    pub key_shift_page: Option<u8>,
+    /// Hot-cue slot used as the Keyboard pad root (default 0).
+    pub keyboard_root_hot_cue: Option<u8>,
     pub pad_mode: Option<PadMode>,
     pub sync_mode: Option<SyncMode>,
     pub master_deck: Option<u16>,
@@ -382,6 +396,10 @@ impl EngineEvt {
             speed: None,
             tempo_range: None,
             key_lock: None,
+            key_shift: None,
+            keyboard_page: None,
+            key_shift_page: None,
+            keyboard_root_hot_cue: None,
             pad_mode: None,
             sync_mode: None,
             master_deck: None,
@@ -760,6 +778,42 @@ impl EngineTransport {
         )
     }
 
+    /// Session key-shift offset in semitones (`-16..=16`; `0` = bypass).
+    pub fn set_key_shift(&self, deck_id: u16, semitones: f32) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyShift,
+            &CmdBody::SetKeyShift { semitones },
+        )
+    }
+
+    /// Select the hot-cue slot used as the Keyboard pad root (0..=15).
+    pub fn set_keyboard_root(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyboardRoot,
+            &CmdBody::SetKeyboardRoot { slot },
+        )
+    }
+
+    /// Select the Keyboard pad semitone page (1..=4).
+    pub fn set_keyboard_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyboardPage,
+            &CmdBody::SetKeyboardPage { page },
+        )
+    }
+
+    /// Select the Key Shift pad semitone page (1..=5).
+    pub fn set_key_shift_page(&self, deck_id: u16, page: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::SetKeyShiftPage,
+            &CmdBody::SetKeyShiftPage { page },
+        )
+    }
+
     pub fn jog_touch(&self, deck_id: u16, touching: bool) -> Result<(), String> {
         self.publish_body(
             Origin::Deck(deck_id),
@@ -943,6 +997,40 @@ impl EngineTransport {
             Origin::Deck(deck_id),
             Kind::BeatJumpPadRelease,
             &CmdBody::BeatJumpPadRelease { slot },
+        )
+    }
+
+    /// Keyboard pad press; `shift` plays the upper octave / accent.
+    pub fn keyboard_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::KeyboardPadPress,
+            &CmdBody::KeyboardPadPress { slot, shift },
+        )
+    }
+
+    pub fn keyboard_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::KeyboardPadRelease,
+            &CmdBody::KeyboardPadRelease { slot },
+        )
+    }
+
+    /// Key Shift pad press; `shift` resets the deck to `0.0` semitones.
+    pub fn key_shift_pad_press(&self, deck_id: u16, slot: u8, shift: bool) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::KeyShiftPadPress,
+            &CmdBody::KeyShiftPadPress { slot, shift },
+        )
+    }
+
+    pub fn key_shift_pad_release(&self, deck_id: u16, slot: u8) -> Result<(), String> {
+        self.publish_body(
+            Origin::Deck(deck_id),
+            Kind::KeyShiftPadRelease,
+            &CmdBody::KeyShiftPadRelease { slot },
         )
     }
 
@@ -1328,6 +1416,10 @@ fn updated_from_snapshot(snap: &DeckSnapshot) -> EngineEvt {
     evt.speed = Some(snap.speed);
     evt.tempo_range = Some(snap.tempo_range);
     evt.key_lock = Some(snap.key_lock);
+    evt.key_shift = Some(snap.key_shift);
+    evt.keyboard_page = Some(snap.keyboard_page);
+    evt.key_shift_page = Some(snap.key_shift_page);
+    evt.keyboard_root_hot_cue = Some(snap.keyboard_root_hot_cue);
     evt.pad_mode = Some(snap.pad_mode.into());
     evt.sync_mode = Some(snap.sync_mode);
     evt.active_loop = snap.active_loop.clone().map(ActiveLoopInfo::from);
@@ -1381,6 +1473,10 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             speed,
             tempo_range,
             key_lock,
+            key_shift,
+            keyboard_page,
+            key_shift_page,
+            keyboard_root_hot_cue,
             pad_mode,
             sync_mode,
             active_loop,
@@ -1415,6 +1511,10 @@ pub(crate) fn map_engine_evts(ev: &Evt) -> Vec<EngineEvt> {
             evt.speed = Some(speed);
             evt.tempo_range = Some(tempo_range);
             evt.key_lock = Some(key_lock);
+            evt.key_shift = Some(key_shift);
+            evt.keyboard_page = Some(keyboard_page);
+            evt.key_shift_page = Some(key_shift_page);
+            evt.keyboard_root_hot_cue = Some(keyboard_root_hot_cue);
             evt.pad_mode = Some(pad_mode.into());
             evt.sync_mode = Some(sync_mode);
             evt.active_loop = active_loop.map(ActiveLoopInfo::from);
@@ -1509,6 +1609,10 @@ mod tests {
             speed: 0.5,
             tempo_range: 0.08,
             key_lock: false,
+            key_shift: 0.0,
+            keyboard_page: engine_api::default_pitch_page(),
+            key_shift_page: engine_api::default_pitch_page(),
+            keyboard_root_hot_cue: 0,
             eq: DeckEq {
                 low: 0.5,
                 mid: 0.5,
@@ -1590,6 +1694,19 @@ mod tests {
             Some([true, false, true, false].as_slice())
         );
         assert_eq!(mapped[0].stem_isolate, Some(1));
+    }
+
+    #[test]
+    fn map_updated_forwards_pages_and_keyboard_root() {
+        let mut deck = sample_deck(0, 1.0);
+        deck.keyboard_page = 5;
+        deck.key_shift_page = 3;
+        deck.keyboard_root_hot_cue = 3;
+        let mapped = recv_mapped(Origin::Deck(0), Kind::Updated, deck_snapshot_to_evt(deck));
+        assert_eq!(mapped.len(), 1);
+        assert_eq!(mapped[0].keyboard_page, Some(5));
+        assert_eq!(mapped[0].key_shift_page, Some(3));
+        assert_eq!(mapped[0].keyboard_root_hot_cue, Some(3));
     }
 
     #[test]
