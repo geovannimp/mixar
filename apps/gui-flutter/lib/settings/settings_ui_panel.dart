@@ -18,7 +18,7 @@ class SettingsUiPanel extends StatelessWidget {
       children: [
         const SettingsSectionHeader(
           title: 'UI',
-          description: 'Chrome and hover tips for the desktop app.',
+          description: 'Chrome, hover tips, and control presentation.',
         ),
         SettingsPanel(
           child: Column(
@@ -30,6 +30,34 @@ class SettingsUiPanel extends StatelessWidget {
                 value: draft.showTooltips,
                 onChanged: (enabled) =>
                     onChanged(copyAppSettings(draft, showTooltips: enabled)),
+              ),
+              SettingsField(
+                label: 'Select style',
+                child: SettingsSelect<SelectStyleSetting>(
+                  dialogTitle: 'Select style',
+                  value: draft.selectStyle,
+                  options: const [
+                    SelectStyleSetting.auto,
+                    SelectStyleSetting.desktop,
+                    SelectStyleSetting.mobile,
+                  ],
+                  labelBuilder: (mode) => switch (mode) {
+                    SelectStyleSetting.auto => 'Auto',
+                    SelectStyleSetting.desktop => 'Desktop',
+                    SelectStyleSetting.mobile => 'Mobile',
+                  },
+                  subtitleBuilder: (mode) => switch (mode) {
+                    SelectStyleSetting.auto =>
+                      'Platform default — desktop OS uses popovers, '
+                          'phones use dialogs.',
+                    SelectStyleSetting.desktop =>
+                      'Anchored popovers for selects and ⋯ menus.',
+                    SelectStyleSetting.mobile =>
+                      'Open selects and ⋯ menus in a dialog.',
+                  },
+                  onChanged: (mode) =>
+                      onChanged(copyAppSettings(draft, selectStyle: mode)),
+                ),
               ),
             ],
           ),

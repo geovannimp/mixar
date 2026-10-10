@@ -236,6 +236,16 @@ pub enum LibraryRowDensitySetting {
     Comfortable,
 }
 
+/// Select / dropdown presentation. `Auto` picks desktop vs mobile from the host OS.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SelectStyleSetting {
+    #[default]
+    Auto,
+    Desktop,
+    Mobile,
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -278,6 +288,8 @@ pub struct AppSettings {
     pub history_min_deck_volume: f32,
     #[serde(default = "default_show_tooltips")]
     pub show_tooltips: bool,
+    #[serde(default)]
+    pub select_style: SelectStyleSetting,
     #[serde(default = "default_dim_played_tracks")]
     pub dim_played_tracks: bool,
     /// Stem cache codec: `opus` (default) or `flac`.
@@ -308,6 +320,7 @@ struct SettingsHost {
     history_min_play_seconds: u32,
     history_min_deck_volume: f32,
     show_tooltips: bool,
+    select_style: SelectStyleSetting,
     dim_played_tracks: bool,
     stems_format: String,
 }
@@ -335,6 +348,7 @@ impl Default for SettingsHost {
             history_min_play_seconds: default_history_min_play_seconds(),
             history_min_deck_volume: default_history_min_deck_volume(),
             show_tooltips: default_show_tooltips(),
+            select_style: SelectStyleSetting::default(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
         }
@@ -594,6 +608,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         history_min_play_seconds: host.history_min_play_seconds,
         history_min_deck_volume: host.history_min_deck_volume,
         show_tooltips: host.show_tooltips,
+        select_style: host.select_style,
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
     }
@@ -634,6 +649,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.history_min_play_seconds = settings.history_min_play_seconds;
     host.history_min_deck_volume = settings.history_min_deck_volume;
     host.show_tooltips = settings.show_tooltips;
+    host.select_style = settings.select_style;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
     host.configured = true;
@@ -896,6 +912,30 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert!(!restored.show_tooltips);
+    }
+
+    #[test]
+    fn missing_select_style_defaults_auto() {
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("select_style");
+        let settings: AppSettings = serde_json::from_value(value).expect("parse");
+        assert_eq!(settings.select_style, SelectStyleSetting::Auto);
+    }
+
+    #[test]
+    fn select_style_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.select_style = SelectStyleSetting::Mobile;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(restored.select_style, SelectStyleSetting::Mobile);
     }
 
     #[test]

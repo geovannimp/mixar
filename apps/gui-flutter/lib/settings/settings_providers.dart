@@ -44,6 +44,16 @@ final libraryRowDensitySettingProvider = Provider<LibraryRowDensity>((ref) {
       );
 });
 
+/// Saved select / dropdown presentation style (default auto).
+final selectStyleSettingProvider = Provider<SelectStyleSetting>((ref) {
+  return ref
+      .watch(appSettingsProvider)
+      .maybeWhen(
+        data: (s) => s.selectStyle,
+        orElse: () => SelectStyleSetting.auto,
+      );
+});
+
 /// Session-local density toggle for the library toolbar. It overrides the
 /// saved default for the current session only, so the button never writes
 /// settings.json or takes the engine-restart path in [saveAppSettings].

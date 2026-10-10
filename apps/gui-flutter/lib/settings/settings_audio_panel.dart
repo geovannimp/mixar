@@ -56,6 +56,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                   SettingsField(
                     label: 'Backend',
                     child: SettingsSelect(
+                      dialogTitle: 'Backend',
                       value: draft.backend,
                       options: backendOptions,
                       labelBuilder: (v) => v,
@@ -77,6 +78,7 @@ class SettingsAudioPanel extends ConsumerWidget {
                     ? 'Loading rates for the master output device…'
                     : null,
                 child: SettingsSelect(
+                  dialogTitle: 'Sample rate',
                   value: draft.sampleRate,
                   options: sampleRates,
                   enabled: !devicesAsync.isLoading && sampleRates.isNotEmpty,
@@ -88,6 +90,7 @@ class SettingsAudioPanel extends ConsumerWidget {
               SettingsField(
                 label: 'Resampler quality',
                 child: SettingsSelect(
+                  dialogTitle: 'Resampler quality',
                   value: draft.resamplerQuality,
                   options: _resamplerQualities,
                   labelBuilder: (v) => v,
@@ -287,6 +290,7 @@ class _BusRouteFields extends StatelessWidget {
         SettingsField(
           label: 'Device',
           child: SettingsSelect(
+            dialogTitle: 'Device',
             value: selectedId,
             options: [for (final device in deviceOptions) device.id],
             labelBuilder: (id) {
@@ -310,6 +314,7 @@ class _BusRouteFields extends StatelessWidget {
         SettingsField(
           label: 'Channel mode',
           child: SettingsSelect(
+            dialogTitle: 'Channel mode',
             value: route.mode,
             options: BusChannelMode.values,
             labelBuilder: (m) =>

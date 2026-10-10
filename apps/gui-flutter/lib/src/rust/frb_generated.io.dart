@@ -554,6 +554,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SavedLoopInfo dco_decode_saved_loop_info(dynamic raw);
 
   @protected
+  SelectStyleSetting dco_decode_select_style_setting(dynamic raw);
+
+  @protected
   StorageUsage dco_decode_storage_usage(dynamic raw);
 
   @protected
@@ -1171,6 +1174,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SavedLoopInfo sse_decode_saved_loop_info(SseDeserializer deserializer);
+
+  @protected
+  SelectStyleSetting sse_decode_select_style_setting(
+    SseDeserializer deserializer,
+  );
 
   @protected
   StorageUsage sse_decode_storage_usage(SseDeserializer deserializer);
@@ -1926,6 +1934,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_saved_loop_info(SavedLoopInfo self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_select_style_setting(
+    SelectStyleSetting self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_storage_usage(StorageUsage self, SseSerializer serializer);

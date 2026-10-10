@@ -67,6 +67,7 @@ class SettingsSelect<T> extends StatelessWidget {
     super.key,
     this.subtitleBuilder,
     this.enabled = true,
+    this.dialogTitle,
   });
 
   final T value;
@@ -75,6 +76,9 @@ class SettingsSelect<T> extends StatelessWidget {
   final String Function(T value)? subtitleBuilder;
   final ValueChanged<T> onChanged;
   final bool enabled;
+
+  /// Title for the mobile dialog picker (usually the [SettingsField] label).
+  final String? dialogTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +89,7 @@ class SettingsSelect<T> extends StatelessWidget {
       subtitleBuilder: subtitleBuilder,
       onChanged: onChanged,
       enabled: enabled,
+      dialogTitle: dialogTitle,
     );
   }
 }

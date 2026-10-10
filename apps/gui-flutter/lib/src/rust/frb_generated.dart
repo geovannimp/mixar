@@ -74,7 +74,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => 1234743108;
+  int get rustContentHash => 804620510;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -779,6 +779,8 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<SamplerSlotChrome> crateApiEngineSamplerSlotChromeDefault();
+
+  Future<SelectStyleSetting> crateApiSettingsSelectStyleSettingDefault();
 
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport;
@@ -5967,6 +5969,36 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         argNames: [],
       );
 
+  @override
+  Future<SelectStyleSetting> crateApiSettingsSelectStyleSettingDefault() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 133,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_select_style_setting,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiSettingsSelectStyleSettingDefaultConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiSettingsSelectStyleSettingDefaultConstMeta =>
+      const TaskConstMeta(
+        debugName: "select_style_setting_default",
+        argNames: [],
+      );
+
   RustArcIncrementStrongCountFnType
   get rust_arc_increment_strong_count_AudioBackendTransport => wire
       .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerAudioBackendTransport;
@@ -6298,8 +6330,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AppSettings dco_decode_app_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 31)
-      throw Exception('unexpected arr length: expect 31 but see ${arr.length}');
+    if (arr.length != 32)
+      throw Exception('unexpected arr length: expect 32 but see ${arr.length}');
     return AppSettings(
       backend: dco_decode_String(arr[0]),
       sampleRate: dco_decode_u_32(arr[1]),
@@ -6330,8 +6362,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: dco_decode_u_32(arr[26]),
       historyMinDeckVolume: dco_decode_f_32(arr[27]),
       showTooltips: dco_decode_bool(arr[28]),
-      dimPlayedTracks: dco_decode_bool(arr[29]),
-      stemsFormat: dco_decode_String(arr[30]),
+      selectStyle: dco_decode_select_style_setting(arr[29]),
+      dimPlayedTracks: dco_decode_bool(arr[30]),
+      stemsFormat: dco_decode_String(arr[31]),
     );
   }
 
@@ -7287,6 +7320,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SelectStyleSetting dco_decode_select_style_setting(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SelectStyleSetting.values[raw as int];
+  }
+
+  @protected
   StorageUsage dco_decode_storage_usage(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -7746,6 +7785,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_historyMinPlaySeconds = sse_decode_u_32(deserializer);
     var var_historyMinDeckVolume = sse_decode_f_32(deserializer);
     var var_showTooltips = sse_decode_bool(deserializer);
+    var var_selectStyle = sse_decode_select_style_setting(deserializer);
     var var_dimPlayedTracks = sse_decode_bool(deserializer);
     var var_stemsFormat = sse_decode_String(deserializer);
     return AppSettings(
@@ -7778,6 +7818,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       historyMinPlaySeconds: var_historyMinPlaySeconds,
       historyMinDeckVolume: var_historyMinDeckVolume,
       showTooltips: var_showTooltips,
+      selectStyle: var_selectStyle,
       dimPlayedTracks: var_dimPlayedTracks,
       stemsFormat: var_stemsFormat,
     );
@@ -9140,6 +9181,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SelectStyleSetting sse_decode_select_style_setting(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SelectStyleSetting.values[inner];
+  }
+
+  @protected
   StorageUsage sse_decode_storage_usage(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_stemsBytes = sse_decode_u_64(deserializer);
@@ -9640,6 +9690,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.historyMinPlaySeconds, serializer);
     sse_encode_f_32(self.historyMinDeckVolume, serializer);
     sse_encode_bool(self.showTooltips, serializer);
+    sse_encode_select_style_setting(self.selectStyle, serializer);
     sse_encode_bool(self.dimPlayedTracks, serializer);
     sse_encode_String(self.stemsFormat, serializer);
   }
@@ -10788,6 +10839,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.inMs, serializer);
     sse_encode_i_32(self.outMs, serializer);
     sse_encode_opt_String(self.label, serializer);
+  }
+
+  @protected
+  void sse_encode_select_style_setting(
+    SelectStyleSetting self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

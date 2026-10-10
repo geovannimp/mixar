@@ -43,7 +43,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1234743108;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 804620510;
 
 // Section: executor
 
@@ -6860,6 +6860,39 @@ fn wire__crate__api__engine__sampler_slot_chrome_default_impl(
         },
     )
 }
+fn wire__crate__api__settings__select_style_setting_default_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "select_style_setting_default",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Ok::<_, ()>(crate::api::settings::SelectStyleSetting::default())?;
+                    std::result::Result::Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 
 // Section: related_funcs
 
@@ -7177,6 +7210,8 @@ impl SseDecode for crate::api::settings::AppSettings {
         let mut var_historyMinPlaySeconds = <u32>::sse_decode(deserializer);
         let mut var_historyMinDeckVolume = <f32>::sse_decode(deserializer);
         let mut var_showTooltips = <bool>::sse_decode(deserializer);
+        let mut var_selectStyle =
+            <crate::api::settings::SelectStyleSetting>::sse_decode(deserializer);
         let mut var_dimPlayedTracks = <bool>::sse_decode(deserializer);
         let mut var_stemsFormat = <String>::sse_decode(deserializer);
         return crate::api::settings::AppSettings {
@@ -7209,6 +7244,7 @@ impl SseDecode for crate::api::settings::AppSettings {
             history_min_play_seconds: var_historyMinPlaySeconds,
             history_min_deck_volume: var_historyMinDeckVolume,
             show_tooltips: var_showTooltips,
+            select_style: var_selectStyle,
             dim_played_tracks: var_dimPlayedTracks,
             stems_format: var_stemsFormat,
         };
@@ -8559,6 +8595,19 @@ impl SseDecode for crate::api::library::SavedLoopInfo {
     }
 }
 
+impl SseDecode for crate::api::settings::SelectStyleSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::api::settings::SelectStyleSetting::Auto,
+            1 => crate::api::settings::SelectStyleSetting::Desktop,
+            2 => crate::api::settings::SelectStyleSetting::Mobile,
+            _ => unreachable!("Invalid variant for SelectStyleSetting: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::library::StorageUsage {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -9410,6 +9459,12 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
+        133 => wire__crate__api__settings__select_style_setting_default_impl(
+            port,
+            ptr,
+            rust_vec_len,
+            data_len,
+        ),
         _ => unreachable!(),
     }
 }
@@ -9675,6 +9730,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::settings::AppSettings {
             self.history_min_play_seconds.into_into_dart().into_dart(),
             self.history_min_deck_volume.into_into_dart().into_dart(),
             self.show_tooltips.into_into_dart().into_dart(),
+            self.select_style.into_into_dart().into_dart(),
             self.dim_played_tracks.into_into_dart().into_dart(),
             self.stems_format.into_into_dart().into_dart(),
         ]
@@ -10678,6 +10734,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::library::SavedLoopInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::settings::SelectStyleSetting {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Auto => 0.into_dart(),
+            Self::Desktop => 1.into_dart(),
+            Self::Mobile => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::api::settings::SelectStyleSetting
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::settings::SelectStyleSetting>
+    for crate::api::settings::SelectStyleSetting
+{
+    fn into_into_dart(self) -> crate::api::settings::SelectStyleSetting {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::library::StorageUsage {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -11039,6 +11117,7 @@ impl SseEncode for crate::api::settings::AppSettings {
         <u32>::sse_encode(self.history_min_play_seconds, serializer);
         <f32>::sse_encode(self.history_min_deck_volume, serializer);
         <bool>::sse_encode(self.show_tooltips, serializer);
+        <crate::api::settings::SelectStyleSetting>::sse_encode(self.select_style, serializer);
         <bool>::sse_encode(self.dim_played_tracks, serializer);
         <String>::sse_encode(self.stems_format, serializer);
     }
@@ -12111,6 +12190,23 @@ impl SseEncode for crate::api::library::SavedLoopInfo {
         <i32>::sse_encode(self.in_ms, serializer);
         <i32>::sse_encode(self.out_ms, serializer);
         <Option<String>>::sse_encode(self.label, serializer);
+    }
+}
+
+impl SseEncode for crate::api::settings::SelectStyleSetting {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::api::settings::SelectStyleSetting::Auto => 0,
+                crate::api::settings::SelectStyleSetting::Desktop => 1,
+                crate::api::settings::SelectStyleSetting::Mobile => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

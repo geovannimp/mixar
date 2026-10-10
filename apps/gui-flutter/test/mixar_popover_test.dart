@@ -1,13 +1,61 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gui_flutter/shell/material_theme.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
+import 'package:gui_flutter/shell/mixar_overlay_controller.dart';
 import 'package:gui_flutter/shell/mixar_popover.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
+import 'package:gui_flutter/src/rust/api/settings.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'support/mixar_material_app.dart';
 
 void main() {
+  Future<MixarOverlayController?> pumpMenuAnchor(
+    WidgetTester tester, {
+    SelectStyleSetting style = SelectStyleSetting.mobile,
+    bool captureController = false,
+    double minWidth = 200,
+  }) async {
+    final theme = MixarThemeData.dark();
+    MixarOverlayController? menuController;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: materialUiThemeFromMixar(theme),
+        builder: mixarMaterialAppBuilder(theme),
+        home: Scaffold(
+          body: Center(
+            child: MixarMenuAnchor(
+              style: style,
+              minWidth: minWidth,
+              menuBuilder: (context, controller) => MixarMenuBody(
+                groups: [
+                  MixarMenuGroup(
+                    children: [
+                      MixarMenuItem(
+                        title: const Text('Analyze tracks…'),
+                        onPress: controller.hide,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              childBuilder: (context, controller) {
+                if (captureController) {
+                  menuController = controller;
+                }
+                return GestureDetector(
+                  onTap: controller.toggle,
+                  child: const Text('Open menu'),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    return menuController;
+  }
+
   testWidgets('MixarPopover toggles overlay content', (tester) async {
     final theme = MixarThemeData.dark();
     await tester.pumpWidget(
@@ -99,6 +147,7 @@ void main() {
                 Align(
                   alignment: Alignment.topLeft,
                   child: MixarMenuAnchor(
+                    style: SelectStyleSetting.desktop,
                     menuBuilder: (context, controller) =>
                         const Text('Menu body'),
                     childBuilder: (context, controller) => GestureDetector(
@@ -122,4 +171,70 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Menu body'), findsNothing);
   });
+
+  testWidgets('MixarMenuAnchor mobile style opens a dialog', (tester) async {
+    await pumpMenuAnchor(tester);
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsOneWidget);
+
+    await tester.tap(find.text('Analyze tracks…'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsNothing);
+  });
+
+  testWidgets('MixarMenuAnchor mobile barrier dismiss clears isShowing', (
+    tester,
+  ) async {
+    final menuController = await pumpMenuAnchor(
+      tester,
+      captureController: true,
+    );
+
+    await tester.tap(find.text('Open menu'));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsOneWidget);
+    expect(menuController!.isShowing, isTrue);
+
+    // Barrier dismiss (same corner tap as mixar_dialog_test).
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pumpAndSettle();
+    expect(find.text('Analyze tracks…'), findsNothing);
+    expect(menuController.isShowing, isFalse);
+  });
+
+  testWidgets(
+    'MixarMenuAnchor mobile hide then show waits for dialog to finish',
+    (tester) async {
+      final menuController = await pumpMenuAnchor(
+        tester,
+        captureController: true,
+      );
+
+      await tester.tap(find.text('Open menu'));
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      // Rapid hide → show while the first dialog is still dismissing must not
+      // stack a second route.
+      menuController!.hide();
+      menuController.show();
+      await tester.pump();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsNothing);
+      expect(menuController.isShowing, isFalse);
+
+      // After the route finishes, a fresh show works again.
+      menuController.show();
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsOneWidget);
+
+      menuController.hide();
+      await tester.pumpAndSettle();
+      expect(find.text('Analyze tracks…'), findsNothing);
+    },
+  );
 }
