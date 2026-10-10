@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/create_collection_dialog.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
 Future<LibraryCollectionSummary?> createCollection(
@@ -8,7 +9,7 @@ Future<LibraryCollectionSummary?> createCollection(
   CreateCollectionResult request, {
   String? historySessionId,
 }) async {
-  ref.read(libraryMessageProvider.notifier).clear();
+  ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     final name = request.name.trim();
@@ -37,7 +38,7 @@ Future<LibraryCollectionSummary?> createCollection(
     ref.invalidate(collectionTracksProvider);
     return collection;
   } catch (e) {
-    ref.read(libraryMessageProvider.notifier).setError('$e');
+    ref.read(appNoticeProvider.notifier).setError('$e');
     return null;
   }
 }
@@ -60,7 +61,7 @@ Future<void> analyzeCollectionAction(
   required bool force,
   required bool generateStems,
 }) async {
-  ref.read(libraryMessageProvider.notifier).clear();
+  ref.read(appNoticeProvider.notifier).clear();
   try {
     final transport = await ref.read(libraryTransportProvider.future);
     final result = await transport.analyzeCollection(
@@ -77,7 +78,7 @@ Future<void> analyzeCollectionAction(
     final queued = result.queuedTrackIds.length;
     final stemCount = result.stemTrackIds.length;
     ref
-        .read(libraryMessageProvider.notifier)
+        .read(appNoticeProvider.notifier)
         .setNotice(
           queued == 0 && stemCount == 0
               ? 'Everything is already analyzed.'
@@ -85,6 +86,6 @@ Future<void> analyzeCollectionAction(
                     '${generateStems ? ' + $stemCount for stems' : ''}.',
         );
   } catch (e) {
-    ref.read(libraryMessageProvider.notifier).setError('$e');
+    ref.read(appNoticeProvider.notifier).setError('$e');
   }
 }

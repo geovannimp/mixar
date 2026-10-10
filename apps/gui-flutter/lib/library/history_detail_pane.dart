@@ -15,6 +15,7 @@ import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/settings/settings_defaults.dart';
 import 'package:gui_flutter/settings/settings_providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_menu.dart';
@@ -171,7 +172,7 @@ class HistoryDetailPane extends ConsumerWidget {
       await transport.renameHistorySession(sessionId: session.id, title: next);
       invalidateHistory(ref);
     } catch (e) {
-      ref.read(libraryMessageProvider.notifier).setError('$e');
+      ref.read(appNoticeProvider.notifier).setError('$e');
     }
   }
 
@@ -233,7 +234,7 @@ class HistoryDetailPane extends ConsumerWidget {
         destPath: dest,
       );
     } catch (e) {
-      ref.read(libraryMessageProvider.notifier).setError('$e');
+      ref.read(appNoticeProvider.notifier).setError('$e');
     }
   }
 
@@ -295,7 +296,7 @@ class HistoryDetailPane extends ConsumerWidget {
       ref.read(selectedHistorySessionIdProvider.notifier).set(null);
       invalidateHistory(ref);
     } catch (e) {
-      ref.read(libraryMessageProvider.notifier).setError('$e');
+      ref.read(appNoticeProvider.notifier).setError('$e');
     }
   }
 }

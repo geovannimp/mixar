@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/shell/app_button.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/mixar_dialog.dart';
 import 'package:gui_flutter/shell/mixar_input.dart';
 import 'package:gui_flutter/shell/mixar_theme.dart';
@@ -74,7 +75,7 @@ Future<void> showTrackDetailDialog(
                         Navigator.of(context).pop();
                       }
                     } catch (e) {
-                      ref.read(libraryMessageProvider.notifier).setError('$e');
+                      ref.read(appNoticeProvider.notifier).setError('$e');
                     }
                   },
                   child: const Text('Save'),

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/src/rust/api/library.dart';
 
@@ -29,3 +31,34 @@ TrackDragPayload payloadFromListTrack(
     title: trackDisplayTitle(title: title, path: track.path),
   );
 }
+
+/// One-shot MIDI / controller "load focused row" request.
+///
+/// Library event bootstrap publishes here; focused deck-load bootstrap
+/// consumes it so library providers never import deck load helpers.
+@immutable
+class PendingFocusedDeckLoadRequest {
+  const new({required this.deckId, required this.seq});
+
+  final int deckId;
+  final int seq;
+}
+
+class PendingFocusedDeckLoad extends Notifier<PendingFocusedDeckLoadRequest?> {
+  var _seq = 0;
+
+  @override
+  PendingFocusedDeckLoadRequest? build() => null;
+
+  void request(int deckId) {
+    _seq += 1;
+    state = PendingFocusedDeckLoadRequest(deckId: deckId, seq: _seq);
+  }
+
+  void clear() => state = null;
+}
+
+final pendingFocusedDeckLoadProvider =
+    NotifierProvider<PendingFocusedDeckLoad, PendingFocusedDeckLoadRequest?>(
+      PendingFocusedDeckLoad.new,
+    );

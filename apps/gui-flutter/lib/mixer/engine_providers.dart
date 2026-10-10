@@ -1,6 +1,7 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart'
+    show FutureProviderFamily, ProviderFamily;
 import 'package:gui_flutter/library/providers.dart';
 import 'package:gui_flutter/mixer/engine_ui.dart';
 import 'package:gui_flutter/mixer/jog_ticks.dart';
@@ -10,12 +11,11 @@ import 'package:gui_flutter/mixer/pads/hot_cue_pads.dart';
 import 'package:gui_flutter/mixer/tempo_format.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
 import 'package:gui_flutter/mixer/waveform/waveform_providers.dart';
+import 'package:gui_flutter/shell/app_notice.dart';
 import 'package:gui_flutter/shell/desktop.dart';
 import 'package:gui_flutter/src/rust/api/engine.dart' hide PadMode;
 import 'package:gui_flutter/src/rust/api/library.dart'
     show LibraryTrackSummary, SavedLoopInfo;
-import 'package:riverpod/src/providers/future_provider.dart';
-import 'package:riverpod/src/providers/provider.dart';
 
 class EngineUi extends Notifier<EngineUiSnapshot> {
   @override
@@ -566,39 +566,13 @@ final engineEventsBootstrapProvider = Provider<void>((ref) {
       ref.read(engineUiProvider.notifier).apply(evt);
       if (evt.kind == EngineEvtKind.error) {
         ref
-            .read(libraryMessageProvider.notifier)
+            .read(appNoticeProvider.notifier)
             .setError(evt.message ?? 'Engine error');
       }
     });
     ref.onDispose(sub.cancel);
   }
 });
-
-Future<void> loadPayloadToDeck(
-  WidgetRef ref,
-  int deckId,
-  TrackDragPayload payload,
-) async {
-  final loading = ref.read(deckLoadInFlightProvider.notifier);
-  loading.set(deckId, true);
-  try {
-    final engine = await ref.read(engineTransportProvider.future);
-    if (engine == null) {
-      return;
-    }
-    await applyTrackDrop(
-      deckId: deckId,
-      payload: payload,
-      loadLibraryTrack: (id, trackId) =>
-          engine.loadLibraryTrack(deckId: id, trackId: trackId),
-      loadPath: (id, path) => engine.loadPath(deckId: id, path: path),
-    );
-    ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, payload.path);
-    ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, payload.trackId);
-  } finally {
-    loading.set(deckId, false);
-  }
-}
 
 Future<void> toggleDeckPlay(WidgetRef ref, int deckId) async {
   final engine = await ref.read(engineTransportProvider.future);
@@ -756,16 +730,4 @@ Future<void> unloadDeck(WidgetRef ref, int deckId) async {
   await engine.unload(deckId: deckId);
   ref.read(engineUiProvider.notifier).setDeckTrackPath(deckId, null);
   ref.read(engineUiProvider.notifier).setDeckTrackId(deckId, null);
-}
-
-Future<void> pickTrackForDeck(WidgetRef ref, int deckId) async {
-  final result = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: supportedAudioExtensions,
-  );
-  final path = result?.files.single.path;
-  if (path == null || path.isEmpty) {
-    return;
-  }
-  await loadPayloadToDeck(ref, deckId, payloadFromOsPath(path));
 }

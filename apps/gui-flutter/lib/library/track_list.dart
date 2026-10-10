@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gui_flutter/library/library_list_chrome.dart';
 import 'package:gui_flutter/library/providers.dart';
+import 'package:gui_flutter/mixer/deck_load.dart';
 import 'package:gui_flutter/mixer/engine_providers.dart';
 import 'package:gui_flutter/mixer/fader_slider.dart';
 import 'package:gui_flutter/mixer/track_drag.dart';
