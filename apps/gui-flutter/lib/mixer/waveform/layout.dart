@@ -1,6 +1,5 @@
 import 'package:flutter/animation.dart' show AnimationController;
 import 'package:flutter/cupertino.dart' show AnimationController;
-import 'package:flutter/material.dart' show AnimationController;
 import 'package:flutter/widgets.dart' show AnimationController;
 import 'package:material_ui/material_ui.dart' show AnimationController;
 
