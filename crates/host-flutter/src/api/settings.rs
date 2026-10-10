@@ -246,6 +246,16 @@ pub enum SelectStyleSetting {
     Mobile,
 }
 
+/// App UI language preference (Settings → UI).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UiLanguageSetting {
+    #[default]
+    System,
+    En,
+    PtBr,
+}
+
 /// Full app settings DTO (mirrors Tauri `AppSettings`).
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -295,6 +305,8 @@ pub struct AppSettings {
     /// Stem cache codec: `opus` (default) or `flac`.
     #[serde(default = "default_stems_format")]
     pub stems_format: String,
+    #[serde(default)]
+    pub ui_language: UiLanguageSetting,
 }
 
 #[flutter_rust_bridge::frb(ignore)]
@@ -323,6 +335,7 @@ struct SettingsHost {
     select_style: SelectStyleSetting,
     dim_played_tracks: bool,
     stems_format: String,
+    ui_language: UiLanguageSetting,
 }
 
 impl Default for SettingsHost {
@@ -351,6 +364,7 @@ impl Default for SettingsHost {
             select_style: SelectStyleSetting::default(),
             dim_played_tracks: default_dim_played_tracks(),
             stems_format: default_stems_format(),
+            ui_language: UiLanguageSetting::default(),
         }
     }
 }
@@ -611,6 +625,7 @@ fn settings_from_host(host: &SettingsHost) -> AppSettings {
         select_style: host.select_style,
         dim_played_tracks: host.dim_played_tracks,
         stems_format: host.stems_format.clone(),
+        ui_language: host.ui_language,
     }
 }
 
@@ -652,6 +667,7 @@ fn apply_to_host(host: &mut SettingsHost, settings: AppSettings) -> Result<(), S
     host.select_style = settings.select_style;
     host.dim_played_tracks = settings.dim_played_tracks;
     host.stems_format = settings.stems_format;
+    host.ui_language = settings.ui_language;
     host.configured = true;
     Ok(())
 }
@@ -936,6 +952,44 @@ mod tests {
         let host = load_host(&path);
         let restored = settings_from_host(&host);
         assert_eq!(restored.select_style, SelectStyleSetting::Mobile);
+    }
+
+    #[test]
+    fn missing_ui_language_defaults_system() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut value = serde_json::to_value(sample_settings()).expect("json");
+        value
+            .as_object_mut()
+            .expect("object")
+            .remove("ui_language");
+        std::fs::write(&path, serde_json::to_vec(&value).expect("write")).expect("disk");
+        let host = load_host(&path);
+        assert_eq!(
+            settings_from_host(&host).ui_language,
+            UiLanguageSetting::System
+        );
+    }
+
+    #[test]
+    fn ui_language_round_trip_survives_reload() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("settings.json");
+        let mut settings = sample_settings();
+        settings.ui_language = UiLanguageSetting::PtBr;
+        write_settings_file(&path, &settings).expect("write");
+
+        let host = load_host(&path);
+        let restored = settings_from_host(&host);
+        assert_eq!(restored.ui_language, UiLanguageSetting::PtBr);
+
+        settings.ui_language = UiLanguageSetting::En;
+        write_settings_file(&path, &settings).expect("write");
+        let host = load_host(&path);
+        assert_eq!(
+            settings_from_host(&host).ui_language,
+            UiLanguageSetting::En
+        );
     }
 
     #[test]

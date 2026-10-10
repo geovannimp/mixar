@@ -99,13 +99,24 @@ void main() {
       isTrue,
     );
   });
-
   test('selectStyle defaults auto and is dirty when changed', () {
     final baseline = defaultAppSettings();
     expect(baseline.selectStyle, SelectStyleSetting.auto);
     expect(
       appSettingsDirty(
         copyAppSettings(baseline, selectStyle: SelectStyleSetting.mobile),
+        baseline,
+      ),
+      isTrue,
+    );
+  });
+
+  test('uiLanguage defaults system and dirty when changed', () {
+    final baseline = defaultAppSettings();
+    expect(baseline.uiLanguage, UiLanguageSetting.system);
+    expect(
+      appSettingsDirty(
+        copyAppSettings(baseline, uiLanguage: UiLanguageSetting.ptBr),
         baseline,
       ),
       isTrue,

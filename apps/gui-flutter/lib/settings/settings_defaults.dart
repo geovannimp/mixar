@@ -122,6 +122,7 @@ AppSettings defaultAppSettings() {
     selectStyle: SelectStyleSetting.auto,
     dimPlayedTracks: true,
     stemsFormat: 'opus',
+    uiLanguage: UiLanguageSetting.system,
   );
 }
 
@@ -190,6 +191,7 @@ AppSettings copyAppSettings(
   SelectStyleSetting? selectStyle,
   bool? dimPlayedTracks,
   String? stemsFormat,
+  UiLanguageSetting? uiLanguage,
 }) {
   return AppSettings(
     backend: backend ?? base.backend,
@@ -228,6 +230,7 @@ AppSettings copyAppSettings(
     selectStyle: selectStyle ?? base.selectStyle,
     dimPlayedTracks: dimPlayedTracks ?? base.dimPlayedTracks,
     stemsFormat: stemsFormat ?? base.stemsFormat,
+    uiLanguage: uiLanguage ?? base.uiLanguage,
   );
 }
 
@@ -265,6 +268,7 @@ bool appSettingsDirty(AppSettings draft, AppSettings baseline) {
       draft.selectStyle != baseline.selectStyle ||
       draft.dimPlayedTracks != baseline.dimPlayedTracks ||
       draft.stemsFormat != baseline.stemsFormat ||
+      draft.uiLanguage != baseline.uiLanguage ||
       draft.libraryRowDensity != baseline.libraryRowDensity ||
       !_sameList(
         draft.deckDefaultSamplerBankId,
