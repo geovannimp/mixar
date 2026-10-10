@@ -1,0 +1,58 @@
+---
+title: "Overview"
+description: "What stems are, why they matter for mixing, and how Mixar gets four layers onto a track."
+section: "Stems"
+order: 1
+---
+
+A **stem** is one instrumental or vocal part of a track, separated from the rest so you can control it on its own. Instead of one stereo mix, you work with the song’s building blocks.
+
+## The four layers
+
+Mixar uses the same four parts as Native Instruments Stem files:
+
+| Layer | Typical content |
+| --- | --- |
+| **Drums** | Kick, snare, hats, percussion |
+| **Bass** | Bassline and low-end instruments |
+| **Other** | Synths, pads, guitars, and everything that is not drums, bass, or vocals |
+| **Vocals** | Lead and backing vocals |
+
+## Mixdown
+
+The **mixdown** is the full stereo track — all parts combined the way you normally hear the song. In a Stem file it sits beside the four layers (not instead of them). When stems are available, Mixar plays that mixdown as the main audio and attaches the four layers so you can mute or isolate them. Until you change a layer, what you hear is the complete mix.
+
+A normal MP3 or FLAC is only a mixdown. [Generating stems](/docs/users/stems/generate) keeps a mixdown in the cache file and adds the four separated layers next to it.
+
+## Why stems are useful
+
+Stems turn arrangement into a live control, not a studio edit:
+
+- **Drop the vocals** for an instrumental breakdown, or **solo vocals** over another track’s beat.
+- **Mute drums** when you want a soft intro, or **solo drums** to keep the groove while you bring in the next track.
+- **Carve space** in a mix — for example silence “other” so a vocal from deck B sits cleaner.
+- **Rehearse and perform** the same ideas without exporting alternate edits of every song.
+
+On the deck, the [Stems pad mode](/docs/users/performance-pads/stems) is how you mute and isolate those layers while the track plays.
+
+## How a track gets stems
+
+Mixar supports two paths:
+
+1. **[Native NI Stem files](/docs/users/stems/native-ni)** — a `.stem.mp4` that already contains the four layers. Add it to your library, load it, and the pads are ready. No separation step.
+2. **[Generate stems](/docs/users/stems/generate)** — for any normal library track (MP3, FLAC, WAV, and so on). Mixar separates it in the background, stores the result, and reuses it the next time you load that track.
+
+Loading a deck never starts separation by itself. Until stems exist for the loaded track, the Stems pads stay disabled and the track plays as a normal stereo file.
+
+Generated files and the separation model live under Mixar’s app data — see **[Storage](/docs/users/stems/storage)** for locations, format, clear, and sync.
+
+## In this section
+
+| Topic | Page |
+| --- | --- |
+| Open `.stem.mp4` files as-is | [Native NI Stem files](/docs/users/stems/native-ni) |
+| Separate any library track | [Generate stems](/docs/users/stems/generate) |
+| Cache location, format, clear, and sync | [Storage](/docs/users/stems/storage) |
+| Mute and isolate on the deck | [Stems pad mode](/docs/users/performance-pads/stems) |
+
+Internals for contributors: [Stems (developers)](/docs/developers/stems).

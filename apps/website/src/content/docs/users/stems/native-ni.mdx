@@ -1,0 +1,26 @@
+---
+title: "Native NI Stem files"
+description: "Play Native Instruments .stem.mp4 files in Mixar with no separation step."
+section: "Stems"
+order: 2
+---
+
+Mixar plays **Native Instruments Stem** files natively. A Stem file is usually named like `My Track.stem.mp4` and already contains the [mixdown](/docs/users/stems#mixdown) plus the four layers: **Drums**, **Bass**, **Other**, and **Vocals**.
+
+## How to use one
+
+1. Add the `.stem.mp4` to your library the same way you add any other track (folder collection, import, and so on).
+2. Load it onto a deck.
+3. Open the **Stems** pad tab — mute and isolate work immediately. No preparation step.
+
+Mixar reads the layers straight from your file. It does **not** copy the Stem into a separate cache, and it does **not** run separation on it. The file stays where you put it on disk.
+
+## Generate stems and NI files
+
+**[Generate stems](/docs/users/stems/generate)** does nothing useful for these tracks: the layers are already in the file. Collection analyze with **Also generate stems** skips native `.stem.mp4` files the same way.
+
+## When something goes wrong
+
+If a Stem file is corrupt or unreadable, Mixar shows an error on prepare and will **not** try to re-separate it. Fix or replace the file, then load it again.
+
+For mute/isolate pad behavior, see [Stems pad mode](/docs/users/performance-pads/stems).

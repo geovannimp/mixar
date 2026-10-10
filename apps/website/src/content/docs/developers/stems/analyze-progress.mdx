@@ -1,15 +1,11 @@
-# Analyze / stems split + progress — Design
+---
+title: "Analyze & progress"
+description: "Separate analysis and stem jobs, TrackProgress phases, and when the STEMS GENERATING banner and pads go live."
+section: "Stems"
+order: 5
+---
 
-**Date:** 2026-09-21  
-**Status:** Approved  
-**Related:** `docs/stems-ort-onnx-design.md`, `docs/ni-stem-mp4-cache-design.md`
-
-## Goal
-
-1. **Split** library analysis (BPM/key/loudness/waveform) from stem ensure so Analyzing… can finish when analysis finishes, while stems continue independently.
-2. **Parallelize** analysis DSP and stem work (shared decode when useful; Demucs still single-flight).
-3. **Progress feedback** for both jobs (phase + optional fraction) instead of a silent loader.
-4. **STEMS GENERATING…** only while a stem job is actually in flight; disk-full / encode failures surface as library errors.
+Library analysis (BPM/key/loudness/waveform) and stem ensure are **separate jobs**. Analyzing… can finish when analysis finishes while stems continue independently. Both emit progress (phase + optional fraction) instead of a silent loader.
 
 ## Decisions
 
@@ -49,8 +45,7 @@ decode PCM (progress: decode)
         └── bpm/key/loudness/waveform → persist → TrackAnalyzed
 ```
 
-Analyze never generates stems: they are expensive (a full Demucs pass) and are
-opt-in per track.
+Analyze never generates stems: they are expensive (a full Demucs pass) and are opt-in per track.
 
 ## GenerateStems worker flow
 
@@ -62,21 +57,6 @@ decode PCM (progress: decode)
               └── failure: stems_failed + Error (disk full mapped)
 ```
 
-Fired by the per-track `GenerateStems` action; no-op when a valid cache already
-exists. Runs on its own `stems-ensure-{track_id}` thread, so it never blocks
-analyze or playback.
+Fired by the per-track `GenerateStems` action; no-op when a valid cache already exists. Runs on its own `stems-ensure-{track_id}` thread, so it never blocks analyze or playback.
 
-Stem ensure runs from the `GenerateStems` action only — **not** on deck load,
-which reads an existing cache and otherwise plays the original
-(`docs/ni-stem-mp4-cache-design.md`).
-
-## Out of scope
-
-- Smooth fake progress animation
-- Stem EQ / realtime separation
-
-## Verification
-
-- Analyze with stems on: Analyzing… clears when BPM/key land; STEMS GENERATING… only while stem job runs; then pads enable.
-- Stem ENOSPC: error toast; generating clears; pads stay disabled; analysis row still has BPM.
-- Progress events update UI phase text during analyze + stems.
+Stem ensure runs from the `GenerateStems` action only — **not** on deck load, which reads an existing cache and otherwise plays the original ([NI `.stem.mp4`](/docs/developers/stems/ni-stem-mp4)).

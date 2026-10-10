@@ -1,0 +1,38 @@
+---
+title: "Generate stems"
+description: "Separate any library track into drums, bass, other, and vocals from the track menu or collection analyze."
+section: "Stems"
+order: 3
+---
+
+Every track that is not already a [native NI Stem file](/docs/users/stems/native-ni) (MP3, FLAC, WAV, and so on) can be separated on demand. Separation is **opt-in** — loading a deck never starts it by itself.
+
+Generation is **resource-intensive** and can take a while — often on the order of the track’s length, sometimes longer on slower machines. A **GPU is recommended** when one is available; Mixar will use it automatically. Without a GPU it still runs on **CPU**, just more slowly.
+
+Jobs run in the background and do not stop playback, but they still compete for CPU, GPU, and disk. **Generate stems before you perform** — prepare tracks in the library ahead of a set so separation does not affect live performance.
+
+## One track
+
+1. In the library, open the track’s row menu (⋯).
+2. Choose **Generate stems**.
+3. Wait for the job to finish (or queue more tracks). Separation does not stop playback, but prefer to finish it before a live set.
+
+While the job runs:
+
+- The menu item becomes **Generating stems…** and stays disabled until the job finishes.
+- The library row can show progress phases (model download, separate, encode).
+- If that track is on a deck, the Stems pads show **STEMS GENERATING…**.
+
+When it finishes, the [Stems pads](/docs/users/performance-pads/stems) become available. Generation runs once per track; Mixar reuses the result in later sessions so the pads are ready as soon as you load the track again. Choosing **Generate stems** again is safe — Mixar skips the work if a valid cache already exists.
+
+The first generate on a machine may download the separation **model** into Mixar’s app data. That is a one-time download until you [clear the model cache](/docs/users/stems/storage#clean-stems-and-free-space). See [Storage](/docs/users/stems/storage) for where files land.
+
+## Whole collection
+
+From a collection’s menu, open **Analyze**. In the dialog you can turn on **Also generate stems**. Mixar then queues stem generation for file tracks in that collection (one at a time). Tracks that already have a valid cache, and native `.stem.mp4` files, are skipped.
+
+## When something goes wrong
+
+- **Pads disabled, no banner** — the loaded track has no stems yet (or generation failed earlier). Generate again, or load a [native NI Stem file](/docs/users/stems/native-ni).
+- **STEMS GENERATING…** — a job is in flight; wait for it to finish. Playback is unaffected.
+- **Disk full** — Mixar stops the write and shows an error toast. Free space, then generate again. BPM/key analysis already done for the track is kept.

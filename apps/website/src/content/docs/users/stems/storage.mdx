@@ -1,0 +1,35 @@
+---
+title: "Storage"
+description: "Where Mixar keeps generated stems and the separation model, and how to sync or clear them."
+section: "Stems"
+order: 4
+---
+
+## Where stems are saved
+
+| What | Where | Notes |
+| --- | --- | --- |
+| **Native NI Stem** | Your original `.stem.mp4` on disk | Opened in place; Mixar does not duplicate it into the stem cache. See [Native NI Stem files](/docs/users/stems/native-ni). |
+| **Generated stems** | Mixar app support → `stems/` | One `.stem.mp4` per track, managed by Mixar. Not written next to your music files. |
+| **Separation model** | Mixar app support → `models/` | Downloaded on first [Generate stems](/docs/users/stems/generate); shared by all generates. |
+
+Your library tracks and music folders are never modified by generate or clear. Only Mixar’s cache directories (and library rows that point at generated stem files) change.
+
+**Stem format** (Opus by default, or FLAC) is under **Settings → Library → Stem format**. That setting applies to **new** generated caches; changing it can make older generated files stale so Mixar regenerates them the next time you ask.
+
+## Clean stems and free space
+
+Open **Settings → Storage**. The overview shows how much space Mixar is using, including stem-related rows:
+
+| Row | What it is | Actions |
+| --- | --- | --- |
+| **Stem cache** | Generated `.stem.mp4` files for library tracks | **Sync** and **Clear** |
+| **Stem model** | Downloaded separation model weights | **Clear** |
+
+**Clear stem cache** — deletes all generated stem files and their library links. Confirm in the dialog. Original audio and native NI Stem files in your music folders are left alone. Afterward, Stems pads stay disabled on those tracks until you [generate](/docs/users/stems/generate) again (or load a native Stem).
+
+**Sync stem cache** — removes orphan cache files that are not listed in the library database, and drops database rows whose files are missing. Referenced caches and original audio stay. Use this if the cache and library got out of sync.
+
+**Clear stem model** — deletes the downloaded model. The next **Generate stems** downloads it again. Clearing the model does not delete already-generated stem files.
+
+Clear is best-effort if a deck still has stems attached — you may see a partial-failure toast. Reload the track or regenerate later if needed.
