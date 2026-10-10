@@ -204,15 +204,11 @@ class _DeckCueControlState extends ConsumerState<_DeckCueControl> {
 
   void _endHold() {
     final deckId = widget.deckId;
-    _session.end(
-      () => _engineCmd(context, () => endDeckCueHold(ref, deckId)),
-    );
+    _session.end(() => _engineCmd(context, () => endDeckCueHold(ref, deckId)));
   }
 
   void _setCue() {
-    unawaited(
-      _engineCmd(context, () => setDeckCuePoint(ref, widget.deckId)),
-    );
+    unawaited(_engineCmd(context, () => setDeckCuePoint(ref, widget.deckId)));
   }
 
   @override
